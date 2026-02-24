@@ -35,7 +35,8 @@ export function SocialAuthButtons({ onGoogle, onApple, disabled, socialLoading }
           Continue with Google
         </Button>
 
-        <Button
+        {/* "Continue with Apple" hidden until Apple Developer account is configured */}
+        {/* <Button
           type="button" variant="outline" size="lg"
           className="w-full h-12 text-base font-medium gap-3 bg-foreground text-background hover:bg-foreground/90 hover:text-background border-border"
           onClick={onApple} disabled={disabled}
@@ -46,7 +47,7 @@ export function SocialAuthButtons({ onGoogle, onApple, disabled, socialLoading }
             </svg>
           )}
           Continue with Apple
-        </Button>
+        </Button> */}
       </div>
     </>
   );

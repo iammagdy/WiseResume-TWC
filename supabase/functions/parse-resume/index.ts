@@ -224,32 +224,64 @@ serve(async (req) => {
     const parsedData = JSON.parse(toolCall.function.arguments);
     const generateId = () => crypto.randomUUID();
 
-    // Validate name — expand Unicode to cover CJK, Devanagari, Cyrillic, Hangul, Hebrew
-    let fullName = parsedData.contactInfo.fullName || '';
-    const invalidNamePatterns = /^(contact|summary|profile|resume|cv|about|personal|objective|experience|education|skills|hire me|get in touch)/i;
+    // Validate name — only reject truly invalid patterns, trust AI for everything else
+    let fullName = parsedData.contactInfo.fullName?.trim() || '';
+    const invalidNamePatterns = /^(contact|summary|profile|resume|cv|about|personal|objective|experience|education|skills|hire me|get in touch|references|certifications?|projects?|awards?|publications?|volunteering|hobbies|languages?|interests?)/i;
     const looksLikeEmail = fullName.includes('@');
     const looksLikeUrl = /https?:|www\.|\.com|\.linkedin/i.test(fullName);
     const looksLikePhone = /^\+?\d[\d\s\-()]{6,}$/.test(fullName);
-    const tooFewWords = fullName.trim().split(/\s+/).length < 2;
+    const isEmptyOrJunk = fullName.length < 2 || /^[^a-zA-Z\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF\u0900-\u097F\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF\u05D0-\u05FF]+$/.test(fullName);
 
-    if (invalidNamePatterns.test(fullName.trim()) || looksLikeEmail || looksLikeUrl || looksLikePhone || tooFewWords) {
-      const firstLines = text.split('\n').filter((l: string) => l.trim()).slice(0, 5);
+    if (invalidNamePatterns.test(fullName) || looksLikeEmail || looksLikeUrl || looksLikePhone || isEmptyOrJunk) {
+      // AI returned something invalid — try to extract from raw text
+      const firstLines = text.split('\n').filter((l: string) => l.trim()).slice(0, 8);
       const nameCandidate = firstLines.find((line: string) => {
         const t = line.trim();
+        if (t.length < 2 || t.length > 60) return false;
+        if (t.includes('@') || /https?:|www\./i.test(t)) return false;
+        if (/^\+?\d[\d\s\-()]{6,}$/.test(t)) return false;
+        if (invalidNamePatterns.test(t)) return false;
         const words = t.split(/\s+/);
-        // Accept names in Latin, CJK, Devanagari, Cyrillic, Arabic, Hebrew, Hangul scripts
-        return words.length >= 2 && words.length <= 5 &&
-               /^[A-Za-z\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF\u0900-\u097F\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF\u05D0-\u05FF\s.\-']+$/.test(t) &&
-               !invalidNamePatterns.test(t);
+        // Accept 1-5 word names in common scripts
+        return words.length >= 1 && words.length <= 5 &&
+          /^[A-Za-z\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF\u0900-\u097F\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF\u05D0-\u05FF\s.\-']+$/.test(t);
       });
       fullName = nameCandidate?.trim() || '';
+    }
+
+    // Normalize phone number — clean up concatenated digits from PDF extraction
+    let phone = parsedData.contactInfo.phone?.trim() || '';
+    if (phone) {
+      // Remove non-digit/non-plus characters first
+      const digitsOnly = phone.replace(/[^\d+]/g, '');
+      // If phone is a long string of digits without formatting, try to format it
+      if (digitsOnly.length >= 10 && !/[\s\-()]/.test(phone)) {
+        // Detect country code patterns
+        if (digitsOnly.startsWith('+')) {
+          // Already has + prefix, keep as-is but add spacing
+          const cc = digitsOnly.match(/^(\+\d{1,4})(\d+)$/);
+          if (cc) {
+            const rest = cc[2];
+            // Format the remaining digits in groups
+            phone = cc[1] + ' ' + rest.replace(/(\d{3,4})(?=\d)/g, '$1 ');
+          }
+        } else if (digitsOnly.length > 12) {
+          // Very long number — likely missing + prefix for country code
+          // Try common patterns: country code (1-4 digits) + number
+          phone = '+' + digitsOnly.slice(0, 2) + ' ' + digitsOnly.slice(2).replace(/(\d{3,4})(?=\d)/g, '$1 ');
+        } else {
+          // Format in common grouping
+          phone = digitsOnly.replace(/(\d{3,4})(?=\d)/g, '$1 ');
+        }
+      }
+      phone = phone.trim();
     }
 
     const resumeData = {
       contactInfo: {
         fullName,
         email: parsedData.contactInfo.email || '',
-        phone: parsedData.contactInfo.phone || '',
+        phone,
         location: parsedData.contactInfo.location || '',
         linkedin: parsedData.contactInfo.linkedin || undefined,
         portfolio: parsedData.contactInfo.portfolio || undefined,

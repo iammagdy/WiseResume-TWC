@@ -32,7 +32,7 @@ export function useElevenLabsScribe(options: UseElevenLabsScribeOptions = {}) {
       workletNodeRef.current = null;
     }
     if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current.close().catch(() => { });
       audioContextRef.current = null;
     }
     if (streamRef.current) {
@@ -131,9 +131,14 @@ export function useElevenLabsScribe(options: UseElevenLabsScribeOptions = {}) {
         setConnectionFailed(false);
         optionsRef.current.onConnected?.();
 
-        // Set up AudioContext + ScriptProcessor for PCM capture
-        const audioContext = new AudioContext({ sampleRate: 16000 });
+        // Create AudioContext at native sample rate — don't force 16kHz (many browsers ignore it)
+        const audioContext = new AudioContext();
         audioContextRef.current = audioContext;
+        const nativeRate = audioContext.sampleRate;
+        const targetRate = 16000;
+        const ratio = nativeRate / targetRate;
+
+        if (DEV) console.log(`[ElevenLabs] Native sample rate: ${nativeRate}, downsample ratio: ${ratio.toFixed(2)}`);
 
         const source = audioContext.createMediaStreamSource(stream);
 
@@ -142,7 +147,7 @@ export function useElevenLabsScribe(options: UseElevenLabsScribeOptions = {}) {
         processor.onaudioprocess = (e) => {
           if (ws.readyState !== WebSocket.OPEN) return;
           const inputData = e.inputBuffer.getChannelData(0);
-          
+
           // Calculate RMS for audio level visualization
           let sum = 0;
           for (let i = 0; i < inputData.length; i++) {
@@ -152,11 +157,29 @@ export function useElevenLabsScribe(options: UseElevenLabsScribeOptions = {}) {
           const normalizedLevel = Math.min(1, rms * 5);
           setAudioLevel(normalizedLevel);
           optionsRef.current.onAudioLevel?.(normalizedLevel);
-          
+
+          // Downsample from native rate to 16kHz if needed
+          let samples: Float32Array;
+          if (Math.abs(ratio - 1) < 0.01) {
+            // Already at target rate
+            samples = inputData;
+          } else {
+            // Simple linear interpolation downsampling
+            const outputLength = Math.floor(inputData.length / ratio);
+            samples = new Float32Array(outputLength);
+            for (let i = 0; i < outputLength; i++) {
+              const srcIndex = i * ratio;
+              const srcFloor = Math.floor(srcIndex);
+              const srcCeil = Math.min(srcFloor + 1, inputData.length - 1);
+              const t = srcIndex - srcFloor;
+              samples[i] = inputData[srcFloor] * (1 - t) + inputData[srcCeil] * t;
+            }
+          }
+
           // Convert float32 to int16
-          const int16 = new Int16Array(inputData.length);
-          for (let i = 0; i < inputData.length; i++) {
-            const s = Math.max(-1, Math.min(1, inputData[i]));
+          const int16 = new Int16Array(samples.length);
+          for (let i = 0; i < samples.length; i++) {
+            const s = Math.max(-1, Math.min(1, samples[i]));
             int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
           }
           // Convert to base64
@@ -188,7 +211,7 @@ export function useElevenLabsScribe(options: UseElevenLabsScribeOptions = {}) {
           } else if (msg.type === 'session_started') {
             if (DEV) console.log('[ElevenLabs] Session started:', msg);
           }
-        } catch {}
+        } catch { }
       };
 
       ws.onerror = (event) => {

@@ -270,30 +270,22 @@ export function AvatarCropSheet({
                   Drag to reposition • Resize corners to adjust
                 </p>
 
-                {/* AI Headshot Button */}
+                {/* AI Headshot Button — Coming Soon */}
                 <Button
                   variant="outline"
-                  onClick={handleGenerateAIHeadshot}
-                  disabled={isGeneratingAI}
+                  onClick={() => {
+                    haptics.light();
+                    toast('🚀 AI Professional Headshot is coming soon!', { description: 'This feature will transform your photo into a polished headshot with business attire.' });
+                  }}
                   className="mt-2 gap-2"
                 >
-                  {isGeneratingAI ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4" />
-                      AI Professional Headshot
-                    </>
-                  )}
+                  <Sparkles className="w-4 h-4" />
+                  AI Professional Headshot
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">Coming Soon</span>
                 </Button>
-                {!isGeneratingAI && (
-                  <p className="text-xs text-muted-foreground text-center max-w-xs">
-                    Transform your photo into a professional headshot with business attire
-                  </p>
-                )}
+                <p className="text-xs text-muted-foreground text-center max-w-xs">
+                  Transform your photo into a professional headshot with business attire
+                </p>
               </>
             ) : (
               <div className="flex items-center justify-center h-40">

@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Wise Resume - AI Resume Editor",
-  "short_name": "Wise Resume",
+  "name": "Wiseresume AI - AI Resume Editor",
+  "short_name": "Wiseresume AI",
   "description": "AI-powered resume editor with job match scoring, gap analysis, and ATS-friendly templates",
   "lang": "en",
   "start_url": "/",
@@ -10,7 +10,10 @@
   "orientation": "portrait",
   "background_color": "#0a0a14",
   "theme_color": "#0a0a14",
-  "categories": ["productivity", "business"],
+  "categories": [
+    "productivity",
+    "business"
+  ],
   "icons": [
     {
       "src": "/icons/icon-48x48.png",
@@ -67,7 +70,7 @@
       "sizes": "512x512",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Wise Resume home screen"
+      "label": "Wiseresume AI home screen"
     }
   ],
   "share_target": {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Plus, Pencil, Wand2, Download, Mic, ArrowRight, Lightbulb, X } from 'lucide-react';
@@ -58,7 +58,7 @@ const FEATURE_TIPS = [
 const TIP_INDEX_KEY = 'feature-discovery-index';
 const TIP_DISMISSED_KEY = 'feature-discovery-dismissed';
 
-export function WhatsNextCard() {
+export const WhatsNextCard = memo(function WhatsNextCard() {
   const navigate = useNavigate();
   const { data: resumes } = useResumes();
   const setCurrentResumeId = useResumeStore(s => s.setCurrentResumeId);
@@ -247,4 +247,4 @@ export function WhatsNextCard() {
       </div>
     </motion.div>
   );
-}
+});

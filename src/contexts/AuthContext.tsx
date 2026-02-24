@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { Capacitor } from '@capacitor/core';
@@ -130,7 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     logAudit('auth', 'signed_out');
     userInitiatedSignOutRef.current = true;
     wasAuthenticatedRef.current = false;
@@ -141,13 +141,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.error('Sign-out failed:', e);
     }
-  };
+  }, []);
 
-  const value = {
+  const value = useMemo(() => ({
     ...state,
     signOut,
     isAuthenticated: !!state.user,
-  };
+  }), [state, signOut]);
 
   return (
     <AuthContext.Provider value={value}>

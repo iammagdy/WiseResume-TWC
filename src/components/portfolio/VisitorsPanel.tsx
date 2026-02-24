@@ -84,7 +84,7 @@ interface ReferrerInfo {
 
 function parseReferrer(referrer: string | null): ReferrerInfo {
   if (!referrer) return { label: 'Direct', host: '', color: 'text-muted-foreground', dotColor: 'bg-muted-foreground' };
-  if (/lovableproject\.com|lovable\.app|lovable\.dev/i.test(referrer)) return { label: 'Direct', host: '', color: 'text-muted-foreground', dotColor: 'bg-muted-foreground' };
+  if (/wiseresume\.ai/i.test(referrer)) return { label: 'Direct', host: '', color: 'text-muted-foreground', dotColor: 'bg-muted-foreground' };
   if (/linkedin/i.test(referrer)) return { label: 'LinkedIn', host: 'linkedin.com', color: 'text-blue-400', dotColor: 'bg-blue-400' };
   if (/google/i.test(referrer)) return { label: 'Google', host: 'google.com', color: 'text-red-400', dotColor: 'bg-red-400' };
   if (/twitter|x\.com/i.test(referrer)) return { label: 'Twitter/X', host: 'x.com', color: 'text-sky-400', dotColor: 'bg-sky-400' };
@@ -113,7 +113,7 @@ function getEngagementTier(seconds: number | null, sectionCount: number): Engage
 }
 
 // ── Short link base URL ───────────────────────────────────────────────────────
-const BASE_URL = 'wiseresume.app';
+const BASE_URL = 'wiseresume.ai';
 function shortUrl(id: string) { return `${BASE_URL}/l/${id}`; }
 function fullShortUrl(id: string) { return `https://${BASE_URL}/l/${id}`; }
 
@@ -608,7 +608,7 @@ export function VisitorsPanel({ username, userId, portfolioEnabled }: VisitorsPa
                 key={link.id}
                 link={link}
                 userId={userId!}
-                onDelete={() => {}}
+                onDelete={() => { }}
               />
             ))}
           </div>

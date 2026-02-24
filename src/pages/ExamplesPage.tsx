@@ -7,7 +7,7 @@ import { ExampleCard } from '@/components/examples/ExampleCard';
 import { ExampleDetailSheet } from '@/components/examples/ExampleDetailSheet';
 import { UseTemplateSheet } from '@/components/examples/UseTemplateSheet';
 import { ExampleIdeasSheet } from '@/components/examples/ExampleIdeasSheet';
-import { resumeExamples } from '@/lib/resumeExamples';
+import { getResumeExamples } from '@/lib/resumeExamples';
 import { INDUSTRIES, EXPERIENCE_LEVELS } from '@/types/resumeExamples';
 import type { ResumeExample, Industry, ExperienceLevel } from '@/types/resumeExamples';
 
@@ -15,6 +15,7 @@ const PAGE_SIZE = 10;
 
 export default function ExamplesPage() {
   const navigate = useNavigate();
+  const [allExamples, setAllExamples] = useState<ResumeExample[]>([]);
   const [selectedIndustry, setSelectedIndustry] = useState<Industry | 'All'>('All');
   const [selectedLevel, setSelectedLevel] = useState<ExperienceLevel | 'All'>('All');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -25,13 +26,18 @@ export default function ExamplesPage() {
 
   const sentinelRef = useRef<HTMLDivElement>(null);
 
+  // Lazy-load the examples data
+  useEffect(() => {
+    getResumeExamples().then(setAllExamples);
+  }, []);
+
   const filtered = useMemo(() => {
-    return resumeExamples.filter(ex => {
+    return allExamples.filter(ex => {
       if (selectedIndustry !== 'All' && ex.industry !== selectedIndustry) return false;
       if (selectedLevel !== 'All' && ex.experienceLevel !== selectedLevel) return false;
       return true;
     });
-  }, [selectedIndustry, selectedLevel]);
+  }, [allExamples, selectedIndustry, selectedLevel]);
 
   const visible = filtered.slice(0, visibleCount);
 

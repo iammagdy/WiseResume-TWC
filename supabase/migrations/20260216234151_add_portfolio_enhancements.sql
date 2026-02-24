@@ -7,7 +7,7 @@ CREATE OR REPLACE FUNCTION public.get_public_portfolio(p_username text)
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO 'public'
-AS $
+AS $$
 DECLARE
   v_profile record;
   v_resume record;
@@ -94,7 +94,7 @@ BEGIN
     )
   );
 END;
-$;
+$$;
 
 -- Create or replace function to increment portfolio views
 CREATE OR REPLACE FUNCTION public.increment_portfolio_views(p_username text)
@@ -102,10 +102,10 @@ CREATE OR REPLACE FUNCTION public.increment_portfolio_views(p_username text)
  LANGUAGE plpgsql
  SECURITY DEFINER
  SET search_path TO 'public'
-AS $
+AS $$
 BEGIN
   UPDATE public.profiles
   SET views = views + 1
   WHERE username = lower(p_username);
 END;
-$;
+$$;

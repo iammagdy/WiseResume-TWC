@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo, useEffect, useState, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileText, Flame, AlertCircle, Lightbulb, X } from 'lucide-react';
 import { ResumeHealthScore } from '@/hooks/useResumeScore';
@@ -63,7 +63,7 @@ interface DashboardStatsProps {
   loginStreak?: number;
 }
 
-export function DashboardStats({ totalResumes, healthScores, userName, isScoring = false, resumes, loginStreak: externalStreak }: DashboardStatsProps) {
+export const DashboardStats = memo(function DashboardStats({ totalResumes, healthScores, userName, isScoring = false, resumes, loginStreak: externalStreak }: DashboardStatsProps) {
   const localStreak = useLoginStreak();
   const streak = externalStreak ?? localStreak;
   const [subtitleIndex, setSubtitleIndex] = useState(0);
@@ -205,4 +205,4 @@ export function DashboardStats({ totalResumes, healthScores, userName, isScoring
       </div>
     </motion.div>
   );
-}
+});

@@ -1,16 +1,17 @@
-import { useState, useMemo, useDeferredValue } from 'react';
+import { useState, useMemo, useDeferredValue, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Bookmark, BookOpen, Clock } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { guides, GUIDE_CATEGORIES, type GuideCategory, type Guide } from '@/lib/guidesData';
+import { getGuides, GUIDE_CATEGORIES, type GuideCategory, type Guide } from '@/lib/guidesData';
 import { useGuidesStore } from '@/store/guidesStore';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 
 export default function GuidesPage() {
   const navigate = useNavigate();
+  const [allGuides, setAllGuides] = useState<Guide[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<GuideCategory | 'all'>('all');
   const [showSaved, setShowSaved] = useState(false);
@@ -18,10 +19,14 @@ export default function GuidesPage() {
 
   const deferredSearch = useDeferredValue(searchQuery);
 
+  useEffect(() => {
+    getGuides().then(setAllGuides);
+  }, []);
+
   const filtered = useMemo(() => {
     let list: Guide[] = showSaved
-      ? guides.filter((g) => bookmarkedSlugs.includes(g.slug))
-      : guides;
+      ? allGuides.filter((g) => bookmarkedSlugs.includes(g.slug))
+      : allGuides;
 
     if (activeCategory !== 'all') {
       list = list.filter((g) => g.category === activeCategory);
@@ -36,7 +41,7 @@ export default function GuidesPage() {
       );
     }
     return list;
-  }, [deferredSearch, activeCategory, showSaved, bookmarkedSlugs]);
+  }, [allGuides, deferredSearch, activeCategory, showSaved, bookmarkedSlugs]);
 
   const categoryLabel = (cat: GuideCategory) =>
     GUIDE_CATEGORIES.find((c) => c.id === cat)?.label ?? cat;

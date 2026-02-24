@@ -16,12 +16,12 @@ serve(async (req) => {
   const startTime = Date.now();
   let status: 'healthy' | 'degraded' | 'down' = 'down';
   let latencyMs = 0;
-  let provider: 'wiseresume' | 'gemini' = 'wiseresume';
+  const provider: 'gemini' = 'gemini';
   let errorCode: number | null = null;
 
   try {
     // Resolve user's Gemini key server-side from DB (if authenticated)
-    let userGeminiKey: string | undefined;
+    let geminiKey: string | undefined;
     const authHeader = req.headers.get('Authorization');
     if (authHeader?.startsWith('Bearer ')) {
       try {
@@ -34,22 +34,25 @@ serve(async (req) => {
         const { data: claimsData } = await supabase.auth.getClaims(token);
         const userId = claimsData?.claims?.sub;
         if (userId) {
-          userGeminiKey = await getUserKeyFromDB(userId, 'gemini');
+          geminiKey = await getUserKeyFromDB(userId, 'gemini');
         }
       } catch {
-        // If auth fails, fall through to wiseresume check
+        // If auth fails, fall through to env var check
       }
     }
 
-    provider = userGeminiKey ? 'gemini' : 'wiseresume';
+    // Fallback to global GEMINI_API_KEY
+    if (!geminiKey) {
+      geminiKey = Deno.env.get('GEMINI_API_KEY');
+    }
 
-    if (userGeminiKey) {
+    if (geminiKey) {
       // Gemini: lightweight model info call (free, no tokens consumed)
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10_000);
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite?key=${userGeminiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite?key=${geminiKey}`,
         { method: 'GET', signal: controller.signal }
       );
 
@@ -63,16 +66,10 @@ serve(async (req) => {
         status = (response.status === 429 || response.status === 402) ? 'degraded' : 'down';
       }
     } else {
-      // WiseResume (Lovable AI Gateway): verify backend is alive
-      const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+      // No API key available
       latencyMs = Date.now() - startTime;
-
-      if (LOVABLE_API_KEY) {
-        status = 'healthy';
-      } else {
-        status = 'down';
-        errorCode = 500;
-      }
+      status = 'down';
+      errorCode = 500;
     }
   } catch (err) {
     latencyMs = Date.now() - startTime;

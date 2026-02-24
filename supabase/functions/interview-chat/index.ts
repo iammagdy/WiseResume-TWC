@@ -111,7 +111,7 @@ Return JSON with this exact structure: {"title":"exact job title","keySkills":["
 
       // Fix #9: Use low temperature for structured JSON output
       const aiResponse = await callAIWithRetry({
-        model: 'google/gemini-2.5-pro',
+        model: 'google/gemini-2.5-flash',
         messages: [{ role: 'user', content: analyzePrompt }],
         userId: user.id,
         maxTokens: 512,

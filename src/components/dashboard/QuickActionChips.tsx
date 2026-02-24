@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { motion } from 'framer-motion';
 import { Upload, FileText, Mic } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -29,7 +30,7 @@ const actions = [
   },
 ];
 
-export function QuickActionChips({ onCreateNew }: QuickActionChipsProps) {
+export const QuickActionChips = memo(function QuickActionChips({ onCreateNew }: QuickActionChipsProps) {
   const navigate = useNavigate();
 
   const handleAction = (action: string) => {
@@ -73,4 +74,4 @@ export function QuickActionChips({ onCreateNew }: QuickActionChipsProps) {
       </div>
     </div>
   );
-}
+});

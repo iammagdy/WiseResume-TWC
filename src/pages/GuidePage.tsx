@@ -4,7 +4,7 @@ import { Bookmark, ThumbsUp, ThumbsDown, Type } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import ReactMarkdown from 'react-markdown';
 import { Badge } from '@/components/ui/badge';
-import { getGuideBySlug, getGuidesByCategory, GUIDE_CATEGORIES } from '@/lib/guidesData';
+import { getGuideBySlug, getGuidesByCategory, GUIDE_CATEGORIES, type Guide } from '@/lib/guidesData';
 import { useGuidesStore } from '@/store/guidesStore';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -14,11 +14,25 @@ const FONT_SIZES = { sm: 'text-sm leading-relaxed', md: 'text-base leading-relax
 export default function GuidePage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const guide = getGuideBySlug(slug || '');
+  const [guide, setGuide] = useState<Guide | null | undefined>(undefined); // undefined = loading
+  const [related, setRelated] = useState<Guide[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [progress, setProgress] = useState(0);
   const { bookmarkedSlugs, toggleBookmark, readSlugs, markRead, helpfulSlugs, setHelpful, fontSize, setFontSize } = useGuidesStore();
   const [showFontMenu, setShowFontMenu] = useState(false);
+
+  // Load guide data async
+  useEffect(() => {
+    if (!slug) { setGuide(null); return; }
+    getGuideBySlug(slug).then(g => {
+      setGuide(g ?? null);
+      if (g) {
+        getGuidesByCategory(g.category).then(all =>
+          setRelated(all.filter(r => r.slug !== g.slug).slice(0, 3))
+        );
+      }
+    });
+  }, [slug]);
 
   const handleScroll = useCallback(() => {
     const el = scrollRef.current;
@@ -36,6 +50,11 @@ export default function GuidePage() {
     return () => el.removeEventListener('scroll', handleScroll);
   }, [handleScroll]);
 
+  // Loading state
+  if (guide === undefined) {
+    return <div className="flex-1 flex items-center justify-center"><div className="animate-pulse text-muted-foreground">Loading…</div></div>;
+  }
+
   if (!guide) {
     return (
       <div className="flex-1 flex items-center justify-center p-6">
@@ -52,7 +71,6 @@ export default function GuidePage() {
   const isBookmarked = bookmarkedSlugs.includes(guide.slug);
   const helpful = helpfulSlugs[guide.slug];
   const categoryLabel = GUIDE_CATEGORIES.find((c) => c.id === guide.category)?.label ?? guide.category;
-  const related = getGuidesByCategory(guide.category).filter((g) => g.slug !== guide.slug).slice(0, 3);
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">

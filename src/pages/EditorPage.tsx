@@ -540,11 +540,31 @@ export default function EditorPage() {
   const [showSavedCheck, setShowSavedCheck] = useState(false);
   const prevIsSaving = useRef(false);
 
+  // Dirty flag: set when currentResume changes after initial load, cleared on save
+  // This avoids expensive JSON.stringify on every keystroke for the UI indicator
+  const isDirtyRef = useRef(false);
+  const initialLoadDoneRef = useRef(false);
+  useEffect(() => {
+    if (!currentResume) return;
+    if (!initialLoadDoneRef.current) {
+      // Skip the first load (hydration from DB)
+      initialLoadDoneRef.current = true;
+      return;
+    }
+    isDirtyRef.current = true;
+  }, [currentResume]);
+  // Clear dirty flag when save completes
+  useEffect(() => {
+    if (prevIsSaving.current && !isSaving) {
+      isDirtyRef.current = false;
+    }
+  }, [isSaving]);
+
   // Derived: unsaved changes exist (between edits and save debounce)
   const hasUnsavedChanges = useMemo(() => {
     if (!currentResume || !lastSavedResumeRef.current) return false;
     if (isSaving || showSavedCheck) return false;
-    return JSON.stringify(currentResume) !== lastSavedResumeRef.current;
+    return isDirtyRef.current;
   }, [currentResume, isSaving, showSavedCheck]);
   useEffect(() => {
     if (prevIsSaving.current && !isSaving) {

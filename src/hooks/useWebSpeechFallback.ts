@@ -24,6 +24,7 @@ export function useWebSpeechFallback(options: WebSpeechFallbackOptions = {}) {
 
   const recognitionRef = useRef<any>(null);
   const isListeningRef = useRef(false);
+  const restartingRef = useRef(false);
   const optionsRef = useRef(options);
   const noSpeechTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -96,9 +97,36 @@ export function useWebSpeechFallback(options: WebSpeechFallbackOptions = {}) {
     }
   }, []);
 
+  const safeRestartRecognition = useCallback(() => {
+    if (!recognitionRef.current || !isListeningRef.current || restartingRef.current) return;
+    restartingRef.current = true;
+    try {
+      recognitionRef.current.start();
+      console.log('[WebSpeech] Recognition restarted');
+    } catch (e) {
+      console.warn('[WebSpeech] Failed to restart recognition:', e);
+      // If start fails, try after a brief delay
+      setTimeout(() => {
+        if (isListeningRef.current && recognitionRef.current) {
+          try {
+            recognitionRef.current.start();
+            console.log('[WebSpeech] Recognition restarted (delayed)');
+          } catch (e2) {
+            console.warn('[WebSpeech] Delayed restart also failed:', e2);
+            setIsConnected(false);
+          }
+        }
+        restartingRef.current = false;
+      }, 200);
+      return;
+    }
+    restartingRef.current = false;
+  }, []);
+
   const cleanup = useCallback(() => {
     console.log('[WebSpeech] Cleanup');
     isListeningRef.current = false;
+    restartingRef.current = false;
     clearNoSpeechTimer();
     stopAudioAnalysis();
     if (recognitionRef.current) {
@@ -175,9 +203,17 @@ export function useWebSpeechFallback(options: WebSpeechFallbackOptions = {}) {
           cleanup();
           break;
         case 'no-speech':
-          // Don't cleanup, just restart if still listening
+          // Chrome stops recognition on no-speech — explicitly restart it
+          console.log('[WebSpeech] No speech detected, restarting recognition...');
           if (isListeningRef.current) {
             startNoSpeechTimer();
+            // Chrome fires onend after no-speech error, which triggers restart
+            // But add a safety timeout in case onend doesn't fire
+            setTimeout(() => {
+              if (isListeningRef.current && !restartingRef.current) {
+                safeRestartRecognition();
+              }
+            }, 500);
           }
           break;
         case 'network':
@@ -197,12 +233,7 @@ export function useWebSpeechFallback(options: WebSpeechFallbackOptions = {}) {
       console.log('[WebSpeech] Recognition ended, isListening:', isListeningRef.current);
       if (isListeningRef.current) {
         // Auto-restart if user still wants to listen
-        try {
-          recognition.start();
-        } catch (e) {
-          console.warn('[WebSpeech] Failed to restart:', e);
-          setIsConnected(false);
-        }
+        safeRestartRecognition();
       } else {
         setIsConnected(false);
       }

@@ -1,0 +1,2669 @@
+[
+  {
+    "id": "action-verbs-1",
+    "text": "Accelerated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-2",
+    "text": "Achieved",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-3",
+    "text": "Administered",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-4",
+    "text": "Advised",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-5",
+    "text": "Allocated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-6",
+    "text": "Analyzed",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-7",
+    "text": "Architected",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-8",
+    "text": "Assembled",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-9",
+    "text": "Assessed",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-10",
+    "text": "Automated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-11",
+    "text": "Balanced",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-12",
+    "text": "Boosted",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-13",
+    "text": "Bridged",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-14",
+    "text": "Budgeted",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-15",
+    "text": "Built",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-16",
+    "text": "Calculated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-17",
+    "text": "Captured",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-18",
+    "text": "Centralized",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-19",
+    "text": "Championed",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-20",
+    "text": "Clarified",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-21",
+    "text": "Coached",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-22",
+    "text": "Collaborated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-23",
+    "text": "Communicated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-24",
+    "text": "Compiled",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-25",
+    "text": "Conceptualized",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-26",
+    "text": "Configured",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-27",
+    "text": "Consolidated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-28",
+    "text": "Constructed",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-29",
+    "text": "Consulted",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-30",
+    "text": "Contributed",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-31",
+    "text": "Converted",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-32",
+    "text": "Coordinated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-33",
+    "text": "Created",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-34",
+    "text": "Cultivated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-35",
+    "text": "Customized",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-36",
+    "text": "Debugged",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-37",
+    "text": "Decreased",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-38",
+    "text": "Defined",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-39",
+    "text": "Delegated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-40",
+    "text": "Delivered",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-41",
+    "text": "Demonstrated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-42",
+    "text": "Deployed",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-43",
+    "text": "Designed",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-44",
+    "text": "Developed",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-45",
+    "text": "Devised",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-46",
+    "text": "Diagnosed",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-47",
+    "text": "Directed",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-48",
+    "text": "Discovered",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-49",
+    "text": "Documented",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-50",
+    "text": "Doubled",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-51",
+    "text": "Drove",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-52",
+    "text": "Earned",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-53",
+    "text": "Edited",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-54",
+    "text": "Educated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-55",
+    "text": "Elevated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-56",
+    "text": "Eliminated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-57",
+    "text": "Empowered",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-58",
+    "text": "Enabled",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-59",
+    "text": "Encouraged",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-60",
+    "text": "Engineered",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-61",
+    "text": "Enhanced",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-62",
+    "text": "Ensured",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-63",
+    "text": "Established",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-64",
+    "text": "Evaluated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-65",
+    "text": "Exceeded",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-66",
+    "text": "Executed",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-67",
+    "text": "Expanded",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-68",
+    "text": "Expedited",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-69",
+    "text": "Facilitated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-70",
+    "text": "Finalized",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-71",
+    "text": "Forecasted",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-72",
+    "text": "Formalized",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-73",
+    "text": "Formulated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-74",
+    "text": "Founded",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-75",
+    "text": "Generated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-76",
+    "text": "Governed",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-77",
+    "text": "Guided",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-78",
+    "text": "Halved",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-79",
+    "text": "Harmonized",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-80",
+    "text": "Headed",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-81",
+    "text": "Identified",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-82",
+    "text": "Illustrated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-83",
+    "text": "Implemented",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-84",
+    "text": "Improved",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-85",
+    "text": "Increased",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-86",
+    "text": "Influenced",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-87",
+    "text": "Initiated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-88",
+    "text": "Innovated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-89",
+    "text": "Inspected",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-90",
+    "text": "Inspired",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-91",
+    "text": "Installed",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-92",
+    "text": "Instituted",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-93",
+    "text": "Instructed",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-94",
+    "text": "Integrated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-95",
+    "text": "Interpreted",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-96",
+    "text": "Introduced",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-97",
+    "text": "Invented",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-98",
+    "text": "Investigated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-99",
+    "text": "Justified",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-100",
+    "text": "Launched",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-101",
+    "text": "Led",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-102",
+    "text": "Leveraged",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-103",
+    "text": "Liaised",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-104",
+    "text": "Licensed",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-105",
+    "text": "Maintained",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-106",
+    "text": "Managed",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-107",
+    "text": "Mapped",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-108",
+    "text": "Marketed",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-109",
+    "text": "Maximized",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-110",
+    "text": "Measured",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-111",
+    "text": "Mediated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-112",
+    "text": "Mentored",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-113",
+    "text": "Merged",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-114",
+    "text": "Migrated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-115",
+    "text": "Minimized",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-116",
+    "text": "Mobilized",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-117",
+    "text": "Modeled",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-118",
+    "text": "Modernized",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-119",
+    "text": "Modified",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-120",
+    "text": "Monitored",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-121",
+    "text": "Motivated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-122",
+    "text": "Navigated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-123",
+    "text": "Negotiated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-124",
+    "text": "Obtained",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-125",
+    "text": "Operated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-126",
+    "text": "Optimized",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-127",
+    "text": "Orchestrated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-128",
+    "text": "Organized",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-129",
+    "text": "Originated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-130",
+    "text": "Outpaced",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-131",
+    "text": "Oversaw",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-132",
+    "text": "Partnered",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-133",
+    "text": "Performed",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-134",
+    "text": "Pioneered",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-135",
+    "text": "Planned",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-136",
+    "text": "Positioned",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-137",
+    "text": "Predicted",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-138",
+    "text": "Prepared",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-139",
+    "text": "Presented",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-140",
+    "text": "Prioritized",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-141",
+    "text": "Processed",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-142",
+    "text": "Produced",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-143",
+    "text": "Programmed",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-144",
+    "text": "Projected",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-145",
+    "text": "Promoted",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-146",
+    "text": "Proposed",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-147",
+    "text": "Protected",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-148",
+    "text": "Proved",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-149",
+    "text": "Provided",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-150",
+    "text": "Published",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-151",
+    "text": "Qualified",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-152",
+    "text": "Raised",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-153",
+    "text": "Ranked",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-154",
+    "text": "Rebuilt",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-155",
+    "text": "Reconciled",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-156",
+    "text": "Recruited",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-157",
+    "text": "Redesigned",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-158",
+    "text": "Reduced",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-159",
+    "text": "Refined",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-160",
+    "text": "Reengineered",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-161",
+    "text": "Regulated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-162",
+    "text": "Reinforced",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-163",
+    "text": "Reorganized",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-164",
+    "text": "Replaced",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-165",
+    "text": "Represented",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-166",
+    "text": "Researched",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-167",
+    "text": "Resolved",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-168",
+    "text": "Restructured",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-169",
+    "text": "Retained",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-170",
+    "text": "Retrieved",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-171",
+    "text": "Revamped",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-172",
+    "text": "Reviewed",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-173",
+    "text": "Revitalized",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-174",
+    "text": "Safeguarded",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-175",
+    "text": "Saved",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-176",
+    "text": "Scaled",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-177",
+    "text": "Scheduled",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-178",
+    "text": "Secured",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-179",
+    "text": "Shaped",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-180",
+    "text": "Simplified",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-181",
+    "text": "Solved",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-182",
+    "text": "Sourced",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-183",
+    "text": "Spearheaded",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-184",
+    "text": "Standardized",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-185",
+    "text": "Streamlined",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-186",
+    "text": "Strengthened",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-187",
+    "text": "Structured",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-188",
+    "text": "Supervised",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-189",
+    "text": "Surpassed",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-190",
+    "text": "Sustained",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-191",
+    "text": "Synthesized",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-192",
+    "text": "Targeted",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-193",
+    "text": "Tested",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-194",
+    "text": "Tracked",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-195",
+    "text": "Trained",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-196",
+    "text": "Transformed",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-197",
+    "text": "Troubleshot",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-198",
+    "text": "Unified",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-199",
+    "text": "Upgraded",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-200",
+    "text": "Utilized",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-201",
+    "text": "Validated",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-202",
+    "text": "Verified",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-203",
+    "text": "Volunteered",
+    "category": "action-verbs"
+  },
+  {
+    "id": "action-verbs-204",
+    "text": "Won",
+    "category": "action-verbs"
+  },
+  {
+    "id": "achievements-205",
+    "text": "Increased revenue by {percentage}% within {timeframe}",
+    "category": "achievements",
+    "variables": [
+      "percentage",
+      "timeframe"
+    ]
+  },
+  {
+    "id": "achievements-206",
+    "text": "Reduced costs by {percentage}% through {method}",
+    "category": "achievements",
+    "variables": [
+      "percentage",
+      "method"
+    ]
+  },
+  {
+    "id": "achievements-207",
+    "text": "Led team of {number} to deliver {project} on time and under budget",
+    "category": "achievements",
+    "variables": [
+      "number",
+      "project"
+    ]
+  },
+  {
+    "id": "achievements-208",
+    "text": "Grew customer base by {percentage}% year-over-year",
+    "category": "achievements",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "achievements-209",
+    "text": "Achieved {percentage}% customer satisfaction rating",
+    "category": "achievements",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "achievements-210",
+    "text": "Managed budget of ${amount} with zero overruns",
+    "category": "achievements",
+    "variables": [
+      "amount"
+    ]
+  },
+  {
+    "id": "achievements-211",
+    "text": "Reduced processing time by {percentage}% through automation",
+    "category": "achievements",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "achievements-212",
+    "text": "Trained and mentored {number} team members",
+    "category": "achievements",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "achievements-213",
+    "text": "Saved ${amount} annually through process optimization",
+    "category": "achievements",
+    "variables": [
+      "amount"
+    ]
+  },
+  {
+    "id": "achievements-214",
+    "text": "Delivered {number} projects simultaneously across multiple departments",
+    "category": "achievements",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "achievements-215",
+    "text": "Improved team productivity by {percentage}%",
+    "category": "achievements",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "achievements-216",
+    "text": "Reduced employee turnover by {percentage}%",
+    "category": "achievements",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "achievements-217",
+    "text": "Exceeded sales targets by {percentage}% for {number} consecutive quarters",
+    "category": "achievements",
+    "variables": [
+      "percentage",
+      "number"
+    ]
+  },
+  {
+    "id": "achievements-218",
+    "text": "Increased operational efficiency by {percentage}%",
+    "category": "achievements",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "achievements-219",
+    "text": "Generated ${amount} in new business revenue",
+    "category": "achievements",
+    "variables": [
+      "amount"
+    ]
+  },
+  {
+    "id": "achievements-220",
+    "text": "Launched {number} successful products/features",
+    "category": "achievements",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "achievements-221",
+    "text": "Reduced error rate by {percentage}%",
+    "category": "achievements",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "achievements-222",
+    "text": "Managed cross-functional team of {number} across {number} departments",
+    "category": "achievements",
+    "variables": [
+      "number",
+      "number"
+    ]
+  },
+  {
+    "id": "achievements-223",
+    "text": "Automated {number} manual processes, saving {number} hours weekly",
+    "category": "achievements",
+    "variables": [
+      "number",
+      "number"
+    ]
+  },
+  {
+    "id": "achievements-224",
+    "text": "Improved NPS score from {number} to {number}",
+    "category": "achievements",
+    "variables": [
+      "number",
+      "number"
+    ]
+  },
+  {
+    "id": "achievements-225",
+    "text": "Reduced time-to-market by {percentage}%",
+    "category": "achievements",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "achievements-226",
+    "text": "Increased website traffic by {percentage}% through SEO optimization",
+    "category": "achievements",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "achievements-227",
+    "text": "Secured {number} new enterprise clients worth ${amount}",
+    "category": "achievements",
+    "variables": [
+      "number",
+      "amount"
+    ]
+  },
+  {
+    "id": "achievements-228",
+    "text": "Decreased customer churn by {percentage}%",
+    "category": "achievements",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "achievements-229",
+    "text": "Implemented new CRM system serving {number} users",
+    "category": "achievements",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "achievements-230",
+    "text": "Streamlined onboarding process, reducing time from {number} to {number} days",
+    "category": "achievements",
+    "variables": [
+      "number",
+      "number"
+    ]
+  },
+  {
+    "id": "achievements-231",
+    "text": "Achieved {percentage}% uptime for critical systems",
+    "category": "achievements",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "achievements-232",
+    "text": "Resolved {number}+ customer issues with {percentage}% satisfaction",
+    "category": "achievements",
+    "variables": [
+      "number",
+      "percentage"
+    ]
+  },
+  {
+    "id": "achievements-233",
+    "text": "Cut project delivery time by {percentage}%",
+    "category": "achievements",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "achievements-234",
+    "text": "Built and scaled team from {number} to {number} employees",
+    "category": "achievements",
+    "variables": [
+      "number",
+      "number"
+    ]
+  },
+  {
+    "id": "achievements-235",
+    "text": "Increased conversion rate by {percentage}% through A/B testing",
+    "category": "achievements",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "achievements-236",
+    "text": "Negotiated contracts saving ${amount} annually",
+    "category": "achievements",
+    "variables": [
+      "amount"
+    ]
+  },
+  {
+    "id": "achievements-237",
+    "text": "Reduced support tickets by {percentage}% through improved documentation",
+    "category": "achievements",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "achievements-238",
+    "text": "Drove {percentage}% increase in social media engagement",
+    "category": "achievements",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "achievements-239",
+    "text": "Completed project {percentage}% under budget",
+    "category": "achievements",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "achievements-240",
+    "text": "Processed {number}+ transactions daily with zero errors",
+    "category": "achievements",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "achievements-241",
+    "text": "Reduced system downtime by {percentage}%",
+    "category": "achievements",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "achievements-242",
+    "text": "Increased email open rates by {percentage}%",
+    "category": "achievements",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "achievements-243",
+    "text": "Managed vendor relationships saving ${amount} annually",
+    "category": "achievements",
+    "variables": [
+      "amount"
+    ]
+  },
+  {
+    "id": "achievements-244",
+    "text": "Improved code coverage from {percentage}% to {percentage}%",
+    "category": "achievements",
+    "variables": [
+      "percentage",
+      "percentage"
+    ]
+  },
+  {
+    "id": "achievements-245",
+    "text": "Received {award} for outstanding performance",
+    "category": "achievements",
+    "variables": [
+      "award"
+    ]
+  },
+  {
+    "id": "achievements-246",
+    "text": "Presented findings to C-suite executives and board members",
+    "category": "achievements"
+  },
+  {
+    "id": "achievements-247",
+    "text": "Published {number} research papers in peer-reviewed journals",
+    "category": "achievements",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "achievements-248",
+    "text": "Maintained {percentage}% quality assurance pass rate",
+    "category": "achievements",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "achievements-249",
+    "text": "Reduced inventory costs by {percentage}% through demand forecasting",
+    "category": "achievements",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "achievements-250",
+    "text": "Facilitated {number} workshops training {number}+ employees",
+    "category": "achievements",
+    "variables": [
+      "number",
+      "number"
+    ]
+  },
+  {
+    "id": "achievements-251",
+    "text": "Coordinated successful migration of {number} legacy systems",
+    "category": "achievements",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "achievements-252",
+    "text": "Achieved ROI of {percentage}% on marketing campaigns",
+    "category": "achievements",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "achievements-253",
+    "text": "Recovered ${amount} in outstanding receivables",
+    "category": "achievements",
+    "variables": [
+      "amount"
+    ]
+  },
+  {
+    "id": "achievements-254",
+    "text": "Increased market share by {percentage}% in {timeframe}",
+    "category": "achievements",
+    "variables": [
+      "percentage",
+      "timeframe"
+    ]
+  },
+  {
+    "id": "achievements-255",
+    "text": "Eliminated {number} redundant processes",
+    "category": "achievements",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "achievements-256",
+    "text": "Won {award} recognition for innovation",
+    "category": "achievements",
+    "variables": [
+      "award"
+    ]
+  },
+  {
+    "id": "achievements-257",
+    "text": "Improved response time from {number} hours to {number} minutes",
+    "category": "achievements",
+    "variables": [
+      "number",
+      "number"
+    ]
+  },
+  {
+    "id": "achievements-258",
+    "text": "Expanded operations to {number} new markets",
+    "category": "achievements",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "achievements-259",
+    "text": "Designed solution adopted by {number}+ organizations",
+    "category": "achievements",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "achievements-260",
+    "text": "Reduced compliance violations by {percentage}%",
+    "category": "achievements",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "achievements-261",
+    "text": "Raised ${amount} in funding/grants",
+    "category": "achievements",
+    "variables": [
+      "amount"
+    ]
+  },
+  {
+    "id": "achievements-262",
+    "text": "Improved retention rate by {percentage}%",
+    "category": "achievements",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "achievements-263",
+    "text": "Decreased average handling time by {percentage}%",
+    "category": "achievements",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "achievements-264",
+    "text": "Delivered presentations to audiences of {number}+",
+    "category": "achievements",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "achievements-265",
+    "text": "Grew social media following by {percentage}%",
+    "category": "achievements",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "skills-descriptions-266",
+    "text": "Proficient in data analysis and visualization tools",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-267",
+    "text": "Strong written and verbal communication skills",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-268",
+    "text": "Expert in project management methodologies (Agile, Scrum, Waterfall)",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-269",
+    "text": "Advanced proficiency in Microsoft Office Suite",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-270",
+    "text": "Experienced with CRM platforms (Salesforce, HubSpot)",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-271",
+    "text": "Skilled in statistical analysis and predictive modeling",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-272",
+    "text": "Proficient in cloud computing platforms (AWS, Azure, GCP)",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-273",
+    "text": "Strong leadership and team management capabilities",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-274",
+    "text": "Expert in financial modeling and forecasting",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-275",
+    "text": "Advanced knowledge of SQL and database management",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-276",
+    "text": "Experienced with CI/CD pipelines and DevOps practices",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-277",
+    "text": "Skilled in UX/UI design principles and tools",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-278",
+    "text": "Proficient in Python, JavaScript, and TypeScript",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-279",
+    "text": "Strong analytical and problem-solving abilities",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-280",
+    "text": "Expert in digital marketing and SEO strategy",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-281",
+    "text": "Advanced knowledge of machine learning algorithms",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-282",
+    "text": "Experienced with containerization (Docker, Kubernetes)",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-283",
+    "text": "Skilled in cross-functional team collaboration",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-284",
+    "text": "Proficient in business intelligence tools (Tableau, Power BI)",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-285",
+    "text": "Strong stakeholder management and presentation skills",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-286",
+    "text": "Expert in regulatory compliance and risk assessment",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-287",
+    "text": "Advanced proficiency in Adobe Creative Suite",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-288",
+    "text": "Experienced with RESTful APIs and microservices architecture",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-289",
+    "text": "Skilled in conflict resolution and negotiation",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-290",
+    "text": "Proficient in supply chain management",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-291",
+    "text": "Strong understanding of HIPAA/GDPR compliance",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-292",
+    "text": "Expert in version control systems (Git)",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-293",
+    "text": "Advanced knowledge of network security protocols",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-294",
+    "text": "Experienced with automated testing frameworks",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-295",
+    "text": "Skilled in budget planning and financial reporting",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-296",
+    "text": "Proficient in content management systems (WordPress, Drupal)",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-297",
+    "text": "Strong customer relationship management",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-298",
+    "text": "Expert in process improvement and lean methodologies",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-299",
+    "text": "Bilingual/multilingual communication abilities",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-300",
+    "text": "Advanced knowledge of ERP systems (SAP, Oracle)",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-301",
+    "text": "Experienced with A/B testing and conversion optimization",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-302",
+    "text": "Skilled in technical writing and documentation",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-303",
+    "text": "Proficient in mobile application development",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-304",
+    "text": "Strong attention to detail and quality assurance",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "skills-descriptions-305",
+    "text": "Expert in social media marketing and analytics",
+    "category": "skills-descriptions"
+  },
+  {
+    "id": "tech-306",
+    "text": "Developed {number} full-stack applications using React and Node.js",
+    "category": "tech",
+    "industry": "tech",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "tech-307",
+    "text": "Architected scalable microservices handling {number}+ requests per second",
+    "category": "tech",
+    "industry": "tech",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "tech-308",
+    "text": "Reduced API response time by {percentage}% through query optimization",
+    "category": "tech",
+    "industry": "tech",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "tech-309",
+    "text": "Implemented CI/CD pipeline reducing deployment time from hours to minutes",
+    "category": "tech",
+    "industry": "tech"
+  },
+  {
+    "id": "tech-310",
+    "text": "Migrated monolithic application to microservices architecture",
+    "category": "tech",
+    "industry": "tech"
+  },
+  {
+    "id": "tech-311",
+    "text": "Built real-time data pipeline processing {number}+ events daily",
+    "category": "tech",
+    "industry": "tech",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "tech-312",
+    "text": "Designed and implemented RESTful APIs serving {number} clients",
+    "category": "tech",
+    "industry": "tech",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "tech-313",
+    "text": "Reduced cloud infrastructure costs by {percentage}% through optimization",
+    "category": "tech",
+    "industry": "tech",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "tech-314",
+    "text": "Achieved {percentage}% code coverage through comprehensive testing",
+    "category": "tech",
+    "industry": "tech",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "tech-315",
+    "text": "Led migration from on-premises to cloud infrastructure",
+    "category": "tech",
+    "industry": "tech"
+  },
+  {
+    "id": "tech-316",
+    "text": "Implemented OAuth 2.0 and JWT-based authentication system",
+    "category": "tech",
+    "industry": "tech"
+  },
+  {
+    "id": "tech-317",
+    "text": "Optimized database queries reducing load times by {percentage}%",
+    "category": "tech",
+    "industry": "tech",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "tech-318",
+    "text": "Developed mobile-responsive web application with PWA capabilities",
+    "category": "tech",
+    "industry": "tech"
+  },
+  {
+    "id": "tech-319",
+    "text": "Established coding standards and code review processes",
+    "category": "tech",
+    "industry": "tech"
+  },
+  {
+    "id": "tech-320",
+    "text": "Integrated third-party APIs including payment and notification services",
+    "category": "tech",
+    "industry": "tech"
+  },
+  {
+    "id": "tech-321",
+    "text": "Built automated monitoring and alerting system",
+    "category": "tech",
+    "industry": "tech"
+  },
+  {
+    "id": "tech-322",
+    "text": "Reduced page load time by {percentage}% through performance optimization",
+    "category": "tech",
+    "industry": "tech",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "tech-323",
+    "text": "Implemented serverless architecture reducing operational costs by {percentage}%",
+    "category": "tech",
+    "industry": "tech",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "tech-324",
+    "text": "Created reusable component library used across {number} projects",
+    "category": "tech",
+    "industry": "tech",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "tech-325",
+    "text": "Deployed containerized applications using Docker and Kubernetes",
+    "category": "tech",
+    "industry": "tech"
+  },
+  {
+    "id": "finance-326",
+    "text": "Managed portfolio of ${amount} in assets under management",
+    "category": "finance",
+    "industry": "finance",
+    "variables": [
+      "amount"
+    ]
+  },
+  {
+    "id": "finance-327",
+    "text": "Conducted financial analysis for M&A transactions valued at ${amount}",
+    "category": "finance",
+    "industry": "finance",
+    "variables": [
+      "amount"
+    ]
+  },
+  {
+    "id": "finance-328",
+    "text": "Reduced audit findings by {percentage}% through improved internal controls",
+    "category": "finance",
+    "industry": "finance",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "finance-329",
+    "text": "Prepared quarterly financial reports for stakeholders and board",
+    "category": "finance",
+    "industry": "finance"
+  },
+  {
+    "id": "finance-330",
+    "text": "Implemented new accounting software reducing close time by {number} days",
+    "category": "finance",
+    "industry": "finance",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "finance-331",
+    "text": "Managed accounts payable/receivable processing ${amount} monthly",
+    "category": "finance",
+    "industry": "finance",
+    "variables": [
+      "amount"
+    ]
+  },
+  {
+    "id": "finance-332",
+    "text": "Developed financial models supporting ${amount} investment decisions",
+    "category": "finance",
+    "industry": "finance",
+    "variables": [
+      "amount"
+    ]
+  },
+  {
+    "id": "finance-333",
+    "text": "Ensured SOX compliance across {number} business units",
+    "category": "finance",
+    "industry": "finance",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "finance-334",
+    "text": "Reconciled {number}+ accounts monthly with {percentage}% accuracy",
+    "category": "finance",
+    "industry": "finance",
+    "variables": [
+      "number",
+      "percentage"
+    ]
+  },
+  {
+    "id": "finance-335",
+    "text": "Processed payroll for {number}+ employees biweekly",
+    "category": "finance",
+    "industry": "finance",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "healthcare-336",
+    "text": "Provided patient care for {number}+ patients daily",
+    "category": "healthcare",
+    "industry": "healthcare",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "healthcare-337",
+    "text": "Reduced patient wait times by {percentage}%",
+    "category": "healthcare",
+    "industry": "healthcare",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "healthcare-338",
+    "text": "Maintained {percentage}% compliance with HIPAA regulations",
+    "category": "healthcare",
+    "industry": "healthcare",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "healthcare-339",
+    "text": "Implemented electronic health record system for {number}-bed facility",
+    "category": "healthcare",
+    "industry": "healthcare",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "healthcare-340",
+    "text": "Coordinated care plans for {number}+ patients",
+    "category": "healthcare",
+    "industry": "healthcare",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "healthcare-341",
+    "text": "Reduced medication errors by {percentage}% through protocol improvements",
+    "category": "healthcare",
+    "industry": "healthcare",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "healthcare-342",
+    "text": "Trained {number} staff members on new clinical procedures",
+    "category": "healthcare",
+    "industry": "healthcare",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "healthcare-343",
+    "text": "Achieved {percentage}% patient satisfaction scores",
+    "category": "healthcare",
+    "industry": "healthcare",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "healthcare-344",
+    "text": "Managed clinical trials enrolling {number}+ participants",
+    "category": "healthcare",
+    "industry": "healthcare",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "healthcare-345",
+    "text": "Reduced hospital readmission rates by {percentage}%",
+    "category": "healthcare",
+    "industry": "healthcare",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "marketing-346",
+    "text": "Developed content strategy increasing organic traffic by {percentage}%",
+    "category": "marketing",
+    "industry": "marketing",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "marketing-347",
+    "text": "Managed ${amount} annual marketing budget across {number} channels",
+    "category": "marketing",
+    "industry": "marketing",
+    "variables": [
+      "amount",
+      "number"
+    ]
+  },
+  {
+    "id": "marketing-348",
+    "text": "Created email campaigns achieving {percentage}% open rate",
+    "category": "marketing",
+    "industry": "marketing",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "marketing-349",
+    "text": "Increased brand awareness by {percentage}% measured by surveys",
+    "category": "marketing",
+    "industry": "marketing",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "marketing-350",
+    "text": "Produced {number}+ pieces of content monthly (blogs, videos, infographics)",
+    "category": "marketing",
+    "industry": "marketing",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "marketing-351",
+    "text": "Managed social media accounts with {number}+ combined followers",
+    "category": "marketing",
+    "industry": "marketing",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "marketing-352",
+    "text": "Designed and executed influencer partnerships with {number}+ creators",
+    "category": "marketing",
+    "industry": "marketing",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "marketing-353",
+    "text": "Achieved {percentage}% increase in lead generation through paid campaigns",
+    "category": "marketing",
+    "industry": "marketing",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "marketing-354",
+    "text": "Developed brand guidelines adopted across {number} teams",
+    "category": "marketing",
+    "industry": "marketing",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "marketing-355",
+    "text": "Organized {number} industry events with {number}+ attendees",
+    "category": "marketing",
+    "industry": "marketing",
+    "variables": [
+      "number",
+      "number"
+    ]
+  },
+  {
+    "id": "sales-356",
+    "text": "Exceeded annual quota by {percentage}%, generating ${amount} in revenue",
+    "category": "sales",
+    "industry": "sales",
+    "variables": [
+      "percentage",
+      "amount"
+    ]
+  },
+  {
+    "id": "sales-357",
+    "text": "Built and managed pipeline of ${amount} in opportunities",
+    "category": "sales",
+    "industry": "sales",
+    "variables": [
+      "amount"
+    ]
+  },
+  {
+    "id": "sales-358",
+    "text": "Closed {number} enterprise deals with average value of ${amount}",
+    "category": "sales",
+    "industry": "sales",
+    "variables": [
+      "number",
+      "amount"
+    ]
+  },
+  {
+    "id": "sales-359",
+    "text": "Grew territory revenue by {percentage}% year-over-year",
+    "category": "sales",
+    "industry": "sales",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "sales-360",
+    "text": "Achieved top {percentage}% performer ranking company-wide",
+    "category": "sales",
+    "industry": "sales",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "sales-361",
+    "text": "Expanded key account revenue by {percentage}% through upselling",
+    "category": "sales",
+    "industry": "sales",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "sales-362",
+    "text": "Reduced sales cycle length by {percentage}% through process improvement",
+    "category": "sales",
+    "industry": "sales",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "sales-363",
+    "text": "Developed {number} new strategic partnerships",
+    "category": "sales",
+    "industry": "sales",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "sales-364",
+    "text": "Onboarded {number} new clients per quarter",
+    "category": "sales",
+    "industry": "sales",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "sales-365",
+    "text": "Maintained {percentage}% client retention rate",
+    "category": "sales",
+    "industry": "sales",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "education-366",
+    "text": "Developed curriculum for {number} courses reaching {number}+ students",
+    "category": "education",
+    "industry": "education",
+    "variables": [
+      "number",
+      "number"
+    ]
+  },
+  {
+    "id": "education-367",
+    "text": "Improved student test scores by {percentage}% over academic year",
+    "category": "education",
+    "industry": "education",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "education-368",
+    "text": "Mentored {number} students through academic and career development",
+    "category": "education",
+    "industry": "education",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "education-369",
+    "text": "Created online learning modules accessed by {number}+ learners",
+    "category": "education",
+    "industry": "education",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "education-370",
+    "text": "Coordinated extracurricular programs for {number}+ students",
+    "category": "education",
+    "industry": "education",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "education-371",
+    "text": "Implemented differentiated instruction strategies for diverse learners",
+    "category": "education",
+    "industry": "education"
+  },
+  {
+    "id": "education-372",
+    "text": "Secured ${amount} in educational grants and funding",
+    "category": "education",
+    "industry": "education",
+    "variables": [
+      "amount"
+    ]
+  },
+  {
+    "id": "education-373",
+    "text": "Organized {number} professional development workshops for faculty",
+    "category": "education",
+    "industry": "education",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "education-374",
+    "text": "Maintained {percentage}% student graduation rate",
+    "category": "education",
+    "industry": "education",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "education-375",
+    "text": "Advised {number}+ students on course selection and career paths",
+    "category": "education",
+    "industry": "education",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "engineering-376",
+    "text": "Designed {number} mechanical systems meeting safety and performance standards",
+    "category": "engineering",
+    "industry": "engineering",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "engineering-377",
+    "text": "Reduced manufacturing defects by {percentage}% through quality control",
+    "category": "engineering",
+    "industry": "engineering",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "engineering-378",
+    "text": "Managed construction projects valued at ${amount}",
+    "category": "engineering",
+    "industry": "engineering",
+    "variables": [
+      "amount"
+    ]
+  },
+  {
+    "id": "engineering-379",
+    "text": "Performed FEA/CFD analysis reducing prototyping costs by {percentage}%",
+    "category": "engineering",
+    "industry": "engineering",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "engineering-380",
+    "text": "Ensured compliance with ISO 9001/14001 standards",
+    "category": "engineering",
+    "industry": "engineering"
+  },
+  {
+    "id": "engineering-381",
+    "text": "Optimized production line efficiency by {percentage}%",
+    "category": "engineering",
+    "industry": "engineering",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "engineering-382",
+    "text": "Prepared technical specifications and engineering drawings",
+    "category": "engineering",
+    "industry": "engineering"
+  },
+  {
+    "id": "engineering-383",
+    "text": "Led root cause analysis resolving {number} critical failures",
+    "category": "engineering",
+    "industry": "engineering",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "engineering-384",
+    "text": "Implemented Six Sigma methodology saving ${amount} annually",
+    "category": "engineering",
+    "industry": "engineering",
+    "variables": [
+      "amount"
+    ]
+  },
+  {
+    "id": "engineering-385",
+    "text": "Supervised {number} engineers on multi-phase projects",
+    "category": "engineering",
+    "industry": "engineering",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "legal-386",
+    "text": "Managed caseload of {number}+ matters simultaneously",
+    "category": "legal",
+    "industry": "legal",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "legal-387",
+    "text": "Drafted and reviewed {number}+ contracts and legal agreements",
+    "category": "legal",
+    "industry": "legal",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "legal-388",
+    "text": "Achieved favorable outcomes in {percentage}% of litigated cases",
+    "category": "legal",
+    "industry": "legal",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "legal-389",
+    "text": "Conducted due diligence for transactions valued at ${amount}",
+    "category": "legal",
+    "industry": "legal",
+    "variables": [
+      "amount"
+    ]
+  },
+  {
+    "id": "legal-390",
+    "text": "Ensured regulatory compliance across {number} jurisdictions",
+    "category": "legal",
+    "industry": "legal",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "legal-391",
+    "text": "Reduced legal spending by {percentage}% through process improvements",
+    "category": "legal",
+    "industry": "legal",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "legal-392",
+    "text": "Advised C-suite on corporate governance and compliance matters",
+    "category": "legal",
+    "industry": "legal"
+  },
+  {
+    "id": "legal-393",
+    "text": "Prepared legal memoranda and policy recommendations",
+    "category": "legal",
+    "industry": "legal"
+  },
+  {
+    "id": "legal-394",
+    "text": "Managed intellectual property portfolio of {number}+ patents/trademarks",
+    "category": "legal",
+    "industry": "legal",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "legal-395",
+    "text": "Negotiated settlements saving ${amount} in potential liabilities",
+    "category": "legal",
+    "industry": "legal",
+    "variables": [
+      "amount"
+    ]
+  },
+  {
+    "id": "design-396",
+    "text": "Designed user interfaces for {number}+ web and mobile applications",
+    "category": "design",
+    "industry": "design",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "design-397",
+    "text": "Increased user engagement by {percentage}% through UX improvements",
+    "category": "design",
+    "industry": "design",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "design-398",
+    "text": "Conducted {number}+ user research sessions and usability tests",
+    "category": "design",
+    "industry": "design",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "design-399",
+    "text": "Created design system used by {number} product teams",
+    "category": "design",
+    "industry": "design",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "design-400",
+    "text": "Reduced user task completion time by {percentage}%",
+    "category": "design",
+    "industry": "design",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "design-401",
+    "text": "Designed brand identity for {number}+ clients",
+    "category": "design",
+    "industry": "design",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "design-402",
+    "text": "Produced {number}+ marketing assets (print and digital)",
+    "category": "design",
+    "industry": "design",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "design-403",
+    "text": "Led redesign increasing conversion rate by {percentage}%",
+    "category": "design",
+    "industry": "design",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "design-404",
+    "text": "Maintained consistent design language across {number} platforms",
+    "category": "design",
+    "industry": "design",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "design-405",
+    "text": "Created wireframes, prototypes, and high-fidelity mockups",
+    "category": "design",
+    "industry": "design"
+  },
+  {
+    "id": "management-406",
+    "text": "Directed department of {number} employees with ${amount} budget",
+    "category": "management",
+    "industry": "management",
+    "variables": [
+      "number",
+      "amount"
+    ]
+  },
+  {
+    "id": "management-407",
+    "text": "Developed strategic plans resulting in {percentage}% revenue growth",
+    "category": "management",
+    "industry": "management",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "management-408",
+    "text": "Implemented performance management system for {number}+ staff",
+    "category": "management",
+    "industry": "management",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "management-409",
+    "text": "Reduced operational costs by {percentage}% while maintaining quality",
+    "category": "management",
+    "industry": "management",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "management-410",
+    "text": "Led organizational restructuring improving efficiency by {percentage}%",
+    "category": "management",
+    "industry": "management",
+    "variables": [
+      "percentage"
+    ]
+  },
+  {
+    "id": "management-411",
+    "text": "Established KPIs and reporting dashboards for executive team",
+    "category": "management",
+    "industry": "management"
+  },
+  {
+    "id": "management-412",
+    "text": "Managed vendor contracts worth ${amount} annually",
+    "category": "management",
+    "industry": "management",
+    "variables": [
+      "amount"
+    ]
+  },
+  {
+    "id": "management-413",
+    "text": "Drove change management initiatives across {number} departments",
+    "category": "management",
+    "industry": "management",
+    "variables": [
+      "number"
+    ]
+  },
+  {
+    "id": "management-414",
+    "text": "Hired and onboarded {number} employees in {timeframe}",
+    "category": "management",
+    "industry": "management",
+    "variables": [
+      "number",
+      "timeframe"
+    ]
+  },
+  {
+    "id": "management-415",
+    "text": "Achieved {percentage}% employee satisfaction score",
+    "category": "management",
+    "industry": "management",
+    "variables": [
+      "percentage"
+    ]
+  }
+]

@@ -37,7 +37,7 @@ export interface RoleAnalysis {
 const SILENCE_TIMEOUT_MS = 5000;
 const MAX_TEXT_LENGTH = 2000;
 const COUNTDOWN_SECONDS = 2;
-const NO_SPEECH_TIMEOUT_MS = 10000;
+const NO_SPEECH_TIMEOUT_MS = 15000;
 
 const FEMALE_VOICE_KEYWORDS = ['female', 'samantha', 'zira', 'karen', 'fiona', 'moira', 'tessa', 'victoria', 'google uk english female', 'google us english female', 'microsoft zira'];
 const MALE_VOICE_KEYWORDS = ['male', 'daniel', 'david', 'james', 'alex', 'fred', 'google uk english male', 'google us english male', 'microsoft david'];
@@ -48,14 +48,14 @@ function pickBestVoice(gender: VoiceGender): SpeechSynthesisVoice | null {
   if (englishVoices.length === 0) return null;
 
   const keywords = gender === 'female' ? FEMALE_VOICE_KEYWORDS : MALE_VOICE_KEYWORDS;
-  
+
   for (const voice of englishVoices) {
     const name = voice.name.toLowerCase();
     if (keywords.some(k => name.includes(k))) {
       return voice;
     }
   }
-  
+
   const premiumVoice = englishVoices.find(v => {
     const n = v.name.toLowerCase();
     return n.includes('google') || n.includes('microsoft') || n.includes('natural');
@@ -130,7 +130,7 @@ function playDoubleBeep(): void {
       osc1.disconnect(); g1.disconnect();
       osc2.disconnect(); g2.disconnect();
     }, 500);
-  }).catch(() => {});
+  }).catch(() => { });
 }
 
 function parseScoreBlock(text: string): { cleanText: string; score: AnswerScore | null } {
@@ -269,17 +269,17 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   }, []);
 
   const handleNoSpeechEscalateRef = useRef<() => void>();
-  
+
   const handleNoSpeech = useCallback(() => {
     noSpeechCountRef.current++;
     if (noSpeechCountRef.current === 1) {
-      // First timeout: gentle nudge + audio cue
+      // First timeout (15s): gentle nudge + audio cue
       toast.info('Take your time, I\'m still listening...', {
         description: 'Speak when you\'re ready, or tap the Type button.',
         duration: 4000,
       });
       playDoubleBeep();
-      // Set another timeout for second escalation
+      // Set another timeout for second escalation (15s more = 30s total)
       noSpeechTimerRef.current = setTimeout(() => {
         if (isListeningRef.current && !finalTextRef.current.trim()) {
           handleNoSpeechEscalateRef.current?.();
@@ -305,6 +305,17 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
         if (isListeningRef.current) {
           webSpeech.connect();
         }
+      } else if (!usingFallbackRef.current) {
+        // Both engines unavailable — inform user and enable text input
+        console.warn('[VoiceInterview] Both STT engines failed. Enabling text-only mode.');
+        usingFallbackRef.current = true;
+        setSttEngine('none');
+        setStatus('idle');
+        isListeningRef.current = false;
+        toast.error('Voice input unavailable', {
+          description: 'Speech recognition is not available in this browser. Please use the Type button to answer.',
+          duration: 8000,
+        });
       }
     },
     onAudioLevel: handleAudioLevel,
@@ -364,10 +375,10 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
         }
         window.speechSynthesis?.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
-        
+
         const voice = pickBestVoice(voiceGender);
         if (voice) utterance.voice = voice;
-        
+
         utterance.rate = 0.95;
         utterance.pitch = voiceGender === 'female' ? 1.05 : 0.9;
         utterance.lang = 'en-US';
@@ -476,14 +487,14 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
 
         const rawReply = data.reply as string;
         const { cleanText: reply, score } = parseScoreBlock(rawReply);
-        
+
         if (score) {
           answerCountRef.current++;
           const fullScore = { ...score, questionIndex: answerCountRef.current };
           setScores(prev => [...prev, fullScore]);
           setLatestScore(fullScore);
         }
-        
+
         messagesRef.current.push({ role: 'assistant', content: rawReply });
 
         if (endInterview) {
@@ -587,7 +598,17 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     if (usingFallbackRef.current) {
       console.log('[VoiceInterview] Using Web Speech fallback');
       setSttEngine('webspeech');
-      await webSpeech.connect();
+      try {
+        await webSpeech.connect();
+      } catch (err) {
+        console.warn('[VoiceInterview] Web Speech connect failed:', err);
+        setStatus('idle');
+        isListeningRef.current = false;
+        toast.error('Voice input unavailable', {
+          description: 'Please use the Type button to answer.',
+          duration: 5000,
+        });
+      }
     } else {
       console.log('[VoiceInterview] Trying ElevenLabs Scribe...');
       await scribe.connect();

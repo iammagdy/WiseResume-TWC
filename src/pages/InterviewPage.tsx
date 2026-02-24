@@ -81,17 +81,17 @@ function InterviewPageContent() {
     endInterview,
     resetInterview,
   } = useVoiceInterview(currentResume);
-  
+
   // No navigation redirect — show an in-page empty state instead
 
   // Derive phase
   const phase: InterviewPhase = summary
     ? 'summary'
     : isStarted
-    ? 'active'
-    : pendingJobDescription !== undefined
-    ? 'preview'
-    : 'setup';
+      ? 'active'
+      : pendingJobDescription !== undefined
+        ? 'preview'
+        : 'setup';
 
   // Auto-scroll transcript
   useEffect(() => {
@@ -109,17 +109,27 @@ function InterviewPageContent() {
         title = 'Microphone Blocked';
         description = 'Please allow microphone access in your browser settings, or use the Type button.';
         setShowTextInput(true);
-      } else if (error.toLowerCase().includes('not supported')) {
+      } else if (error.toLowerCase().includes('not supported') || error.toLowerCase().includes('not available')) {
         title = 'Speech Recognition Unavailable';
         setShowTextInput(true);
       } else if (error.toLowerCase().includes('timed out') || error.toLowerCase().includes('connection error')) {
         title = 'Connection Issue';
         description = error + ' You can use the Type button instead.';
         setShowTextInput(true);
+      } else if (error.toLowerCase().includes('voice input unavailable')) {
+        title = 'Voice Unavailable';
+        setShowTextInput(true);
       }
       toast.error(title, { description });
     }
   }, [error]);
+
+  // Auto-show text input if STT engine is none and interview is active
+  useEffect(() => {
+    if (isStarted && sttEngine === 'none' && status === 'idle' && transcript.length > 0) {
+      setShowTextInput(true);
+    }
+  }, [isStarted, sttEngine, status, transcript.length]);
 
   // Haptic feedback for countdown
   useEffect(() => {
@@ -231,15 +241,15 @@ function InterviewPageContent() {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto">
-        <InterviewSummary
-          summary={summary!}
-          duration={elapsedSeconds}
-          scores={scores}
-          onRestart={() => { setSessionSaved(false); handleReset(); }}
-          onGoHome={() => navigate('/ai-studio')}
-          onShowTips={() => setShowTips(true)}
-        />
-        <InterviewTipsSheet open={showTips} onOpenChange={setShowTips} />
+          <InterviewSummary
+            summary={summary!}
+            duration={elapsedSeconds}
+            scores={scores}
+            onRestart={() => { setSessionSaved(false); handleReset(); }}
+            onGoHome={() => navigate('/ai-studio')}
+            onShowTips={() => setShowTips(true)}
+          />
+          <InterviewTipsSheet open={showTips} onOpenChange={setShowTips} />
         </div>
       </div>
     );
@@ -250,12 +260,12 @@ function InterviewPageContent() {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex items-center gap-3 px-4 pt-3 pb-2">
-          <BackButton 
-            onBeforeBack={() => { 
-              setPendingJobDescription(undefined); 
-              return true; 
-            }} 
-            className="text-foreground" 
+          <BackButton
+            onBeforeBack={() => {
+              setPendingJobDescription(undefined);
+              return true;
+            }}
+            className="text-foreground"
           />
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-primary" />
@@ -276,7 +286,7 @@ function InterviewPageContent() {
   // Setup screen
   if (phase === 'setup') {
     return (
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden h-full">
         <div className="flex items-center gap-3 px-4 pt-3 pb-2">
           <BackButton />
           <div className="flex items-center gap-2 flex-1">
@@ -310,7 +320,7 @@ function InterviewPageContent() {
 
   // Active interview
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden h-full">
       {/* Premium glassmorphism header */}
       <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border/20 bg-card/50 backdrop-blur-xl">
         <div className="flex items-center gap-3">
@@ -326,8 +336,8 @@ function InterviewPageContent() {
           </div>
         </div>
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/25 shadow-[0_0_10px_hsl(var(--primary)/0.1)]">
-          <motion.span 
-            className="w-2 h-2 rounded-full bg-primary" 
+          <motion.span
+            className="w-2 h-2 rounded-full bg-primary"
             animate={{ scale: [1, 1.2, 1], opacity: [0.7, 1, 0.7] }}
             transition={{ duration: 1.5, repeat: Infinity }}
           />
@@ -344,6 +354,7 @@ function InterviewPageContent() {
         const isQuick = interviewType === 'quick-practice';
         const totalQuestions = 5;
         const progress = isQuick ? Math.min((currentQuestion / totalQuestions) * 100, 100) : 0;
+        const totalAnswers = transcript.filter(e => e.role === 'user').length;
         return (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-0">
             <div className="w-full h-[3px] bg-muted/30">
@@ -353,16 +364,20 @@ function InterviewPageContent() {
                   style={{ width: `${progress}%`, transition: 'width 500ms ease-in-out' }}
                 />
               ) : (
-                <motion.div
+                <div
                   className="h-full bg-primary/70 rounded-r-full"
-                  animate={{ width: ['0%', '60%', '0%'] }}
-                  transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                  style={{ width: `${Math.min(100, totalAnswers * 15)}%`, transition: 'width 500ms ease-in-out' }}
                 />
               )}
             </div>
             {isQuick && currentQuestion > 0 && (
               <p className="text-muted-foreground text-xs text-center mt-1">
                 Question {Math.min(currentQuestion, totalQuestions)} of {totalQuestions}
+              </p>
+            )}
+            {!isQuick && totalAnswers > 0 && (
+              <p className="text-muted-foreground text-xs text-center mt-1">
+                {totalAnswers} {totalAnswers === 1 ? 'answer' : 'answers'} · {mins}:{secs.toString().padStart(2, '0')}
               </p>
             )}
           </motion.div>
@@ -372,17 +387,17 @@ function InterviewPageContent() {
       {/* Transcript area */}
       <div
         ref={scrollRef}
-        className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-3"
+        className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-3 max-w-4xl mx-auto w-full"
       >
         {transcript.map((entry) => (
           <TranscriptBubble key={entry.id} entry={entry} />
         ))}
-        
+
         {/* Show typing indicator when AI is thinking */}
         <AnimatePresence>
           {status === 'thinking' && <TypingBubble />}
         </AnimatePresence>
-        
+
         {interimText && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -422,9 +437,9 @@ function InterviewPageContent() {
             <span className="text-muted-foreground text-[10px]">Replay</span>
           </motion.button>
 
-          <InterviewToggle 
-            status={status} 
-            onPress={handleToggle} 
+          <InterviewToggle
+            status={status}
+            onPress={handleToggle}
             silenceDetected={silenceDetected}
             audioLevel={audioLevel}
             sttEngine={sttEngine}
@@ -445,7 +460,7 @@ function InterviewPageContent() {
             <SkipForward className="w-5 h-5" />
             <span className="text-muted-foreground text-[10px]">Skip</span>
           </motion.button>
-          
+
           {/* Premium countdown overlay — absolutely positioned to avoid pushing siblings */}
           <AnimatePresence>
             {countdown !== null && status === 'speaking' && (

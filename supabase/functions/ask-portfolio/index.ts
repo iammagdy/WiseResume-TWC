@@ -1,12 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { callAI } from "../_shared/aiClient.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req.headers.get("origin"));
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
@@ -86,46 +84,36 @@ STRICT RULES:
 PORTFOLIO DATA:
 ${context}`;
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
-
     const messages = [
-      { role: "system", content: systemPrompt },
-      ...conversationHistory.slice(-6), // Keep last 6 messages for context
-      { role: "user", content: question },
+      { role: "system" as const, content: systemPrompt },
+      ...conversationHistory.slice(-6),
+      { role: "user" as const, content: question },
     ];
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
-        messages,
-        temperature: 0.3,
-        max_tokens: 300,
-      }),
+    const aiResponse = await callAI({
+      model: "google/gemini-2.5-flash",
+      messages,
+      temperature: 0.3,
+      maxTokens: 300,
     });
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit reached. Please try again later." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      throw new Error(`AI gateway error: ${response.status}`);
-    }
-
-    const aiData = await response.json();
-    const answer = aiData.choices?.[0]?.message?.content || "I couldn't generate a response. Please try again.";
+    const answer = aiResponse.content || "I couldn't generate a response. Please try again.";
 
     return new Response(JSON.stringify({ answer }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("ask-portfolio error:", e);
+
+    if (e && typeof e === 'object' && 'status' in e) {
+      const aiErr = e as { status: number; message: string };
+      if (aiErr.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limit reached. Please try again later." }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -800,6 +800,25 @@ button,
   animation: fade-in 0.3s ease-out forwards;
 }
 
+/* ── Performance: offscreen paint containment for editor tabs ── */
+.section-containment {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 500px;
+}
+
+/* ── Performance: GPU layer promotion for scrollable glass surfaces ── */
+.glass-card,
+.glass-elevated {
+  transform: translateZ(0);
+}
+
+/* ── Performance: will-change hints for animated elements ── */
+.touch-active:active,
+.touch-feedback,
+.hover-lift {
+  will-change: transform;
+}
+
 /* Scale-in for logo */
 @keyframes scale-in {
   from { opacity: 0; transform: scale(0.9); }

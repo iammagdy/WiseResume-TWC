@@ -80,11 +80,11 @@ function extractSections(lines: string[]): SectionBlocks {
   };
 
   let currentSection: keyof SectionBlocks = 'header';
-  
+
   for (const line of lines) {
     // Check if this line is a section heading
     const cleanLine = line.replace(/[:\-–—|•]/g, '').trim();
-    
+
     let foundSection: keyof SectionBlocks | null = null;
     for (const [sectionName, pattern] of SECTION_ENTRIES) {
       if (pattern.test(cleanLine)) {
@@ -110,33 +110,56 @@ function extractSections(lines: string[]): SectionBlocks {
 function extractContactInfo(text: string): ResumeData['contactInfo'] {
   // Email
   const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-  
+
   // Phone (international formats - supports Egyptian, US, European, etc.)
-  const phoneMatch = text.match(/(\+?\d{1,4}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}/);
-  
+  // Require at least some formatting (spaces, dashes, dots, parens) or a + prefix
+  // to avoid matching random digit strings like IDs or zip codes
+  const phonePatterns = [
+    // +XX XXX XXX XXXX or +XX-XXX-XXX-XXXX
+    /\+\d{1,4}[-.\s]?\d{2,4}[-.\s]?\d{3,4}[-.\s]?\d{3,4}/,
+    // (XXX) XXX-XXXX or XXX-XXX-XXXX
+    /\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}/,
+    // XXX XXX XXXX (with spaces)
+    /\d{3}\s\d{3}\s\d{4}/,
+    // 0XX XXX XXXX (local format)
+    /0\d{2}[-.\s]\d{3,4}[-.\s]\d{3,4}/,
+  ];
+  let phoneMatch: RegExpMatchArray | null = null;
+  for (const pattern of phonePatterns) {
+    phoneMatch = text.match(pattern);
+    if (phoneMatch) break;
+  }
+  // Fallback: if no formatted phone found, try a less strict pattern
+  if (!phoneMatch) {
+    phoneMatch = text.match(/(\+?\d{1,4}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}/);
+  }
+
   // LinkedIn URL
   const linkedinMatch = text.match(/(?:linkedin\.com\/in\/|linkedin:\s*)([a-zA-Z0-9-]+)/i);
-  
+
   // Location (City, State or City, Country pattern)
   const locationMatch = text.match(/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?,\s*(?:[A-Z]{2}|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*))/);
 
   // Name: usually first substantial line that's not contact info
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   let fullName = '';
-  
-  for (const line of lines.slice(0, 5)) {
-    // Skip lines that look like contact info
+
+  for (const line of lines.slice(0, 8)) {
+    // Skip lines that look like contact info or have separators (multi-column artifacts)
     if (
-      !line.includes('@') && 
+      !line.includes('@') &&
       !line.match(/^\+?[0-9(]/) &&
       !line.toLowerCase().includes('resume') &&
       !line.toLowerCase().includes('cv') &&
       !line.toLowerCase().includes('linkedin') &&
       !line.toLowerCase().includes('http') &&
-      line.length > 2 &&
-      line.length < 50
+      !line.includes('|') &&
+      !line.includes('•') &&
+      !line.includes('·') &&
+      line.length > 1 &&
+      line.length < 60
     ) {
-      // Check if it looks like a name (Latin, CJK, Devanagari, Cyrillic, Arabic, Hebrew)
+      // Check if it looks like a name (various scripts, 1-5 words)
       if (/^[A-Za-z\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF\u0900-\u097F\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF\s.\-']+$/.test(line) && line.split(/\s+/).length <= 5) {
         fullName = line;
         break;
@@ -144,10 +167,24 @@ function extractContactInfo(text: string): ResumeData['contactInfo'] {
     }
   }
 
+  // Clean up phone number if it's all digits without formatting
+  let phone = phoneMatch ? phoneMatch[0] : '';
+  if (phone) {
+    const digitsOnly = phone.replace(/[^\d+]/g, '');
+    if (digitsOnly.length > 12 && !/[\s\-()]/.test(phone)) {
+      // Likely concatenated digits from PDF extraction — add basic formatting
+      if (digitsOnly.startsWith('+')) {
+        phone = digitsOnly.slice(0, 3) + ' ' + digitsOnly.slice(3).replace(/(\d{3,4})(?=\d)/g, '$1 ');
+      } else {
+        phone = digitsOnly.replace(/(\d{3,4})(?=\d)/g, '$1 ');
+      }
+    }
+  }
+
   return {
     fullName: fullName || '',
     email: emailMatch ? emailMatch[0] : '',
-    phone: phoneMatch ? phoneMatch[0] : '',
+    phone,
     location: locationMatch ? locationMatch[0] : '',
     linkedin: linkedinMatch ? `https://linkedin.com/in/${linkedinMatch[1]}` : '',
   };
@@ -167,7 +204,7 @@ function parseExperienceSection(lines: string[]): Experience[] {
 
     // Try to parse date range
     const dateInfo = extractDateRange(block.join(' '));
-    
+
     // First line(s) usually contain company/position
     const headerLines = block.slice(0, 2);
     const descriptionLines = block.slice(2);
@@ -178,7 +215,7 @@ function parseExperienceSection(lines: string[]): Experience[] {
 
     // If position looks more like a company, swap them
     if (position && !company.match(/developer|engineer|manager|director|analyst|specialist|lead|senior|junior/i) &&
-        position.match(/developer|engineer|manager|director|analyst|specialist|lead|senior|junior/i)) {
+      position.match(/developer|engineer|manager|director|analyst|specialist|lead|senior|junior/i)) {
       [company, position] = [position, company];
     }
 
@@ -231,7 +268,7 @@ function parseEducationSection(lines: string[]): Education[] {
 
     // Try to extract degree
     const degreeMatch = fullText.match(/(Bachelor|Master|Ph\.?D\.?|Associate|Diploma|B\.?S\.?|M\.?S\.?|B\.?A\.?|M\.?A\.?|MBA)[^,\n]*/i);
-    
+
     // First line is usually institution or degree
     const institution = block[0] || '';
     const degree = degreeMatch ? degreeMatch[0] : '';
@@ -258,17 +295,17 @@ function parseEducationSection(lines: string[]): Education[] {
  */
 function parseSkillsSection(lines: string[]): string[] {
   const fullText = lines.join(' ');
-  
+
   // Split by common delimiters
   const skills = fullText
     .split(/[,|•·\n;]/)
     .map(s => s.replace(/[:\-–—]/g, ' ').trim())
     .filter(s => {
       // Filter out junk
-      return s.length > 1 && 
-             s.length < 50 && 
-             !s.match(/^\d+$/) &&
-             !s.match(/^(and|or|the|a|an)$/i);
+      return s.length > 1 &&
+        s.length < 50 &&
+        !s.match(/^\d+$/) &&
+        !s.match(/^(and|or|the|a|an)$/i);
     })
     .slice(0, 60);
 
@@ -294,7 +331,7 @@ function parseCertificationsSection(lines: string[]): Certification[] {
     if (line.trim().length < 3) continue;
 
     const dateMatch = line.match(/\b(20\d{2}|19\d{2})\b/);
-    
+
     certifications.push({
       id: uuidv4(),
       name: line.replace(/\b(20\d{2}|19\d{2})\b/g, '').trim().slice(0, 150),
@@ -358,11 +395,11 @@ const RANGE_PATTERN = new RegExp(
  */
 export function extractDateRange(text: string): { startDate: string; endDate: string; current: boolean } {
   const match = text.match(RANGE_PATTERN);
-  
+
   if (match) {
     const endStr = match[2].toLowerCase();
     const isCurrent = ['present', 'current', 'now'].some(p => endStr.includes(p));
-    
+
     return {
       startDate: match[1],
       endDate: isCurrent ? '' : match[2],

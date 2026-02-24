@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { LazyMotion, domAnimation, m as motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import useEmblaCarousel from 'embla-carousel-react';
@@ -58,7 +58,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-export default function DashboardPage() {
+function DashboardPageContent() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, loading: authLoading, session, signOut } = useAuth();
@@ -70,7 +70,7 @@ export default function DashboardPage() {
   const { profile } = useProfile(user?.id, user);
   const { hasNew: hasNewChangelog } = useChangelogBadge();
   const [healthScores, setHealthScores] = useState<Record<string, ResumeHealthScore>>({});
-  
+
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createTailoredParentId, setCreateTailoredParentId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -83,7 +83,7 @@ export default function DashboardPage() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showLinkedInImport, setShowLinkedInImport] = useState(false);
   const [showAnalyzeJob, setShowAnalyzeJob] = useState(false);
-  
+
   const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // tipVisible state removed - tip merged into DashboardStats
   const [isCreating, setIsCreating] = useState(false);
@@ -94,7 +94,7 @@ export default function DashboardPage() {
   const [showTrustBanner, setShowTrustBanner] = useState(() => {
     const visitCount = parseInt(localStorage.getItem('wr-trust-banner-visits') || '0', 10);
     if (visitCount >= 3 || localStorage.getItem('wr-trust-banner-seen')) return false;
-    try { localStorage.setItem('wr-trust-banner-visits', String(visitCount + 1)); } catch {}
+    try { localStorage.setItem('wr-trust-banner-visits', String(visitCount + 1)); } catch { }
     return true;
   });
   const [profilePulseSeen, setProfilePulseSeen] = useState(() => !!localStorage.getItem('wr-profile-pulse-seen'));
@@ -182,9 +182,9 @@ export default function DashboardPage() {
   // Auto-score resumes in background (one at a time, debounced)
   useEffect(() => {
     if (!resumes || resumes.length === 0) return;
-    
+
     let cancelled = false;
-    
+
     const scoreNext = async () => {
       for (const resume of resumes) {
         if (cancelled) break;
@@ -208,7 +208,7 @@ export default function DashboardPage() {
         }
       }
     };
-    
+
     const timer = setTimeout(scoreNext, 1000);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [resumes, getCachedScore]);
@@ -303,12 +303,12 @@ export default function DashboardPage() {
   const confirmDelete = () => {
     if (deleteResumeId) {
       const resumeToDelete = resumes?.find(r => r.id === deleteResumeId);
-      
+
       // Store for potential undo
       if (resumeToDelete) {
         setDeletedResume({ id: resumeToDelete.id, title: resumeToDelete.title });
       }
-      
+
       haptics.warning();
       deleteResume.mutate(deleteResumeId, {
         onSuccess: () => {
@@ -355,8 +355,8 @@ export default function DashboardPage() {
         if (score == null) return false;
         return scoreFilters.some(f =>
           f === 'needs-work' ? score < 50 :
-          f === 'good' ? score >= 50 && score < 80 :
-          score >= 80
+            f === 'good' ? score >= 50 && score < 80 :
+              score >= 80
         );
       });
     }
@@ -482,287 +482,287 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col">
-        {/* Header */}
-        <header className="pt-safe pt-3 pb-2 px-4 flex items-center justify-between glass-header">
-          <button onClick={() => navigate('/')} aria-label="Back to home" className="touch-manipulation">
-            <AppLogo size="sm" showTagline={false} hideText />
-          </button>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="w-9 h-9 rounded-xl touch-manipulation active:scale-95"
-              onClick={() => { haptics.light(); setShowFeatureMap(true); }}
-              aria-label="What can I do?"
-            >
-              <HelpCircle className="w-4.5 h-4.5 text-muted-foreground" />
-            </Button>
-            <AICreditsIndicator />
-            <AIHealthBadge />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="w-11 h-11 rounded-xl touch-manipulation active:scale-95 relative"
-              onClick={() => { haptics.light(); navigate('/settings'); }}
-              aria-label="Settings"
-            >
-              <Settings className="w-5 h-5 text-muted-foreground" />
-              {hasNewChangelog && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary border-2 border-background animate-pulse" aria-label="New updates available" />
-              )}
-            </Button>
-            <Popover onOpenChange={(open) => {
-              if (open && !profilePulseSeen) {
-                setProfilePulseSeen(true);
-                localStorage.setItem('wr-profile-pulse-seen', 'true');
-              }
-            }}>
-              <PopoverTrigger asChild>
-                <motion.button
-                  className="touch-manipulation relative touch-ripple min-w-[48px] min-h-[48px] flex items-center justify-center rounded-full"
-                  whileTap={{ scale: 0.9 }}
-                  aria-label="Profile menu"
-                >
-                  {/* First-visit pulse ring */}
-                  {!profilePulseSeen && (
-                    <span className="absolute inset-0 rounded-full border-2 border-primary/40 animate-[ping_1.5s_ease-out_4]" />
+      {/* Header */}
+      <header className="pt-safe pt-3 pb-2 px-4 flex items-center justify-between glass-header">
+        <button onClick={() => navigate('/')} aria-label="Back to home" className="touch-manipulation">
+          <AppLogo size="sm" showTagline={false} hideText />
+        </button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="w-9 h-9 rounded-xl touch-manipulation active:scale-95"
+            onClick={() => { haptics.light(); setShowFeatureMap(true); }}
+            aria-label="What can I do?"
+          >
+            <HelpCircle className="w-4.5 h-4.5 text-muted-foreground" />
+          </Button>
+          <AICreditsIndicator />
+          <AIHealthBadge />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="w-11 h-11 rounded-xl touch-manipulation active:scale-95 relative"
+            onClick={() => { haptics.light(); navigate('/settings'); }}
+            aria-label="Settings"
+          >
+            <Settings className="w-5 h-5 text-muted-foreground" />
+            {hasNewChangelog && (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary border-2 border-background animate-pulse" aria-label="New updates available" />
+            )}
+          </Button>
+          <Popover onOpenChange={(open) => {
+            if (open && !profilePulseSeen) {
+              setProfilePulseSeen(true);
+              localStorage.setItem('wr-profile-pulse-seen', 'true');
+            }
+          }}>
+            <PopoverTrigger asChild>
+              <motion.button
+                className="touch-manipulation relative touch-ripple min-w-[48px] min-h-[48px] flex items-center justify-center rounded-full"
+                whileTap={{ scale: 0.9 }}
+                aria-label="Profile menu"
+              >
+                {/* First-visit pulse ring */}
+                {!profilePulseSeen && (
+                  <span className="absolute inset-0 rounded-full border-2 border-primary/40 animate-[ping_1.5s_ease-out_4]" />
+                )}
+                <Avatar className="w-9 h-9 border-2 border-primary/20">
+                  {profile?.avatarUrl && (
+                    <AvatarImage src={profile.avatarUrl} alt={profile.fullName || 'Profile'} />
                   )}
-                  <Avatar className="w-9 h-9 border-2 border-primary/20">
+                  <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                    {profile?.fullName
+                      ? profile.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+                      : <User className="w-4 h-4" />}
+                  </AvatarFallback>
+                </Avatar>
+                {/* Incomplete profile badge */}
+                {user && profile && calculateProfileCompletion(profile) < 50 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-destructive border border-background" />
+                )}
+              </motion.button>
+            </PopoverTrigger>
+            <PopoverContent align="end" side="bottom" className="w-80 p-0">
+              <div className="flex flex-col gap-3 p-3">
+                <div className="flex flex-row items-center gap-3">
+                  <Avatar className="w-10 h-10 border-2 border-primary/20">
                     {profile?.avatarUrl && (
                       <AvatarImage src={profile.avatarUrl} alt={profile.fullName || 'Profile'} />
                     )}
-                    <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                    <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
                       {profile?.fullName
                         ? profile.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
-                        : <User className="w-4 h-4" />}
+                        : <User className="w-5 h-5" />}
                     </AvatarFallback>
                   </Avatar>
-                  {/* Incomplete profile badge */}
-                  {user && profile && calculateProfileCompletion(profile) < 50 && (
-                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-destructive border border-background" />
-                  )}
-                </motion.button>
-              </PopoverTrigger>
-              <PopoverContent align="end" side="bottom" className="w-80 p-0">
-                <div className="flex flex-col gap-3 p-3">
-                  <div className="flex flex-row items-center gap-3">
-                    <Avatar className="w-10 h-10 border-2 border-primary/20">
-                      {profile?.avatarUrl && (
-                        <AvatarImage src={profile.avatarUrl} alt={profile.fullName || 'Profile'} />
-                      )}
-                      <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
-                        {profile?.fullName
-                          ? profile.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
-                          : <User className="w-5 h-5" />}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <span className="font-medium leading-5 block truncate">{profile?.fullName || 'User'}</span>
-                      {user?.email && (
-                        <span className="text-muted-foreground text-sm font-normal leading-4 block truncate">{user.email}</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex flex-row flex-wrap gap-2 py-0.5">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="active:scale-95 touch-manipulation"
-                      onClick={() => { haptics.light(); navigate('/profile'); }}
-                    >
-                      <User className="w-4 h-4" />
-                      <span>Manage Account</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="active:scale-95 touch-manipulation"
-                      onClick={() => { haptics.light(); navigate('/settings'); }}
-                    >
-                      <Settings className="w-4 h-4" />
-                      <span>Settings</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 active:scale-95 touch-manipulation"
-                      onClick={async () => {
-                        haptics.warning();
-                        await signOut();
-                        navigate('/');
-                      }}
-                    >
-                      <LogOut className="w-4 h-4" />
-                      <span>Sign Out</span>
-                    </Button>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-        </header>
-
-        {/* All scrollable content inside PullToRefresh */}
-        <PullToRefresh onRefresh={handleRefresh} className="flex-1">
-          <div className="pb-safe max-w-3xl xl:max-w-5xl mx-auto w-full">
-            {/* Trust banner — only on first visit, hidden on small screens after first dismiss */}
-            {showTrustBanner && (
-              <div className="px-4 pt-3 hidden sm:block">
-                <div className="flex items-start gap-3 p-3 rounded-xl border border-primary/10 bg-primary/5">
-                  <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-foreground">Your career data is encrypted, private, and never shared.</p>
+                    <span className="font-medium leading-5 block truncate">{profile?.fullName || 'User'}</span>
+                    {user?.email && (
+                      <span className="text-muted-foreground text-sm font-normal leading-4 block truncate">{user.email}</span>
+                    )}
                   </div>
-                  <button
-                    onClick={() => { setShowTrustBanner(false); localStorage.setItem('wr-trust-banner-seen', 'true'); }}
-                    className="shrink-0 active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center"
-                    aria-label="Dismiss"
+                </div>
+                <div className="flex flex-row flex-wrap gap-2 py-0.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="active:scale-95 touch-manipulation"
+                    onClick={() => { haptics.light(); navigate('/profile'); }}
                   >
-                    <X className="w-3.5 h-3.5 text-muted-foreground/50" />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* What's Next Card */}
-            <WhatsNextCard />
-
-            {/* Feature discovery merged into WhatsNextCard */}
-
-            {/* Personalized Stats Header */}
-            <DashboardStats
-              totalResumes={resumes?.length || 0}
-              healthScores={healthScores}
-              userName={profile?.fullName}
-              isScoring={scoringId !== null || (resumes != null && resumes.length > 0 && Object.keys(healthScores).length < resumes.length)}
-              resumes={resumes ?? undefined}
-              loginStreak={profile?.loginStreak}
-            />
-
-            {/* Quick Action Chips */}
-            {resumes && resumes.length > 0 && (
-              <QuickActionChips onCreateNew={handleCreateNew} />
-            )}
-
-            {/* Search pill — moved below tabs area conceptually, but above filter bar */}
-            {resumes && resumes.length > 0 && (
-              <div className="px-4 pb-2 flex flex-col gap-1">
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      placeholder={`Search in ${activeTab === 'my-cvs' ? 'My CVs' : 'Tailored'}...`}
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10 rounded-full h-10 sm:h-11 text-base glass-input"
-                    />
-                  </div>
-                  {!selectionMode && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="min-w-[44px] min-h-[44px] flex-shrink-0"
-                      onClick={() => { haptics.light(); setSelectionMode(true); }}
-                      aria-label="Select resumes"
-                    >
-                      <CheckSquare className="w-5 h-5" />
-                    </Button>
-                  )}
-                </div>
-                {searchQuery && (
-                  <p className="text-[11px] text-muted-foreground px-1">
-                    Searching in <span className="font-medium text-foreground">{activeTab === 'my-cvs' ? 'My CVs' : 'Tailored'}</span>
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Selection toolbar */}
-            {selectionMode && resumes && resumes.length > 0 && (
-              <div className="px-4 pb-3">
-                <div className="flex items-center gap-2 rounded-xl glass-elevated px-3 py-2">
-                  <Button variant="ghost" size="sm" onClick={exitSelectionMode} className="min-w-[44px] min-h-[44px]">
-                    <X className="w-4 h-4" />
-                  </Button>
-                  <span className="text-sm font-medium flex-1">
-                    {selectedIds.size} selected
-                  </span>
-                  <Button variant="ghost" size="sm" onClick={handleSelectAll} className="text-xs">
-                    Select All
+                    <User className="w-4 h-4" />
+                    <span>Manage Account</span>
                   </Button>
                   <Button
-                    variant="destructive"
+                    variant="outline"
                     size="sm"
-                    disabled={selectedIds.size === 0}
-                    onClick={() => setShowBulkDeleteConfirm(true)}
-                    className="min-h-[44px] active:scale-95"
+                    className="active:scale-95 touch-manipulation"
+                    onClick={() => { haptics.light(); navigate('/settings'); }}
                   >
-                    <Trash2 className="w-4 h-4 mr-1" />
-                    Delete
+                    <Settings className="w-4 h-4" />
+                    <span>Settings</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 active:scale-95 touch-manipulation"
+                    onClick={async () => {
+                      haptics.warning();
+                      await signOut();
+                      navigate('/');
+                    }}
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Sign Out</span>
                   </Button>
                 </div>
               </div>
-            )}
+            </PopoverContent>
+          </Popover>
+        </div>
+      </header>
 
-            {/* Filter/Sort bar */}
-            {resumes && resumes.length >= 2 && (
-              <ResumeFilters
-                sort={sortOption}
-                onSortChange={setSortOption}
-                categoryFilters={categoryFilters}
-                onCategoryToggle={handleCategoryToggle}
-                scoreFilters={scoreFilters}
-                onScoreToggle={handleScoreToggle}
-                onClearAll={handleClearFilters}
-                hasActiveFilters={hasActiveFilters}
-              />
-            )}
-
-            {/* Content */}
-            {isLoading ? (
-              <div className="px-4">
-                <SkeletonCardList count={3} />
-              </div>
-            ) : resumesError && !resumes && !navigator.onLine ? (
-              /* Offline and no cached data — show specific offline state */
-              <div className="flex flex-col items-center justify-center px-6 py-16 gap-4 text-center">
-                <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
-                  <WifiOff className="w-8 h-8 text-muted-foreground" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg mb-1">You're offline</h3>
-                  <p className="text-sm text-muted-foreground">Connect to the internet to load your resumes.</p>
+      {/* All scrollable content inside PullToRefresh */}
+      <PullToRefresh onRefresh={handleRefresh} className="flex-1">
+        <div className="pb-safe max-w-3xl xl:max-w-5xl mx-auto w-full">
+          {/* Trust banner — only on first visit, hidden on small screens after first dismiss */}
+          {showTrustBanner && (
+            <div className="px-4 pt-3 hidden sm:block">
+              <div className="flex items-start gap-3 p-3 rounded-xl border border-primary/10 bg-primary/5">
+                <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-foreground">Your career data is encrypted, private, and never shared.</p>
                 </div>
                 <button
-                  onClick={() => refetch()}
-                  className="text-sm text-primary hover:underline min-h-[44px] touch-manipulation flex items-center"
+                  onClick={() => { setShowTrustBanner(false); localStorage.setItem('wr-trust-banner-seen', 'true'); }}
+                  className="shrink-0 active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                  aria-label="Dismiss"
                 >
-                  Retry
+                  <X className="w-3.5 h-3.5 text-muted-foreground/50" />
                 </button>
               </div>
-            ) : !resumes || resumes.length === 0 ? (
-              <>
-                <EmptyState onCreateNew={handleCreateNew} onBrowseTemplates={() => setShowCreateDialog(true)} onStartOnboarding={() => setShowOnboarding(true)} />
-              </>
-            ) : !hasResumes ? (
-              <div className="flex items-center justify-center px-4 py-16">
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-center"
-                >
-                  <p className="text-muted-foreground">No resumes match "{searchQuery}"</p>
+            </div>
+          )}
+
+          {/* What's Next Card */}
+          <WhatsNextCard />
+
+          {/* Feature discovery merged into WhatsNextCard */}
+
+          {/* Personalized Stats Header */}
+          <DashboardStats
+            totalResumes={resumes?.length || 0}
+            healthScores={healthScores}
+            userName={profile?.fullName}
+            isScoring={scoringId !== null || (resumes != null && resumes.length > 0 && Object.keys(healthScores).length < resumes.length)}
+            resumes={resumes ?? undefined}
+            loginStreak={profile?.loginStreak}
+          />
+
+          {/* Quick Action Chips */}
+          {resumes && resumes.length > 0 && (
+            <QuickActionChips onCreateNew={handleCreateNew} />
+          )}
+
+          {/* Search pill — moved below tabs area conceptually, but above filter bar */}
+          {resumes && resumes.length > 0 && (
+            <div className="px-4 pb-2 flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder={`Search in ${activeTab === 'my-cvs' ? 'My CVs' : 'Tailored'}...`}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 rounded-full h-10 sm:h-11 text-base glass-input"
+                  />
+                </div>
+                {!selectionMode && (
                   <Button
-                    variant="link"
-                    onClick={() => setSearchQuery('')}
-                    className="mt-2"
+                    variant="ghost"
+                    size="icon"
+                    className="min-w-[44px] min-h-[44px] flex-shrink-0"
+                    onClick={() => { haptics.light(); setSelectionMode(true); }}
+                    aria-label="Select resumes"
                   >
-                    Clear search
+                    <CheckSquare className="w-5 h-5" />
                   </Button>
-                </motion.div>
+                )}
               </div>
-            ) : (
-              <div className="px-4 pb-4">
+              {searchQuery && (
+                <p className="text-[11px] text-muted-foreground px-1">
+                  Searching in <span className="font-medium text-foreground">{activeTab === 'my-cvs' ? 'My CVs' : 'Tailored'}</span>
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Selection toolbar */}
+          {selectionMode && resumes && resumes.length > 0 && (
+            <div className="px-4 pb-3">
+              <div className="flex items-center gap-2 rounded-xl glass-elevated px-3 py-2">
+                <Button variant="ghost" size="sm" onClick={exitSelectionMode} className="min-w-[44px] min-h-[44px]">
+                  <X className="w-4 h-4" />
+                </Button>
+                <span className="text-sm font-medium flex-1">
+                  {selectedIds.size} selected
+                </span>
+                <Button variant="ghost" size="sm" onClick={handleSelectAll} className="text-xs">
+                  Select All
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={selectedIds.size === 0}
+                  onClick={() => setShowBulkDeleteConfirm(true)}
+                  className="min-h-[44px] active:scale-95"
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Delete
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Filter/Sort bar */}
+          {resumes && resumes.length >= 2 && (
+            <ResumeFilters
+              sort={sortOption}
+              onSortChange={setSortOption}
+              categoryFilters={categoryFilters}
+              onCategoryToggle={handleCategoryToggle}
+              scoreFilters={scoreFilters}
+              onScoreToggle={handleScoreToggle}
+              onClearAll={handleClearFilters}
+              hasActiveFilters={hasActiveFilters}
+            />
+          )}
+
+          {/* Content */}
+          {isLoading ? (
+            <div className="px-4">
+              <SkeletonCardList count={3} />
+            </div>
+          ) : resumesError && !resumes && !navigator.onLine ? (
+            /* Offline and no cached data — show specific offline state */
+            <div className="flex flex-col items-center justify-center px-6 py-16 gap-4 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
+                <WifiOff className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg mb-1">You're offline</h3>
+                <p className="text-sm text-muted-foreground">Connect to the internet to load your resumes.</p>
+              </div>
+              <button
+                onClick={() => refetch()}
+                className="text-sm text-primary hover:underline min-h-[44px] touch-manipulation flex items-center"
+              >
+                Retry
+              </button>
+            </div>
+          ) : !resumes || resumes.length === 0 ? (
+            <>
+              <EmptyState onCreateNew={handleCreateNew} onBrowseTemplates={() => setShowCreateDialog(true)} onStartOnboarding={() => setShowOnboarding(true)} />
+            </>
+          ) : !hasResumes ? (
+            <div className="flex items-center justify-center px-4 py-16">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center"
+              >
+                <p className="text-muted-foreground">No resumes match "{searchQuery}"</p>
+                <Button
+                  variant="link"
+                  onClick={() => setSearchQuery('')}
+                  className="mt-2"
+                >
+                  Clear search
+                </Button>
+              </motion.div>
+            </div>
+          ) : (
+            <div className="px-4 pb-4">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="w-full mb-4">
                   <TabsTrigger value="my-cvs" className="flex-1 gap-1.5">
@@ -788,7 +788,7 @@ export default function DashboardPage() {
                   <div className="flex" style={{ touchAction: 'pan-x' }}>
                     {/* Slide 0: My CVs */}
                     <div className="flex-[0_0_100%] min-w-0">
-                      <motion.div 
+                      <motion.div
                         className="space-y-4 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0"
                         initial="hidden"
                         animate="visible"
@@ -912,10 +912,10 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </Tabs>
-              </div>
-            )}
-          </div>
-        </PullToRefresh>
+            </div>
+          )}
+        </div>
+      </PullToRefresh>
 
       {/* Create Resume Dialog - lazy loaded */}
       <Suspense fallback={null}>
@@ -1063,5 +1063,13 @@ export default function DashboardPage() {
       {/* Feature Map Sheet */}
       <FeatureMapSheet open={showFeatureMap} onOpenChange={setShowFeatureMap} />
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <LazyMotion features={domAnimation}>
+      <DashboardPageContent />
+    </LazyMotion>
   );
 }

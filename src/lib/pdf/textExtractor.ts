@@ -68,7 +68,7 @@ export interface ExtractionResult {
  */
 export async function extractTextFromPDF(file: File): Promise<ExtractionResult> {
   const arrayBuffer = await file.arrayBuffer();
-  
+
   let pdf;
   try {
     pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -113,10 +113,10 @@ export async function extractTextFromPDF(file: File): Promise<ExtractionResult> 
   const cleanedText = fullText.replace(/\s+/g, ' ').trim();
   const hasLetters = /[A-Za-z]/.test(cleanedText);
   const wordCount = cleanedText.split(/\s+/).filter(w => w.length > 1).length;
-  
+
   // Log first 200 chars for debugging parsing issues
   if (import.meta.env.DEV) console.log('PDF extraction preview:', cleanedText.substring(0, 200), `(${wordCount} words, ${cleanedText.length} chars)`);
-  
+
   if (cleanedText.length === 0 || !hasLetters || wordCount < 10) {
     // Instead of throwing, return needsOCR flag so UI can offer OCR
     console.warn('PDF extraction produced too little text - OCR may be needed', {
@@ -124,7 +124,7 @@ export async function extractTextFromPDF(file: File): Promise<ExtractionResult> 
       cleanedChars: cleanedText.length,
       debugPages,
     });
-    
+
     return {
       text: '',
       method: 'text',
@@ -174,7 +174,7 @@ function reconstructPageText(items: any[]): string {
   for (const item of textItems) {
     const text = item.str.trim();
     if (!text) continue;
-    
+
     const x = item.transform[4];
     const y = Math.round(item.transform[5] / Y_TOLERANCE) * Y_TOLERANCE;
 
@@ -197,7 +197,7 @@ function reconstructPageText(items: any[]): string {
 
     // Detect two-column layout: if there's a large X gap, split into separate lines
     const splitLines = splitByColumnGap(group.items);
-    
+
     for (const lineItems of splitLines) {
       const lineText = lineItems.map(item => item.str).join(' ').trim();
       if (lineText) {
@@ -215,13 +215,13 @@ function reconstructPageText(items: any[]): string {
 function splitByColumnGap(items: { x: number; str: string }[]): { x: number; str: string }[][] {
   if (items.length < 2) return [items];
 
-  const COLUMN_GAP_THRESHOLD = 100; // pixels - reduced for sidebar layouts
+  const COLUMN_GAP_THRESHOLD = 60; // pixels - lowered for sidebar/two-column CVs
   const result: { x: number; str: string }[][] = [];
   let currentGroup: { x: number; str: string }[] = [items[0]];
 
   for (let i = 1; i < items.length; i++) {
-    const gap = items[i].x - (items[i - 1].x + items[i - 1].str.length * 5); // rough char width
-    
+    const gap = items[i].x - (items[i - 1].x + items[i - 1].str.length * 6); // ~6px per character
+
     if (gap > COLUMN_GAP_THRESHOLD) {
       result.push(currentGroup);
       currentGroup = [items[i]];

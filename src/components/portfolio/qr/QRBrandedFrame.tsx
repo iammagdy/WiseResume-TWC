@@ -16,13 +16,13 @@ export function QRBrandedFrame({ isCapture = false }: QRBrandedFrameProps) {
         style={isCapture
           ? { color: '#a855f7' }
           : {
-              backgroundImage: 'linear-gradient(135deg, #a855f7, #ec4899)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }
+            backgroundImage: 'linear-gradient(135deg, #a855f7, #ec4899)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+          }
         }
       >
-        Wise Resume
+        Wiseresume AI
       </span>
     </div>
   );

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAI } from "../_shared/aiClient.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 serve(async (req) => {
@@ -47,15 +48,6 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      console.error("LOVABLE_API_KEY is not configured");
-      return new Response(
-        JSON.stringify({ error: "API key not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     console.log("Generating professional headshot with AI...");
 
     const prompt = `Transform this photo into a professional corporate headshot. Requirements:
@@ -68,31 +60,35 @@ serve(async (req) => {
 - Head and shoulders composition
 - High-quality, polished finish suitable for professional use`;
 
+    // Call Gemini directly with image input via the native Gemini API
+    const geminiModel = 'gemini-2.5-flash';
+    const geminiKey = Deno.env.get('GEMINI_API_KEY');
+
+    if (!geminiKey) {
+      return new Response(
+        JSON.stringify({ error: "GEMINI_API_KEY is not configured. Please set it in Supabase Secrets." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // 30-second timeout for reliability
     const fetchController = new AbortController();
     const fetchTimeout = setTimeout(() => fetchController.abort(), 30_000);
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Use Gemini native API for image generation (requires native endpoint, not OpenAI-compat)
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-image",
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              {
-                type: "image_url",
-                image_url: { url: imageBase64 },
-              },
-            ],
-          },
-        ],
-        modalities: ["image", "text"],
+        contents: [{
+          parts: [
+            { text: prompt },
+            { inlineData: { mimeType: "image/jpeg", data: imageBase64.replace(/^data:image\/\w+;base64,/, '') } },
+          ],
+        }],
+        generationConfig: {
+          responseModalities: ["TEXT", "IMAGE"],
+        },
       }),
       signal: fetchController.signal,
     });
@@ -101,41 +97,37 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      
+      console.error("Gemini API error:", response.status, errorText);
+
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits exhausted. Please add credits to continue." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      
+
       return new Response(
-        JSON.stringify({ error: "Failed to generate headshot" }),
+        JSON.stringify({ error: "Failed to generate headshot. This feature requires a Gemini API key with image generation support." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const data = await response.json();
-    console.log("AI response received");
+    console.log("Gemini response received");
 
-    // Extract the generated image URL from the response
-    const generatedImageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    // Extract the generated image from the Gemini native response
+    const parts = data.candidates?.[0]?.content?.parts || [];
+    const imagePart = parts.find((p: any) => p.inlineData);
 
-    if (!generatedImageUrl) {
+    if (!imagePart?.inlineData) {
       console.error("No image in response:", JSON.stringify(data).slice(0, 500));
       return new Response(
-        JSON.stringify({ error: "No image generated. The AI might not have been able to process your photo." }),
+        JSON.stringify({ error: "No image generated. The AI might not have been able to process your photo. Note: image generation may require a paid Gemini API key." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    const generatedImageUrl = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
     console.log("Professional headshot generated successfully");
 
     return new Response(

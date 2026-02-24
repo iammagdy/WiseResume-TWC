@@ -68,16 +68,16 @@ export function InterviewToggle({ status, onPress, disabled, silenceDetected, au
           background: isListening
             ? 'radial-gradient(circle, hsl(var(--primary) / 0.4) 0%, transparent 70%)'
             : isSpeaking
-            ? 'radial-gradient(circle, hsl(142 70% 50% / 0.3) 0%, transparent 70%)'
-            : isReady
-            ? 'radial-gradient(circle, hsl(45 90% 55% / 0.35) 0%, transparent 70%)'
-            : isThinking
-            ? 'radial-gradient(circle, hsl(var(--primary) / 0.25) 0%, transparent 70%)'
-            : 'radial-gradient(circle, hsl(var(--primary) / 0.15) 0%, transparent 70%)',
+              ? 'radial-gradient(circle, hsl(142 70% 50% / 0.3) 0%, transparent 70%)'
+              : isReady
+                ? 'radial-gradient(circle, hsl(45 90% 55% / 0.35) 0%, transparent 70%)'
+                : isThinking
+                  ? 'radial-gradient(circle, hsl(var(--primary) / 0.25) 0%, transparent 70%)'
+                  : 'radial-gradient(circle, hsl(var(--primary) / 0.15) 0%, transparent 70%)',
         }}
-        animate={{ 
-          scale: isListening ? [1, 1.1 + amplifiedLevel * 0.2, 1] : [1, 1.15, 1], 
-          opacity: isListening ? [0.7, 0.9 + amplifiedLevel * 0.1, 0.7] : [0.6, 1, 0.6] 
+        animate={{
+          scale: isListening ? [1, 1.1 + amplifiedLevel * 0.2, 1] : [1, 1.15, 1],
+          opacity: isListening ? [0.7, 0.9 + amplifiedLevel * 0.1, 0.7] : [0.6, 1, 0.6]
         }}
         transition={{ duration: isReady ? 1.5 : isListening ? 0.3 : 3, repeat: Infinity, ease: 'easeInOut' }}
       />
@@ -91,8 +91,8 @@ export function InterviewToggle({ status, onPress, disabled, silenceDetected, au
           background: isReady
             ? `conic-gradient(from 0deg, hsl(45 90% 55% / 0.6), hsl(45 90% 55% / 0.15), hsl(45 90% 55% / 0.6))`
             : isListening
-            ? `conic-gradient(from 0deg, hsl(var(--primary) / 0.6), hsl(var(--primary) / 0.1), hsl(var(--primary) / 0.6))`
-            : `conic-gradient(from 0deg, hsl(var(--primary) / 0.4), hsl(var(--primary) / 0.05), hsl(var(--primary) / 0.4))`,
+              ? `conic-gradient(from 0deg, hsl(var(--primary) / 0.6), hsl(var(--primary) / 0.1), hsl(var(--primary) / 0.6))`
+              : `conic-gradient(from 0deg, hsl(var(--primary) / 0.4), hsl(var(--primary) / 0.05), hsl(var(--primary) / 0.4))`,
           WebkitMask: 'radial-gradient(farthest-side, transparent calc(100% - 2.5px), #fff calc(100% - 2.5px))',
           mask: 'radial-gradient(farthest-side, transparent calc(100% - 2.5px), #fff calc(100% - 2.5px))',
         }}
@@ -201,6 +201,9 @@ export function InterviewToggle({ status, onPress, disabled, silenceDetected, au
         whileTap={{ scale: 0.92 }}
         onClick={handlePress}
         disabled={disabled || isThinking}
+        aria-label={
+          isListening ? 'Stop listening' : isSpeaking ? 'Interrupt AI and start speaking' : isThinking ? 'AI is thinking' : 'Start speaking'
+        }
         className={cn(
           'relative z-10 w-[110px] h-[110px] rounded-full flex items-center justify-center',
           'backdrop-blur-xl border-2 transition-all touch-manipulation',
@@ -272,19 +275,19 @@ export function InterviewToggle({ status, onPress, disabled, silenceDetected, au
           {isListening && silenceDetected
             ? 'Sending soon…'
             : isListening && waitingForAnswer
-            ? 'Waiting for your answer...'
-            : isListening
-            ? (amplifiedLevel > 0.1 ? 'Detecting speech...' : 'Listening...')
-            : isThinking
-            ? 'Analyzing...'
-            : isSpeaking
-            ? 'Speaking...'
-            : isReady
-            ? 'Starting mic...'
-            : 'Tap to speak'}
+              ? 'Waiting for your answer...'
+              : isListening
+                ? (amplifiedLevel > 0.1 ? 'Detecting speech...' : 'Listening...')
+                : isThinking
+                  ? 'Analyzing...'
+                  : isSpeaking
+                    ? 'Speaking...'
+                    : isReady
+                      ? 'Starting mic...'
+                      : 'Tap to speak'}
         </span>
         {isListening && !silenceDetected && (
-          <motion.span 
+          <motion.span
             initial={{ opacity: 0 }}
             animate={{ opacity: 0.6 }}
             className="text-[10px] text-muted-foreground"
@@ -293,7 +296,7 @@ export function InterviewToggle({ status, onPress, disabled, silenceDetected, au
           </motion.span>
         )}
         {isSpeaking && (
-          <motion.span 
+          <motion.span
             initial={{ opacity: 0 }}
             animate={{ opacity: 0.6 }}
             className="text-[10px] text-muted-foreground"

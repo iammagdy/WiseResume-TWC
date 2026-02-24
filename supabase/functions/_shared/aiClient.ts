@@ -62,13 +62,13 @@ export interface AIError {
 
 // Model mapping for direct Gemini calls
 const MODEL_MAPPING: Record<string, string> = {
-  'google/gemini-2.5-flash': 'gemini-2.5-flash',
-  'google/gemini-2.5-pro': 'gemini-2.5-pro',
+  'google/gemini-2.5-flash': 'gemini-2.0-flash',
+  'google/gemini-2.5-pro': 'gemini-1.5-pro',
   'google/gemini-2.5-flash-lite': 'gemini-2.0-flash-lite',
   'google/gemini-3-flash-preview': 'gemini-2.0-flash',
-  'google/gemini-3-pro-preview': 'gemini-2.5-pro',
-  'gemini-2.5-flash': 'gemini-2.5-flash',
-  'gemini-2.5-pro': 'gemini-2.5-pro',
+  'google/gemini-3-pro-preview': 'gemini-2.0-pro-exp-02-05',
+  'gemini-2.5-flash': 'gemini-2.0-flash',
+  'gemini-2.5-pro': 'gemini-1.5-pro',
   'gemini-3-flash-preview': 'gemini-2.0-flash',
 };
 
@@ -117,8 +117,11 @@ async function decryptKey(encoded: string): Promise<string> {
  * Uses the service role key to bypass RLS.
  */
 export async function getUserKeyFromDB(userId: string, provider = 'gemini'): Promise<string | undefined> {
-  if (!ENCRYPTION_SECRET) return undefined;
-  
+  if (!ENCRYPTION_SECRET) {
+    console.warn('[aiClient] API_KEY_ENCRYPTION_SECRET not set — cannot decrypt user BYOK keys. Falling back to global key.');
+    return undefined;
+  }
+
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -141,39 +144,34 @@ export async function getUserKeyFromDB(userId: string, provider = 'gemini'): Pro
 }
 
 /**
- * Calls AI using either Lovable Gateway or Google Gemini directly.
+ * Calls Google Gemini API directly.
  * If userId is provided, attempts to fetch their Gemini key from the DB.
- * Falls back to userGeminiKey (deprecated) for backward compat.
+ * Falls back to global GEMINI_API_KEY env var.
  */
 export async function callAI(options: AICallOptions): Promise<AIResponse> {
   const { model, messages, temperature = 0.7, maxTokens, tools, toolChoice, userId, timeout = 30_000 } = options;
-  
+
   // Resolve the user's Gemini key: prefer DB lookup, fall back to deprecated body param
-  let userGeminiKey = options.userGeminiKey;
-  if (!userGeminiKey && userId) {
-    userGeminiKey = await getUserKeyFromDB(userId);
+  let geminiKey = options.userGeminiKey;
+  if (!geminiKey && userId) {
+    geminiKey = await getUserKeyFromDB(userId);
+  }
+
+  // Fallback to global environment GEMINI API key
+  if (!geminiKey) {
+    geminiKey = Deno.env.get('GEMINI_API_KEY');
+  }
+
+  if (!geminiKey) {
+    console.error('[AI] No Gemini API key available (no user key, no GEMINI_API_KEY env var)');
+    throw createAIError('invalid_key', 'No Gemini API key configured. Please add your API key in Settings or set GEMINI_API_KEY in Supabase Secrets.', 500);
   }
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
-    if (userGeminiKey) {
-      try {
-        return await callGeminiDirect(userGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
-      } catch (geminiErr) {
-        if (isAIError(geminiErr) && (geminiErr.type === 'quota_exceeded' || geminiErr.type === 'rate_limit' || geminiErr.type === 'invalid_key' || geminiErr.type === 'unknown')) {
-          console.warn(`[AI] User Gemini key failed (${geminiErr.type}), falling back to Lovable gateway`);
-          const result = await callLovableGateway(model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
-          result.fallbackUsed = true;
-          result.fallbackReason = geminiErr.type;
-          return result;
-        }
-        throw geminiErr;
-      }
-    } else {
-      return await callLovableGateway(model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
-    }
+    return await callGeminiDirect(geminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       throw createAIError('network', `AI request timed out after ${Math.round(timeout / 1000)} seconds. Please try again.`, 408);
@@ -270,49 +268,7 @@ export function sanitizeInputText(text: string, maxChars = 15_000): string {
 }
 
 /**
- * Calls the AI Gateway (default path)
- */
-async function callLovableGateway(
-  model: string,
-  messages: AIMessage[],
-  temperature: number,
-  maxTokens?: number,
-  tools?: AITool[],
-  toolChoice?: { type: 'function'; function: { name: string } } | 'auto',
-  signal?: AbortSignal
-): Promise<AIResponse> {
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-  if (!LOVABLE_API_KEY) {
-    throw createAIError('unknown', 'LOVABLE_API_KEY is not configured', 500);
-  }
-
-  const body: Record<string, unknown> = { model, messages, temperature };
-  if (maxTokens) body.max_tokens = maxTokens;
-  if (tools && tools.length > 0) {
-    body.tools = tools;
-    if (toolChoice) body.tool_choice = toolChoice;
-  }
-
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-    signal,
-  });
-
-  if (!response.ok) {
-    handleGatewayError(response.status, await response.text());
-  }
-
-  const data = await response.json();
-  return parseOpenAIResponse(data);
-}
-
-/**
- * Calls Google Gemini API directly using user's key
+ * Calls Google Gemini API directly
  * Uses the OpenAI-compatible endpoint for consistency
  */
 async function callGeminiDirect(
@@ -326,7 +282,7 @@ async function callGeminiDirect(
   signal?: AbortSignal
 ): Promise<AIResponse> {
   const geminiModel = mapModelForGemini(model);
-  
+
   const body: Record<string, unknown> = { model: geminiModel, messages, temperature };
   if (maxTokens) body.max_tokens = maxTokens;
   if (tools && tools.length > 0) {
@@ -362,7 +318,7 @@ function parseOpenAIResponse(data: any): AIResponse {
   }
 
   const message = choice.message;
-  
+
   return {
     content: message.content,
     toolCalls: message.tool_calls?.map((tc: any) => ({
@@ -381,27 +337,11 @@ function parseOpenAIResponse(data: any): AIResponse {
 }
 
 /**
- * Handles errors from the AI Gateway
- */
-function handleGatewayError(status: number, errorText: string): never {
-  console.error('AI Gateway error:', status, errorText);
-  
-  if (status === 429) {
-    throw createAIError('rate_limit', 'Rate limit exceeded. Please try again later.', 429);
-  }
-  if (status === 402) {
-    throw createAIError('payment_required', 'AI credits exhausted. Please add more credits.', 402);
-  }
-  
-  throw createAIError('unknown', `AI request failed: ${status}`, status);
-}
-
-/**
  * Handles errors from direct Gemini API calls
  */
 function handleGeminiError(status: number, errorText: string): never {
   console.error('Gemini API error:', status, errorText);
-  
+
   let errorMessage = 'AI request failed';
   try {
     const parsed = JSON.parse(errorText);
@@ -409,7 +349,7 @@ function handleGeminiError(status: number, errorText: string): never {
   } catch {
     // Use raw error text
   }
-  
+
   if (status === 401 || status === 403) {
     throw createAIError('invalid_key', 'Invalid Gemini API key. Please check your settings.', 401);
   }
@@ -419,7 +359,7 @@ function handleGeminiError(status: number, errorText: string): never {
     }
     throw createAIError('rate_limit', 'Too many requests. Please wait a moment.', 429);
   }
-  
+
   throw createAIError('unknown', errorMessage, status);
 }
 

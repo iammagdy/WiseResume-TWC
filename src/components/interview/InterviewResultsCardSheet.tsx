@@ -188,9 +188,9 @@ function ResultsCardCanvas({
         {/* Footer */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 13, color: s.footer, fontWeight: 500 }}>✨ Powered by Wise AI</span>
+            <span style={{ fontSize: 13, color: s.footer, fontWeight: 500 }}>✨ Powered by Wiseresume AI</span>
           </div>
-          <span style={{ fontSize: 13, color: s.footer }}>wiseresume.lovable.app</span>
+          <span style={{ fontSize: 13, color: s.footer }}>wiseresume.ai</span>
         </div>
       </div>
     </div>
@@ -430,8 +430,8 @@ function ResultsCardPreview({
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 13, color: s.footer, fontWeight: 500 }}>✨ Powered by Wise AI</span>
-        <span style={{ fontSize: 13, color: s.footer }}>wiseresume.lovable.app</span>
+        <span style={{ fontSize: 13, color: s.footer, fontWeight: 500 }}>✨ Powered by Wiseresume AI</span>
+        <span style={{ fontSize: 13, color: s.footer }}>wiseresume.ai</span>
       </div>
     </div>
   );

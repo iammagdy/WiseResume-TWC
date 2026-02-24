@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
-import { contentPhrases, ALL_CATEGORIES, CATEGORY_LABELS, CATEGORY_COLORS, type ContentCategory } from '@/lib/contentLibrary';
+import { getContentPhrases, ALL_CATEGORIES, CATEGORY_LABELS, CATEGORY_COLORS, type ContentCategory, type ContentPhrase } from '@/lib/contentLibrary';
 import { useContentLibraryStore } from '@/store/contentLibraryStore';
 
 interface ContentLibrarySheetProps {
@@ -19,6 +19,7 @@ export const ContentLibrarySheet = memo(function ContentLibrarySheet({
   onOpenChange,
   onInsert,
 }: ContentLibrarySheetProps) {
+  const [allPhrases, setAllPhrases] = useState<ContentPhrase[]>([]);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<ContentCategory | 'all'>('all');
   const [tab, setTab] = useState<'browse' | 'favorites'>('browse');
@@ -28,6 +29,7 @@ export const ContentLibrarySheet = memo(function ContentLibrarySheet({
 
   useEffect(() => {
     if (open) {
+      getContentPhrases().then(setAllPhrases);
       setTimeout(() => searchRef.current?.focus(), 300);
     } else {
       setSearch('');
@@ -37,7 +39,7 @@ export const ContentLibrarySheet = memo(function ContentLibrarySheet({
   }, [open]);
 
   const filteredPhrases = useMemo(() => {
-    let results = contentPhrases;
+    let results = allPhrases;
 
     if (tab === 'favorites') {
       results = results.filter((p) => favorites.includes(p.id));
@@ -53,10 +55,10 @@ export const ContentLibrarySheet = memo(function ContentLibrarySheet({
     }
 
     return results;
-  }, [search, selectedCategory, tab, favorites]);
+  }, [allPhrases, search, selectedCategory, tab, favorites]);
 
   const handleInsert = useCallback(
-    (phrase: typeof contentPhrases[0]) => {
+    (phrase: ContentPhrase) => {
       haptics.medium();
       addToRecent(phrase.id);
       onInsert(phrase.text);
@@ -173,7 +175,7 @@ export const ContentLibrarySheet = memo(function ContentLibrarySheet({
 });
 
 interface PhraseCardProps {
-  phrase: typeof contentPhrases[0];
+  phrase: ContentPhrase;
   isFavorite: boolean;
   onInsert: () => void;
   onToggleFavorite: () => void;

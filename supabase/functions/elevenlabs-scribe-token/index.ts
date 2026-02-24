@@ -59,7 +59,7 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    // IMPORTANT: Must pass token explicitly for Lovable Cloud
+    // Pass token explicitly for Supabase Edge Functions
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
     if (authError || !user) {

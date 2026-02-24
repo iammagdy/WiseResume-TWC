@@ -31,10 +31,10 @@ interface ResumeState {
   generatedCoverLetter: string | null;
   coverLetterJobContext: CoverLetterContext | null;
   coverLetterHistory: CoverLetterHistory[];
-  
+
   // Multi-job comparison
   currentComparison: MultiJobComparison | null;
-  
+
   // Pending tailor results (persisted so sheet close doesn't lose data)
   pendingTailorResult: SuperTailorResult | null;
   pendingTailorOriginal: ResumeData | null;
@@ -61,7 +61,7 @@ interface ResumeState {
   addCoverLetterHistory: (entry: Omit<CoverLetterHistory, 'id' | 'createdAt'>) => void;
   deleteCoverLetterHistoryEntry: (id: string) => void;
   clearCoverLetterHistory: () => void;
-  
+
   // Multi-job comparison actions
   startNewComparison: (resumeId: string, firstJob: Omit<JobComparisonEntry, 'id' | 'createdAt'>) => void;
   addJobToComparison: (job: Omit<JobComparisonEntry, 'id' | 'createdAt'>) => void;
@@ -69,7 +69,7 @@ interface ResumeState {
   selectBestJob: (jobId: string) => void;
   applySelectedJob: () => void;
   clearComparison: () => void;
-  
+
   // Pending tailor actions
   setPendingTailor: (data: {
     result: SuperTailorResult;
@@ -80,7 +80,7 @@ interface ResumeState {
     jobUrl: string | null;
   }) => void;
   clearPendingTailor: () => void;
-  
+
   clearAll: () => void;
 }
 
@@ -137,7 +137,7 @@ export const useResumeStore = create<ResumeState>()(
       setCurrentResumeId: (id) => set({ currentResumeId: id }),
       setIsSaving: (saving) => set({ isSaving: saving }),
       setLastSavedAt: (date) => set({ lastSavedAt: date }),
-      
+
       updateResume: (updates) => set((state) => {
         // Sanitize array fields to prevent corrupted data from AI
         const sanitized = { ...updates };
@@ -162,14 +162,14 @@ export const useResumeStore = create<ResumeState>()(
             : { ...defaultResume, ...sanitized }
         };
       }),
-      
+
       setJobDescription: (description) => set({ jobDescription: description }),
       setMatchScore: (score) => set({ matchScore: score }),
       setGapAnalysis: (analysis) => set({ gapAnalysis: analysis }),
       setIsAnalyzing: (analyzing) => set({ isAnalyzing: analyzing }),
       setSelectedTemplate: (template) => set({ selectedTemplate: template }),
       setPageBreakSettings: (settings) => set({ pageBreakSettings: settings }),
-      
+
       addTailorHistory: (entry, resumeId) => set((state) => {
         const newEntry = {
           ...entry,
@@ -177,22 +177,22 @@ export const useResumeStore = create<ResumeState>()(
           createdAt: new Date().toISOString(),
         };
         const newHistory = [newEntry, ...state.tailorHistory.slice(0, 9)];
-        
+
         // Also store by resume ID
         const byResume = { ...state.tailorHistoryByResume };
         if (resumeId) {
           byResume[resumeId] = [newEntry, ...(byResume[resumeId] || []).slice(0, 4)];
         }
-        
+
         return { tailorHistory: newHistory, tailorHistoryByResume: byResume };
       }),
-      
+
       clearTailorHistory: () => set({ tailorHistory: [], tailorHistoryByResume: {} }),
-      
+
       getTailorHistoryForResume: (resumeId: string) => {
         return get().tailorHistoryByResume[resumeId] || [];
       },
-      
+
       restoreTailorVersion: (id) => {
         const state = get();
         const entry = state.tailorHistory.find(h => h.id === id);
@@ -210,12 +210,12 @@ export const useResumeStore = create<ResumeState>()(
           });
         }
       },
-      
+
       setGeneratedCoverLetter: (letter, context) => set({
         generatedCoverLetter: letter,
         coverLetterJobContext: context || null,
       }),
-      
+
       addCoverLetterHistory: (entry) => set((state) => {
         const newEntry: CoverLetterHistory = {
           ...entry,
@@ -226,13 +226,13 @@ export const useResumeStore = create<ResumeState>()(
           coverLetterHistory: [newEntry, ...state.coverLetterHistory.slice(0, 19)],
         };
       }),
-      
+
       deleteCoverLetterHistoryEntry: (id) => set((state) => ({
         coverLetterHistory: state.coverLetterHistory.filter(e => e.id !== id),
       })),
-      
+
       clearCoverLetterHistory: () => set({ coverLetterHistory: [] }),
-      
+
       startNewComparison: (resumeId, firstJob) => set({
         currentComparison: {
           id: uuidv4(),
@@ -246,7 +246,7 @@ export const useResumeStore = create<ResumeState>()(
           createdAt: new Date().toISOString(),
         },
       }),
-      
+
       addJobToComparison: (job) => set((state) => {
         if (!state.currentComparison || state.currentComparison.jobs.length >= 4) {
           return state;
@@ -265,7 +265,7 @@ export const useResumeStore = create<ResumeState>()(
           },
         };
       }),
-      
+
       removeJobFromComparison: (jobId) => set((state) => {
         if (!state.currentComparison) return state;
         const newJobs = state.currentComparison.jobs.filter(j => j.id !== jobId);
@@ -276,13 +276,13 @@ export const useResumeStore = create<ResumeState>()(
           currentComparison: {
             ...state.currentComparison,
             jobs: newJobs,
-            selectedJobId: state.currentComparison.selectedJobId === jobId 
-              ? null 
+            selectedJobId: state.currentComparison.selectedJobId === jobId
+              ? null
               : state.currentComparison.selectedJobId,
           },
         };
       }),
-      
+
       selectBestJob: (jobId) => set((state) => {
         if (!state.currentComparison) return state;
         return {
@@ -292,17 +292,17 @@ export const useResumeStore = create<ResumeState>()(
           },
         };
       }),
-      
+
       applySelectedJob: () => {
         const state = get();
         if (!state.currentComparison || !state.currentComparison.selectedJobId) return;
-        
+
         const selectedJob = state.currentComparison.jobs.find(
           j => j.id === state.currentComparison?.selectedJobId
         );
-        
+
         if (!selectedJob || !state.currentResume) return;
-        
+
         const result = selectedJob.tailorResult;
         set({
           currentResume: {
@@ -316,9 +316,9 @@ export const useResumeStore = create<ResumeState>()(
           currentComparison: null,
         });
       },
-      
+
       clearComparison: () => set({ currentComparison: null }),
-      
+
       setPendingTailor: (data) => set({
         pendingTailorResult: data.result,
         pendingTailorOriginal: data.original,
@@ -327,7 +327,7 @@ export const useResumeStore = create<ResumeState>()(
         pendingTailorIntensity: data.intensity,
         pendingTailorJobUrl: data.jobUrl,
       }),
-      
+
       clearPendingTailor: () => set({
         pendingTailorResult: null,
         pendingTailorOriginal: null,
@@ -336,7 +336,7 @@ export const useResumeStore = create<ResumeState>()(
         pendingTailorIntensity: 'moderate' as TailorIntensity,
         pendingTailorJobUrl: null,
       }),
-      
+
       clearAll: () => set({
         currentResume: null,
         currentResumeId: null,
@@ -365,6 +365,16 @@ export const useResumeStore = create<ResumeState>()(
     {
       name: 'resume-storage',
       storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        currentResume: state.currentResume,
+        currentResumeId: state.currentResumeId,
+        selectedTemplate: state.selectedTemplate,
+        pageBreakSettings: state.pageBreakSettings,
+        tailorHistory: state.tailorHistory,
+        tailorHistoryByResume: state.tailorHistoryByResume,
+        coverLetterHistory: state.coverLetterHistory,
+        jobDescription: state.jobDescription,
+      }),
       onRehydrateStorage: () => {
         return () => {
           hasHydrated = true;

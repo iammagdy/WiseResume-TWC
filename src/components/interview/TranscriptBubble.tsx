@@ -16,7 +16,7 @@ function TypingIndicator() {
         <motion.div
           key={i}
           className="w-1.5 h-1.5 rounded-full bg-primary/60"
-          animate={{ 
+          animate={{
             y: [0, -4, 0],
             opacity: [0.5, 1, 0.5],
           }}
@@ -36,6 +36,9 @@ export function TranscriptBubble({ entry, isTyping }: TranscriptBubbleProps) {
   const isUser = entry.role === 'user';
   const timeAgo = formatDistanceToNow(entry.timestamp, { addSuffix: false });
 
+  // Detect system-generated fallback messages
+  const isSystemMessage = isUser && /^\((?:no response|silence|skipped)\)$/i.test(entry.text.trim());
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12, scale: 0.97 }}
@@ -46,9 +49,11 @@ export function TranscriptBubble({ entry, isTyping }: TranscriptBubbleProps) {
       <div
         className={cn(
           'max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed',
-          isUser
-            ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground rounded-br-md shadow-[0_4px_20px_hsl(var(--primary)/0.3)]'
-            : 'bg-card/90 backdrop-blur-md border border-border/40 text-foreground rounded-bl-md shadow-[0_4px_20px_hsl(var(--primary)/0.08)]'
+          isSystemMessage
+            ? 'bg-muted/40 backdrop-blur-sm border border-border/40 text-muted-foreground rounded-br-md'
+            : isUser
+              ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground rounded-br-md shadow-[0_4px_20px_hsl(var(--primary)/0.3)]'
+              : 'bg-card/90 backdrop-blur-md border border-border/40 text-foreground rounded-bl-md shadow-[0_4px_20px_hsl(var(--primary)/0.08)]'
         )}
       >
         <div className="flex items-center justify-between gap-3 mb-1.5">
@@ -70,7 +75,7 @@ export function TranscriptBubble({ entry, isTyping }: TranscriptBubbleProps) {
         {isTyping ? (
           <TypingIndicator />
         ) : (
-          <p className="whitespace-pre-wrap">{entry.text}</p>
+          <p className={cn('whitespace-pre-wrap', isSystemMessage && 'italic text-xs')}>{entry.text}</p>
         )}
       </div>
     </motion.div>

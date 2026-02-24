@@ -4,6 +4,7 @@ export default {
   darkMode: ["class"],
   content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
   prefix: "",
+  future: { hoverOnlyWhenSupported: true },
   theme: {
     container: {
       center: true,
@@ -174,11 +175,11 @@ export default {
           "75%": { transform: "translateY(5px) translateX(-5px)" },
         },
         "pulse-glow-cosmic": {
-          "0%, 100%": { 
-            boxShadow: "0 0 30px hsl(270 100% 65% / 0.4), 0 0 60px hsl(185 100% 50% / 0.2)" 
+          "0%, 100%": {
+            boxShadow: "0 0 30px hsl(270 100% 65% / 0.4), 0 0 60px hsl(185 100% 50% / 0.2)"
           },
-          "50%": { 
-            boxShadow: "0 0 50px hsl(270 100% 65% / 0.6), 0 0 100px hsl(185 100% 50% / 0.3)" 
+          "50%": {
+            boxShadow: "0 0 50px hsl(270 100% 65% / 0.6), 0 0 100px hsl(185 100% 50% / 0.3)"
           },
         },
         "shooting-star": {

@@ -137,8 +137,8 @@ Deno.serve(async (req) => {
     }
 
     const resumeText = formatResumeForAnalysis(resume);
-    const targetContext = targetRole 
-      ? `The candidate is targeting: ${targetRole}${targetIndustry ? ` in ${targetIndustry}` : ''}.` 
+    const targetContext = targetRole
+      ? `The candidate is targeting: ${targetRole}${targetIndustry ? ` in ${targetIndustry}` : ''}.`
       : 'Evaluate for general employability.';
 
     const systemPrompt = `You are ${personaConfig.name}.
@@ -192,7 +192,7 @@ ${resumeText}
 Analyze this resume from your unique perspective as ${personaConfig.name}. Be specific and reference actual content from the resume.`;
 
     const aiResponse = await callAI({
-      model: 'google/gemini-2.5-pro',
+      model: 'google/gemini-2.5-flash',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -251,8 +251,8 @@ Portfolio: ${resume.contactInfo.portfolio || 'Not provided'}`);
   if (resume.experience?.length > 0) {
     sections.push('\nWORK EXPERIENCE:');
     resume.experience.forEach((exp, i) => {
-      const dateRange = exp.current 
-        ? `${exp.startDate} - Present` 
+      const dateRange = exp.current
+        ? `${exp.startDate} - Present`
         : `${exp.startDate} - ${exp.endDate}`;
       sections.push(`
 ${i + 1}. ${exp.position} at ${exp.company}
