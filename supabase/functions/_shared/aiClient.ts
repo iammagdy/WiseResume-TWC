@@ -436,6 +436,33 @@ function handleGeminiError(status: number, errorText: string): never {
 }
 
 /**
+ * Handles errors from Emergent Universal API calls
+ */
+function handleEmergentError(status: number, errorText: string): never {
+  console.error('Emergent API error:', status, errorText);
+
+  let errorMessage = 'AI request failed';
+  try {
+    const parsed = JSON.parse(errorText);
+    errorMessage = parsed.error?.message || errorMessage;
+  } catch {
+    // Use raw error text
+  }
+
+  if (status === 401 || status === 403) {
+    throw createAIError('invalid_key', 'Invalid Emergent Universal Key. Please contact support.', 401);
+  }
+  if (status === 402) {
+    throw createAIError('payment_required', 'Emergent Universal Key balance exhausted. Please add credits.', 402);
+  }
+  if (status === 429) {
+    throw createAIError('rate_limit', 'Too many requests. Please wait a moment.', 429);
+  }
+
+  throw createAIError('unknown', errorMessage, status);
+}
+
+/**
  * Creates a typed AI error
  */
 function createAIError(type: AIError['type'], message: string, status: number): AIError & Error {
