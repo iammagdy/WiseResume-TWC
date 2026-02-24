@@ -144,9 +144,9 @@ export async function getUserKeyFromDB(userId: string, provider = 'gemini'): Pro
 }
 
 /**
- * Calls Google Gemini API directly.
+ * Calls AI API (Gemini or Emergent Universal).
  * If userId is provided, attempts to fetch their Gemini key from the DB.
- * Falls back to global GEMINI_API_KEY env var.
+ * Falls back to global GEMINI_API_KEY env var, then EMERGENT_LLM_KEY.
  */
 export async function callAI(options: AICallOptions): Promise<AIResponse> {
   const { model, messages, temperature = 0.7, maxTokens, tools, toolChoice, userId, timeout = 30_000 } = options;
@@ -162,16 +162,25 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
     geminiKey = Deno.env.get('GEMINI_API_KEY');
   }
 
-  if (!geminiKey) {
-    console.error('[AI] No Gemini API key available (no user key, no GEMINI_API_KEY env var)');
-    throw createAIError('invalid_key', 'No Gemini API key configured. Please add your API key in Settings or set GEMINI_API_KEY in Supabase Secrets.', 500);
+  // Final fallback: Emergent Universal Key
+  const emergentKey = Deno.env.get('EMERGENT_LLM_KEY');
+  
+  if (!geminiKey && !emergentKey) {
+    console.error('[AI] No API key available (no user key, no GEMINI_API_KEY, no EMERGENT_LLM_KEY env var)');
+    throw createAIError('invalid_key', 'No AI API key configured. Please add your API key in Settings or configure EMERGENT_LLM_KEY in Supabase Secrets.', 500);
   }
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
-    return await callGeminiDirect(geminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+    // Use Emergent Universal API if no Gemini key available
+    if (!geminiKey && emergentKey) {
+      console.log('[AI] Using Emergent Universal Key for model:', model);
+      return await callEmergentUniversal(emergentKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+    }
+    
+    return await callGeminiDirect(geminiKey!, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       throw createAIError('network', `AI request timed out after ${Math.round(timeout / 1000)} seconds. Please try again.`, 408);
