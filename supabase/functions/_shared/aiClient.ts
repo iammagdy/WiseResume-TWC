@@ -318,6 +318,69 @@ async function callGeminiDirect(
 }
 
 /**
+ * Calls Emergent Universal API
+ * Uses OpenAI-compatible endpoint with universal key that routes to multiple LLM providers
+ */
+async function callEmergentUniversal(
+  apiKey: string,
+  model: string,
+  messages: AIMessage[],
+  temperature: number,
+  maxTokens?: number,
+  tools?: AITool[],
+  toolChoice?: { type: 'function'; function: { name: string } } | 'auto',
+  signal?: AbortSignal
+): Promise<AIResponse> {
+  // Map model names to Emergent-compatible format
+  const emergentModel = mapModelForEmergent(model);
+
+  const body: Record<string, unknown> = { model: emergentModel, messages, temperature };
+  if (maxTokens) body.max_tokens = maxTokens;
+  if (tools && tools.length > 0) {
+    body.tools = tools;
+    if (toolChoice) body.tool_choice = toolChoice;
+  }
+
+  const response = await fetch('https://api.emergent.sh/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+    signal,
+  });
+
+  if (!response.ok) {
+    handleEmergentError(response.status, await response.text());
+  }
+
+  const data = await response.json();
+  return parseOpenAIResponse(data);
+}
+
+// Model mapping for Emergent Universal API
+function mapModelForEmergent(model: string): string {
+  const EMERGENT_MODEL_MAP: Record<string, string> = {
+    'google/gemini-2.5-flash': 'gemini-2.5-flash',
+    'google/gemini-2.5-pro': 'gemini-2.5-pro',
+    'google/gemini-2.5-flash-lite': 'gemini-2.5-flash-lite',
+    'google/gemini-3-flash-preview': 'gemini-3-flash-preview',
+    'google/gemini-3-pro-preview': 'gemini-3-pro-preview',
+    'gemini-2.5-flash': 'gemini-2.5-flash',
+    'gemini-2.5-pro': 'gemini-2.5-pro',
+    'gemini-3-flash-preview': 'gemini-3-flash-preview',
+    'gemini-2.0-flash': 'gemini-2.0-flash',
+    'gemini-2.0-flash-lite': 'gemini-2.0-flash-lite',
+    'gemini-1.5-pro': 'gemini-2.5-pro',
+  };
+
+  // If model starts with google/, strip it for Emergent
+  const stripped = model.startsWith('google/') ? model.replace('google/', '') : model;
+  return EMERGENT_MODEL_MAP[model] || EMERGENT_MODEL_MAP[stripped] || stripped;
+}
+
+/**
  * Parses OpenAI-format response into our AIResponse type
  */
 function parseOpenAIResponse(data: any): AIResponse {
