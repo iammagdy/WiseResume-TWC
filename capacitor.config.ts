@@ -4,6 +4,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
    appId: 'com.wiseresume.app',
    appName: 'Wise Resume',
   webDir: 'dist',
+  version: '2.3.1',
   server: {
     androidScheme: 'https',
   },
