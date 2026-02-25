@@ -17,8 +17,8 @@ import { handleAIError } from './aiProvider';
 export { PDFParseError, estimateOCRTime };
 export type { ExtractionResult, OCRProgressCallback };
 
-/** Timeout for AI parsing requests (60 seconds) */
-const PARSE_TIMEOUT = 60000;
+/** Timeout for AI parsing requests (120 seconds - increased for complex PDFs) */
+const PARSE_TIMEOUT = 120000;
 
 /**
  * Result from initial PDF parsing attempt.
