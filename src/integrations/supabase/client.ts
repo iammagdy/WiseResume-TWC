@@ -6,21 +6,49 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://jnsfmkzgxsviu
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impuc2Zta3pneHN2aXV0aGFxbHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4ODM4MzQsImV4cCI6MjA4NzQ1OTgzNH0.gzgKuVPKUU3I6TFk9A5C2EPdd8Opz1SYafymiT62lV0';
 
 // Validate environment variables
-if (!SUPABASE_URL || SUPABASE_URL === 'undefined') {
-  console.error('SUPABASE_URL is not defined. Check your .env file.');
+if (!SUPABASE_URL || SUPABASE_URL === 'undefined' || SUPABASE_URL === 'null') {
+  console.warn('⚠️ SUPABASE_URL is not properly defined. Using fallback.');
 }
 
-if (!SUPABASE_PUBLISHABLE_KEY || SUPABASE_PUBLISHABLE_KEY === 'undefined') {
-  console.error('SUPABASE_PUBLISHABLE_KEY is not defined. Check your .env file.');
+if (!SUPABASE_PUBLISHABLE_KEY || SUPABASE_PUBLISHABLE_KEY === 'undefined' || SUPABASE_PUBLISHABLE_KEY === 'null') {
+  console.warn('⚠️ SUPABASE_PUBLISHABLE_KEY is not properly defined. Using fallback.');
 }
+
+console.log('✅ Supabase Client Initializing:', {
+  url: SUPABASE_URL.substring(0, 30) + '...',
+  keyPresent: !!SUPABASE_PUBLISHABLE_KEY
+});
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
-  }
-});
+let supabase: any;
+
+try {
+  supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    auth: {
+      storage: localStorage,
+      persistSession: true,
+      autoRefreshToken: true,
+    }
+  });
+  console.log('✅ Supabase client created successfully');
+} catch (error) {
+  console.error('❌ Failed to create Supabase client:', error);
+  // Create a dummy client that won't crash the app
+  supabase = {
+    auth: { 
+      getSession: async () => ({ data: { session: null }, error: null }),
+      signInWithPassword: async () => ({ data: null, error: new Error('Supabase not initialized') }),
+      signOut: async () => ({ error: null })
+    },
+    from: () => ({
+      select: () => ({ data: [], error: null }),
+      insert: () => ({ data: null, error: new Error('Supabase not initialized') }),
+      update: () => ({ data: null, error: new Error('Supabase not initialized') }),
+      delete: () => ({ data: null, error: new Error('Supabase not initialized') }),
+    })
+  };
+}
+
+export { supabase };
