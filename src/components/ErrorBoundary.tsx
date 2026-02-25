@@ -160,7 +160,7 @@ interface State {
                      });
                    }}
                    variant="outline"
-                   className="w-full h-12 active:scale-95 transition-transform"
+                   className="w-full h-12 min-h-[48px] active:scale-95 transition-transform touch-manipulation z-50"
                    size="lg"
                  >
                    <MessageSquareWarning className="w-4 h-4 mr-2" />
