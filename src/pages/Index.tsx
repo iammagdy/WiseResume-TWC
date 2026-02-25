@@ -261,10 +261,7 @@ const Index = () => {
             onClick={() => { triggerHaptic.light(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
             className="flex items-center gap-2 touch-manipulation"
           >
-            <picture>
-              <source srcSet={`${logoWebP}`} type="image/webp" />
-              <img src={logoSmall} alt="WiseResume" className="w-7 h-7 object-contain rounded-lg" />
-            </picture>
+            <img src={logoImage} alt="WiseResume" className="w-7 h-7 object-contain rounded-lg" />
             <span className={`font-display font-bold text-sm text-foreground transition-opacity duration-300 ${scrolled ? 'opacity-100' : 'opacity-0'}`}>
               WiseResume
             </span>
