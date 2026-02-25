@@ -618,7 +618,6 @@ const Index = () => {
         <Footer />
       </main>
     </SpaceBackground>
-    </Suspense>
   );
 };
 
