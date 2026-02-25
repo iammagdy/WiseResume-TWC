@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Target, Wand2, Mic, LogIn, User, LayoutDashboard, Settings, LogOut, LayoutGrid, Users, Globe, ArrowRight, ShieldCheck, Lock, Brain, Trash2 } from 'lucide-react';
 import { Footer } from '@/components/landing/Footer';
+import { EditorDemo } from '@/components/landing/EditorDemo';
+import { SpaceBackground } from '@/components/landing/SpaceBackground';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -9,15 +11,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import triggerHaptic from '@/lib/haptics';
 import { motion, useReducedMotion, AnimatePresence, type Easing } from 'framer-motion';
-import { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useInView } from '@/hooks/useInView';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
 
-// Lazy load heavy components
-const EditorDemo = lazy(() => import('@/components/landing/EditorDemo'));
-const SpaceBackground = lazy(() => import('@/components/landing/SpaceBackground'));
-
-// Simple logo import - use PNG only to avoid conversion issues
+// Simple logo import - use PNG only
 import logoImage from '@/assets/wise-ai-logo-small.png';
 
 const features = [
