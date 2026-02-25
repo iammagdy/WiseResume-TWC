@@ -1,9 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Target, Wand2, Mic, LogIn, User, LayoutDashboard, Settings, LogOut, LayoutGrid, Users, Globe, ArrowRight, ShieldCheck, Lock, Brain, Trash2 } from 'lucide-react';
 import { Footer } from '@/components/landing/Footer';
-import wiseAiLogo from '@/assets/wise-ai-logo.png';
-import { EditorDemo } from '@/components/landing/EditorDemo';
-import { SpaceBackground } from '@/components/landing/SpaceBackground';
+import wiseAiLogoWebP from '@/assets/wise-ai-logo.webp';
+import wiseAiLogoPNG from '@/assets/wise-ai-logo-small.png';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -12,9 +11,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import triggerHaptic from '@/lib/haptics';
 import { motion, useReducedMotion, AnimatePresence, type Easing } from 'framer-motion';
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react';
 import { useInView } from '@/hooks/useInView';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
+
+// Lazy load heavy components
+const EditorDemo = lazy(() => import('@/components/landing/EditorDemo'));
+const SpaceBackground = lazy(() => import('@/components/landing/SpaceBackground'));
 
 const features = [
   { icon: Sparkles, title: 'Weak bullet? Fixed in 1 tap', desc: 'AI rewrites vague bullets into quantified achievements that recruiters remember', iconColor: 'text-primary', gradient: 'from-primary/20 to-primary/5' },
