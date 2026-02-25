@@ -17,9 +17,8 @@ import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/
 const EditorDemo = lazy(() => import('@/components/landing/EditorDemo'));
 const SpaceBackground = lazy(() => import('@/components/landing/SpaceBackground'));
 
-// Import images properly for Vite
-import logoWebP from '@/assets/wise-ai-logo.webp';
-import logoSmall from '@/assets/wise-ai-logo-small.png';
+// Simple logo import - use PNG only to avoid conversion issues
+import logoImage from '@/assets/wise-ai-logo-small.png';
 
 const features = [
   { icon: Sparkles, title: 'Weak bullet? Fixed in 1 tap', desc: 'AI rewrites vague bullets into quantified achievements that recruiters remember', iconColor: 'text-primary', gradient: 'from-primary/20 to-primary/5' },
