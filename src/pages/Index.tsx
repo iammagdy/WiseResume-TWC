@@ -240,10 +240,11 @@ const Index = () => {
   };
 
   return (
-    <SpaceBackground>
-      {/* Scroll progress bar for homepage */}
-      <div className="fixed top-0 left-0 right-0 h-[3px] z-[60] pointer-events-none" style={{ display: 'none' }}>
-        <div ref={progressRef} className="h-full bg-primary transition-[width] duration-75 ease-out" />
+    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+      <SpaceBackground>
+        {/* Scroll progress bar for homepage */}
+        <div className="fixed top-0 left-0 right-0 h-[3px] z-[60] pointer-events-none" style={{ display: 'none' }}>
+          <div ref={progressRef} className="h-full bg-primary transition-[width] duration-75 ease-out" />
       </div>
       {/* Sticky Mini Header */}
       <header
