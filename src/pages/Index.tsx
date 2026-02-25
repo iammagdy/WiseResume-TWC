@@ -443,9 +443,7 @@ const Index = () => {
                     Write, improve, and tailor your resume with AI — one tap turns weak bullets into standout achievements.
                   </p>
                 </div>
-                <Suspense fallback={<div className="h-64 bg-muted/20 animate-pulse rounded-lg" />}>
-                  <EditorDemo />
-                </Suspense>
+                <EditorDemo />
                 <Button
                   variant="outline"
                   size="sm"
