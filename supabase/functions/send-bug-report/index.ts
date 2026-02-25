@@ -75,10 +75,9 @@ Deno.serve(async (req) => {
     }
 
     if (!resolvedUserId) {
-      return new Response(
-        JSON.stringify({ error: "Authentication required" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      // Allow anonymous bug reports
+      resolvedUserId = `anonymous-${crypto.randomUUID().slice(0, 8)}`;
+      console.log('Creating anonymous bug report:', resolvedUserId);
     }
 
     const { error: dbError } = await supabaseAdmin
