@@ -186,6 +186,15 @@ serve(async (req) => {
       );
     }
 
+    // Log AI configuration for debugging
+    const EMERGENT_KEY = Deno.env.get('EMERGENT_LLM_KEY');
+    const GEMINI_KEY = Deno.env.get('GEMINI_API_KEY');
+    console.log('🔑 AI configuration:', {
+      hasEmergentKey: !!EMERGENT_KEY,
+      hasGeminiKey: !!GEMINI_KEY,
+      userId: user.id.slice(0, 8),
+    });
+
     const { text } = await req.json();
 
     if (!text || typeof text !== 'string') {
