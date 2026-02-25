@@ -106,6 +106,12 @@ Deno.serve(async (req) => {
     }
 
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+    console.log('📧 Email configuration:', {
+      hasResendKey: !!RESEND_API_KEY,
+      recipient: DEVELOPER_EMAIL,
+      sender: resolvedEmail
+    });
+    
     if (RESEND_API_KEY) {
       try {
         const timestamp = new Date().toISOString();
