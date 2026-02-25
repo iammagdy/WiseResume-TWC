@@ -9,6 +9,12 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 3000,
+    allowedHosts: [
+      'app-deploy-test-2.cluster-5.preview.emergentcf.cloud',
+      '.preview.emergentcf.cloud',
+      '.preview.emergentagent.com',
+      'localhost'
+    ],
     hmr: {
       overlay: false,
     },
