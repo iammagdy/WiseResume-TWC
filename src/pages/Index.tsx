@@ -324,15 +324,12 @@ const Index = () => {
               }}
               aria-hidden="true"
             />
-          <picture>
-            <source srcSet={`${logoWebP}`} type="image/webp" />
-            <img 
-              src={logoSmall} 
-              alt="Wise AI Logo" 
-              className="relative z-10 w-[120px] h-[120px] object-contain rounded-3xl"
-              loading="eager"
-            />
-          </picture>
+          <img 
+            src={logoImage} 
+            alt="Wise AI Logo" 
+            className="relative z-10 w-[120px] h-[120px] object-contain rounded-3xl"
+            loading="eager"
+          />
           </motion.div>
 
           <motion.h1
