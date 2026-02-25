@@ -1,8 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Target, Wand2, Mic, LogIn, User, LayoutDashboard, Settings, LogOut, LayoutGrid, Users, Globe, ArrowRight, ShieldCheck, Lock, Brain, Trash2 } from 'lucide-react';
 import { Footer } from '@/components/landing/Footer';
-import wiseAiLogoWebP from '@/assets/wise-ai-logo.webp';
-import wiseAiLogoPNG from '@/assets/wise-ai-logo-small.png';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -18,6 +16,10 @@ import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/
 // Lazy load heavy components
 const EditorDemo = lazy(() => import('@/components/landing/EditorDemo'));
 const SpaceBackground = lazy(() => import('@/components/landing/SpaceBackground'));
+
+// Import logo images safely
+import wiseAiLogoWebP from '@/assets/wise-ai-logo.webp?url';
+import wiseAiLogoPNG from '@/assets/wise-ai-logo-small.png?url';
 
 const features = [
   { icon: Sparkles, title: 'Weak bullet? Fixed in 1 tap', desc: 'AI rewrites vague bullets into quantified achievements that recruiters remember', iconColor: 'text-primary', gradient: 'from-primary/20 to-primary/5' },
