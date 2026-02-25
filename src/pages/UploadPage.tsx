@@ -582,7 +582,16 @@ export default function UploadPage() {
       setShowImportReview(true);
       triggerATSScoring(resumeData);
     } catch (error) {
+      console.error('❌ PDF processing error:', error);
+      console.error('Error details:', {
+        name: error?.name,
+        message: error?.message,
+        code: error?.code,
+        stack: error?.stack?.split('\n').slice(0, 3),
+      });
+      
       if (error instanceof PDFParseError) {
+        console.log('PDFParseError detected:', error.code);
         switch (error.code) {
           case 'PASSWORD_PROTECTED':
             setErrorType('PASSWORD_PROTECTED');
@@ -601,6 +610,7 @@ export default function UploadPage() {
             setShowErrorRecovery(true);
         }
       } else {
+        console.log('Generic error, showing UNKNOWN recovery');
         setErrorType('UNKNOWN');
         setShowErrorRecovery(true);
       }
