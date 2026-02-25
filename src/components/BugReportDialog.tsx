@@ -184,7 +184,25 @@ export function BugReportDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-[min(24rem,calc(100vw-2rem))] rounded-2xl p-6 gap-0">
+      <DialogContent className="
+        max-w-[min(90vw,24rem)] 
+        max-h-[90vh] 
+        overflow-y-auto 
+        rounded-2xl 
+        p-6 
+        gap-0
+        fixed
+        top-[50%]
+        left-[50%]
+        -translate-x-1/2
+        -translate-y-1/2
+        z-[100]
+        m-0
+      "
+      style={{
+        transform: 'translate(-50%, -50%)',
+      }}
+      >
         {status === 'success' ? (
           <div className="flex flex-col items-center gap-4 py-4 text-center">
             <div className="w-16 h-16 rounded-full bg-[hsl(var(--success))]/10 flex items-center justify-center">
