@@ -329,7 +329,7 @@ const Index = () => {
               aria-hidden="true"
             />
           <picture>
-            <source srcSet={logoWebP} type="image/webp" />
+            <source srcSet={`${logoWebP}`} type="image/webp" />
             <img 
               src={logoSmall} 
               alt="Wise AI Logo" 
