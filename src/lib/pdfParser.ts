@@ -45,11 +45,11 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
   try {
     if (import.meta.env.DEV) console.log('Calling AI to parse resume text...');
     
-    // Get the user's access token from the session
-    const { data: { session } } = await supabase.auth.getSession();
+    // Refresh session to ensure valid token
+    const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
     
-    if (!session?.access_token) {
-      console.warn('No auth session, falling back to local parser');
+    if (refreshError || !session?.access_token) {
+      console.warn('No auth session or refresh failed, falling back to local parser');
       clearTimeout(timeoutId);
       return parseResumeText(text);
     }
