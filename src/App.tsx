@@ -94,6 +94,7 @@ const AnalyticsPage = lazyWithRetry(() => import("./pages/AnalyticsPage"));
 const SubscriptionPage = lazyWithRetry(() => import("./pages/SubscriptionPage"));
 const ReferralPage = lazyWithRetry(() => import("./pages/ReferralPage"));
 const AchievementsPage = lazyWithRetry(() => import("./pages/AchievementsPage"));
+const StoreScreenshotsPage = lazyWithRetry(() => import("./pages/StoreScreenshotsPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -241,6 +242,7 @@ const queryClient = new QueryClient({
         <Route path="/share/:token" element={<Suspense fallback={<ShareSkeleton />}><SharePage /></Suspense>} />
         <Route path="/p/:username" element={<Suspense fallback={<DetailSkeleton />}><PublicPortfolioPage /></Suspense>} />
         <Route path="/l/:linkId" element={<Suspense fallback={<DetailSkeleton />}><ShortLinkPage /></Suspense>} />
+        <Route path="/store-screenshots" element={<Suspense fallback={<PageLoadingSpinner />}><StoreScreenshotsPage /></Suspense>} />
         
         <Route path="*" element={<Suspense fallback={<DetailSkeleton />}><NotFound /></Suspense>} />
       </Routes>
