@@ -18,13 +18,13 @@ const parseResumeTool = {
           type: "object",
           properties: {
             fullName: { type: "string" },
-            email: { type: "string" },
-            phone: { type: "string" },
-            location: { type: "string" },
+            email: { type: "string", description: "Email address containing @ symbol, or empty string if not found" },
+            phone: { type: "string", description: "Phone number with digits, or empty string if not found" },
+            location: { type: "string", description: "Geographic location (city/state/country), NOT skills or technologies. Empty string if not found" },
             linkedin: { type: "string" },
             portfolio: { type: "string" },
           },
-          required: ["fullName", "email", "phone", "location"],
+          required: ["fullName"],
         },
         summary: { type: "string" },
         experience: {
@@ -139,6 +139,18 @@ const systemPrompt = `You are an expert resume parser. Extract ALL structured in
 7. Skills: Parse as individual items. Include languages with proficiency.
 8. Projects: If a section is labelled "Projects" or an entry is clearly a personal/academic project (not a paid job), set isProject=true. Otherwise ALWAYS set isProject=false. NEVER omit isProject.
 9. Awards / Publications / Volunteering / Hobbies: Extract them into their own arrays even if they appear as bullets inside another section.
+
+=== CONTACT INFO RULES ===
+- email: MUST contain "@" and a domain. If no email found, return "".
+- phone: MUST be digits with optional separators (+, -, spaces, parens). If no phone found, return "".
+- location: MUST be a geographic place (city, state, country). NEVER put skills, technologies, or programming languages here. If no location found, return "".
+  - VALID locations: "New York, NY", "London, UK", "Cairo, Egypt", "Remote"
+  - INVALID locations: "Python", "JavaScript", "React" -- these are SKILLS, not locations.
+
+=== SKILLS RULES ===
+- Programming languages (Python, JavaScript, Java, C++, etc.) are ALWAYS skills.
+- Frameworks and tools (React, Django, Docker, AWS, etc.) are ALWAYS skills.
+- NEVER place technology names in contactInfo.location or contactInfo.fullName.
 
 === NAME DETECTION ===
 - The name is usually on the VERY FIRST LINE
@@ -405,6 +417,9 @@ serve(async (req) => {
       }
     }
 
+    // Post-processing validation: fix misclassified fields
+    parsedData = validateAndFixFields(parsedData);
+
     const generateId = () => crypto.randomUUID();
 
     // Validate name — only reject truly invalid patterns, trust AI for everything else
@@ -550,6 +565,42 @@ serve(async (req) => {
     );
   }
 });
+
+/**
+ * Validate and fix misclassified fields (e.g. skills in location).
+ */
+function validateAndFixFields(data: any): any {
+  const SKILL_PATTERN = /^(python|javascript|typescript|java|c\+\+|c#|ruby|go|rust|swift|kotlin|php|r|scala|perl|html|css|sql|react|angular|vue|node|django|flask|spring|express|docker|kubernetes|aws|azure|gcp|git|linux|mongodb|postgresql|mysql|redis|terraform|jenkins|graphql|rest|api|agile|scrum|jira|figma|tableau|power\s*bi|excel|machine\s*learning|ai|ml|data\s*science|deep\s*learning|nlp|tensorflow|pytorch)$/i;
+
+  const skills: string[] = [...(data.skills || [])];
+
+  // Location: if it looks like a skill, move it
+  const location = data.contactInfo?.location?.trim() || '';
+  if (location && SKILL_PATTERN.test(location)) {
+    console.log(`⚠️ Location "${location}" looks like a skill, moving to skills array`);
+    skills.push(location);
+    data.contactInfo.location = '';
+  }
+
+  // Email: must contain @
+  const email = data.contactInfo?.email?.trim() || '';
+  if (email && !email.includes('@')) {
+    console.log(`⚠️ Email "${email}" invalid (no @), clearing`);
+    data.contactInfo.email = '';
+  }
+
+  // Phone: must have at least 7 digits
+  const phone = data.contactInfo?.phone?.trim() || '';
+  if (phone && phone.replace(/\D/g, '').length < 7) {
+    console.log(`⚠️ Phone "${phone}" too short, clearing`);
+    data.contactInfo.phone = '';
+  }
+
+  // Deduplicate skills
+  data.skills = [...new Set(skills.map(s => s.trim()).filter(Boolean))];
+
+  return data;
+}
 
 /**
  * Merge results from two parse passes, preferring pass 2 for missing fields.

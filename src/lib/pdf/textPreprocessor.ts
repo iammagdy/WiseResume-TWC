@@ -10,11 +10,27 @@
  * e.g. "SoftwareEngineer" → "Software Engineer"
  */
 export function fixConcatenatedWords(text: string): string {
+  // Protect emails and URLs from being split by PascalCase logic
+  const protectedTokens: { placeholder: string; original: string }[] = [];
+  let safeText = text.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, (match) => {
+    const ph = `__EMAIL_${protectedTokens.length}__`;
+    protectedTokens.push({ placeholder: ph, original: match });
+    return ph;
+  }).replace(/https?:\/\/\S+/g, (match) => {
+    const ph = `__URL_${protectedTokens.length}__`;
+    protectedTokens.push({ placeholder: ph, original: match });
+    return ph;
+  });
+
   // Split PascalCase: "SoftwareEngineer" → "Software Engineer"
-  // But don't split known abbreviations or all-caps words
-  return text.replace(/([a-z])([A-Z])/g, '$1 $2')
-    // Handle cases like "PHDComputer" → "PHD Computer"
+  safeText = safeText.replace(/([a-z])([A-Z])/g, '$1 $2')
     .replace(/([A-Z]{2,})([A-Z][a-z])/g, '$1 $2');
+
+  // Restore protected tokens
+  for (const { placeholder, original } of protectedTokens) {
+    safeText = safeText.replace(placeholder, original);
+  }
+  return safeText;
 }
 
 /**
@@ -142,6 +158,25 @@ export function preprocessResumeText(text: string, pageTexts?: string[]): string
   processedText = normalizeWhitespace(processedText);
 
   return processedText;
+}
+
+/**
+ * Extract contact info hints using regex before AI parsing.
+ * Scans the first 15 lines for emails, phones to give the AI a strong signal.
+ */
+export function extractContactHints(text: string): string {
+  const lines = text.split('\n').slice(0, 15).join('\n');
+  
+  const emails = lines.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+  const phones = lines.match(/(?:\+?\d{1,4}[\s\-.]?)?\(?\d{2,4}\)?[\s\-.]?\d{3,4}[\s\-.]?\d{3,4}/g) || [];
+
+  if (emails.length === 0 && phones.length === 0) return '';
+
+  const parts: string[] = ['--- CONTACT INFO HINTS (extracted by regex) ---'];
+  if (emails.length > 0) parts.push(`Potential emails: ${[...new Set(emails)].join(', ')}`);
+  if (phones.length > 0) parts.push(`Potential phones: ${[...new Set(phones)].join(', ')}`);
+
+  return '\n\n' + parts.join('\n');
 }
 
 /**
