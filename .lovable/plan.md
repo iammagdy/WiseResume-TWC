@@ -1,68 +1,68 @@
 
 
-# Generate 8 Professional App Store Screenshots
+# Generate 8 Professional App Store Screenshots as Images
 
 ## Overview
-Create a dedicated page (`/store-screenshots`) that renders 8 marketing-style promotional screenshots optimized for App Store and Google Play Store listings. Each screenshot will feature a device mockup frame, gradient background, headline caption, and a real app screen rendered inside.
+Create an edge function that uses Lovable AI image generation to produce 8 high-quality promotional screenshots for the App Store and Google Play. The generated images will be stored in a storage bucket and displayed on a new `/screenshots-gallery` page where you can preview and download them.
 
-## The 8 Screenshots
+## Why This Approach
+The current `/store-screenshots` page renders screenshots using HTML/CSS and `html2canvas` for export -- but this doesn't work well in the preview environment. Instead, we'll use **AI image generation** (Gemini) to create polished, marketing-grade images and store them as downloadable PNGs.
 
-| # | Feature | Headline | App Screen |
-|---|---------|----------|------------|
-| 1 | Hero / First Impression | "Your AI Career Companion" | Landing page hero with logo and CTA |
-| 2 | Resume Builder | "Build ATS-Optimized Resumes" | Dashboard with resume cards and health scores |
-| 3 | AI Tailoring | "One-Tap Job Tailoring" | AI Studio tool grid |
-| 4 | Mock Interview | "Practice With AI Voice Coach" | Interview page with voice controls |
-| 5 | Recruiter Simulator | "Get Honest Recruiter Feedback" | Recruiter Sim results (4 personas) |
-| 6 | Templates | "30 Professional Templates" | Templates gallery grid |
-| 7 | Job Tracker | "Track Every Application" | Applications Kanban board |
-| 8 | Portfolio | "Share Your Online Portfolio" | Public portfolio preview |
+## What Gets Built
 
-## How It Works
+### 1. Storage Bucket
+- Create a `screenshots` public storage bucket to hold the generated images
 
-### New Page: `src/pages/StoreScreenshotsPage.tsx`
-- A hidden utility page (not in bottom nav) accessible at `/store-screenshots`
-- Renders all 8 screenshots as full-screen cards (1290x2796px ratio for iPhone 6.7")
-- Each card contains:
-  - Gradient background (cosmic theme with primary/accent colors)
-  - Bold headline text (Space Grotesk, white)
-  - Subtitle text describing the feature
-  - A phone device frame (CSS-drawn, rounded corners, notch)
-  - Inside the frame: a static mockup of the actual app screen (built with real components/styling)
-- A "Download All" button that uses `html2canvas` (already installed) to export each card as a PNG
+### 2. Edge Function: `generate-store-screenshots`
+- Calls the Lovable AI image generation API (`google/gemini-2.5-flash-image`) 8 times with detailed prompts
+- Each prompt describes a professional app store screenshot with:
+  - Dark cosmic gradient background (deep navy/purple)
+  - Bold white headline text (Space Grotesk style)
+  - iPhone device frame showing a mock app screen
+  - The app's branding (WiseResume / rose-red accent color)
+- Uploads each generated image to the `screenshots` storage bucket
+- Returns the list of public URLs
 
-### New Component: `src/components/store/StoreScreenshot.tsx`
-- Reusable wrapper component that provides:
-  - The gradient background (customizable per screenshot)
-  - The device frame (iPhone-style bezels via CSS)
-  - Headline and subtitle text overlay
-  - Proper dimensions for store requirements
+### 3. The 8 Screenshot Prompts
 
-### New Component: `src/components/store/MockScreens.tsx`
-- 8 static mock screen components that visually replicate key app screens
-- Uses real UI components (Cards, Badges, Buttons) but with hardcoded demo data
-- No API calls or state management -- purely visual
+| # | Headline | Description for AI |
+|---|----------|--------------------|
+| 1 | Your AI Career Companion | Hero screen with logo, CTA button, cosmic background |
+| 2 | Build ATS-Optimized Resumes | Dashboard showing resume cards with health scores |
+| 3 | One-Tap Job Tailoring | AI tools grid with colorful icons |
+| 4 | Practice With AI Voice Coach | Interview screen with voice waveform and question card |
+| 5 | Get Honest Recruiter Feedback | 4 recruiter persona cards with hire/reject badges |
+| 6 | 30 Professional Templates | Template gallery grid with colored previews |
+| 7 | Track Every Application | Kanban board with Applied/Interview/Offer columns |
+| 8 | Share Your Online Portfolio | Portfolio profile with stats and project cards |
 
-### Route Addition
-- Add `/store-screenshots` route in the router (no auth guard needed)
+### 4. New Page: `/screenshots-gallery`
+- Simple gallery page showing all 8 generated screenshots
+- "Generate Screenshots" button to trigger the edge function
+- Individual download buttons for each image
+- "Download All" button to download a zip or all images sequentially
+- Loading state with skeletons while generating
 
-## Store Requirements Met
-
-| Store | Size | Covered |
-|-------|------|---------|
-| App Store (6.7" iPhone) | 1290 x 2796 | Yes -- primary target |
-| Google Play | 1080 x 1920 minimum | Yes -- scales down from iPhone size |
+### 5. Database Table: `store_screenshots`
+- Columns: `id`, `name`, `headline`, `image_url`, `created_at`
+- Stores metadata for generated screenshots so they persist across sessions
+- No RLS needed (utility/admin feature, no user-specific data)
 
 ## Technical Details
 
-- **Files created**: 3 new files
-  - `src/pages/StoreScreenshotsPage.tsx`
-  - `src/components/store/StoreScreenshot.tsx`
-  - `src/components/store/MockScreens.tsx`
-- **Files modified**: 1 file
-  - `src/App.tsx` (add route)
-- **Dependencies used**: `html2canvas` (already installed), `framer-motion` (already installed)
-- **No backend changes needed**
-- Design tokens: Uses the app's existing cosmic theme (deep navy `#0B0D17`, primary rose `hsl(355 90% 60%)`, Space Grotesk font)
-- Each screenshot card is self-contained and exportable individually or as a batch
+### Files Created
+- `supabase/functions/generate-store-screenshots/index.ts` -- Edge function for AI generation + storage upload
+- `src/pages/ScreenshotsGalleryPage.tsx` -- Gallery page with download functionality
+
+### Files Modified
+- `src/App.tsx` -- Add `/screenshots-gallery` route
+
+### Database Changes
+- Create `screenshots` storage bucket (public)
+- Create `store_screenshots` table
+
+### Dependencies
+- Uses `LOVABLE_API_KEY` (already configured) for AI image generation
+- Uses existing storage infrastructure for file hosting
+- No new npm packages needed
 
