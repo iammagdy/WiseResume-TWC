@@ -67,8 +67,10 @@ export function useOfflineSync() {
   }, [updateResume, removePendingChange, setConflict]);
 
   const forceSync = useCallback(async (resumeId: string) => {
-    const change = useOfflineSyncStore.getState().pendingChanges.find(c => c.resumeId === resumeId);
-    if (!change) {
+    // Try pending queue first, fall back to conflictingChange (editor-created conflicts)
+    const change = useOfflineSyncStore.getState().pendingChanges.find(c => c.resumeId === resumeId)
+      || useOfflineSyncStore.getState().conflictingChange?.change;
+    if (!change || change.resumeId !== resumeId) {
       clearConflict();
       return;
     }
