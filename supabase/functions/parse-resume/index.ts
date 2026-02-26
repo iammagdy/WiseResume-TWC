@@ -570,16 +570,30 @@ serve(async (req) => {
  * Validate and fix misclassified fields (e.g. skills in location).
  */
 function validateAndFixFields(data: any): any {
-  const SKILL_PATTERN = /^(python|javascript|typescript|java|c\+\+|c#|ruby|go|rust|swift|kotlin|php|r|scala|perl|html|css|sql|react|angular|vue|node|django|flask|spring|express|docker|kubernetes|aws|azure|gcp|git|linux|mongodb|postgresql|mysql|redis|terraform|jenkins|graphql|rest|api|agile|scrum|jira|figma|tableau|power\s*bi|excel|machine\s*learning|ai|ml|data\s*science|deep\s*learning|nlp|tensorflow|pytorch)$/i;
+  const SKILL_PATTERN = /^(python|javascript|typescript|java|c\+\+|c#|ruby|go|rust|swift|kotlin|php|r|scala|perl|html|css|sql|sq|react|angular|vue|node|django|flask|spring|express|docker|kubernetes|aws|azure|gcp|git|linux|mongodb|postgresql|mysql|redis|terraform|jenkins|graphql|rest|api|apis|agile|scrum|jira|figma|tableau|power\s*bi|excel|machine\s*learning|ai|ml|data\s*science|deep\s*learning|nlp|tensorflow|pytorch|numpy|pandas|nosql|sass|less|ci|cd|\.net|c)$/i;
 
   const skills: string[] = [...(data.skills || [])];
 
-  // Location: if it looks like a skill, move it
+  // Location: split by comma/semicolon and check each part individually
   const location = data.contactInfo?.location?.trim() || '';
-  if (location && SKILL_PATTERN.test(location)) {
-    console.log(`⚠️ Location "${location}" looks like a skill, moving to skills array`);
-    skills.push(location);
-    data.contactInfo.location = '';
+  if (location) {
+    const locationParts = location.split(/[,;]/).map((p: string) => p.trim()).filter(Boolean);
+    const skillParts: string[] = [];
+    const geoParts: string[] = [];
+
+    for (const part of locationParts) {
+      if (SKILL_PATTERN.test(part)) {
+        skillParts.push(part);
+      } else {
+        geoParts.push(part);
+      }
+    }
+
+    if (skillParts.length > 0) {
+      console.log(`⚠️ Location "${location}" contains skills [${skillParts.join(', ')}], moving to skills array`);
+      skills.push(...skillParts);
+      data.contactInfo.location = geoParts.join(', ');
+    }
   }
 
   // Email: must contain @
