@@ -8,7 +8,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { useResumes } from '@/hooks/useResumes';
 import { supabase } from '@/integrations/supabase/safeClient';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://hjnnamwgztlhzkeuufln.supabase.co';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 

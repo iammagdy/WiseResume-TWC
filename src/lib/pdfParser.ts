@@ -39,7 +39,7 @@ export interface ParseResult {
  * Exported for use with Word and Image parsing.
  */
 export async function parseTextWithAI(text: string): Promise<ResumeData> {
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://hjnnamwgztlhzkeuufln.supabase.co';
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), PARSE_TIMEOUT);
 

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, X, Send } from 'lucide-react';
 import { toast } from 'sonner';
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://hjnnamwgztlhzkeuufln.supabase.co';
 import type { PublicProfile, PublicResume } from '@/hooks/usePublicPortfolio';
 
 interface ChatMessage { role: 'user' | 'assistant'; content: string; }
