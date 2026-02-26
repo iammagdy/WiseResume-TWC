@@ -1,11 +1,16 @@
 import { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-// Dedicated Lovable Cloud client for screenshots (table + edge function live here)
-const cloudClient = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-);
+// Crash-safe Lovable Cloud client for screenshots
+const CLOUD_URL = import.meta.env.VITE_SUPABASE_URL || "https://hjnnamwgztlhzkeuufln.supabase.co";
+const CLOUD_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhqbm5hbXdnenRsaHprZXV1ZmxuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNTE4MTcsImV4cCI6MjA4NTkyNzgxN30.cupd_dz6KHSJaBnUPQzJmQcYc38RTDVIMU5RP25xCso";
+
+let cloudClient: SupabaseClient | null = null;
+try {
+  cloudClient = createClient(CLOUD_URL, CLOUD_KEY);
+} catch (e) {
+  console.error("Failed to init cloud client:", e);
+}
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -28,6 +33,11 @@ export default function ScreenshotsGalleryPage() {
 
   const fetchScreenshots = async () => {
     setLoading(true);
+    if (!cloudClient) {
+      toast.error("Backend not configured. Please reload the page.");
+      setLoading(false);
+      return;
+    }
     const { data, error } = await cloudClient
       .from("store_screenshots")
       .select("*")
@@ -50,6 +60,7 @@ export default function ScreenshotsGalleryPage() {
     toast.info("Generating 8 screenshots with AI... This may take 2-3 minutes.");
 
     try {
+      if (!cloudClient) throw new Error("Backend not configured");
       const { data, error } = await cloudClient.functions.invoke(
         "generate-store-screenshots"
       );
