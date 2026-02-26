@@ -69,13 +69,13 @@ Deno.serve(async (req) => {
       const token = authHeader.replace("Bearer ", "");
       const { data } = await supabaseAdmin.auth.getUser(token);
       if (data?.user) {
-        resolvedUserId = resolvedUserId || data.user.id;
-        resolvedEmail = resolvedEmail === "anonymous" ? (data.user.email || resolvedEmail) : resolvedEmail;
+        // Always prefer token identity over payload values
+        resolvedUserId = data.user.id;
+        resolvedEmail = data.user.email || resolvedEmail;
       }
     }
 
     if (!resolvedUserId) {
-      // Allow anonymous bug reports with a valid UUID
       resolvedUserId = crypto.randomUUID();
       console.log('Creating anonymous bug report with generated UUID:', resolvedUserId);
     }
@@ -98,9 +98,9 @@ Deno.serve(async (req) => {
       });
 
     if (dbError) {
-      console.error("DB insert error:", dbError);
+      console.error("DB insert error:", JSON.stringify(dbError));
       return new Response(
-        JSON.stringify({ error: "Failed to save report" }),
+        JSON.stringify({ error: "Failed to save report", code: dbError.code, detail: dbError.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
