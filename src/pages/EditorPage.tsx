@@ -146,6 +146,8 @@ export default function EditorPage() {
   // Also detects stale resume (Fix 2): if server version is newer than local, auto-refresh or show conflict banner
   const setConflict = useOfflineSyncStore(s => s.setConflict);
   const localLoadedAtRef = useRef<string | null>(null);
+  const lastLocalEditAtRef = useRef<number>(0);
+  const lastConflictKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!resumeFromDb || !currentResumeId) return;
@@ -177,7 +179,7 @@ export default function EditorPage() {
     // Fix 2: Stale-resume detection on subsequent React Query refetches (e.g. window focus / foreground return)
     const serverUpdatedAt = resumeFromDb.updated_at;
     const localLoadedAt = localLoadedAtRef.current;
-    if (serverUpdatedAt && localLoadedAt && serverUpdatedAt > localLoadedAt) {
+    if (serverUpdatedAt && localLoadedAt && Date.parse(serverUpdatedAt) > Date.parse(localLoadedAt)) {
       // Server has a newer version than when this session loaded
       const isClean = lastSavedResumeRef.current === JSON.stringify(currentResume);
       if (isClean) {
@@ -190,11 +192,15 @@ export default function EditorPage() {
         lastSavedResumeRef.current = JSON.stringify(dbToResumeData(resumeFromDb));
         toast.info('Resume updated — refreshed to latest version.', { duration: 3000 });
       } else {
-        // Dirty local state + newer server version → wire into the SyncConflictDialog flow
-        setConflict(
-          { resumeId: currentResumeId, updates: currentResume, timestamp: Date.now() },
-          serverUpdatedAt
-        );
+        // Loop guard: don't reopen the same conflict unless local content changed since last conflict
+        const conflictKey = `${currentResumeId}:${serverUpdatedAt}`;
+        if (lastConflictKeyRef.current !== conflictKey || lastLocalEditAtRef.current > Date.parse(serverUpdatedAt)) {
+          lastConflictKeyRef.current = conflictKey;
+          setConflict(
+            { resumeId: currentResumeId, updates: currentResume, timestamp: lastLocalEditAtRef.current || Date.now() },
+            serverUpdatedAt
+          );
+        }
       }
       // Update the baseline so we don't re-fire on the same server version
       localLoadedAtRef.current = serverUpdatedAt;
@@ -360,26 +366,32 @@ export default function EditorPage() {
     // saved since we loaded, block the write and show the conflict dialog instead.
     const serverUpdatedAt = resumeFromDb?.updated_at;
     const sessionLoadedAt = localLoadedAtRef.current;
-    if (serverUpdatedAt && sessionLoadedAt && serverUpdatedAt > sessionLoadedAt) {
+    if (serverUpdatedAt && sessionLoadedAt && Date.parse(serverUpdatedAt) > Date.parse(sessionLoadedAt)) {
       // Another device has saved a newer version since we loaded — show SyncConflictDialog
-      setConflict(
-        { resumeId: currentResumeId, updates: resume, timestamp: Date.now() },
-        serverUpdatedAt
-      );
+      const conflictKey = `${currentResumeId}:${serverUpdatedAt}`;
+      if (lastConflictKeyRef.current !== conflictKey || lastLocalEditAtRef.current > Date.parse(serverUpdatedAt)) {
+        lastConflictKeyRef.current = conflictKey;
+        setConflict(
+          { resumeId: currentResumeId, updates: resume, timestamp: lastLocalEditAtRef.current || Date.now() },
+          serverUpdatedAt
+        );
+      }
       setIsSaving(false);
       return;
     }
 
     setIsSaving(true);
     try {
-      await updateResume.mutateAsync({
+      const result = await updateResume.mutateAsync({
         resumeId: currentResumeId,
         updates: resume,
       });
       lastSavedResumeRef.current = currentResumeJson;
       setLastSavedAt(new Date());
-      // Update our baseline timestamp so subsequent saves don't false-positive
-      if (resumeFromDb?.updated_at) {
+      // Update baseline from the authoritative mutation response timestamp
+      if (result?.updated_at) {
+        localLoadedAtRef.current = result.updated_at;
+      } else if (resumeFromDb?.updated_at) {
         localLoadedAtRef.current = resumeFromDb.updated_at;
       }
 
@@ -422,6 +434,18 @@ export default function EditorPage() {
       setIsSaving(false);
     }
   }, [user, currentResumeId, updateResume, setIsSaving, setLastSavedAt, addPendingChange, resumeFromDb, setConflict]);
+
+  // Track real local edit time for conflict resolution accuracy
+  const hydrationDoneRef = useRef(false);
+  useEffect(() => {
+    if (!currentResume) return;
+    if (!hydrationDoneRef.current) {
+      // Skip the first change which is hydration from DB
+      hydrationDoneRef.current = true;
+      return;
+    }
+    lastLocalEditAtRef.current = Date.now();
+  }, [currentResume]);
 
   // Debounced auto-save effect
   useEffect(() => {

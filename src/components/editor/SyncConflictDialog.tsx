@@ -39,7 +39,13 @@ export function SyncConflictDialog() {
           <AlertDialogCancel
             onClick={() => {
               haptics.light();
-              discardLocal(conflict.change.resumeId);
+              try {
+                discardLocal(conflict.change.resumeId);
+              } catch (e) {
+                console.error('Discard failed', e);
+                // Ensure dialog always closes
+                useOfflineSyncStore.getState().clearConflict();
+              }
             }}
           >
             Keep Server Version
@@ -48,7 +54,12 @@ export function SyncConflictDialog() {
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90 active:scale-95"
             onClick={() => {
               haptics.light();
-              forceSync(conflict.change.resumeId);
+              try {
+                forceSync(conflict.change.resumeId);
+              } catch (e) {
+                console.error('Force sync failed', e);
+                useOfflineSyncStore.getState().clearConflict();
+              }
             }}
           >
             Overwrite with My Changes
