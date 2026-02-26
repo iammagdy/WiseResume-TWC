@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { motion } from 'framer-motion';
-import { Upload, FileText, Mic } from 'lucide-react';
+import { Upload, FileText, BarChart3, Trophy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -23,10 +23,16 @@ const actions = [
     iconColor: 'text-secondary',
   },
   {
-    icon: Mic,
-    label: 'Interview',
-    action: 'interview',
-    iconColor: 'text-success',
+    icon: BarChart3,
+    label: 'Analytics',
+    action: 'analytics',
+    iconColor: 'text-accent-foreground',
+  },
+  {
+    icon: Trophy,
+    label: 'Badges',
+    action: 'achievements',
+    iconColor: 'text-destructive',
   },
 ];
 
@@ -42,8 +48,11 @@ export const QuickActionChips = memo(function QuickActionChips({ onCreateNew }: 
       case 'upload':
         navigate('/upload');
         break;
-      case 'interview':
-        navigate('/interview');
+      case 'analytics':
+        navigate('/analytics');
+        break;
+      case 'achievements':
+        navigate('/achievements');
         break;
     }
   };

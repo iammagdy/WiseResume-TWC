@@ -536,3 +536,47 @@ export function GuidesExamplesSkeleton() {
   );
 }
 
+export function AnalyticsSkeleton() {
+  return (
+    <div className="flex-1 flex flex-col animate-pulse">
+      <div className="h-14 border-b border-border flex items-center px-4 gap-4">
+        <div className="w-8 h-8 rounded-lg bg-muted" />
+        <div className="h-5 w-24 bg-muted rounded" />
+      </div>
+      <div className="p-4 space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-20 bg-muted rounded-2xl" />
+          ))}
+        </div>
+        <div className="h-48 bg-muted rounded-2xl" />
+        <div className="h-48 bg-muted rounded-2xl" />
+      </div>
+    </div>
+  );
+}
+
+export function AchievementsSkeleton() {
+  return (
+    <div className="flex-1 flex flex-col animate-pulse">
+      <div className="h-14 border-b border-border flex items-center px-4 gap-4">
+        <div className="w-8 h-8 rounded-lg bg-muted" />
+        <div className="h-5 w-32 bg-muted rounded" />
+      </div>
+      <div className="p-4 space-y-4">
+        <div className="h-20 bg-muted rounded-2xl" />
+        <div className="grid grid-cols-3 gap-3">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-16 bg-muted rounded-2xl" />
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} className="h-28 bg-muted rounded-2xl" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+

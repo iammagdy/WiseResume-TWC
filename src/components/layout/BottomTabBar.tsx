@@ -36,6 +36,11 @@ const tabs: TabItem[] = [
     '/guides',
     '/resume',
     '/onboarding',
+    '/help',
+    '/analytics',
+    '/achievements',
+    '/subscription',
+    '/referral',
   ]
 },
 {
