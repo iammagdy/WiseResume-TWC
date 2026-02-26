@@ -3,7 +3,6 @@ export const AI_COST_MAP: Record<string, number> = {
   'score': 1,
   'enhance': 1,
   'tailor': 2,
-  'proofread': 1,
   'cover-letter': 2,
   'interview': 1,
   'career-assessment': 2,

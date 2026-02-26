@@ -138,7 +138,7 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
     // 3. Never tailored — prioritize based on goal
     const hasTailored = resumes.some(r => r.parent_resume_id);
     if (!hasTailored) {
-      // Goal: "Update my resume" → Enhance/Proofread first
+      // Goal: "Update my resume" → Enhance first
       if (onboardingGoal === 'update-resume') {
         return {
           icon: Wand2,

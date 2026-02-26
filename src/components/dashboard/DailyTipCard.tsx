@@ -9,7 +9,7 @@ const tips = [
   'Keep your resume to one page if you have less than 10 years of experience.',
   'Use action verbs like "led", "built", and "improved" to stand out.',
   'Adding relevant keywords from the job posting helps beat ATS filters.',
-  'Proofread twice — 77% of hiring managers reject resumes with typos.',
+  'Review your resume twice — 77% of hiring managers reject resumes with typos.',
   'Include a LinkedIn URL — profiles with photos get 21× more views.',
   'Quantify achievements: "Increased revenue by 25%" beats "Helped grow revenue".',
   'Update your resume every 3 months, even if you\'re not job hunting.',

@@ -14,7 +14,6 @@ import {
   Linkedin,
   FileText,
   Mic,
-  SpellCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
@@ -49,13 +48,10 @@ interface AIAssistantBarProps {
   onCareerPath?: () => void;
   onGetIdeas?: () => void;
   onCustomize?: () => void;
-  onProofread?: () => void;
-  proofreadIssueCount?: number;
   className?: string;
 }
 
 const secondaryTools = [
-  { id: 'proofread', icon: SpellCheck, label: 'Proofread', color: 'text-red-500' },
   { id: 'ideas', icon: Lightbulb, label: 'Ideas', color: 'text-yellow-500' },
   { id: 'customize', icon: Palette, label: 'Customize', color: 'text-pink-500' },
   { id: 'enhance', icon: Sparkles, label: 'Enhance', color: 'text-cyan-500' },
@@ -82,8 +78,6 @@ export const AIAssistantBar = memo(function AIAssistantBar({
   onCareerPath,
   onGetIdeas,
   onCustomize,
-  onProofread,
-  proofreadIssueCount,
   className,
 }: AIAssistantBarProps) {
   const navigate = useNavigate();
@@ -106,7 +100,6 @@ export const AIAssistantBar = memo(function AIAssistantBar({
     setIsExpanded(false);
     
     switch (id) {
-      case 'proofread': onProofread?.(); break;
       case 'ideas': onGetIdeas?.(); break;
       case 'customize': onCustomize?.(); break;
       case 'enhance': onImprove(); break;
@@ -121,7 +114,6 @@ export const AIAssistantBar = memo(function AIAssistantBar({
 
   const availableSecondaryTools = secondaryTools.filter(tool => {
     switch (tool.id) {
-      case 'proofread': return !!onProofread;
       case 'ideas': return !!onGetIdeas;
       case 'customize': return !!onCustomize;
       case 'career': return !!onCareerPath;

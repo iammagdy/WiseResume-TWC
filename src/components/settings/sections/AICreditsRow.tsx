@@ -31,7 +31,7 @@ export default function AICreditsRow({ onOpenAISettings }: { onOpenAISettings: (
                                 </button>
                             </TooltipTrigger>
                             <TooltipContent side="top" className="max-w-[200px] text-xs leading-relaxed z-[100]">
-                                <p>1 credit is used per AI action like Proofreading, Rewriting, or generating content.</p>
+                                <p>1 credit is used per AI action like Rewriting, Tailoring, or generating content.</p>
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>

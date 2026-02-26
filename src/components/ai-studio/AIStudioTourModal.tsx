@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Wand2, SpellCheck, Target, ArrowRight } from 'lucide-react';
+import { Sparkles, Wand2, Target, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { haptics } from '@/lib/haptics';
 
@@ -17,7 +17,7 @@ const steps = [
   {
     icon: Wand2,
     title: 'Your AI Toolkit',
-    description: 'Smart Tailor adapts your resume to any job. Enhance, Proofread, and 8 more tools at your fingertips.',
+    description: 'Smart Tailor adapts your resume to any job. Enhance, Humanize, and 8 more tools at your fingertips.',
   },
   {
     icon: Target,
