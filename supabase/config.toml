@@ -110,3 +110,6 @@ verify_jwt = false
 
 [functions.company-briefing]
 verify_jwt = false
+
+[functions.generate-store-screenshots]
+verify_jwt = false
