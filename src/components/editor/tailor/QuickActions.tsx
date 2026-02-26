@@ -2,11 +2,14 @@ import { useState } from 'react';
 import { Plus, ArrowUpDown, Hash } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { supabase } from '@/integrations/supabase/safeClient';
 import { useAIAction } from '@/hooks/useAIAction';
 import { showErrorToast } from '@/lib/errorToast';
 import { toast } from 'sonner';
 import { ResumeData, SuperTailorResult } from '@/types/resume';
+
+const CLOUD_URL = import.meta.env.VITE_SUPABASE_URL || 'https://hjnnamwgztlhzkeuufln.supabase.co';
+const CLOUD_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhqbm5hbXdnenRsaHprZXV1ZmxuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNTE4MTcsImV4cCI6MjA4NTkyNzgxN30.cupd_dz6KHSJaBnUPQzJmQcYc38RTDVIMU5RP25xCso';
 
 interface QuickActionsProps {
   resume: ResumeData;
@@ -65,15 +68,26 @@ Return JSON: { "recommendedOrder": ["section1", "section2", ...], "reasoning": "
       }
 
       const result = await executeAI(async () => {
-        const { data, error } = await edgeFunctions.functions.invoke('enhance-section', {
-          body: {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token;
+        if (!token) throw new Error('Not authenticated');
+
+        const res = await fetch(`${CLOUD_URL}/functions/v1/enhance-section`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'apikey': CLOUD_KEY,
+          },
+          body: JSON.stringify({
             section: 'custom',
             content: instruction,
             instruction,
-          },
+          }),
         });
 
-        if (error) throw error;
+        if (!res.ok) throw new Error(`Edge function returned ${res.status}`);
+        const data = await res.json();
         if (data?.error) throw new Error(data.message || data.error);
         return data;
       });
