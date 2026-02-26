@@ -23,3 +23,9 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Build artifacts
+bun.lockb
+*.jar
+events.json
+.bfg-report/

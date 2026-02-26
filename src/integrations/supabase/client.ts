@@ -16,10 +16,12 @@ if (!SUPABASE_PUBLISHABLE_KEY || SUPABASE_PUBLISHABLE_KEY === 'undefined' || SUP
   throw new Error('SUPABASE_PUBLISHABLE_KEY environment variable is required');
 }
 
-console.log('✅ Supabase Client Initializing:', {
-  url: SUPABASE_URL.substring(0, 30) + '...',
-  keyPresent: !!SUPABASE_PUBLISHABLE_KEY
-});
+if (import.meta.env.DEV) {
+  console.log('✅ Supabase Client Initializing:', {
+    url: SUPABASE_URL.substring(0, 30) + '...',
+    keyPresent: !!SUPABASE_PUBLISHABLE_KEY,
+  });
+}
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
@@ -31,3 +33,7 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+
+// Re-export for backward compatibility with safeClient consumers
+export const supabaseConfig = { url: SUPABASE_URL };
+export { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY };

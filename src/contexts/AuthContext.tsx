@@ -84,7 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     };
 
-    // Safety timeout: force loading=false after 3s, also hide splash
+    // Safety timeout: force loading=false after 5s, also hide splash
     const timeout = setTimeout(() => {
       if (!initialResolved) {
         console.warn('Auth session fetch timed out after 5s');
