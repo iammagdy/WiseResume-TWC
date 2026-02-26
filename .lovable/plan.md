@@ -1,43 +1,44 @@
 
 
-## Analysis: Emergent LLM Key + Custom Supabase Setup
+## Configure safeClient.ts for Your Own Supabase Instance
 
-### Current State
+### Overview
+Update `safeClient.ts` to use your personal Supabase instance (`jnsfmkzgxsviuthaqlyy.supabase.co`) instead of the Lovable Cloud instance. Since `client.ts` is auto-managed by Lovable Cloud and cannot be edited, `safeClient.ts` is the correct place for this change. All app code already imports from `safeClient.ts`.
 
-Your `aiClient.ts` is properly structured with a 3-tier key resolution:
-1. User's BYOK Gemini key (from DB)
-2. Global `GEMINI_API_KEY` env var
-3. `EMERGENT_LLM_KEY` env var (Emergent Universal)
+### Important Considerations
+- **Edge functions** will continue running on Lovable Cloud's backend -- they use `SUPABASE_URL` / `SUPABASE_ANON_KEY` secrets, not `safeClient.ts`
+- **Database tables, RLS policies, and functions** must exist on your personal instance for the app to work
+- You will need to recreate the full schema (tables, functions, triggers, RLS policies, storage buckets) on your instance
 
-However, **neither `GEMINI_API_KEY` nor `EMERGENT_LLM_KEY` exists in your secrets**, so all AI calls will fail unless a user has their own BYOK key saved.
+### Changes
 
-### Required Fixes
-
-#### 1. Add `EMERGENT_LLM_KEY` Secret
-Add the Emergent Universal API key as a secret so edge functions can access it. The key from your setup doc: `sk-emergent-2113715Ec2b2713676`
-
-#### 2. Fix Build Error: `SignupForm.tsx`
-The framer-motion `ease` property needs a typed value (`"easeOut" as const`) instead of a plain string to satisfy TypeScript.
-
-#### 3. Fix Build Error: `PrivacySection.tsx`
-The `BiometryTypeString` type comparison with `"face"` needs a type assertion or the type definition needs updating.
-
-#### 4. Fix Edge Function Type Error
-The `deno.lock` or an import referencing `npm:openai@^4.52.5` is causing a resolution failure. This likely comes from `@supabase/functions-js` internals. Removing or regenerating `deno.lock` should fix it.
-
-### No Changes Needed
-- `aiClient.ts` -- already correctly implements Emergent fallback
-- `supabase/config.toml` -- all functions correctly configured
-- AI Settings UI (`AISettingsSheet.tsx`) -- properly shows WiseResume AI vs Gemini BYOK options
-- The `.env` and `client.ts` files are auto-managed by Lovable Cloud
+**File: `src/integrations/supabase/safeClient.ts`**
+- Replace the environment variable reads with hardcoded values pointing to your Supabase instance:
+  - URL: `https://jnsfmkzgxsviuthaqlyy.supabase.co`
+  - Anon key: your provided anon key
+- Keep the same client configuration (persistSession, autoRefreshToken)
+- Export `supabaseConfig` and constants as before
 
 ### Technical Details
 
-**Files to modify:**
-- `src/components/auth/SignupForm.tsx` -- cast `ease` to literal type
-- `src/components/settings/sections/PrivacySection.tsx` -- fix biometric type comparison
-- Possibly remove `deno.lock` if it exists
+```text
+safeClient.ts (before)
++---------------------------------+
+| Reads VITE_SUPABASE_URL         |  --> hjnnamwgztlhzkeuufln (Lovable Cloud)
+| Reads VITE_SUPABASE_PUBLISHABLE |
++---------------------------------+
 
-**Secret to add:**
-- `EMERGENT_LLM_KEY` = your Emergent API key
+safeClient.ts (after)
++---------------------------------+
+| Hardcoded URL + anon key        |  --> jnsfmkzgxsviuthaqlyy (your instance)
++---------------------------------+
+
+client.ts (unchanged, auto-managed)
++---------------------------------+
+| Still points to Lovable Cloud   |  --> hjnnamwgztlhzkeuufln
++---------------------------------+
+```
+
+### Risk: Schema Mismatch
+Your personal Supabase instance must have the same tables, RLS policies, database functions, triggers, and storage buckets that the app expects. If they don't exist, you'll get runtime errors. After this change, you may want to run the full schema migration on your instance.
 
