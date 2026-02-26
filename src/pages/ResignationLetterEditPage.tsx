@@ -11,7 +11,9 @@ import { Badge } from '@/components/ui/badge';
 import { useResignationLetter, useResignationLetterMutations } from '@/hooks/useResignationLetters';
 import { ResignationChecklist } from '@/components/resignation/ResignationChecklist';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase, SUPABASE_URL } from '@/integrations/supabase/safeClient';
+import { supabase } from '@/integrations/supabase/safeClient';
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 import { haptics } from '@/lib/haptics';
 
 import { toast } from 'sonner';

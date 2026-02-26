@@ -13,7 +13,9 @@ import { Calendar } from '@/components/ui/calendar';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useResignationLetterMutations } from '@/hooks/useResignationLetters';
-import { supabase, SUPABASE_URL } from '@/integrations/supabase/safeClient';
+import { supabase } from '@/integrations/supabase/safeClient';
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 import { haptics } from '@/lib/haptics';
 import { useBackNavigation } from '@/hooks/useBackNavigation';
 

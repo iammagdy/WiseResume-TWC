@@ -6,7 +6,9 @@ import { BackButton } from '@/components/ui/BackButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useResumes } from '@/hooks/useResumes';
-import { supabase, SUPABASE_URL } from '@/integrations/supabase/safeClient';
+import { supabase } from '@/integrations/supabase/safeClient';
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 
