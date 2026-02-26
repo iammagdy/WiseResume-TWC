@@ -23,6 +23,7 @@
 15. [Native Features (Capacitor)](#15-native-features-capacitor)
 16. [Offline & PWA](#16-offline--pwa)
 17. [Security Architecture](#17-security-architecture)
+18. [Visual Screen Mockups](#18-visual-screen-mockups)
 
 ---
 
@@ -1491,6 +1492,786 @@ src/components/
   ├── BugReportDialog.tsx
   └── ErrorBoundary.tsx
 ```
+
+---
+
+## 18. Visual Screen Mockups
+
+> This section provides ASCII wireframes and detailed visual descriptions for every major screen so a receiving agent can match the exact layout, spacing, color, and component placement.
+
+### 18.1 Visual Patterns Reference
+
+These reusable visual building blocks appear across multiple screens. Use these exact Tailwind class patterns:
+
+| Pattern | Classes / Details |
+|---|---|
+| **Glass surface** | `bg-card/80 backdrop-blur-sm border border-border/30` — opaque fallback on Capacitor native |
+| **Gradient primary button** | `bg-gradient-to-r from-primary to-accent text-primary-foreground` — h-14 for CTAs, rounded-2xl, `shadow-[0_0_24px_-4px_hsl(var(--primary)/0.4)]` glow |
+| **Card** | `rounded-2xl border border-border bg-card/60 backdrop-blur-sm p-4` |
+| **Score ring** | Circular SVG, `strokeDasharray`/`strokeDashoffset`, color by score: `>=80` → `hsl(var(--success))`, `>=50` → `hsl(var(--warning))`, `<50` → `hsl(var(--destructive))` |
+| **Bottom sheet** | Vaul drawer, `rounded-t-3xl px-4 pb-safe`, 32×4 grab handle bar centered top |
+| **Empty state** | 64px gradient circle icon, bold heading, `text-muted-foreground text-sm max-w-[260px] text-center`, gradient CTA button below |
+| **BottomTabBar pill** | `layoutId="active-tab-pill"` with `type:'spring', stiffness:500, damping:35`, `bg-primary/5 border border-primary/10 rounded-2xl` |
+| **Section header** | `w-1 h-5 rounded-full bg-primary` bar + icon + label, all inline |
+| **Settings row** | Full-width `py-3.5 px-4 min-h-[56px]`, icon in `w-8 h-8 rounded-lg`, label + optional description, chevron-right or Switch right |
+
+---
+
+### 18.2 Landing Page
+
+```text
+┌─────────────────────────────────┐
+│ ▓ SpaceBackground (fixed z-0)  │
+│   gradient nebula orbs + stars  │
+├─────────────────────────────────┤
+│ [Logo 28px]  WiseResume   [Sign In] │  ← sticky glass header z-40
+├─────────────────────────────────┤
+│                                 │
+│      ┌──────────────┐           │
+│      │  Logo 120×120 │          │  ← animate-glow-pulse, red drop-shadow
+│      └──────────────┘           │
+│   "Build Your Perfect Resume"   │  ← text-3xl font-bold, Space Grotesk
+│   subtitle with **bold** words  │  ← text-muted-foreground
+│                                 │
+│  ┌─────────────────────────┐    │
+│  │  Get Started Free →     │    │  ← gradient CTA h-14 rounded-2xl w-full
+│  └─────────────────────────┘    │
+│                                 │
+│  ✓ Free  ✓ No card  ✓ ATS      │  ← trust bar, text-xs, Check icons
+├─────────────────────────────────┤
+│  ~~Other tools~~  │  **Us**     │  ← comparison strip rows
+│  ~~Generic~~      │  **AI-Pow** │     left=line-through muted
+│  ~~No ATS~~       │  **98%**    │     right=font-bold primary
+├─────────────────────────────────┤
+│  How It Works (3 steps)         │
+│  ①──────── ②──────── ③────────  │  ← pink circle number icons
+├─────────────────────────────────┤
+│  Feature cards (grid cols-1→3)  │
+│  ┌────┐ ┌────┐ ┌────┐          │  ← rounded-2xl card pattern
+│  └────┘ └────┘ └────┘          │
+├─────────────────────────────────┤
+│  PortfolioDemo (phone frame)    │  ← aspect-[9/16] border-8 rounded-[2.5rem]
+│  EditorDemo (interactive)       │
+├─────────────────────────────────┤
+│  Footer: logo + nav links      │
+│  © 2025 WiseUniverse            │
+└─────────────────────────────────┘
+```
+
+- SpaceBackground: `fixed inset-0 z-0`, canvas with animated stars + 3 gradient nebula `div`s (blur-3xl, animate-float)
+- Header: `sticky top-0 z-40 glass-surface h-14`, logo left, "Sign In" outlined button right
+- Hero logo: `w-[120px] h-[120px]` with `animate-glow-pulse`, `drop-shadow-[0_0_32px_hsl(var(--destructive)/0.5)]`
+- CTA button: full-width, `h-14 rounded-2xl bg-gradient-to-r from-primary to-accent`, glow shadow
+- Comparison strip: two-column, left items have `line-through text-muted-foreground`, right items `font-bold text-primary`
+
+---
+
+### 18.3 Auth Page
+
+```text
+┌─────────────────────────────────┐
+│ ← (back)                       │  ← top-left, MobileLayout wrapper
+│                                 │
+│         ┌────────┐              │
+│         │AppIcon │              │  ← 48×48, purple drop-shadow
+│         │ 48×48  │              │
+│         └────────┘              │
+│      "Welcome Back"             │  ← text-2xl font-bold
+│   "Sign in to continue"        │  ← text-muted-foreground
+│                                 │
+│  ┌─ 📧 ─────────────────────┐  │  ← Mail icon prefix
+│  │  Email                    │  │
+│  └───────────────────────────┘  │
+│  ┌─ 🔒 ──────────────── 👁 ─┐  │  ← Lock icon + eye toggle
+│  │  Password                 │  │
+│  └───────────────────────────┘  │
+│                                 │
+│  "Sign in with email link"      │  ← text-primary text-sm
+│  "Forgot password?"             │  ← text-muted-foreground text-sm
+│                                 │
+│  ┌─────────────────────────┐    │
+│  │      Sign In             │   │  ← gradient button h-14
+│  └─────────────────────────┘    │
+│                                 │
+│  ─────────── or ────────────    │  ← divider with "or" centered
+│                                 │
+│  ┌─────────────────────────┐    │
+│  │ G  Continue with Google  │   │  ← outlined, Google icon left
+│  └─────────────────────────┘    │
+│                                 │
+│  "Don't have an account?"       │
+│  "Sign up" ← primary link      │
+└─────────────────────────────────┘
+```
+
+- Wrapper: `MobileLayout` with back button
+- AppIcon: `w-12 h-12`, purple `drop-shadow-[0_0_16px_hsl(var(--primary)/0.4)]`
+- Input fields: shadcn Input with left icon slot (`Mail`, `Lock` from lucide), password has `Eye`/`EyeOff` toggle button
+- Sign In button: `bg-gradient-to-r from-primary to-accent h-14 rounded-2xl w-full`
+- Google button: `variant="outline"` full-width, Google SVG icon 20×20
+
+---
+
+### 18.4 Dashboard
+
+```text
+┌─────────────────────────────────┐
+│ 🏠 WiseResume          ⚙       │  ← glass header, gear=Settings nav
+├─────────────────────────────────┤
+│ (●) Good morning, Name    ⚙    │  ← avatar h-10 w-10 border-2 primary
+│     Software Engineer           │     greeting text, subtitle=job title
+├─────────────────────────────────┤
+│ ┌─ DashboardStats ────────────┐ │
+│ │ gradient-border card         │ │  ← border via gradient pseudo-element
+│ │ 🔥 3-day streak    📝 5 CVs │ │
+│ │ 💡 "Tip: quantify impact"   │ │
+│ └─────────────────────────────┘ │
+├─────────────────────────────────┤
+│ [+ Create] [📄 Upload] [🎯 T] │  ← QuickActionChips, horizontal scroll
+│ [📋 Templates]                  │     pill buttons, motion fade-in
+├─────────────────────────────────┤
+│ ┌─ My CVs ─┬─ Tailored ──────┐ │  ← Tabs with Embla swipe
+│ │           │                  │ │
+│ ├───────────┴──────────────────┤ │
+│ │ 🔍 Search...    [Sort ▼]    │ │  ← ResumeFilters row
+│ ├──────────────────────────────┤ │
+│ │ ┌────────────────────────┐   │ │
+│ │ │ [thumb] Title      [92]│   │ │  ← ResumeListCard rounded-2xl
+│ │ │         Target Job     │   │ │     score badge right (ScoreRing)
+│ │ │         2 days ago     │   │ │
+│ │ └────────────────────────┘   │ │
+│ │ ┌────────────────────────┐   │ │
+│ │ │ [thumb] Title      [78]│   │ │
+│ │ └────────────────────────┘   │ │
+│ └──────────────────────────────┘ │
+│                            (+)   │  ← FloatingCreateButton
+│                          pink    │     fixed bottom-20 right-4
+│                          FAB     │     gradient bg, Plus icon
+├─────────────────────────────────┤
+│ Home  Editor  AI  Activity Port │  ← BottomTabBar
+│  ●                              │     active pill under Home
+└─────────────────────────────────┘
+```
+
+- Header: `glass-surface h-14`, app name left, gear icon right navigates to `/settings`
+- Avatar: `h-10 w-10 rounded-full border-2 border-primary`, inside Popover with profile actions
+- DashboardStats: `rounded-2xl` card with gradient border (pseudo-element), contains streak flame, resume count badges, daily tip
+- QuickActionChips: `overflow-x-auto flex gap-2`, each chip is `rounded-full px-4 py-2 bg-muted/50 border border-border`
+- ResumeListCard: `rounded-2xl border border-border bg-card p-3`, template thumbnail (48×64 aspect), title bold, ScoreRing right
+- FloatingCreateButton: `fixed bottom-20 right-4 z-40`, `w-14 h-14 rounded-full bg-gradient-to-r from-primary to-accent`, Plus icon, shadow glow
+
+---
+
+### 18.5 Editor
+
+```text
+┌─────────────────────────────────┐
+│ ← Title (truncate)   ☁ ↶ ↷    │  ← top bar: back, title, sync, undo/redo
+├─────────────────────────────────┤
+│ ▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░ 65%      │  ← ProgressBar gradient thin bar
+├─────────────────────────────────┤
+│ [Contact] [Summary] [Exp] →    │  ← StepperNav horizontal scroll pills
+│  ●active                        │     active = primary bg, others muted
+├─────────────────────────────────┤
+│ ┌─ SectionCard ───────────────┐ │
+│ │ Section Title          ✨   │ │  ← InlineAIButton sparkle icon
+│ │                              │ │
+│ │  Form fields for active     │ │  ← rounded-2xl border bg-card
+│ │  section...                  │ │
+│ │                              │ │
+│ └──────────────────────────────┘ │
+│                                 │
+│ ┌─ SectionCard ───────────────┐ │
+│ │ Next section...              │ │
+│ └──────────────────────────────┘ │
+├─────────────────────────────────┤
+│ 📋 🎨 🔗 📤 🔍 ✅ 📜 📚 ✨  │  ← bottom toolbar, horizontal scroll
+│ Template Customize Share Export │     icon buttons with labels below
+└─────────────────────────────────┘
+
+Desktop (≥1024px):
+┌──────────────────┬──────────────┐
+│  Editor panel    │ LivePreview  │  ← ResizablePanelGroup
+│  (as above)      │ panel        │     drag handle in center
+│                  │ (template    │
+│                  │  rendering)  │
+└──────────────────┴──────────────┘
+```
+
+- No mobile header bar (editor manages its own top bar)
+- Top bar: back arrow (`ChevronLeft`), title `truncate max-w-[200px]`, cloud sync icon (`Cloud`/`CloudOff`), undo/redo (`Undo2`/`Redo2`)
+- ProgressBar: `h-1 bg-gradient-to-r from-primary to-accent`, width = completion %
+- StepperNav: `overflow-x-auto flex gap-2`, each pill `rounded-full px-3 py-1.5 text-sm`, active = `bg-primary text-primary-foreground`
+- SectionCard: `rounded-2xl border border-border bg-card p-4`, InlineAIButton = small sparkle icon button top-right
+- Bottom toolbar: `overflow-x-auto flex gap-1 px-2 py-2 border-t`, each item = icon + 9px label stacked vertically
+- Desktop: `ResizablePanelGroup direction="horizontal"`, left panel = editor, right panel = `LivePreviewPanel` with template rendering
+
+---
+
+### 18.6 Preview
+
+```text
+┌─────────────────────────────────┐
+│ ← Preview          [🔍+] [🔍-]│  ← zoom controls top-right
+├─────────────────────────────────┤
+│                                 │
+│  ┌─────────────────────────┐    │
+│  │                         │    │
+│  │   Full-bleed template   │    │  ← rendered resume template
+│  │   rendering             │    │     scaled to fit viewport
+│  │                         │    │
+│  │                         │    │
+│  └─────────────────────────┘    │
+│                                 │
+│         ‹  1/2  ›               │  ← page navigation arrows
+├─────────────────────────────────┤
+│  [📤 Export PDF]                │  ← export button, gradient
+└─────────────────────────────────┘
+```
+
+- Full-bleed rendering of the active template with resume data
+- Zoom: pinch-to-zoom on mobile, +/- buttons on desktop
+- Page nav: left/right arrows with page counter
+- Export: bottom action bar with gradient export button
+
+---
+
+### 18.7 Upload
+
+```text
+┌─────────────────────────────────┐
+│ ← Upload Resume                │
+├─────────────────────────────────┤
+│                                 │
+│  ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─┐  │
+│  ╎                           ╎  │  ← UploadZone: dashed border-2
+│  ╎       📄 (icon 48px)     ╎  │     rounded-3xl, min-h-[280px]
+│  ╎                           ╎  │     border-primary/30
+│  ╎  "Drag & drop or tap     ╎  │
+│  ╎   to upload your resume" ╎  │
+│  ╎                           ╎  │
+│  ╎  Supports PDF, DOCX, IMG ╎  │  ← text-xs text-muted-foreground
+│  └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─┘  │
+│                                 │
+├─────────────────────────────────┤
+│ FileTypeSelector:               │
+│ ┌──────────────────────────┐    │
+│ │ 🔴 PDF   "Upload PDF"   │    │  ← 72px row, colored icon circle
+│ │ 🔵 DOCX  "Upload Word"  │    │
+│ │ 🟢 IMG   "Scan Image"   │    │
+│ └──────────────────────────┘    │
+├─────────────────────────────────┤
+│ Progress (when uploading):      │
+│  ① Upload  ──→  ② Parse  ──→  ③ Review │  ← UploadProgressSteps
+│    ✓ done      ◉ active     ○ pending  │     animated step icons
+├─────────────────────────────────┤
+│ ATSScorePreview (after parse):  │
+│ ┌──────────────────────────┐    │
+│ │ (92%) │ Format    ▓▓▓▓░  │    │  ← ScoreRing 56px + category bars
+│ │       │ Content   ▓▓▓░░  │    │
+│ │       │ Keywords  ▓▓░░░  │    │
+│ └──────────────────────────┘    │
+└─────────────────────────────────┘
+```
+
+- UploadZone: `border-2 border-dashed border-primary/30 rounded-3xl min-h-[280px]`, centered content, upload icon `w-12 h-12 text-primary`
+- FileTypeSelector: 3 rows in bottom sheet, each row 72px tall, left = `w-10 h-10 rounded-full` colored circle with icon, right = title + description
+- UploadProgressSteps: 3-step horizontal stepper, active step pulses, completed step shows checkmark
+- ATSScorePreview: ScoreRing (56px) left + 3 category progress bars right, each bar = `h-2 rounded-full bg-primary` with animated width
+
+---
+
+### 18.8 AI Studio
+
+```text
+┌─────────────────────────────────┐
+│ ← AI Studio                    │
+│    [GPT-4o ▾]  [12/50 credits] │  ← AIEngineBadge + AICreditsIndicator
+├─────────────────────────────────┤
+│ ┌─ Resume Context ────────────┐ │
+│ │ 📄 "Software Engineer CV"   │ │  ← glass-surface bar, current resume
+│ └─────────────────────────────┘ │
+├─────────────────────────────────┤
+│ ┌─ Wise AI Chat ──────────────┐ │
+│ │ (●) Wise AI                  │ │  ← w-10 h-10 gradient circle
+│ │     "How can I help?"        │ │     Sparkles icon inside
+│ │                              │ │
+│ │ [Improve summary] [Fix gaps] │ │  ← suggestion chips
+│ │ [Tailor for job]             │ │
+│ └──────────────────────────────┘ │
+├─────────────────────────────────┤
+│ Recent Tools ──────────→        │  ← horizontal scroll row
+├─────────────────────────────────┤
+│ ✍️ Writing Tools                │  ← category header
+│ ┌──────────┐ ┌──────────┐      │
+│ │ (🎯)     │ │ (✨)     │      │  ← 2-column grid
+│ │ Tailor   │ │ Enhance  │      │     icon circle w-10 h-10
+│ │ Match job│ │ Improve  │      │     colored bg
+│ └──────────┘ └──────────┘      │     title + desc
+│ ┌──────────┐ ┌──────────┐      │
+│ │ (📝)     │ │ (🔍)     │      │
+│ │ Summary  │ │ ATS Scan │      │  ← optional Featured badge
+│ └──────────┘ └──────────┘      │
+│                                 │
+│ 📊 Analysis Tools               │
+│ ┌──────────┐ ┌──────────┐      │
+│ │ ...      │ │ ...      │      │
+│ └──────────┘ └──────────┘      │
+├─────────────────────────────────┤
+│ [💬 Ask Wise AI...         🔄] │  ← chat input rounded-2xl bottom
+└─────────────────────────────────┘
+```
+
+- AIEngineBadge: small chip `rounded-full px-2 py-0.5 text-[10px] bg-muted`, shows provider name
+- AICreditsIndicator: `text-xs text-muted-foreground`, usage/limit format
+- Wise AI Chat card: `rounded-2xl border bg-card p-4`, avatar = `w-10 h-10 rounded-full bg-gradient-to-r from-primary to-accent` with `Sparkles` icon
+- Tool card: `rounded-2xl border bg-card/60 p-3`, icon circle `w-10 h-10 rounded-xl` with category color, title `font-medium text-sm`, description `text-xs text-muted-foreground`
+- Optional badges: `Featured` = small accent badge, `AICostBadge` = credit cost indicator
+
+---
+
+### 18.9 Interview
+
+```text
+Setup Phase:
+┌─────────────────────────────────┐
+│ ← Interview Prep               │
+├─────────────────────────────────┤
+│ Select Interview Type:          │
+│ ┌──────────────────────────┐    │
+│ │ 🧠 Behavioral            │    │  ← rounded-2xl card, tappable
+│ │ "STAR method questions"   │    │
+│ └──────────────────────────┘    │
+│ ┌──────────────────────────┐    │
+│ │ 💻 Technical              │    │
+│ │ "Role-specific questions" │    │
+│ └──────────────────────────┘    │
+│ ┌──────────────────────────┐    │
+│ │ 📊 Case Study             │    │
+│ │ "Problem-solving scenarios│    │
+│ └──────────────────────────┘    │
+└─────────────────────────────────┘
+
+Active Phase:
+┌─────────────────────────────────┐
+│ ← Interview    ⏱ 03:24         │  ← timer top-right
+├─────────────────────────────────┤
+│                                 │
+│  ┌─────────────────────┐        │
+│  │ AI: "Tell me about  │        │  ← TranscriptBubble left-aligned
+│  │ a time you led..."  │        │     bg-muted rounded-2xl p-3
+│  └─────────────────────┘        │
+│                                 │
+│        ┌─────────────────────┐  │
+│        │ You: "In my last   │  │  ← right-aligned, bg-primary
+│        │ role, I managed..." │  │     text-primary-foreground
+│        └─────────────────────┘  │
+│                                 │
+│     ▁▂▃▅▃▂▁▂▃▅▇▅▃▂▁           │  ← audio waveform visualization
+├─────────────────────────────────┤
+│           [🎤]    [⏹]          │  ← mic button (large), stop
+└─────────────────────────────────┘
+
+Summary Phase:
+┌─────────────────────────────────┐
+│ Interview Summary               │
+├─────────────────────────────────┤
+│       ┌────────┐                │
+│       │  78%   │                │  ← ScoreRing large (80px)
+│       │ (ring) │                │
+│       └────────┘                │
+│                                 │
+│ Communication  ▓▓▓▓▓▓▓░░░ 72%  │  ← category score bars
+│ Technical      ▓▓▓▓▓▓▓▓░░ 85%  │
+│ Problem Solving▓▓▓▓▓▓░░░░ 65%  │
+├─────────────────────────────────┤
+│ ✅ Strengths:                   │
+│ • Clear communication           │
+│ • Good examples                 │
+├─────────────────────────────────┤
+│ 📈 Improvements:               │
+│ • More specific metrics         │
+│ • Deeper technical detail       │
+└─────────────────────────────────┘
+```
+
+- TranscriptBubble: AI = `bg-muted rounded-2xl p-3 max-w-[85%]` left-aligned; User = `bg-primary text-primary-foreground rounded-2xl p-3 max-w-[85%]` right-aligned
+- Audio visualization: horizontal bar of animated height segments
+- Recording controls: mic button `w-16 h-16 rounded-full bg-primary`, stop button `w-12 h-12 rounded-full bg-destructive`
+- Summary ScoreRing: 80px size, centered
+
+---
+
+### 18.10 Applications
+
+```text
+┌─────────────────────────────────┐
+│ ← Applications                 │
+├─────────────────────────────────┤
+│ [Applications] [Jobs]           │  ← Tabs with Embla swipe
+├─────────────────────────────────┤
+│ [All 12] [Applied 5] [Int 3]→  │  ← StatusFilter horizontal scroll
+│ [Offered 1] [Rejected 2]       │     pills with counts, active=primary
+├─────────────────────────────────┤
+│ ┌──────────────────────────┐    │
+│ │ **Google**          🟢   │    │  ← ApplicationCard rounded-2xl
+│ │ Software Engineer        │    │     status badge color-coded
+│ │ Applied · Jan 15         │    │     green=offered, blue=interview
+│ │ [Notes] [Edit] [⋯]      │    │     red=rejected, gray=applied
+│ └──────────────────────────┘    │
+│ ┌──────────────────────────┐    │
+│ │ **Meta**            🔵   │    │
+│ │ Product Manager          │    │
+│ │ Interviewing · Jan 20    │    │
+│ └──────────────────────────┘    │
+├─────────────────────────────────┤
+│ ┌─ Stats ─────────────────────┐ │
+│ │ 12 total │ 3 this week │ 8% │ │  ← JobActivityStatsCard
+│ └─────────────────────────────┘ │
+│ 🔥 3-day streak                │  ← ActivityStreak flame
+├─────────────────────────────────┤
+│ ActivityTimeline                │  ← vertical timeline dots + events
+│ ● Applied to Google             │
+│ │                               │
+│ ● Interview at Meta             │
+└─────────────────────────────────┘
+```
+
+- StatusFilter: `overflow-x-auto flex gap-2`, each pill `rounded-full px-3 py-1.5 text-sm border`, active = `bg-primary text-primary-foreground`
+- ApplicationCard: `rounded-2xl border bg-card p-4`, company name `font-semibold`, status badge = small `rounded-full px-2 py-0.5` with status color
+- Status colors: offered = `bg-success/10 text-success`, interviewing = `bg-primary/10 text-primary`, rejected = `bg-destructive/10 text-destructive`, applied = `bg-muted text-muted-foreground`
+- Jobs tab: `JobCard` with `Briefcase` icon in colored circle, match score percentage, Tailor/Applied action buttons
+
+---
+
+### 18.11 Portfolio Editor
+
+```text
+┌─────────────────────────────────┐
+│ ← Portfolio                    │
+├─────────────────────────────────┤
+│ Enable Portfolio  [━━━●]        │  ← Switch toggle
+├─────────────────────────────────┤
+│ Username:                       │
+│ ┌──────────────────────────┐    │
+│ │ /p/ [username        ]   │    │  ← prefix label + input
+│ └──────────────────────────┘    │
+├─────────────────────────────────┤
+│ Theme:                          │
+│ ● ● ● ● ● ● ●  →              │  ← horizontal scroll circles
+│ midnight ocean forest           │     active = border-2 primary
+├─────────────────────────────────┤
+│ Sections:                       │
+│ ☰ About          [✓]           │  ← draggable list, toggleable
+│ ☰ Experience     [✓]           │
+│ ☰ Education      [✓]           │
+│ ☰ Skills         [ ]           │
+├─────────────────────────────────┤
+│ ┌─ QR Code ──────────────────┐  │
+│ │  [████████]  Share link    │  │  ← QR code + copy button
+│ └────────────────────────────┘  │
+├─────────────────────────────────┤
+│ Analytics:                      │
+│ 👁 142 views  👤 89 visitors   │  ← stat cards
+│ [mini chart]                    │
+└─────────────────────────────────┘
+```
+
+- Toggle: shadcn `Switch` component
+- Theme circles: `w-8 h-8 rounded-full` with theme color fill, active = `ring-2 ring-primary ring-offset-2`
+- Section list: draggable rows with grip handle (`GripVertical`), checkbox toggle
+- QR code: `qr-code-styling` library, 120×120, inside card pattern
+
+---
+
+### 18.12 Public Portfolio
+
+```text
+┌─────────────────────────────────┐
+│ (standalone page, no AppShell)  │
+├─────────────────────────────────┤
+│                                 │
+│         ┌────────┐              │
+│         │ Avatar │              │  ← h-24 w-24 rounded-full
+│         │ 96×96  │              │     border-4 border-accent
+│         └────────┘              │
+│      "John Doe"                 │  ← text-2xl font-bold
+│   "Software Engineer"           │  ← text-muted-foreground
+│   [🔗] [💼] [🐙] [🐦]         │  ← social icon row
+│                                 │
+├─────────────────────────────────┤
+│ ▌ About                        │  ← accent left border (w-1)
+│ │ Bio text paragraph...        │
+├─────────────────────────────────┤
+│ ▌ Experience                   │
+│ │ Company — Role — Dates       │
+│ │ • Bullet points              │
+├─────────────────────────────────┤
+│ ▌ Education                    │
+│ │ University — Degree          │
+├─────────────────────────────────┤
+│                                 │
+│                       [✨ Ask] │  ← floating "Ask AI" button
+│                                 │     bottom-right, gradient
+├─────────────────────────────────┤
+│ Built with WiseResume           │  ← footer badge, muted
+└─────────────────────────────────┘
+```
+
+- Outside `AppShell`, themed with portfolio theme colors
+- Avatar: `h-24 w-24 rounded-full border-4` using accent color
+- Sections: `border-l-2 border-accent pl-4` for left accent border
+- Ask AI button: `fixed bottom-6 right-6 z-40`, gradient bg, Sparkles icon
+- Footer: centered, `text-xs text-muted-foreground`, "Built with WiseResume" link
+
+---
+
+### 18.13 Settings
+
+```text
+┌─────────────────────────────────┐
+│ ← Settings                     │
+├─────────────────────────────────┤
+│ [👤 Account] [🎨 Look] [🤖 AI]│  ← section chips, horizontal scroll
+│ [✏️ Editor] [🔔 Notif] [🔒] → │     rounded-full pills with icons
+├─────────────────────────────────┤
+│ ┌──────────────────────────┐    │
+│ │ (●)  John Doe            │    │  ← avatar card, h-16 w-16
+│ │      john@email.com      │    │     profile completion badge
+│ │      [72% complete]      │    │     ProgressRing overlay
+│ └──────────────────────────┘    │
+├─────────────────────────────────┤
+│ ▌🔐 Account                    │  ← SectionHeader: bar + icon + label
+│ ┌──────────────────────────┐    │
+│ │ 👤 Edit Profile      ›  │    │  ← SettingsRow: icon, label, chevron
+│ │ ✉️ Change Email       ›  │    │
+│ │ 🔑 Change Password    ›  │    │
+│ │ 🔐 Biometric Lock   [━] │    │  ← toggle variant
+│ └──────────────────────────┘    │
+├─────────────────────────────────┤
+│ ▌🎨 Appearance                 │
+│ ┌──────────────────────────┐    │
+│ │ 🌙 Theme          Dark › │    │  ← value display right
+│ │ 🎨 Accent Color       ›  │    │
+│ └──────────────────────────┘    │
+├─────────────────────────────────┤
+│ ... more sections ...           │
+├─────────────────────────────────┤
+│ ┌──────────────────────────┐    │
+│ │ 🚪 Sign Out              │    │  ← destructive red text
+│ └──────────────────────────┘    │
+├─────────────────────────────────┤
+│ ┌─ DeveloperCreditCard ───────┐ │
+│ │ animated gradient card       │ │  ← special CSS animation
+│ │ developer photo + credits    │ │     holographic effect
+│ └─────────────────────────────┘ │
+└─────────────────────────────────┘
+```
+
+- Section chips: `overflow-x-auto flex gap-2`, each = `rounded-full px-3 py-1.5 text-sm border`, active = filled primary
+- SectionHeader: `flex items-center gap-2`, left bar = `w-1 h-5 rounded-full bg-primary`, icon + label
+- SettingsRow: `py-3.5 px-4 min-h-[56px]`, icon in `w-8 h-8 rounded-lg icon-glow`, label + optional description, right side = chevron / Switch / value
+- Sign Out: SettingsRow `type="button"` with `destructive=true`, red text + red icon bg
+- DeveloperCreditCard: custom CSS with `background: conic-gradient(...)`, holographic shimmer effect, developer photo
+
+---
+
+### 18.14 Cover Letters
+
+```text
+┌─────────────────────────────────┐
+│ ← Cover Letters                │
+├─────────────────────────────────┤
+│ ┌──────────────────────────┐    │
+│ │ "Software Eng @ Google"  │    │  ← CoverLetterCard rounded-2xl
+│ │ Google · Professional    │    │     title, company, tone
+│ │ "Dear Hiring Manager..." │    │     snippet preview
+│ │ Jan 15, 2025       [⋯]  │    │     date + action menu
+│ └──────────────────────────┘    │
+│ ┌──────────────────────────┐    │
+│ │ "PM @ Meta"              │    │
+│ │ Meta · Enthusiastic      │    │
+│ │ "I'm excited to..."     │    │
+│ └──────────────────────────┘    │
+├─────────────────────────────────┤
+│         OR (empty state):       │
+│                                 │
+│         ┌────────┐              │
+│         │ 📝     │              │  ← 64px gradient circle
+│         │ (icon) │              │
+│         └────────┘              │
+│   "No cover letters yet"       │  ← bold heading
+│   "Create your first AI-       │  ← muted description
+│    powered cover letter"        │
+│  [✨ Create Cover Letter]      │  ← gradient CTA
+├─────────────────────────────────┤
+│ Create/Edit Form:               │
+│ Job Title: [____________]       │
+│ Company:   [____________]       │
+│ Tone: [Professional] [Friendly] │  ← pill selector, active=primary
+│       [Enthusiastic] [Formal]   │
+│ [✨ Generate with AI]           │  ← gradient button
+│ ┌──────────────────────────┐    │
+│ │ Generated letter content │    │  ← rich text area
+│ │ ...                      │    │
+│ └──────────────────────────┘    │
+│ [📄 PDF] [📋 Copy] [📤 Share] │  ← export options row
+└─────────────────────────────────┘
+```
+
+---
+
+### 18.15 Resignation Letters
+
+```text
+┌─────────────────────────────────┐
+│ ← Resignation Letters          │
+├─────────────────────────────────┤
+│ (Similar card list as Cover     │
+│  Letters, with title, company,  │
+│  date, action menu)             │
+├─────────────────────────────────┤
+│ ResignationChecklist:           │
+│ ┌──────────────────────────┐    │
+│ │ Progress: ▓▓▓▓▓░░░ 60%  │    │  ← progress bar top
+│ │                          │    │
+│ │ ☑ Review employment      │    │  ← completed = checked
+│ │   contract               │    │
+│ │ ☑ Set last working day   │    │
+│ │ ☐ Prepare handover docs  │    │  ← pending = unchecked
+│ │ ☐ Schedule exit meeting  │    │
+│ │ ☐ Return company assets  │    │
+│ └──────────────────────────┘    │
+└─────────────────────────────────┘
+```
+
+- Checklist: `rounded-2xl border bg-card p-4`, each item = checkbox + label, completed = `line-through text-muted-foreground`
+- Progress bar: `h-2 rounded-full bg-gradient-to-r from-primary to-accent`
+
+---
+
+### 18.16 Career
+
+```text
+┌─────────────────────────────────┐
+│ ← Career Tools                 │
+├─────────────────────────────────┤
+│ CareerQuizSheet (bottom sheet): │
+│ ┌──────────────────────────┐    │
+│ │ ─── (grab handle)        │    │  ← rounded-t-3xl
+│ │ Step 2 of 5   ● ● ○ ○ ○ │    │     progress dots
+│ │                          │    │
+│ │ "What's your experience  │    │
+│ │  level?"                 │    │
+│ │                          │    │
+│ │ ○ Entry Level            │    │  ← radio options
+│ │ ● Mid-Level              │    │     active = primary ring
+│ │ ○ Senior                 │    │
+│ │ ○ Executive              │    │
+│ │                          │    │
+│ │ [Next →]                 │    │  ← gradient button
+│ └──────────────────────────┘    │
+├─────────────────────────────────┤
+│ CareerRoadmap:                  │
+│ ┌──────────────────────────┐    │
+│ │ ● Current: Jr Developer  │    │  ← vertical timeline
+│ │ │                        │    │     nodes connected by line
+│ │ ◎ Next: Mid Developer    │    │     current=filled, next=ring
+│ │ │                        │    │
+│ │ ○ Sr Developer           │    │     future=empty circle
+│ │ │                        │    │
+│ │ ○ Tech Lead              │    │
+│ └──────────────────────────┘    │
+├─────────────────────────────────┤
+│ SkillGapAnalyzer:               │
+│ ┌────────────┬─────────────┐    │
+│ │ Your Skills│ Required    │    │  ← two-column comparison
+│ │ ✅ React   │ ✅ React    │    │     ✅ = match
+│ │ ✅ TypeScript│ ✅ TypeScript│  │     ⚠️ = partial
+│ │ ⚠️ Python  │ ✅ Python   │    │     ❌ = missing
+│ │ ❌ —       │ ✅ AWS      │    │
+│ └────────────┴─────────────┘    │
+└─────────────────────────────────┘
+```
+
+---
+
+### 18.17 Templates
+
+```text
+┌─────────────────────────────────┐
+│ ← Templates                    │
+├─────────────────────────────────┤
+│ [All] [Professional] [Creative]│  ← category filter chips
+│ [Academic] [Technical] →       │     horizontal scroll
+├─────────────────────────────────┤
+│ ┌───────────┐ ┌───────────┐    │
+│ │ ┌───────┐ │ │ ┌───────┐ │    │  ← 2-column grid
+│ │ │preview│ │ │ │preview│ │    │     aspect-[3/4] thumbnail
+│ │ │ thumb │ │ │ │ thumb │ │    │     rounded-xl overflow-hidden
+│ │ └───────┘ │ │ └───────┘ │    │
+│ │ Modern    │ │ Classic   │    │  ← name below
+│ │ [ATS ✓]   │ │ [ATS ✓]   │    │  ← ATS badge overlay
+│ └───────────┘ └───────────┘    │
+│ ┌───────────┐ ┌───────────┐    │
+│ │ ┌───────┐ │ │ ┌───────┐ │    │
+│ │ │preview│ │ │ │preview│ │    │
+│ │ └───────┘ │ │ └───────┘ │    │
+│ │ Minimal   │ │ Developer │    │
+│ └───────────┘ └───────────┘    │
+│ ... (30 templates total)       │
+└─────────────────────────────────┘
+```
+
+- Filter chips: same pattern as StatusFilter
+- Template card: `rounded-xl border bg-card overflow-hidden`, thumbnail = `aspect-[3/4]` with template preview image, name below `text-sm font-medium`, ATS badge = `absolute top-2 right-2 rounded-full px-2 py-0.5 text-[10px] bg-success/90 text-white`
+
+---
+
+### 18.18 Onboarding
+
+```text
+┌─────────────────────────────────┐
+│ (full-screen overlay z-60)      │
+│ ┌──────────────────────────────┐│
+│ │                              ││
+│ │      ┌──────────────┐       ││
+│ │      │  Illustration │       ││  ← centered icon/illustration
+│ │      │   or Icon     │       ││     per step
+│ │      └──────────────┘       ││
+│ │                              ││
+│ │   "Welcome to WiseResume"    ││  ← heading, text-2xl font-bold
+│ │                              ││
+│ │   "Build professional        ││  ← description
+│ │    resumes with AI"          ││     text-muted-foreground
+│ │                              ││     text-center max-w-[280px]
+│ │                              ││
+│ │   [Get Started]              ││  ← gradient CTA (step 1-3)
+│ │                              ││
+│ │      ● ● ○ ○                 ││  ← dot indicators
+│ │                              ││
+│ └──────────────────────────────┘│
+│                                 │
+│ Final step (step 4):            │
+│ ┌──────────────────────────────┐│
+│ │ "Choose a Template"          ││
+│ │                              ││
+│ │ ┌──────┐ ┌──────┐ ┌──────┐  ││  ← template selection grid
+│ │ │Modern│ │Clean │ │Prof. │  ││     3-column, tappable
+│ │ └──────┘ └──────┘ └──────┘  ││     selected = ring-2 primary
+│ │ ┌──────┐ ┌──────┐ ┌──────┐  ││
+│ │ │Mini  │ │Dev   │ │Exec  │  ││
+│ │ └──────┘ └──────┘ └──────┘  ││
+│ │                              ││
+│ │ [Start Building →]           ││  ← final CTA
+│ └──────────────────────────────┘│
+└─────────────────────────────────┘
+```
+
+- Overlay: `fixed inset-0 z-60 bg-background`, carousel powered by Embla
+- Dot indicators: `flex gap-2`, active = `w-2 h-2 rounded-full bg-primary`, inactive = `bg-muted`
+- Template grid: `grid grid-cols-3 gap-3`, each = `rounded-xl border p-2 aspect-[3/4]`, selected = `ring-2 ring-primary`
+- Final CTA: gradient button, navigates to `/editor` or `/dashboard`
 
 ---
 
