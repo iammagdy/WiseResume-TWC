@@ -1,53 +1,159 @@
 
 
-# Add Section 18: Visual Screen Mockups to APP_BLUEPRINT.md
+# Add pubspec.yaml Reference & Screens List to Flutter Blueprint
 
 ## Overview
-Append a new section (~700 lines) to the end of `docs/APP_BLUEPRINT.md` with detailed ASCII wireframes and visual layout descriptions for all 17 major screens, plus a visual patterns reference. This gives the receiving AI agent exact layout, spacing, color, and component placement to match the design.
+Add two new sections to `docs/APP_BLUEPRINT_FLUTTER.md`:
+1. **Section 19: pubspec.yaml Reference** -- A complete, copy-paste-ready `pubspec.yaml` with all required dependencies, version-pinned, organized by category.
+2. **Section 20: Complete Screen Registry** -- A flat table listing every screen/page widget, its route, and its feature module location.
 
-## What Changes
+## Changes
 
-**File: `docs/APP_BLUEPRINT.md`**
-- Update Table of Contents (line 26) to add entry 18
-- Replace the closing italic line (line 1497) with the new Section 18 content followed by the closing line
+### 1. Update Table of Contents (line 9-28)
+Add entries 19 and 20:
+```
+19. [pubspec.yaml Reference](#19-pubspecyaml-reference)
+20. [Complete Screen Registry](#20-complete-screen-registry)
+```
 
-## Section 18 Content
+### 2. Append Section 19: pubspec.yaml Reference (after line 1907)
 
-### Visual Patterns Reference
-Documents reusable visual building blocks with exact Tailwind classes:
-- Glass surface: `bg-card/80 backdrop-blur-sm border border-border/30`
-- Gradient primary button: `bg-gradient-to-r from-primary to-accent`, h-14, rounded-2xl, glow shadow
-- Card pattern: `rounded-2xl border border-border bg-card/60 backdrop-blur-sm p-4`
-- Score ring: circular SVG, color-coded (green 80+, yellow 50-79, red below 50)
-- Bottom sheet: `rounded-t-3xl px-4 pb-safe`, grab handle bar
-- Empty state: 64px gradient icon circle, bold heading, muted description, gradient CTA
-- BottomTabBar pill: `layoutId="active-tab-pill"` spring animation
+A full `pubspec.yaml` code block with all dependencies organized into categories:
 
-### ASCII Wireframes for 17 Screens
+**Core Flutter**
+- `flutter` SDK
+- `flutter_localizations` SDK
+- `cupertino_icons: ^1.0.8`
 
-Each screen gets an ASCII wireframe wrapped in a `text` code fence, plus a bullet-point description of key visual details (colors, sizes, Tailwind classes, interactions):
+**State Management & DI**
+- `flutter_riverpod: ^2.6.1`
+- `riverpod_annotation: ^2.6.1`
 
-1. **Landing Page** -- SpaceBackground, sticky glass header, 120x120 logo with red glow-pulse, hero heading, gradient CTA h-14, trust bar checkmarks, comparison strip (strikethrough vs bold), feature cards, PortfolioDemo phone frame, EditorDemo, Footer
-2. **Auth Page** -- MobileLayout wrapper, Back arrow top-left, AppIcon centered (48px, purple drop-shadow), "Welcome Back" heading, email/password fields with Mail/Lock icons, eye toggle, magic-link/forgot links, gradient Sign In button, "or" divider, Google outlined button, signup link
-3. **Dashboard** -- Glass header bar, profile row (avatar h-10 w-10, greeting, gear icon), DashboardStats gradient-border card, QuickActionChips horizontal scroll, Tabs (My CVs / Tailored) with Embla swipe, ResumeFilters + ResumeListCard (rounded-2xl, thumbnail left, score badge right), FloatingCreateButton (fixed bottom-right pink gradient FAB)
-4. **Editor** -- No mobile header, top bar (back arrow, title truncated, Cloud/CloudOff sync icon, undo/redo), ProgressBar gradient, StepperNav scrollable pills, SectionCard (rounded-2xl), InlineAIButton sparkle, bottom toolbar scrollable icons, Desktop: ResizablePanelGroup with LivePreviewPanel
-5. **Preview** -- Full-bleed template rendering, zoom controls, page nav arrows, export button
-6. **Upload** -- UploadZone (dashed border-2 rounded-3xl, min-h-280px, upload icon centered), FileTypeSelector (3 rows, colored icon circles), UploadProgressSteps (3-step animated), ATSScorePreview (ScoreRing 56px + category bars)
-7. **AI Studio** -- Gradient heading "AI Studio", AIEngineBadge + AICreditsIndicator row, resume context bar (glass-surface), Wise AI Chat card (rounded-2xl, w-10 h-10 gradient circle with Sparkles icon, suggestion chips), Recent tools row, tool categories with 2-column grid, each tool card has colored icon (w-10 h-10), label, description, optional Featured/AICostBadge
-8. **Interview** -- Setup: mode selection cards (rounded-2xl with icons). Active: chat transcript (TranscriptBubble -- user right-aligned primary bg, AI left-aligned muted bg), audio level visualization, recording controls (mic button, stop). Summary: score ring, category bars, strengths/improvements
-9. **Applications** -- Tabs (Applications / Jobs) with Embla, StatusFilter horizontal pills with counts, ApplicationCard (rounded-2xl, company bold, status badge color-coded), JobActivityStatsCard, ActivityStreak flame, ActivityTimeline. Jobs tab: JobCard (rounded-2xl, Briefcase icon circle, match score, Tailor/Applied buttons)
-10. **Portfolio Editor** -- Toggle switch, username input with /p/ prefix, theme picker (horizontal circles), section arrangement (draggable), QR code card, analytics panel
-11. **Public Portfolio** -- Standalone themed page, centered profile header (avatar, name, title, social icons), sections with accent left borders, "Ask AI" floating button, "Built with WiseResume" footer
-12. **Settings** -- BackButton, section chips (horizontal scroll pills with icons), avatar card (h-16 w-16, profile completion badge), SectionHeader (w-1 h-5 primary bar + icon + label), SettingsRow (full-width, icon, label, chevron-right), sections (Account, Appearance, AI & Voice, Editor, Notifications, Privacy, About), Sign Out destructive button, DeveloperCreditCard
-13. **Cover Letters** -- CoverLetterCard list (rounded-2xl, title, company, snippet, date), empty state pattern, create/edit form with tone selector pills
-14. **Resignation Letters** -- Similar card list, ResignationChecklist with checkboxes and progress
-15. **Career** -- CareerQuizSheet (multi-step, progress dots), CareerRoadmap (vertical timeline nodes), SkillGapAnalyzer (two-column comparison)
-16. **Templates** -- Category filter chips, 2-column grid of template preview cards (aspect-ratio thumbnail, name, ATS badge overlay)
-17. **Onboarding** -- Full-screen overlay z-60, 4-step carousel with dot indicators, centered icon/heading/description per step, final step has template selection grid
+**Routing**
+- `go_router: ^14.8.1`
+
+**Backend (Supabase)**
+- `supabase_flutter: ^2.10.0`
+
+**Code Generation (Freezed + JSON)**
+- `freezed_annotation: ^2.4.4`
+- `json_annotation: ^4.9.0`
+- (dev) `freezed: ^2.5.8`, `json_serializable: ^6.9.4`, `build_runner: ^2.4.14`, `riverpod_generator: ^2.6.3`
+
+**Local Storage**
+- `hive_flutter: ^1.1.0`
+- `hive: ^2.2.3`
+- `shared_preferences: ^2.3.5`
+- `isar: ^3.1.0+1` (optional)
+- `isar_flutter_libs: ^3.1.0+1` (optional)
+- (dev) `hive_generator: ^2.0.1`
+
+**UI & Design**
+- `google_fonts: ^6.2.1`
+- `flutter_svg: ^2.0.17`
+- `shimmer: ^3.0.0`
+- `smooth_page_indicator: ^1.2.0+3`
+- `dotted_border: ^2.1.0`
+- `flutter_animate: ^4.5.2`
+- `rive: ^0.13.20` (optional)
+- `lottie: ^3.3.1`
+
+**Charts & Visualization**
+- `fl_chart: ^0.71.0`
+
+**PDF & Documents**
+- `pdf: ^3.11.2`
+- `printing: ^5.13.5`
+- `syncfusion_flutter_pdf: ^27.2.5` (or `pdfx: ^2.8.0`)
+- `docx_template: ^0.3.2`
+
+**OCR & ML**
+- `google_mlkit_text_recognition: ^0.14.0`
+
+**Camera & Image**
+- `image_picker: ^1.1.2`
+- `image_cropper: ^8.0.2`
+- `cached_network_image: ^3.4.1`
+
+**QR Code**
+- `qr_flutter: ^4.1.0`
+
+**Auth & Security**
+- `local_auth: ^2.3.0`
+- `flutter_secure_storage: ^9.2.4`
+
+**Voice & Audio**
+- `speech_to_text: ^7.0.0`
+- `record: ^5.2.1`
+
+**Connectivity & Network**
+- `connectivity_plus: ^6.1.4`
+- `dio: ^5.8.0+1`
+- `url_launcher: ^6.3.1`
+
+**Utilities**
+- `uuid: ^4.5.1`
+- `intl: ^0.19.0`
+- `path_provider: ^2.1.5`
+- `share_plus: ^10.1.4`
+- `flutter_markdown: ^0.7.7`
+- `shake: ^3.2.0`
+- `package_info_plus: ^8.1.3`
+- `permission_handler: ^11.3.1`
+
+**Flutter/Dev**
+- `flutter_test` SDK
+- `flutter_lints: ^5.0.0`
+- `integration_test` SDK
+
+Also includes the `flutter:` section with `uses-material-design: true` and asset paths.
+
+### 3. Append Section 20: Complete Screen Registry
+
+A table mapping every screen to its route, feature module, and description:
+
+| Screen Widget | Route | Feature Module | Description |
+|---|---|---|---|
+| `LandingPage` | `/` | `landing/` | Marketing hero, comparison strip, features |
+| `AuthPage` | `/auth` | `auth/` | Login, signup, magic link, OAuth |
+| `AuthCallbackPage` | `/auth/callback` | `auth/` | OAuth callback handler |
+| `ResetPasswordPage` | `/reset-password` | `auth/` | Password reset form |
+| `DashboardPage` | `/dashboard` | `dashboard/` | Resume list, stats, FAB, quick actions |
+| `EditorPage` | `/editor` | `editor/` | Resume editor with stepper nav |
+| `PreviewPage` | `/preview` | `preview/` | Full-bleed template preview |
+| `UploadPage` | `/upload` | `upload/` | File upload, parse, OCR, review |
+| `AIStudioPage` | `/ai-studio` | `ai_studio/` | AI tools grid, chat, credits |
+| `InterviewPage` | `/interview` | `interview/` | Mock interview setup, voice, summary |
+| `ApplicationsPage` | `/applications` | `applications/` | Job tracking, status filters |
+| `PortfolioEditorPage` | `/portfolio` | `portfolio/` | Portfolio settings, theme, QR |
+| `PublicPortfolioPage` | `/p/:username` | `portfolio/` | Public themed portfolio view |
+| `SettingsPage` | `/settings` | `settings/` | All settings sections |
+| `ProfilePage` | `/profile` | `settings/` | Profile editor |
+| `TemplatesPage` | `/templates` | `templates/` | Template gallery grid |
+| `OnboardingPage` | `/onboarding` | `onboarding/` | 4-step wizard |
+| `CoverLettersPage` | `/cover-letters` | `cover_letters/` | Cover letter list |
+| `CoverLetterNewPage` | `/cover-letter/new` | `cover_letters/` | Create cover letter |
+| `CoverLetterEditPage` | `/cover-letter/edit/:id` | `cover_letters/` | Edit cover letter |
+| `ResignationLettersPage` | `/resignation-letters` | `resignation_letters/` | Resignation letter list |
+| `ResignationLetterNewPage` | `/resignation-letter/new` | `resignation_letters/` | Create resignation letter |
+| `ResignationLetterEditPage` | `/resignation-letter/edit/:id` | `resignation_letters/` | Edit resignation letter |
+| `CareerPage` | `/career` | `career/` | Quiz, roadmap, skill gap |
+| `NotificationsPage` | `/notifications` | `dashboard/` | Notification center |
+| `ResumeDetailPage` | `/resume/:id` | `dashboard/` | Single resume detail view |
+| `JobDetailPage` | `/job/:id` | `applications/` | Job detail view |
+| `ApplicationTrackerPage` | `/application/:id` | `applications/` | Application detail tracker |
+| `SharePage` | `/share/:token` | `shared/` | Shared resume viewer |
+| `ShortLinkPage` | `/l/:linkId` | `portfolio/` | Short link redirect |
+| `PrivacyPage` | `/privacy` | `landing/` | Privacy policy |
+| `TermsPage` | `/terms` | `landing/` | Terms of service |
+| `GuidesPage` | `/guides` | `dashboard/` | Career guides list |
+| `GuidePage` | `/guides/:slug` | `dashboard/` | Single guide view |
+| `ExamplesPage` | `/examples` | `dashboard/` | Resume examples |
+
+Total: **35 screens** across 16 feature modules.
 
 ## Technical Details
-- Appends ~700 lines to existing 1497-line file
-- ASCII wireframes in `text` code fences
-- References exact Tailwind classes, component names, and design tokens from Section 3
-- No other files modified
-
+- File: `docs/APP_BLUEPRINT_FLUTTER.md`
+- Adds ~250 lines (pubspec block + screen table)
+- Version numbers pinned to latest stable as of February 2026
+- Closing italic line moved after new sections
