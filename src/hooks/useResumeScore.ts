@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+
 import { ResumeData } from '@/types/resume';
 import { toast } from 'sonner';
 import { useAIHealthStore } from '@/store/aiHealthStore';
@@ -55,55 +55,32 @@ async function invokeScoreResume(resume: ResumeData): Promise<{ data: any; laten
     throw Object.assign(new Error('Not authenticated. Please sign in again.'), { isAuth: true });
   }
 
-  let data: any;
-  let lastError: any;
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hjnnamwgztlhzkeuufln.supabase.co';
+  const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhqbm5hbXdnenRsaHprZXV1ZmxuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNTE4MTcsImV4cCI6MjA4NTkyNzgxN30.cupd_dz6KHSJaBnUPQzJmQcYc38RTDVIMU5RP25xCso';
 
-  try {
-    const result = await edgeFunctions.functions.invoke('score-resume', {
-      body: { resume: normalized },
-    });
+  const res = await fetch(`${supabaseUrl}/functions/v1/score-resume`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      'apikey': anonKey,
+    },
+    body: JSON.stringify({ resume: normalized }),
+  });
 
-    if (result.error) {
-      console.error('[ScoreResume] Supabase invoke error:', result.error.message);
-      throw result.error;
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    console.error('[ScoreResume] fetch failed:', res.status, errText);
+    if (res.status === 401) {
+      throw Object.assign(new Error('Session expired. Please sign in again.'), { isAuth: true });
     }
-    data = result.data;
-  } catch (invokeErr: any) {
-    console.warn('[ScoreResume] supabase.functions.invoke failed, trying direct fetch…', invokeErr?.message);
-    lastError = invokeErr;
-
-    try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://hjnnamwgztlhzkeuufln.supabase.co';
-      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhqbm5hbXdnenRsaHprZXV1ZmxuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNTE4MTcsImV4cCI6MjA4NTkyNzgxN30.cupd_dz6KHSJaBnUPQzJmQcYc38RTDVIMU5RP25xCso';
-      const res = await fetch(`${supabaseUrl}/functions/v1/score-resume`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'apikey': anonKey,
-        },
-        body: JSON.stringify({ resume: normalized }),
-      });
-
-      if (!res.ok) {
-        const errText = await res.text().catch(() => '');
-        console.error('[ScoreResume] Direct fetch failed:', res.status, errText);
-        if (res.status === 401) {
-          throw Object.assign(new Error('Session expired. Please sign in again.'), { isAuth: true });
-        }
-        if (res.status === 429) {
-          throw Object.assign(new Error('Rate limit reached. Try again shortly.'), { isRateLimit: true });
-        }
-        throw new Error(`Scoring failed (${res.status})`);
-      }
-
-      data = await res.json();
-    } catch (fetchErr: any) {
-      console.error('[ScoreResume] Direct fetch also failed:', fetchErr?.message);
-      if (fetchErr.isAuth || fetchErr.isRateLimit) throw fetchErr;
-      throw lastError || fetchErr;
+    if (res.status === 429) {
+      throw Object.assign(new Error('Rate limit reached. Try again shortly.'), { isRateLimit: true });
     }
+    throw new Error(`Scoring failed (${res.status})`);
   }
+
+  const data = await res.json();
 
   if (data?.error) {
     console.error('[ScoreResume] API body error:', data.error);
