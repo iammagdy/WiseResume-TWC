@@ -142,7 +142,6 @@ export function MockAIStudioScreen() {
     { icon: <TrendingUp className="w-8 h-8" />, label: 'ATS Analyzer', desc: 'Score & optimize', bg: '#22c55e20', fg: '#4ade80' },
     { icon: <Users className="w-8 h-8" />, label: 'Recruiter Sim', desc: '4 AI personas', bg: '#f9731620', fg: '#fb923c' },
     { icon: <Zap className="w-8 h-8" />, label: 'One-Page Mode', desc: 'Auto condense', bg: '#eab30820', fg: '#facc15' },
-    { icon: <Eye className="w-8 h-8" />, label: 'Proofreader', desc: 'Grammar & tone', bg: '#f4364620', fg: '#fb7185' },
   ];
   return (
     <div

@@ -57,7 +57,6 @@ const CareerPathSheet = lazy(() => import('@/components/editor/CareerPathSheet')
 const VersionHistorySheet = lazy(() => import('@/components/editor/VersionHistorySheet').then(m => ({ default: m.VersionHistorySheet })));
 const ContentLibrarySheet = lazy(() => import('@/components/editor/ContentLibrarySheet').then(m => ({ default: m.ContentLibrarySheet })));
 const CustomizeSheet = lazy(() => import('@/components/editor/CustomizeSheet').then(m => ({ default: m.CustomizeSheet })));
-const ProofreadSheet = lazy(() => import('@/components/editor/ProofreadSheet').then(m => ({ default: m.ProofreadSheet })));
 const ShareSheet = lazy(() => import('@/components/editor/ShareSheet').then(m => ({ default: m.ShareSheet })));
 const LivePreviewPanel = lazy(() => import('@/components/editor/LivePreviewPanel').then(m => ({ default: m.LivePreviewPanel })));
 const LivePreviewSheet = lazy(() => import('@/components/editor/LivePreviewSheet').then(m => ({ default: m.LivePreviewSheet })));
@@ -78,12 +77,9 @@ import { ActionsPanel, type ActionsPanelGroup } from '@/components/ActionsPanel'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
 import { Target, LayoutGrid } from 'lucide-react';
-import { useProofread } from '@/hooks/useProofread';
-import { ProofreadButton } from '@/components/editor/ProofreadButton';
 import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { selectErrorCount, selectIssueCount } from '@/store/proofreadStore';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 import { getBackRoute } from '@/lib/navigation';
 import { UnsavedChangesDialog } from '@/components/editor/UnsavedChangesDialog';
@@ -235,7 +231,6 @@ export default function EditorPage() {
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [showContentLibrary, setShowContentLibrary] = useState(false);
   const [showCustomize, setShowCustomize] = useState(false);
-  const [showProofread, setShowProofread] = useState(false);
   const [activeTab, setActiveTab] = useState('contact');
   const [showAIIntro, setShowAIIntro] = useState(false);
   const [showApplyPrompt, setShowApplyPrompt] = useState(false);
@@ -771,7 +766,6 @@ export default function EditorPage() {
   const handleCareerPath = useCallback(() => setShowCareerPath(true), []);
   const handleGetIdeas = useCallback(() => setShowContentLibrary(true), []);
   const handleCustomize = useCallback(() => setShowCustomize(true), []);
-  const handleProofread = useCallback(() => setShowProofread(true), []);
 
   const handleMoreSectionSelect = useCallback((sectionId: string) => {
     setActiveTab('more');
@@ -787,7 +781,6 @@ export default function EditorPage() {
     'tailor': { description: 'Match resume to a job post', iconColor: 'text-amber-500' },
     'ats-check': { description: 'Score against ATS systems', iconColor: 'text-emerald-500' },
     'ats-scan': { description: 'Quick keyword match scan', iconColor: 'text-cyan-500' },
-    'proofread': { description: 'Fix grammar & typos', iconColor: 'text-red-500' },
   };
 
   // ATS Suggestions hook
@@ -832,11 +825,10 @@ export default function EditorPage() {
         { id: 'tailor', label: 'Tailor to Job', icon: Target, onClick: handleTailor },
         { id: 'ats-check', label: 'ATS Check', icon: BarChart3, onClick: () => setShowJobSheet(true) },
         { id: 'ats-scan', label: 'ATS Scan', icon: Sparkles, onClick: () => setShowATSScan(true) },
-        { id: 'proofread', label: 'Proofread', icon: Scissors, onClick: handleProofread },
       ],
     };
     return [quickActions, aiFeatures];
-  }, [user, currentResumeId, handleCustomize, handleTailor, handleProofread]);
+  }, [user, currentResumeId, handleCustomize, handleTailor]);
 
   // Extract editor content into a render function for reuse in both layouts
   const renderEditorContent = useCallback(() => (
@@ -970,11 +962,7 @@ export default function EditorPage() {
     </>
   ), [activeTab, sectionScores, moreSubSection, steps, handleTabChange, navigate, jobDescription, getATSSuggestions, isAnalyzingSection, fetchDeepSuggestions, deepResults, handleApplyDeep, clearDeepResult]);
 
-  // Proofread hook
-  const { issues: proofreadIssues, score: proofreadScore, isChecking: isProofreadChecking, checkNow, fixIssue, ignoreIssue, fixAll } = useProofread(currentResume);
-  const proofreadIssueCount = proofreadIssues.length;
-  const proofreadErrorCount = proofreadIssues.filter(i => i.type === 'spelling' || i.type === 'grammar').length;
-  const autoProofread = useSettingsStore((s) => s.autoProofread);
+
 
   const handleContentInsert = useCallback((text: string) => {
     if (!currentResume) return;
@@ -1389,20 +1377,6 @@ export default function EditorPage() {
             })() : undefined;
             return <CustomizeSheet open={showCustomize} onOpenChange={setShowCustomize} customization={currentResume?.customization} onApply={handleCustomizeApply} resumeData={rd} />;
           })()}
-          {showProofread && (
-            <ProofreadSheet
-              open={showProofread}
-              onOpenChange={setShowProofread}
-              issues={proofreadIssues}
-              score={proofreadScore}
-              isChecking={isProofreadChecking}
-              onFix={fixIssue}
-              onIgnore={ignoreIssue}
-              onFixAll={fixAll}
-              onCheckNow={checkNow}
-              autoProofread={autoProofread}
-            />
-          )}
           {lastAppliedJobInfo && (
             <ApplyPromptDialog
               open={showApplyPrompt}

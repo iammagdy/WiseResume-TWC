@@ -5,7 +5,6 @@ import {
   Sparkles,
   Wand2,
   Target,
-  SpellCheck,
   Lightbulb,
   TrendingUp,
   Mic,
@@ -51,14 +50,12 @@ const LinkedInOptimizerSheet = lazy(() => import('@/components/editor/ai/LinkedI
 const OnePageWizardSheet = lazy(() => import('@/components/editor/ai/OnePageWizardSheet').then(m => ({ default: m.OnePageWizardSheet })));
 const AgenticChatSheet = lazy(() => import('@/components/editor/AgenticChatSheet').then(m => ({ default: m.AgenticChatSheet })));
 const CareerPathSheet = lazy(() => import('@/components/editor/CareerPathSheet').then(m => ({ default: m.CareerPathSheet })));
-const ProofreadSheet = lazy(() => import('@/components/editor/ProofreadSheet').then(m => ({ default: m.ProofreadSheet })));
 const AIEnhanceSheet = lazy(() => import('@/components/editor/ai/AIEnhanceSheet').then(m => ({ default: m.AIEnhanceSheet })));
 const ResumeABCompareSheet = lazy(() => import('@/components/ai-studio/ResumeABCompareSheet'));
 
 const SUGGESTIONS = [
   'Write a summary for a software engineer',
   'Add metrics to my achievements',
-  'Proofread my resume',
   'Add skills for a React developer',
   'What can I improve?',
 ];
@@ -67,13 +64,11 @@ const PLACEHOLDER_EXAMPLES = [
   'Ask AI to edit your resume...',
   'Try: "Write a summary for a PM"',
   'Try: "Add metrics to my bullets"',
-  'Try: "Proofread my experience"',
 ];
 
 const PRO_TIPS = [
   'Paste a job URL or description to get a personalized match score and tailoring suggestions.',
   'Use Smart Tailor before applying — it adapts your resume keywords to match the job description.',
-  'Run Proofread after editing to catch grammar issues and inconsistent formatting.',
   'The A/B Compare tool lets you score two versions of your resume side-by-side.',
 ];
 
@@ -111,7 +106,6 @@ const toolCategories: { title: string; description: string; tools: ToolEntry[] }
     description: 'Optimize & improve your resume',
     tools: [
       { id: 'tailor', icon: Wand2, label: 'Smart Tailor', desc: 'Adapt to job descriptions', color: 'text-primary', cost: 'tailor' },
-      { id: 'proofread', icon: SpellCheck, label: 'Proofread', desc: 'Fix grammar & typos', color: 'text-red-500', cost: 'proofread' },
       { id: 'enhance', icon: Sparkles, label: 'Enhance', desc: 'Improve writing', color: 'text-cyan-500', cost: 'enhance' },
       { id: 'onepage', icon: FileText, label: '1-Page Wizard', desc: 'Condense resume', color: 'text-amber-500', cost: 'one-page' },
       { id: 'humanizer', icon: Shield, label: 'Humanize', desc: 'AI detection fix', color: 'text-violet-500', cost: 'detect-humanize' },
@@ -187,7 +181,6 @@ export default function AIStudioPage() {
   const [showLinkedIn, setShowLinkedIn] = useState(false);
   const [showOnePage, setShowOnePage] = useState(false);
   const [showCareerPath, setShowCareerPath] = useState(false);
-  const [showProofread, setShowProofread] = useState(false);
   const [showEnhance, setShowEnhance] = useState(false);
   const [showABCompare, setShowABCompare] = useState(false);
   const [showCompanyBriefing, setShowCompanyBriefing] = useState(false);
@@ -205,7 +198,6 @@ export default function AIStudioPage() {
       'tailor': () => setShowTailor(true),
       'job-match': () => setShowJobSheet(true),
       'ab-compare': () => setShowABCompare(true),
-      'proofread': () => setShowProofread(true),
       'enhance': () => setShowEnhance(true),
       'humanizer': () => setShowAIDetector(true),
       'linkedin': () => setShowLinkedIn(true),
@@ -267,7 +259,6 @@ export default function AIStudioPage() {
     const action = () => {
       switch (tool.id) {
         case 'tailor': setShowTailor(true); break;
-        case 'proofread': setShowProofread(true); break;
         case 'enhance': setShowEnhance(true); break;
         case 'onepage': setShowOnePage(true); break;
         case 'humanizer': setShowAIDetector(true); break;
@@ -421,8 +412,6 @@ export default function AIStudioPage() {
           const enhance = allTools.find(t => t.id === 'enhance');
           if (enhance) recommended.push(enhance);
         }
-        const proofread = allTools.find(t => t.id === 'proofread');
-        if (proofread && recommended.length < 3) recommended.push(proofread);
         const interview = allTools.find(t => t.id === 'interview');
         if (interview && recommended.length < 3) recommended.push(interview);
 
@@ -590,7 +579,6 @@ export default function AIStudioPage() {
           {showLinkedIn && <LinkedInOptimizerSheet open={showLinkedIn} onOpenChange={setShowLinkedIn} />}
           {showOnePage && <OnePageWizardSheet open={showOnePage} onOpenChange={setShowOnePage} />}
           {showCareerPath && <CareerPathSheet open={showCareerPath} onOpenChange={setShowCareerPath} />}
-          {showProofread && <ProofreadSheet open={showProofread} onOpenChange={setShowProofread} issues={[]} score={null} isChecking={false} onFix={() => {}} onIgnore={() => {}} onFixAll={() => {}} onCheckNow={() => {}} autoProofread={false} />}
           {showEnhance && <AIEnhanceSheet open={showEnhance} onOpenChange={setShowEnhance} />}
           {showABCompare && <ResumeABCompareSheet open={showABCompare} onOpenChange={setShowABCompare} />}
           {showCompanyBriefing && <CompanyBriefingSheet open={showCompanyBriefing} onOpenChange={setShowCompanyBriefing} jobDescription="" resumeData={resumeData ? { summary: resumeData.summary ?? undefined, experience: (resumeData.experience as any) ?? undefined, skills: (resumeData.skills as any) ?? undefined } : undefined} />}

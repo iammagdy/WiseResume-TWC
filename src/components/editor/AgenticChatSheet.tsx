@@ -43,7 +43,6 @@ interface AgenticChatSheetProps {
 const SUGGESTIONS = [
   'Write a summary for a software engineer',
   'Add metrics to my achievements',
-  'Proofread my resume',
   'Add skills for a React developer',
   'What can I improve?',
 ];
@@ -64,7 +63,6 @@ function FunctionCallBadge({ name }: { name: string }) {
     update_skills: 'Updated Skills',
     add_skills: 'Added Skills',
     update_contact: 'Updated Contact',
-    proofread_and_fix: 'Fixed Issues',
   };
 
   return (

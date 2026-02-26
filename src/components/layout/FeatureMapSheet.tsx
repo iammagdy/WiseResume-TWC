@@ -29,7 +29,7 @@ const sections = [
     icon: Sparkles,
     tab: 'AI Tools',
     features: [
-      'Smart Tailor, Proofread & Enhance',
+      'Smart Tailor & Enhance',
       'Job Match, A/B Compare & Recruiter Sim',
       'Interview Prep, Cover Letters & more',
     ],

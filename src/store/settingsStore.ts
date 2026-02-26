@@ -50,9 +50,6 @@ interface SettingsState {
   // Theme
   theme: 'light' | 'dark' | 'system';
   
-  // Proofread
-  autoProofread: boolean;
-  
   // AI Provider Settings
   aiProvider: AIProvider;
   geminiApiKey: string;
@@ -83,7 +80,6 @@ interface SettingsState {
   setHasSeenInterviewHint: (value: boolean) => void;
   setHasSeenAIStudioTour: (value: boolean) => void;
   setElevenlabsApiKey: (key: string) => void;
-  setAutoProofread: (value: boolean) => void;
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
   
   // AI Provider Actions
@@ -124,7 +120,6 @@ const defaultSettings = {
   hasSeenInterviewHint: false,
   hasSeenAIStudioTour: false,
   elevenlabsApiKey: '',
-  autoProofread: true,
   theme: 'dark' as 'light' | 'dark' | 'system',
   // AI Provider defaults
   aiProvider: 'wiseresume' as AIProvider,
@@ -168,7 +163,6 @@ export const useSettingsStore = create<SettingsState>()(
       setHasSeenInterviewHint: (value) => set({ hasSeenInterviewHint: value }),
       setHasSeenAIStudioTour: (value) => set({ hasSeenAIStudioTour: value }),
       setElevenlabsApiKey: (key) => set({ elevenlabsApiKey: key }),
-      setAutoProofread: (value) => set({ autoProofread: value }),
       setTheme: (theme) => set({ theme }),
       
       // AI Provider Actions

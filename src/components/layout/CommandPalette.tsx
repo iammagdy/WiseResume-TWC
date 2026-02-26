@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/command';
 import {
   FileText, Upload, Briefcase, Settings, Home, BookOpen, Palette, Mic, PenTool,
-  Wand2, Target, SpellCheck, Sparkles, Shield, Linkedin, UserCheck, TrendingUp,
+  Wand2, Target, Sparkles, Shield, Linkedin, UserCheck, TrendingUp,
   Lightbulb, GitCompareArrows, MessageSquare,
 } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
@@ -79,10 +79,6 @@ export function CommandPalette() {
           <CommandItem onSelect={() => go('/ai-studio?tool=enhance')}>
             <Sparkles className="mr-2 h-4 w-4" />
             AI Enhance
-          </CommandItem>
-          <CommandItem onSelect={() => go('/ai-studio?tool=proofread')}>
-            <SpellCheck className="mr-2 h-4 w-4" />
-            Proofread Resume
           </CommandItem>
           <CommandItem onSelect={() => go('/ai-studio?tool=humanizer')}>
             <Shield className="mr-2 h-4 w-4" />

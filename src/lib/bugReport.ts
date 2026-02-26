@@ -60,7 +60,6 @@ const FEATURE_CATEGORY_HINTS: Record<string, ErrorCategory> = {
   'Recruiter Simulator': 'ai',
   'LinkedIn Optimizer': 'ai',
   'Mock Interview': 'ai',
-  'Proofread': 'ai',
   'A/B Compare': 'ai',
   'Gap Filler': 'ai',
   'Job Match Analysis': 'ai',

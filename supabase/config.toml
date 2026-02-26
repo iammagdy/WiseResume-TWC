@@ -57,9 +57,6 @@ verify_jwt = false
 [functions.send-push-notification]
 verify_jwt = false
 
-[functions.proofread-resume]
-verify_jwt = false
-
 [functions.career-assessment]
 verify_jwt = false
 
