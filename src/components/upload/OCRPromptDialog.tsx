@@ -34,7 +34,7 @@ export function OCRPromptDialog({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && !isProcessing && onCancel()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-w-[90vw] sm:max-w-md">
         {isProcessing ? (
           // Processing state
           <>

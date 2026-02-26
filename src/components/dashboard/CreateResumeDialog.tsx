@@ -225,7 +225,7 @@ export function CreateResumeDialog({
 
   return (
     <Dialog open={open} onOpenChange={resetAndClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-w-[90vw] sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Create New Resume</DialogTitle>
         </DialogHeader>
