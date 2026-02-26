@@ -14,6 +14,7 @@ export type UploadErrorType =
   | 'CORRUPTED' 
   | 'PASSWORD_PROTECTED' 
   | 'PARTIAL_EXTRACTION'
+  | 'AI_UNREACHABLE'
   | 'UNKNOWN';
 
 interface ExtractedSections {
@@ -72,6 +73,12 @@ export function UploadErrorRecovery({
           icon: <FileWarning className="w-8 h-8 text-warning" />,
           title: "We found most of your resume!",
           description: "Some sections were extracted, but a few need attention.",
+        };
+      case 'AI_UNREACHABLE':
+        return {
+          icon: <FileWarning className="w-8 h-8 text-warning" />,
+          title: "Couldn't reach the AI parser",
+          description: "There was a connectivity issue. Your file is fine — please retry in a moment.",
         };
       default:
         return {

@@ -74,11 +74,11 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
   } catch (error) {
     // Handle timeout specifically
     if (error instanceof Error && error.name === 'AbortError') {
-      console.warn('AI parsing timed out after 60s, falling back to local parser');
+      console.warn('AI parsing timed out after 120s, falling back to local parser');
       return parseResumeText(text);
     }
     
-    console.error('AI parsing error, falling back to local parser:', error);
+    console.error('AI parsing error:', error);
     
     // Re-throw rate limit and payment errors
     if (error instanceof Error && 
@@ -86,7 +86,13 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
       throw error;
     }
     
-    // Fall back to local regex parsing for network errors
+    // Detect CORS / network failures and throw explicit error instead of silent fallback
+    if (error instanceof TypeError && (error.message === 'Failed to fetch' || error.message.includes('NetworkError'))) {
+      console.error('AI parser unreachable (likely CORS or network issue)');
+      throw new Error('AI_UNREACHABLE');
+    }
+    
+    // Fall back to local regex parsing only for non-network parse failures
     if (import.meta.env.DEV) console.log('Using fallback local parser...');
     return parseResumeText(text);
   } finally {
