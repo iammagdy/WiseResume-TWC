@@ -1,369 +1,127 @@
 
-# WiseResume -- Complete App Blueprint
+# WiseResume -- Complete App Blueprint for Agent Reconstruction
 
-## 1. Technology Stack
+Create a new file `docs/APP_BLUEPRINT.md` containing a comprehensive, organized reference document that another AI agent can use alongside the repository to fully understand and recreate the app. The document will cover:
 
-| Layer | Technology |
-|-------|-----------|
-| Framework | React 18 + TypeScript + Vite |
-| Styling | Tailwind CSS + shadcn/ui (Radix primitives) |
-| State | Zustand (persistent stores) + TanStack React Query (server state) |
-| Routing | React Router v6 (nested layout routes) |
-| Backend | Supabase (Auth, Postgres, Edge Functions, Storage) |
-| Native | Capacitor (Android/iOS: biometrics, haptics, status bar, splash) |
-| AI | 3-tier fallback: User BYOK key -> GEMINI_API_KEY -> EMERGENT_LLM_KEY |
-| PDF/Docs | pdf-lib, pdfjs-dist, html2canvas, mammoth, docx, tesseract.js |
-| Animation | Framer Motion |
-| PWA | vite-plugin-pwa (service worker, offline) |
+## Document Structure
 
----
+### 1. App Identity and Overview
+- Name: WiseResume (brand: WiseUniverse)
+- Tagline, mascot (Wise AI), target platform (mobile-first PWA + Capacitor)
+- Target users and value proposition
 
-## 2. App Entry and Provider Tree
+### 2. Technology Stack (Full Table)
+- Frontend: React 18, TypeScript, Vite, Tailwind CSS, shadcn/ui, Framer Motion
+- State: Zustand (persistent) + TanStack React Query
+- Routing: React Router v6
+- Backend: Supabase (Auth, Postgres, Edge Functions, Storage)
+- Native: Capacitor (biometrics, haptics, status bar, splash, deep linking)
+- PDF/Docs: pdf-lib, pdfjs-dist, html2canvas, mammoth, docx, tesseract.js
+- Voice: ElevenLabs Scribe + Web Speech API
+- PWA: vite-plugin-pwa
 
-```text
-main.tsx
-  |-- registerSW (PWA)
-  |-- <App />
-        |-- QueryClientProvider (React Query)
-        |-- TooltipProvider
-        |-- ErrorBoundary
-        |-- Toaster (sonner)
-        |-- BrowserRouter
-              |-- AuthProvider (Supabase auth context)
-                    |-- AppRoutes (theme, biometric lock, splash)
-                    |-- DeferredProviders (CommandPalette, BugReportDialog)
-                    |-- AppInstallPrompt
-```
+### 3. Design System
+- Tailwind config: breakpoints (xs:375, sm:640, md:768, lg:1024, xl:1280)
+- Fonts: Inter (body), Space Grotesk (display)
+- Color system: HSL CSS variables (primary, secondary, destructive, muted, accent, success, warning, card, popover, sidebar)
+- Dark mode: class-based toggle with system preference support
+- Border radius: CSS variable `--radius`
+- Custom animations: fade-in, slide-up, scale-in, shimmer, gradient-shift, float, glow-pulse, twinkle, orbit, cosmic effects
+- Glass surface pattern, safe area insets for native
 
----
+### 4. App Entry and Provider Tree
+- Exact hierarchy: QueryClientProvider > TooltipProvider > ErrorBoundary > Toaster > BrowserRouter > AuthProvider > AppRoutes + DeferredProviders + AppInstallPrompt
+- QueryClient config (5min stale, 10min gc, no refetch on focus, 1 retry)
+- Splash screen, biometric lock, theme sync, global hooks
 
-## 3. Routing Map
+### 5. Complete Routing Map
+- All public routes (9 routes with paths, pages, descriptions)
+- All protected routes (25+ routes with paths, pages, skeletons)
+- Redirects (/activity -> /applications, /jobs -> /applications)
+- Public standalone routes (/share/:token, /p/:username, /l/:linkId)
 
-### Public Routes (no auth)
-| Path | Page | Description |
-|------|------|-------------|
-| `/` | Index | Landing page |
-| `/auth` | AuthPage | Login / signup |
-| `/auth/callback` | AuthCallbackPage | OAuth callback |
-| `/privacy` | PrivacyPage | Privacy policy |
-| `/terms` | TermsPage | Terms of service |
-| `/reset-password` | ResetPasswordPage | Password reset |
-| `/share/:token` | SharePage | Public resume share |
-| `/p/:username` | PublicPortfolioPage | Public portfolio |
-| `/l/:linkId` | ShortLinkPage | Short link resolver |
+### 6. Layout Architecture
+- AppShell: OfflineBanner, SlowConnectionBanner, Header (mobile), DesktopNav (desktop sidebar), ScrollProgressBar, SwipeBackWrapper, BottomTabBar, SyncConflictDialog
+- BottomTabBar: 5 tabs (Home, Editor, AI Tools, Activity, Portfolio) with icons, matchPaths, discovery dots, haptic feedback, animated pill indicator
+- TAB_ROUTES list for bottom nav visibility
+- Back navigation: BACK_ROUTES map, EXIT_ROUTES, unsaved changes guard
 
-### Protected Routes (require auth, wrapped in AppShell)
-| Path | Page | Skeleton |
-|------|------|----------|
-| `/dashboard` | DashboardPage | DashboardSkeleton |
-| `/editor` | EditorPage | EditorSkeleton |
-| `/preview` | PreviewPage | PreviewSkeleton |
-| `/upload` | UploadPage | UploadSkeleton |
-| `/settings` | SettingsPage | SettingsSkeleton |
-| `/interview` | InterviewPage | InterviewSkeleton |
-| `/applications` | ApplicationsPage | ApplicationsSkeleton |
-| `/onboarding` | OnboardingPage | OnboardingSkeleton |
-| `/profile` | ProfilePage | ProfilePageSkeleton |
-| `/templates` | TemplatesPage | TemplatesPageSkeleton |
-| `/resume/:id` | ResumeDetailPage | DetailSkeleton |
-| `/job/:id` | JobDetailPage | DetailSkeleton |
-| `/application/:id` | ApplicationTrackerPage | DetailSkeleton |
-| `/notifications` | NotificationsPage | NotificationsSkeleton |
-| `/portfolio` | PortfolioEditorPage | PortfolioEditorSkeleton |
-| `/cover-letters` | CoverLettersPage | CoverLettersSkeleton |
-| `/cover-letter/new` | CoverLetterNewPage | DetailSkeleton |
-| `/cover-letter/edit/:id` | CoverLetterEditPage | DetailSkeleton |
-| `/examples` | ExamplesPage | GuidesExamplesSkeleton |
-| `/career` | CareerPage | DetailSkeleton |
-| `/resignation-letters` | ResignationLettersPage | ResignationLettersSkeleton |
-| `/resignation-letter/new` | ResignationLetterNewPage | DetailSkeleton |
-| `/resignation-letter/edit/:id` | ResignationLetterEditPage | DetailSkeleton |
-| `/guides` | GuidesPage | GuidesExamplesSkeleton |
-| `/guides/:slug` | GuidePage | DetailSkeleton |
-| `/ai-studio` | AIStudioPage | AIStudioSkeleton |
+### 7. Screen-by-Screen Breakdown
+For each major screen, document:
+- Component tree and sub-components
+- Key UI elements and interactions
+- Lazy-loaded dialogs/sheets
+- Data hooks used
 
-### Redirects
-- `/activity` -> `/applications`
-- `/jobs` -> `/applications`
-- `/jobs/:id` -> RedirectJobRoute
+Screens covered:
+1. **Landing Page (Index)**: Hero, features grid, comparison table, portfolio demo, editor demo, footer, space background
+2. **Auth Page**: Email entry, login form, signup form, magic link, verify email, password reset, social auth (Google/Apple), cooldown/rate limiting
+3. **Dashboard**: Profile header with popover, DashboardStats, QuickActionChips, ResumeFilters (search, sort, category, score), ResumeGroup/ResumeListCard, WhatsNextCard, FeatureDiscoveryCard, FloatingCreateButton, CreateResumeDialog, AnalyzeJobSheet, OnboardingCarousel, pull-to-refresh
+4. **Editor**: StepperNav tabs (Contact, Summary, Experience, Education, Skills + optional sections), SectionCard wrappers, inline AI actions, ATS suggestions, ProgressBar, cloud sync status, undo/redo, KeyboardToolbar, LivePreviewPanel (desktop split) / LivePreviewSheet (mobile), toolbar actions (Template, Customize, Share, Export, ATS Scan, Proofread, Version History, Content Library, AI tools)
+5. **Preview**: Template rendering, PDF export, page break controls, export options
+6. **Upload**: UploadZone (drag & drop), FileTypeSelector, UploadProgressSteps, OCRPromptDialog, ImportReviewSheet, ATSScorePreview
+7. **AI Studio**: Tool grid (18 AI tools), chat input with suggestions, AIEngineBadge, AICreditsIndicator, lazy-loaded sheets for each tool
+8. **Interview**: InterviewSetup (mode selection), InterviewPreview (question categories), voice conversation UI (TranscriptBubble, audio visualization), InterviewSummary (scores), InterviewHistorySheet, CompanyBriefingSheet
+9. **Applications**: StatusFilter, ApplicationCard, JobActivityStats, ActivityStreak, ActivityTimeline, AddApplicationSheet, SaveJobSheet, JobSearchSheet
+10. **Portfolio Editor**: Portfolio customization, theme selection, section arrangement, QR code generation, VisitorsPanel analytics
+11. **Public Portfolio**: Public-facing portfolio view
+12. **Settings**: Section chips (Account, Appearance, AI & Voice, Editor, Notifications, Privacy, About), EditProfileSheet, ThemeToggle, BiometricSetupSheet, ElevenLabsKeySheet, AISettingsSheet, DataExportSheet, DeleteDataDialog, DeveloperCreditCard
+13. **Cover Letters**: CoverLetterCard list, create/edit flow
+14. **Resignation Letters**: ResignationChecklist, create/edit flow
+15. **Career**: CareerQuizSheet, CareerRoadmap, SkillGapAnalyzer
+16. **Templates**: 30 template gallery with previews
+17. **Onboarding**: 4-step carousel
 
----
+### 8. Resume Templates (30 templates)
+Complete list with names: Modern, Classic, Minimal, Professional, Developer, Creative, Executive, Compact, Academic, Healthcare, Sales, Elegant, Corporate, Banking, Consulting, Federal, Legal, Marketing, Designer, Portfolio, Startup, Infographic, DataScience, DevOps, Cyber, Product, Clean, Swiss, Mono, Zen
 
-## 4. Layout Architecture
+### 9. Data Models
+- Complete TypeScript interfaces for: ResumeData, ContactInfo, Experience, Education, Certification, Award, Project, Publication, Volunteering, Hobby, Language, Reference, TemplateCustomization
+- JobMatchScore, GapAnalysis, SuperTailorResult, JobIntelligence, BulletTransformation
+- TemplateId union type (30 values)
+- SectionId, TailorSectionId
+- PDFOptions, ExportType
 
-```text
-AppShell
-  |-- OfflineBanner
-  |-- SlowConnectionBanner
-  |-- Header (mobile, lg:hidden) -- "WiseResume" + page title
-  |-- DesktopNav (lg:block) -- sidebar navigation
-  |-- <main>
-  |     |-- ScrollProgressBar
-  |     |-- SwipeBackWrapper (conditional)
-  |     |-- <Outlet /> (page content)
-  |-- BottomTabBar (mobile, 5 tabs: Home, Editor, Studio, Activity, Portfolio)
-  |-- SyncConflictDialog
-```
+### 10. Database Schema (20+ tables)
+- All tables with columns and types
+- Self-referencing (resumes.parent_resume_id)
+- JSONB columns (contact_info, experience, education, skills, certifications)
+- All RPCs and database functions
+- Views (user_api_keys_safe)
 
-### Navigation
-- **Mobile**: 5-tab BottomTabBar (Home, Editor, Studio, Activity, Portfolio)
-- **Desktop**: DesktopNav sidebar
-- **Settings**: Accessible via dashboard header gear icon + profile popover
+### 11. State Management
+- All 8 Zustand stores with their key state and actions
+- resumeStore: current resume, undo/redo (50 snapshots), job matching, tailor history, cloud sync
+- settingsStore: theme, biometric, splash, shake-to-report
+- React Query hook patterns
 
----
+### 12. Edge Functions (39 functions)
+- Categorized: AI (21), Document Processing (4), Utility (14)
+- AI models used by each function
+- Shared modules (_shared/): aiClient.ts (3-tier fallback), authMiddleware.ts, cors.ts, rateLimiter.ts
 
-## 5. Database Schema (20 Tables)
+### 13. Hooks Reference (55+)
+- Complete categorized list with brief purpose for each hook
 
-| Table | Purpose | Key Relations |
-|-------|---------|---------------|
-| `profiles` | User profile, portfolio config, social links | portfolio_resume_id -> resumes |
-| `resumes` | Resume data (JSON sections) | parent_resume_id -> resumes (self-ref) |
-| `resume_versions` | Version history snapshots | resume_id -> resumes |
-| `resume_shares` | Share links with optional password/expiry | resume_id -> resumes |
-| `share_comments` | Reviewer comments on shared resumes | share_id -> resume_shares |
-| `cover_letters` | Generated cover letters | resume_id -> resumes |
-| `resignation_letters` | Resignation letter documents | standalone |
-| `jobs` | Saved job listings | standalone |
-| `job_applications` | Application tracking | job_id -> jobs, resume_id -> resumes, cover_letter_id -> cover_letters |
-| `interview_sessions` | Mock interview records | resume_id -> resumes |
-| `tailor_history` | AI tailor results | resume_id -> resumes |
-| `career_assessments` | Career quiz results | resume_id -> resumes |
-| `ai_credits` | Daily AI usage limits | standalone |
-| `ai_usage_logs` | AI action audit trail | resume_id -> resumes |
-| `audit_logs` | Security/action audit | standalone |
-| `bug_reports` | User-submitted bug reports | standalone |
-| `feature_requests` | User feature requests | standalone |
-| `notifications` | In-app notifications | standalone |
-| `push_subscriptions` | Web push endpoints | standalone |
-| `user_api_keys` | Encrypted BYOK keys | standalone |
-| `user_preferences` | App settings sync | standalone |
-| `portfolio_visits` | Portfolio analytics | short_link_id -> short_links |
-| `short_links` | Branded short URLs | standalone |
+### 14. Navigation Flow
+- BACK_ROUTES map (complete mapping)
+- EXIT_ROUTES
+- Tab matchPaths configuration
+- Unsaved changes guard on editor exit
+- Swipe-back gesture support
 
-### Database Functions (RPCs)
-- `get_public_portfolio`, `get_portfolio_analytics`, `get_portfolio_active_status`
-- `increment_portfolio_views`, `record_portfolio_visit`
-- `get_shared_resume`, `increment_share_view_count`
-- `add_share_comment`, `get_share_comments`
-- `check_username_available`, `resolve_short_link`
-- `hash_share_password`, `verify_share_password`
-- `increment_ai_usage`, `cleanup_stale_data`
-- `get_user_api_key_info`
+### 15. Native Features (Capacitor)
+- Biometric lock, haptic feedback, status bar theming, splash screen, deep linking, back button handling, shake-to-report
 
-### View
-- `user_api_keys_safe` -- exposes key metadata without encrypted values
+### 16. Offline and PWA
+- Service worker, offline banner, sync queue, network quality detection
 
----
+### 17. Security
+- RLS, JWT validation, rate limiting, encrypted API keys, audit logging, session hijack prevention, share passwords
 
-## 6. State Management
-
-### Zustand Stores (persistent)
-| Store | File | Purpose |
-|-------|------|---------|
-| resumeStore | `src/store/resumeStore.ts` | Active resume, section edits, undo/redo (50 snapshots), cloud sync |
-| settingsStore | `src/store/settingsStore.ts` | Theme, biometric, shake-to-report, splash flag |
-| offlineSyncStore | `src/store/offlineSyncStore.ts` | Pending offline mutations queue |
-| proofreadStore | `src/store/proofreadStore.ts` | Proofread session state |
-| aiHealthStore | `src/store/aiHealthStore.ts` | AI service health status |
-| atsScoreHistoryStore | `src/store/atsScoreHistoryStore.ts` | ATS score trend data |
-| contentLibraryStore | `src/store/contentLibraryStore.ts` | Reusable content snippets |
-| guidesStore | `src/store/guidesStore.ts` | Guide read progress |
-
-### React Query
-- Server state caching (5min stale, 10min gc)
-- Hooks: `useResumes`, `useJobs`, `useJobApplications`, `useCoverLetters`, `useResignationLetters`, `useProfile`, `useNotifications`, `usePortfolioAnalytics`, etc.
-
-### Auth Context
-- `AuthContext` + `useAuth()` hook
-- Early session fetch (parallel with splash)
-- Session hijack protection (active user ID tracking)
-- Expired session detection + event dispatch
-
----
-
-## 7. Edge Functions (39 functions)
-
-### AI-Powered
-| Function | Purpose |
-|----------|---------|
-| `analyze-resume` | Job match scoring + gap analysis |
-| `tailor-resume` | AI resume tailoring for specific jobs |
-| `enhance-section` | AI rewrite of individual sections |
-| `score-resume` | ATS compatibility scoring |
-| `proofread-resume` | Grammar/style checking |
-| `generate-cover-letter` | AI cover letter generation |
-| `generate-resignation-letter` | Resignation letter generation |
-| `interview-chat` | Mock interview conversation |
-| `recruiter-simulation` | Recruiter perspective feedback |
-| `detect-and-humanize` | AI content detection + humanization |
-| `optimize-for-linkedin` | LinkedIn profile optimization |
-| `one-page-optimizer` | Condense resume to one page |
-| `agentic-chat` | General AI assistant |
-| `career-path-advisor` | Career trajectory advice |
-| `career-assessment` | Career quiz evaluation |
-| `company-briefing` | Company research for interviews |
-| `generate-portfolio-bio` | AI portfolio bio writer |
-| `ask-portfolio` | AI Q&A for public portfolios |
-| `fill-gap` | Fill employment gaps |
-| `explain-gap` | Explain employment gaps |
-| `generate-headshot` | AI headshot generation |
-
-### Document Processing
-| Function | Purpose |
-|----------|---------|
-| `parse-resume` | PDF/image resume extraction |
-| `parse-linkedin` | LinkedIn profile parsing |
-| `parse-job-url` | Job listing URL scraping |
-| `parse-job-text` | Job description text parsing |
-
-### Utility
-| Function | Purpose |
-|----------|---------|
-| `manage-api-keys` | BYOK key CRUD |
-| `validate-api-key` | Key validation |
-| `ai-health` | AI service health check |
-| `send-bug-report` | Bug report submission |
-| `send-feature-request` | Feature request submission |
-| `send-push-notification` | Push notification dispatch |
-| `send-resume-reminder` | Scheduled reminders |
-| `weekly-digest` | Weekly email digest |
-| `og-image` | Dynamic OG image generation |
-| `portfolio-meta` | Portfolio SEO metadata |
-| `track-portfolio-view` | Analytics tracking |
-| `resolve-short-link` | Short link resolution |
-| `elevenlabs-scribe-token` | Voice transcription token |
-
-### Shared Modules (`_shared/`)
-- `aiClient.ts` -- 3-tier AI provider fallback
-- `authMiddleware.ts` -- JWT validation
-- `cors.ts` -- CORS headers
-- `rateLimiter.ts` -- Rate limiting
-
----
-
-## 8. Component Architecture
-
-### Editor (core feature, ~60 components)
-```text
-EditorPage
-  |-- StepperNav (section navigation)
-  |-- ContactSection
-  |-- SummarySection
-  |-- ExperienceSection (+ ExperienceTimeline, GapFiller, GapExplainer)
-  |-- EducationSection
-  |-- SkillsSection
-  |-- CertificationsSection
-  |-- AwardsSection
-  |-- ProjectsSection
-  |-- PublicationsSection
-  |-- VolunteeringSection
-  |-- HobbiesSection
-  |-- LanguagesSection
-  |-- ReferencesSection
-  |-- LivePreviewPanel (desktop) / LivePreviewSheet (mobile)
-  |-- TemplateSelector
-  |-- CustomizeSheet (colors, fonts, spacing, margins)
-  |-- TailorSheet (AI job tailoring)
-  |-- ShareSheet / ShareFeedbackSheet
-  |-- ExportOptionsSheet
-  |-- ProofreadSheet
-  |-- ATSScanSheet / ATSParserPreview
-  |-- VersionHistorySheet
-  |-- AddSectionSheet / PageBreakSheet
-  |-- AIHubSheet / AgenticChatSheet
-  |-- CareerPathSheet / JobAnalysisSheet
-  |-- ContentLibrarySheet / CompareSheet
-  |-- KeyboardToolbar / KeyboardShortcutsSheet
-  |-- AI components: AIFloatingButton, AIAssistantBar, AIContextualNudge, InlineAIButton
-```
-
-### Dashboard
-```text
-DashboardPage
-  |-- DashboardStats (resume count, score trends)
-  |-- QuickActionChips
-  |-- ResumeFilters + ResumeGroup + ResumeListCard
-  |-- ATSScoreBreakdown + ATSScoreTrendChart
-  |-- WhatsNextCard, DailyTipCard, FeatureDiscoveryCard
-  |-- CareerMilestonesRow
-  |-- PortfolioActivityCard
-  |-- FloatingCreateButton + CreateResumeDialog
-  |-- AnalyzeJobSheet, SetTargetJobSheet
-  |-- HiredCelebrationModal
-```
-
-### Other Feature Modules
-- `ai-studio/` -- AI experimentation (A/B compare, tour)
-- `applications/` -- Job application tracker
-- `career/` -- Career assessment tools
-- `cover-letter/` -- Cover letter editor
-- `interview/` -- Mock interview UI
-- `onboarding/` -- First-run wizard
-- `portfolio/` -- Portfolio editor + public view + QR codes
-- `resignation/` -- Resignation letter editor
-- `templates/` -- Template gallery
-- `upload/` -- Resume upload + parsing
-- `settings/` -- App preferences + profile editing
-- `landing/` -- Marketing landing page components
-- `home/` -- Home/index page components
-
----
-
-## 9. Key Hooks (55+)
-
-| Category | Hooks |
-|----------|-------|
-| Auth | `useAuth`, `useBiometricLock`, `useGuestMigration` |
-| Resume | `useResumes`, `useResumeScore`, `useResumeVersions`, `useResumeShares`, `useResumeNudges`, `useUndoRedo`, `useUnsavedChangesGuard` |
-| AI | `useAIAction`, `useAICredits`, `useAIEnhance`, `useAIHealth`, `useAIProviderInfo`, `useATSSuggestions`, `useAgenticChat`, `useProofread` |
-| Jobs | `useJobs`, `useJobApplications`, `useJobActivityStats`, `useCompanyBriefing` |
-| Documents | `useCoverLetters`, `useResignationLetters`, `useExportProgress` |
-| Interview | `useVoiceInterview`, `useInterviewHistory`, `useElevenLabsScribe`, `useWebSpeechFallback` |
-| Career | `useCareerAssessment`, `useCareerMilestones` |
-| Portfolio | `usePublicPortfolio`, `usePortfolioAnalytics`, `useShareComments` |
-| Platform | `useBackButton`, `useDeepLinking`, `useAppLifecycle`, `useStatusBar`, `useShakeDetect`, `useNetworkStatus`, `useNetworkQuality`, `useOfflineSync`, `useKeyboardAwareScroll` |
-| UI | `use-mobile`, `useInView`, `useDoubleTap`, `useTilt`, `useEditorShortcuts`, `useBackNavigation` |
-| Misc | `useProfile`, `useNotifications`, `usePushNotifications`, `useActiveStatus`, `useChangelogBadge`, `useRateApp` |
-
----
-
-## 10. Native (Capacitor) Features
-
-- Biometric lock (fingerprint/face ID via `@capgo/capacitor-native-biometric`)
-- Haptic feedback (`@capacitor/haptics`)
-- Status bar theming (`@capacitor/status-bar`)
-- Splash screen (`@capacitor/splash-screen`)
-- Deep linking (`@capacitor/app`)
-- External browser (`@capacitor/browser`)
-- Back button handling (Android)
-- Shake-to-report bug
-
----
-
-## 11. Offline and PWA
-
-- Service worker via `vite-plugin-pwa` with auto-update
-- `OfflineBanner` + `SlowConnectionBanner` UI indicators
-- `offlineSyncStore` queues mutations when offline
-- `useNetworkStatus` / `useNetworkQuality` hooks
-- Resume data persisted locally via Zustand `persist` middleware
-
----
-
-## 12. Security Architecture
-
-- Row Level Security (RLS) on all user-owned tables
-- JWT validation in edge functions (`authMiddleware.ts`)
-- Rate limiting in edge functions (`rateLimiter.ts`)
-- Encrypted BYOK API keys (`user_api_keys` table)
-- Safe view (`user_api_keys_safe`) hides encrypted values
-- Audit logging (`audit_logs` table)
-- Session hijack prevention (active user ID tracking in AuthContext)
-- Share passwords (hashed via `hash_share_password` RPC)
-- Biometric lock for native apps
-
----
-
-## 13. Current Backend Configuration
-
-The app currently has `safeClient.ts` pointed to your personal instance (`jnsfmkzgxsviuthaqlyy.supabase.co`). You will need to recreate all 20 tables, RLS policies, RPCs, views, and triggers on that instance for the app to function. Edge functions still run on Lovable Cloud infrastructure.
+### Technical Details
+- Single markdown file: `docs/APP_BLUEPRINT.md`
+- Approximately 1500-2000 lines
+- Uses text code blocks for diagrams
+- Organized with clear heading hierarchy
+- Includes component trees, data flow, and screen compositions
