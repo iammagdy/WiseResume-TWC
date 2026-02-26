@@ -1,55 +1,39 @@
 
 
-# Create Master Recreation Prompt File
+# Create Project Description File
 
 ## Overview
-Create a new file `docs/RECREATE_DOCS_PROMPT.md` containing a single, comprehensive prompt that you can paste into a new Lovable project to instruct it to recreate all 13 documentation files from the `docs/` folder.
+Create a new file `docs/PROJECT_DESCRIPTION.md` -- a concise, non-technical project description suitable for sharing with stakeholders, app store listings, pitch decks, investor briefs, and onboarding new team members. Unlike the existing `PROJECT_OVERVIEW.md` (695 lines, highly technical) and `README.md` (developer-focused), this file will be a polished, audience-ready description.
 
-## The Challenge
-The 13 docs files total ~10,000+ lines. A single prompt cannot contain all that content. The solution is a **sequenced meta-prompt** that tells the new Lovable project to create each file one-by-one across multiple messages, with detailed descriptions of what each file must contain.
+## What the File Will Contain
 
-## File List to Recreate (13 files, ordered by dependency)
+### Structure (~150-200 lines)
 
-| # | File | Lines | Description |
-|---|------|-------|-------------|
-| 1 | `docs/PROJECT_OVERVIEW.md` | 695 | App identity, features, tech stack summary |
-| 2 | `docs/APP_BLUEPRINT.md` | 2,278 | Complete web app blueprint (screens, models, design tokens, routes) |
-| 3 | `docs/APP_BLUEPRINT_FLUTTER.md` | 2,268 | Complete Flutter app blueprint (widgets, GoRouter, Riverpod) |
-| 4 | `docs/DB_FEATURE_MAP.md` | 156 | Database tables mapped to features and data flows |
-| 5 | `docs/MOBILE_RESPONSIVENESS_PLAN.md` | 323 | Mobile-first responsive design rules and breakpoints |
-| 6 | `docs/perf-checklist.md` | 42 | QA checklist for mobile performance |
-| 7 | `docs/PROGRESS_TILL_NOW.md` | 222 | Current project status report |
-| 8 | `docs/INSPIRATION_WEB.md` | ~200 | Web competitors and design sources |
-| 9 | `docs/INSPIRATION_FLUTTER.md` | ~200 | Mobile app competitors and design sources |
-| 10 | `docs/STITCH_PROMPTS_WEB.md` | ~1,200 | 28 Google Stitch prompts for web screens |
-| 11 | `docs/STITCH_PROMPTS_FLUTTER.md` | ~1,400 | 30 Google Stitch prompts for mobile screens |
-| 12 | `docs/REBUILD_PROMPTS.md` | ~3,500 | 52-step sequential rebuild prompts for web |
-| 13 | `docs/REBUILD_PROMPTS_FLUTTER.md` | ~3,500 | 55-step sequential rebuild prompts for Flutter |
-
-## What the Prompt File Will Contain
-
-### Section 1: Master Instruction
-A system-level instruction block telling the receiving Lovable AI:
-- Create files one at a time (they are too large for a single message)
-- Follow the exact order listed
-- After each file, confirm completion and move to the next
-- Use the exact file paths under `docs/`
-
-### Section 2: Per-File Specifications
-For each of the 13 files, a detailed specification including:
-- Exact file path
-- Purpose and audience
-- Complete table of contents / section headings
-- Key data points that MUST be included (color tokens, route paths, table names, template IDs, etc.)
-- Approximate target length
-- Cross-references to other docs files
-
-### Section 3: Validation Checklist
-A final checklist the AI should run after all 13 files are created to ensure consistency across them (same color tokens, same route names, same table names, etc.)
+1. **Elevator Pitch** -- 2-3 sentence summary of what WiseResume is and who it serves
+2. **The Problem** -- What pain points job seekers face today (bad resumes, no feedback, interview anxiety)
+3. **The Solution** -- How WiseResume solves each pain point with AI
+4. **Key Features** (organized by value, not technical complexity):
+   - Smart Resume Builder (13 sections, 30 templates, ATS-optimized)
+   - AI Resume Tailoring (one-click job-specific optimization)
+   - Mock Interview Coach (voice-based with real-time scoring)
+   - Recruiter Simulator (4 AI personas with brutally honest feedback)
+   - Cover Letter and Resignation Letter Generation
+   - Job Application Tracker (Kanban board)
+   - Public Portfolio Generator (shareable link with analytics)
+   - Career Path Advisor and Skills Gap Analysis
+5. **Target Audience** -- Primary and secondary user segments
+6. **Platform Availability** -- Web (PWA), Android, iOS (Flutter)
+7. **AI Models Used** -- Brief mention of multi-model orchestration (Gemini, GPT) without technical jargon
+8. **Monetization Model** -- Freemium with AI credits, premium templates, priority processing
+9. **Competitive Advantage** -- What sets WiseResume apart (multi-model AI, BYOK, offline-first, biometric security)
+10. **Brand Identity** -- WiseUniverse brand, "Wise AI" mascot, space/cosmic theme, color palette summary
+11. **Current Status** -- 41 screens built, 39 edge functions, 22+ database tables, production-ready
+12. **App Store Description** -- Ready-to-use short and long descriptions for Google Play and App Store
 
 ## Technical Details
-- **File created**: `docs/RECREATE_DOCS_PROMPT.md`
+- **File**: `docs/PROJECT_DESCRIPTION.md`
+- **Estimated size**: ~150-200 lines
 - **No other files modified**
-- **Estimated size**: ~1,500-2,000 lines (detailed specs for all 13 files)
-- The prompt extracts key specs from each existing file (design tokens, routes, models, table schemas) so the receiving AI can reproduce them faithfully without seeing the originals
+- Written in plain language (non-technical) with optional "Technical Note" callouts where needed
+- Includes ready-to-copy app store descriptions (short 80-char and long 4000-char)
 
