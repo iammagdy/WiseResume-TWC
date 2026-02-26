@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { HeartHandshake, Send, CheckCircle2, MapPin, Info, Wrench, AlertTriangle, ToggleLeft, ToggleRight } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { supabase } from '@/integrations/supabase/client';
 import {
   onBugReport,
   detectScreen,
