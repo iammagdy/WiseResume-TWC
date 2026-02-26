@@ -108,7 +108,10 @@ lib/
   │     ├── career/               # Career quiz, roadmap
   │     ├── templates/            # Template gallery
   │     ├── onboarding/           # Onboarding wizard
-  │     └── landing/              # Landing page (marketing)
+  │     ├── landing/              # Landing page (marketing)
+  │     ├── help/                 # Help & FAQ
+  │     ├── analytics/            # Analytics & insights
+  │     └── subscription/         # Subscription + referral
   ├── shared/
   │     ├── widgets/              # Reusable widgets (GlassSurface, ScoreRing, EmptyState, etc.)
   │     ├── models/               # Shared data models (ResumeData, etc.)
@@ -369,9 +372,15 @@ final goRouter = GoRouter(
         GoRoute(path: '/guides', builder: (_, __) => const GuidesPage()),
         GoRoute(path: '/guides/:slug', builder: (_, state) => GuidePage(slug: state.pathParameters['slug']!)),
         GoRoute(path: '/ai-studio', builder: (_, __) => const AIStudioPage()),
+        GoRoute(path: '/help', builder: (_, __) => const HelpPage()),
+        GoRoute(path: '/analytics', builder: (_, __) => const AnalyticsPage()),
+        GoRoute(path: '/subscription', builder: (_, __) => const SubscriptionPage()),
+        GoRoute(path: '/referral', builder: (_, __) => const ReferralPage()),
+        GoRoute(path: '/achievements', builder: (_, __) => const AchievementsPage()),
       ],
     ),
   ],
+  errorBuilder: (_, __) => const NotFoundPage(),
 );
 ```
 
@@ -381,6 +390,7 @@ final goRouter = GoRouter(
 |------|----|
 | `/activity` | `/applications` |
 | `/jobs` | `/applications` |
+| `/jobs/:id` | `/job/:id` |
 
 ---
 
@@ -408,7 +418,7 @@ AppShell(child)
 
 | Tab | Icon | Path | Match Paths |
 |-----|------|------|-------------|
-| **Home** | `Icons.home` | `/dashboard` | `/dashboard`, `/settings`, `/profile`, `/notifications`, `/templates`, `/examples`, `/guides`, `/resume`, `/onboarding` |
+| **Home** | `Icons.home` | `/dashboard` | `/dashboard`, `/settings`, `/profile`, `/notifications`, `/templates`, `/examples`, `/guides`, `/resume`, `/onboarding`, `/help`, `/analytics`, `/achievements`, `/subscription`, `/referral` |
 | **Editor** | `Icons.description` | `/editor` | `/editor`, `/preview` |
 | **AI Tools** | `Icons.auto_awesome` | `/ai-studio` | `/ai-studio`, `/career`, `/cover-letter*`, `/resignation-letter*`, `/interview` |
 | **Activity** | `Icons.bar_chart` | `/applications` | `/applications`, `/application`, `/job` |
@@ -729,6 +739,185 @@ OnboardingPage (full-screen overlay)
   ├── Step 3: Primary goal
   └── Step 4: Template selection → navigate to editor
 ```
+
+### 7.18 Not Found (`/*` catch-all)
+
+```text
+NotFoundPage
+  ├── SafeArea
+  ├── Center(Column)
+  │     ├── ShaderMask gradient "404" text (fontSize: 96, bold)
+  │     ├── SizedBox(h: 16)
+  │     ├── "Page not found" headline
+  │     ├── "The page you're looking for doesn't exist" subtitle (muted)
+  │     ├── SizedBox(h: 32)
+  │     ├── Row of quick-link ElevatedButtons
+  │     │     ├── "Dashboard" → /dashboard
+  │     │     ├── "Applications" → /applications
+  │     │     └── "AI Studio" → /ai-studio
+  │     ├── SizedBox(h: 16)
+  │     └── TextButton("Go Back") → context.pop() / Navigator.maybePop()
+```
+
+- Route: catch-all `/*` in GoRouter `errorBuilder`
+- Route aliases in `redirect`: `/jobs/:id` → `/job/:id`, `/jobs` → `/applications`
+- Feature module: `shared/`
+
+### 7.19 Help (`/help`)
+
+```text
+HelpPage
+  ├── AppBar("Help & Support")
+  ├── SearchTextField (filter FAQ items)
+  ├── SliverList
+  │     ├── SectionHeader("Frequently Asked Questions")
+  │     ├── ExpansionTile (for each FAQ item)
+  │     │     ├── Title text
+  │     │     └── Body: answer text (Markdown or plain)
+  │     ├── SectionHeader("Contact Support")
+  │     ├── GlassCard
+  │     │     ├── ListTile("Email Support") → url_launcher mailto
+  │     │     └── ListTile("Submit Feedback") → FeatureRequestSheet
+  │     ├── SectionHeader("Video Tutorials")
+  │     ├── GlassCard
+  │     │     └── ListTile per tutorial → url_launcher
+  │     └── SectionHeader("Quick Links")
+  │           └── Wrap of ActionChip → /guides, /examples, /career
+```
+
+- FAQ items filterable by search query
+- Contact support opens email or in-app feedback form
+- Video tutorial links open via `url_launcher`
+- Added to Settings page as a navigation row
+- Added to BottomTabBar Home tab match paths
+- Feature module: `help/` (new)
+
+### 7.20 Analytics (`/analytics`)
+
+```text
+AnalyticsPage
+  ├── AppBar("Analytics & Insights")
+  ├── ToggleButtons / SegmentedButton (Weekly | Monthly | All Time)
+  ├── SliverList
+  │     ├── SectionHeader("Resume Performance")
+  │     ├── GlassCard
+  │     │     └── LineChart (fl_chart) — ATS score trend over time
+  │     ├── SectionHeader("Application Funnel")
+  │     ├── GlassCard
+  │     │     └── HorizontalBarChart — Applied → Interview → Offer
+  │     ├── SectionHeader("Key Metrics")
+  │     ├── Row of metric cards (total resumes, avg score, applications, interviews)
+  │     ├── SectionHeader("ATS Score Distribution")
+  │     ├── GlassCard
+  │     │     └── BarChart — score buckets across all resumes
+  │     ├── SectionHeader("Activity")
+  │     ├── ActivityStreak widget (reuse existing pattern)
+  │     └── OutlinedButton("Export Report") → share_plus / PDF export
+```
+
+- Time period toggle (weekly / monthly / all time)
+- Resume performance trend uses `fl_chart` `LineChart`
+- Application funnel: applied → interview → offer counts
+- ATS score distribution histogram across all resumes
+- Accessible from Dashboard via "View All Stats" link
+- Feature module: `analytics/` (new)
+
+### 7.21 Subscription (`/subscription`)
+
+```text
+SubscriptionPage
+  ├── AppBar("Subscription")
+  ├── SliverList
+  │     ├── CurrentPlanCard (GlassCard with gradient border)
+  │     │     ├── Plan name + badge
+  │     │     ├── Renewal date
+  │     │     └── Usage meters (AI credits, resumes created)
+  │     ├── SectionHeader("Compare Plans")
+  │     ├── PageView or horizontal ListView of plan cards
+  │     │     ├── PlanCard("Free") — feature checklist with ✓/✗
+  │     │     ├── PlanCard("Pro") — feature checklist, gradient CTA
+  │     │     └── PlanCard("Premium") — feature checklist, gradient CTA
+  │     ├── SectionHeader("Usage")
+  │     ├── GlassCard
+  │     │     ├── LinearProgressIndicator (AI credits used / limit)
+  │     │     ├── LinearProgressIndicator (resumes created / limit)
+  │     │     └── LinearProgressIndicator (tailors used / limit)
+  │     └── TextButton("Invite Friends for Rewards") → /referral
+```
+
+- Current plan display with usage meters
+- Plan comparison with feature checklists per tier
+- Gradient CTA buttons for upgrade
+- Payment integration placeholder (Stripe / in-app purchase)
+- Accessible from Settings > Account section and via upgrade prompts
+- Feature module: `subscription/` (new)
+
+### 7.22 Referral (`/referral`)
+
+```text
+ReferralPage
+  ├── AppBar("Invite Friends")
+  ├── SliverList
+  │     ├── GlassCard (invite code display)
+  │     │     ├── Text("Your Invite Code")
+  │     │     ├── Row: code text + IconButton(copy) → Clipboard + toast
+  │     │     └── ElevatedButton("Share Invite") → share_plus native sheet
+  │     ├── SectionHeader("QR Code")
+  │     ├── Center(QrImageView from qr_flutter)
+  │     ├── SectionHeader("Your Referral Stats")
+  │     ├── Row of stat cards
+  │     │     ├── "Invites Sent"
+  │     │     ├── "Accepted"
+  │     │     └── "Rewards Earned"
+  │     ├── SectionHeader("Rewards Tiers")
+  │     └── Column of reward tier rows
+  │           ├── "3 friends → 1 month Pro"
+  │           ├── "5 friends → 3 months Pro"
+  │           └── "10 friends → 1 year Premium"
+```
+
+- Unique invite code with copy-to-clipboard
+- Share via `share_plus` native share sheet
+- QR code generated with `qr_flutter`
+- Referral stats (invites sent, accepted, rewards earned)
+- Rewards tier list with unlock thresholds
+- Accessible from Settings and from Subscription page
+- Feature module: `subscription/` (shares module with Subscription)
+
+### 7.23 Achievements (`/achievements`)
+
+```text
+AchievementsPage
+  ├── AppBar("Achievements")
+  ├── SliverList
+  │     ├── LevelProgressCard (GlassCard)
+  │     │     ├── CircularProgressIndicator (XP progress)
+  │     │     ├── "Level [N]" text
+  │     │     └── "[X] / [Y] XP to next level"
+  │     ├── SectionHeader("Streak")
+  │     ├── ActivityStreak widget (reuse from dashboard)
+  │     ├── SectionHeader("Badges")
+  │     ├── GridView.count(crossAxisCount: 3)
+  │     │     └── BadgeTile (for each badge)
+  │     │           ├── Icon or emoji (earned: full color, locked: grayscale + lock overlay)
+  │     │           ├── Badge name
+  │     │           └── Tap → BadgeDetailSheet (description, progress, share)
+  │     ├── SectionHeader("Milestones")
+  │     └── Column of milestone rows
+  │           ├── "First Resume Created" ✓
+  │           ├── "5 Applications Submitted" ✓
+  │           ├── "80+ ATS Score" (progress bar)
+  │           ├── "10 Tailored Resumes" (progress bar)
+  │           └── "7-Day Streak" (progress bar)
+```
+
+- Badge grid with earned vs locked states (grayscale + lock icon)
+- Progress milestones with progress bars
+- Streak tracker reuses existing `ActivityStreak` pattern
+- Level / XP progress bar
+- Share achievement cards via `share_plus`
+- Accessible from Dashboard profile section and Settings
+- Feature module: `dashboard/` (extends existing)
 
 ---
 
@@ -2065,8 +2254,14 @@ flutter:
 | 33 | `GuidesPage` | `/guides` | `dashboard/` | Career guides list |
 | 34 | `GuidePage` | `/guides/:slug` | `dashboard/` | Single guide view |
 | 35 | `ExamplesPage` | `/examples` | `dashboard/` | Resume examples |
+| 36 | `NotFoundPage` | `/*` | `shared/` | 404 hub with navigation links |
+| 37 | `HelpPage` | `/help` | `help/` | FAQ, support, tutorials |
+| 38 | `AnalyticsPage` | `/analytics` | `analytics/` | Trends, funnel, reports |
+| 39 | `SubscriptionPage` | `/subscription` | `subscription/` | Plans, pricing, upgrade |
+| 40 | `ReferralPage` | `/referral` | `subscription/` | Invite friends, rewards |
+| 41 | `AchievementsPage` | `/achievements` | `dashboard/` | Badges, streaks, milestones |
 
-> **Total: 35 screens** across 16 feature modules.
+> **Total: 41 screens** across 19 feature modules.
 
 ---
 
