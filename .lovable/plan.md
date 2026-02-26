@@ -1,35 +1,43 @@
 
 
-# Fix: AI Credits Not Reflecting Provider Change
+## Analysis: Emergent LLM Key + Custom Supabase Setup
 
-## Problem
-The `useAICredits` hook decides whether to show "Unlimited" (BYOK) or normal credits based on `isBYOK` (derived from `aiProvider` and `geminiKeyValidated` in the settings store). However, `isBYOK` is **not included in the React Query cache key**.
+### Current State
 
-The query key is:
-```
-['ai-credits', user?.id]
-```
+Your `aiClient.ts` is properly structured with a 3-tier key resolution:
+1. User's BYOK Gemini key (from DB)
+2. Global `GEMINI_API_KEY` env var
+3. `EMERGENT_LLM_KEY` env var (Emergent Universal)
 
-So when the user switches between WiseResume AI and their own Gemini key, React Query serves the **stale cached result** because the key hasn't changed. This causes the inconsistent display -- sometimes showing "Unlimited / using your own API key" and sometimes showing the normal credit counter, depending on which result was cached first.
+However, **neither `GEMINI_API_KEY` nor `EMERGENT_LLM_KEY` exists in your secrets**, so all AI calls will fail unless a user has their own BYOK key saved.
 
-## Solution
-Add `isBYOK` to the query key so the cache invalidates when the provider changes.
+### Required Fixes
 
-### File: `src/hooks/useAICredits.ts`
+#### 1. Add `EMERGENT_LLM_KEY` Secret
+Add the Emergent Universal API key as a secret so edge functions can access it. The key from your setup doc: `sk-emergent-2113715Ec2b2713676`
 
-**Change line 28** from:
-```typescript
-queryKey: ['ai-credits', user?.id],
-```
-to:
-```typescript
-queryKey: ['ai-credits', user?.id, isBYOK],
-```
+#### 2. Fix Build Error: `SignupForm.tsx`
+The framer-motion `ease` property needs a typed value (`"easeOut" as const`) instead of a plain string to satisfy TypeScript.
 
-This single change ensures that whenever the user switches AI providers (or validates/clears their Gemini key), the query re-executes and returns the correct credits shape -- either unlimited for BYOK or the actual database credits for WiseResume AI.
+#### 3. Fix Build Error: `PrivacySection.tsx`
+The `BiometryTypeString` type comparison with `"face"` needs a type assertion or the type definition needs updating.
 
-## Technical Details
-- One file modified: `src/hooks/useAICredits.ts`
-- One line changed (query key)
-- No risk to other functionality -- the query simply re-fetches with the correct branch when the provider state changes
+#### 4. Fix Edge Function Type Error
+The `deno.lock` or an import referencing `npm:openai@^4.52.5` is causing a resolution failure. This likely comes from `@supabase/functions-js` internals. Removing or regenerating `deno.lock` should fix it.
+
+### No Changes Needed
+- `aiClient.ts` -- already correctly implements Emergent fallback
+- `supabase/config.toml` -- all functions correctly configured
+- AI Settings UI (`AISettingsSheet.tsx`) -- properly shows WiseResume AI vs Gemini BYOK options
+- The `.env` and `client.ts` files are auto-managed by Lovable Cloud
+
+### Technical Details
+
+**Files to modify:**
+- `src/components/auth/SignupForm.tsx` -- cast `ease` to literal type
+- `src/components/settings/sections/PrivacySection.tsx` -- fix biometric type comparison
+- Possibly remove `deno.lock` if it exists
+
+**Secret to add:**
+- `EMERGENT_LLM_KEY` = your Emergent API key
 
