@@ -97,9 +97,9 @@ export function SignupForm({
   const slideVariants = {
     hiddenRight: { opacity: 0, x: 20 },
     hiddenLeft: { opacity: 0, x: -20 },
-    visible: { opacity: 1, x: 0, transition: { duration: 0.3, ease: 'easeOut' } },
-    exitRight: { opacity: 0, x: 20, transition: { duration: 0.2, ease: 'easeIn' } },
-    exitLeft: { opacity: 0, x: -20, transition: { duration: 0.2, ease: 'easeIn' } },
+    visible: { opacity: 1, x: 0, transition: { duration: 0.3, ease: 'easeOut' as const } },
+    exitRight: { opacity: 0, x: 20, transition: { duration: 0.2, ease: 'easeIn' as const } },
+    exitLeft: { opacity: 0, x: -20, transition: { duration: 0.2, ease: 'easeIn' as const } },
   };
 
   return (
