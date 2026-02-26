@@ -1,39 +1,68 @@
 
 
-# Create Project Description File
+# Generate 8 Professional App Store Screenshots
 
 ## Overview
-Create a new file `docs/PROJECT_DESCRIPTION.md` -- a concise, non-technical project description suitable for sharing with stakeholders, app store listings, pitch decks, investor briefs, and onboarding new team members. Unlike the existing `PROJECT_OVERVIEW.md` (695 lines, highly technical) and `README.md` (developer-focused), this file will be a polished, audience-ready description.
+Create a dedicated page (`/store-screenshots`) that renders 8 marketing-style promotional screenshots optimized for App Store and Google Play Store listings. Each screenshot will feature a device mockup frame, gradient background, headline caption, and a real app screen rendered inside.
 
-## What the File Will Contain
+## The 8 Screenshots
 
-### Structure (~150-200 lines)
+| # | Feature | Headline | App Screen |
+|---|---------|----------|------------|
+| 1 | Hero / First Impression | "Your AI Career Companion" | Landing page hero with logo and CTA |
+| 2 | Resume Builder | "Build ATS-Optimized Resumes" | Dashboard with resume cards and health scores |
+| 3 | AI Tailoring | "One-Tap Job Tailoring" | AI Studio tool grid |
+| 4 | Mock Interview | "Practice With AI Voice Coach" | Interview page with voice controls |
+| 5 | Recruiter Simulator | "Get Honest Recruiter Feedback" | Recruiter Sim results (4 personas) |
+| 6 | Templates | "30 Professional Templates" | Templates gallery grid |
+| 7 | Job Tracker | "Track Every Application" | Applications Kanban board |
+| 8 | Portfolio | "Share Your Online Portfolio" | Public portfolio preview |
 
-1. **Elevator Pitch** -- 2-3 sentence summary of what WiseResume is and who it serves
-2. **The Problem** -- What pain points job seekers face today (bad resumes, no feedback, interview anxiety)
-3. **The Solution** -- How WiseResume solves each pain point with AI
-4. **Key Features** (organized by value, not technical complexity):
-   - Smart Resume Builder (13 sections, 30 templates, ATS-optimized)
-   - AI Resume Tailoring (one-click job-specific optimization)
-   - Mock Interview Coach (voice-based with real-time scoring)
-   - Recruiter Simulator (4 AI personas with brutally honest feedback)
-   - Cover Letter and Resignation Letter Generation
-   - Job Application Tracker (Kanban board)
-   - Public Portfolio Generator (shareable link with analytics)
-   - Career Path Advisor and Skills Gap Analysis
-5. **Target Audience** -- Primary and secondary user segments
-6. **Platform Availability** -- Web (PWA), Android, iOS (Flutter)
-7. **AI Models Used** -- Brief mention of multi-model orchestration (Gemini, GPT) without technical jargon
-8. **Monetization Model** -- Freemium with AI credits, premium templates, priority processing
-9. **Competitive Advantage** -- What sets WiseResume apart (multi-model AI, BYOK, offline-first, biometric security)
-10. **Brand Identity** -- WiseUniverse brand, "Wise AI" mascot, space/cosmic theme, color palette summary
-11. **Current Status** -- 41 screens built, 39 edge functions, 22+ database tables, production-ready
-12. **App Store Description** -- Ready-to-use short and long descriptions for Google Play and App Store
+## How It Works
+
+### New Page: `src/pages/StoreScreenshotsPage.tsx`
+- A hidden utility page (not in bottom nav) accessible at `/store-screenshots`
+- Renders all 8 screenshots as full-screen cards (1290x2796px ratio for iPhone 6.7")
+- Each card contains:
+  - Gradient background (cosmic theme with primary/accent colors)
+  - Bold headline text (Space Grotesk, white)
+  - Subtitle text describing the feature
+  - A phone device frame (CSS-drawn, rounded corners, notch)
+  - Inside the frame: a static mockup of the actual app screen (built with real components/styling)
+- A "Download All" button that uses `html2canvas` (already installed) to export each card as a PNG
+
+### New Component: `src/components/store/StoreScreenshot.tsx`
+- Reusable wrapper component that provides:
+  - The gradient background (customizable per screenshot)
+  - The device frame (iPhone-style bezels via CSS)
+  - Headline and subtitle text overlay
+  - Proper dimensions for store requirements
+
+### New Component: `src/components/store/MockScreens.tsx`
+- 8 static mock screen components that visually replicate key app screens
+- Uses real UI components (Cards, Badges, Buttons) but with hardcoded demo data
+- No API calls or state management -- purely visual
+
+### Route Addition
+- Add `/store-screenshots` route in the router (no auth guard needed)
+
+## Store Requirements Met
+
+| Store | Size | Covered |
+|-------|------|---------|
+| App Store (6.7" iPhone) | 1290 x 2796 | Yes -- primary target |
+| Google Play | 1080 x 1920 minimum | Yes -- scales down from iPhone size |
 
 ## Technical Details
-- **File**: `docs/PROJECT_DESCRIPTION.md`
-- **Estimated size**: ~150-200 lines
-- **No other files modified**
-- Written in plain language (non-technical) with optional "Technical Note" callouts where needed
-- Includes ready-to-copy app store descriptions (short 80-char and long 4000-char)
+
+- **Files created**: 3 new files
+  - `src/pages/StoreScreenshotsPage.tsx`
+  - `src/components/store/StoreScreenshot.tsx`
+  - `src/components/store/MockScreens.tsx`
+- **Files modified**: 1 file
+  - `src/App.tsx` (add route)
+- **Dependencies used**: `html2canvas` (already installed), `framer-motion` (already installed)
+- **No backend changes needed**
+- Design tokens: Uses the app's existing cosmic theme (deep navy `#0B0D17`, primary rose `hsl(355 90% 60%)`, Space Grotesk font)
+- Each screenshot card is self-contained and exportable individually or as a batch
 
