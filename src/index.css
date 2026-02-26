@@ -401,6 +401,10 @@ button,
       inset 0 1px 0 hsl(var(--foreground) / 0.04);
   }
 
+  .light .glass-card {
+    background: hsl(var(--card) / 0.85);
+  }
+
   .glass-surface {
     background: hsl(var(--card) / 0.6);
     backdrop-filter: blur(16px);

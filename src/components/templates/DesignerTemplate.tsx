@@ -10,7 +10,7 @@ export const DesignerTemplate = memo(function DesignerTemplate({ resume }: Templ
       {/* Sidebar */}
       <div className="w-[180px] bg-gray-900 text-white p-6 flex-shrink-0">
         {resume.contactInfo.photoUrl && (
-          <img src={resume.contactInfo.photoUrl} alt="" className="w-20 h-20 rounded-full mx-auto mb-4 object-cover" />
+          <img src={resume.contactInfo.photoUrl} alt="User profile photo" loading="lazy" className="w-20 h-20 rounded-full mx-auto mb-4 object-cover" />
         )}
         <h1 className="text-lg font-bold leading-tight mb-4">{resume.contactInfo.fullName || 'Your Name'}</h1>
         <div className="space-y-1 text-[10px] text-gray-300 mb-6">

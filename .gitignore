@@ -26,6 +26,11 @@ dist-ssr
 
 # Build artifacts
 bun.lockb
+
+# AI tool configs
+.lovable/
+.Jules/
+.emergent/
 *.jar
 events.json
 .bfg-report/

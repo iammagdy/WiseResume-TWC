@@ -185,7 +185,7 @@ const Index = () => {
     fetch(SUPABASE_URL + '/rest/v1/', {
       method: 'HEAD',
       headers: { apikey: SUPABASE_PUBLISHABLE_KEY },
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -216,21 +216,21 @@ const Index = () => {
     prefersReducedMotion
       ? {}
       : {
-          initial: { opacity: 0, y: 20 } as const,
-          animate: { opacity: 1, y: 0 } as const,
-          transition: { delay, duration: 0.6, ease: 'easeOut' as Easing },
-        };
+        initial: { opacity: 0, y: 20 } as const,
+        animate: { opacity: 1, y: 0 } as const,
+        transition: { delay, duration: 0.6, ease: 'easeOut' as Easing },
+      };
 
   // Scale up with blur clear — kept for the two demo cards only
   const scaleIn = (delay: number) =>
     prefersReducedMotion
       ? {}
       : {
-          initial: { opacity: 0, scale: 0.92, filter: 'blur(4px)' } as const,
-          whileInView: { opacity: 1, scale: 1, filter: 'blur(0px)' } as const,
-          viewport: { once: true, amount: 0.2 },
-          transition: { delay, duration: 0.6, ease: 'easeOut' as Easing },
-        };
+        initial: { opacity: 0, scale: 0.92, filter: 'blur(4px)' } as const,
+        whileInView: { opacity: 1, scale: 1, filter: 'blur(0px)' } as const,
+        viewport: { once: true, amount: 0.2 },
+        transition: { delay, duration: 0.6, ease: 'easeOut' as Easing },
+      };
 
   const handleCTA = () => {
     triggerHaptic.medium();
@@ -245,11 +245,10 @@ const Index = () => {
       </div>
       {/* Sticky Mini Header */}
       <header
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          scrolled
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled
             ? 'glass-header border-b border-border/20 shadow-lg shadow-background/20'
             : 'bg-transparent'
-        }`}
+          }`}
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         <div className="flex items-center justify-between px-4 sm:px-6 h-12">
@@ -257,7 +256,7 @@ const Index = () => {
             onClick={() => { triggerHaptic.light(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
             className="flex items-center gap-2 touch-manipulation"
           >
-            <img src={logoImage} alt="WiseResume" className="w-7 h-7 object-contain rounded-lg" />
+            <img src={logoImage} alt="WiseResume" loading="lazy" className="w-7 h-7 object-contain rounded-lg" />
             <span className={`font-display font-bold text-sm text-foreground transition-opacity duration-300 ${scrolled ? 'opacity-100' : 'opacity-0'}`}>
               WiseResume
             </span>
@@ -320,12 +319,12 @@ const Index = () => {
               }}
               aria-hidden="true"
             />
-          <img 
-            src={logoImage} 
-            alt="Wise AI Logo" 
-            className="relative z-10 w-[120px] h-[120px] object-contain rounded-3xl"
-            loading="eager"
-          />
+            <img
+              src={logoImage}
+              alt="Wise AI Logo"
+              className="relative z-10 w-[120px] h-[120px] object-contain rounded-3xl"
+              loading="eager"
+            />
           </motion.div>
 
           <motion.h1

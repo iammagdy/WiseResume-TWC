@@ -106,7 +106,7 @@ export function JobMatchScore({ score, jobTitle }: Props) {
             {/* Wise AI badge for verified scores */}
             {isAI && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/5 border border-primary/10">
-                <img src={wiseAiLogo} alt="Wise AI" className="w-3.5 h-3.5 object-contain" />
+                <img src={wiseAiLogo} alt="Wise AI" loading="lazy" className="w-3.5 h-3.5 object-contain" />
                 <span className="text-[10px] text-muted-foreground">Powered by <span className="text-primary font-medium">Wise AI</span></span>
               </div>
             )}

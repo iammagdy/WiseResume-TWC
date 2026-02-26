@@ -1,5 +1,6 @@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Star, Users, AlertTriangle, BadgeDollarSign, HelpCircle, Mail, CheckCircle2, XCircle } from 'lucide-react';
 
 interface InterviewTipsSheetProps {
   open: boolean;
@@ -16,7 +17,7 @@ export function InterviewTipsSheet({ open, onOpenChange }: InterviewTipsSheetPro
 
         <Accordion type="single" collapsible className="pt-4">
           <AccordionItem value="star">
-            <AccordionTrigger className="text-sm font-semibold">⭐ STAR Method</AccordionTrigger>
+            <AccordionTrigger className="text-sm font-semibold flex items-center justify-start gap-2 text-left"><Star className="w-4 h-4 shrink-0 text-amber-500" /> STAR Method</AccordionTrigger>
             <AccordionContent className="text-sm text-muted-foreground space-y-2">
               <p><strong>Situation:</strong> Set the scene. Where were you? What was the context?</p>
               <p><strong>Task:</strong> What was your responsibility? What problem needed solving?</p>
@@ -30,21 +31,21 @@ export function InterviewTipsSheet({ open, onOpenChange }: InterviewTipsSheetPro
           </AccordionItem>
 
           <AccordionItem value="body">
-            <AccordionTrigger className="text-sm font-semibold">🤝 Body Language Tips</AccordionTrigger>
+            <AccordionTrigger className="text-sm font-semibold flex items-center justify-start gap-2 text-left"><Users className="w-4 h-4 shrink-0 text-blue-500" /> Body Language Tips</AccordionTrigger>
             <AccordionContent className="text-sm text-muted-foreground space-y-1">
-              <p>✅ Maintain eye contact (look at the webcam for virtual)</p>
-              <p>✅ Sit up straight with shoulders back</p>
-              <p>✅ Use hand gestures naturally</p>
-              <p>✅ Smile genuinely when greeting</p>
-              <p>✅ Nod to show active listening</p>
-              <p>❌ Avoid crossing arms</p>
-              <p>❌ Don't fidget or tap</p>
-              <p>❌ Don't look away when answering</p>
+              <p className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" /> Maintain eye contact (look at the webcam for virtual)</p>
+              <p className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" /> Sit up straight with shoulders back</p>
+              <p className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" /> Use hand gestures naturally</p>
+              <p className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" /> Smile genuinely when greeting</p>
+              <p className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" /> Nod to show active listening</p>
+              <p className="flex items-start gap-2"><XCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" /> Avoid crossing arms</p>
+              <p className="flex items-start gap-2"><XCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" /> Don't fidget or tap</p>
+              <p className="flex items-start gap-2"><XCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" /> Don't look away when answering</p>
             </AccordionContent>
           </AccordionItem>
 
           <AccordionItem value="mistakes">
-            <AccordionTrigger className="text-sm font-semibold">⚠️ Common Mistakes</AccordionTrigger>
+            <AccordionTrigger className="text-sm font-semibold flex items-center justify-start gap-2 text-left"><AlertTriangle className="w-4 h-4 shrink-0 text-orange-500" /> Common Mistakes</AccordionTrigger>
             <AccordionContent className="text-sm text-muted-foreground space-y-1">
               <p>• Not researching the company beforehand</p>
               <p>• Giving generic answers without specific examples</p>
@@ -57,7 +58,7 @@ export function InterviewTipsSheet({ open, onOpenChange }: InterviewTipsSheetPro
           </AccordionItem>
 
           <AccordionItem value="salary">
-            <AccordionTrigger className="text-sm font-semibold">💰 Salary Negotiation</AccordionTrigger>
+            <AccordionTrigger className="text-sm font-semibold flex items-center justify-start gap-2 text-left"><BadgeDollarSign className="w-4 h-4 shrink-0 text-emerald-600" /> Salary Negotiation</AccordionTrigger>
             <AccordionContent className="text-sm text-muted-foreground space-y-2">
               <p><strong>When asked about expectations:</strong></p>
               <p className="italic">"Based on my research and experience, I'm looking for a range of $X to $Y. I'm open to discussing the full compensation package including benefits."</p>
@@ -71,7 +72,7 @@ export function InterviewTipsSheet({ open, onOpenChange }: InterviewTipsSheetPro
           </AccordionItem>
 
           <AccordionItem value="questions">
-            <AccordionTrigger className="text-sm font-semibold">❓ Questions to Ask</AccordionTrigger>
+            <AccordionTrigger className="text-sm font-semibold flex items-center justify-start gap-2 text-left"><HelpCircle className="w-4 h-4 shrink-0 text-purple-500" /> Questions to Ask</AccordionTrigger>
             <AccordionContent className="text-sm text-muted-foreground space-y-1">
               <p>1. "What does a typical day look like in this role?"</p>
               <p>2. "What are the biggest challenges the team is facing?"</p>
@@ -87,7 +88,7 @@ export function InterviewTipsSheet({ open, onOpenChange }: InterviewTipsSheetPro
           </AccordionItem>
 
           <AccordionItem value="thankyou">
-            <AccordionTrigger className="text-sm font-semibold">📧 Thank You Email Template</AccordionTrigger>
+            <AccordionTrigger className="text-sm font-semibold flex items-center justify-start gap-2 text-left"><Mail className="w-4 h-4 shrink-0 text-blue-400" /> Thank You Email Template</AccordionTrigger>
             <AccordionContent className="text-sm text-muted-foreground">
               <div className="bg-muted/30 rounded-lg p-3 space-y-2">
                 <p><strong>Subject:</strong> Thank you — [Job Title] Interview</p>

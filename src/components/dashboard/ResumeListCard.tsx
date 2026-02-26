@@ -2,11 +2,11 @@ import { useState, useMemo, memo, useCallback } from 'react';
 import { getAppUrl } from '@/lib/portfolioUrl';
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import { Checkbox } from '@/components/ui/checkbox';
-import { 
-  MoreVertical, 
-  Edit2, 
-  Copy, 
-  Trash2, 
+import {
+  MoreVertical,
+  Edit2,
+  Copy,
+  Trash2,
   Star,
   Target,
   Clock,
@@ -74,21 +74,21 @@ export const ResumeListCard = memo(function ResumeListCard({
   selected = false,
   onToggleSelect,
 }: ResumeListCardProps) {
-  
+
   const [isDragging, setIsDragging] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
   const [showTargetJobSheet, setShowTargetJobSheet] = useState(false);
   const [showActionsSheet, setShowActionsSheet] = useState(false);
   const navigateToEditor = useNavigate();
-  
+
   // Fit score badge from tailor history
   const getTailorHistoryForResume = useResumeStore(s => s.getTailorHistoryForResume);
-  
+
   const latestTailor = useMemo(() => {
     const history = getTailorHistoryForResume(resume.id);
     return history.length > 0 ? history[0] : null;
   }, [resume.id, getTailorHistoryForResume]);
-  
+
   const x = useMotionValue(0);
   const deleteOpacity = useTransform(x, [-SWIPE_THRESHOLD, -20], [1, 0]);
   const duplicateOpacity = useTransform(x, [20, SWIPE_THRESHOLD], [0, 1]);
@@ -104,7 +104,7 @@ export const ResumeListCard = memo(function ResumeListCard({
   const handleDrag = (_: unknown, info: PanInfo) => {
     const currentX = x.get();
     const newX = info.offset.x;
-    
+
     if (
       (currentX > -SWIPE_THRESHOLD && newX <= -SWIPE_THRESHOLD) ||
       (currentX < SWIPE_THRESHOLD && newX >= SWIPE_THRESHOLD)
@@ -115,7 +115,7 @@ export const ResumeListCard = memo(function ResumeListCard({
 
   const handleDragEnd = (_: unknown, info: PanInfo) => {
     setIsDragging(false);
-    
+
     if (info.offset.x <= -SWIPE_THRESHOLD) {
       haptics.warning();
       if (confirmSwipeActions) {
@@ -181,7 +181,7 @@ export const ResumeListCard = memo(function ResumeListCard({
             <span className="font-medium text-sm">Duplicate</span>
           </div>
         </motion.div>
-        
+
         {/* Delete action (left swipe) */}
         <motion.div
           className="flex-1 bg-destructive/15 backdrop-blur-sm flex items-center justify-end pr-4"
@@ -196,9 +196,17 @@ export const ResumeListCard = memo(function ResumeListCard({
 
       {/* Card content */}
       <motion.div
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleCardClick(e as any);
+          }
+        }}
         className={cn(
           'relative glass-elevated p-4 touch-manipulation cursor-pointer min-h-[180px] sm:min-h-[120px]',
-          'active:bg-muted/30 transition-all'
+          'active:bg-muted/30 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50'
         )}
         style={{ x, touchAction: 'pan-y' }}
         drag="x"

@@ -1,109 +1,189 @@
 <!doctype html>
 <html lang="en" style="background-color: #0a0a14">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>Wiseresume AI - AI Resume Editor</title>
-    <meta name="description" content="AI-powered resume editor with job match scoring, gap analysis, and ATS-friendly templates. Optimize your resume for any job." />
-    <meta name="author" content="Wiseresume AI" />
-    <meta name="theme-color" content="#0a0a14" />
 
-    <!-- Preconnect to external origins for faster resource loading -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    
-    <!-- Load Google Fonts with display=swap for non-blocking rendering -->
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=optional&family=Inter:wght@300;400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'" />
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=optional&family=Inter:wght@300;400;500;600;700&display=swap" /></noscript>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Wiseresume AI - AI Resume Editor</title>
+  <meta name="description"
+    content="AI-powered resume editor with job match scoring, gap analysis, and ATS-friendly templates. Optimize your resume for any job." />
+  <meta name="author" content="Wiseresume AI" />
+  <meta name="theme-color" content="#0a0a14" />
 
-    <!-- PWA & Mobile -->
-    <link rel="manifest" href="/manifest.json" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="preload" href="/favicon.png" as="image" />
-    <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <!-- black-translucent lets the app render under the iOS status bar (safe-area handles insets) -->
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <!-- Short name displayed under the icon on the iOS home screen -->
-    <meta name="apple-mobile-web-app-title" content="Wiseresume AI" />
-    <meta name="format-detection" content="telephone=no" />
+  <!-- Preconnect to external origins for faster resource loading -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
-    <!-- iOS PWA splash screens (prevents white flash on launch from home screen) -->
-    <!-- iPhone SE / 5s -->
-    <link rel="apple-touch-startup-image" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)" href="/icons/icon-512x512.png" />
-    <!-- iPhone 8 / SE 2 -->
-    <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" href="/icons/icon-512x512.png" />
-    <!-- iPhone X / XS / 11 Pro -->
-    <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" href="/icons/icon-512x512.png" />
-    <!-- iPhone XR / 11 -->
-    <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)" href="/icons/icon-512x512.png" />
-    <!-- iPhone 12 / 13 / 14 -->
-    <link rel="apple-touch-startup-image" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" href="/icons/icon-512x512.png" />
-    <!-- iPhone 14 Pro / 15 -->
-    <link rel="apple-touch-startup-image" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" href="/icons/icon-512x512.png" />
-    <!-- iPhone 14 Plus / 15 Plus -->
-    <link rel="apple-touch-startup-image" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" href="/icons/icon-512x512.png" />
+  <!-- Load Google Fonts with display=swap for non-blocking rendering -->
+  <link rel="preload"
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap&family=Inter:wght@300;400;500;600;700&display=swap"
+    as="style" onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript>
+    <link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap&family=Inter:wght@300;400;500;600;700&display=swap" />
+  </noscript>
 
-    <script>
-      (function() {
-        var t = 'dark';
-        try {
-          var raw = localStorage.getItem('wiseresume-settings');
-          if (raw) { t = JSON.parse(raw).state.theme || 'dark'; }
-          else { t = localStorage.getItem('theme') || 'dark'; }
-        } catch(e) {}
-        var resolved = t === 'system'
-          ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-          : t;
-        document.documentElement.classList.add(resolved);
-      })();
-    </script>
+  <!-- PWA & Mobile -->
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="preload" href="/favicon.png" as="image" />
+  <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <!-- black-translucent lets the app render under the iOS status bar (safe-area handles insets) -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <!-- Short name displayed under the icon on the iOS home screen -->
+  <meta name="apple-mobile-web-app-title" content="Wiseresume AI" />
+  <meta name="format-detection" content="telephone=no" />
 
-    <!-- Open Graph -->
-    <meta property="og:title" content="Wiseresume AI - AI Resume Editor" />
-    <meta property="og:description" content="Land your dream job with AI-powered resume optimization" />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="/favicon.svg" />
+  <!-- iOS PWA splash screens (prevents white flash on launch from home screen) -->
+  <!-- iPhone SE / 5s -->
+  <link rel="apple-touch-startup-image"
+    media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)"
+    href="/icons/icon-512x512.png" />
+  <!-- iPhone 8 / SE 2 -->
+  <link rel="apple-touch-startup-image"
+    media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)"
+    href="/icons/icon-512x512.png" />
+  <!-- iPhone X / XS / 11 Pro -->
+  <link rel="apple-touch-startup-image"
+    media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)"
+    href="/icons/icon-512x512.png" />
+  <!-- iPhone XR / 11 -->
+  <link rel="apple-touch-startup-image"
+    media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)"
+    href="/icons/icon-512x512.png" />
+  <!-- iPhone 12 / 13 / 14 -->
+  <link rel="apple-touch-startup-image"
+    media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)"
+    href="/icons/icon-512x512.png" />
+  <!-- iPhone 14 Pro / 15 -->
+  <link rel="apple-touch-startup-image"
+    media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)"
+    href="/icons/icon-512x512.png" />
+  <!-- iPhone 14 Plus / 15 Plus -->
+  <link rel="apple-touch-startup-image"
+    media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)"
+    href="/icons/icon-512x512.png" />
 
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary" />
-    <meta name="twitter:site" content="@WiseresumeAI" />
-    <meta name="twitter:image" content="/favicon.svg" />
-  </head>
+  <script>
+    (function () {
+      var t = 'dark';
+      try {
+        var raw = localStorage.getItem('wiseresume-settings');
+        if (raw) { t = JSON.parse(raw).state.theme || 'dark'; }
+        else { t = localStorage.getItem('theme') || 'dark'; }
+      } catch (e) { }
+      var resolved = t === 'system'
+        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+        : t;
+      document.documentElement.classList.add(resolved);
+    })();
+  </script>
 
-  <body style="overflow:hidden;">
-    <div id="root">
-      <div style="position:fixed;inset:0;background:#0a0a14;display:flex;align-items:center;justify-content:center;overflow:hidden;z-index:50;">
-        <div style="display:flex;flex-direction:column;align-items:center;gap:24px;">
-          <!-- Spinner container 144px -->
-          <div style="position:relative;width:144px;height:144px;display:flex;align-items:center;justify-content:center;">
-            <!-- Outer glow -->
-            <div style="position:absolute;inset:-8px;border-radius:50%;background:rgba(220,38,38,0.15);animation:glowPulse 2.5s ease-in-out infinite;"></div>
-            <!-- Ring 1 outer -->
-            <div style="position:absolute;inset:0;border-radius:50%;border:3px solid rgba(220,38,38,0.4);border-top-color:hsl(355,90%,60%);border-right-color:rgba(220,38,38,0.6);animation:sp1 1.8s linear infinite;"></div>
-            <!-- Ring 2 middle -->
-            <div style="position:absolute;inset:16px;border-radius:50%;border:3px solid rgba(220,38,38,0.3);border-top-color:hsl(355,90%,60%);border-left-color:rgba(220,38,38,0.6);animation:sp2 2.4s linear infinite;"></div>
-            <!-- Ring 3 inner -->
-            <div style="position:absolute;inset:32px;border-radius:50%;border:3px solid rgba(220,38,38,0.3);border-bottom-color:rgba(220,38,38,0.6);border-right-color:rgba(220,38,38,0.5);animation:sp1 3s linear infinite;"></div>
-            <!-- Logo -->
-            <div style="position:relative;display:flex;align-items:center;justify-content:center;animation:glow 1.6s ease-in-out infinite;">
-              <div style="position:absolute;width:56px;height:56px;border-radius:50%;background:rgba(220,38,38,0.15);"></div>
-              <img src="/favicon.png" alt="" width="40" height="40" style="position:relative;opacity:0;transition:opacity 0.2s ease-in;filter:drop-shadow(0 0 24px rgba(220,38,38,0.7));border-radius:12px;" onload="this.style.opacity='1'" />
-            </div>
+  <!-- Open Graph -->
+  <meta property="og:title" content="Wiseresume AI - AI Resume Editor" />
+  <meta property="og:description" content="Land your dream job with AI-powered resume optimization" />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="/favicon.png" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:site" content="@WiseresumeAI" />
+  <meta name="twitter:image" content="/favicon.svg" />
+</head>
+
+<body>
+  <div id="root">
+    <div
+      style="position:fixed;inset:0;background:#0a0a14;display:flex;align-items:center;justify-content:center;overflow:hidden;z-index:50;">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:24px;">
+        <!-- Spinner container 144px -->
+        <div style="position:relative;width:144px;height:144px;display:flex;align-items:center;justify-content:center;">
+          <!-- Outer glow -->
+          <div
+            style="position:absolute;inset:-8px;border-radius:50%;background:rgba(220,38,38,0.15);animation:glowPulse 2.5s ease-in-out infinite;">
           </div>
-          <!-- Shimmer text -->
-          <span style="font-family:'Space Grotesk',system-ui,sans-serif;font-size:14px;font-weight:500;color:rgba(255,255,255,0.5);animation:shimmer 1.8s ease-in-out infinite;">Loading...</span>
+          <!-- Ring 1 outer -->
+          <div
+            style="position:absolute;inset:0;border-radius:50%;border:3px solid rgba(220,38,38,0.4);border-top-color:hsl(355,90%,60%);border-right-color:rgba(220,38,38,0.6);animation:sp1 1.8s linear infinite;">
+          </div>
+          <!-- Ring 2 middle -->
+          <div
+            style="position:absolute;inset:16px;border-radius:50%;border:3px solid rgba(220,38,38,0.3);border-top-color:hsl(355,90%,60%);border-left-color:rgba(220,38,38,0.6);animation:sp2 2.4s linear infinite;">
+          </div>
+          <!-- Ring 3 inner -->
+          <div
+            style="position:absolute;inset:32px;border-radius:50%;border:3px solid rgba(220,38,38,0.3);border-bottom-color:rgba(220,38,38,0.6);border-right-color:rgba(220,38,38,0.5);animation:sp1 3s linear infinite;">
+          </div>
+          <!-- Logo -->
+          <div
+            style="position:relative;display:flex;align-items:center;justify-content:center;animation:glow 1.6s ease-in-out infinite;">
+            <div style="position:absolute;width:56px;height:56px;border-radius:50%;background:rgba(220,38,38,0.15);">
+            </div>
+            <img src="/favicon.png" alt="" width="40" height="40"
+              style="position:relative;opacity:0;transition:opacity 0.2s ease-in;filter:drop-shadow(0 0 24px rgba(220,38,38,0.7));border-radius:12px;"
+              onload="this.style.opacity='1'" />
+          </div>
         </div>
+        <!-- Shimmer text -->
+        <span
+          style="font-family:'Space Grotesk',system-ui,sans-serif;font-size:14px;font-weight:500;color:rgba(255,255,255,0.5);animation:shimmer 1.8s ease-in-out infinite;">Loading...</span>
       </div>
-      <style>
-        @keyframes sp1{to{transform:rotate(360deg)}}
-        @keyframes sp2{to{transform:rotate(-360deg)}}
-        @keyframes glow{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
-        @keyframes glowPulse{0%,100%{transform:scale(1);opacity:.3}50%{transform:scale(1.25);opacity:.7}}
-        @keyframes shimmer{0%,100%{opacity:.4}50%{opacity:1}}
-      </style>
     </div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+    <style>
+      @keyframes sp1 {
+        to {
+          transform: rotate(360deg)
+        }
+      }
+
+      @keyframes sp2 {
+        to {
+          transform: rotate(-360deg)
+        }
+      }
+
+      @keyframes glow {
+
+        0%,
+        100% {
+          transform: scale(1)
+        }
+
+        50% {
+          transform: scale(1.12)
+        }
+      }
+
+      @keyframes glowPulse {
+
+        0%,
+        100% {
+          transform: scale(1);
+          opacity: .3
+        }
+
+        50% {
+          transform: scale(1.25);
+          opacity: .7
+        }
+      }
+
+      @keyframes shimmer {
+
+        0%,
+        100% {
+          opacity: .4
+        }
+
+        50% {
+          opacity: 1
+        }
+      }
+    </style>
+  </div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
 </html>

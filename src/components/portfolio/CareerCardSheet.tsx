@@ -50,7 +50,7 @@ interface CareerCardSheetProps {
 const VARIANTS: { id: CardVariant; label: string; emoji: string }[] = [
   { id: 'cosmic', label: 'Cosmic', emoji: '🌌' },
   { id: 'aurora', label: 'Aurora', emoji: '🌊' },
-  { id: 'clean',  label: 'Clean',  emoji: '☀️' },
+  { id: 'clean', label: 'Clean', emoji: '☀️' },
 ];
 
 function getVariantStyles(variant: CardVariant, accent: string) {
@@ -585,7 +585,7 @@ export function CareerCardSheet({
                   {/* Avatar */}
                   <div style={{ flexShrink: 0 }}>
                     {avatarUrl ? (
-                      <img src={avatarUrl} alt="" crossOrigin="anonymous" style={{ width: '100px', height: '100px', borderRadius: '50%', objectFit: 'cover', border: `3px solid ${accentColor}` }} />
+                      <img src={avatarUrl} alt="User profile photo" loading="lazy" crossOrigin="anonymous" style={{ width: '100px', height: '100px', borderRadius: '50%', objectFit: 'cover', border: `3px solid ${accentColor}` }} />
                     ) : (
                       <div style={{ width: '100px', height: '100px', borderRadius: '50%', background: `linear-gradient(135deg, ${accentColor}40, ${accentColor}20)`, border: `3px solid ${accentColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '40px', fontWeight: 800, color: accentColor }}>
                         {fullName.charAt(0).toUpperCase() || '?'}
@@ -643,11 +643,10 @@ export function CareerCardSheet({
                 <button
                   key={v.id}
                   onClick={() => { haptics.light(); handleVariantChange(v.id); }}
-                  className={`h-12 rounded-xl border text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation ${
-                    variant === v.id
+                  className={`h-12 rounded-xl border text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation ${variant === v.id
                       ? 'border-primary bg-primary/10 text-primary'
                       : 'border-border/50 bg-card/50 text-muted-foreground hover:border-border'
-                  }`}
+                    }`}
                 >
                   <span>{v.emoji}</span> {v.label}
                 </button>
