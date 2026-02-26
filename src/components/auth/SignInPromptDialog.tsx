@@ -48,7 +48,7 @@ export function SignInPromptDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-[90vw] sm:max-w-sm">
         {/* Gradient accent */}
         <div className="absolute top-0 left-0 right-0 h-1 rounded-t-lg bg-gradient-to-r from-primary via-primary/70 to-secondary" />
 

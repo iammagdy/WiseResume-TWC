@@ -69,7 +69,7 @@ export function ApplyPromptDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="max-w-sm rounded-2xl">
+      <AlertDialogContent className="max-w-[90vw] sm:max-w-sm rounded-2xl">
         <AlertDialogHeader>
           <AlertDialogTitle className="text-center">Did you apply?</AlertDialogTitle>
           <AlertDialogDescription className="text-center">
