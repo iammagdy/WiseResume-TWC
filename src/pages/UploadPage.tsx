@@ -134,12 +134,17 @@ export default function UploadPage() {
       navigate('/editor');
     } catch (error) {
       console.error('OCR extraction failed:', error);
-      toast.error(
-        error instanceof Error 
-          ? error.message 
-          : 'OCR extraction failed. The PDF may be too low quality.',
-        { duration: 5000 }
-      );
+      if (error instanceof Error && error.message === 'AI_UNREACHABLE') {
+        setErrorType('AI_UNREACHABLE');
+        setShowErrorRecovery(true);
+      } else {
+        toast.error(
+          error instanceof Error 
+            ? error.message 
+            : 'OCR extraction failed. The PDF may be too low quality.',
+          { duration: 5000 }
+        );
+      }
     } finally {
       setIsOCRProcessing(false);
       setShowOCRPrompt(false);
@@ -353,7 +358,11 @@ export default function UploadPage() {
       triggerATSScoring(resumeData);
     } catch (error) {
       console.error('Error parsing HTML:', error);
-      setErrorType('CORRUPTED');
+      if (error instanceof Error && error.message === 'AI_UNREACHABLE') {
+        setErrorType('AI_UNREACHABLE');
+      } else {
+        setErrorType('CORRUPTED');
+      }
       setShowErrorRecovery(true);
     } finally {
       setIsProcessing(false);
@@ -431,7 +440,11 @@ export default function UploadPage() {
       triggerATSScoring(resumeData);
     } catch (error) {
       console.error('Error parsing Word document:', error);
-      setErrorType('CORRUPTED');
+      if (error instanceof Error && error.message === 'AI_UNREACHABLE') {
+        setErrorType('AI_UNREACHABLE');
+      } else {
+        setErrorType('CORRUPTED');
+      }
       setShowErrorRecovery(true);
     } finally {
       setIsProcessing(false);
@@ -483,13 +496,13 @@ export default function UploadPage() {
       setShowImportReview(true);
       triggerATSScoring(resumeData);
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : 'Failed to extract text from image.',
-        { duration: 5000 }
-      );
-      setErrorType('UNKNOWN');
+      const msg = error instanceof Error ? error.message : 'Failed to extract text from image.';
+      if (msg === 'AI_UNREACHABLE') {
+        setErrorType('AI_UNREACHABLE');
+      } else {
+        toast.error(msg, { duration: 5000 });
+        setErrorType('UNKNOWN');
+      }
       setShowErrorRecovery(true);
     } finally {
       setIsProcessing(false);
@@ -609,6 +622,10 @@ export default function UploadPage() {
             setErrorType('UNKNOWN');
             setShowErrorRecovery(true);
         }
+      } else if (error instanceof Error && error.message === 'AI_UNREACHABLE') {
+        console.log('AI unreachable error, showing AI_UNREACHABLE recovery');
+        setErrorType('AI_UNREACHABLE');
+        setShowErrorRecovery(true);
       } else {
         console.log('Generic error, showing UNKNOWN recovery');
         setErrorType('UNKNOWN');

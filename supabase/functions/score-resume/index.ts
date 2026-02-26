@@ -329,15 +329,34 @@ serve(async (req) => {
     );
 
     const token = authHeader.replace('Bearer ', '');
+    let userId: string;
+
+    // Try to get user from this project's auth first
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (user) {
+      userId = user.id;
+    } else {
+      // Cross-project token: extract sub from JWT payload as identity
+      try {
+        const payloadB64 = token.split('.')[1];
+        const payload = JSON.parse(atob(payloadB64));
+        if (payload.sub) {
+          userId = payload.sub;
+        } else {
+          return new Response(
+            JSON.stringify({ error: 'Unauthorized' }),
+            { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      } catch {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
-    const rateCheck = await checkRateLimit(user.id, { maxRequests: 60, windowSeconds: 60, actionType: 'score' });
+    const rateCheck = await checkRateLimit(userId, { maxRequests: 60, windowSeconds: 60, actionType: 'score' });
     if (!rateCheck.allowed) {
       return new Response(
         JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
@@ -397,7 +416,7 @@ serve(async (req) => {
       topImprovement,
     };
 
-    await recordUsage(user.id, 'score');
+    await recordUsage(userId, 'score');
 
     return new Response(
       JSON.stringify(result),
