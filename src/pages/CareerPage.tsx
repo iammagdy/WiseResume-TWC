@@ -13,7 +13,7 @@ import { SkillGapAnalyzer } from '@/components/career/SkillGapAnalyzer';
 import { useCareerAssessment, useCareerMutations } from '@/hooks/useCareerAssessment';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { useAIAction } from '@/hooks/useAIAction';
 import { checkAIRateLimit } from '@/lib/rateLimiter';
 import { CareerPathResult } from '@/lib/careerPath';
@@ -52,7 +52,7 @@ export default function CareerPage() {
       const resumeData = dbToResumeData(primaryResume);
 
       const result = await executeAI(async () => {
-        const { data, error } = await supabase.functions.invoke('career-assessment', {
+        const { data, error } = await edgeFunctions.functions.invoke('career-assessment', {
           body: { resume: resumeData, quizAnswers: answers },
         });
 

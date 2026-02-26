@@ -1,6 +1,6 @@
 import { useMemo, useCallback, useRef, useState } from 'react';
 import { ResumeData, SectionId } from '@/types/resume';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { showErrorToast } from '@/lib/errorToast';
 import { hasPassiveVerbs, hasMetrics, hasLongBullets, findPassiveStarter } from '@/lib/contentAnalysis';
 import { useAICreditsMutations } from './useAICredits';
@@ -251,7 +251,7 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
     setAnalyzingSections(prev => new Set(prev).add(section));
     try {
       const currentContent = getSectionContent(resume, section);
-      const { data, error } = await supabase.functions.invoke('enhance-section', {
+      const { data, error } = await edgeFunctions.functions.invoke('enhance-section', {
         body: {
           section,
           action: 'ats_optimize',

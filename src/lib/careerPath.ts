@@ -1,6 +1,6 @@
 import { ResumeData } from '@/types/resume';
 import { checkAIRateLimit } from './rateLimiter';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { trackGeminiUsage } from './aiProvider';
 import { extractErrorMessage } from './errorToast';
 
@@ -53,7 +53,7 @@ export async function analyzeCareerPath(
     throw new Error(`Too many requests. Please wait ${rateCheck.waitSeconds}s.`);
   }
 
-  const { data, error } = await supabase.functions.invoke('career-path-advisor', {
+  const { data, error } = await edgeFunctions.functions.invoke('career-path-advisor', {
     body: { resume },
   });
 

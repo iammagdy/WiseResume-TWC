@@ -1,6 +1,6 @@
 import { ResumeData } from '@/types/resume';
 import { checkAIRateLimit } from './rateLimiter';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { trackGeminiUsage } from './aiProvider';
 import { extractErrorMessage } from './errorToast';
 export interface ChatMessage {
@@ -71,7 +71,7 @@ export async function sendChatMessage(
     content: m.content,
   }));
 
-  const { data, error } = await supabase.functions.invoke('agentic-chat', {
+  const { data, error } = await edgeFunctions.functions.invoke('agentic-chat', {
     body: {
       message,
       conversationHistory: historyForApi,

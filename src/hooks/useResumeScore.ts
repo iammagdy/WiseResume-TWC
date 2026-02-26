@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { ResumeData } from '@/types/resume';
 import { toast } from 'sonner';
 import { useAIHealthStore } from '@/store/aiHealthStore';
@@ -58,7 +59,7 @@ async function invokeScoreResume(resume: ResumeData): Promise<{ data: any; laten
   let lastError: any;
 
   try {
-    const result = await supabase.functions.invoke('score-resume', {
+    const result = await edgeFunctions.functions.invoke('score-resume', {
       body: { resume: normalized },
     });
 

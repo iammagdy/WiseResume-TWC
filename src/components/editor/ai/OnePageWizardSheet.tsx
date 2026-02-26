@@ -22,7 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { useAIAction } from '@/hooks/useAIAction';
@@ -86,7 +86,7 @@ export function OnePageWizardSheet({ open, onOpenChange, onExportOnePage }: OneP
 
     try {
       const data = await executeAI(async () => {
-        const { data, error } = await supabase.functions.invoke('one-page-optimizer', {
+        const { data, error } = await edgeFunctions.functions.invoke('one-page-optimizer', {
           body: {
             resume: currentResume,
             preserveRecent: 2,

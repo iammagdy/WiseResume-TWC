@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Plus, ArrowUpDown, Hash } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { useAIAction } from '@/hooks/useAIAction';
 import { showErrorToast } from '@/lib/errorToast';
 import { toast } from 'sonner';
@@ -65,7 +65,7 @@ Return JSON: { "recommendedOrder": ["section1", "section2", ...], "reasoning": "
       }
 
       const result = await executeAI(async () => {
-        const { data, error } = await supabase.functions.invoke('enhance-section', {
+        const { data, error } = await edgeFunctions.functions.invoke('enhance-section', {
           body: {
             section: 'custom',
             content: instruction,

@@ -23,7 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { toast } from 'sonner';
 import {
   RecruiterPersonaInfo,
@@ -65,7 +65,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
 
     try {
       const result = await executeAI(async () => {
-        const { data, error } = await supabase.functions.invoke('recruiter-simulation', {
+        const { data, error } = await edgeFunctions.functions.invoke('recruiter-simulation', {
           body: {
             resume: currentResume,
             persona: persona.id,
@@ -114,7 +114,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
 
       // 2. Call AI to apply the fix (with credit check)
       const result = await executeAI(async () => {
-        const { data, error } = await supabase.functions.invoke('enhance-section', {
+        const { data, error } = await edgeFunctions.functions.invoke('enhance-section', {
           body: {
             section: target.section,
             action: 'fix_error',

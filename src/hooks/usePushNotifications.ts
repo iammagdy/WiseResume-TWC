@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { useAuth } from '@/hooks/useAuth';
 
 // Extend ServiceWorkerRegistration to include PushManager (not in all TS libs)
@@ -137,7 +138,7 @@ export function usePushNotifications() {
     if (!user) throw new Error('User not authenticated');
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('send-push-notification', {
+      const { data, error } = await edgeFunctions.functions.invoke('send-push-notification', {
         body: {
           user_id: user.id,
           title: 'WiseResume Test 🎉',

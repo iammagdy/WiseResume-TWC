@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 
 interface UseElevenLabsScribeOptions {
   onPartialTranscript?: (text: string) => void;
@@ -61,7 +61,7 @@ export function useElevenLabsScribe(options: UseElevenLabsScribeOptions = {}) {
     try {
       if (DEV) console.log('[ElevenLabs] Fetching scribe token...');
       // No customApiKey in body — server looks up user's key from encrypted DB store
-      const { data, error } = await supabase.functions.invoke('elevenlabs-scribe-token', {
+      const { data, error } = await edgeFunctions.functions.invoke('elevenlabs-scribe-token', {
         body: {},
       });
 

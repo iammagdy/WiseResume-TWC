@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Key, Trash2 } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { logAudit } from '@/lib/auditLogger';
 
 interface ElevenLabsKeySheetProps {
@@ -38,7 +38,7 @@ export const ElevenLabsKeySheet = forwardRef<HTMLDivElement, ElevenLabsKeySheetP
 
     setIsSaving(true);
     try {
-      const { error } = await supabase.functions.invoke('manage-api-keys', {
+      const { error } = await edgeFunctions.functions.invoke('manage-api-keys', {
         body: { action: 'save', provider: 'elevenlabs', apiKey: trimmed, keyTier: 'unknown' },
       });
 
@@ -59,7 +59,7 @@ export const ElevenLabsKeySheet = forwardRef<HTMLDivElement, ElevenLabsKeySheetP
   const handleClear = async () => {
     setIsClearing(true);
     try {
-      const { error } = await supabase.functions.invoke('manage-api-keys', {
+      const { error } = await edgeFunctions.functions.invoke('manage-api-keys', {
         body: { action: 'delete', provider: 'elevenlabs' },
       });
 
