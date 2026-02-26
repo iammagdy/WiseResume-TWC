@@ -1016,6 +1016,30 @@ export type Database = {
         }
         Relationships: []
       }
+      store_screenshots: {
+        Row: {
+          created_at: string
+          headline: string
+          id: string
+          image_url: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          headline: string
+          id?: string
+          image_url: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          headline?: string
+          id?: string
+          image_url?: string
+          name?: string
+        }
+        Relationships: []
+      }
       tailor_history: {
         Row: {
           applied_sections: Json | null

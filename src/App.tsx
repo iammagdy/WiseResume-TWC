@@ -95,6 +95,7 @@ const SubscriptionPage = lazyWithRetry(() => import("./pages/SubscriptionPage"))
 const ReferralPage = lazyWithRetry(() => import("./pages/ReferralPage"));
 const AchievementsPage = lazyWithRetry(() => import("./pages/AchievementsPage"));
 const StoreScreenshotsPage = lazyWithRetry(() => import("./pages/StoreScreenshotsPage"));
+const ScreenshotsGalleryPage = lazyWithRetry(() => import("./pages/ScreenshotsGalleryPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -243,6 +244,7 @@ const queryClient = new QueryClient({
         <Route path="/p/:username" element={<Suspense fallback={<DetailSkeleton />}><PublicPortfolioPage /></Suspense>} />
         <Route path="/l/:linkId" element={<Suspense fallback={<DetailSkeleton />}><ShortLinkPage /></Suspense>} />
         <Route path="/store-screenshots" element={<Suspense fallback={<PageLoadingSpinner />}><StoreScreenshotsPage /></Suspense>} />
+        <Route path="/screenshots-gallery" element={<Suspense fallback={<PageLoadingSpinner />}><ScreenshotsGalleryPage /></Suspense>} />
         
         <Route path="*" element={<Suspense fallback={<DetailSkeleton />}><NotFound /></Suspense>} />
       </Routes>
