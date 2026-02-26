@@ -75,9 +75,9 @@ Deno.serve(async (req) => {
     }
 
     if (!resolvedUserId) {
-      // Allow anonymous bug reports
-      resolvedUserId = `anonymous-${crypto.randomUUID().slice(0, 8)}`;
-      console.log('Creating anonymous bug report:', resolvedUserId);
+      // Allow anonymous bug reports with a valid UUID
+      resolvedUserId = crypto.randomUUID();
+      console.log('Creating anonymous bug report with generated UUID:', resolvedUserId);
     }
 
     const { error: dbError } = await supabaseAdmin
