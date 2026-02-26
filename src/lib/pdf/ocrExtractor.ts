@@ -3,10 +3,12 @@
  * 
  * Uses Tesseract.js to perform OCR on PDF pages rendered to canvas.
  * This is used as a fallback when standard text extraction fails (scanned/image PDFs).
+ * Enhanced with image preprocessing and adaptive DPI retry for low-confidence pages.
  */
 
 import * as pdfjsLib from 'pdfjs-dist';
 import { createWorker, Worker } from 'tesseract.js';
+import { preprocessResumeText } from './textPreprocessor';
 
 export interface OCRProgress {
   page: number;
@@ -16,9 +18,43 @@ export interface OCRProgress {
 
 export type OCRProgressCallback = (progress: OCRProgress) => void;
 
+/** Minimum confidence threshold for a page (0-100). Below this, retry at higher DPI. */
+const MIN_PAGE_CONFIDENCE = 30;
+
+/**
+ * Preprocess an image on canvas for better OCR:
+ * Convert to grayscale and increase contrast.
+ */
+function preprocessImageForOCR(canvas: HTMLCanvasElement): void {
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return;
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+
+  for (let i = 0; i < data.length; i += 4) {
+    // Convert to grayscale using luminance formula
+    const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    
+    // Apply contrast enhancement (stretch histogram)
+    const contrast = 1.5; // 1.5x contrast boost
+    const adjusted = Math.min(255, Math.max(0, ((gray - 128) * contrast) + 128));
+    
+    // Apply adaptive thresholding for very dark/light pixels
+    const final = adjusted < 80 ? 0 : adjusted > 200 ? 255 : adjusted;
+    
+    data[i] = final;
+    data[i + 1] = final;
+    data[i + 2] = final;
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+}
+
 /**
  * Extract text from a PDF using OCR.
  * Renders each page to canvas and runs Tesseract OCR on the image.
+ * Enhanced with image preprocessing and adaptive DPI retry.
  * 
  * @param file - The PDF file to process
  * @param onProgress - Optional callback for progress updates
@@ -57,8 +93,24 @@ export async function extractTextWithOCR(
         status: `Processing page ${pageNum} of ${numPages}...` 
       });
       
-      const pageText = await extractPageWithOCR(pdf, pageNum, worker);
-      pageTexts.push(pageText);
+      // First attempt at standard scale (2x)
+      const { text, confidence } = await extractPageWithOCR(pdf, pageNum, worker, 2);
+      
+      // If confidence is very low, retry at higher DPI (3x)
+      if (confidence < MIN_PAGE_CONFIDENCE && numPages <= 5) {
+        onProgress?.({
+          page: pageNum,
+          total: numPages,
+          status: `Re-processing page ${pageNum} at higher quality...`,
+        });
+        const retry = await extractPageWithOCR(pdf, pageNum, worker, 3);
+        if (retry.confidence > confidence) {
+          pageTexts.push(retry.text);
+          continue;
+        }
+      }
+      
+      pageTexts.push(text);
     }
   } finally {
     // Always terminate worker to free memory
@@ -68,7 +120,6 @@ export async function extractTextWithOCR(
   const fullText = pageTexts.join('\n\n');
   
   // Check if OCR produced meaningful content
-  // Require at least 100 chars AND 5 words to reject garbage OCR output
   const cleanedText = fullText.replace(/\s+/g, ' ').trim();
   const wordCount = cleanedText.split(/\s+/).filter(Boolean).length;
   if (cleanedText.length < 100 || wordCount < 5) {
@@ -77,7 +128,8 @@ export async function extractTextWithOCR(
     );
   }
   
-  return fullText;
+  // Apply text preprocessing to clean OCR artifacts
+  return preprocessResumeText(fullText, pageTexts);
 }
 
 /**
@@ -86,12 +138,11 @@ export async function extractTextWithOCR(
 async function extractPageWithOCR(
   pdf: pdfjsLib.PDFDocumentProxy,
   pageNum: number,
-  worker: Worker
-): Promise<string> {
+  worker: Worker,
+  scale = 2
+): Promise<{ text: string; confidence: number }> {
   const page = await pdf.getPage(pageNum);
   
-  // Render at 2x scale for better OCR accuracy
-  const scale = 2;
   const viewport = page.getViewport({ scale });
   
   // Create canvas for rendering (cap at 2048px for iOS WebKit compatibility)
@@ -125,17 +176,20 @@ async function extractPageWithOCR(
     viewport: renderViewport,
   }).promise;
   
+  // Apply image preprocessing for better OCR accuracy
+  preprocessImageForOCR(canvas);
+  
   // Convert canvas to image data for Tesseract
   const imageData = canvas.toDataURL('image/png');
   
   // Run OCR on the rendered image
-  const { data: { text } } = await worker.recognize(imageData);
+  const { data: { text, confidence: ocrConfidence } } = await worker.recognize(imageData);
   
   // Clean up canvas to free memory
   canvas.width = 0;
   canvas.height = 0;
   
-  return text.trim();
+  return { text: text.trim(), confidence: ocrConfidence };
 }
 
 /**

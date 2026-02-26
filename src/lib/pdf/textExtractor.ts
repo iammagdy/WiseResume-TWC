@@ -57,6 +57,9 @@ export interface ExtractionResult {
   method: 'text';
   pageCount: number;
   needsOCR: boolean; // True if text extraction found nothing usable
+  confidence: number; // 0-1 quality score
+  qualityIssues: string[]; // e.g. ["low word count", "possible multi-column"]
+  pageTexts?: string[]; // Per-page text for header/footer removal
 }
 
 /**
@@ -118,7 +121,24 @@ export async function extractTextFromPDF(file: File): Promise<ExtractionResult> 
   if (import.meta.env.DEV) console.log('PDF extraction preview:', cleanedText.substring(0, 200), `(${wordCount} words, ${cleanedText.length} chars)`);
 
   if (cleanedText.length === 0 || !hasLetters || wordCount < 10) {
-    // Instead of throwing, return needsOCR flag so UI can offer OCR
+    // Try raw EOL-based extraction as hybrid fallback before triggering OCR
+    const rawText = await extractRawText(pageTexts, pdf, debugPages);
+    if (rawText) {
+      const { computeTextConfidence } = await import('./textPreprocessor');
+      const { confidence, issues } = computeTextConfidence(rawText.text);
+      if (confidence >= 0.3) {
+        return {
+          text: rawText.text,
+          method: 'text',
+          pageCount,
+          needsOCR: false,
+          confidence,
+          qualityIssues: issues,
+          pageTexts: rawText.pageTexts,
+        };
+      }
+    }
+
     console.warn('PDF extraction produced too little text - OCR may be needed', {
       pages: pageCount,
       cleanedChars: cleanedText.length,
@@ -130,15 +150,84 @@ export async function extractTextFromPDF(file: File): Promise<ExtractionResult> 
       method: 'text',
       pageCount,
       needsOCR: true,
+      confidence: 0,
+      qualityIssues: ['no extractable text'],
     };
+  }
+
+  // Compute confidence for the extracted text
+  const { computeTextConfidence } = await import('./textPreprocessor');
+  const { confidence, issues } = computeTextConfidence(fullText);
+
+  // If layout-aware extraction has low confidence, try hybrid
+  if (confidence < 0.5) {
+    const rawText = await extractRawText(pageTexts, pdf, debugPages);
+    if (rawText) {
+      const rawQuality = computeTextConfidence(rawText.text);
+      if (rawQuality.confidence > confidence) {
+        return {
+          text: rawText.text,
+          method: 'text',
+          pageCount,
+          needsOCR: false,
+          confidence: rawQuality.confidence,
+          qualityIssues: rawQuality.issues,
+          pageTexts: rawText.pageTexts,
+        };
+      }
+    }
   }
 
   return {
     text: fullText,
     method: 'text',
     pageCount,
-    needsOCR: false,
+    needsOCR: confidence < 0.2,
+    confidence,
+    qualityIssues: issues,
+    pageTexts,
   };
+}
+
+/**
+ * Fallback raw text extraction using hasEOL-based joins.
+ * Used when layout-aware extraction fails or scores low.
+ */
+async function extractRawText(
+  _existingPageTexts: string[],
+  pdf: pdfjsLib.PDFDocumentProxy,
+  _debugPages: Array<{ page: number; rawItems: number; extractedChars: number }>
+): Promise<{ text: string; pageTexts: string[] } | null> {
+  try {
+    const rawPageTexts: string[] = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent({ includeMarkedContent: false } as any);
+      const items = (textContent as any).items as any[];
+      
+      const parts: string[] = [];
+      for (const item of items) {
+        if (typeof item?.str === 'string') {
+          const t = item.str;
+          if (t.trim()) parts.push(t);
+          if (item.hasEOL) parts.push('\n');
+        }
+      }
+      const pageText = parts.join(' ')
+        .replace(/ *\n */g, '\n')
+        .replace(/[\t\r\f\v ]+/g, ' ')
+        .trim();
+      rawPageTexts.push(pageText);
+    }
+    
+    const fullText = rawPageTexts.join('\n\n');
+    const wordCount = fullText.replace(/\s+/g, ' ').trim().split(/\s+/).filter(w => w.length > 1).length;
+    
+    if (wordCount < 10) return null;
+    return { text: fullText, pageTexts: rawPageTexts };
+  } catch {
+    return null;
+  }
 }
 
 /**
