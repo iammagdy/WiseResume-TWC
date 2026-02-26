@@ -419,7 +419,14 @@ serve(async (req) => {
       topImprovement,
     };
 
-    await recordUsage(userId, 'score');
+    // Only record usage for local users (cross-project users don't exist in auth.users)
+    if (!userId.startsWith('ext:')) {
+      try {
+        await recordUsage(userId, 'score');
+      } catch (usageErr) {
+        console.warn('recordUsage skipped (cross-project user):', usageErr);
+      }
+    }
 
     return new Response(
       JSON.stringify(result),

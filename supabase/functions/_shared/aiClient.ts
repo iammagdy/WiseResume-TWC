@@ -162,25 +162,34 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
     geminiKey = Deno.env.get('GEMINI_API_KEY');
   }
 
-  // Final fallback: Emergent Universal Key
+  // Lovable AI Gateway (preferred fallback)
+  const lovableKey = Deno.env.get('LOVABLE_API_KEY');
+  // Emergent Universal Key (legacy fallback)
   const emergentKey = Deno.env.get('EMERGENT_LLM_KEY');
   
-  if (!geminiKey && !emergentKey) {
-    console.error('[AI] No API key available (no user key, no GEMINI_API_KEY, no EMERGENT_LLM_KEY env var)');
-    throw createAIError('invalid_key', 'No AI API key configured. Please add your API key in Settings or configure EMERGENT_LLM_KEY in Supabase Secrets.', 500);
+  if (!geminiKey && !lovableKey && !emergentKey) {
+    console.error('[AI] No API key available (no user key, no GEMINI_API_KEY, no LOVABLE_API_KEY, no EMERGENT_LLM_KEY)');
+    throw createAIError('invalid_key', 'No AI API key configured. Please add your API key in Settings.', 500);
   }
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
-    // Use Emergent Universal API if no Gemini key available
-    if (!geminiKey && emergentKey) {
-      console.log('[AI] Using Emergent Universal Key for model:', model);
-      return await callEmergentUniversal(emergentKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+    // Priority 1: User's own Gemini key or global GEMINI_API_KEY
+    if (geminiKey) {
+      return await callGeminiDirect(geminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
     }
-    
-    return await callGeminiDirect(geminiKey!, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+
+    // Priority 2: Lovable AI Gateway
+    if (lovableKey) {
+      console.log('[AI] Using Lovable AI Gateway for model:', model);
+      return await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+    }
+
+    // Priority 3: Emergent Universal API (legacy)
+    console.log('[AI] Using Emergent Universal Key for model:', model);
+    return await callEmergentUniversal(emergentKey!, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       throw createAIError('network', `AI request timed out after ${Math.round(timeout / 1000)} seconds. Please try again.`, 408);
@@ -311,6 +320,60 @@ async function callGeminiDirect(
 
   if (!response.ok) {
     handleGeminiError(response.status, await response.text());
+  }
+
+  const data = await response.json();
+  return parseOpenAIResponse(data);
+}
+
+/**
+ * Calls Lovable AI Gateway
+ * Uses OpenAI-compatible endpoint at ai.gateway.lovable.dev
+ */
+async function callLovableGateway(
+  apiKey: string,
+  model: string,
+  messages: AIMessage[],
+  temperature: number,
+  maxTokens?: number,
+  tools?: AITool[],
+  toolChoice?: { type: 'function'; function: { name: string } } | 'auto',
+  signal?: AbortSignal
+): Promise<AIResponse> {
+  const body: Record<string, unknown> = { model, messages, temperature };
+  if (maxTokens) body.max_tokens = maxTokens;
+  if (tools && tools.length > 0) {
+    body.tools = tools;
+    if (toolChoice) body.tool_choice = toolChoice;
+  }
+
+  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+    signal,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Lovable AI Gateway error:', response.status, errorText);
+    
+    let errorMessage = 'AI request failed';
+    try {
+      const parsed = JSON.parse(errorText);
+      errorMessage = parsed.error?.message || parsed.error || errorMessage;
+    } catch {}
+
+    if (response.status === 401 || response.status === 403) {
+      throw createAIError('invalid_key', 'Invalid Lovable AI key.', 401);
+    }
+    if (response.status === 429) {
+      throw createAIError('rate_limit', 'Too many requests. Please wait a moment.', 429);
+    }
+    throw createAIError('unknown', errorMessage, response.status);
   }
 
   const data = await response.json();
