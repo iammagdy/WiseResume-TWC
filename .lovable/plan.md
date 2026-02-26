@@ -1,72 +1,129 @@
 
-Goal: stop the recurring “Sync Conflict Detected” loop that blocks editing, while keeping real multi-device conflict protection intact.
 
-What is actually causing your loop
-1) False conflict race in the editor:
-- The editor compares server `updated_at` vs a local baseline (`localLoadedAtRef`).
-- After a successful save, that baseline is set from stale query data (not the mutation response timestamp).
-- When query refetch returns your own newer save while you’re still typing, it looks like “another device changed it” and opens the conflict dialog.
+# Fix CV Parsing: Contact Info & Skills Extraction
 
-2) Conflict action mismatch:
-- Editor-created conflicts are set directly with `setConflict(...)`.
-- Dialog actions (`forceSync` / `discardLocal`) are built around pending queue entries.
-- In some editor conflict cases, “Overwrite with My Changes” can become effectively a no-op, so the issue reappears.
+## Problem
+The AI parser sometimes places skills (e.g. "Python") into the location field, misses emails/phones, and confuses field types. Root causes:
+1. The system prompt lacks explicit field-type guidance and negative examples
+2. The tool schema marks `email`, `phone`, `location` as **required**, forcing the AI to hallucinate values when not found
+3. No post-processing validation catches misclassified fields (e.g. a skill placed in location)
+4. The `fixConcatenatedWords` preprocessor can break email addresses (e.g. inserting spaces into `john@Company.com`)
 
-Implementation plan
+---
 
-1) Fix timestamp baseline race in `src/pages/EditorPage.tsx`
-- In `saveToCloud`, capture the return value from `updateResume.mutateAsync(...)`.
-- Set `localLoadedAtRef.current` from the mutation result’s `updated_at` (authoritative server value), not from possibly stale `resumeFromDb`.
-- Keep `lastSavedResumeRef.current` update as-is.
-- Use normalized numeric timestamp comparison (`Date.parse`) in conflict checks for consistency.
+## Changes
 
-2) Track real local edit time (not “now at dialog open”) in `src/pages/EditorPage.tsx`
-- Add `lastLocalEditAtRef` updated whenever resume content changes (post-initial hydration).
-- Use that timestamp when constructing conflict payloads instead of raw `Date.now()` at detection time.
-- This prevents misleading “local change is newer than server” wording artifacts and improves decision clarity.
+### 1. Enhance AI System Prompt (Edge Function)
+**File: `supabase/functions/parse-resume/index.ts`** -- Update `systemPrompt` (line 130)
 
-3) Unify editor conflicts with conflict resolution path
-- Update editor conflict branches (both hydration stale check + pre-save guard) to provide a resolvable local snapshot path:
-  - Either enqueue pending change before setting conflict, or
-  - Make `useOfflineSync.forceSync` fallback to `conflictingChange.change` when queue lookup misses.
-- Preferred minimal-risk path: add fallback in `useOfflineSync.ts` so dialog actions always work, even if queue entry is absent.
+Add explicit field-type instructions and negative examples:
 
-4) Add loop guard for identical conflict in `src/pages/EditorPage.tsx`
-- Prevent reopening the exact same conflict repeatedly (`resumeId + serverUpdatedAt` key) unless local content changes again.
-- This preserves protection for genuine new conflicts but stops modal spam.
+```text
+=== CONTACT INFO RULES ===
+- email: MUST contain "@" and a domain. If no email found, return "".
+- phone: MUST be digits with optional separators (+, -, spaces, parens). If no phone found, return "".
+- location: MUST be a geographic place (city, state, country). NEVER put skills, technologies, or programming languages here. If no location found, return "".
+  - VALID: "New York, NY", "London, UK", "Cairo, Egypt", "Remote"
+  - INVALID: "Python", "JavaScript", "React" -- these are SKILLS, not locations.
 
-5) Improve dialog recovery behavior in `src/components/editor/SyncConflictDialog.tsx`
-- Keep current two primary actions, but ensure both always resolve state:
-  - “Keep Server Version” should clear local conflicting draft state and refresh from server.
-  - “Overwrite with My Changes” should always execute a concrete write path (not just clear modal).
-- Keep mobile-first usability (xs): stacked actions remain tappable and non-overlapping.
+=== SKILLS RULES ===
+- Programming languages (Python, JavaScript, Java, C++, etc.) are ALWAYS skills.
+- Frameworks and tools (React, Django, Docker, AWS, etc.) are ALWAYS skills.
+- NEVER place technology names in contactInfo.location or contactInfo.fullName.
+```
 
-Files to update
-- `src/pages/EditorPage.tsx` (main race + conflict creation logic)
-- `src/hooks/useOfflineSync.ts` (reliable overwrite/discard conflict resolution fallback)
-- `src/store/offlineSyncStore.ts` (only if optional metadata needed for conflict dedupe/source typing)
-- `src/components/editor/SyncConflictDialog.tsx` (small behavior/wording hardening)
+### 2. Relax Schema Required Fields (Edge Function)
+**File: `supabase/functions/parse-resume/index.ts`** -- Update `parseResumeTool` schema (line 27)
 
-No backend/database changes required
-- This is a client-side state/timing/conflict-resolution fix only.
-- No schema migrations, auth changes, or backend function changes needed.
+Change contactInfo required from:
+```
+required: ["fullName", "email", "phone", "location"]
+```
+To:
+```
+required: ["fullName"]
+```
 
-Validation plan
-1) Reproduce prior failure path:
-- Open editor, type continuously for >1 autosave cycle (3s debounce), keep typing while save/refetch happens.
-- Expected: no false conflict modal.
+Add `description` hints to each field in the schema properties:
+- `email`: `"Email address containing @ symbol, or empty string if not found"`
+- `phone`: `"Phone number with digits, or empty string if not found"`  
+- `location`: `"Geographic location (city/state/country), NOT skills or technologies. Empty string if not found"`
 
-2) Real conflict scenario:
-- Simulate server-side newer update while local has unsaved edits.
-- Expected: one conflict modal appears once, actions actually resolve.
+### 3. Add Post-Processing Validation (Edge Function)
+**File: `supabase/functions/parse-resume/index.ts`** -- Add after line 406 (after pass 2 merge), before the name validation block
 
-3) Action correctness:
-- “Keep Server Version” loads server state.
-- “Overwrite with My Changes” writes local snapshot and clears conflict.
+Add a `validateAndFixFields` function that:
+- **Location check**: If `location` matches a known skill/technology pattern (Python, JavaScript, React, Java, C++, Node, AWS, Docker, etc.), move it to the `skills` array and clear location
+- **Email check**: If `email` doesn't contain `@`, clear it
+- **Phone check**: If `phone` digits are fewer than 7, clear it
+- **Skills dedup**: After moving misclassified fields, deduplicate the skills array
 
-4) Mobile-first check (xs 375):
-- Verify dialog layout, button tap targets, and no blocked UI loop.
+```text
+Common skill keywords to check against location:
+/^(python|javascript|typescript|java|c\+\+|c#|ruby|go|rust|swift|kotlin|php|r|scala|perl|html|css|sql|react|angular|vue|node|django|flask|spring|express|docker|kubernetes|aws|azure|gcp|git|linux|mongodb|postgresql|mysql|redis|terraform|jenkins|graphql|rest|api|agile|scrum|jira|figma|tableau|power\s*bi|excel|machine\s*learning|ai|ml|data\s*science|deep\s*learning|nlp|tensorflow|pytorch)$/i
+```
 
-5) Regression sweep:
-- Offline queue sync still works when reconnecting.
-- Offline indicator still reflects pending/syncing states correctly.
+### 4. Protect Contact Info in Text Preprocessor (Client-side)
+**File: `src/lib/pdf/textPreprocessor.ts`** -- Update `fixConcatenatedWords` (line 12)
+
+The current regex `([a-z])([A-Z])` will break email addresses like `john@BigCompany.com` into `john@Big Company.com`. 
+
+Add email/URL protection:
+- Before applying the PascalCase fix, extract and replace emails/URLs with placeholders
+- Apply the fix
+- Restore the placeholders
+
+```text
+function fixConcatenatedWords(text: string): string {
+  // Protect emails and URLs from being split
+  const protected: { placeholder: string; original: string }[] = [];
+  let safeText = text.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, (match) => {
+    const ph = `__EMAIL_${protected.length}__`;
+    protected.push({ placeholder: ph, original: match });
+    return ph;
+  }).replace(/https?:\/\/\S+/g, (match) => {
+    const ph = `__URL_${protected.length}__`;
+    protected.push({ placeholder: ph, original: match });
+    return ph;
+  });
+  
+  // Apply PascalCase splitting
+  safeText = safeText.replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]{2,})([A-Z][a-z])/g, '$1 $2');
+  
+  // Restore protected tokens
+  for (const { placeholder, original } of protected) {
+    safeText = safeText.replace(placeholder, original);
+  }
+  return safeText;
+}
+```
+
+### 5. Add Contact Info Hint Extraction (Client-side)
+**File: `src/lib/pdf/textPreprocessor.ts`** -- Add new exported function
+
+Add a `extractContactHints` function that scans the first 15 lines of text for emails, phones, and locations using regex. These hints are appended to the text sent to the AI as a structured block:
+
+```text
+--- CONTACT INFO HINTS (extracted by regex) ---
+Potential emails: john@example.com
+Potential phones: +1-555-123-4567
+```
+
+**File: `src/lib/pdfParser.ts`** -- Update `parseResumePDF` to call `extractContactHints` and append hints to the cleaned text before sending to AI.
+
+This gives the AI a strong signal about contact info even if the text layout is confusing.
+
+---
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `supabase/functions/parse-resume/index.ts` | Enhanced prompt, relaxed schema, post-processing validation |
+| `src/lib/pdf/textPreprocessor.ts` | Email/URL protection in word splitting, contact hint extraction |
+| `src/lib/pdfParser.ts` | Append contact hints before AI call |
+
+## No Database or Backend Infrastructure Changes
+All changes are code-only: prompt engineering, schema tweaks, regex validation, and client-side preprocessing.
+
