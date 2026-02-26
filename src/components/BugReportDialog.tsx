@@ -14,7 +14,23 @@ import {
 } from '@/lib/bugReport';
 import { activityTracker } from '@/lib/activityTracker';
 
-const SESSION_CACHE_KEY = 'sb-auth-session-cache';
+async function getAuthFromSession() {
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+
+    const session = data.session;
+    return {
+      userId: session?.user?.id as string | undefined,
+      userEmail: session?.user?.email as string | undefined,
+      sessionId: session?.access_token
+        ? (session.access_token as string).slice(-8)
+        : undefined,
+    };
+  } catch {
+    return { userId: undefined, userEmail: undefined, sessionId: undefined };
+  }
+}
 
 let cachedAppVersion: string | null = null;
 async function getAppVersion(): Promise<string> {
@@ -28,23 +44,6 @@ async function getAppVersion(): Promise<string> {
     cachedAppVersion = 'unknown';
   }
   return cachedAppVersion;
-}
-
-function getAuthFromCache() {
-  try {
-    const cached = localStorage.getItem(SESSION_CACHE_KEY);
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      return {
-        userId: parsed.user?.id as string | undefined,
-        userEmail: parsed.user?.email as string | undefined,
-        sessionId: parsed.session?.access_token
-          ? (parsed.session.access_token as string).slice(-8)
-          : undefined,
-      };
-    }
-  } catch { /* ignore */ }
-  return { userId: undefined, userEmail: undefined, sessionId: undefined };
 }
 
 // ── Detected Context Card ──────────────────────────────────────────────────
@@ -143,7 +142,7 @@ export function BugReportDialog() {
     if (!data) return;
     setStatus('sending');
 
-    const auth = getAuthFromCache();
+    const auth = await getAuthFromSession();
     const appVersion = await getAppVersion();
 
     const effectiveMessage = reportMode === 'detected' && recentError
