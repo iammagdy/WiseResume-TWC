@@ -23,6 +23,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSettingsStore, AIProvider, GeminiKeyTier } from '@/store/settingsStore';
 import { resetFallbackToast } from '@/lib/aiFallbackToast';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -81,7 +82,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
 
       try {
         // Validate server-side via edge function (key never exposed in browser network)
-        const { data: validationResult, error: validationError } = await supabase.functions.invoke('validate-api-key', {
+        const { data: validationResult, error: validationError } = await edgeFunctions.functions.invoke('validate-api-key', {
           body: { apiKey: keyInput.trim(), provider: 'gemini' },
         });
 
@@ -95,7 +96,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
 
         if (validationResult?.isValid) {
           // Save key server-side via manage-api-keys edge function
-          const { error: saveError } = await supabase.functions.invoke('manage-api-keys', {
+          const { error: saveError } = await edgeFunctions.functions.invoke('manage-api-keys', {
             body: { action: 'save', provider: 'gemini', apiKey: keyInput.trim(), tier: validationResult.tier },
           });
 
@@ -131,7 +132,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       haptics.light();
       // Delete key server-side
       try {
-        await supabase.functions.invoke('manage-api-keys', {
+        await edgeFunctions.functions.invoke('manage-api-keys', {
           body: { action: 'delete', provider: 'gemini' },
         });
         logAudit('api_key', 'key_deleted', { provider: 'gemini' });

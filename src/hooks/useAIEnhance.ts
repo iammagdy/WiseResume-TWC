@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { toast } from 'sonner';
 import { trackGeminiUsage } from '@/lib/aiProvider';
 import { useAIAction } from '@/hooks/useAIAction';
@@ -56,7 +56,7 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
     try {
       const data = await executeAI(async () => {
         const _start = Date.now();
-        const { data, error } = await supabase.functions.invoke('enhance-section', {
+        const { data, error } = await edgeFunctions.functions.invoke('enhance-section', {
           body: {
             section,
             action,

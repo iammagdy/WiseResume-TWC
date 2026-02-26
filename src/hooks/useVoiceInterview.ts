@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { ResumeData } from '@/types/resume';
 import { useElevenLabsScribe } from './useElevenLabsScribe';
 import { useWebSpeechFallback, isWebSpeechSupported } from './useWebSpeechFallback';
@@ -459,7 +460,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
           ? [...allMessages.slice(0, 2), ...allMessages.slice(-16)]
           : allMessages;
 
-        const aiPromise = supabase.functions.invoke('interview-chat', {
+        const aiPromise = edgeFunctions.functions.invoke('interview-chat', {
           body: {
             messages: windowedMessages,
             resumeData,

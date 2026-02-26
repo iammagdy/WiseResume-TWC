@@ -22,7 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { useAIAction } from '@/hooks/useAIAction';
@@ -261,7 +261,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
 
     try {
       const result = await executeAI(async () => {
-        const { data, error } = await supabase.functions.invoke('detect-and-humanize', {
+        const { data, error } = await edgeFunctions.functions.invoke('detect-and-humanize', {
           body: {
             text: inputText,
             action: 'detect',
@@ -291,7 +291,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
     setIsHumanizing(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('detect-and-humanize', {
+      const { data, error } = await edgeFunctions.functions.invoke('detect-and-humanize', {
         body: {
           text: inputText,
           action: 'humanize',

@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Lightbulb, Send, CheckCircle2 } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 
 const SESSION_CACHE_KEY = 'sb-auth-session-cache';
 
@@ -65,7 +65,7 @@ export function FeatureRequestDialog({ open, onOpenChange }: FeatureRequestDialo
     };
 
     try {
-      const { error } = await supabase.functions.invoke('send-feature-request', {
+      const { error } = await edgeFunctions.functions.invoke('send-feature-request', {
         body: payload,
       });
       if (error) throw error;

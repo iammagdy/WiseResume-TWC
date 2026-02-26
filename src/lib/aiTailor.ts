@@ -1,5 +1,5 @@
 import { ResumeData, TailorProgress, EnhancedTailorStep, EnhancedTailorProgress, SuperTailorResult } from '@/types/resume';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { trackGeminiUsage } from './aiProvider';
 import { extractErrorMessage } from './errorToast';
 import { checkAIFallback } from './aiFallbackToast';
@@ -108,7 +108,7 @@ export async function tailorResumeWithProgress(
   }, 25_000);
 
   const invokeOnce = async () => {
-    const { data, error } = await supabase.functions.invoke('tailor-resume', {
+    const { data, error } = await edgeFunctions.functions.invoke('tailor-resume', {
       body: { resume, jobDescription, intensity },
       ...(signal ? { options: { signal } } : {}),
     } as any);
@@ -192,7 +192,7 @@ export async function tailorResume(
   resume: ResumeData,
   jobDescription: string
 ): Promise<TailorResult> {
-  const { data, error } = await supabase.functions.invoke('tailor-resume', {
+  const { data, error } = await edgeFunctions.functions.invoke('tailor-resume', {
     body: { resume, jobDescription },
   });
 
@@ -226,7 +226,7 @@ export interface ParsedJobData {
 }
 
 export async function parseJobUrl(url: string): Promise<ParsedJobData> {
-  const { data, error } = await supabase.functions.invoke('parse-job-url', {
+  const { data, error } = await edgeFunctions.functions.invoke('parse-job-url', {
     body: { url },
   });
 
@@ -243,7 +243,7 @@ export async function parseJobUrl(url: string): Promise<ParsedJobData> {
 }
 
 export async function parseJobText(text: string): Promise<ParsedJobData> {
-  const { data, error } = await supabase.functions.invoke('parse-job-text', {
+  const { data, error } = await edgeFunctions.functions.invoke('parse-job-text', {
     body: { text },
   });
 
@@ -265,7 +265,7 @@ export async function generateCoverLetter(
   tone: 'professional' | 'enthusiastic' | 'conversational' = 'professional',
   signal?: AbortSignal
 ): Promise<string> {
-  const { data, error } = await supabase.functions.invoke('generate-cover-letter', {
+  const { data, error } = await edgeFunctions.functions.invoke('generate-cover-letter', {
     body: { resume, jobDescription, tone },
     ...(signal ? { options: { signal } } : {}),
   } as any);

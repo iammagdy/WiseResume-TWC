@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { useResumeStore } from '@/store/resumeStore';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { trackGeminiUsage } from '@/lib/aiProvider';
 import { useAICreditsMutations } from '@/hooks/useAICredits';
 import { toast } from 'sonner';
@@ -133,7 +133,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
       const content = getSectionContent(currentResume as unknown as Record<string, unknown>, sectionInfo.id);
 
       try {
-        const { data, error } = await supabase.functions.invoke('enhance-section', {
+        const { data, error } = await edgeFunctions.functions.invoke('enhance-section', {
           body: {
             section: sectionInfo.id,
             action: effectiveAction,

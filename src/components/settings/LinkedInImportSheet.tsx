@@ -29,7 +29,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 
@@ -119,7 +119,7 @@ export function LinkedInImportSheet({
     }, 800);
 
     try {
-      const { data, error: fnError } = await supabase.functions.invoke('parse-linkedin', {
+      const { data, error: fnError } = await edgeFunctions.functions.invoke('parse-linkedin', {
         body: { profileText: profileText.trim() },
       });
 
@@ -164,7 +164,7 @@ export function LinkedInImportSheet({
         new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
       );
 
-      const { data, error: fnError } = await supabase.functions.invoke('parse-resume', {
+      const { data, error: fnError } = await edgeFunctions.functions.invoke('parse-resume', {
         body: {
           fileData: base64,
           fileName: file.name,

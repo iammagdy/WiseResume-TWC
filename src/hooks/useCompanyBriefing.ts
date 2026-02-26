@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { useAIAction } from './useAIAction';
 import { toast } from 'sonner';
 import type { CompanyBriefing } from '@/types/companyBriefing';
@@ -25,7 +25,7 @@ export function useCompanyBriefing() {
     setBriefing(null);
 
     const result = await execute(async () => {
-      const { data, error: fnError } = await supabase.functions.invoke('company-briefing', {
+      const { data, error: fnError } = await edgeFunctions.functions.invoke('company-briefing', {
         body: {
           jobDescription: params.jobDescription,
           resumeData: params.resumeData,

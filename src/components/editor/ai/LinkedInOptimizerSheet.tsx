@@ -25,7 +25,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { useAIAction } from '@/hooks/useAIAction';
@@ -133,7 +133,7 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
 
     try {
       const data = await executeAI(async () => {
-        const { data, error } = await supabase.functions.invoke('optimize-for-linkedin', {
+        const { data, error } = await edgeFunctions.functions.invoke('optimize-for-linkedin', {
           body: {
             resume: currentResume,
             region: selectedRegion,

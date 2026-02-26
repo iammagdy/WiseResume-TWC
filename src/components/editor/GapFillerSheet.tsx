@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Sparkles, Plus, Shield, BookOpen, Heart, Compass, Briefcase, MoreHorizontal, Check, X } from 'lucide-react';
 import { GapInfo } from '@/lib/dateUtils';
 import { Experience } from '@/types/resume';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
@@ -126,7 +126,7 @@ export function GapFillerSheet({ isOpen, onClose, gap, experiences, onAddExperie
       const { previousJob, nextJob } = getSurroundingJobs();
 
       const result = await executeAI(async () => {
-        const { data, error } = await supabase.functions.invoke('fill-gap', {
+        const { data, error } = await edgeFunctions.functions.invoke('fill-gap', {
           body: {
             gap: {
               startDate: formatParsedDate(gap.startDate),

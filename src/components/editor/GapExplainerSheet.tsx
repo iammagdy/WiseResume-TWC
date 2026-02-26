@@ -5,7 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { toast } from 'sonner';
 import { GapInfo, formatDuration } from '@/lib/dateUtils';
 import { Experience } from '@/types/resume';
@@ -95,7 +95,7 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
       const { previousJob, nextJob } = getSurroundingJobs();
 
       const result = await executeAI(async () => {
-        const { data, error } = await supabase.functions.invoke('explain-gap', {
+        const { data, error } = await edgeFunctions.functions.invoke('explain-gap', {
           body: {
             gap: {
               startDate: formatGapDate(gap.startDate),

@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { HeartHandshake, Send, CheckCircle2, MapPin, Info, Wrench, AlertTriangle, ToggleLeft, ToggleRight } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import {
   onBugReport,
   detectScreen,
@@ -163,7 +164,7 @@ export function BugReportDialog() {
 
     try {
       // Primary path: edge function
-      const { error } = await supabase.functions.invoke('send-bug-report', {
+      const { error } = await edgeFunctions.functions.invoke('send-bug-report', {
         body: payload,
       });
       if (error) throw error;
