@@ -1,46 +1,41 @@
 
-## Fix: AI Enhance Returns Data But Doesn't Apply Changes
 
-### Root Cause
+## Create Fix Documentation File
 
-There are **two separate bugs** preventing AI enhancements from taking effect:
+Create a single markdown document (`docs/FIXES_2026-02-26.md`) that documents all the authentication and data-handling bugs fixed today, with root causes, solutions, and code patterns so an external AI agent can replicate the fixes locally.
 
-**Bug 1 (Main Issue) - ExperienceSection response format mismatch:**
-When you click "Enhance" on a single experience entry, the client sends just that entry's data (`{ description, position, company }`), but the edge function always returns `improved` as an **array** of experience objects. The client code then tries to read `result.improved.description` on an array, which returns `undefined`. The dialog shows empty improved text, and clicking Apply updates nothing.
+### Document Contents
 
-**Bug 2 - AIEnhanceSheet still uses broken auth client:**
-The bulk "AI Enhance" sheet (`AIEnhanceSheet.tsx`) still uses `edgeFunctions.functions.invoke()` which sends the anon key instead of the user's real JWT. This is the same auth issue previously fixed in other files but not applied here.
+The file will cover these 4 fixes in order:
 
-### Fix
+**Fix 1 - score-resume 401 Unauthorized**
+- Root cause: `edgeFunctions` client sends anon key instead of user JWT
+- File changed: `src/hooks/useResumeScore.ts`
+- Solution: Replace `edgeFunctions.functions.invoke()` with direct `fetch` using `supabase.auth.getSession()` token
 
-**File 1: `src/components/editor/ExperienceSection.tsx`**
+**Fix 2 - enhance-section 401 Unauthorized (backend)**
+- Root cause: Cross-project tokens fail `supabase.auth.getUser()` validation
+- File changed: `supabase/functions/enhance-section/index.ts`
+- Solution: Add JWT manual decode fallback (`atob` on payload segment, extract `sub` claim)
 
-- In `handleAIAction`: After receiving the enhance result, extract the matching experience entry from the returned array (by matching `id`) instead of treating the whole array as a single object.
-- In the `AIEnhanceDialog` props: Display the extracted single entry's description instead of trying to read `.description` on an array.
-- In `onApply`: Handle the improved content correctly as a single experience entry extracted from the array.
+**Fix 3 - enhance-section 401 Unauthorized (frontend)**
+- Root cause: Same `edgeFunctions` client issue as Fix 1, but in `useAIEnhance.ts` and `QuickActions.tsx`
+- Files changed: `src/hooks/useAIEnhance.ts`, `src/components/editor/tailor/QuickActions.tsx`
+- Solution: Same direct `fetch` pattern with user's real access token
 
-**File 2: `src/components/editor/ai/AIEnhanceSheet.tsx`**
-
-- Replace `edgeFunctions.functions.invoke('enhance-section', ...)` with a direct `fetch` call using the user's real `access_token` from `supabase.auth.getSession()` (same pattern used in `useAIEnhance.ts` and `useResumeScore.ts`).
+**Fix 4 - AI Enhance returns data but doesn't apply changes**
+- Root cause 1: `ExperienceSection.tsx` treats `result.improved` (an array) as a single object, so `.description` is undefined
+- Root cause 2: `AIEnhanceSheet.tsx` still uses broken `edgeFunctions.functions.invoke()`
+- Files changed: `src/components/editor/ExperienceSection.tsx`, `src/components/editor/ai/AIEnhanceSheet.tsx`
+- Solution: Extract matching entry from array by `id`; replace invoke with direct fetch
 
 ### Technical Details
 
-```text
-ExperienceSection - Before:
-  result.improved → array of experiences
-  dialog shows: (result?.improved as { description? })?.description → undefined
-  onApply receives: array → cast as single object → nothing updates
+The document will include:
+- The reusable direct-fetch code pattern (session retrieval, headers, error handling)
+- The JWT manual decode fallback pattern for edge functions
+- A checklist of all files that were modified
+- A "remaining audit" section listing any other files that still import from `edgeFunctions.ts` and may need the same fix
 
-ExperienceSection - After:
-  handleAIAction extracts: result.improved[matchingIndex] → single experience object
-  dialog shows: extractedEntry.description → correct text
-  onApply receives: single experience object → updates the specific entry
+One file will be created: `docs/FIXES_2026-02-26.md`
 
-AIEnhanceSheet - Before:
-  edgeFunctions.functions.invoke('enhance-section', { body }) → sends anon key → 401
-
-AIEnhanceSheet - After:
-  fetch(CLOUD_URL/functions/v1/enhance-section, { Authorization: Bearer user_token }) → 200
-```
-
-Two files need changes: `ExperienceSection.tsx` and `AIEnhanceSheet.tsx`.
