@@ -11,6 +11,7 @@ import { ResumeData } from '@/types/resume';
 import { extractTextFromPDF, PDFParseError, ExtractionResult } from './pdf/textExtractor';
 import { extractTextWithOCR, OCRProgressCallback, estimateOCRTime } from './pdf/ocrExtractor';
 import { parseResumeText } from './pdf/sectionParsers';
+import { preprocessResumeText } from './pdf/textPreprocessor';
 import { supabase, supabaseConfig } from '@/integrations/supabase/safeClient';
 import { handleAIError } from './aiProvider';
 
@@ -130,8 +131,11 @@ export async function parseResumePDF(file: File): Promise<ParseResult> {
     };
   }
   
+  // Preprocess text to clean extraction artifacts
+  const cleanedText = preprocessResumeText(extraction.text, extraction.pageTexts);
+  
   // Parse into structured data using AI
-  const data = await parseTextWithAI(extraction.text);
+  const data = await parseTextWithAI(cleanedText);
   
   return {
     success: true,

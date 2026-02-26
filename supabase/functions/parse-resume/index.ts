@@ -42,7 +42,6 @@ const parseResumeTool = {
               responsibilities: { type: "array", items: { type: "string" } },
               isProject: { type: "boolean" },
             },
-            // isProject is now required so the AI never omits it
             required: ["company", "position", "startDate", "endDate", "current", "description", "achievements", "isProject"],
           },
         },
@@ -147,6 +146,132 @@ const systemPrompt = `You are an expert resume parser. Extract ALL structured in
 - Never use emails, phone numbers, URLs, or section headers as names
 - If unsure, set fullName to ""`;
 
+const retryPrompt = `You are an expert resume parser doing a SECOND PASS. The first extraction missed some fields.
+Focus on finding these missing fields in the text. Extract ONLY the fields that were missed.
+Be more aggressive in your extraction - look for implicit information, infer from context.
+Return empty strings/arrays only if truly not present in the text.`;
+
+/**
+ * Assess text quality to decide if AI cleaning is needed.
+ */
+function assessTextQuality(text: string): { score: number; issues: string[] } {
+  const issues: string[] = [];
+  let score = 1.0;
+
+  const cleaned = text.replace(/\s+/g, ' ').trim();
+  const words = cleaned.split(/\s+/).filter(Boolean);
+  const wordCount = words.length;
+
+  // Word count
+  if (wordCount < 30) { score -= 0.4; issues.push('very_short'); }
+  else if (wordCount < 80) { score -= 0.2; issues.push('short'); }
+
+  // Email presence
+  if (!/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(cleaned)) {
+    score -= 0.1; issues.push('no_email');
+  }
+
+  // Phone presence
+  if (!/(\+?\d[\d\s\-()]{6,})/.test(cleaned)) {
+    score -= 0.05; issues.push('no_phone');
+  }
+
+  // Section keyword density
+  const keywords = ['experience', 'education', 'skills', 'work', 'university', 'degree', 'summary', 'objective', 'certifications', 'projects'];
+  const keywordCount = keywords.filter(k => cleaned.toLowerCase().includes(k)).length;
+  if (keywordCount < 2) { score -= 0.2; issues.push('low_keyword_density'); }
+
+  // Gibberish ratio
+  const alphaRatio = cleaned.replace(/[^a-zA-Z\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF\u0900-\u097F\u4E00-\u9FFF]/g, '').length / Math.max(cleaned.length, 1);
+  if (alphaRatio < 0.5) { score -= 0.3; issues.push('high_gibberish'); }
+
+  // Average word length
+  const avgLen = words.reduce((s, w) => s + w.length, 0) / Math.max(words.length, 1);
+  if (avgLen < 2.5 || avgLen > 15) { score -= 0.15; issues.push('unusual_word_lengths'); }
+
+  return { score: Math.max(0, Math.min(1, score)), issues };
+}
+
+/**
+ * AI-powered text cleaning for low-quality extractions.
+ * Uses a lightweight model to fix OCR artifacts and broken formatting.
+ */
+async function cleanTextWithAI(text: string, userId: string): Promise<string> {
+  try {
+    console.log('🧹 Running AI text cleaning on low-quality extraction...');
+    const response = await callAI({
+      model: 'google/gemini-2.5-flash-lite',
+      messages: [
+        {
+          role: 'system',
+          content: `You are a text reconstruction expert. The following text was extracted from a resume PDF but has quality issues (OCR artifacts, concatenated words, broken formatting). 
+Reconstruct it into clean, readable text while preserving ALL original content. Do NOT add, remove, or change any information. Only fix:
+- Concatenated words (e.g. "SoftwareEngineer" → "Software Engineer")
+- OCR artifacts and garbled characters
+- Broken line wraps and formatting
+- Missing spaces between words
+Return ONLY the cleaned text, nothing else.`,
+        },
+        { role: 'user', content: text },
+      ],
+      userId,
+      timeout: 15000,
+    });
+    
+    if (response.content && response.content.length > text.length * 0.5) {
+      console.log('🧹 AI text cleaning successful');
+      return response.content;
+    }
+    return text;
+  } catch (error) {
+    console.warn('AI text cleaning failed, using original text:', error);
+    return text;
+  }
+}
+
+/**
+ * Compute per-field confidence scores after parsing.
+ */
+function computeFieldConfidence(data: any): { completeness: number; fieldConfidence: Record<string, number> } {
+  const fc: Record<string, number> = {};
+
+  // Name
+  const name = data.contactInfo?.fullName?.trim() || '';
+  fc.name = name.length >= 2 && name.split(/\s+/).length >= 1 ? 1.0 : name.length > 0 ? 0.5 : 0;
+
+  // Email
+  const email = data.contactInfo?.email?.trim() || '';
+  fc.email = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email) ? 1.0 : email.includes('@') ? 0.5 : 0;
+
+  // Phone
+  const phone = data.contactInfo?.phone?.trim() || '';
+  fc.phone = phone.replace(/\D/g, '').length >= 7 ? 1.0 : phone.length > 0 ? 0.3 : 0;
+
+  // Experience
+  const expCount = data.experience?.length || 0;
+  fc.experience = expCount >= 2 ? 1.0 : expCount === 1 ? 0.7 : 0;
+
+  // Education
+  const eduCount = data.education?.length || 0;
+  fc.education = eduCount >= 1 ? 1.0 : 0;
+
+  // Skills
+  const skillCount = data.skills?.length || 0;
+  fc.skills = skillCount >= 5 ? 1.0 : skillCount >= 2 ? 0.7 : skillCount > 0 ? 0.3 : 0;
+
+  // Summary
+  fc.summary = (data.summary?.trim()?.length || 0) > 20 ? 1.0 : data.summary?.trim() ? 0.5 : 0;
+
+  // Weighted completeness
+  const weights = { name: 15, email: 10, phone: 5, summary: 15, experience: 25, education: 15, skills: 10 };
+  let completeness = 0;
+  for (const [key, weight] of Object.entries(weights)) {
+    completeness += (fc[key] || 0) * weight;
+  }
+
+  return { completeness: Math.round(completeness), fieldConfidence: fc };
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
@@ -211,11 +336,21 @@ serve(async (req) => {
       );
     }
 
+    // Phase 3: Assess text quality and optionally clean with AI
+    const quality = assessTextQuality(text);
+    console.log(`📊 Text quality: score=${quality.score.toFixed(2)}, issues=[${quality.issues.join(', ')}]`);
+
+    let processedText = text;
+    if (quality.score < 0.6 && quality.issues.some(i => ['high_gibberish', 'unusual_word_lengths', 'very_short'].includes(i))) {
+      processedText = await cleanTextWithAI(text, user.id);
+    }
+
+    // Pass 1: Main structured extraction
     const aiResponse = await callAI({
       model: 'google/gemini-2.5-flash',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Parse the following resume text:\n\n${text}` },
+        { role: 'user', content: `Parse the following resume text:\n\n${processedText}` },
       ],
       tools: [parseResumeTool],
       toolChoice: { type: 'function', function: { name: 'parse_resume' } },
@@ -230,7 +365,46 @@ serve(async (req) => {
       );
     }
 
-    const parsedData = JSON.parse(toolCall.function.arguments);
+    let parsedData = JSON.parse(toolCall.function.arguments);
+
+    // Phase 4: Check completeness and retry if needed
+    const firstPassConfidence = computeFieldConfidence(parsedData);
+    console.log(`📊 Pass 1 completeness: ${firstPassConfidence.completeness}%`);
+
+    if (firstPassConfidence.completeness < 40) {
+      console.log('🔄 Low completeness, attempting pass 2...');
+      try {
+        // Build a focused retry prompt listing missing fields
+        const missingFields = Object.entries(firstPassConfidence.fieldConfidence)
+          .filter(([_, score]) => score < 0.5)
+          .map(([field]) => field);
+
+        const retryResponse = await callAI({
+          model: 'google/gemini-2.5-flash',
+          messages: [
+            { role: 'system', content: retryPrompt },
+            {
+              role: 'user',
+              content: `The first extraction missed these fields: ${missingFields.join(', ')}.\n\nPlease re-extract from this resume text:\n\n${processedText}`,
+            },
+          ],
+          tools: [parseResumeTool],
+          toolChoice: { type: 'function', function: { name: 'parse_resume' } },
+          userId: user.id,
+        });
+
+        const retryCall = retryResponse.toolCalls?.[0];
+        if (retryCall?.function.name === 'parse_resume') {
+          const retryData = JSON.parse(retryCall.function.arguments);
+          // Merge: prefer pass 2 values for missing fields only
+          parsedData = mergeParseResults(parsedData, retryData, firstPassConfidence.fieldConfidence);
+          console.log('✅ Pass 2 merge complete');
+        }
+      } catch (retryError) {
+        console.warn('Pass 2 failed, using pass 1 results:', retryError);
+      }
+    }
+
     const generateId = () => crypto.randomUUID();
 
     // Validate name — only reject truly invalid patterns, trust AI for everything else
@@ -242,8 +416,7 @@ serve(async (req) => {
     const isEmptyOrJunk = fullName.length < 2 || /^[^a-zA-Z\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF\u0900-\u097F\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF\u05D0-\u05FF]+$/.test(fullName);
 
     if (invalidNamePatterns.test(fullName) || looksLikeEmail || looksLikeUrl || looksLikePhone || isEmptyOrJunk) {
-      // AI returned something invalid — try to extract from raw text
-      const firstLines = text.split('\n').filter((l: string) => l.trim()).slice(0, 8);
+      const firstLines = processedText.split('\n').filter((l: string) => l.trim()).slice(0, 8);
       const nameCandidate = firstLines.find((line: string) => {
         const t = line.trim();
         if (t.length < 2 || t.length > 60) return false;
@@ -251,35 +424,26 @@ serve(async (req) => {
         if (/^\+?\d[\d\s\-()]{6,}$/.test(t)) return false;
         if (invalidNamePatterns.test(t)) return false;
         const words = t.split(/\s+/);
-        // Accept 1-5 word names in common scripts
         return words.length >= 1 && words.length <= 5 &&
           /^[A-Za-z\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF\u0900-\u097F\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF\u05D0-\u05FF\s.\-']+$/.test(t);
       });
       fullName = nameCandidate?.trim() || '';
     }
 
-    // Normalize phone number — clean up concatenated digits from PDF extraction
+    // Normalize phone number
     let phone = parsedData.contactInfo.phone?.trim() || '';
     if (phone) {
-      // Remove non-digit/non-plus characters first
       const digitsOnly = phone.replace(/[^\d+]/g, '');
-      // If phone is a long string of digits without formatting, try to format it
       if (digitsOnly.length >= 10 && !/[\s\-()]/.test(phone)) {
-        // Detect country code patterns
         if (digitsOnly.startsWith('+')) {
-          // Already has + prefix, keep as-is but add spacing
           const cc = digitsOnly.match(/^(\+\d{1,4})(\d+)$/);
           if (cc) {
             const rest = cc[2];
-            // Format the remaining digits in groups
             phone = cc[1] + ' ' + rest.replace(/(\d{3,4})(?=\d)/g, '$1 ');
           }
         } else if (digitsOnly.length > 12) {
-          // Very long number — likely missing + prefix for country code
-          // Try common patterns: country code (1-4 digits) + number
           phone = '+' + digitsOnly.slice(0, 2) + ' ' + digitsOnly.slice(2).replace(/(\d{3,4})(?=\d)/g, '$1 ');
         } else {
-          // Format in common grouping
           phone = digitsOnly.replace(/(\d{3,4})(?=\d)/g, '$1 ');
         }
       }
@@ -306,7 +470,6 @@ serve(async (req) => {
         description: exp.description || '',
         achievements: exp.achievements || [],
         responsibilities: exp.responsibilities || [],
-        // isProject is now required in schema; explicit boolean cast prevents undefined→false silent bug
         isProject: exp.isProject === true,
       })),
       education: (parsedData.education || []).map((edu: any) => ({
@@ -354,27 +517,28 @@ serve(async (req) => {
       hobbies: parsedData.hobbies || [],
     };
 
-    // Calculate completeness score
-    let completeness = 0;
-    if (resumeData.contactInfo.fullName) completeness += 15;
-    if (resumeData.contactInfo.email) completeness += 10;
-    if (resumeData.contactInfo.phone) completeness += 5;
-    if (resumeData.summary) completeness += 15;
-    if (resumeData.experience.length > 0) completeness += 25;
-    if (resumeData.education.length > 0) completeness += 15;
-    if (resumeData.skills.length > 0) completeness += 10;
-    if (resumeData.certifications.length > 0) completeness += 5;
+    // Final confidence scoring
+    const finalConfidence = computeFieldConfidence(resumeData);
 
     console.log(
       `parse-resume: Extracted ${resumeData.experience.length} experiences, ` +
       `${resumeData.education.length} education, ${resumeData.skills.length} skills, ` +
       `${resumeData.awards.length} awards, ${resumeData.publications.length} publications, ` +
-      `${resumeData.volunteering.length} volunteering. Completeness: ${completeness}%`
+      `${resumeData.volunteering.length} volunteering. Completeness: ${finalConfidence.completeness}%`
     );
 
     await recordUsage(user.id, 'parse_resume');
 
-    return new Response(JSON.stringify(resumeData), {
+    return new Response(JSON.stringify({
+      ...resumeData,
+      _meta: {
+        completeness: finalConfidence.completeness,
+        fieldConfidence: finalConfidence.fieldConfidence,
+        textQuality: quality.score,
+        aiCleaned: processedText !== text,
+        multiPass: firstPassConfidence.completeness < 40,
+      },
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
@@ -386,3 +550,39 @@ serve(async (req) => {
     );
   }
 });
+
+/**
+ * Merge results from two parse passes, preferring pass 2 for missing fields.
+ */
+function mergeParseResults(pass1: any, pass2: any, pass1Confidence: Record<string, number>): any {
+  const merged = { ...pass1 };
+
+  // Contact info: use pass2 if pass1 was empty
+  if (pass1Confidence.name < 0.5 && pass2.contactInfo?.fullName?.trim()) {
+    merged.contactInfo = { ...merged.contactInfo, fullName: pass2.contactInfo.fullName };
+  }
+  if (pass1Confidence.email < 0.5 && pass2.contactInfo?.email?.trim()) {
+    merged.contactInfo = { ...merged.contactInfo, email: pass2.contactInfo.email };
+  }
+  if (pass1Confidence.phone < 0.5 && pass2.contactInfo?.phone?.trim()) {
+    merged.contactInfo = { ...merged.contactInfo, phone: pass2.contactInfo.phone };
+  }
+
+  // Summary: use pass2 if pass1 was empty
+  if (pass1Confidence.summary < 0.5 && pass2.summary?.trim()) {
+    merged.summary = pass2.summary;
+  }
+
+  // Arrays: use pass2 if pass1 was empty, never merge arrays (risk of duplicates)
+  if (pass1Confidence.experience < 0.5 && pass2.experience?.length > 0) {
+    merged.experience = pass2.experience;
+  }
+  if (pass1Confidence.education < 0.5 && pass2.education?.length > 0) {
+    merged.education = pass2.education;
+  }
+  if (pass1Confidence.skills < 0.5 && pass2.skills?.length > 0) {
+    merged.skills = pass2.skills;
+  }
+
+  return merged;
+}
