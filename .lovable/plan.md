@@ -1,95 +1,225 @@
 
 
-# Add 6 New Screens to the Web App
+# Project Status & Documentation Report — "Progress Till Now"
 
 ## Overview
-Create 6 new React page components matching the screens added to the Flutter blueprint: NotFoundPage (already exists, skip), HelpPage, AnalyticsPage, SubscriptionPage, ReferralPage, and AchievementsPage. Wire them into routing, navigation, skeletons, and page titles.
+Create a comprehensive `docs/PROGRESS_TILL_NOW.md` file documenting the current state of the WiseResume project across all dimensions: screens, features, database, development lifecycle position, and next steps.
 
-Note: NotFoundPage already exists at `src/pages/NotFound.tsx` with all the features described (404 gradient text, quick links, go-back). We only need to add the 5 remaining screens.
+---
 
-## New Files to Create
+## 1. Core Screen Map (41 Screens Built)
 
-### 1. `src/pages/HelpPage.tsx`
-- Header with BackButton and "Help & FAQ" title
-- Search input to filter FAQ items
-- Accordion (using existing Radix accordion) for FAQ items (hardcoded initial set: "How to create a resume", "How to export PDF", "What is ATS score", etc.)
-- Contact support card with email link and in-app feature request button (reuse FeatureRequestDialog from settings)
-- Quick-link chips to Guides, Examples, Career pages
-- Video tutorials section (placeholder cards linking externally)
+| # | Screen | Route | Status |
+|---|--------|-------|--------|
+| 1 | Landing Page | `/` | Built |
+| 2 | Auth (Login/Signup) | `/auth` | Built |
+| 3 | Auth Callback (OAuth) | `/auth/callback` | Built |
+| 4 | Reset Password | `/reset-password` | Built |
+| 5 | Dashboard | `/dashboard` | Built |
+| 6 | Resume Editor | `/editor` | Built |
+| 7 | Resume Preview | `/preview` | Built |
+| 8 | Upload / Import | `/upload` | Built |
+| 9 | AI Studio | `/ai-studio` | Built |
+| 10 | Mock Interview | `/interview` | Built |
+| 11 | Applications (Job Tracker) | `/applications` | Built |
+| 12 | Application Detail | `/application/:id` | Built |
+| 13 | Job Detail | `/job/:id` | Built |
+| 14 | Onboarding Wizard | `/onboarding` | Built |
+| 15 | Profile Editor | `/profile` | Built |
+| 16 | Settings | `/settings` | Built |
+| 17 | Templates Gallery | `/templates` | Built |
+| 18 | Resume Detail | `/resume/:id` | Built |
+| 19 | Notifications | `/notifications` | Built |
+| 20 | Portfolio Editor | `/portfolio` | Built |
+| 21 | Public Portfolio | `/p/:username` | Built |
+| 22 | Cover Letters List | `/cover-letters` | Built |
+| 23 | Cover Letter New | `/cover-letter/new` | Built |
+| 24 | Cover Letter Edit | `/cover-letter/edit/:id` | Built |
+| 25 | Resignation Letters List | `/resignation-letters` | Built |
+| 26 | Resignation Letter New | `/resignation-letter/new` | Built |
+| 27 | Resignation Letter Edit | `/resignation-letter/edit/:id` | Built |
+| 28 | Career Path / Quiz | `/career` | Built |
+| 29 | Resume Share Viewer | `/share/:token` | Built |
+| 30 | Short Link Redirect | `/l/:linkId` | Built |
+| 31 | Examples | `/examples` | Built |
+| 32 | Guides List | `/guides` | Built |
+| 33 | Guide Detail | `/guides/:slug` | Built |
+| 34 | Privacy Policy | `/privacy` | Built |
+| 35 | Terms of Service | `/terms` | Built |
+| 36 | 404 Not Found | `/*` | Built |
+| 37 | Help and FAQ | `/help` | Built (new) |
+| 38 | Analytics / Insights | `/analytics` | Built (new) |
+| 39 | Subscription / Pricing | `/subscription` | Built (new) |
+| 40 | Referral / Invite Friends | `/referral` | Built (new) |
+| 41 | Achievements / Badges | `/achievements` | Built (new) |
 
-### 2. `src/pages/AnalyticsPage.tsx`
-- Header with BackButton and "Analytics" title
-- Summary stat cards row (total resumes, avg ATS score, total applications, active streak)
-- Data sourced from existing hooks: `useResumes`, activity streak query, applications query
-- Resume score trend line chart (using recharts, already installed)
-- Application funnel visualization (applied > interview > offer counts)
-- Activity streak / heatmap calendar (last 30 days, similar to existing ActivityStreak component pattern)
-- Export report button (placeholder toast)
+### Missing Standard SaaS Screens
 
-### 3. `src/pages/SubscriptionPage.tsx`
-- Header with BackButton and "Subscription" title
-- Current plan card (Free tier, hardcoded for now)
-- Plan comparison: Free vs Pro vs Premium with feature checklists
-- Usage meters (resumes created / limit, AI credits concept)
-- Gradient CTA buttons for upgrade (placeholder toast "Coming soon")
-- Link to ReferralPage at bottom
+| Screen | Priority | Notes |
+|--------|----------|-------|
+| Paywall / Upgrade Gate | HIGH | Subscription page exists but no payment integration. No features are gated. |
+| Email Verification Pending | Medium | No "check your email" screen after signup |
+| Account Deletion / Data Export | Medium | Needed for GDPR / app store compliance |
+| Changelog / What's New | Low | `useChangelogBadge` hook exists but no dedicated screen |
 
-### 4. `src/pages/ReferralPage.tsx`
-- Header with BackButton and "Invite Friends" title
-- Unique invite code display (generated from user ID substring)
-- Copy button and native share via `navigator.share`
-- QR code using existing `qr-code-styling` package (already installed)
-- Referral stats cards (placeholder: invites sent, accepted, rewards)
-- Rewards tier list (3 friends = 1 week Pro, etc.)
+**Verdict**: Excellent screen coverage. The only critical gap is real payment integration.
 
-### 5. `src/pages/AchievementsPage.tsx`
-- Header with BackButton and "Achievements" title
-- Level / XP progress bar at top
-- Badge grid (2 columns): earned vs locked with icons and descriptions
-- Milestones: first resume, 5 applications, 80+ ATS score, 7-day streak, etc.
-- Streak tracker card (reuse ActivityStreak data pattern)
-- Share achievement button (placeholder)
-- Data computed from existing hooks (resume count, application count, score history)
+---
 
-## Files to Modify
+## 2. Current Features
 
-### `src/App.tsx`
-- Add lazy imports for all 5 new pages
-- Add routes inside ProtectedRoute > AppShell:
-  - `/help` with `DetailSkeleton` fallback
-  - `/analytics` with new `AnalyticsSkeleton` fallback
-  - `/subscription` with `DetailSkeleton` fallback
-  - `/referral` with `DetailSkeleton` fallback
-  - `/achievements` with `DetailSkeleton` fallback
+### Fully Functional
 
-### `src/components/layout/PageSkeletons.tsx`
-- Add `AnalyticsSkeleton` (header + stat cards + chart area + list)
-- Add `AchievementsSkeleton` (header + progress bar + badge grid)
+- **Authentication**: Email/password, OAuth (Google, Apple), magic link, password reset, session management
+- **Resume CRUD**: Create, edit, delete, duplicate. Cloud sync for auth users, local-first for guests
+- **30 Resume Templates**: With live preview and full customization (color, fonts, spacing, layout)
+- **Resume Editor**: Multi-step stepper with all 13 sections
+- **PDF and DOCX Export**: Client-side generation with multi-page, page numbers
+- **Resume Upload and Parse**: PDF (pdfjs-dist), Word (mammoth), OCR (tesseract.js)
+- **AI Resume Analysis**: Score against job description via edge function
+- **AI Tailor**: Rewrite summary/skills/experience bullets for a specific job, before/after scoring
+- **AI Cover Letter and Resignation Letter**: Generate with tone and template options
+- **AI Mock Interview**: Voice-based with ElevenLabs Scribe + Web Speech fallback, scoring
+- **AI Career Path**: Quiz, skill gap analysis, roadmap
+- **AI Proofreading and Section Enhancement**
+- **Job Application Tracker**: Status tracking, notes, deadlines, notifications
+- **Portfolio**: Public page with themes, QR code, short links, visitor analytics, SEO
+- **Resume Sharing**: Link with optional password, expiry, view count, reviewer comments
+- **Notifications**: In-app + web push via VAPID
+- **Biometric Lock**: Capacitor native fingerprint/face
+- **Dark Mode**: System/light/dark with persistence
+- **Offline Support**: Detection banner, local-first with sync queue
+- **PWA**: Installable with service worker
+- **Capacitor Native**: Android build, deep linking, haptics, status bar, splash
+- **Guides and Examples**: Career guides library
+- **Bug Reporting**: Shake-to-report + dialog
+- **Command Palette**: Cmd+K navigation
+- **Resume Versions**: Snapshot history
+- **Undo/Redo**: Editor support
+- **Audit Logging**: Action trail
 
-### `src/lib/pageTitles.ts`
-- Add entries: `/help` > "Help", `/analytics` > "Analytics", `/subscription` > "Subscription", `/referral` > "Invite Friends", `/achievements` > "Achievements"
+### Placeholder / Half-Finished
 
-### `src/lib/navigation.ts`
-- Add back routes:
-  - `/help` > `/settings`
-  - `/analytics` > `/dashboard`
-  - `/subscription` > `/settings`
-  - `/referral` > `/subscription`
-  - `/achievements` > `/dashboard`
+| Feature | What's Missing |
+|---------|----------------|
+| Subscription / Payments | UI cards exist. No Stripe. No payment flow. Everything is free. |
+| Referral System | UI shows invite code + QR. No backend tables for tracking referrals or rewards. |
+| Achievements / Gamification | Badge grid rendered from hardcoded data. No persistent tracking in DB. |
+| Analytics Page | Uses real resume/application counts but score trend chart uses mock data. |
+| AI Credit Enforcement | `ai_credits` table and `increment_ai_usage` RPC work, but no edge function blocks users at the limit. |
+| Weekly Digest Email | Edge function exists but no cron trigger confirmed. |
+| LinkedIn Optimizer | Edge function exists, UI integration unclear. |
+| Company Briefing | Edge function exists, may be accessible from AI Studio. |
+| Recruiter Simulation | Edge function exists, integration status unclear. |
+| AI Headshot Generator | Edge function exists, likely experimental. |
+| Data Export | Library file exists, no UI button confirmed. |
 
-### `src/components/layout/BottomTabBar.tsx`
-- Add `/help`, `/analytics`, `/achievements`, `/subscription`, `/referral` to the Home tab's `matchPaths` array
+---
 
-### `src/pages/SettingsPage.tsx`
-- Add navigation rows in the Account section for Help, Subscription, and Referral (using SettingsRow pattern with ChevronRight)
+## 3. Database Schema (Plain English)
 
-### `src/pages/DashboardPage.tsx`
-- Add quick-action links/cards for "Analytics" and "Achievements" in the action cards area
+**21 tables, 13 database functions, 39 edge functions**
 
-## Technical Notes
-- All pages follow the existing pattern: default export function, BackButton header, mobile-first layout, `pb-24` for bottom tab clearance
-- All new pages are lazy-loaded with `lazyWithRetry` and wrapped in `Suspense` with appropriate skeleton fallbacks
-- No database changes needed -- all data comes from existing tables/hooks
-- Uses existing installed packages: `recharts` for charts, `qr-code-styling` for QR codes, Radix accordion for FAQ
-- Follows mobile-first priority (xs/375px breakpoint)
+### Core
+- **profiles** -- User identity: name, avatar, job title, location, portfolio settings, login streak
+- **resumes** -- All resume content stored as JSON columns (contact, experience, education, skills, etc.)
+- **resume_versions** -- Snapshot history of resume edits with version numbers
+- **resume_shares** -- Shareable links with optional password (bcrypt hashed), expiry, view count
+- **share_comments** -- Reviewer comments on shared resumes
+
+### Jobs and Career
+- **jobs** -- Saved job listings (title, company, description, requirements)
+- **job_applications** -- Application tracker (status: applied/interviewing/offer/rejected, deadlines, notes)
+- **career_assessments** -- Career quiz results and completed milestones
+- **interview_sessions** -- Mock interview history with scores and feedback
+- **tailor_history** -- AI tailoring history with before/after scores
+
+### Documents
+- **cover_letters** -- Generated cover letters with tone and template
+- **resignation_letters** -- Generated resignation letters
+
+### AI and Usage
+- **ai_credits** -- Daily usage counter per user (default limit: 20/day)
+- **ai_usage_logs** -- Detailed log of every AI action
+- **user_api_keys** -- Encrypted user API keys for custom AI providers
+
+### Portfolio
+- **portfolio_visits** -- Visitor analytics (country, city, time spent, sections viewed)
+- **short_links** -- Custom short links with click counts
+
+### System
+- **notifications** -- In-app notifications linked to application status changes
+- **push_subscriptions** -- Web push endpoints
+- **audit_logs** -- User action audit trail
+- **bug_reports** -- User-submitted bug reports
+- **feature_requests** -- User-submitted feature ideas
+- **user_preferences** -- Per-user settings (template, AI provider, biometric, PDF defaults)
+
+### Security
+- All tables have Row-Level Security (RLS) -- users only access their own data
+- Passwords hashed with bcrypt via pgcrypto
+- API keys encrypted server-side
+- Weekly `cleanup_stale_data` cron removes old logs and excess versions
+
+---
+
+## 4. Where Do You Stand?
+
+```text
+Development Lifecycle Progress
+==============================
+
+[##########] Idea and Planning         100%
+[##########] UI/UX Design              95%  -- 41 screens, mobile-first, dark mode, skeletons
+[########--] Auth and Backend          85%  -- Auth complete, 21 tables with RLS, 39 edge functions
+[########--] Core Features             80%  -- Editor, AI tools, portfolio, job tracker all working
+[####------] Payments and Monetization 10%  -- UI only, no Stripe, no gating
+[##--------] Testing and QA            15%  -- A few unit tests, no E2E
+[#---------] Launch Prep               5%   -- No store listing, no monitoring, no analytics pipeline
+```
+
+**You are deep in the Core Features phase with most functionality built.** The app is feature-rich -- arguably over-featured for a v1 launch. The critical blockers are: no payment integration, no feature gating, no E2E testing, and no production monitoring.
+
+---
+
+## 5. Next Steps -- Top 3 Priorities
+
+### Priority 1: Implement Payment Integration (Stripe)
+The #1 blocker to monetization. You have a Subscription page with plan cards but no payment flow.
+- Connect Stripe
+- Create a `subscriptions` table (user plan, billing period, status)
+- Build checkout and webhook edge functions
+- Gate premium features behind subscription checks (unlimited AI credits, advanced templates, portfolio custom domain)
+
+### Priority 2: Enforce AI Credit Limits and Feature Gating
+The `ai_credits` table and `increment_ai_usage` RPC already exist, but no edge function actually blocks usage at the limit. Every user gets unlimited AI for free.
+- Add credit check at the start of every AI edge function
+- Return "credits exhausted" error with upgrade CTA
+- Wire upgrade buttons to Stripe checkout
+- Set tier limits: free=20/day, pro=100/day, premium=unlimited
+
+### Priority 3: End-to-End Testing of Critical Flows
+41 screens and 39 edge functions with no integration tests is risky. Focus on 5 critical flows:
+1. Signup -> Onboarding -> Create Resume -> Export PDF
+2. Upload Resume (PDF/DOCX/Image) -> Review parsed data -> Save
+3. AI Tailor for job description -> Apply changes -> Preview
+4. Share resume via link -> Viewer opens -> Comments work
+5. Subscription checkout -> Feature unlocked
+
+---
+
+## Appendix: Edge Functions (39 total)
+
+| Category | Functions |
+|----------|-----------|
+| Resume AI | analyze-resume, score-resume, tailor-resume, enhance-section, proofread-resume, detect-and-humanize, one-page-optimizer |
+| Document Gen | generate-cover-letter, generate-resignation-letter |
+| Career AI | interview-chat, career-assessment, career-path-advisor, recruiter-simulation, company-briefing |
+| Parsing | parse-resume, parse-job-url, parse-job-text, parse-linkedin |
+| Profile AI | generate-headshot, generate-portfolio-bio, optimize-for-linkedin |
+| AI Chat | agentic-chat, explain-gap, fill-gap |
+| API Keys | manage-api-keys, validate-api-key |
+| Portfolio | og-image, portfolio-meta, ask-portfolio, track-portfolio-view, resolve-short-link |
+| Notifications | send-bug-report, send-feature-request, send-push-notification, send-resume-reminder, weekly-digest |
+| Infrastructure | ai-health, elevenlabs-scribe-token |
 
