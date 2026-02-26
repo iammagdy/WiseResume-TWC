@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/safeClient";
+import { createClient } from "@supabase/supabase-js";
+
+// Dedicated Lovable Cloud client for screenshots (table + edge function live here)
+const cloudClient = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+);
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -22,7 +28,7 @@ export default function ScreenshotsGalleryPage() {
 
   const fetchScreenshots = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await cloudClient
       .from("store_screenshots")
       .select("*")
       .order("name", { ascending: true });
@@ -44,7 +50,7 @@ export default function ScreenshotsGalleryPage() {
     toast.info("Generating 8 screenshots with AI... This may take 2-3 minutes.");
 
     try {
-      const { data, error } = await supabase.functions.invoke(
+      const { data, error } = await cloudClient.functions.invoke(
         "generate-store-screenshots"
       );
 
