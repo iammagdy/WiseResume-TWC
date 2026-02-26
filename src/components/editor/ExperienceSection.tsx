@@ -33,25 +33,27 @@ export const ExperienceSection = memo(function ExperienceSection() {
   const [showDialog, setShowDialog] = useState(false);
   const [originalDescription, setOriginalDescription] = useState('');
 
+  const [improvedEntry, setImprovedEntry] = useState<{
+    description?: string;
+    achievements?: string[];
+    position?: string;
+    company?: string;
+  } | null>(null);
+
   const { enhance, isEnhancing, result, apply, discard } = useAIEnhance({
     section: 'experience',
     onApply: (content) => {
-      if (enhancingExpId && content) {
-        const improved = content as {
-          description?: string;
-          achievements?: string[];
-          position?: string;
-          company?: string;
-        };
+      if (enhancingExpId && improvedEntry) {
         updateExperience(enhancingExpId, {
-          ...(improved.description && { description: improved.description }),
-          ...(improved.achievements && { achievements: improved.achievements }),
-          ...(improved.position && { position: improved.position }),
-          ...(improved.company && { company: improved.company }),
+          ...(improvedEntry.description && { description: improvedEntry.description }),
+          ...(improvedEntry.achievements && { achievements: improvedEntry.achievements }),
+          ...(improvedEntry.position && { position: improvedEntry.position }),
+          ...(improvedEntry.company && { company: improvedEntry.company }),
         });
       }
       setShowDialog(false);
       setEnhancingExpId(null);
+      setImprovedEntry(null);
     },
   });
 
@@ -111,6 +113,15 @@ export const ExperienceSection = memo(function ExperienceSection() {
     );
     
     if (enhanceResult) {
+      // The edge function returns improved as an array — extract the matching entry
+      const improved = enhanceResult.improved;
+      let entry: Record<string, unknown> | null = null;
+      if (Array.isArray(improved)) {
+        entry = improved.find((e: Record<string, unknown>) => e.id === exp.id) || improved[0] || null;
+      } else if (improved && typeof improved === 'object') {
+        entry = improved as Record<string, unknown>;
+      }
+      setImprovedEntry(entry as typeof improvedEntry);
       setShowDialog(true);
     }
   };
@@ -398,7 +409,7 @@ export const ExperienceSection = memo(function ExperienceSection() {
       <AIEnhanceDialog
         isOpen={showDialog}
         original={originalDescription}
-        improved={(result?.improved as { description?: string })?.description || ''}
+        improved={improvedEntry?.description || ''}
         changes={result?.changes || []}
         suggestions={result?.suggestions}
         onApply={() => {
