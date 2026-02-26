@@ -1,11 +1,14 @@
 import { useState, useCallback, useRef } from 'react';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { trackGeminiUsage } from '@/lib/aiProvider';
 import { useAIAction } from '@/hooks/useAIAction';
 import { useAIHealthStore } from '@/store/aiHealthStore';
 import { sanitizeAIContent } from '@/lib/ai/sanitizeContent';
 import { checkAIFallback } from '@/lib/aiFallbackToast';
+
+const CLOUD_URL = import.meta.env.VITE_SUPABASE_URL || 'https://hjnnamwgztlhzkeuufln.supabase.co';
+const CLOUD_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhqbm5hbXdnenRsaHprZXV1ZmxuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNTE4MTcsImV4cCI6MjA4NTkyNzgxN30.cupd_dz6KHSJaBnUPQzJmQcYc38RTDVIMU5RP25xCso';
 
 export type SectionType = 'summary' | 'experience' | 'education' | 'skills' | 'contact' | 'awards' | 'projects' | 'publications' | 'volunteering' | 'certifications' | 'languages';
 export type ActionType = 'generate' | 'improve' | 'ats_improve' | 'ats_optimize' | 'shorten' | 'expand' | 'add_metrics' | 'generate_bullets';
@@ -56,8 +59,19 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
     try {
       const data = await executeAI(async () => {
         const _start = Date.now();
-        const { data, error } = await edgeFunctions.functions.invoke('enhance-section', {
-          body: {
+
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token;
+        if (!token) throw new Error('401 Unauthorized – no session');
+
+        const res = await fetch(`${CLOUD_URL}/functions/v1/enhance-section`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'apikey': CLOUD_KEY,
+          },
+          body: JSON.stringify({
             section,
             action,
             currentContent,
@@ -65,34 +79,37 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
               resume: resumeContext,
               jobDescription,
             },
-          },
+          }),
         });
+
         clearTimeout(slowTimer);
         const _latency = Date.now() - _start;
 
-        if (error) {
+        if (!res.ok) {
           useAIHealthStore.getState().recordFailure(0);
-          throw error;
+          throw new Error(`Edge function returned ${res.status}`);
         }
 
-        if (data.error) {
-          if (data.error === 'rate_limit') {
+        const respData = await res.json();
+
+        if (respData.error) {
+          if (respData.error === 'rate_limit') {
             toast.error('Too many requests. Please wait a moment and try again.');
-          } else if (data.error === 'payment_required') {
+          } else if (respData.error === 'payment_required') {
             toast.error('AI credits exhausted. Please check your account.');
-          } else if (data.error === 'invalid_key') {
+          } else if (respData.error === 'invalid_key') {
             toast.error('Invalid Gemini API key. Please check your AI settings.');
           } else {
-            toast.error(data.message || 'Failed to enhance content');
+            toast.error(respData.message || 'Failed to enhance content');
           }
           return null;
         }
 
         useAIHealthStore.getState().recordSuccess(_latency);
         trackGeminiUsage();
-        checkAIFallback(data);
-        data.improved = sanitizeAIContent(data.improved);
-        return data;
+        checkAIFallback(respData);
+        respData.improved = sanitizeAIContent(respData.improved);
+        return respData;
       });
 
       if (!data) {
