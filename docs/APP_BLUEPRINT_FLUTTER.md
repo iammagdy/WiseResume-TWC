@@ -26,6 +26,8 @@
 16. [Offline & Local Storage](#16-offline--local-storage)
 17. [Security Architecture](#17-security-architecture)
 18. [Visual Screen Mockups](#18-visual-screen-mockups)
+19. [pubspec.yaml Reference](#19-pubspecyaml-reference)
+20. [Complete Screen Registry](#20-complete-screen-registry)
 
 ---
 
@@ -1901,6 +1903,170 @@ lib/
   │     └── providers/      # Shared Riverpod providers
   └── gen/                  # Generated code (freezed, json_serializable)
 ```
+
+---
+
+## 19. pubspec.yaml Reference
+
+Below is the complete, copy-paste-ready `pubspec.yaml` with all required dependencies version-pinned and organized by category.
+
+```yaml
+name: wise_resume
+description: AI-powered resume builder — native mobile app
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.6.0 <4.0.0'
+
+dependencies:
+  # ── Core Flutter ──
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # ── State Management & DI ──
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # ── Routing ──
+  go_router: ^14.8.1
+
+  # ── Backend (Supabase) ──
+  supabase_flutter: ^2.10.0
+
+  # ── Code Generation (annotations only) ──
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+
+  # ── Local Storage ──
+  hive_flutter: ^1.1.0
+  hive: ^2.2.3
+  shared_preferences: ^2.3.5
+  # isar: ^3.1.0+1          # optional — structured local DB
+  # isar_flutter_libs: ^3.1.0+1
+
+  # ── UI & Design ──
+  google_fonts: ^6.2.1
+  flutter_svg: ^2.0.17
+  shimmer: ^3.0.0
+  smooth_page_indicator: ^1.2.0+3
+  dotted_border: ^2.1.0
+  flutter_animate: ^4.5.2
+  # rive: ^0.13.20          # optional — Rive animations
+  lottie: ^3.3.1
+
+  # ── Charts & Visualization ──
+  fl_chart: ^0.71.0
+
+  # ── PDF & Documents ──
+  pdf: ^3.11.2
+  printing: ^5.13.5
+  syncfusion_flutter_pdf: ^27.2.5   # or pdfx: ^2.8.0
+  docx_template: ^0.3.2
+
+  # ── OCR & ML ──
+  google_mlkit_text_recognition: ^0.14.0
+
+  # ── Camera & Image ──
+  image_picker: ^1.1.2
+  image_cropper: ^8.0.2
+  cached_network_image: ^3.4.1
+
+  # ── QR Code ──
+  qr_flutter: ^4.1.0
+
+  # ── Auth & Security ──
+  local_auth: ^2.3.0
+  flutter_secure_storage: ^9.2.4
+
+  # ── Voice & Audio ──
+  speech_to_text: ^7.0.0
+  record: ^5.2.1
+
+  # ── Connectivity & Network ──
+  connectivity_plus: ^6.1.4
+  dio: ^5.8.0+1
+  url_launcher: ^6.3.1
+
+  # ── Utilities ──
+  uuid: ^4.5.1
+  intl: ^0.19.0
+  path_provider: ^2.1.5
+  share_plus: ^10.1.4
+  flutter_markdown: ^0.7.7
+  shake: ^3.2.0
+  package_info_plus: ^8.1.3
+  permission_handler: ^11.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  integration_test:
+    sdk: flutter
+
+  # ── Code Generation ──
+  freezed: ^2.5.8
+  json_serializable: ^6.9.4
+  build_runner: ^2.4.14
+  riverpod_generator: ^2.6.3
+  hive_generator: ^2.0.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/lottie/
+    - assets/fonts/
+```
+
+---
+
+## 20. Complete Screen Registry
+
+| # | Screen Widget | Route | Feature Module | Description |
+|---|---|---|---|---|
+| 1 | `LandingPage` | `/` | `landing/` | Marketing hero, comparison strip, features |
+| 2 | `AuthPage` | `/auth` | `auth/` | Login, signup, magic link, OAuth |
+| 3 | `AuthCallbackPage` | `/auth/callback` | `auth/` | OAuth callback handler |
+| 4 | `ResetPasswordPage` | `/reset-password` | `auth/` | Password reset form |
+| 5 | `DashboardPage` | `/dashboard` | `dashboard/` | Resume list, stats, FAB, quick actions |
+| 6 | `EditorPage` | `/editor` | `editor/` | Resume editor with stepper nav |
+| 7 | `PreviewPage` | `/preview` | `preview/` | Full-bleed template preview |
+| 8 | `UploadPage` | `/upload` | `upload/` | File upload, parse, OCR, review |
+| 9 | `AIStudioPage` | `/ai-studio` | `ai_studio/` | AI tools grid, chat, credits |
+| 10 | `InterviewPage` | `/interview` | `interview/` | Mock interview setup, voice, summary |
+| 11 | `ApplicationsPage` | `/applications` | `applications/` | Job tracking, status filters |
+| 12 | `PortfolioEditorPage` | `/portfolio` | `portfolio/` | Portfolio settings, theme, QR |
+| 13 | `PublicPortfolioPage` | `/p/:username` | `portfolio/` | Public themed portfolio view |
+| 14 | `SettingsPage` | `/settings` | `settings/` | All settings sections |
+| 15 | `ProfilePage` | `/profile` | `settings/` | Profile editor |
+| 16 | `TemplatesPage` | `/templates` | `templates/` | Template gallery grid |
+| 17 | `OnboardingPage` | `/onboarding` | `onboarding/` | 4-step wizard |
+| 18 | `CoverLettersPage` | `/cover-letters` | `cover_letters/` | Cover letter list |
+| 19 | `CoverLetterNewPage` | `/cover-letter/new` | `cover_letters/` | Create cover letter |
+| 20 | `CoverLetterEditPage` | `/cover-letter/edit/:id` | `cover_letters/` | Edit cover letter |
+| 21 | `ResignationLettersPage` | `/resignation-letters` | `resignation_letters/` | Resignation letter list |
+| 22 | `ResignationLetterNewPage` | `/resignation-letter/new` | `resignation_letters/` | Create resignation letter |
+| 23 | `ResignationLetterEditPage` | `/resignation-letter/edit/:id` | `resignation_letters/` | Edit resignation letter |
+| 24 | `CareerPage` | `/career` | `career/` | Quiz, roadmap, skill gap |
+| 25 | `NotificationsPage` | `/notifications` | `dashboard/` | Notification center |
+| 26 | `ResumeDetailPage` | `/resume/:id` | `dashboard/` | Single resume detail view |
+| 27 | `JobDetailPage` | `/job/:id` | `applications/` | Job detail view |
+| 28 | `ApplicationTrackerPage` | `/application/:id` | `applications/` | Application detail tracker |
+| 29 | `SharePage` | `/share/:token` | `shared/` | Shared resume viewer |
+| 30 | `ShortLinkPage` | `/l/:linkId` | `portfolio/` | Short link redirect |
+| 31 | `PrivacyPage` | `/privacy` | `landing/` | Privacy policy |
+| 32 | `TermsPage` | `/terms` | `landing/` | Terms of service |
+| 33 | `GuidesPage` | `/guides` | `dashboard/` | Career guides list |
+| 34 | `GuidePage` | `/guides/:slug` | `dashboard/` | Single guide view |
+| 35 | `ExamplesPage` | `/examples` | `dashboard/` | Resume examples |
+
+> **Total: 35 screens** across 16 feature modules.
 
 ---
 
