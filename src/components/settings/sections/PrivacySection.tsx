@@ -30,13 +30,13 @@ export const PrivacySection = memo(function PrivacySection({
     const privacyStatus = localOnlyMode && !analyticsEnabled ? 'Strict' : 'Standard';
 
     const getBiometryIcon = () => {
-        if (biometryType === 'face') return ScanFace;
+        if (biometryType === 'faceId') return ScanFace;
         if (biometryType === 'iris') return Eye;
         return Fingerprint;
     };
 
     const getBiometryLabel = () => {
-        if (biometryType === 'face') return 'Face ID';
+        if (biometryType === 'faceId') return 'Face ID';
         if (biometryType === 'iris') return 'Iris Lock';
         return 'Fingerprint Lock';
     };
