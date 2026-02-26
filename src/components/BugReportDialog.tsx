@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { HeartHandshake, Send, CheckCircle2, MapPin, Info, Wrench, AlertTriangle, ToggleLeft, ToggleRight } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/safeClient';
 import {
   onBugReport,
   detectScreen,
@@ -13,24 +13,6 @@ import {
   type ErrorCategoryInfo,
 } from '@/lib/bugReport';
 import { activityTracker } from '@/lib/activityTracker';
-
-async function getAuthFromSession() {
-  try {
-    const { data, error } = await supabase.auth.getSession();
-    if (error) throw error;
-
-    const session = data.session;
-    return {
-      userId: session?.user?.id as string | undefined,
-      userEmail: session?.user?.email as string | undefined,
-      sessionId: session?.access_token
-        ? (session.access_token as string).slice(-8)
-        : undefined,
-    };
-  } catch {
-    return { userId: undefined, userEmail: undefined, sessionId: undefined };
-  }
-}
 
 let cachedAppVersion: string | null = null;
 async function getAppVersion(): Promise<string> {
@@ -142,7 +124,18 @@ export function BugReportDialog() {
     if (!data) return;
     setStatus('sending');
 
-    const auth = await getAuthFromSession();
+    // Get auth from the same client the app uses
+    let userId: string | undefined;
+    let userEmail = 'anonymous';
+    let sessionId: string | undefined;
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData.session;
+      userId = session?.user?.id;
+      userEmail = session?.user?.email || 'anonymous';
+      sessionId = session?.access_token?.slice(-8);
+    } catch { /* proceed without auth */ }
+
     const appVersion = await getAppVersion();
 
     const effectiveMessage = reportMode === 'detected' && recentError
@@ -159,9 +152,9 @@ export function BugReportDialog() {
       action: data.action || null,
       active_feature: activeFeature || null,
       recent_errors: data.detectedContext?.recentErrors || null,
-      user_id: auth.userId || null,
-      user_email: auth.userEmail || 'anonymous',
-      session_id: auth.sessionId || null,
+      user_id: userId || null,
+      user_email: userEmail,
+      session_id: sessionId || null,
       user_agent: navigator.userAgent,
       app_version: appVersion,
       additional_context: additionalContext.trim() || null,
@@ -169,6 +162,7 @@ export function BugReportDialog() {
     };
 
     try {
+      // Primary path: edge function
       const { error } = await supabase.functions.invoke('send-bug-report', {
         body: payload,
       });
@@ -177,6 +171,30 @@ export function BugReportDialog() {
       setStatus('success');
       setTimeout(() => setOpen(false), 2000);
     } catch {
+      // Fallback: direct DB insert (works even if function deployment drifts)
+      if (userId) {
+        try {
+          const { error: dbErr } = await supabase.from('bug_reports').insert({
+            user_id: userId,
+            user_email: userEmail,
+            error_message: effectiveMessage.slice(0, 2000),
+            error_stack: payload.error_stack?.slice(0, 5000) || null,
+            component_stack: payload.component_stack?.slice(0, 5000) || null,
+            route: payload.route || null,
+            session_id: payload.session_id || null,
+            user_agent: payload.user_agent?.slice(0, 500) || null,
+            additional_context: payload.additional_context?.slice(0, 1000) || null,
+            app_version: appVersion,
+            active_feature: payload.active_feature || null,
+            recent_errors: payload.recent_errors || null,
+          });
+          if (dbErr) throw dbErr;
+          activityTracker.clearErrors();
+          setStatus('success');
+          setTimeout(() => setOpen(false), 2000);
+          return;
+        } catch { /* both paths failed */ }
+      }
       setStatus('error');
     }
   }, [data, additionalContext, screenLabel, categoryInfo.category, activeFeature, recentError, reportMode]);
