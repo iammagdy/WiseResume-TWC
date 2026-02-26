@@ -1,40 +1,40 @@
 
-Issue diagnosis complete. The crash is happening before the page renders because `ScreenshotsGalleryPage.tsx` creates a backend client at module load using `import.meta.env.VITE_SUPABASE_URL`, and in this preview session that env is missing (`main.tsx` logs `supabaseUrl: "missing"`). That makes `createClient(...)` throw `supabaseUrl is required`, which triggers the global error screen.
 
-What I will implement after approval:
+# Replace AI-Generated Screenshots with Real App Screen Captures
 
-1) Make the screenshots backend client initialization crash-safe
-- File: `src/pages/ScreenshotsGalleryPage.tsx`
-- Replace the current top-level `createClient(import.meta.env...)` usage with a resilient setup:
-  - Read env values first.
-  - Add safe fallback values for the Lovable Cloud backend URL + publishable key (so the page can run even when preview env injection is missing).
-  - Create the client only from validated non-empty values.
-- This prevents route-level hard crashes during import.
+## Problem
+The `/screenshots-gallery` page uses the `generate-store-screenshots` Edge Function, which sends text prompts to an AI image model. The resulting images are generic, unrelated to your actual app design.
 
-2) Move client creation behind a guarded/lazy path
-- Keep client construction out of brittle module-scope assumptions.
-- Ensure `fetchScreenshots` and `handleGenerate` check that a valid client exists before calling database/function APIs.
-- If config is unavailable, show a user-friendly toast and keep the page usable (no hard error boundary).
+## Solution
+Replace the AI generation approach on `/screenshots-gallery` with the same client-side capture approach used on `/store-screenshots`. This renders your real `MockScreens` components (Hero, Dashboard, AI Studio, Interview, Recruiter, Templates, Job Tracker, Portfolio) and uses `html2canvas` to capture them as PNGs.
 
-3) Preserve mobile-first + non-blank loading behavior
-- Keep existing skeleton grid for loading.
-- Ensure the page always renders a valid UI state on `/screenshots-gallery` at `xs` width (375px), even if backend calls fail.
-- Keep action buttons disabled appropriately while generating/loading.
+## Changes
 
-4) Improve error clarity for this specific flow
-- Update error toasts/messages for:
-  - backend config missing
-  - generation request failure
-  - fetch failure
-- Goal: users see actionable messages instead of “Something went wrong” crash screen.
+### 1. Rewrite `src/pages/ScreenshotsGalleryPage.tsx`
+- Remove the Lovable Cloud client, database queries, and Edge Function invocation
+- Import the same `MockScreens` components and `StoreScreenshot` wrapper used by `StoreScreenshotsPage`
+- Import `captureWithRetry` from `@/lib/html2canvasRetry`
+- Render all 8 screens in a responsive grid (2 cols on mobile, 3-4 on larger)
+- "Generate Screenshots" button becomes "Capture All" -- captures each screen to PNG using `html2canvas` and auto-downloads
+- Individual download buttons per screenshot
+- Keep the mobile-first layout, skeleton loading states, and back navigation
 
-5) Validation checklist (end-to-end)
-- Open `/screenshots-gallery` directly on mobile viewport (375px).
-- Confirm no crash/error boundary appears.
-- Tap “Generate Screenshots” and verify request is sent to Lovable Cloud backend function.
-- Confirm screenshots list refreshes after completion and individual/“Download All” still work.
+### 2. No backend changes needed
+- The Edge Function and `store_screenshots` table become unused by this page
+- No database migration required
 
-Technical notes
-- No database migration needed (table already exists).
-- No backend function code changes needed for this fix.
-- Scope is isolated to `ScreenshotsGalleryPage.tsx` to minimize risk and unblock immediately.
+## Technical Details
+
+**Screenshot data**: Reuse the same `SCREENSHOTS` array from `StoreScreenshotsPage.tsx` (8 items with id, headline, subtitle, gradient, and Screen component).
+
+**Capture flow**:
+- Render each `StoreScreenshot` off-screen or scaled down in the grid
+- On "Capture All" or individual download, use `captureWithRetry(element, { scale: 1, width: 1290, height: 2796 })` to produce App Store-resolution PNGs
+- Trigger browser download for each captured image
+
+**UI layout**:
+- Header with back button + title (keep existing style)
+- Action bar: "Capture All" + count indicator
+- Grid of screenshot previews (scaled-down versions of the 1290x2796 compositions)
+- Each card shows the headline + a download button
+- Mobile-first: 2 columns at 375px, expanding to 4 on desktop
