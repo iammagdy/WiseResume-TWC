@@ -25,6 +25,11 @@ const PAGE_TITLES: [string, string][] = [
   ['/resume', 'Resume'],
   ['/onboarding', 'Getting Started'],
   ['/portfolio', 'Portfolio'],
+  ['/help', 'Help'],
+  ['/analytics', 'Analytics'],
+  ['/subscription', 'Subscription'],
+  ['/referral', 'Invite Friends'],
+  ['/achievements', 'Achievements'],
   ['/dashboard', 'Home'],
 ];
 

@@ -43,6 +43,8 @@ import {
   PortfolioEditorSkeleton,
   OnboardingSkeleton,
   GuidesExamplesSkeleton,
+  AnalyticsSkeleton,
+  AchievementsSkeleton,
 } from "@/components/layout/PageSkeletons";
 import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
@@ -87,6 +89,11 @@ const ShortLinkPage = lazyWithRetry(() => import("./pages/ShortLinkPage"));
 const AuthCallbackPage = lazyWithRetry(() => import("./pages/AuthCallbackPage"));
 const PrivacyPage = lazyWithRetry(() => import("./pages/PrivacyPage"));
 const TermsPage = lazyWithRetry(() => import("./pages/TermsPage"));
+const HelpPage = lazyWithRetry(() => import("./pages/HelpPage"));
+const AnalyticsPage = lazyWithRetry(() => import("./pages/AnalyticsPage"));
+const SubscriptionPage = lazyWithRetry(() => import("./pages/SubscriptionPage"));
+const ReferralPage = lazyWithRetry(() => import("./pages/ReferralPage"));
+const AchievementsPage = lazyWithRetry(() => import("./pages/AchievementsPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -219,6 +226,11 @@ const queryClient = new QueryClient({
                 <Route path="/guides" element={<Suspense fallback={<GuidesExamplesSkeleton />}><GuidesPage /></Suspense>} />
                 <Route path="/guides/:slug" element={<Suspense fallback={<DetailSkeleton />}><GuidePage /></Suspense>} />
                  <Route path="/ai-studio" element={<Suspense fallback={<AIStudioSkeleton />}><AIStudioPage /></Suspense>} />
+                 <Route path="/help" element={<Suspense fallback={<DetailSkeleton />}><HelpPage /></Suspense>} />
+                 <Route path="/analytics" element={<Suspense fallback={<AnalyticsSkeleton />}><AnalyticsPage /></Suspense>} />
+                 <Route path="/subscription" element={<Suspense fallback={<DetailSkeleton />}><SubscriptionPage /></Suspense>} />
+                 <Route path="/referral" element={<Suspense fallback={<DetailSkeleton />}><ReferralPage /></Suspense>} />
+                 <Route path="/achievements" element={<Suspense fallback={<AchievementsSkeleton />}><AchievementsPage /></Suspense>} />
                  <Route path="/activity" element={<Navigate to="/applications" replace />} />
                  <Route path="/jobs/:id" element={<RedirectJobRoute />} />
                  <Route path="/jobs" element={<Navigate to="/applications" replace />} />

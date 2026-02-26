@@ -1,5 +1,6 @@
 import { memo, Suspense, lazy } from 'react';
-import { LogOut, KeyRound, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { LogOut, KeyRound, Trash2, HelpCircle, Crown, Gift } from 'lucide-react';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { Separator } from '@/components/ui/separator';
 import { useResumes } from '@/hooks/useResumes';
@@ -25,6 +26,7 @@ export const AccountSection = memo(function AccountSection({
     onSignOut,
     onDeleteData,
 }: AccountSectionProps) {
+    const navigate = useNavigate();
     const { data: resumes = [] } = useResumes();
     const { data: coverLetters = [] } = useCoverLetters();
     const { data: applications = [] } = useJobApplications();
@@ -42,6 +44,33 @@ export const AccountSection = memo(function AccountSection({
             </Suspense>
 
             <div className="rounded-2xl glass-elevated overflow-hidden">
+                {/* Help */}
+                <SettingsRow
+                    type="navigation"
+                    label="Help & FAQ"
+                    description="Get answers and contact support"
+                    icon={<HelpCircle className="w-4 h-4" />}
+                    onClick={() => { haptics.light(); navigate('/help'); }}
+                />
+                <Separator className="bg-border/30" />
+                {/* Subscription */}
+                <SettingsRow
+                    type="navigation"
+                    label="Subscription"
+                    description="Manage your plan and usage"
+                    icon={<Crown className="w-4 h-4" />}
+                    onClick={() => { haptics.light(); navigate('/subscription'); }}
+                />
+                <Separator className="bg-border/30" />
+                {/* Referral */}
+                <SettingsRow
+                    type="navigation"
+                    label="Invite Friends"
+                    description="Earn rewards by sharing WiseResume"
+                    icon={<Gift className="w-4 h-4" />}
+                    onClick={() => { haptics.light(); navigate('/referral'); }}
+                />
+                <Separator className="bg-border/30" />
                 {/* Change Password - email users only */}
                 {authProvider === 'email' && (
                     <>

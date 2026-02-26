@@ -35,6 +35,11 @@ const BACK_ROUTES: Record<string, string> = {
   '/guides': '/dashboard',
   '/guide': '/guides',
   '/ai-studio': '/dashboard',
+  '/help': '/settings',
+  '/analytics': '/dashboard',
+  '/subscription': '/settings',
+  '/referral': '/subscription',
+  '/achievements': '/dashboard',
 };
 
 /**
