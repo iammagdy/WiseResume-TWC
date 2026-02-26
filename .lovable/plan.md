@@ -1,62 +1,100 @@
 
 
-# Fix PDF Parsing: Edge Function URL Mismatch
+# Fix Edge Function URL Mismatch Across All AI Features
 
 ## Problem
-Your CV parsing returns almost no data because the app is calling edge functions on the wrong backend. The `parse-resume` AI function exists on the Lovable Cloud backend, but the app sends requests to a different (old) backend URL where no edge functions are deployed -- resulting in a 404 error and a silent fallback to a basic local parser that can barely extract anything.
-
-This is why you see `"location": "Python, SQ"` with empty skills, experience, education, etc. The AI parser never runs.
-
-## Root Cause
-- `src/integrations/supabase/safeClient.ts` has a hardcoded URL pointing to the **old** backend (`jnsfmkzgxsviuthaqlyy`)
-- `pdfParser.ts` and many other files import the URL from this file to call edge functions
-- Edge functions are deployed on the **Lovable Cloud** backend (`hjnnamwgztlhzkeuufln`)
-- Result: every edge function call goes to the wrong URL and fails silently
+All 29 files that call `supabase.functions.invoke()` import `supabase` from `safeClient.ts`, which points to the old backend (`jnsfmkzgxsviuthaqlyy`). Edge functions are deployed on Lovable Cloud (`hjnnamwgztlhzkeuufln`). Every AI feature (scoring, tailoring, enhancing, cover letters, career path, etc.) silently fails or 404s.
 
 ## Solution
-Update `pdfParser.ts` (and all other affected files) to use the correct Lovable Cloud URL for edge function calls.
+Create a dedicated edge function client that points to Lovable Cloud, then update all 29 files to use it for edge function calls while keeping `safeClient` for database/auth operations.
 
-### Files to Update
+### Step 1: Create Edge Function Client
+**New file: `src/integrations/supabase/edgeFunctions.ts`**
 
-| File | Change |
-|------|--------|
-| `src/lib/pdfParser.ts` | Use `import.meta.env.VITE_SUPABASE_URL` instead of `safeClient.supabaseConfig.url` for edge function calls |
-| `src/pages/ResignationLetterNewPage.tsx` | Use `import.meta.env.VITE_SUPABASE_URL` for edge function URL |
-| `src/pages/ResignationLetterEditPage.tsx` | Same fix |
-| `src/pages/PortfolioEditorPage.tsx` | Same fix |
-| `src/pages/PublicPortfolioPage.tsx` | Same fix |
-| `src/components/applications/AddApplicationSheet.tsx` | Same fix |
-| `src/components/portfolio/public/ChatWidget.tsx` | Same fix |
+A small module exporting a Supabase client configured with the Lovable Cloud URL (`import.meta.env.VITE_SUPABASE_URL`) specifically for `functions.invoke()` calls. This client inherits the auth session from the main client so tokens are forwarded.
 
-### Auth Handling
-Since `verify_jwt = false` is set for all edge functions, the auth token validation in the edge function code itself is what matters. The edge function creates its own Supabase client with its own project credentials. Since the user is authenticated on the old project, the token won't validate on the Lovable Cloud project.
+### Step 2: Update 29 Files
 
-To fix this, the `parse-resume` edge function needs to either:
-1. Accept the old project's token (complex), OR
-2. Skip auth for parsing (since verify_jwt is already false) and rely on rate limiting instead
+Each file that calls `supabase.functions.invoke()` gets a new import for the edge function client, replacing only the edge function calls. Database/auth calls remain on `safeClient`.
 
-The simplest approach: make the edge function work without requiring auth from the caller's token -- it already has `verify_jwt = false`. We just need to adjust the edge function to not reject unauthenticated requests but still use a user identifier for rate limiting (e.g., from the forwarded token payload without cryptographic verification, or from IP).
+**Files that ONLY use edge functions (simple import swap):**
 
-### Detailed Changes
+| # | File | Edge Functions Called |
+|---|------|---------------------|
+| 1 | `src/lib/aiAnalysis.ts` | analyze-resume |
+| 2 | `src/lib/aiTailor.ts` | tailor-resume, parse-job-url, parse-job-text, generate-cover-letter |
+| 3 | `src/lib/careerPath.ts` | career-path-advisor |
+| 4 | `src/lib/agenticChat.ts` | agentic-chat |
+| 5 | `src/hooks/useAIEnhance.ts` | enhance-section |
+| 6 | `src/hooks/useCompanyBriefing.ts` | company-briefing |
+| 7 | `src/hooks/useElevenLabsScribe.ts` | elevenlabs-scribe-token |
+| 8 | `src/components/editor/ai/AIEnhanceSheet.tsx` | enhance-section |
+| 9 | `src/components/editor/ai/AIDetectorSheet.tsx` | detect-and-humanize |
+| 10 | `src/components/editor/ai/RecruiterSimSheet.tsx` | recruiter-simulation, enhance-section |
+| 11 | `src/components/editor/ai/OnePageWizardSheet.tsx` | one-page-optimizer |
+| 12 | `src/components/editor/ai/LinkedInOptimizerSheet.tsx` | optimize-for-linkedin |
+| 13 | `src/components/editor/GapExplainerSheet.tsx` | explain-gap |
+| 14 | `src/components/editor/GapFillerSheet.tsx` | fill-gap |
+| 15 | `src/components/editor/tailor/QuickActions.tsx` | enhance-section |
+| 16 | `src/components/ai-studio/ResumeABCompareSheet.tsx` | score-resume, analyze-resume |
+| 17 | `src/components/settings/ElevenLabsKeySheet.tsx` | manage-api-keys |
+| 18 | `src/components/settings/FeatureRequestDialog.tsx` | send-feature-request |
+| 19 | `src/components/settings/LinkedInImportSheet.tsx` | parse-linkedin, parse-resume |
+| 20 | `src/components/BugReportDialog.tsx` | send-bug-report |
+| 21 | `src/pages/CareerPage.tsx` | career-assessment |
+| 22 | `src/hooks/useATSSuggestions.ts` | enhance-section |
+| 23 | `src/hooks/useSalaryEstimate.ts` | salary-estimate (if exists) |
 
-**1. `src/lib/pdfParser.ts`** -- Use correct URL and pass auth token as-is
-- Replace `supabaseConfig.url` with `import.meta.env.VITE_SUPABASE_URL`
-- Keep sending the auth token (edge function will use it if valid, ignore if not)
+**Files that use BOTH edge functions AND database/auth (need both imports):**
 
-**2. `supabase/functions/parse-resume/index.ts`** -- Make auth optional
-- If the token validates, use the user ID for rate limiting
-- If the token doesn't validate, still proceed but use a fallback identifier (e.g., hash of the token) for rate limiting
-- This way the function works regardless of which project issued the token
+| # | File | Edge + DB Usage |
+|---|------|-----------------|
+| 24 | `src/hooks/useResumeScore.ts` | score-resume + `supabase.auth.getSession()` |
+| 25 | `src/hooks/useVoiceInterview.ts` | interview-chat + possibly auth |
+| 26 | `src/hooks/usePushNotifications.ts` | send-push-notification + `supabase.from('push_subscriptions')` |
+| 27 | `src/components/settings/AISettingsSheet.tsx` | manage-api-keys + auth/DB |
+| 28 | `src/components/dashboard/SetTargetJobSheet.tsx` | tailor functions + `supabase.from('resumes')` |
+| 29 | `src/pages/EditorPage.tsx` | possible edge calls + DB |
 
-**3. All other files using `SUPABASE_URL` from safeClient for edge functions** -- Switch to `import.meta.env.VITE_SUPABASE_URL`
+For these mixed files, both clients are imported:
+- `import { supabase } from '@/integrations/supabase/safeClient'` -- for DB/auth
+- `import { edgeFunctions } from '@/integrations/supabase/edgeFunctions'` -- for `.functions.invoke()`
 
-### Deployment
-- Redeploy `parse-resume` edge function after the auth changes
+### Step 3: Verify remaining files
+A few more files may also call edge functions indirectly (e.g., `src/hooks/useSalaryEstimate.ts`, `src/components/editor/AgenticChatSheet.tsx`). These will be checked and updated as well.
+
+## Technical Details
+
+**`edgeFunctions.ts` implementation:**
+```typescript
+import { createClient } from '@supabase/supabase-js';
+
+const CLOUD_URL = import.meta.env.VITE_SUPABASE_URL;
+const CLOUD_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+export const edgeFunctions = createClient(CLOUD_URL, CLOUD_KEY, {
+  auth: { persistSession: false },
+});
+```
+
+The edge function client uses `persistSession: false` since it only needs to forward auth tokens for rate limiting (edge functions have `verify_jwt = false`). The auth token from `safeClient` is not needed since the edge functions already handle cross-project auth gracefully.
+
+**Example change pattern:**
+```typescript
+// Before (in aiAnalysis.ts):
+import { supabase } from '@/integrations/supabase/safeClient';
+const { data, error } = await supabase.functions.invoke('analyze-resume', ...);
+
+// After:
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+const { data, error } = await edgeFunctions.functions.invoke('analyze-resume', ...);
+```
 
 ## Impact
-After this fix:
-- PDF upload will call the correct AI parsing endpoint
-- The AI will properly extract all resume sections (experience, education, skills, contact info, etc.)
-- OCR will also work correctly since it uses the same `parseTextWithAI` function
-- Other features using edge functions (scoring, job URL parsing, portfolio bio, etc.) will also start working
+- All AI features will start working: scoring, tailoring, enhancing, cover letters, career path analysis, interview prep, company briefing, LinkedIn optimization, gap explanation, recruiter simulation, A/B comparison, one-page optimizer, AI detection, and more.
+- Database operations (auth, resume CRUD, profiles, applications) remain unaffected on the personal backend.
+- No edge function redeployment needed.
 
+## Files Changed
+- 1 new file created
+- ~29 files updated (import swap only)
