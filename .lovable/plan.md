@@ -1,138 +1,182 @@
 
 
-# Create Flutter App Rebuild Prompts File
+# Create 4 Design Reference and Stitch Prompt Files
 
 ## Overview
-Create a new file `docs/REBUILD_PROMPTS_FLUTTER.md` containing a complete, ordered set of 55+ prompts that an AI tool (like Cursor, Windsurf, or similar) can follow step-by-step to build the entire WiseResume app as a native Flutter application from scratch. The file will also include Google Stitch prompts for generating screen designs.
+Create 4 new documentation files to support the design phase of both the web and Flutter versions of WiseResume.
 
-## What the File Will Contain
+---
 
-### Structure
-1. **Master System Prompt** -- A meta-instruction block telling the receiving AI how to behave: track progress ("Prompt 12/55"), ask clarifying questions, suggest improvements, and show remaining work. Adapted for Flutter/Dart context.
-2. **Google Stitch Prompts (Part A)** -- Same 12 design prompts from the web version (screen designs are platform-agnostic).
-3. **Flutter App Build Prompts (Part B)** -- 55 sequential prompts ordered by dependency, adapted for Flutter 3.x + Dart, Riverpod, GoRouter, freezed, supabase_flutter, and native packages.
+## File 1: `docs/INSPIRATION_WEB.md` -- Web App Competitors and Design Sources
 
-### Key Differences from Web Version
-The Flutter prompts differ from the web prompts in these critical areas:
+A curated list of web-based resume builders, career platforms, and SaaS apps to draw UI/UX inspiration from. Organized by category:
 
-| Aspect | Web (React) | Flutter |
-|--------|-------------|---------|
-| Framework | React 18 + Vite | Flutter 3.x + Dart |
-| UI Components | shadcn/ui (Radix) | Material 3 + custom widgets |
-| State | Zustand + React Query | Riverpod + FutureProvider |
-| Routing | React Router v6 | GoRouter with ShellRoute |
-| Animations | Framer Motion | Implicit/explicit Flutter animations |
-| Styling | Tailwind CSS + HSL vars | ThemeData + ThemeExtension |
-| Data Models | TypeScript interfaces | freezed + json_serializable |
-| Local Storage | localStorage + Zustand persist | Hive + SharedPreferences |
-| PDF Generation | pdf-lib + html2canvas | pdf + printing packages |
-| PDF Parsing | pdfjs-dist | syncfusion_flutter_pdf / pdfx |
-| OCR | tesseract.js | google_mlkit_text_recognition |
-| Voice | Web Speech API | speech_to_text package |
-| Charts | recharts | fl_chart |
-| QR Codes | qr-code-styling | qr_flutter |
-| Forms | react-hook-form | flutter_form_builder |
-| Markdown | react-markdown | flutter_markdown |
-| Native Features | Capacitor plugins | Flutter native (local_auth, share_plus, etc.) |
-| Back Button | Custom hook | PopScope / WillPopScope |
-| Glass Effects | CSS backdrop-filter | ClipRRect + BackdropFilter (skip on low-end Android) |
+### Resume Builders (Direct Competitors)
+- **Teal** (tealhq.com) -- Job tracker + resume builder, clean dashboard, ATS scoring UI
+- **Rezi** (rezi.ai) -- AI resume builder, dark theme option, stepper editor
+- **Kickresume** (kickresume.com) -- Template gallery grid, cover letter flow
+- **Novoresume** (novoresume.com) -- Editor with live preview side-by-side
+- **Resume.io** (resume.io) -- Clean template picker, export flow
+- **Enhancv** (enhancv.com) -- Section-based editor, content suggestions
+- **FlowCV** (flowcv.io) -- Free builder, minimal dark UI, real-time preview
+- **Reactive Resume** (rxresu.me) -- Open source, dark theme, glass effects
+- **Standard Resume** (standardresume.co) -- Minimalist, elegant preview
+- **Zety** (zety.com) -- Guided wizard, template variety
 
-### Prompt Ordering Strategy (Part B -- 55 Prompts)
+### AI Career Tools
+- **Jobscan** (jobscan.co) -- ATS score visualization, keyword matching UI
+- **VMock** (vmock.com) -- Resume scoring dashboard
+- **Huntr** (huntr.co) -- Job board + tracker, Kanban view
+- **Simplify** (simplify.jobs) -- Auto-fill applications, activity feed
+- **Careerflow** (careerflow.ai) -- AI tools dashboard grid
 
-```text
-Phase 1: Foundation (Prompts 1-6)
-  - Flutter project setup, pubspec.yaml, folder structure
-  - Design system (ThemeData, ColorScheme, WiseResumeTheme extension, fonts)
-  - Supabase initialization (supabase_flutter)
-  - Auth system (email/password, OAuth, magic link via supabase_flutter)
-  - Data models (all freezed classes + code generation)
-  - Riverpod providers + Hive/SharedPreferences persistence
-  - GoRouter config + AppShell + BottomTabBar
+### SaaS Design Inspiration (Layout, Dark Theme, Glass Effects)
+- **Linear** (linear.app) -- Dark theme excellence, glass surfaces, keyboard shortcuts
+- **Raycast** (raycast.com) -- Command palette, dark aesthetic
+- **Vercel Dashboard** (vercel.com) -- Clean dark UI, stats cards
+- **Notion** (notion.so) -- Editor UX patterns, side panels
+- **Arc Browser** (arc.net) -- Space theme, gradients, animations
 
-Phase 2: Core Screens (Prompts 7-17)
-  - Landing page with CustomPainter space theme
-  - Dashboard with stats, resume list, FAB
-  - Resume Editor (13 sections, stepper, toolbar)
-  - Editor sheets (template selector, customize, share, export, etc.)
-  - Preview page with InteractiveViewer + PageView
-  - Upload page (file_picker, PDF/DOCX/OCR parsing)
-  - Templates gallery (30 templates, GridView)
-  - Template rendering (30 CustomPaint/Widget templates)
-  - Onboarding wizard (PageView + SmoothPageIndicator)
-  - Profile editor
-  - Settings page (all sections)
+### Portfolio Inspiration
+- **Read.cv** (read.cv) -- Clean public profiles
+- **Peerlist** (peerlist.io) -- Developer portfolios
+- **Bento** (bento.me) -- Grid-based personal pages
 
-Phase 3: AI Features (Prompts 18-27)
-  - AI service layer (supabase_flutter functions.invoke)
-  - AI Studio page (tool grid)
-  - Resume analysis + scoring
-  - Resume tailoring + diff UI
-  - Section enhancement + proofreading
-  - Cover letter generation + CRUD pages
-  - Resignation letter generation + CRUD pages
-  - Mock interview (speech_to_text + ElevenLabs)
-  - Career path + quiz
-  - Agentic chat + gap tools
+Each entry will include: name, URL, and 2-3 specific UI elements worth studying (e.g., "Study their template picker grid layout", "Reference their ATS score ring animation").
 
-Phase 4: Job Tracking (Prompts 28-31)
-  - Applications page + filters
-  - Application detail + job detail pages
-  - Job parsing edge functions (shared with web)
-  - Notifications page + in-app notifications
+---
 
-Phase 5: Portfolio (Prompts 32-36)
-  - Portfolio editor page
-  - Public portfolio page (standalone, no AppShell)
-  - QR codes (qr_flutter) + short links
-  - Portfolio analytics (fl_chart)
-  - Ask AI widget
+## File 2: `docs/INSPIRATION_FLUTTER.md` -- Mobile App Competitors and Design Sources
 
-Phase 6: Sharing and Documents (Prompts 37-40)
-  - Resume sharing (password, expiry, viewer page)
-  - Share comments
-  - Resume versions
-  - PDF export (pdf + printing) + DOCX export
+Mobile-specific apps (Android/iOS) for native Flutter UI inspiration:
 
-Phase 7: Advanced Features (Prompts 41-47)
-  - Help and FAQ page
-  - Analytics / Insights page (fl_chart)
-  - Subscription / Pricing page
-  - Referral page (qr_flutter + share_plus)
-  - Achievements / Badges page
-  - Guides and Examples pages
-  - Command palette (custom search overlay) + bug report (shake package)
+### Resume/Career Apps (Google Play / App Store)
+- **Canva** -- Template gallery, editor gestures, export flow
+- **Indeed** -- Job search UI, application tracking, notifications
+- **LinkedIn** -- Profile editor, activity feed, messaging patterns
+- **Glassdoor** -- Company pages, salary cards, review UI
+- **Resume Builder by Nobody** -- Simple mobile resume editor
+- **CV Engineer** -- Mobile resume builder, template preview
+- **Resume Star** -- iOS resume builder, clean native feel
+- **Jobscan Mobile** -- ATS score cards
+- **Huntr Mobile** -- Job tracking Kanban
+- **Otta** -- Modern job matching, card-based swipe UI
 
-Phase 8: Native Platform (Prompts 48-51)
-  - Biometric lock (local_auth)
-  - Deep linking (uni_links + GoRouter)
-  - Offline support (connectivity_plus + Hive sync queue)
-  - Push notifications (firebase_messaging or custom)
+### Flutter-Specific Design Inspiration
+- **Google Pay** -- Material 3, bottom nav, smooth animations
+- **Reflectly** -- Beautiful onboarding, custom painters, gradients
+- **Hamilton Musical App** -- Dark theme, glass effects in Flutter
+- **Nubank** -- Dark theme banking, cards, charts
+- **Stadia** (archived) -- Dark gaming UI, smooth transitions
 
-Phase 9: Polish and Launch (Prompts 52-55)
-  - Stripe / in-app purchase integration
-  - AI credit enforcement
-  - Platform-specific optimizations (Android + iOS)
-  - Final QA checklist (responsive, dark/light, accessibility, performance)
-```
+### UI Pattern Libraries
+- **Material 3 Gallery** (Flutter demo app) -- Official Material 3 components
+- **Flutter Gallery** -- Widget catalog and patterns
+- **Dribbble** -- Search "resume app mobile", "career app dark theme", "job tracker mobile"
+- **Mobbin** (mobbin.com) -- Real app screenshots, filter by pattern
 
-### Each Prompt Will Include
-- Clear prompt number and title (e.g., "PROMPT 7/55 -- Dashboard Page")
-- Flutter-specific instructions (widgets, packages, patterns)
-- Reference to APP_BLUEPRINT_FLUTTER.md for design specs and widget trees
-- Database tables/RPCs needed (same Supabase backend as web)
-- Riverpod providers to create
-- freezed models needed (if any)
-- Reminder for the AI to report progress and ask questions
+Each entry will include: platform availability, specific screens to study, and Flutter-relevant patterns (e.g., "Study their CustomPainter usage for score rings", "Reference their PageView onboarding flow").
 
-### Google Stitch Section
-Identical 12 prompts from the web version (screen designs are visual references, platform-agnostic).
+---
+
+## File 3: `docs/STITCH_PROMPTS_WEB.md` -- Google Stitch Prompts for Web App Screens
+
+Standalone file with **20+ granular prompts** (smaller than the 12 combined ones in REBUILD_PROMPTS.md). Each prompt generates 1-2 screens max to avoid hallucination:
+
+| # | Prompt | Screens |
+|---|--------|---------|
+| 1 | Auth -- Email Entry + Login | 2 |
+| 2 | Auth -- Signup + Reset Password | 2 |
+| 3 | Dashboard -- Main View | 1 |
+| 4 | Dashboard -- FAB Menu + Empty State | 2 |
+| 5 | Resume Editor -- Section Stepper | 1 |
+| 6 | Resume Editor -- Bottom Toolbar + Sheets | 2 |
+| 7 | Resume Preview -- Zoom + Page Nav | 1 |
+| 8 | Upload -- Import Zone + Progress | 1 |
+| 9 | AI Studio -- Tool Grid | 1 |
+| 10 | Mock Interview -- Chat + Voice Controls | 1 |
+| 11 | Applications -- List + Filters | 1 |
+| 12 | Job Detail | 1 |
+| 13 | Portfolio Editor | 1 |
+| 14 | Public Portfolio | 1 |
+| 15 | Settings -- Main + Categories | 1 |
+| 16 | Profile Editor | 1 |
+| 17 | Cover Letters -- List + Editor | 2 |
+| 18 | Onboarding Wizard (4 steps) | 1 |
+| 19 | Templates Gallery | 1 |
+| 20 | Help + FAQ | 1 |
+| 21 | Analytics / Insights | 1 |
+| 22 | Subscription / Pricing | 1 |
+| 23 | Referral + Achievements | 2 |
+| 24 | Career Path + Quiz | 1 |
+| 25 | Notifications + 404 | 2 |
+| 26 | Landing Page -- Hero + Features | 1 |
+| 27 | Landing Page -- CTA + Footer | 1 |
+| 28 | Resignation Letters -- List + Editor | 2 |
+
+Each prompt will be self-contained with:
+- Exact viewport (375px mobile-first)
+- Color tokens (hex values for Stitch since it doesn't understand CSS vars)
+- Typography specs (font family, sizes, weights)
+- Component-level layout description
+- Glass morphism / gradient instructions
+
+---
+
+## File 4: `docs/STITCH_PROMPTS_FLUTTER.md` -- Google Stitch Prompts for Flutter/Mobile App Screens
+
+Same granular approach as the web version but adapted for native mobile conventions:
+
+| # | Prompt | Screens |
+|---|--------|---------|
+| 1 | Splash Screen -- Animated Logo + Stars | 1 |
+| 2 | Auth -- Email Entry + Login | 2 |
+| 3 | Auth -- Signup + Reset Password | 2 |
+| 4 | Dashboard -- Main View with FAB | 1 |
+| 5 | Dashboard -- Empty State + Quick Actions | 1 |
+| 6 | Resume Editor -- Section Stepper + Toolbar | 1 |
+| 7 | Resume Editor -- Bottom Sheets (Template, Customize, Export) | 3 |
+| 8 | Resume Preview -- InteractiveViewer + Page Nav | 1 |
+| 9 | Upload -- File Picker + Parse Progress | 1 |
+| 10 | AI Studio -- Tool Grid + Chat Bar | 1 |
+| 11 | Mock Interview -- Voice Chat + Waveform | 1 |
+| 12 | Applications -- List + Status Filters | 1 |
+| 13 | Application Detail + Job Detail | 2 |
+| 14 | Portfolio Editor -- Toggle + Theme Picker | 1 |
+| 15 | Public Portfolio -- Standalone Page | 1 |
+| 16 | Settings -- Categories + Rows | 1 |
+| 17 | Profile Editor -- Avatar + Form | 1 |
+| 18 | Cover Letters -- List + Generator | 2 |
+| 19 | Resignation Letters -- List + Generator | 2 |
+| 20 | Onboarding -- 4-Step PageView | 1 |
+| 21 | Templates Gallery -- Grid + Filters | 1 |
+| 22 | Help + FAQ -- Accordion Search | 1 |
+| 23 | Analytics -- Charts + Stats | 1 |
+| 24 | Subscription -- Plan Cards | 1 |
+| 25 | Referral -- Code + QR + Rewards | 1 |
+| 26 | Achievements -- Badge Grid | 1 |
+| 27 | Career Path -- Roadmap + Quiz | 1 |
+| 28 | Notifications -- List + Empty State | 1 |
+| 29 | 404 -- Space Theme Error | 1 |
+| 30 | Guides -- List + Detail | 2 |
+
+Key differences from web Stitch prompts:
+- Includes native patterns (status bar, system nav bar, safe areas)
+- Uses Material 3 component vocabulary (BottomSheet, NavigationBar, FloatingActionButton)
+- Mentions platform-specific details (iOS SafeArea, Android back gesture)
+- Splash screen prompt (not needed in web version)
+- Bottom sheets instead of modals/dialogs where appropriate
+
+---
 
 ## Technical Details
-- **File**: `docs/REBUILD_PROMPTS_FLUTTER.md`
-- **Estimated size**: ~3,500-4,500 lines
-- **No other files modified**
-- **All prompts reference `docs/APP_BLUEPRINT_FLUTTER.md` as the source of truth**
-- Same Supabase backend (database, edge functions, RPCs) -- only the client SDK changes
-- Master prompt includes Flutter-specific rules (const constructors, RepaintBoundary, AutomaticKeepAliveClientMixin, etc.)
-- Each prompt is self-contained enough to execute independently but follows the dependency order
 
+- **Files created**: 4 new files in `docs/`
+- **No existing files modified**
+- **Estimated sizes**:
+  - `INSPIRATION_WEB.md`: ~200 lines
+  - `INSPIRATION_FLUTTER.md`: ~200 lines
+  - `STITCH_PROMPTS_WEB.md`: ~1,200 lines (28 detailed prompts)
+  - `STITCH_PROMPTS_FLUTTER.md`: ~1,400 lines (30 detailed prompts)
+- All prompts reference the app's actual design system (colors, fonts, spacing) from the blueprints
+- Stitch prompts are deliberately small (1-2 screens each) to prevent AI hallucination and maintain quality
