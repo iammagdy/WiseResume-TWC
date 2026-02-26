@@ -7,7 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useJobApplicationMutations, ApplicationStatus } from '@/hooks/useJobApplications';
 import { useQuery } from '@tanstack/react-query';
-import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
+import { supabase } from '@/integrations/supabase/safeClient';
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 import { useAuth } from '@/hooks/useAuth';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { toast } from 'sonner';

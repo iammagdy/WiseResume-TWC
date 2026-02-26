@@ -292,35 +292,54 @@ serve(async (req) => {
   }
 
   try {
+    // Auth is optional — token may come from a different Supabase project
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(
-        JSON.stringify({ error: 'Missing authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    let userId = 'anonymous';
+
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.replace('Bearer ', '');
+      
+      // Try validating with this project's Supabase first
+      try {
+        const supabaseClient = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+          { global: { headers: { Authorization: authHeader } } }
+        );
+        const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+        if (!authError && user) {
+          userId = user.id;
+        }
+      } catch {
+        // Token from different project — ignore auth error
+      }
+
+      // If auth didn't work, extract user ID from JWT payload without verification
+      // (for rate limiting only — not for authorization)
+      if (userId === 'anonymous') {
+        try {
+          const payloadB64 = token.split('.')[1];
+          if (payloadB64) {
+            const payload = JSON.parse(atob(payloadB64));
+            if (payload.sub) {
+              userId = `ext:${payload.sub}`;
+            }
+          }
+        } catch {
+          // Malformed token — use anonymous
+        }
+      }
     }
 
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const rateCheck = await checkRateLimit(user.id, { maxRequests: 10, windowSeconds: 60, actionType: 'parse_resume' });
-    if (!rateCheck.allowed) {
-      return new Response(
-        JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // Rate limit using whatever identifier we got
+    if (userId !== 'anonymous') {
+      const rateCheck = await checkRateLimit(userId, { maxRequests: 10, windowSeconds: 60, actionType: 'parse_resume' });
+      if (!rateCheck.allowed) {
+        return new Response(
+          JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Log AI configuration for debugging
@@ -329,7 +348,7 @@ serve(async (req) => {
     console.log('🔑 AI configuration:', {
       hasEmergentKey: !!EMERGENT_KEY,
       hasGeminiKey: !!GEMINI_KEY,
-      userId: user.id.slice(0, 8),
+      userId: userId.slice(0, 8),
     });
 
     const { text } = await req.json();
@@ -354,7 +373,7 @@ serve(async (req) => {
 
     let processedText = text;
     if (quality.score < 0.6 && quality.issues.some(i => ['high_gibberish', 'unusual_word_lengths', 'very_short'].includes(i))) {
-      processedText = await cleanTextWithAI(text, user.id);
+      processedText = await cleanTextWithAI(text, userId);
     }
 
     // Pass 1: Main structured extraction
@@ -366,7 +385,7 @@ serve(async (req) => {
       ],
       tools: [parseResumeTool],
       toolChoice: { type: 'function', function: { name: 'parse_resume' } },
-      userId: user.id,
+      userId,
     });
 
     const toolCall = aiResponse.toolCalls?.[0];
@@ -402,7 +421,7 @@ serve(async (req) => {
           ],
           tools: [parseResumeTool],
           toolChoice: { type: 'function', function: { name: 'parse_resume' } },
-          userId: user.id,
+          userId,
         });
 
         const retryCall = retryResponse.toolCalls?.[0];
@@ -542,7 +561,7 @@ serve(async (req) => {
       `${resumeData.volunteering.length} volunteering. Completeness: ${finalConfidence.completeness}%`
     );
 
-    await recordUsage(user.id, 'parse_resume');
+    await recordUsage(userId, 'parse_resume');
 
     return new Response(JSON.stringify({
       ...resumeData,

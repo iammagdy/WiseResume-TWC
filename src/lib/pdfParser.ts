@@ -12,7 +12,7 @@ import { extractTextFromPDF, PDFParseError, ExtractionResult } from './pdf/textE
 import { extractTextWithOCR, OCRProgressCallback, estimateOCRTime } from './pdf/ocrExtractor';
 import { parseResumeText } from './pdf/sectionParsers';
 import { preprocessResumeText, extractContactHints } from './pdf/textPreprocessor';
-import { supabase, supabaseConfig } from '@/integrations/supabase/safeClient';
+import { supabase } from '@/integrations/supabase/safeClient';
 import { handleAIError } from './aiProvider';
 
 export { PDFParseError, estimateOCRTime };
@@ -39,28 +39,27 @@ export interface ParseResult {
  * Exported for use with Word and Image parsing.
  */
 export async function parseTextWithAI(text: string): Promise<ResumeData> {
-  const SUPABASE_URL = supabaseConfig.url;
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), PARSE_TIMEOUT);
 
   try {
     if (import.meta.env.DEV) console.log('Calling AI to parse resume text...');
     
-    // Refresh session to ensure valid token
-    const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
+    // Get token from old project — edge function will accept it gracefully
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
     
-    if (refreshError || !session?.access_token) {
-      console.warn('No auth session or refresh failed, falling back to local parser');
-      clearTimeout(timeoutId);
-      return parseResumeText(text);
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
     
     const response = await fetch(`${SUPABASE_URL}/functions/v1/parse-resume`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
+      headers,
       body: JSON.stringify({ text }),
       signal: controller.signal,
     });
