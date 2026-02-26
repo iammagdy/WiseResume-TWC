@@ -1,178 +1,136 @@
-import { useState, useEffect } from "react";
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Download, Loader2, ArrowLeft, ImageDown } from 'lucide-react';
+import { captureWithRetry } from '@/lib/html2canvasRetry';
+import { toast } from 'sonner';
+import { StoreScreenshot } from '@/components/store/StoreScreenshot';
+import {
+  MockHeroScreen,
+  MockDashboardScreen,
+  MockAIStudioScreen,
+  MockInterviewScreen,
+  MockRecruiterScreen,
+  MockTemplatesScreen,
+  MockJobTrackerScreen,
+  MockPortfolioScreen,
+} from '@/components/store/MockScreens';
 
-// Crash-safe Lovable Cloud client for screenshots
-const CLOUD_URL = import.meta.env.VITE_SUPABASE_URL || "https://hjnnamwgztlhzkeuufln.supabase.co";
-const CLOUD_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhqbm5hbXdnenRsaHprZXV1ZmxuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNTE4MTcsImV4cCI6MjA4NTkyNzgxN30.cupd_dz6KHSJaBnUPQzJmQcYc38RTDVIMU5RP25xCso";
-
-let cloudClient: SupabaseClient | null = null;
-try {
-  cloudClient = createClient(CLOUD_URL, CLOUD_KEY);
-} catch (e) {
-  console.error("Failed to init cloud client:", e);
-}
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "sonner";
-import { ArrowLeft, Download, ImagePlus, Loader2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-
-interface Screenshot {
-  id: string;
-  name: string;
-  headline: string;
-  image_url: string;
-  created_at: string;
-}
+const SCREENSHOTS = [
+  { id: 'gal-hero', headline: 'Your AI Career Companion', subtitle: 'Build resumes, ace interviews, and land your dream job — powered by AI.', gradient: 'linear-gradient(135deg, #0B0D17 0%, #1a1040 40%, #2d1b4e 70%, #0B0D17 100%)', Screen: MockHeroScreen },
+  { id: 'gal-builder', headline: 'Build ATS-Optimized Resumes', subtitle: '13 sections, real-time scoring, and smart suggestions for every field.', gradient: 'linear-gradient(135deg, #0B0D17 0%, #0d2137 40%, #1a3a5c 70%, #0B0D17 100%)', Screen: MockDashboardScreen },
+  { id: 'gal-tailor', headline: 'One-Tap Job Tailoring', subtitle: 'Paste any job description. AI rewrites your resume to match instantly.', gradient: 'linear-gradient(135deg, #0B0D17 0%, #1b0d3a 40%, #3b1d6e 70%, #0B0D17 100%)', Screen: MockAIStudioScreen },
+  { id: 'gal-interview', headline: 'Practice With AI Voice Coach', subtitle: 'Realistic mock interviews with real-time scoring and feedback.', gradient: 'linear-gradient(135deg, #0B0D17 0%, #0d2a1f 40%, #1a5c40 70%, #0B0D17 100%)', Screen: MockInterviewScreen },
+  { id: 'gal-recruiter', headline: 'Get Honest Recruiter Feedback', subtitle: '4 AI personas review your resume like real hiring managers.', gradient: 'linear-gradient(135deg, #0B0D17 0%, #2a1a0d 40%, #5c3a1a 70%, #0B0D17 100%)', Screen: MockRecruiterScreen },
+  { id: 'gal-templates', headline: '30 Professional Templates', subtitle: 'Modern, classic, creative — every style ATS-tested and ready to go.', gradient: 'linear-gradient(135deg, #0B0D17 0%, #1a0d2a 40%, #3d1a5c 70%, #0B0D17 100%)', Screen: MockTemplatesScreen },
+  { id: 'gal-tracker', headline: 'Track Every Application', subtitle: 'Kanban board, deadlines, reminders — never lose track of a job again.', gradient: 'linear-gradient(135deg, #0B0D17 0%, #0d1a2a 40%, #1a3d5c 70%, #0B0D17 100%)', Screen: MockJobTrackerScreen },
+  { id: 'gal-portfolio', headline: 'Share Your Online Portfolio', subtitle: 'One-link portfolio with analytics, QR codes, and custom themes.', gradient: 'linear-gradient(135deg, #0B0D17 0%, #2a0d1a 40%, #5c1a3d 70%, #0B0D17 100%)', Screen: MockPortfolioScreen },
+];
 
 export default function ScreenshotsGalleryPage() {
   const navigate = useNavigate();
-  const [screenshots, setScreenshots] = useState<Screenshot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [capturingId, setCapturingId] = useState<string | null>(null);
 
-  const fetchScreenshots = async () => {
-    setLoading(true);
-    if (!cloudClient) {
-      toast.error("Backend not configured. Please reload the page.");
-      setLoading(false);
-      return;
-    }
-    const { data, error } = await cloudClient
-      .from("store_screenshots")
-      .select("*")
-      .order("name", { ascending: true });
-
-    if (error) {
-      console.error("Fetch error:", error);
-    } else {
-      setScreenshots((data as Screenshot[]) || []);
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchScreenshots();
+  const captureAndDownload = useCallback(async (id: string, filename: string) => {
+    const el = document.getElementById(id);
+    if (!el) { toast.error('Element not found'); return; }
+    const canvas = await captureWithRetry(el, { scale: 1, width: 1290, height: 2796 });
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
   }, []);
 
-  const handleGenerate = async () => {
-    setGenerating(true);
-    toast.info("Generating 8 screenshots with AI... This may take 2-3 minutes.");
-
+  const downloadSingle = useCallback(async (id: string) => {
+    setCapturingId(id);
     try {
-      if (!cloudClient) throw new Error("Backend not configured");
-      const { data, error } = await cloudClient.functions.invoke(
-        "generate-store-screenshots"
-      );
-
-      if (error) throw error;
-
-      toast.success(`Generated ${data?.screenshots?.length || 0} screenshots!`);
-      await fetchScreenshots();
-    } catch (err: any) {
-      console.error("Generate error:", err);
-      toast.error(err.message || "Failed to generate screenshots");
+      await captureAndDownload(id, `${id}.png`);
+      toast.success('Screenshot downloaded!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to capture screenshot');
     } finally {
-      setGenerating(false);
+      setCapturingId(null);
     }
-  };
+  }, [captureAndDownload]);
 
-  const handleDownload = async (url: string, name: string) => {
+  const downloadAll = useCallback(async () => {
+    setDownloading(true);
+    toast.info(`Capturing ${SCREENSHOTS.length} screenshots…`);
     try {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `${name}.png`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-    } catch {
-      toast.error("Download failed");
+      for (const ss of SCREENSHOTS) {
+        await captureAndDownload(ss.id, `${ss.id}.png`);
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      toast.success('All screenshots downloaded!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to export some screenshots');
+    } finally {
+      setDownloading(false);
     }
-  };
-
-  const handleDownloadAll = async () => {
-    toast.info("Downloading all screenshots...");
-    for (const s of screenshots) {
-      await handleDownload(s.image_url, s.name);
-    }
-    toast.success("All downloads started!");
-  };
+  }, [captureAndDownload]);
 
   return (
     <div className="min-h-screen bg-background p-4 pb-24">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex-1">
-            <h1 className="text-xl font-bold text-foreground">
-              Store Screenshots
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              AI-generated App Store &amp; Google Play screenshots
-            </p>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-3 flex-wrap">
-          <Button onClick={handleGenerate} disabled={generating}>
-            {generating ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <ImagePlus className="mr-2 h-4 w-4" />
-            )}
-            {generating ? "Generating..." : "Generate Screenshots"}
-          </Button>
-          {screenshots.length > 0 && (
-            <Button variant="outline" onClick={handleDownloadAll}>
-              <Download className="mr-2 h-4 w-4" />
-              Download All
+      {/* Header */}
+      <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-lg border-b border-border -mx-4 px-4 py-3 mb-6">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="w-5 h-5" />
             </Button>
-          )}
+            <div>
+              <h1 className="text-lg font-bold text-foreground">Screenshots Gallery</h1>
+              <p className="text-xs text-muted-foreground">{SCREENSHOTS.length} App Store screens</p>
+            </div>
+          </div>
+          <Button onClick={downloadAll} disabled={downloading} size="sm" className="rounded-full">
+            {downloading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+            Capture All
+          </Button>
         </div>
+      </div>
 
-        {/* Gallery */}
-        {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="aspect-[9/19.5] rounded-xl" />
-            ))}
-          </div>
-        ) : screenshots.length === 0 ? (
-          <div className="text-center py-20 text-muted-foreground">
-            <ImagePlus className="mx-auto h-12 w-12 mb-4 opacity-40" />
-            <p>No screenshots yet. Click "Generate Screenshots" to create them.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {screenshots.map((s) => (
-              <div key={s.id} className="group relative">
-                <img
-                  src={s.image_url}
-                  alt={s.headline}
-                  className="w-full rounded-xl border border-border shadow-sm"
-                  loading="lazy"
-                />
-                <div className="mt-2 text-xs font-medium text-foreground truncate">
-                  {s.headline}
-                </div>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="mt-1 w-full text-xs"
-                  onClick={() => handleDownload(s.image_url, s.name)}
-                >
-                  <Download className="mr-1 h-3 w-3" />
-                  Download
-                </Button>
+      {/* Grid of real app screen previews */}
+      <div className="max-w-5xl mx-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        {SCREENSHOTS.map((ss) => (
+          <div key={ss.id} className="flex flex-col gap-2">
+            {/* Scaled-down preview */}
+            <div
+              className="relative rounded-xl overflow-hidden border border-border hover:border-primary/40 transition-colors cursor-pointer"
+              onClick={() => downloadSingle(ss.id)}
+              style={{ width: '100%', aspectRatio: '1290 / 2796' }}
+            >
+              <div
+                style={{
+                  transform: 'scale(0.12)',
+                  transformOrigin: 'top left',
+                  width: 1290,
+                  height: 2796,
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                }}
+              >
+                <StoreScreenshot id={ss.id} headline={ss.headline} subtitle={ss.subtitle} gradient={ss.gradient}>
+                  <ss.Screen />
+                </StoreScreenshot>
               </div>
-            ))}
+
+              {/* Hover overlay */}
+              <div className="absolute inset-0 bg-black/0 hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
+                {capturingId === ss.id ? (
+                  <Loader2 className="w-6 h-6 text-white animate-spin" />
+                ) : (
+                  <ImageDown className="w-6 h-6 text-white" />
+                )}
+              </div>
+            </div>
+            <p className="text-xs font-medium text-foreground truncate">{ss.headline}</p>
           </div>
-        )}
+        ))}
       </div>
     </div>
   );
