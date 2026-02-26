@@ -339,7 +339,10 @@ serve(async (req) => {
       // Cross-project token: extract sub from JWT payload as identity
       try {
         const payloadB64 = token.split('.')[1];
-        const payload = JSON.parse(atob(payloadB64));
+        // JWT uses base64url: replace - with +, _ with /, then pad
+        const b64 = payloadB64.replace(/-/g, '+').replace(/_/g, '/');
+        const padded = b64 + '='.repeat((4 - b64.length % 4) % 4);
+        const payload = JSON.parse(atob(padded));
         if (payload.sub) {
           userId = payload.sub;
         } else {
