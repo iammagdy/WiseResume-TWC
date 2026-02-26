@@ -15,8 +15,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useInView } from '@/hooks/useInView';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
 
-// Simple logo import - use PNG only
-import logoImage from '@/assets/wise-ai-logo-small.png';
+import logoImage from '@/assets/wise-ai-logo.webp';
 
 const features = [
   { icon: Sparkles, title: 'Weak bullet? Fixed in 1 tap', desc: 'AI rewrites vague bullets into quantified achievements that recruiters remember', iconColor: 'text-primary', gradient: 'from-primary/20 to-primary/5' },

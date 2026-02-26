@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import wiseAiLogo from '@/assets/wise-ai-logo.png';
+import wiseAiLogo from '@/assets/wise-ai-logo.webp';
 
 interface AppIconProps {
   size?: number | string;
