@@ -39,7 +39,7 @@ export const FederalTemplate = memo(function FederalTemplate({ resume }: Templat
       {resume.education.length > 0 && (
         <section data-section="education" className="mb-5">
           <h2 className="text-sm font-bold text-gray-900 uppercase border-b border-gray-400 pb-1 mb-3">Education</h2>
-          {resume.education.map(edu => (<div key={edu.id} data-break-avoid className="mb-2"><h3 className="font-bold text-gray-900 text-xs">{edu.degree} {edu.field && `in ${edu.field}`}</h3><p className="text-gray-600 text-xs">{edu.institution} — {formatDisplayDate(edu.endDate)}</p></div>))}
+          {resume.education.map(edu => (<div key={edu.id} data-break-avoid className="mb-2"><h3 className="font-bold text-gray-900 text-xs">{edu.degree} {edu.field && `in ${edu.field}`}</h3><p className="text-gray-600 text-xs">{edu.institution} — {formatDisplayDate(edu.endDate)}</p>{edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}</div>))}
         </section>
       )}
       {resume.skills.length > 0 && (

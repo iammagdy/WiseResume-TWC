@@ -104,6 +104,7 @@ export const CreativeTemplate = memo(function CreativeTemplate({ resume }: Templ
                   {edu.field && <p className="text-violet-200 text-xs">{edu.field}</p>}
                   <p className="text-violet-300 text-xs">{edu.institution}</p>
                   <p className="text-violet-300 text-xs">{formatDisplayDate(edu.endDate)}</p>
+                  {edu.description && <p className="text-violet-200 text-xs mt-0.5">{edu.description}</p>}
                 </div>
               ))}
             </div>

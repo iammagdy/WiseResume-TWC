@@ -53,6 +53,7 @@ export const ProfessionalTemplate = memo(function ProfessionalTemplate({ resume 
                     <p className="text-gray-600 text-xs">{edu.field}</p>
                     <p className="text-gray-500 text-xs">{edu.institution}</p>
                     <p className="text-gray-400 text-xs">{formatDisplayDate(edu.endDate)}</p>
+                    {edu.description && <p className="text-gray-500 text-xs mt-0.5">{edu.description}</p>}
                   </div>
                 ))}
               </div>

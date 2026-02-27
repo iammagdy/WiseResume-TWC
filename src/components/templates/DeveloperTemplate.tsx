@@ -198,6 +198,7 @@ export const DeveloperTemplate = memo(function DeveloperTemplate({ resume }: Tem
                     <span className="text-gray-500"> @ {edu.institution}</span>
                   </span>
                   <span className="text-gray-400 text-xs">{formatDisplayDate(edu.endDate)}</span>
+                  {edu.description && <p className="text-gray-600 text-xs w-full mt-0.5">{edu.description}</p>}
                 </div>
               ))}
             </div>

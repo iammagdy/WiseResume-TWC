@@ -31,6 +31,7 @@ export interface Education {
   startDate: string;
   endDate: string;
   gpa?: string;
+  description?: string;
 }
 
 export interface Certification {

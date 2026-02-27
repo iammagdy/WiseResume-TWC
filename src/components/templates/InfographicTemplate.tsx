@@ -48,7 +48,7 @@ export const InfographicTemplate = memo(function InfographicTemplate({ resume }:
       {resume.education.length > 0 && (
         <section data-section="education">
           <h2 className="text-xs font-bold text-violet-600 uppercase tracking-widest text-center mb-3">Education</h2>
-          <div className="text-center space-y-1">{resume.education.map(edu => (<div key={edu.id} data-break-avoid><span className="font-bold text-gray-900 text-xs">{edu.degree}</span> <span className="text-gray-500 text-xs">— {edu.institution} ({formatDisplayDate(edu.endDate)})</span></div>))}</div>
+          <div className="text-center space-y-1">{resume.education.map(edu => (<div key={edu.id} data-break-avoid><span className="font-bold text-gray-900 text-xs">{edu.degree}</span> <span className="text-gray-500 text-xs">— {edu.institution} ({formatDisplayDate(edu.endDate)})</span>{edu.description && <p className="text-gray-500 text-xs mt-0.5">{edu.description}</p>}</div>))}</div>
         </section>
       )}
       <ExtraSections resume={resume} />

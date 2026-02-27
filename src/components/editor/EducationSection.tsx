@@ -1,9 +1,9 @@
 import { useState, memo } from 'react';
 
-import { Plus, Trash2, ChevronDown, ChevronUp, GraduationCap, Calendar } from 'lucide-react';
-import { DragHandle } from './DragHandle';
+import { Plus, Trash2, ChevronDown, ChevronUp, GraduationCap, Calendar, ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useResumeStore } from '@/store/resumeStore';
 import { Education } from '@/types/resume';
@@ -62,6 +62,13 @@ export const EducationSection = memo(function EducationSection() {
     updateResume({
       education: education.filter((edu) => edu.id !== id),
     });
+  };
+
+  const moveEducation = (index: number, direction: 'up' | 'down') => {
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    const reordered = [...education];
+    [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
+    updateResume({ education: reordered });
   };
 
   const handleAIAction = async (actionId: string) => {
@@ -150,27 +157,49 @@ export const EducationSection = memo(function EducationSection() {
                 key={edu.id}
                 className="rounded-xl border border-border overflow-hidden transition-all duration-200"
               >
-                <button
-                  onClick={() => setExpandedId(expandedId === edu.id ? null : edu.id)}
-                  className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors touch-manipulation active:bg-muted/70 min-h-[56px]"
-                >
-                  <DragHandle />
-                  <div className="text-left flex-1 min-w-0 pr-3">
-                    <p className="font-semibold text-sm truncate">
-                      {edu.degree || `Degree ${index + 1}`}
-                    </p>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {edu.institution || 'Institution name'}
-                    </p>
+                <div className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors min-h-[56px]">
+                  {/* Reorder arrows */}
+                  <div className="flex flex-col gap-0.5 mr-2 shrink-0">
+                    <button
+                      type="button"
+                      disabled={index === 0}
+                      onClick={(e) => { e.stopPropagation(); moveEducation(index, 'up'); }}
+                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      aria-label="Move up"
+                    >
+                      <ArrowUp className="w-4 h-4 text-muted-foreground" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={index === education.length - 1}
+                      onClick={(e) => { e.stopPropagation(); moveEducation(index, 'down'); }}
+                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      aria-label="Move down"
+                    >
+                      <ArrowDown className="w-4 h-4 text-muted-foreground" />
+                    </button>
                   </div>
-                  <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full hover:bg-muted">
-                    {expandedId === edu.id ? (
-                      <ChevronUp className="w-5 h-5 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                    )}
-                  </div>
-                </button>
+                  <button
+                    onClick={() => setExpandedId(expandedId === edu.id ? null : edu.id)}
+                    className="flex-1 flex items-center justify-between touch-manipulation active:bg-muted/70 min-w-0"
+                  >
+                    <div className="text-left flex-1 min-w-0 pr-3">
+                      <p className="font-semibold text-sm truncate">
+                        {edu.degree || `Degree ${index + 1}`}
+                      </p>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {edu.institution || 'Institution name'}
+                      </p>
+                    </div>
+                    <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full hover:bg-muted">
+                      {expandedId === edu.id ? (
+                        <ChevronUp className="w-5 h-5 text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                      )}
+                    </div>
+                  </button>
+                </div>
 
                 {expandedId === edu.id && (
                     <div className="animate-in fade-in-0 duration-200"
@@ -249,6 +278,16 @@ export const EducationSection = memo(function EducationSection() {
                             className="h-12"
                             inputMode="decimal"
                             autoComplete="off"
+                          />
+                        </div>
+
+                        <div>
+                          <Label className="text-sm mb-2 block">Description (optional)</Label>
+                          <Textarea
+                            value={edu.description || ''}
+                            onChange={(e) => updateEducation(edu.id, { description: e.target.value })}
+                            placeholder="Brief description of your program, thesis, or relevant coursework..."
+                            className="min-h-[60px] resize-none text-base"
                           />
                         </div>
 

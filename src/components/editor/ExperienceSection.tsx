@@ -1,7 +1,6 @@
 import { useState, memo, useCallback, lazy, Suspense } from 'react';
 
 import { Plus, Trash2, ChevronDown, ChevronUp, Building2, Briefcase, Calendar, Linkedin, ArrowUp, ArrowDown, Sparkles } from 'lucide-react';
-import { DragHandle } from './DragHandle';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -222,41 +221,73 @@ export const ExperienceSection = memo(function ExperienceSection() {
                 className="rounded-xl border border-border overflow-hidden transition-all duration-200"
               >
                 {/* Header - Always visible */}
-                <button
-                  onClick={() => setExpandedId(expandedId === exp.id ? null : exp.id)}
-                  className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors touch-manipulation active:bg-muted/70 min-h-[80px] sm:min-h-[72px]"
-                >
-                  <DragHandle />
-                  <div className="text-left flex-1 min-w-0 pr-3">
-                    <p className="font-semibold text-base sm:text-sm truncate">
-                      {exp.position || `Position ${index + 1}`}
-                    </p>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {exp.company || 'Company name'}
-                      {exp.account && <span className="text-muted-foreground/70"> ({exp.account} Account)</span>}
-                    </p>
-                    {(exp.startDate || exp.endDate || exp.current) && (
-                      <p className="text-xs text-muted-foreground/70 mt-0.5 flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        <span>
-                          {formatDateRange(exp.startDate, exp.endDate, exp.current)}
-                          {exp.startDate && (
-                            <span className="ml-1 text-muted-foreground/50">
-                              • {calculateDuration(exp.startDate, exp.endDate, exp.current)}
-                            </span>
-                          )}
-                        </span>
+                <div className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors min-h-[80px] sm:min-h-[72px]">
+                  {/* Reorder arrows */}
+                  <div className="flex flex-col gap-0.5 mr-2 shrink-0">
+                    <button
+                      type="button"
+                      disabled={index === 0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const reordered = [...experience];
+                        [reordered[index - 1], reordered[index]] = [reordered[index], reordered[index - 1]];
+                        updateResume({ experience: reordered });
+                      }}
+                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      aria-label="Move up"
+                    >
+                      <ArrowUp className="w-4 h-4 text-muted-foreground" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={index === experience.length - 1}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const reordered = [...experience];
+                        [reordered[index], reordered[index + 1]] = [reordered[index + 1], reordered[index]];
+                        updateResume({ experience: reordered });
+                      }}
+                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      aria-label="Move down"
+                    >
+                      <ArrowDown className="w-4 h-4 text-muted-foreground" />
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => setExpandedId(expandedId === exp.id ? null : exp.id)}
+                    className="flex-1 flex items-center justify-between touch-manipulation active:bg-muted/70 min-w-0"
+                  >
+                    <div className="text-left flex-1 min-w-0 pr-3">
+                      <p className="font-semibold text-base sm:text-sm truncate">
+                        {exp.position || `Position ${index + 1}`}
                       </p>
-                    )}
-                  </div>
-                  <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full hover:bg-muted">
-                    {expandedId === exp.id ? (
-                      <ChevronUp className="w-5 h-5 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                    )}
-                  </div>
-                </button>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {exp.company || 'Company name'}
+                        {exp.account && <span className="text-muted-foreground/70"> ({exp.account} Account)</span>}
+                      </p>
+                      {(exp.startDate || exp.endDate || exp.current) && (
+                        <p className="text-xs text-muted-foreground/70 mt-0.5 flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          <span>
+                            {formatDateRange(exp.startDate, exp.endDate, exp.current)}
+                            {exp.startDate && (
+                              <span className="ml-1 text-muted-foreground/50">
+                                • {calculateDuration(exp.startDate, exp.endDate, exp.current)}
+                              </span>
+                            )}
+                          </span>
+                        </p>
+                      )}
+                    </div>
+                    <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full hover:bg-muted">
+                      {expandedId === exp.id ? (
+                        <ChevronUp className="w-5 h-5 text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                      )}
+                    </div>
+                  </button>
+                </div>
 
                 {/* Expanded content */}
                 {expandedId === exp.id && (
@@ -366,37 +397,6 @@ export const ExperienceSection = memo(function ExperienceSection() {
                           />
                         </div>
 
-                        {/* Mobile reorder buttons */}
-                        <div className="flex gap-2 pt-2 sm:hidden">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={index === 0}
-                            onClick={() => {
-                              const reordered = [...experience];
-                              [reordered[index - 1], reordered[index]] = [reordered[index], reordered[index - 1]];
-                              updateResume({ experience: reordered });
-                            }}
-                            className="flex-1 min-h-[44px] gap-1.5"
-                          >
-                            <ArrowUp className="w-4 h-4" />
-                            Move Up
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={index === experience.length - 1}
-                            onClick={() => {
-                              const reordered = [...experience];
-                              [reordered[index], reordered[index + 1]] = [reordered[index + 1], reordered[index]];
-                              updateResume({ experience: reordered });
-                            }}
-                            className="flex-1 min-h-[44px] gap-1.5"
-                          >
-                            <ArrowDown className="w-4 h-4" />
-                            Move Down
-                          </Button>
-                        </div>
 
                         {/* Per-entry AI nudge chips */}
                         {getNudgesForExperience(exp.id).map((entryNudge) => (

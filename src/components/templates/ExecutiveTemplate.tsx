@@ -104,6 +104,7 @@ export const ExecutiveTemplate = memo(function ExecutiveTemplate({ resume }: Tem
                     {edu.degree} {edu.field && `in ${edu.field}`}
                   </p>
                   <p className="text-gray-500 text-xs">{edu.institution}, {formatDisplayDate(edu.endDate)}</p>
+                  {edu.description && <p className="text-gray-500 text-xs mt-0.5">{edu.description}</p>}
                 </div>
               ))}
             </div>

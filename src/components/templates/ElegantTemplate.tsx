@@ -128,6 +128,7 @@ export const ElegantTemplate = memo(function ElegantTemplate({ resume }: Elegant
                     <p className="text-gray-600 text-xs">{edu.field}</p>
                     <p className="text-xs" style={{ color: roseColor }}>{edu.institution}</p>
                     <p className="text-gray-500 text-xs">{formatDisplayDate(edu.endDate)}</p>
+                    {edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}
                   </div>
                 ))}
               </div>

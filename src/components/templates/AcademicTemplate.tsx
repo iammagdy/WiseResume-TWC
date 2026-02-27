@@ -53,6 +53,7 @@ export const AcademicTemplate = memo(function AcademicTemplate({ resume }: Acade
                 </div>
                 <p className="text-gray-700 italic">{edu.institution}</p>
                 {edu.gpa && <p className="text-gray-600 text-sm">GPA: {edu.gpa}</p>}
+                {edu.description && <p className="text-gray-600 text-sm mt-1">{edu.description}</p>}
               </div>
             ))}
           </div>
