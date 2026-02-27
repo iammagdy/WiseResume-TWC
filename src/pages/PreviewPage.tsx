@@ -8,6 +8,7 @@ import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
 import { PageBreakIndicator } from '@/components/editor/PageBreakIndicator';
+import { PreviewScaledWrapper } from '@/components/editor/PreviewScaledWrapper';
 
 // Lazy-loaded templates (only the selected one loads)
 // Lazy-loaded templates — full set matching LivePreviewPanel
@@ -119,7 +120,9 @@ export default function PreviewPage() {
   const [showOnePageWizard, setShowOnePageWizard] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const resumeRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [domSections, setDomSections] = useState<SectionId[]>([]);
+  const [previewScale, setPreviewScale] = useState(1);
   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
   const { exportProgress, onProgress, reset: resetProgress } = useExportProgress();
   const guestPreviewHintShown = useRef(false);
@@ -609,34 +612,27 @@ export default function PreviewPage() {
         <NextStepBanner variant="tailor" onAction={() => navigate('/editor?openTailor=1')} />
 
         {/* Preview area */}
-        <div className="flex-1 overflow-auto p-1 sm:p-4 bg-muted/30">
-          <motion.div
-          ref={resumeRef}
-          data-resume-template
-          data-capturing={isGenerating ? "true" : undefined}
-          className="bg-white text-black mx-auto shadow-2xl relative"
-          style={{
-            width: '100%',
-            maxWidth: '612px',
-            minHeight: '792px'
-          }}
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}>
-
+        <div ref={scrollContainerRef} className="flex-1 overflow-auto p-1 sm:p-4 bg-muted/30">
+          <PreviewScaledWrapper
+            resumeRef={resumeRef}
+            scrollContainerRef={scrollContainerRef}
+            isGenerating={isGenerating}
+            previewScale={previewScale}
+            setPreviewScale={setPreviewScale}
+          >
             <Suspense fallback={<TemplateSkeleton />}>
               <TemplateComponent resume={currentResume} />
             </Suspense>
-          {!isGenerating && showPageBreaks && templateConfig.supportsPageBreaks &&
-          <PageBreakIndicator
-            templateRef={resumeRef}
-            manualBreakSections={manualBreakSections}
-            customBreakPositions={customBreakPositions}
-            templateConfig={templateConfig}
-            draggable={true}
-            onBreakPositionChange={handleBreakPositionChange} />
-
-          }
-          </motion.div>
+            {!isGenerating && showPageBreaks && templateConfig.supportsPageBreaks &&
+            <PageBreakIndicator
+              templateRef={resumeRef}
+              manualBreakSections={manualBreakSections}
+              customBreakPositions={customBreakPositions}
+              templateConfig={templateConfig}
+              draggable={true}
+              onBreakPositionChange={handleBreakPositionChange} />
+            }
+          </PreviewScaledWrapper>
         </div>
 
         {/* Bottom actions */}
