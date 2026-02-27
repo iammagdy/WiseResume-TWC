@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import type { Experience } from '@/types/resume';
+import { formatDisplayDate } from '@/lib/dateUtils';
 
 function getCardProps(style: string): { className: string; style: React.CSSProperties } {
   switch (style) {
@@ -63,7 +64,7 @@ export function ExperienceCard({ exp, style, isLast, index }: { exp: Experience;
                 </span>
               )}
               <span className="text-xs px-2.5 py-1 rounded-full" style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', color: 'var(--pf-muted, #9ca3af)', border: '1px solid var(--pf-border, rgba(255,255,255,0.08))' }}>
-                {exp.startDate} – {exp.current ? 'Present' : exp.endDate}
+                {formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}
               </span>
             </div>
           </div>

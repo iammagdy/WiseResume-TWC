@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
+import { formatDisplayDate } from '@/lib/dateUtils';
 
 interface TemplateProps {
   resume: ResumeData;
@@ -48,7 +49,7 @@ export const ModernTemplate = memo(function ModernTemplate({ resume }: TemplateP
                     <p className="text-gray-600">{exp.company}</p>
                   </div>
                   <span className="text-xs text-gray-500">
-                    {exp.startDate} - {exp.current ? 'Present' : exp.endDate}
+                    {formatDisplayDate(exp.startDate)} - {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}
                   </span>
                 </div>
                 {exp.description && (
@@ -73,7 +74,7 @@ export const ModernTemplate = memo(function ModernTemplate({ resume }: TemplateP
                   <h3 className="font-bold text-gray-900">{edu.degree} {edu.field && `in ${edu.field}`}</h3>
                   <p className="text-gray-600">{edu.institution}</p>
                 </div>
-                <span className="text-xs text-gray-500">{edu.endDate}</span>
+                <span className="text-xs text-gray-500">{formatDisplayDate(edu.endDate)}</span>
               </div>
             ))}
           </div>

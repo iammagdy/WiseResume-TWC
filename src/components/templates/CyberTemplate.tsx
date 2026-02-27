@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
+import { formatDisplayDate } from '@/lib/dateUtils';
 
 interface TemplateProps { resume: ResumeData; }
 
@@ -34,7 +35,7 @@ export const CyberTemplate = memo(function CyberTemplate({ resume }: TemplatePro
             {resume.experience.map(exp => (
               <div key={exp.id} data-break-avoid>
                 <h3 className="font-bold text-gray-900">{exp.position}</h3>
-                <p className="text-red-600 text-xs">{exp.company} | {exp.startDate} – {exp.current ? 'Active' : exp.endDate}</p>
+                <p className="text-red-600 text-xs">{exp.company} | {formatDisplayDate(exp.startDate)} – {exp.current ? 'Active' : formatDisplayDate(exp.endDate)}</p>
                 {exp.description && <p className="text-gray-700 mt-1 text-xs">{exp.description}</p>}
               </div>
             ))}
@@ -44,7 +45,7 @@ export const CyberTemplate = memo(function CyberTemplate({ resume }: TemplatePro
       {resume.education.length > 0 && (
         <section data-section="education">
           <h2 className="text-xs font-bold text-red-600 uppercase tracking-widest mb-3">Credentials</h2>
-          {resume.education.map(edu => (<div key={edu.id} data-break-avoid className="mb-2"><h3 className="font-bold text-gray-900 text-xs">{edu.degree} {edu.field && `— ${edu.field}`}</h3><p className="text-gray-600 text-xs">{edu.institution}, {edu.endDate}</p></div>))}
+          {resume.education.map(edu => (<div key={edu.id} data-break-avoid className="mb-2"><h3 className="font-bold text-gray-900 text-xs">{edu.degree} {edu.field && `— ${edu.field}`}</h3><p className="text-gray-600 text-xs">{edu.institution}, {formatDisplayDate(edu.endDate)}</p></div>))}
         </section>
       )}
       <ExtraSections resume={resume} />

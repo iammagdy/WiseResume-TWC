@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
+import { formatDisplayDate } from '@/lib/dateUtils';
 
 interface TemplateProps { resume: ResumeData; }
 
@@ -37,7 +38,7 @@ export const InfographicTemplate = memo(function InfographicTemplate({ resume }:
               <div key={exp.id} data-break-avoid className="pl-6 relative">
                 <div className="absolute -left-[9px] top-1 w-4 h-4 bg-violet-500 rounded-full border-2 border-white" />
                 <h3 className="font-bold text-gray-900 text-xs">{exp.position}</h3>
-                <p className="text-violet-600 text-[10px] font-medium">{exp.company} · {exp.startDate} – {exp.current ? 'Present' : exp.endDate}</p>
+                <p className="text-violet-600 text-[10px] font-medium">{exp.company} · {formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</p>
                 {exp.description && <p className="text-gray-700 mt-1 text-[10px]">{exp.description}</p>}
               </div>
             ))}
@@ -47,7 +48,7 @@ export const InfographicTemplate = memo(function InfographicTemplate({ resume }:
       {resume.education.length > 0 && (
         <section data-section="education">
           <h2 className="text-xs font-bold text-violet-600 uppercase tracking-widest text-center mb-3">Education</h2>
-          <div className="text-center space-y-1">{resume.education.map(edu => (<div key={edu.id} data-break-avoid><span className="font-bold text-gray-900 text-xs">{edu.degree}</span> <span className="text-gray-500 text-xs">— {edu.institution} ({edu.endDate})</span></div>))}</div>
+          <div className="text-center space-y-1">{resume.education.map(edu => (<div key={edu.id} data-break-avoid><span className="font-bold text-gray-900 text-xs">{edu.degree}</span> <span className="text-gray-500 text-xs">— {edu.institution} ({formatDisplayDate(edu.endDate)})</span></div>))}</div>
         </section>
       )}
       <ExtraSections resume={resume} />

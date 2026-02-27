@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
+import { formatDisplayDate } from '@/lib/dateUtils';
 
 interface TemplateProps { resume: ResumeData; }
 
@@ -28,7 +29,7 @@ export const ZenTemplate = memo(function ZenTemplate({ resume }: TemplateProps) 
             {resume.experience.map(exp => (
               <div key={exp.id} data-break-avoid className="text-center">
                 <h3 className="font-medium text-gray-800">{exp.position}</h3>
-                <p className="text-gray-500 text-xs">{exp.company} · {exp.startDate} – {exp.current ? 'Present' : exp.endDate}</p>
+                <p className="text-gray-500 text-xs">{exp.company} · {formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</p>
                 {exp.description && <p className="text-gray-600 mt-2 text-xs max-w-sm mx-auto">{exp.description}</p>}
               </div>
             ))}
@@ -38,7 +39,7 @@ export const ZenTemplate = memo(function ZenTemplate({ resume }: TemplateProps) 
       {resume.education.length > 0 && (
         <section data-section="education" className="mb-8">
           <h2 className="text-center text-xs font-light text-gray-500 uppercase tracking-[0.3em] mb-5">Education</h2>
-          <div className="text-center space-y-2">{resume.education.map(edu => (<div key={edu.id} data-break-avoid><span className="font-medium text-gray-800 text-xs">{edu.degree}</span> <span className="text-gray-500 text-xs">— {edu.institution}, {edu.endDate}</span></div>))}</div>
+          <div className="text-center space-y-2">{resume.education.map(edu => (<div key={edu.id} data-break-avoid><span className="font-medium text-gray-800 text-xs">{edu.degree}</span> <span className="text-gray-500 text-xs">— {edu.institution}, {formatDisplayDate(edu.endDate)}</span></div>))}</div>
         </section>
       )}
       {resume.skills.length > 0 && (

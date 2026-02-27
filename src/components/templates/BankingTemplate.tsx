@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
+import { formatDisplayDate } from '@/lib/dateUtils';
 
 interface TemplateProps { resume: ResumeData; }
 
@@ -27,7 +28,7 @@ export const BankingTemplate = memo(function BankingTemplate({ resume }: Templat
           <div className="space-y-3">
             {resume.experience.map(exp => (
               <div key={exp.id} data-break-avoid>
-                <div className="flex justify-between"><h3 className="font-bold text-gray-900 text-xs">{exp.position} — {exp.company}</h3><span className="text-xs text-gray-500">{exp.startDate} – {exp.current ? 'Present' : exp.endDate}</span></div>
+                <div className="flex justify-between"><h3 className="font-bold text-gray-900 text-xs">{exp.position} — {exp.company}</h3><span className="text-xs text-gray-500">{formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</span></div>
                 {exp.description && <p className="text-gray-700 mt-1 text-xs">{exp.description}</p>}
               </div>
             ))}
@@ -37,7 +38,7 @@ export const BankingTemplate = memo(function BankingTemplate({ resume }: Templat
       {resume.education.length > 0 && (
         <section data-section="education" className="mb-5">
           <h2 className="text-xs font-bold text-gray-900 uppercase tracking-widest mb-3">Education</h2>
-          {resume.education.map(edu => (<div key={edu.id} data-break-avoid className="mb-2"><span className="font-bold text-gray-900 text-xs">{edu.degree} {edu.field && `— ${edu.field}`}</span>, <span className="text-gray-600 text-xs">{edu.institution}</span> <span className="text-gray-500 text-xs">({edu.endDate})</span></div>))}
+          {resume.education.map(edu => (<div key={edu.id} data-break-avoid className="mb-2"><span className="font-bold text-gray-900 text-xs">{edu.degree} {edu.field && `— ${edu.field}`}</span>, <span className="text-gray-600 text-xs">{edu.institution}</span> <span className="text-gray-500 text-xs">({formatDisplayDate(edu.endDate)})</span></div>))}
         </section>
       )}
       {resume.skills.length > 0 && (

@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
+import { formatDisplayDate } from '@/lib/dateUtils';
 
 interface HealthcareTemplateProps {
   resume: ResumeData;
@@ -81,7 +82,7 @@ export const HealthcareTemplate = memo(function HealthcareTemplate({ resume }: H
                   <div className="flex justify-between items-baseline">
                     <h3 className="font-bold text-gray-900">{exp.position}</h3>
                     <span className="text-gray-500 text-xs">
-                      {exp.startDate} – {exp.current ? 'Present' : exp.endDate}
+                      {formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}
                     </span>
                   </div>
                   <p className="font-medium" style={{ color: tealColor }}>{exp.company}</p>
@@ -118,7 +119,7 @@ export const HealthcareTemplate = memo(function HealthcareTemplate({ resume }: H
                     <h3 className="font-semibold text-gray-900">{edu.degree} in {edu.field}</h3>
                     <p className="text-gray-600 text-sm">{edu.institution}</p>
                   </div>
-                  <span className="text-gray-500 text-xs">{edu.endDate}</span>
+                  <span className="text-gray-500 text-xs">{formatDisplayDate(edu.endDate)}</span>
                 </div>
               ))}
             </div>

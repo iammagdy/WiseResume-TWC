@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
+import { formatDisplayDate } from '@/lib/dateUtils';
 
 interface CompactTemplateProps {
   resume: ResumeData;
@@ -42,7 +43,7 @@ export const CompactTemplate = memo(function CompactTemplate({ resume }: Compact
                 <div className="flex justify-between items-baseline">
                   <h3 className="font-semibold text-gray-900">{exp.position}</h3>
                   <span className="text-gray-500 text-[10px]">
-                    {exp.startDate} – {exp.current ? 'Present' : exp.endDate}
+                    {formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}
                   </span>
                 </div>
                 <p className="text-gray-600 text-[10px]">{exp.company}</p>
@@ -77,7 +78,7 @@ export const CompactTemplate = memo(function CompactTemplate({ resume }: Compact
                   <h3 className="font-semibold text-gray-900">{edu.degree} in {edu.field}</h3>
                   <p className="text-gray-600 text-[10px]">{edu.institution}</p>
                 </div>
-                <span className="text-gray-500 text-[10px]">{edu.endDate}</span>
+                <span className="text-gray-500 text-[10px]">{formatDisplayDate(edu.endDate)}</span>
               </div>
             ))}
           </div>

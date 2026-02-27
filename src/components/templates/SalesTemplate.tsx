@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
+import { formatDisplayDate } from '@/lib/dateUtils';
 
 interface SalesTemplateProps {
   resume: ResumeData;
@@ -61,7 +62,7 @@ export const SalesTemplate = memo(function SalesTemplate({ resume }: SalesTempla
                   <div className="flex justify-between items-baseline mb-1">
                     <h3 className="font-bold text-gray-900 text-base">{exp.position}</h3>
                     <span className="text-gray-500 text-xs font-medium">
-                      {exp.startDate} – {exp.current ? 'Present' : exp.endDate}
+                      {formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}
                     </span>
                   </div>
                   <p className="text-gray-600 mb-2">{exp.company}</p>
@@ -126,7 +127,7 @@ export const SalesTemplate = memo(function SalesTemplate({ resume }: SalesTempla
                   <div key={edu.id}>
                     <p className="font-semibold text-gray-900 text-sm">{edu.degree}</p>
                     <p className="text-gray-600 text-xs">{edu.institution}</p>
-                    <p className="text-gray-500 text-xs">{edu.endDate}</p>
+                    <p className="text-gray-500 text-xs">{formatDisplayDate(edu.endDate)}</p>
                   </div>
                 ))}
               </div>
