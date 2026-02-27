@@ -48,7 +48,7 @@ export function PageBreakIndicator({
   // If custom positions are provided, use them directly
   const useCustomPositions = customBreakPositions && customBreakPositions.length > 0;
 
-  // Memoized calculation function with debouncing
+  // Memoized calculation function
   const calculateBreaks = useCallback(() => {
     const element = templateRef?.current;
     if (!element || !shouldShowIndicators) {
@@ -56,13 +56,10 @@ export function PageBreakIndicator({
       return;
     }
 
-    // If using custom dragged positions (stored in 612px PDF coordinates), 
-    // scale them to preview coordinates for display
+    // If using custom dragged positions, use them directly (already in 612px space)
     if (useCustomPositions) {
-      const previewWidth = element.offsetWidth || PAGE_WIDTH;
-      const displayScale = previewWidth / PAGE_WIDTH;
       setBreaks(customBreakPositions!.map((pos) => ({
-        position: pos * displayScale,
+        position: pos,
         type: 'manual' as const,
       })));
       return;
@@ -70,61 +67,29 @@ export function PageBreakIndicator({
 
     // Use requestAnimationFrame to ensure layout is stable
     requestAnimationFrame(() => {
-      const previewWidth = element.offsetWidth || PAGE_WIDTH;
+      const containerHeight = element.scrollHeight || element.offsetHeight || PAGE_HEIGHT;
 
-      // === CRITICAL FIX: Measure at PDF width (612px) for accuracy ===
-      // Save original styles
-      const origWidth = element.style.width;
-      const origMaxWidth = element.style.maxWidth;
-      const origMinWidth = element.style.minWidth;
-
-      // Force PDF width for measurement
-      element.style.width = `${PAGE_WIDTH}px`;
-      element.style.maxWidth = `${PAGE_WIDTH}px`;
-      element.style.minWidth = `${PAGE_WIDTH}px`;
-
-      // Force synchronous reflow at 612px
-      const containerHeight612 = element.scrollHeight || element.offsetHeight || PAGE_HEIGHT;
-
-      // At 612px width, scaleFactor is 1.0, so sourceHeightPerPage = PRINTABLE_HEIGHT
+      // Template is always rendered at 612px, so scaleFactor = 1.0
       const sourceHeightPerPage = PRINTABLE_HEIGHT;
 
-      // SINGLE-PAGE GUARD: Don't show any breaks if content fits on one page
-      const isSinglePage = containerHeight612 <= sourceHeightPerPage * 1.05;
+      // SINGLE-PAGE GUARD
+      const isSinglePage = containerHeight <= sourceHeightPerPage * 1.05;
       
       if (isSinglePage && !manualBreakSections?.length) {
-        // Restore original styles
-        element.style.width = origWidth;
-        element.style.maxWidth = origMaxWidth;
-        element.style.minWidth = origMinWidth;
-        element.offsetHeight; // force reflow back
         setBreaks([]);
         return;
       }
 
-      // Calculate breaks at 612px width — positions are now in PDF coordinate space
-      const newBreaks612 = findSmartBreakPositionsTagged(
+      // Calculate breaks — positions are in 612px PDF coordinate space (same as preview)
+      const newBreaks = findSmartBreakPositionsTagged(
         element,
         sourceHeightPerPage,
-        containerHeight612,
+        containerHeight,
         manualBreakSections,
         templateConfig
       );
 
-      // Restore original styles immediately
-      element.style.width = origWidth;
-      element.style.maxWidth = origMaxWidth;
-      element.style.minWidth = origMinWidth;
-      element.offsetHeight; // force reflow back to preview width
-
-      // Scale break positions from 612px coordinates to preview coordinates
-      const displayScale = previewWidth / PAGE_WIDTH;
-      const scaledBreaks: TaggedBreakPosition[] = newBreaks612.map(b => ({
-        position: b.position * displayScale,
-        type: b.type,
-      }));
-      
-      setBreaks(scaledBreaks);
+      setBreaks(newBreaks);
     });
   }, [templateRef, manualBreakSections, shouldShowIndicators, templateConfig, useCustomPositions, customBreakPositions]);
 
@@ -161,21 +126,14 @@ export function PageBreakIndicator({
     };
   }, [templateRef, breakKey, shouldShowIndicators, calculateBreaks, debouncedCalculateBreaks]);
 
-  // Handle drag end from DraggablePageBreak
-  // Dragged position is in preview coordinates — scale to 612px PDF coordinates before storing
+  // Handle drag end — positions are already in 612px PDF coordinates
   const handleDragEnd = useCallback((index: number, newPosition: number) => {
-    const element = templateRef?.current;
-    const previewWidth = element?.offsetWidth || PAGE_WIDTH;
-    const pdfScale = PAGE_WIDTH / previewWidth;
-
     const newPositions = breaks.map((b, i) => {
-      const pos612 = i === index ? newPosition * pdfScale : b.position * pdfScale;
-      return pos612;
+      return i === index ? newPosition : b.position;
     });
-    // Sort positions to maintain order
     newPositions.sort((a, b) => a - b);
     onBreakPositionChange?.(newPositions);
-  }, [breaks, onBreakPositionChange, templateRef]);
+  }, [breaks, onBreakPositionChange]);
 
   // Don't render anything for single-page templates or if no breaks
   if (!shouldShowIndicators || breaks.length === 0) return null;
