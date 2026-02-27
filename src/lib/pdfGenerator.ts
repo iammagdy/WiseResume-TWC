@@ -174,14 +174,45 @@ function createHeaderProtectionBlocks(sourceElement: HTMLElement, sections: Sect
 }
 
 /**
+ * Finds child element boundaries within an oversized block for sub-block breaking.
+ * Returns sorted array of top positions (relative to container) where a break is safe.
+ */
+function findChildBreakPoints(
+  sourceElement: HTMLElement,
+  blockTop: number,
+  blockBottom: number
+): number[] {
+  // Query elements marked as break-child, or common block children
+  const candidates = sourceElement.querySelectorAll(
+    '[data-break-child], [data-break-avoid] > p, [data-break-avoid] > div, [data-break-avoid] > ul, [data-break-avoid] > li, [data-break-avoid] > h3, [data-break-avoid] > h4'
+  );
+  
+  const points: number[] = [];
+  
+  candidates.forEach(el => {
+    const htmlEl = el as HTMLElement;
+    const top = getRelativeTop(htmlEl, sourceElement);
+    // Only include points within the oversized block's range
+    if (top > blockTop + 20 && top < blockBottom - 20) {
+      points.push(top);
+    }
+  });
+  
+  // Deduplicate and sort
+  return [...new Set(points)].sort((a, b) => a - b);
+}
+
+/**
  * Computes auto breaks within a segment, avoiding cutting blocks.
  * STRICT MODE: Never split a data-break-avoid block that can fit on a page.
+ * For oversized blocks, breaks at child element boundaries instead of arbitrary positions.
  */
 function computeAutoBreaksInSegment(
   segmentStart: number,
   segmentEnd: number,
   sourceHeightPerPage: number,
-  blocks: ContentBlock[]
+  blocks: ContentBlock[],
+  sourceElement?: HTMLElement
 ): number[] {
   const breaks: number[] = [];
   let currentPos = segmentStart;
@@ -211,8 +242,19 @@ function computeAutoBreaksInSegment(
         }
       }
       
-      // Block is too large to fit on a single page - we have to split it
-      // Use the original logic to minimize waste
+      // Block is too large to fit on a single page - try to find child boundaries
+      if (sourceElement) {
+        const childBreaks = findChildBreakPoints(sourceElement, cuttingBlock.top, cuttingBlock.bottom);
+        // Find the child boundary closest to but before naturalBreak
+        const bestChild = childBreaks.reverse().find(bp => bp <= naturalBreak && bp > currentPos + sourceHeightPerPage * 0.15);
+        if (bestChild) {
+          breaks.push(bestChild - 4); // Small padding before child
+          currentPos = bestChild - 4;
+          continue;
+        }
+      }
+      
+      // Fallback: use the original logic to minimize waste
       const breakBefore = cuttingBlock.top - 8;
       const wastedSpaceBefore = naturalBreak - breakBefore;
       
@@ -353,7 +395,8 @@ export function findSmartBreakPositions(
         segmentStart,
         forcedBreak,
         sourceHeightPerPage,
-        allBlocks
+        allBlocks,
+        sourceElement
       );
       allBreaks.push(...autoBreaks);
       
@@ -368,7 +411,8 @@ export function findSmartBreakPositions(
         segmentStart,
         totalHeight,
         sourceHeightPerPage,
-        allBlocks
+        allBlocks,
+        sourceElement
       );
       allBreaks.push(...autoBreaks);
     }
@@ -380,7 +424,7 @@ export function findSmartBreakPositions(
   }
 
   // Pure auto mode - compute breaks for entire document using all blocks
-  return computeAutoBreaksInSegment(0, totalHeight, sourceHeightPerPage, allBlocks);
+  return computeAutoBreaksInSegment(0, totalHeight, sourceHeightPerPage, allBlocks, sourceElement);
 }
 
 /** Tagged break position for UI differentiation */
@@ -455,14 +499,14 @@ export function findSmartBreakPositionsTagged(
     let segmentStart = 0;
 
     for (const fb of sortedForcedBreaks) {
-      const autoBreaks = computeAutoBreaksInSegment(segmentStart, fb, sourceHeightPerPage, allBlocks);
+      const autoBreaks = computeAutoBreaksInSegment(segmentStart, fb, sourceHeightPerPage, allBlocks, sourceElement);
       autoBreaks.forEach(b => tagged.push({ position: b, type: 'auto' }));
       tagged.push({ position: fb, type: 'manual' });
       segmentStart = fb;
     }
 
     if (segmentStart < totalHeight) {
-      const autoBreaks = computeAutoBreaksInSegment(segmentStart, totalHeight, sourceHeightPerPage, allBlocks);
+      const autoBreaks = computeAutoBreaksInSegment(segmentStart, totalHeight, sourceHeightPerPage, allBlocks, sourceElement);
       autoBreaks.forEach(b => tagged.push({ position: b, type: 'auto' }));
     }
 
@@ -479,7 +523,7 @@ export function findSmartBreakPositionsTagged(
   }
 
   // Pure auto mode
-  return computeAutoBreaksInSegment(0, totalHeight, sourceHeightPerPage, allBlocks)
+  return computeAutoBreaksInSegment(0, totalHeight, sourceHeightPerPage, allBlocks, sourceElement)
     .map(b => ({ position: b, type: 'auto' as const }));
 }
 

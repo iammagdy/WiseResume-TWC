@@ -166,10 +166,10 @@ export const DeveloperTemplate = memo(function DeveloperTemplate({ resume }: Tem
                     </span>
                   </div>
                   {exp.description && (
-                    <p className="text-gray-600 mt-1 ml-4">{exp.description}</p>
+                    <p data-break-child className="text-gray-600 mt-1 ml-4">{exp.description}</p>
                   )}
                   {exp.achievements && exp.achievements.length > 0 && (
-                    <ul className="mt-1 ml-4 space-y-0.5">
+                    <ul data-break-child className="mt-1 ml-4 space-y-0.5">
                       {exp.achievements.map((achievement, i) => (
                         <li key={i} className="text-gray-600">
                           <span className="text-gray-400">-</span> {achievement}

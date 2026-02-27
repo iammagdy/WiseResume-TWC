@@ -53,7 +53,7 @@ export const ModernTemplate = memo(function ModernTemplate({ resume }: TemplateP
                   </span>
                 </div>
                 {exp.description && (
-                  <p className="text-gray-700 mt-1 text-xs">{exp.description}</p>
+                  <p data-break-child className="text-gray-700 mt-1 text-xs">{exp.description}</p>
                 )}
               </div>
             ))}
@@ -126,7 +126,7 @@ export const ModernTemplate = memo(function ModernTemplate({ resume }: TemplateP
               <div key={proj.id} data-break-avoid>
                 <div className="flex justify-between"><h3 className="font-bold text-gray-900 text-xs">{proj.name}</h3><span className="text-xs text-gray-500">{proj.startDate} - {proj.endDate}</span></div>
                 <p className="text-gray-600 text-xs">{proj.role}</p>
-                {proj.description && <p className="text-gray-700 text-xs mt-1">{proj.description}</p>}
+                {proj.description && <p data-break-child className="text-gray-700 text-xs mt-1">{proj.description}</p>}
                 {proj.technologies.length > 0 && <div className="flex flex-wrap gap-1 mt-1">{proj.technologies.map((t, i) => <span key={i} className="px-1.5 py-0.5 bg-purple-100 text-purple-800 rounded text-[10px]">{t}</span>)}</div>}
               </div>
             ))}

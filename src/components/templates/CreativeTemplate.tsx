@@ -158,7 +158,7 @@ export const CreativeTemplate = memo(function CreativeTemplate({ resume }: Templ
                     </span>
                   </div>
                   {exp.description && (
-                    <p className="text-gray-600 mt-1">{exp.description}</p>
+                    <p data-break-child className="text-gray-600 mt-1">{exp.description}</p>
                   )}
                 </div>
               ))}

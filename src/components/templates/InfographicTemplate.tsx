@@ -39,7 +39,7 @@ export const InfographicTemplate = memo(function InfographicTemplate({ resume }:
                 <div className="absolute -left-[9px] top-1 w-4 h-4 bg-violet-500 rounded-full border-2 border-white" />
                 <h3 className="font-bold text-gray-900 text-xs">{exp.position}</h3>
                 <p className="text-violet-600 text-[10px] font-medium">{exp.company} · {formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</p>
-                {exp.description && <p className="text-gray-700 mt-1 text-[10px]">{exp.description}</p>}
+                {exp.description && <p data-break-child className="text-gray-700 mt-1 text-[10px]">{exp.description}</p>}
               </div>
             ))}
           </div>

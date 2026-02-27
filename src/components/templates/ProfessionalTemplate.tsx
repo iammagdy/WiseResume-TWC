@@ -92,7 +92,7 @@ export const ProfessionalTemplate = memo(function ProfessionalTemplate({ resume 
                       </span>
                     </div>
                     {exp.description && (
-                      <p className="text-gray-700 mt-1 text-xs">{exp.description}</p>
+                      <p data-break-child className="text-gray-700 mt-1 text-xs">{exp.description}</p>
                     )}
                   </div>
                 ))}
