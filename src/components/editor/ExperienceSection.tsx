@@ -1,6 +1,6 @@
-import { useState, memo, useCallback } from 'react';
+import { useState, memo, useCallback, lazy, Suspense } from 'react';
 
-import { Plus, Trash2, ChevronDown, ChevronUp, Building2, Briefcase, Calendar, Linkedin, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, Building2, Briefcase, Calendar, Linkedin, ArrowUp, ArrowDown, Sparkles } from 'lucide-react';
 import { DragHandle } from './DragHandle';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ import { GapFillerSheet } from './GapFillerSheet';
 import { formatDateRange, calculateDuration, GapInfo } from '@/lib/dateUtils';
 import { SectionEmptyState } from './SectionEmptyState';
 import { experienceExample } from '@/lib/emptyStateExamples';
+const BoostAllExperienceSheet = lazy(() => import('./BoostAllExperienceSheet').then(m => ({ default: m.BoostAllExperienceSheet })));
 
 export const ExperienceSection = memo(function ExperienceSection() {
   const experience = useResumeStore(state => state.currentResume?.experience);
@@ -66,6 +67,7 @@ export const ExperienceSection = memo(function ExperienceSection() {
   const [selectedGap, setSelectedGap] = useState<GapInfo | null>(null);
   const [showGapFiller, setShowGapFiller] = useState(false);
   const [selectedGapForFill, setSelectedGapForFill] = useState<GapInfo | null>(null);
+  const [showBoostAll, setShowBoostAll] = useState(false);
 
   if (!currentResume || !experience) return null;
 
@@ -149,7 +151,18 @@ export const ExperienceSection = memo(function ExperienceSection() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-2">
+        {experience.length > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowBoostAll(true)}
+            className="gap-1.5 w-full sm:w-auto min-h-[56px] sm:min-h-0 border-primary/30 text-primary hover:bg-primary/5"
+          >
+            <Sparkles className="w-4 h-4" />
+            Boost All
+          </Button>
+        )}
         <Button variant="outline" size="sm" onClick={addExperience} className="gap-2 w-full sm:w-auto min-h-[56px] sm:min-h-0">
           <Plus className="w-4 h-4" />
           Add
@@ -467,6 +480,11 @@ export const ExperienceSection = memo(function ExperienceSection() {
           setExpandedId(newExp.id);
         }}
       />
+
+      {/* Boost All Sheet */}
+      <Suspense fallback={null}>
+        <BoostAllExperienceSheet open={showBoostAll} onOpenChange={setShowBoostAll} />
+      </Suspense>
     </div>
   );
 });
