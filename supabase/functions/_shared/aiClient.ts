@@ -151,24 +151,24 @@ export async function getUserKeyFromDB(userId: string, provider = 'gemini'): Pro
 export async function callAI(options: AICallOptions): Promise<AIResponse> {
   const { model, messages, temperature = 0.7, maxTokens, tools, toolChoice, userId, timeout = 30_000 } = options;
 
-  // Resolve the user's Gemini key: prefer DB lookup, fall back to deprecated body param
-  let geminiKey = options.userGeminiKey;
-  if (!geminiKey && userId) {
-    geminiKey = await getUserKeyFromDB(userId);
-  }
-
-  // Fallback to global environment GEMINI API key
-  if (!geminiKey) {
-    geminiKey = Deno.env.get('GEMINI_API_KEY');
-  }
-
-  // Lovable AI Gateway (preferred fallback)
+  // Lovable AI Gateway (primary)
   const lovableKey = Deno.env.get('LOVABLE_API_KEY');
-  // Emergent Universal Key (legacy fallback)
+
+  // Resolve user BYOK Gemini key only if userId provided
+  let userGeminiKey: string | undefined;
+  if (userId) {
+    userGeminiKey = await getUserKeyFromDB(userId);
+  }
+  if (!userGeminiKey && options.userGeminiKey) {
+    userGeminiKey = options.userGeminiKey; // deprecated body param
+  }
+
+  // Legacy fallbacks
+  const globalGeminiKey = Deno.env.get('GEMINI_API_KEY');
   const emergentKey = Deno.env.get('EMERGENT_LLM_KEY');
-  
-  if (!geminiKey && !lovableKey && !emergentKey) {
-    console.error('[AI] No API key available (no user key, no GEMINI_API_KEY, no LOVABLE_API_KEY, no EMERGENT_LLM_KEY)');
+
+  if (!lovableKey && !userGeminiKey && !globalGeminiKey && !emergentKey) {
+    console.error('[AI] No API key available');
     throw createAIError('invalid_key', 'No AI API key configured. Please add your API key in Settings.', 500);
   }
 
@@ -176,18 +176,25 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
-    // Priority 1: User's own Gemini key or global GEMINI_API_KEY
-    if (geminiKey) {
-      return await callGeminiDirect(geminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+    // Priority 1: User BYOK Gemini key (opt-in override)
+    if (userGeminiKey) {
+      console.log('[AI] Using user BYOK Gemini key for model:', model);
+      return await callGeminiDirect(userGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
     }
 
-    // Priority 2: Lovable AI Gateway
+    // Priority 2: Lovable AI Gateway (primary default)
     if (lovableKey) {
       console.log('[AI] Using Lovable AI Gateway for model:', model);
       return await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
     }
 
-    // Priority 3: Emergent Universal API (legacy)
+    // Priority 3: Global GEMINI_API_KEY (legacy)
+    if (globalGeminiKey) {
+      console.log('[AI] Using global GEMINI_API_KEY for model:', model);
+      return await callGeminiDirect(globalGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+    }
+
+    // Priority 4: Emergent Universal API (legacy)
     console.log('[AI] Using Emergent Universal Key for model:', model);
     return await callEmergentUniversal(emergentKey!, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
   } catch (error) {
@@ -369,6 +376,9 @@ async function callLovableGateway(
 
     if (response.status === 401 || response.status === 403) {
       throw createAIError('invalid_key', 'Invalid Lovable AI key.', 401);
+    }
+    if (response.status === 402) {
+      throw createAIError('payment_required', 'AI credits exhausted. Please add credits to your workspace.', 402);
     }
     if (response.status === 429) {
       throw createAIError('rate_limit', 'Too many requests. Please wait a moment.', 429);
