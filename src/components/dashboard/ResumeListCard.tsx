@@ -201,7 +201,7 @@ export const ResumeListCard = memo(function ResumeListCard({
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            handleCardClick(e as any);
+            handleCardClick();
           }
         }}
         className={cn(
