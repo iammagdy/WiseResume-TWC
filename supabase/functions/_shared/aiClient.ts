@@ -176,16 +176,16 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
-    // Priority 1: User BYOK Gemini key (opt-in override)
-    if (userGeminiKey) {
-      console.log('[AI] Using user BYOK Gemini key for model:', model);
-      return await callGeminiDirect(userGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
-    }
-
-    // Priority 2: Lovable AI Gateway (primary default)
+    // Priority 1: Lovable AI Gateway (always first)
     if (lovableKey) {
       console.log('[AI] Using Lovable AI Gateway for model:', model);
       return await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+    }
+
+    // Priority 2: User BYOK Gemini key (fallback)
+    if (userGeminiKey) {
+      console.log('[AI] Using user BYOK Gemini key for model:', model);
+      return await callGeminiDirect(userGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
     }
 
     // Priority 3: Global GEMINI_API_KEY (legacy)
