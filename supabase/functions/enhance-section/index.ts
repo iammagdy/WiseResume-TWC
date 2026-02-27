@@ -31,17 +31,18 @@ function getSchemaInstructions(section: string, currentContent: unknown): string
   "id": "<PRESERVE the original id exactly>",
   "company": "<string>",
   "position": "<string>",
+  "account": "<string, optional — the client/account served, preserve if present>",
   "startDate": "<string, e.g. Jan 2020>",
   "endDate": "<string, e.g. Present>",
   "current": <boolean>,
-  "description": "<string — a brief role summary>",
-  "achievements": ["<string>", "<string>"],
+  "description": "<string — a detailed role summary, NOT a one-liner>",
+  "achievements": ["<string>", "<string>", "<string>", "<string>"],
   "responsibilities": ["<string>", "<string>"]
 }
-You MUST preserve all original "id" values. Do NOT omit any field. If a field was empty, keep it as empty string or empty array.
+You MUST preserve all original "id" values. Do NOT omit any field. If a field was empty, keep it as empty string or empty array. Preserve "account" exactly if present.
 Here are the exact IDs and structure you must preserve:
 ${JSON.stringify((Array.isArray(currentContent) ? currentContent : []).map((e: Record<string, unknown>) => ({
-  id: e.id, company: e.company, position: e.position, startDate: e.startDate, endDate: e.endDate, current: e.current
+  id: e.id, company: e.company, position: e.position, account: e.account, startDate: e.startDate, endDate: e.endDate, current: e.current
 })), null, 2)}`;
     case 'education':
       return `Return "improved" as a JSON array of education objects. Each object MUST have EXACTLY these fields:
@@ -148,8 +149,12 @@ ${JSON.stringify(currentContent, null, 2)}
   const sectionAtsRules = getSectionSpecificAtsRules(section, currentContent, context);
 
   const actionPrompts: Record<string, string> = {
-    generate: `Generate compelling, professional content for this section from scratch based on the resume context. Use strong action verbs, quantify achievements where possible, and ensure ATS compatibility.`,
-    improve: `Improve the existing content to be more impactful and professional. Use stronger action verbs, better phrasing, and ensure it's concise yet comprehensive. Keep the same information but express it more effectively.`,
+    generate: `Generate a detailed, compelling description for this role from scratch based on the resume context. Include 4-6 bullet points covering key responsibilities and measurable achievements. Use power verbs (Led, Managed, Developed, etc.), include specific metrics (percentages, dollar amounts, team sizes), mention relevant tools/technologies, and describe the scope and impact of the work.
+${section === 'experience' && typeof currentContent === 'object' && currentContent !== null && !Array.isArray(currentContent) && (currentContent as Record<string, unknown>).account ? `ACCOUNT/CLIENT CONTEXT: The user works at "${(currentContent as Record<string, unknown>).company}" but serves the "${(currentContent as Record<string, unknown>).account}" account/client. Research what ${(currentContent as Record<string, unknown>).account} does and tailor the description to reflect the specific products, services, and workflows of ${(currentContent as Record<string, unknown>).account}. Mention the account/client by name in the description and achievements.` : ''}
+Do NOT produce generic one-liner descriptions. Every role must have rich, detailed content.`,
+    improve: `Transform this description into a powerful, detailed narrative. Expand thin descriptions into 4-6 impactful bullet points. Add quantified metrics (percentages, dollar amounts, team sizes), specific technologies, scope of responsibility, and measurable outcomes. Replace weak/passive language with strong action verbs. If the content is only 1-2 sentences, expand it significantly with realistic details based on the role, company, and industry context.
+${section === 'experience' && typeof currentContent === 'object' && currentContent !== null && !Array.isArray(currentContent) && (currentContent as Record<string, unknown>).account ? `ACCOUNT/CLIENT CONTEXT: The user works at "${(currentContent as Record<string, unknown>).company}" but serves the "${(currentContent as Record<string, unknown>).account}" account/client. Weave in specific details about ${(currentContent as Record<string, unknown>).account}'s products, services, or industry. Mention the account/client by name.` : ''}
+Do NOT leave thin, generic descriptions. Every bullet must have substance and specificity.`,
     ats_improve: `Optimize this resume section to MAXIMIZE the ATS score. The score is computed by a deterministic algorithm with these 6 weighted pillars:
 
 1. KEYWORD OPTIMIZATION (35% weight): The scorer checks if each skill from the skills list appears verbatim in the resume text using exact string matching. More keyword echoes = higher score.
