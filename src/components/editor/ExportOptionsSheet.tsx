@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Download, FileText, Package, Check, Minimize2, FileType, AlertTriangle, Shield, Linkedin, AlignLeft, Link2, Copy, Mic, WifiOff } from 'lucide-react';
+import { Download, FileText, Package, Check, Minimize2, FileType, AlertTriangle, Shield, Linkedin, AlignLeft, Link2, Copy, Mic, WifiOff, FolderDown, Image } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useNavigate } from 'react-router-dom';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -150,6 +150,20 @@ export function ExportOptionsSheet({
       icon: Package,
       available: hasCoverLetter,
     },
+    {
+      id: 'json' as ExportType,
+      label: 'JSON Backup',
+      description: 'Full resume data as a portable JSON file',
+      icon: FolderDown,
+      available: true,
+    },
+    {
+      id: 'image' as ExportType,
+      label: '4K Image',
+      description: 'High-resolution single image of your CV',
+      icon: Image,
+      available: true,
+    },
   ];
 
   const handleExport = () => {
@@ -165,7 +179,7 @@ export function ExportOptionsSheet({
   const isTextType = ['linkedin', 'plain-text', 'share-link'].includes(selectedType);
 
   const isInterviewPrep = selectedType === 'interview-prep';
-  const isDownloadable = ['resume', 'ats-pdf', 'one-page', 'cover-letter', 'combined', 'docx', 'plain-text'].includes(selectedType);
+  const isDownloadable = ['resume', 'ats-pdf', 'one-page', 'cover-letter', 'combined', 'docx', 'plain-text', 'json', 'image'].includes(selectedType);
 
   const getFileSuffix = () => {
     switch (selectedType) {
@@ -175,6 +189,8 @@ export function ExportOptionsSheet({
       case 'combined': return '_Application_Package.pdf';
       case 'docx': return '_Resume.docx';
       case 'plain-text': return '_Resume.txt';
+      case 'json': return '_Backup.json';
+      case 'image': return '_Resume_4K.png';
       default: return '_Resume.pdf';
     }
   };
@@ -186,6 +202,8 @@ export function ExportOptionsSheet({
     if (selectedType === 'linkedin') return 'Copy LinkedIn Text';
     if (selectedType === 'plain-text') return 'Download .txt';
     if (selectedType === 'share-link') return 'Copy Share Link';
+    if (selectedType === 'json') return 'Download JSON';
+    if (selectedType === 'image') return 'Download 4K Image';
     if (selectedType === 'ats-pdf') return 'Download CV (ATS)';
     if (selectedType === 'one-page') return 'Download CV (1 Page)';
     return 'Download CV';
@@ -360,7 +378,7 @@ export function ExportOptionsSheet({
             size="lg"
             className="w-full h-14 text-lg font-semibold gradient-primary"
             onClick={handleExport}
-            disabled={isExporting || (!isPdfType && !isTextType && selectedType !== 'docx' && selectedType !== 'interview-prep' && !hasCoverLetter)}
+            disabled={isExporting || (!isPdfType && !isTextType && selectedType !== 'docx' && selectedType !== 'interview-prep' && selectedType !== 'json' && selectedType !== 'image' && !hasCoverLetter)}
             style={{
               boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)',
             }}

@@ -269,6 +269,39 @@ export default function PreviewPage() {
           return;
         }
 
+        // JSON backup export
+        if (type === 'json') {
+          const json = JSON.stringify(currentResume, null, 2);
+          const blob = new Blob([json], { type: 'application/json' });
+          const fileName = `${baseName}_Backup.json`;
+          const result = await downloadFile({ blob, fileName });
+          if (result.success) toast.success('JSON backup downloaded!');
+          setShowExportSheet(false);
+          return;
+        }
+
+        // 4K Image export
+        if (type === 'image') {
+          onProgress('preparing', 10);
+          const { captureWithRetry } = await import('@/lib/html2canvasRetry');
+          const el = resumeRef.current;
+          if (!el) { toast.error('Resume template not found'); return; }
+          onProgress('finalizing', 40);
+          const scale = 3840 / el.offsetWidth;
+          const canvas = await captureWithRetry(el, { scale, backgroundColor: '#ffffff' });
+          onProgress('downloading', 80);
+          const dataUrl = canvas.toDataURL('image/png');
+          const resp = await fetch(dataUrl);
+          const blob = await resp.blob();
+          const fileName = `${baseName}_Resume_4K.png`;
+          const result = await downloadFile({ blob, fileName });
+          if (result.success) toast.success('4K image downloaded!');
+          onProgress('downloading', 100);
+          setShowExportSheet(false);
+          incrementPositiveActions();
+          return;
+        }
+
         // Text-based exports (no PDF generation needed)
         if (type === 'plain-text') {
           const { generatePlainText } = await import('@/lib/shareUtils');
@@ -372,7 +405,9 @@ export default function PreviewPage() {
             'linkedin': 'LinkedIn format copied!',
             'plain-text': 'Plain text downloaded!',
             'share-link': 'Share link generated!',
-            'interview-prep': 'Starting interview prep...'
+            'interview-prep': 'Starting interview prep...',
+            'json': 'JSON backup downloaded!',
+            'image': '4K image downloaded!',
           };
           toast.success(successMessages[type]);
           if (result.method === 'data-url' || result.method === 'open') {

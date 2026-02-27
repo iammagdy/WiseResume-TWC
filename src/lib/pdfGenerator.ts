@@ -360,21 +360,8 @@ export function findSmartBreakPositions(
       const targetSection = sections.find(s => s.id === sectionId);
       if (!targetSection) return;
       
-      const baseline = targetSection.bottom;
-      
-      // LAYOUT-AWARE: Find the maximum bottom of all blocks that started above the baseline
-      // This ensures we don't cut through parallel columns
-      let maxBottom = baseline;
-      
-      flowBlocks.forEach(block => {
-        // If this block started above our baseline, include its full extent
-        if (block.top < baseline && block.bottom > maxBottom) {
-          maxBottom = block.bottom;
-        }
-      });
-      
-      // Add padding after the safe position
-      forcedBreaks.push(maxBottom + 8);
+      // Use exact section bottom — all templates are now linear, no parallel columns
+      forcedBreaks.push(targetSection.bottom + 4);
     });
     
     // Sort and filter forced breaks
@@ -477,13 +464,8 @@ export function findSmartBreakPositionsTagged(
     validManualSections.forEach(sectionId => {
       const targetSection = sections.find(s => s.id === sectionId);
       if (!targetSection) return;
-      let maxBottom = targetSection.bottom;
-      flowBlocks.forEach(block => {
-        if (block.top < targetSection.bottom && block.bottom > maxBottom) {
-          maxBottom = block.bottom;
-        }
-      });
-      const pos = maxBottom + 8;
+      // Use exact section bottom — all templates are now linear
+      const pos = targetSection.bottom + 4;
       forcedBreaks.push(pos);
       forcedBreakSet.add(pos);
     });
