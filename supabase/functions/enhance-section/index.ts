@@ -209,7 +209,33 @@ ATS RULES:
 }
 
 function buildExperienceRoleContext(currentContent: unknown): string {
-  if (!currentContent || typeof currentContent !== 'object' || Array.isArray(currentContent)) return '';
+  // Array of entries (Boost All)
+  if (Array.isArray(currentContent) && currentContent.length > 0) {
+    const entries = currentContent as Record<string, unknown>[];
+    const roleLines = entries.map((c, i) => {
+      const position = c.position || 'Untitled Role';
+      const company = c.company || 'Unknown Company';
+      const account = c.account || '';
+      return `${i + 1}. "${position}" at "${company}"${account ? ` (serving ${account} account)` : ''}`;
+    }).join('\n');
+
+    return `CRITICAL ROLE CONTEXT — READ THIS FOR EVERY ENTRY:
+You are optimizing ${entries.length} different positions. Each has a UNIQUE job title and company. You MUST tailor each entry's description and achievements to match its SPECIFIC role.
+
+POSITIONS TO OPTIMIZE:
+${roleLines}
+
+RULES:
+- For EACH entry, research what that specific job title does at that specific company/industry.
+- Do NOT copy content between entries — each role must have unique, role-appropriate content.
+- A "Transport Supervisor" gets transport/logistics content. A "Customer Service Rep" gets customer service content. NEVER mix them.
+- Match the industry, function, and seniority level of EACH title EXACTLY.
+
+`;
+  }
+
+  // Single entry
+  if (!currentContent || typeof currentContent !== 'object') return '';
   const c = currentContent as Record<string, unknown>;
   const position = c.position || '';
   const company = c.company || '';
