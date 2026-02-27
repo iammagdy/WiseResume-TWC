@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -23,7 +24,7 @@ interface ExportOptionsSheetProps {
   onOpenChange: (open: boolean) => void;
   hasCoverLetter: boolean;
   coverLetterContext?: CoverLetterContext | null;
-  onExport: (type: ExportType, showPageNumbers: boolean, showBranding: boolean) => void;
+  onExport: (type: ExportType, showPageNumbers: boolean, showBranding: boolean, customFileName?: string) => void;
   isExporting: boolean;
   templateElement?: HTMLElement | null;
   exportProgress?: ExportProgress;
@@ -51,12 +52,15 @@ export function ExportOptionsSheet({
   const [showPageNumbers, setShowPageNumbers] = useState(pdfDefaults.showPageNumbers ?? true);
   const [showBranding, setShowBranding] = useState(pdfDefaults.showBranding ?? true);
   const [onePageScale, setOnePageScale] = useState<number | null>(null);
+  const [customFileName, setCustomFileName] = useState('');
 
   // Sync with defaults when sheet opens & estimate scale
   useEffect(() => {
     if (open) {
       setShowPageNumbers(pdfDefaults.showPageNumbers ?? true);
       setShowBranding(pdfDefaults.showBranding ?? true);
+      const defaultName = resumeName?.replace(/\s+/g, '_') || 'Resume';
+      setCustomFileName(defaultName);
       
       if (templateElement) {
         try {
@@ -154,13 +158,26 @@ export function ExportOptionsSheet({
       navigate('/interview');
       return;
     }
-    onExport(selectedType, showPageNumbers, showBranding);
+    onExport(selectedType, showPageNumbers, showBranding, customFileName || undefined);
   };
 
   const isPdfType = ['resume', 'ats-pdf', 'one-page', 'cover-letter', 'combined'].includes(selectedType);
   const isTextType = ['linkedin', 'plain-text', 'share-link'].includes(selectedType);
 
   const isInterviewPrep = selectedType === 'interview-prep';
+  const isDownloadable = ['resume', 'ats-pdf', 'one-page', 'cover-letter', 'combined', 'docx', 'plain-text'].includes(selectedType);
+
+  const getFileSuffix = () => {
+    switch (selectedType) {
+      case 'ats-pdf': return '_Resume_ATS.pdf';
+      case 'one-page': return '_Resume_OnePage.pdf';
+      case 'cover-letter': return '_Cover_Letter.pdf';
+      case 'combined': return '_Application_Package.pdf';
+      case 'docx': return '_Resume.docx';
+      case 'plain-text': return '_Resume.txt';
+      default: return '_Resume.pdf';
+    }
+  };
 
   const getButtonLabel = () => {
     if (selectedType === 'interview-prep') return 'Start Practice';
@@ -302,6 +319,20 @@ export function ExportOptionsSheet({
                 />
               </div>
           </div>
+
+          {/* Filename input for downloadable formats */}
+          {isDownloadable && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-muted/50">
+              <Label className="text-sm font-medium shrink-0">File name</Label>
+              <Input
+                value={customFileName}
+                onChange={(e) => setCustomFileName(e.target.value)}
+                className="h-8 text-sm"
+                placeholder="Resume"
+              />
+              <span className="text-xs text-muted-foreground shrink-0">{getFileSuffix()}</span>
+            </div>
+          )}
 
           {/* Progress indicator */}
           {exportProgress?.isActive && (

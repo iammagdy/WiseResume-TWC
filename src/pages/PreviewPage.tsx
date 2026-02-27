@@ -241,7 +241,7 @@ export default function PreviewPage() {
     }
   };
 
-  const handleExport = async (type: ExportType, showPageNumbers: boolean, showBranding: boolean = true) => {
+  const handleExport = async (type: ExportType, showPageNumbers: boolean, showBranding: boolean = true, customFileName?: string) => {
     setIsGenerating(true);
     resetProgress();
 
@@ -251,7 +251,7 @@ export default function PreviewPage() {
     const tryExport = async (): Promise<void> => {
       try {
         const { generatePDF, generateCoverLetterPDF, generateCombinedPDF, generateOnePagePDF } = await import('@/lib/pdfGenerator');
-        const baseName = currentResume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Document';
+        const baseName = customFileName || currentResume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Document';
         const pdfOptions = { showPageNumbers, pageNumberFormat: 'full' as const, showBranding };
 
         // DOCX export path
