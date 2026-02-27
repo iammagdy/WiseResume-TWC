@@ -105,6 +105,18 @@ export const ContactSection = memo(function ContactSection() {
     }
   };
 
+  const getEmail2Error = (): string | undefined => {
+    const email2 = contactInfo.email2;
+    if (!email2 || email2.trim() === '') return undefined;
+    try {
+      emailSchema.parse(email2);
+      return undefined;
+    } catch (e) {
+      if (e instanceof z.ZodError) return e.errors[0]?.message;
+      return 'Invalid email';
+    }
+  };
+
   const getPhoneError = (): string | undefined => {
     const phone = contactInfo.phone;
     if (!phone) return undefined;
@@ -209,6 +221,20 @@ export const ContactSection = memo(function ContactSection() {
           error={getEmailError()}
           touched={touched.email}
           required
+        />
+
+        <InputFormField
+          id="email2"
+          label="Second Email (optional)"
+          type="email"
+          icon={<Mail className="w-4 h-4" />}
+          value={contactInfo.email2 || ''}
+          onChange={(value) => handleChange('email2', value)}
+          onBlur={() => handleBlur('email2')}
+          placeholder="work@example.com"
+          autoComplete="email"
+          error={getEmail2Error()}
+          touched={touched.email2}
         />
 
         <InputFormField
