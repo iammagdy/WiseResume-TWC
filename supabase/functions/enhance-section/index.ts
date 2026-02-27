@@ -7,7 +7,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 // ============= SECURITY: Input validation limits =============
 const MAX_CONTENT_SIZE = 50 * 1024; // 50KB for current content
 const MAX_CONTEXT_SIZE = 100 * 1024; // 100KB for context (resume data)
-const VALID_SECTIONS = ['summary', 'experience', 'education', 'skills', 'contact', 'custom'];
+const VALID_SECTIONS = ['summary', 'experience', 'education', 'skills', 'contact', 'custom', 'awards', 'projects', 'publications', 'volunteering', 'certifications', 'languages'];
 const VALID_ACTIONS = ['generate', 'improve', 'ats_improve', 'ats_optimize', 'shorten', 'expand', 'add_metrics', 'generate_bullets', 'fix_error', 'custom'];
 
 interface EnhanceRequest {
