@@ -208,6 +208,22 @@ ATS RULES:
   }
 }
 
+function buildExperienceRoleContext(currentContent: unknown): string {
+  if (!currentContent || typeof currentContent !== 'object' || Array.isArray(currentContent)) return '';
+  const c = currentContent as Record<string, unknown>;
+  const position = c.position || '';
+  const company = c.company || '';
+  const account = c.account || '';
+  if (!position) return '';
+
+  let ctx = `CRITICAL ROLE CONTEXT — READ THIS FIRST:
+The user's ACTUAL job title is: "${position}"
+The user's ACTUAL company is: "${company}"`;
+  if (account) ctx += `\nThe user serves the "${account}" account/client at ${company}.`;
+  ctx += `\n\nYou MUST research what a "${position}" actually does${company ? ` at a company like "${company}"` : ''} and generate content that accurately reflects this specific role's real-world responsibilities. Do NOT generate content for a different role. If the title says "Supervisor" do NOT write about "technical support." If the title says "Transport" do NOT write about "software development." Match the industry, function, and seniority level of the title EXACTLY.\n\n`;
+  return ctx;
+}
+
 function buildPrompt(section: string, action: string, currentContent: unknown, context: unknown, fixInstruction?: string): string {
   const baseContext = `You are an expert resume writer and career coach. Your goal is to help users create compelling, ATS-friendly resume content.
 
@@ -224,14 +240,16 @@ ${JSON.stringify(currentContent, null, 2)}
   // Summary-specific prompts that are grounded in actual experience
   const summaryOverride = section === 'summary' ? getSummaryActionPrompt(action, currentContent, context) : null;
 
+  const roleContext = section === 'experience' ? buildExperienceRoleContext(currentContent) : '';
+
   const actionPrompts: Record<string, string> = {
-    generate: summaryOverride && action === 'generate' ? summaryOverride : `Generate a detailed, compelling description for this role from scratch based on the resume context. Include 4-6 bullet points covering key responsibilities and measurable achievements. Use power verbs (Led, Managed, Developed, etc.), include specific metrics (percentages, dollar amounts, team sizes), mention relevant tools/technologies, and describe the scope and impact of the work.
+    generate: summaryOverride && action === 'generate' ? summaryOverride : `${roleContext}Generate a detailed, compelling description for this SPECIFIC role ("${section === 'experience' && typeof currentContent === 'object' && currentContent !== null && !Array.isArray(currentContent) ? (currentContent as Record<string, unknown>).position || '' : ''}") from scratch based on the resume context. Include 4-6 bullet points covering key responsibilities and measurable achievements that are realistic for this exact job title. Use power verbs (Led, Managed, Developed, etc.), include specific metrics (percentages, dollar amounts, team sizes), mention relevant tools/technologies, and describe the scope and impact of the work.
 ${section === 'experience' && typeof currentContent === 'object' && currentContent !== null && !Array.isArray(currentContent) && (currentContent as Record<string, unknown>).account ? `ACCOUNT/CLIENT CONTEXT: The user works at "${(currentContent as Record<string, unknown>).company}" but serves the "${(currentContent as Record<string, unknown>).account}" account/client. Research what ${(currentContent as Record<string, unknown>).account} does and tailor the description to reflect the specific products, services, and workflows of ${(currentContent as Record<string, unknown>).account}. Mention the account/client by name in the description and achievements.` : ''}
 Do NOT produce generic one-liner descriptions. Every role must have rich, detailed content.`,
-    improve: summaryOverride && action === 'improve' ? summaryOverride : `Transform this description into a powerful, detailed narrative. Expand thin descriptions into 4-6 impactful bullet points. Add quantified metrics (percentages, dollar amounts, team sizes), specific technologies, scope of responsibility, and measurable outcomes. Replace weak/passive language with strong action verbs. If the content is only 1-2 sentences, expand it significantly with realistic details based on the role, company, and industry context.
+    improve: summaryOverride && action === 'improve' ? summaryOverride : `${roleContext}Transform this description into a powerful, detailed narrative that accurately reflects the "${section === 'experience' && typeof currentContent === 'object' && currentContent !== null && !Array.isArray(currentContent) ? (currentContent as Record<string, unknown>).position || '' : ''}" role. Expand thin descriptions into 4-6 impactful bullet points. Add quantified metrics (percentages, dollar amounts, team sizes), specific technologies, scope of responsibility, and measurable outcomes. Replace weak/passive language with strong action verbs. If the content is only 1-2 sentences, expand it significantly with realistic details based on the ACTUAL role title, company, and industry context.
 ${section === 'experience' && typeof currentContent === 'object' && currentContent !== null && !Array.isArray(currentContent) && (currentContent as Record<string, unknown>).account ? `ACCOUNT/CLIENT CONTEXT: The user works at "${(currentContent as Record<string, unknown>).company}" but serves the "${(currentContent as Record<string, unknown>).account}" account/client. Weave in specific details about ${(currentContent as Record<string, unknown>).account}'s products, services, or industry. Mention the account/client by name.` : ''}
 Do NOT leave thin, generic descriptions. Every bullet must have substance and specificity.`,
-    ats_improve: summaryOverride && action === 'ats_improve' ? summaryOverride : `Optimize this resume section to MAXIMIZE the ATS score. The score is computed by a deterministic algorithm with these 6 weighted pillars:
+    ats_improve: summaryOverride && action === 'ats_improve' ? summaryOverride : `${roleContext}Optimize this resume section to MAXIMIZE the ATS score. The score is computed by a deterministic algorithm with these 6 weighted pillars:
 
 1. KEYWORD OPTIMIZATION (35% weight): The scorer checks if each skill from the skills list appears verbatim in the resume text using exact string matching. More keyword echoes = higher score.
 2. CONTENT QUALITY (25% weight): The scorer checks if each bullet starts with a recognized action verb AND contains at least one number/metric.
