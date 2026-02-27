@@ -110,7 +110,7 @@ export const ExperienceSection = memo(function ExperienceSection() {
     
     const enhanceResult = await enhance(
       actionId as ActionType,
-      { description: exp.description, position: exp.position, company: exp.company },
+      { description: exp.description, position: exp.position, company: exp.company, account: exp.account },
       currentResume
     );
     
@@ -233,6 +233,7 @@ export const ExperienceSection = memo(function ExperienceSection() {
                     </p>
                     <p className="text-sm text-muted-foreground truncate">
                       {exp.company || 'Company name'}
+                      {exp.account && <span className="text-muted-foreground/70"> ({exp.account} Account)</span>}
                     </p>
                     {(exp.startDate || exp.endDate || exp.current) && (
                       <p className="text-xs text-muted-foreground/70 mt-0.5 flex items-center gap-1">
@@ -289,6 +290,20 @@ export const ExperienceSection = memo(function ExperienceSection() {
                               autoComplete="organization"
                             />
                           </div>
+                        </div>
+
+                        <div>
+                          <Label className="text-sm flex items-center gap-1.5 mb-2">
+                            <Building2 className="w-4 h-4 text-muted-foreground" />
+                            Account / Client (optional)
+                          </Label>
+                          <Input
+                            value={exp.account || ''}
+                            onChange={(e) => updateExperience(exp.id, { account: e.target.value })}
+                            placeholder="e.g., Verizon, AT&T — the client you served at this company"
+                            className="h-12"
+                            autoComplete="off"
+                          />
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -13,6 +13,7 @@ export interface Experience {
   id: string;
   company: string;
   position: string;
+  account?: string; // Optional client/account served (e.g., Verizon at Concentrix)
   startDate: string;
   endDate: string;
   current: boolean;
