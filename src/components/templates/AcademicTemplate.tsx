@@ -19,6 +19,7 @@ export const AcademicTemplate = memo(function AcademicTemplate({ resume }: Acade
         </h1>
         <div className="flex justify-center flex-wrap gap-x-4 gap-y-1 text-gray-600 text-sm">
           {contactInfo.email && <span>{contactInfo.email}</span>}
+          {contactInfo.email2 && <span>{contactInfo.email2}</span>}
           {contactInfo.phone && <span>{contactInfo.phone}</span>}
           {contactInfo.location && <span>{contactInfo.location}</span>}
         </div>

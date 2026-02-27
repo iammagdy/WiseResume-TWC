@@ -29,6 +29,7 @@ export const SalesTemplate = memo(function SalesTemplate({ resume }: SalesTempla
         <h1 className="text-2xl font-bold mb-1">{contactInfo.fullName}</h1>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-gray-300 text-sm">
           {contactInfo.email && <span>{contactInfo.email}</span>}
+          {contactInfo.email2 && <span>{contactInfo.email2}</span>}
           {contactInfo.phone && <span>{contactInfo.phone}</span>}
           {contactInfo.location && <span>{contactInfo.location}</span>}
         </div>

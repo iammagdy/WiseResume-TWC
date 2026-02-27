@@ -13,6 +13,7 @@ export const MarketingTemplate = memo(function MarketingTemplate({ resume }: Tem
         <div className="h-1.5 w-24 bg-gradient-to-r from-rose-500 to-orange-400 rounded-full mt-2 mb-3" />
         <div className="flex flex-wrap gap-x-4 text-gray-600 text-xs">
           {resume.contactInfo.email && <span>{resume.contactInfo.email}</span>}
+          {resume.contactInfo.email2 && <span>{resume.contactInfo.email2}</span>}
           {resume.contactInfo.phone && <span>{resume.contactInfo.phone}</span>}
           {resume.contactInfo.location && <span>{resume.contactInfo.location}</span>}
         </div>

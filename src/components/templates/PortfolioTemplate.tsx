@@ -15,6 +15,7 @@ export const PortfolioTemplate = memo(function PortfolioTemplate({ resume }: Tem
         </div>
         <div className="flex flex-wrap gap-x-4 text-gray-500 text-xs mt-3">
           {resume.contactInfo.email && <span>{resume.contactInfo.email}</span>}
+          {resume.contactInfo.email2 && <span>{resume.contactInfo.email2}</span>}
           {resume.contactInfo.phone && <span>{resume.contactInfo.phone}</span>}
           {resume.contactInfo.location && <span>{resume.contactInfo.location}</span>}
         </div>

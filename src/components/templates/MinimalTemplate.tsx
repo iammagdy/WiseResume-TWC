@@ -17,6 +17,7 @@ export const MinimalTemplate = memo(function MinimalTemplate({ resume }: Templat
         </h1>
         <div className="flex flex-wrap gap-4 text-gray-500 text-xs">
           {resume.contactInfo.email && <span>{resume.contactInfo.email}</span>}
+          {resume.contactInfo.email2 && <span>{resume.contactInfo.email2}</span>}
           {resume.contactInfo.phone && <span>{resume.contactInfo.phone}</span>}
           {resume.contactInfo.location && <span>{resume.contactInfo.location}</span>}
         </div>

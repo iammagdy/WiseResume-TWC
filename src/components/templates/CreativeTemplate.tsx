@@ -52,6 +52,12 @@ export const CreativeTemplate = memo(function CreativeTemplate({ resume }: Templ
               <span className="break-all">{resume.contactInfo.email}</span>
             </span>
           )}
+          {resume.contactInfo.email2 && (
+            <span className="flex items-center gap-1">
+              <Mail className="w-3 h-3" />
+              <span className="break-all">{resume.contactInfo.email2}</span>
+            </span>
+          )}
           {resume.contactInfo.phone && (
             <span className="flex items-center gap-1">
               <Phone className="w-3 h-3" />

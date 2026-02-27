@@ -20,6 +20,7 @@ export const HealthcareTemplate = memo(function HealthcareTemplate({ resume }: H
         <h1 className="text-2xl font-bold text-white mb-2">{contactInfo.fullName}</h1>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-teal-100 text-sm">
           {contactInfo.email && <span>{contactInfo.email}</span>}
+          {contactInfo.email2 && <span>{contactInfo.email2}</span>}
           {contactInfo.phone && <span>{contactInfo.phone}</span>}
           {contactInfo.location && <span>{contactInfo.location}</span>}
         </div>

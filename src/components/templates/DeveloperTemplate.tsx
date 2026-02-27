@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
-import { Github, Mail, Phone, MapPin, Globe } from 'lucide-react';
+import { Linkedin, Mail, Phone, MapPin, Globe } from 'lucide-react';
 import { ExtraSections } from './shared/ExtraSections';
 import { formatDisplayDate } from '@/lib/dateUtils';
 
@@ -66,6 +66,12 @@ export const DeveloperTemplate = memo(function DeveloperTemplate({ resume }: Tem
               {resume.contactInfo.email}
             </span>
           )}
+          {resume.contactInfo.email2 && (
+            <span className="flex items-center gap-1">
+              <Mail className="w-3 h-3" />
+              {resume.contactInfo.email2}
+            </span>
+          )}
           {resume.contactInfo.phone && (
             <span className="flex items-center gap-1">
               <Phone className="w-3 h-3" />
@@ -80,7 +86,7 @@ export const DeveloperTemplate = memo(function DeveloperTemplate({ resume }: Tem
           )}
           {resume.contactInfo.linkedin && (
             <span className="flex items-center gap-1">
-              <Github className="w-3 h-3" />
+              <Linkedin className="w-3 h-3" />
               {resume.contactInfo.linkedin}
             </span>
           )}

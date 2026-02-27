@@ -17,6 +17,7 @@ export const ClassicTemplate = memo(function ClassicTemplate({ resume }: Templat
         </h1>
         <div className="flex justify-center flex-wrap gap-x-3 gap-y-1 text-gray-600 text-xs">
           {resume.contactInfo.email && <span>{resume.contactInfo.email}</span>}
+          {resume.contactInfo.email2 && <span>| {resume.contactInfo.email2}</span>}
           {resume.contactInfo.phone && <span>| {resume.contactInfo.phone}</span>}
           {resume.contactInfo.location && <span>| {resume.contactInfo.location}</span>}
         </div>

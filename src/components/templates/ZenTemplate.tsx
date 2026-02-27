@@ -13,6 +13,7 @@ export const ZenTemplate = memo(function ZenTemplate({ resume }: TemplateProps) 
         <div className="w-8 h-px bg-gray-400 mx-auto mt-4 mb-3" />
         <div className="flex justify-center gap-x-4 text-gray-500 text-xs">
           {resume.contactInfo.email && <span>{resume.contactInfo.email}</span>}
+          {resume.contactInfo.email2 && <span>{resume.contactInfo.email2}</span>}
           {resume.contactInfo.phone && <span>{resume.contactInfo.phone}</span>}
           {resume.contactInfo.location && <span>{resume.contactInfo.location}</span>}
         </div>

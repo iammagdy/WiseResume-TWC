@@ -12,6 +12,7 @@ export const FederalTemplate = memo(function FederalTemplate({ resume }: Templat
         <h1 className="text-xl font-bold text-gray-900">{resume.contactInfo.fullName || 'Your Name'}</h1>
         <div className="flex flex-wrap gap-x-4 text-gray-600 text-xs mt-1">
           {resume.contactInfo.email && <span>{resume.contactInfo.email}</span>}
+          {resume.contactInfo.email2 && <span>{resume.contactInfo.email2}</span>}
           {resume.contactInfo.phone && <span>{resume.contactInfo.phone}</span>}
           {resume.contactInfo.location && <span>{resume.contactInfo.location}</span>}
         </div>
