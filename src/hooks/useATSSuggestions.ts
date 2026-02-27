@@ -1,9 +1,12 @@
 import { useMemo, useCallback, useRef, useState } from 'react';
 import { ResumeData, SectionId } from '@/types/resume';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { supabase } from '@/integrations/supabase/client';
 import { showErrorToast } from '@/lib/errorToast';
 import { hasPassiveVerbs, hasMetrics, hasLongBullets, findPassiveStarter } from '@/lib/contentAnalysis';
 import { useAICreditsMutations } from './useAICredits';
+
+const CLOUD_URL = import.meta.env.VITE_SUPABASE_URL || 'https://hjnnamwgztlhzkeuufln.supabase.co';
+const CLOUD_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhqbm5hbXdnenRsaHprZXV1ZmxuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNTE4MTcsImV4cCI6MjA4NTkyNzgxN30.cupd_dz6KHSJaBnUPQzJmQcYc38RTDVIMU5RP25xCso';
 
 export interface ATSSuggestion {
   id: string;
@@ -251,17 +254,30 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
     setAnalyzingSections(prev => new Set(prev).add(section));
     try {
       const currentContent = getSectionContent(resume, section);
-      const { data, error } = await edgeFunctions.functions.invoke('enhance-section', {
-        body: {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error('Please sign in to use AI features');
+
+      const res = await fetch(`${CLOUD_URL}/functions/v1/enhance-section`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'apikey': CLOUD_KEY,
+        },
+        body: JSON.stringify({
           section,
           action: 'ats_optimize',
           currentContent,
           context: { resume, jobDescription },
-        },
+        }),
       });
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.message || data.error);
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody?.message || `Edge function returned ${res.status}`);
+      }
+      const data = await res.json();
 
       // Store full result for apply/discard UI
       const result: DeepResult = {

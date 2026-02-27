@@ -204,8 +204,12 @@ export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
                 }}
                 disabled={isAnalyzing}
               >
-                <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-                Deep Analyze
+                {isAnalyzing ? (
+                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                )}
+                {isAnalyzing ? 'Analyzing…' : 'Deep Analyze'}
               </Button>
             )}
           </div>
