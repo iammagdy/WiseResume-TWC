@@ -143,6 +143,7 @@ export default function EditorPage() {
   const localLoadedAtRef = useRef<string | null>(null);
   const lastLocalEditAtRef = useRef<number>(0);
   const lastRefreshedServerTs = useRef<string | null>(null);
+  const isSavingRef = useRef(false);
 
   useEffect(() => {
     if (!resumeFromDb || !currentResumeId) return;
@@ -176,6 +177,7 @@ export default function EditorPage() {
     const serverUpdatedAt = resumeFromDb.updated_at;
     const localLoadedAt = localLoadedAtRef.current;
     if (
+      !isSavingRef.current &&
       serverUpdatedAt &&
       localLoadedAt &&
       Date.parse(serverUpdatedAt) > Date.parse(localLoadedAt) &&
@@ -362,6 +364,7 @@ export default function EditorPage() {
     }
 
     setIsSaving(true);
+    isSavingRef.current = true;
     try {
       const result = await updateResume.mutateAsync({
         resumeId: currentResumeId,
@@ -412,6 +415,7 @@ export default function EditorPage() {
         toast.warning('Auto-save failed — your changes are safe locally and will retry.', { duration: 4000 });
       }
     } finally {
+      isSavingRef.current = false;
       setIsSaving(false);
     }
   }, [user, currentResumeId, updateResume, setIsSaving, setLastSavedAt, addPendingChange, resumeFromDb]);
