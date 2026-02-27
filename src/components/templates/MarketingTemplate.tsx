@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
+import { formatDisplayDate } from '@/lib/dateUtils';
 
 interface TemplateProps { resume: ResumeData; }
 
@@ -29,7 +30,7 @@ export const MarketingTemplate = memo(function MarketingTemplate({ resume }: Tem
             {resume.experience.map(exp => (
               <div key={exp.id} data-break-avoid className="border-l-3 border-rose-300 pl-4">
                 <h3 className="font-bold text-gray-900">{exp.position}</h3>
-                <p className="text-gray-600 text-xs">{exp.company} · {exp.startDate} – {exp.current ? 'Present' : exp.endDate}</p>
+                <p className="text-gray-600 text-xs">{exp.company} · {formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</p>
                 {exp.description && <p className="text-gray-700 mt-1 text-xs">{exp.description}</p>}
               </div>
             ))}
@@ -39,7 +40,7 @@ export const MarketingTemplate = memo(function MarketingTemplate({ resume }: Tem
       {resume.education.length > 0 && (
         <section data-section="education" className="mb-6">
           <h2 className="text-lg font-bold text-rose-600 mb-3">Education</h2>
-          {resume.education.map(edu => (<div key={edu.id} data-break-avoid className="mb-2"><h3 className="font-bold text-gray-900 text-xs">{edu.degree} {edu.field && `in ${edu.field}`}</h3><p className="text-gray-600 text-xs">{edu.institution} — {edu.endDate}</p></div>))}
+          {resume.education.map(edu => (<div key={edu.id} data-break-avoid className="mb-2"><h3 className="font-bold text-gray-900 text-xs">{edu.degree} {edu.field && `in ${edu.field}`}</h3><p className="text-gray-600 text-xs">{edu.institution} — {formatDisplayDate(edu.endDate)}</p></div>))}
         </section>
       )}
       {resume.skills.length > 0 && (

@@ -146,6 +146,17 @@ function formatMonthYear(date: ParsedDate): string {
 }
 
 /**
+ * Format a raw date string (e.g. "2013-12", "Jan 2020", "Present") into "Mon YYYY" for display
+ */
+export function formatDisplayDate(dateStr: string): string {
+  if (!dateStr) return '';
+  const parsed = parseResumeDate(dateStr);
+  if (!parsed) return dateStr;
+  if (parsed.isPresent) return 'Present';
+  return formatMonthYear(parsed);
+}
+
+/**
  * Calculate duration string from start/end dates
  */
 export function calculateDuration(startDate: string, endDate: string, isCurrent: boolean): string {

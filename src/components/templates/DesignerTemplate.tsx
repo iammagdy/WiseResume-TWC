@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
+import { formatDisplayDate } from '@/lib/dateUtils';
 
 interface TemplateProps { resume: ResumeData; }
 
@@ -40,7 +41,7 @@ export const DesignerTemplate = memo(function DesignerTemplate({ resume }: Templ
               {resume.experience.map(exp => (
                 <div key={exp.id} data-break-avoid>
                   <h3 className="font-bold text-gray-900 text-xs">{exp.position}</h3>
-                  <p className="text-gray-500 text-[10px]">{exp.company} · {exp.startDate} – {exp.current ? 'Present' : exp.endDate}</p>
+                  <p className="text-gray-500 text-[10px]">{exp.company} · {formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</p>
                   {exp.description && <p className="text-gray-700 mt-1 text-[10px]">{exp.description}</p>}
                 </div>
               ))}
@@ -50,7 +51,7 @@ export const DesignerTemplate = memo(function DesignerTemplate({ resume }: Templ
         {resume.education.length > 0 && (
           <section data-section="education">
             <h2 className="text-xs font-bold text-gray-900 uppercase tracking-widest mb-3">Education</h2>
-            {resume.education.map(edu => (<div key={edu.id} data-break-avoid className="mb-2"><h3 className="font-bold text-gray-900 text-[10px]">{edu.degree} {edu.field && `in ${edu.field}`}</h3><p className="text-gray-500 text-[10px]">{edu.institution} — {edu.endDate}</p></div>))}
+            {resume.education.map(edu => (<div key={edu.id} data-break-avoid className="mb-2"><h3 className="font-bold text-gray-900 text-[10px]">{edu.degree} {edu.field && `in ${edu.field}`}</h3><p className="text-gray-500 text-[10px]">{edu.institution} — {formatDisplayDate(edu.endDate)}</p></div>))}
           </section>
         )}
         <ExtraSections resume={resume} />

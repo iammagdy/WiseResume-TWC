@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { Mail, Phone, MapPin, Linkedin, Globe } from 'lucide-react';
 import { ExtraSections } from './shared/ExtraSections';
+import { formatDisplayDate } from '@/lib/dateUtils';
 
 interface TemplateProps {
   resume: ResumeData;
@@ -102,7 +103,7 @@ export const CreativeTemplate = memo(function CreativeTemplate({ resume }: Templ
                   <p className="font-semibold">{edu.degree}</p>
                   {edu.field && <p className="text-violet-200 text-xs">{edu.field}</p>}
                   <p className="text-violet-300 text-xs">{edu.institution}</p>
-                  <p className="text-violet-300 text-xs">{edu.endDate}</p>
+                  <p className="text-violet-300 text-xs">{formatDisplayDate(edu.endDate)}</p>
                 </div>
               ))}
             </div>
@@ -152,7 +153,7 @@ export const CreativeTemplate = memo(function CreativeTemplate({ resume }: Templ
                       <p className="text-violet-600">{exp.company}</p>
                     </div>
                     <span className="text-gray-400 text-xs whitespace-nowrap">
-                      {exp.startDate} - {exp.current ? 'Present' : exp.endDate}
+                      {formatDisplayDate(exp.startDate)} - {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}
                     </span>
                   </div>
                   {exp.description && (

@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
+import { formatDisplayDate } from '@/lib/dateUtils';
 
 interface TemplateProps { resume: ResumeData; }
 
@@ -28,7 +29,7 @@ export const MonoTemplate = memo(function MonoTemplate({ resume }: TemplateProps
             {resume.experience.map(exp => (
               <div key={exp.id} data-break-avoid>
                 <h3 className="font-medium text-gray-900">{exp.position} <span className="font-normal text-gray-500">— {exp.company}</span></h3>
-                <p className="text-xs text-gray-400">{exp.startDate} – {exp.current ? 'Present' : exp.endDate}</p>
+                <p className="text-xs text-gray-400">{formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</p>
                 {exp.description && <p className="text-gray-600 mt-1 text-xs">{exp.description}</p>}
               </div>
             ))}
@@ -38,7 +39,7 @@ export const MonoTemplate = memo(function MonoTemplate({ resume }: TemplateProps
       {resume.education.length > 0 && (
         <section data-section="education" className="mb-5">
           <h2 className="text-xs font-medium text-gray-500 uppercase tracking-widest mb-3">Education</h2>
-          {resume.education.map(edu => (<div key={edu.id} data-break-avoid className="mb-2"><h3 className="font-medium text-gray-900 text-xs">{edu.degree} {edu.field && `in ${edu.field}`} <span className="font-normal text-gray-500">— {edu.institution}</span></h3><p className="text-xs text-gray-400">{edu.endDate}</p></div>))}
+          {resume.education.map(edu => (<div key={edu.id} data-break-avoid className="mb-2"><h3 className="font-medium text-gray-900 text-xs">{edu.degree} {edu.field && `in ${edu.field}`} <span className="font-normal text-gray-500">— {edu.institution}</span></h3><p className="text-xs text-gray-400">{formatDisplayDate(edu.endDate)}</p></div>))}
         </section>
       )}
       {resume.skills.length > 0 && (

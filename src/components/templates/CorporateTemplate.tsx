@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
+import { formatDisplayDate } from '@/lib/dateUtils';
 
 interface TemplateProps { resume: ResumeData; }
 
@@ -27,7 +28,7 @@ export const CorporateTemplate = memo(function CorporateTemplate({ resume }: Tem
           <div className="space-y-4">
             {resume.experience.map(exp => (
               <div key={exp.id} data-break-avoid>
-                <div className="flex justify-between"><div><h3 className="font-bold text-gray-900">{exp.position}</h3><p className="text-gray-600 italic">{exp.company}</p></div><span className="text-xs text-gray-500">{exp.startDate} – {exp.current ? 'Present' : exp.endDate}</span></div>
+                <div className="flex justify-between"><div><h3 className="font-bold text-gray-900">{exp.position}</h3><p className="text-gray-600 italic">{exp.company}</p></div><span className="text-xs text-gray-500">{formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</span></div>
                 {exp.description && <p className="text-gray-700 mt-1 text-xs">{exp.description}</p>}
               </div>
             ))}
@@ -38,7 +39,7 @@ export const CorporateTemplate = memo(function CorporateTemplate({ resume }: Tem
         <section data-section="education" className="mb-6">
           <h2 className="text-sm font-bold text-gray-800 uppercase tracking-widest border-b border-gray-300 pb-1 mb-3">Education</h2>
           {resume.education.map(edu => (
-            <div key={edu.id} data-break-avoid className="flex justify-between mb-2"><div><h3 className="font-bold text-gray-900">{edu.degree} {edu.field && `in ${edu.field}`}</h3><p className="text-gray-600">{edu.institution}</p></div><span className="text-xs text-gray-500">{edu.endDate}</span></div>
+            <div key={edu.id} data-break-avoid className="flex justify-between mb-2"><div><h3 className="font-bold text-gray-900">{edu.degree} {edu.field && `in ${edu.field}`}</h3><p className="text-gray-600">{edu.institution}</p></div><span className="text-xs text-gray-500">{formatDisplayDate(edu.endDate)}</span></div>
           ))}
         </section>
       )}

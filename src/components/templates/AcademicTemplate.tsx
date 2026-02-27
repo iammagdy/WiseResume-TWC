@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
+import { formatDisplayDate } from '@/lib/dateUtils';
 
 interface AcademicTemplateProps {
   resume: ResumeData;
@@ -48,7 +49,7 @@ export const AcademicTemplate = memo(function AcademicTemplate({ resume }: Acade
               <div key={edu.id}>
                 <div className="flex justify-between items-baseline">
                   <h3 className="font-bold text-gray-900">{edu.degree} in {edu.field}</h3>
-                  <span className="text-gray-600 text-sm">{edu.startDate} – {edu.endDate}</span>
+                  <span className="text-gray-600 text-sm">{formatDisplayDate(edu.startDate)} – {formatDisplayDate(edu.endDate)}</span>
                 </div>
                 <p className="text-gray-700 italic">{edu.institution}</p>
                 {edu.gpa && <p className="text-gray-600 text-sm">GPA: {edu.gpa}</p>}
@@ -70,7 +71,7 @@ export const AcademicTemplate = memo(function AcademicTemplate({ resume }: Acade
                 <div className="flex justify-between items-baseline">
                   <h3 className="font-bold text-gray-900">{exp.position}</h3>
                   <span className="text-gray-600 text-sm">
-                    {exp.startDate} – {exp.current ? 'Present' : exp.endDate}
+                    {formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}
                   </span>
                 </div>
                 <p className="text-gray-700 italic">{exp.company}</p>

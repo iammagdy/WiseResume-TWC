@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
+import { formatDisplayDate } from '@/lib/dateUtils';
 
 interface ElegantTemplateProps {
   resume: ResumeData;
@@ -67,7 +68,7 @@ export const ElegantTemplate = memo(function ElegantTemplate({ resume }: Elegant
                   <div className="flex justify-between items-baseline">
                     <h3 className="font-semibold text-gray-900">{exp.position}</h3>
                     <span className="text-gray-500 text-xs">
-                      {exp.startDate} – {exp.current ? 'Present' : exp.endDate}
+                      {formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}
                     </span>
                   </div>
                   <p className="text-sm mb-1" style={{ color: roseColor }}>{exp.company}</p>
@@ -126,7 +127,7 @@ export const ElegantTemplate = memo(function ElegantTemplate({ resume }: Elegant
                     <h3 className="font-semibold text-gray-900 text-sm">{edu.degree}</h3>
                     <p className="text-gray-600 text-xs">{edu.field}</p>
                     <p className="text-xs" style={{ color: roseColor }}>{edu.institution}</p>
-                    <p className="text-gray-500 text-xs">{edu.endDate}</p>
+                    <p className="text-gray-500 text-xs">{formatDisplayDate(edu.endDate)}</p>
                   </div>
                 ))}
               </div>

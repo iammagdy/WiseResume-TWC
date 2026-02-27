@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
+import { formatDisplayDate } from '@/lib/dateUtils';
 
 interface TemplateProps {
   resume: ResumeData;
@@ -43,7 +44,7 @@ export const ClassicTemplate = memo(function ClassicTemplate({ resume }: Templat
                 <div className="flex justify-between">
                   <strong className="text-gray-900">{exp.position}</strong>
                   <span className="text-xs text-gray-500">
-                    {exp.startDate} - {exp.current ? 'Present' : exp.endDate}
+                    {formatDisplayDate(exp.startDate)} - {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}
                   </span>
                 </div>
                 <p className="text-gray-600 italic">{exp.company}</p>
@@ -71,7 +72,7 @@ export const ClassicTemplate = memo(function ClassicTemplate({ resume }: Templat
                     {edu.degree} {edu.field && `in ${edu.field}`}
                   </p>
                 </div>
-                <span className="text-xs text-gray-500">{edu.endDate}</span>
+                <span className="text-xs text-gray-500">{formatDisplayDate(edu.endDate)}</span>
               </div>
             ))}
           </div>

@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
+import { formatDisplayDate } from '@/lib/dateUtils';
 
 interface TemplateProps {
   resume: ResumeData;
@@ -51,7 +52,7 @@ export const ProfessionalTemplate = memo(function ProfessionalTemplate({ resume 
                     <p className="font-semibold text-gray-900 text-xs">{edu.degree}</p>
                     <p className="text-gray-600 text-xs">{edu.field}</p>
                     <p className="text-gray-500 text-xs">{edu.institution}</p>
-                    <p className="text-gray-400 text-xs">{edu.endDate}</p>
+                    <p className="text-gray-400 text-xs">{formatDisplayDate(edu.endDate)}</p>
                   </div>
                 ))}
               </div>
@@ -86,7 +87,7 @@ export const ProfessionalTemplate = memo(function ProfessionalTemplate({ resume 
                         <p className="text-gray-600 text-xs">{exp.company}</p>
                       </div>
                       <span className="text-xs text-gray-500 whitespace-nowrap">
-                        {exp.startDate} - {exp.current ? 'Present' : exp.endDate}
+                        {formatDisplayDate(exp.startDate)} - {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}
                       </span>
                     </div>
                     {exp.description && (
