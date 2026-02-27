@@ -353,7 +353,8 @@ export const ExperienceSection = memo(function ExperienceSection() {
                               section="experience"
                               onAction={(actionId) => handleAIAction(actionId, exp)}
                               isLoading={isEnhancing && enhancingExpId === exp.id}
-                              disabled={!exp.description && !exp.position}
+                              disabled={!exp.position}
+                              hasContent={!!exp.description?.trim()}
                             />
                           </div>
                           <Textarea

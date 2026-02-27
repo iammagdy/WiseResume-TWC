@@ -72,7 +72,12 @@ interface InlineAIButtonProps {
   disabled?: boolean;
   isAuthenticated?: boolean;
   onLockedClick?: () => void;
+  hasContent?: boolean;
 }
+
+const experienceEmptyActions: AIActionConfig[] = [
+  { id: 'generate', label: 'Generate Description', icon: <Wand2 className="w-4 h-4" />, description: 'Create a detailed description based on your role, company, and account' },
+];
 
 export function InlineAIButton({
   section,
@@ -81,12 +86,13 @@ export function InlineAIButton({
   disabled = false,
   isAuthenticated = true,
   onLockedClick,
+  hasContent = true,
 }: InlineAIButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showPulse, setShowPulse] = useState(true);
   const menuRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
-  const actions = sectionActions[section];
+  const actions = (section === 'experience' && !hasContent) ? experienceEmptyActions : sectionActions[section];
 
   // Stop pulse after 2 seconds
   useEffect(() => {
