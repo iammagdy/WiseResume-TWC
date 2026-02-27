@@ -8,27 +8,18 @@ interface PendingChange {
   timestamp: number;
 }
 
-interface ConflictInfo {
-  change: PendingChange;
-  serverUpdatedAt: string;
-}
-
 interface OfflineSyncState {
   pendingChanges: PendingChange[];
-  conflictingChange: ConflictInfo | null;
   addPendingChange: (resumeId: string, updates: Partial<ResumeData>) => void;
   removePendingChange: (resumeId: string) => void;
   getPendingCount: () => number;
   clearAll: () => void;
-  setConflict: (change: PendingChange, serverUpdatedAt: string) => void;
-  clearConflict: () => void;
 }
 
 export const useOfflineSyncStore = create<OfflineSyncState>()(
   persist(
     (set, get) => ({
       pendingChanges: [],
-      conflictingChange: null,
 
       addPendingChange: (resumeId, updates) => {
         set((state) => {
@@ -47,15 +38,7 @@ export const useOfflineSyncStore = create<OfflineSyncState>()(
 
       getPendingCount: () => get().pendingChanges.length,
 
-      clearAll: () => set({ pendingChanges: [], conflictingChange: null }),
-
-      setConflict: (change, serverUpdatedAt) => {
-        set({ conflictingChange: { change, serverUpdatedAt } });
-      },
-
-      clearConflict: () => {
-        set({ conflictingChange: null });
-      },
+      clearAll: () => set({ pendingChanges: [] }),
     }),
     {
       name: 'wr-offline-sync',
