@@ -62,6 +62,95 @@ ${JSON.stringify((Array.isArray(currentContent) ? currentContent : []).map((e: R
 })), null, 2)}`;
     case 'skills':
       return `Return "improved" as a flat JSON array of strings ONLY. Example: ["Python", "React", "AWS", "Leadership"]. Do NOT return objects like {"name":"Python","level":"Expert"} — only plain strings.`;
+    case 'awards':
+      return `Return "improved" as a JSON array of award objects. Each object MUST have EXACTLY these fields:
+{
+  "id": "<PRESERVE the original id exactly>",
+  "title": "<string>",
+  "issuer": "<string>",
+  "date": "<string>",
+  "description": "<string, optional>"
+}
+You MUST preserve all original "id" values. Do NOT omit any field. If a field was empty, keep it as empty string.
+Here are the exact IDs you must preserve:
+${JSON.stringify((Array.isArray(currentContent) ? currentContent : []).map((e: Record<string, unknown>) => ({
+  id: e.id, title: e.title
+})), null, 2)}`;
+    case 'projects':
+      return `Return "improved" as a JSON array of project objects. Each object MUST have EXACTLY these fields:
+{
+  "id": "<PRESERVE the original id exactly>",
+  "name": "<string>",
+  "role": "<string>",
+  "startDate": "<string>",
+  "endDate": "<string>",
+  "description": "<string>",
+  "technologies": ["<string>", "<string>"],
+  "url": "<string, optional>",
+  "github": "<string, optional>"
+}
+You MUST preserve all original "id" values. Do NOT omit any field. If a field was empty, keep it as empty string or empty array.
+Here are the exact IDs you must preserve:
+${JSON.stringify((Array.isArray(currentContent) ? currentContent : []).map((e: Record<string, unknown>) => ({
+  id: e.id, name: e.name
+})), null, 2)}`;
+    case 'publications':
+      return `Return "improved" as a JSON array of publication objects. Each object MUST have EXACTLY these fields:
+{
+  "id": "<PRESERVE the original id exactly>",
+  "title": "<string>",
+  "publisher": "<string>",
+  "date": "<string>",
+  "coauthors": "<string, optional>",
+  "url": "<string, optional>",
+  "description": "<string, optional>"
+}
+You MUST preserve all original "id" values. Do NOT omit any field.
+Here are the exact IDs you must preserve:
+${JSON.stringify((Array.isArray(currentContent) ? currentContent : []).map((e: Record<string, unknown>) => ({
+  id: e.id, title: e.title
+})), null, 2)}`;
+    case 'volunteering':
+      return `Return "improved" as a JSON array of volunteering objects. Each object MUST have EXACTLY these fields:
+{
+  "id": "<PRESERVE the original id exactly>",
+  "role": "<string>",
+  "organization": "<string>",
+  "startDate": "<string>",
+  "endDate": "<string>",
+  "description": "<string>",
+  "hoursPerWeek": "<string, optional>"
+}
+You MUST preserve all original "id" values. Do NOT omit any field.
+Here are the exact IDs you must preserve:
+${JSON.stringify((Array.isArray(currentContent) ? currentContent : []).map((e: Record<string, unknown>) => ({
+  id: e.id, role: e.role, organization: e.organization
+})), null, 2)}`;
+    case 'certifications':
+      return `Return "improved" as a JSON array of certification objects. Each object MUST have EXACTLY these fields:
+{
+  "id": "<PRESERVE the original id exactly>",
+  "name": "<string>",
+  "issuer": "<string>",
+  "date": "<string>"
+}
+You MUST preserve all original "id" values. Do NOT omit any field.
+Here are the exact IDs you must preserve:
+${JSON.stringify((Array.isArray(currentContent) ? currentContent : []).map((e: Record<string, unknown>) => ({
+  id: e.id, name: e.name
+})), null, 2)}`;
+    case 'languages':
+      return `Return "improved" as a JSON array of language objects. Each object MUST have EXACTLY these fields:
+{
+  "id": "<PRESERVE the original id exactly>",
+  "name": "<string>",
+  "proficiency": "<string — one of: Native, Fluent, Advanced, Intermediate, Basic>"
+}
+You MUST preserve all original "id" values.
+Here are the exact IDs you must preserve:
+${JSON.stringify((Array.isArray(currentContent) ? currentContent : []).map((e: Record<string, unknown>) => ({
+  id: e.id, name: e.name
+})), null, 2)}`;
     default:
       return `Return "improved" in the same format as the input.`;
   }
@@ -130,6 +219,48 @@ The scorer checks keyword echo — each skill from the skills list that appears 
 - Include at least 2 quantified achievements (years of experience, number of projects, team sizes, etc.)
 - Keep the summary between 3-5 sentences for optimal density score`;
     }
+    case 'awards':
+      return `
+SECTION-SPECIFIC RULES FOR AWARDS:
+- Preserve all award titles, issuers, and dates EXACTLY as written
+- Enhance descriptions to highlight the significance and selectivity of each award
+- Do NOT rename awards or change issuer names
+- Preserve all "id" values EXACTLY`;
+    case 'projects':
+      return `
+SECTION-SPECIFIC RULES FOR PROJECTS:
+- Preserve all project names, roles, dates, and technologies EXACTLY
+- Enhance descriptions with quantified impact, technical details, and outcomes
+- Every description should mention specific technologies used
+- Start description sentences with strong action verbs
+- Preserve all "id" values EXACTLY`;
+    case 'publications':
+      return `
+SECTION-SPECIFIC RULES FOR PUBLICATIONS:
+- Preserve all publication titles, publishers, dates, and coauthors EXACTLY
+- Enhance descriptions to highlight research impact, methodology, and findings
+- Do NOT rename publications or change publisher names
+- Preserve all "id" values EXACTLY`;
+    case 'volunteering':
+      return `
+SECTION-SPECIFIC RULES FOR VOLUNTEERING:
+- Preserve all roles, organizations, and dates EXACTLY
+- Enhance descriptions with measurable impact (people served, funds raised, hours contributed)
+- Start sentences with action verbs
+- Preserve all "id" values EXACTLY`;
+    case 'certifications':
+      return `
+SECTION-SPECIFIC RULES FOR CERTIFICATIONS:
+- Preserve all certification names, issuers, and dates EXACTLY — do NOT rename
+- Only improve formatting consistency
+- Preserve all "id" values EXACTLY`;
+    case 'languages':
+      return `
+SECTION-SPECIFIC RULES FOR LANGUAGES:
+- Preserve all language names EXACTLY
+- Proficiency must be one of: Native, Fluent, Advanced, Intermediate, Basic
+- Do NOT add languages the user didn't list
+- Preserve all "id" values EXACTLY`;
     default:
       return '';
   }
