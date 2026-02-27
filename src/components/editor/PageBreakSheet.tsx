@@ -248,7 +248,18 @@ export function PageBreakSheet({
               <div className="text-sm text-muted-foreground">
                 <p className="font-medium text-foreground mb-1">Smart Detection Active</p>
                 <p>Page breaks are automatically placed at optimal positions to avoid cutting through content.</p>
+                <p className="mt-1 text-xs text-primary font-medium">💡 You can also drag break lines directly on the preview to fine-tune positions.</p>
               </div>
+            </div>
+          )}
+
+          {/* Drag hint for manual mode */}
+          {settings.mode === 'manual' && settings.breakAfterSections.length > 0 && (
+            <div className="flex items-start gap-2 p-3 bg-primary/5 rounded-lg border border-primary/20">
+              <Lightbulb className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+              <p className="text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">Pro tip:</span> You can drag the break lines on the preview to fine-tune exactly where each page ends.
+              </p>
             </div>
           )}
         </div>

@@ -920,7 +920,8 @@ export async function generatePDF(
   templateElement?: HTMLElement | null,
   manualBreakSections?: string[],
   options?: PDFOptions,
-  onProgress?: OnProgressCallback
+  onProgress?: OnProgressCallback,
+  customBreakPositions?: number[]
 ): Promise<Blob> {
   // Get template configuration
   const templateConfig = getTemplateConfig(templateId);
@@ -952,13 +953,20 @@ export async function generatePDF(
     } = calculatePDFDimensions(sourceElement, pageWidth, pageHeight);
 
     // Calculate smart break positions that avoid cutting content
-    let smartBreaks = findSmartBreakPositions(
-      sourceElement, 
-      sourceHeightPerPage, 
-      totalHeight,
-      manualBreakSections,
-      templateConfig
-    );
+    let smartBreaks: number[];
+    
+    // If custom pixel positions provided (user dragged), use them directly
+    if (customBreakPositions && customBreakPositions.length > 0) {
+      smartBreaks = [...customBreakPositions].sort((a, b) => a - b);
+    } else {
+      smartBreaks = findSmartBreakPositions(
+        sourceElement, 
+        sourceHeightPerPage, 
+        totalHeight,
+        manualBreakSections,
+        templateConfig
+      );
+    }
     
     // Note: fixed-sidebar layout type is no longer used by any template
 
@@ -1185,7 +1193,9 @@ export async function generateCombinedPDF(
   coverLetter: string,
   templateElement?: HTMLElement | null,
   manualBreakSections?: string[],
-  options?: PDFOptions
+  options?: PDFOptions,
+  onProgress?: OnProgressCallback,
+  customBreakPositions?: number[]
 ): Promise<Blob> {
   // Generate cover letter PDF first
   const coverLetterBlob = await generateCoverLetterPDF(
@@ -1202,7 +1212,9 @@ export async function generateCombinedPDF(
     templateId,
     templateElement,
     manualBreakSections,
-    { showPageNumbers: false } // We'll add page numbers to the combined doc
+    { showPageNumbers: false },
+    undefined,
+    customBreakPositions
   );
   const resumeBytes = await resumeBlob.arrayBuffer();
   const resumeDoc = await PDFDocument.load(resumeBytes);
