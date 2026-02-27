@@ -309,10 +309,7 @@ export function findSmartBreakPositions(
   manualBreakSections?: string[],
   templateConfig?: TemplateConfig
 ): number[] {
-  // For fixed-sidebar templates (Creative, Professional), no page breaks
-  if (templateConfig?.layout === 'fixed-sidebar') {
-    return [];
-  }
+  // Note: fixed-sidebar layout type is no longer used by any template
   
   // Scan DOM for all sections and flow blocks
   const { sections, flowBlocks } = scanLayoutBlocks(sourceElement);
@@ -444,7 +441,7 @@ export function findSmartBreakPositionsTagged(
   manualBreakSections?: string[],
   templateConfig?: TemplateConfig
 ): TaggedBreakPosition[] {
-  if (templateConfig?.layout === 'fixed-sidebar') return [];
+  // Note: fixed-sidebar layout type is no longer used by any template
 
   const { sections, flowBlocks } = scanLayoutBlocks(sourceElement);
   const headerBlocks = createHeaderProtectionBlocks(sourceElement, sections);
@@ -981,10 +978,7 @@ export async function generatePDF(
       templateConfig
     );
     
-    // For fixed-sidebar templates, explicitly force single page by clearing breaks
-    if (templateConfig.layout === 'fixed-sidebar') {
-      smartBreaks = [];
-    }
+    // Note: fixed-sidebar layout type is no longer used by any template
 
     // Create PDF document
     const pdfDoc = await PDFDocument.create();
