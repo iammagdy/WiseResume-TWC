@@ -71,6 +71,7 @@ export const ClassicTemplate = memo(function ClassicTemplate({ resume }: Templat
                   <p className="text-gray-600 text-xs">
                     {edu.degree} {edu.field && `in ${edu.field}`}
                   </p>
+                  {edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}
                 </div>
                 <span className="text-xs text-gray-500">{formatDisplayDate(edu.endDate)}</span>
               </div>

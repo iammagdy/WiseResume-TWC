@@ -128,6 +128,7 @@ export const SalesTemplate = memo(function SalesTemplate({ resume }: SalesTempla
                     <p className="font-semibold text-gray-900 text-sm">{edu.degree}</p>
                     <p className="text-gray-600 text-xs">{edu.institution}</p>
                     <p className="text-gray-500 text-xs">{formatDisplayDate(edu.endDate)}</p>
+                    {edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}
                   </div>
                 ))}
               </div>

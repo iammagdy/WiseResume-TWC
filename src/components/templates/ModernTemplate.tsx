@@ -73,6 +73,7 @@ export const ModernTemplate = memo(function ModernTemplate({ resume }: TemplateP
                 <div>
                   <h3 className="font-bold text-gray-900">{edu.degree} {edu.field && `in ${edu.field}`}</h3>
                   <p className="text-gray-600">{edu.institution}</p>
+                  {edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}
                 </div>
                 <span className="text-xs text-gray-500">{formatDisplayDate(edu.endDate)}</span>
               </div>

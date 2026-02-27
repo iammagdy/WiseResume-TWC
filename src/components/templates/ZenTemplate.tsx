@@ -39,7 +39,7 @@ export const ZenTemplate = memo(function ZenTemplate({ resume }: TemplateProps) 
       {resume.education.length > 0 && (
         <section data-section="education" className="mb-8">
           <h2 className="text-center text-xs font-light text-gray-500 uppercase tracking-[0.3em] mb-5">Education</h2>
-          <div className="text-center space-y-2">{resume.education.map(edu => (<div key={edu.id} data-break-avoid><span className="font-medium text-gray-800 text-xs">{edu.degree}</span> <span className="text-gray-500 text-xs">— {edu.institution}, {formatDisplayDate(edu.endDate)}</span></div>))}</div>
+          <div className="text-center space-y-2">{resume.education.map(edu => (<div key={edu.id} data-break-avoid><span className="font-medium text-gray-800 text-xs">{edu.degree}</span> <span className="text-gray-500 text-xs">— {edu.institution}, {formatDisplayDate(edu.endDate)}</span>{edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}</div>))}</div>
         </section>
       )}
       {resume.skills.length > 0 && (

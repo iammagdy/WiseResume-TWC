@@ -77,6 +77,7 @@ export const CompactTemplate = memo(function CompactTemplate({ resume }: Compact
                 <div>
                   <h3 className="font-semibold text-gray-900">{edu.degree} in {edu.field}</h3>
                   <p className="text-gray-600 text-[10px]">{edu.institution}</p>
+                  {edu.description && <p className="text-gray-600 text-[10px] mt-0.5">{edu.description}</p>}
                 </div>
                 <span className="text-gray-500 text-[10px]">{formatDisplayDate(edu.endDate)}</span>
               </div>

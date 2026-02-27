@@ -118,6 +118,7 @@ export const HealthcareTemplate = memo(function HealthcareTemplate({ resume }: H
                   <div>
                     <h3 className="font-semibold text-gray-900">{edu.degree} in {edu.field}</h3>
                     <p className="text-gray-600 text-sm">{edu.institution}</p>
+                    {edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}
                   </div>
                   <span className="text-gray-500 text-xs">{formatDisplayDate(edu.endDate)}</span>
                 </div>

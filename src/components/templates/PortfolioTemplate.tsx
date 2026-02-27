@@ -41,7 +41,7 @@ export const PortfolioTemplate = memo(function PortfolioTemplate({ resume }: Tem
       {resume.education.length > 0 && (
         <section data-section="education" className="mb-6">
           <h2 className="text-sm font-bold text-amber-700 uppercase tracking-widest mb-3">Education</h2>
-          {resume.education.map(edu => (<div key={edu.id} data-break-avoid className="flex justify-between mb-2"><div><h3 className="font-bold text-gray-900 text-xs">{edu.degree} {edu.field && `in ${edu.field}`}</h3><p className="text-gray-600 text-xs">{edu.institution}</p></div><span className="text-xs text-gray-500">{formatDisplayDate(edu.endDate)}</span></div>))}
+          {resume.education.map(edu => (<div key={edu.id} data-break-avoid className="flex justify-between mb-2"><div><h3 className="font-bold text-gray-900 text-xs">{edu.degree} {edu.field && `in ${edu.field}`}</h3><p className="text-gray-600 text-xs">{edu.institution}</p>{edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}</div><span className="text-xs text-gray-500">{formatDisplayDate(edu.endDate)}</span></div>))}
         </section>
       )}
       {resume.skills.length > 0 && (
