@@ -12,6 +12,7 @@ export const LegalTemplate = memo(function LegalTemplate({ resume }: TemplatePro
         <h1 className="text-2xl font-bold text-gray-900 uppercase">{resume.contactInfo.fullName || 'Your Name'}</h1>
         <div className="flex justify-center gap-x-3 text-gray-600 text-xs mt-2">
           {resume.contactInfo.email && <span>{resume.contactInfo.email}</span>}
+          {resume.contactInfo.email2 && <span>| {resume.contactInfo.email2}</span>}
           {resume.contactInfo.phone && <span>| {resume.contactInfo.phone}</span>}
           {resume.contactInfo.location && <span>| {resume.contactInfo.location}</span>}
         </div>

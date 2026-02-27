@@ -13,6 +13,7 @@ export const StartupTemplate = memo(function StartupTemplate({ resume }: Templat
         <h1 className="text-3xl font-extrabold text-gray-900">{resume.contactInfo.fullName || 'Your Name'}</h1>
         <div className="flex flex-wrap gap-x-3 text-gray-500 text-xs mt-2">
           {resume.contactInfo.email && <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">{resume.contactInfo.email}</span>}
+          {resume.contactInfo.email2 && <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">{resume.contactInfo.email2}</span>}
           {resume.contactInfo.phone && <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">{resume.contactInfo.phone}</span>}
           {resume.contactInfo.location && <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">{resume.contactInfo.location}</span>}
         </div>

@@ -13,6 +13,7 @@ export const ProductTemplate = memo(function ProductTemplate({ resume }: Templat
         <div className="h-1 w-12 bg-indigo-600 mt-2 mb-3 rounded-full" />
         <div className="flex flex-wrap gap-x-4 text-gray-500 text-xs">
           {resume.contactInfo.email && <span>{resume.contactInfo.email}</span>}
+          {resume.contactInfo.email2 && <span>{resume.contactInfo.email2}</span>}
           {resume.contactInfo.phone && <span>{resume.contactInfo.phone}</span>}
           {resume.contactInfo.location && <span>{resume.contactInfo.location}</span>}
         </div>

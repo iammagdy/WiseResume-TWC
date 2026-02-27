@@ -13,6 +13,7 @@ export const SwissTemplate = memo(function SwissTemplate({ resume }: TemplatePro
         <div className="w-full h-px bg-gray-900 mt-4 mb-3" />
         <div className="grid grid-cols-3 gap-2 text-gray-600 text-xs">
           {resume.contactInfo.email && <span>{resume.contactInfo.email}</span>}
+          {resume.contactInfo.email2 && <span>{resume.contactInfo.email2}</span>}
           {resume.contactInfo.phone && <span>{resume.contactInfo.phone}</span>}
           {resume.contactInfo.location && <span>{resume.contactInfo.location}</span>}
         </div>

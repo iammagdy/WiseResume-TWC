@@ -16,6 +16,7 @@ export const ModernTemplate = memo(function ModernTemplate({ resume }: TemplateP
         </h1>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-gray-600 text-xs">
           {resume.contactInfo.email && <span>{resume.contactInfo.email}</span>}
+          {resume.contactInfo.email2 && <span>{resume.contactInfo.email2}</span>}
           {resume.contactInfo.phone && <span>{resume.contactInfo.phone}</span>}
           {resume.contactInfo.location && <span>{resume.contactInfo.location}</span>}
           {resume.contactInfo.linkedin && (

@@ -17,6 +17,7 @@ export const CompactTemplate = memo(function CompactTemplate({ resume }: Compact
         <h1 className="text-xl font-bold text-gray-900 mb-1">{contactInfo.fullName}</h1>
         <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-gray-600 text-[10px]">
           {contactInfo.email && <span>{contactInfo.email}</span>}
+          {contactInfo.email2 && <span>{contactInfo.email2}</span>}
           {contactInfo.phone && <span>{contactInfo.phone}</span>}
           {contactInfo.location && <span>{contactInfo.location}</span>}
           {contactInfo.linkedin && <span>{contactInfo.linkedin}</span>}

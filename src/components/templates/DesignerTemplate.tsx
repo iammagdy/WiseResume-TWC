@@ -18,6 +18,7 @@ export const DesignerTemplate = memo(function DesignerTemplate({ resume }: Templ
             <h1 className="text-lg font-bold leading-tight">{resume.contactInfo.fullName || 'Your Name'}</h1>
             <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-gray-300 mt-2">
               {resume.contactInfo.email && <p>{resume.contactInfo.email}</p>}
+              {resume.contactInfo.email2 && <p>{resume.contactInfo.email2}</p>}
               {resume.contactInfo.phone && <p>{resume.contactInfo.phone}</p>}
               {resume.contactInfo.location && <p>{resume.contactInfo.location}</p>}
             </div>

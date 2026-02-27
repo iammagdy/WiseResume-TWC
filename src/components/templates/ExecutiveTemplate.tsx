@@ -22,6 +22,12 @@ export const ExecutiveTemplate = memo(function ExecutiveTemplate({ resume }: Tem
         )}
         <div className="flex justify-center flex-wrap gap-3 text-xs text-gray-500">
           {resume.contactInfo.email && <span>{resume.contactInfo.email}</span>}
+          {resume.contactInfo.email2 && (
+            <>
+              <span className="text-amber-600">•</span>
+              <span>{resume.contactInfo.email2}</span>
+            </>
+          )}
           {resume.contactInfo.phone && (
             <>
               <span className="text-amber-600">•</span>
