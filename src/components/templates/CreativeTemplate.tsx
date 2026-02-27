@@ -17,118 +17,72 @@ export const CreativeTemplate = memo(function CreativeTemplate({ resume }: Templ
     .slice(0, 2) || 'CV';
 
   return (
-    <div className="flex min-h-full text-xs font-sans">
-      {/* Left Sidebar */}
-      <aside className="w-1/3 bg-gradient-to-b from-violet-600 to-purple-700 text-white p-5">
-        {/* Photo or Initials */}
-        {resume.contactInfo.photoUrl ? (
-          <img
-            src={resume.contactInfo.photoUrl}
-            alt={resume.contactInfo.fullName || 'Profile photo'}
-            className="w-16 h-16 rounded-full object-cover mb-4 mx-auto border-2 border-white/30"
-          />
-        ) : (
-          <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center mb-4 mx-auto">
-            <span className="text-2xl font-bold">{initials}</span>
-          </div>
-        )}
-
-        {/* Contact */}
-        <section className="mb-6">
-          <h2 className="text-xs font-bold uppercase tracking-wider mb-3 text-violet-200">
-            Contact
-          </h2>
-          <div className="space-y-2 text-violet-100">
-            {resume.contactInfo.email && (
-              <p className="flex items-center gap-2">
-                <Mail className="w-3 h-3" />
-                <span className="break-all">{resume.contactInfo.email}</span>
-              </p>
-            )}
-            {resume.contactInfo.phone && (
-              <p className="flex items-center gap-2">
-                <Phone className="w-3 h-3" />
-                {resume.contactInfo.phone}
-              </p>
-            )}
-            {resume.contactInfo.location && (
-              <p className="flex items-center gap-2">
-                <MapPin className="w-3 h-3" />
-                {resume.contactInfo.location}
-              </p>
-            )}
-            {resume.contactInfo.linkedin && (
-              <p className="flex items-center gap-2">
-                <Linkedin className="w-3 h-3" />
-                <span className="break-all">{resume.contactInfo.linkedin}</span>
-              </p>
-            )}
-            {resume.contactInfo.portfolio && (
-              <p className="flex items-center gap-2">
-                <Globe className="w-3 h-3" />
-                <span className="break-all">{resume.contactInfo.portfolio}</span>
-              </p>
-            )}
-          </div>
-        </section>
-
-        {/* Skills */}
-        {resume.skills.length > 0 && (
-          <section data-section="skills" className="mb-6">
-            <h2 className="text-xs font-bold uppercase tracking-wider mb-3 text-violet-200">
-              Skills
-            </h2>
-            <div className="flex flex-wrap gap-1.5">
-              {resume.skills.map((skill, i) => (
-                <span
-                  key={i}
-                  className="px-2 py-0.5 bg-white/20 rounded-full text-xs"
-                >
-                  {skill}
-                </span>
-              ))}
+    <div className="min-h-full text-xs font-sans bg-white">
+      {/* Header with gradient accent */}
+      <header className="bg-gradient-to-r from-violet-600 to-purple-700 text-white p-6">
+        <div className="flex items-center gap-4 mb-3">
+          {resume.contactInfo.photoUrl ? (
+            <img
+              src={resume.contactInfo.photoUrl}
+              alt={resume.contactInfo.fullName || 'Profile photo'}
+              className="w-16 h-16 rounded-full object-cover border-2 border-white/30"
+            />
+          ) : (
+            <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
+              <span className="text-2xl font-bold">{initials}</span>
             </div>
-          </section>
-        )}
-
-        {/* Education */}
-        {resume.education.length > 0 && (
-          <section data-section="education">
-            <h2 className="text-xs font-bold uppercase tracking-wider mb-3 text-violet-200">
-              Education
-            </h2>
-            <div className="space-y-3">
-              {resume.education.map((edu) => (
-                <div key={edu.id} data-break-avoid>
-                  <p className="font-semibold">{edu.degree}</p>
-                  {edu.field && <p className="text-violet-200 text-xs">{edu.field}</p>}
-                  <p className="text-violet-300 text-xs">{edu.institution}</p>
-                  <p className="text-violet-300 text-xs">{formatDisplayDate(edu.endDate)}</p>
-                  {edu.description && <p className="text-violet-200 text-xs mt-0.5">{edu.description}</p>}
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 p-6 bg-white">
-        {/* Header */}
-        <header className="mb-6 border-b-2 border-violet-500 pb-4">
-          <h1 className="text-2xl font-bold text-gray-900">
-            {resume.contactInfo.fullName || 'Your Name'}
-          </h1>
-          {resume.experience[0]?.position && (
-            <p className="text-violet-600 font-medium mt-1">
-              {resume.experience[0].position}
-            </p>
           )}
-        </header>
+          <div>
+            <h1 className="text-2xl font-bold">
+              {resume.contactInfo.fullName || 'Your Name'}
+            </h1>
+            {resume.experience[0]?.position && (
+              <p className="text-violet-200 font-medium mt-1">
+                {resume.experience[0].position}
+              </p>
+            )}
+          </div>
+        </div>
 
+        {/* Contact info in header */}
+        <div className="flex flex-wrap gap-3 text-violet-100">
+          {resume.contactInfo.email && (
+            <span className="flex items-center gap-1">
+              <Mail className="w-3 h-3" />
+              <span className="break-all">{resume.contactInfo.email}</span>
+            </span>
+          )}
+          {resume.contactInfo.phone && (
+            <span className="flex items-center gap-1">
+              <Phone className="w-3 h-3" />
+              {resume.contactInfo.phone}
+            </span>
+          )}
+          {resume.contactInfo.location && (
+            <span className="flex items-center gap-1">
+              <MapPin className="w-3 h-3" />
+              {resume.contactInfo.location}
+            </span>
+          )}
+          {resume.contactInfo.linkedin && (
+            <span className="flex items-center gap-1">
+              <Linkedin className="w-3 h-3" />
+              <span className="break-all">{resume.contactInfo.linkedin}</span>
+            </span>
+          )}
+          {resume.contactInfo.portfolio && (
+            <span className="flex items-center gap-1">
+              <Globe className="w-3 h-3" />
+              <span className="break-all">{resume.contactInfo.portfolio}</span>
+            </span>
+          )}
+        </div>
+      </header>
+
+      <div className="p-6 space-y-6">
         {/* Summary */}
         {resume.summary && (
-          <section data-section="summary" className="mb-6">
+          <section data-section="summary">
             <h2 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2">
               <span className="w-6 h-0.5 bg-violet-500"></span>
               About Me
@@ -139,7 +93,7 @@ export const CreativeTemplate = memo(function CreativeTemplate({ resume }: Templ
 
         {/* Experience */}
         {resume.experience.length > 0 && (
-          <section data-section="experience" className="mb-6">
+          <section data-section="experience">
             <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
               <span className="w-6 h-0.5 bg-violet-500"></span>
               Experience
@@ -166,7 +120,48 @@ export const CreativeTemplate = memo(function CreativeTemplate({ resume }: Templ
           </section>
         )}
 
-        {/* Certifications if any */}
+        {/* Skills */}
+        {resume.skills.length > 0 && (
+          <section data-section="skills">
+            <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+              <span className="w-6 h-0.5 bg-violet-500"></span>
+              Skills
+            </h2>
+            <div className="flex flex-wrap gap-1.5">
+              {resume.skills.map((skill, i) => (
+                <span
+                  key={i}
+                  className="px-2 py-0.5 bg-violet-100 text-violet-700 rounded-full text-xs"
+                >
+                  {skill}
+                </span>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Education */}
+        {resume.education.length > 0 && (
+          <section data-section="education">
+            <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+              <span className="w-6 h-0.5 bg-violet-500"></span>
+              Education
+            </h2>
+            <div className="space-y-3">
+              {resume.education.map((edu) => (
+                <div key={edu.id} data-break-avoid>
+                  <p className="font-semibold text-gray-900">{edu.degree}</p>
+                  {edu.field && <p className="text-violet-600 text-xs">{edu.field}</p>}
+                  <p className="text-gray-500 text-xs">{edu.institution}</p>
+                  <p className="text-gray-400 text-xs">{formatDisplayDate(edu.endDate)}</p>
+                  {edu.description && <p className="text-gray-500 text-xs mt-0.5">{edu.description}</p>}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Certifications */}
         {resume.certifications && resume.certifications.length > 0 && (
           <section data-section="certifications">
             <h2 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2">
@@ -184,7 +179,7 @@ export const CreativeTemplate = memo(function CreativeTemplate({ resume }: Templ
           </section>
         )}
         <ExtraSections resume={resume} exclude={['certifications']} />
-      </main>
+      </div>
     </div>
   );
 });

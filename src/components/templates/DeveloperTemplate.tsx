@@ -153,9 +153,9 @@ export const DeveloperTemplate = memo(function DeveloperTemplate({ resume }: Tem
             <h2 className="text-green-600 font-bold mb-2">
               <span className="text-gray-400">//</span> EXPERIENCE
             </h2>
-            <div className="border-l-2 border-gray-200 pl-3 space-y-4">
+            <div className="space-y-4">
               {resume.experience.map((exp) => (
-                <div key={exp.id} data-break-avoid>
+                <div key={exp.id} data-break-avoid className="border-l-2 border-gray-200 pl-3">
                   <div className="flex justify-between items-baseline flex-wrap gap-1">
                     <h3 className="text-gray-900">
                       <span className="text-green-500">&gt;</span> {exp.position}
