@@ -135,6 +135,79 @@ The scorer checks keyword echo — each skill from the skills list that appears 
   }
 }
 
+function buildSummaryExperienceContext(context: unknown): { experienceContext: string; skillsList: string } {
+  const ctx = context as Record<string, unknown>;
+  const resume = ctx?.resume as Record<string, unknown> | undefined;
+  const experience = Array.isArray(resume?.experience) ? resume.experience as Record<string, unknown>[] : [];
+  const skills = Array.isArray(resume?.skills)
+    ? (resume.skills as unknown[]).map((s: unknown) => typeof s === 'string' ? s : (s as Record<string, unknown>)?.name || '').filter(Boolean)
+    : [];
+
+  const experienceContext = experience.map((exp, i) =>
+    `${i + 1}. ${exp.position || 'Role'} at ${exp.company || 'Company'}${exp.account ? ` (${exp.account} account)` : ''} (${exp.startDate || '?'} - ${exp.endDate || 'Present'})\n   Description: ${exp.description || 'N/A'}\n   Achievements: ${(Array.isArray(exp.achievements) ? exp.achievements.join('; ') : '') || 'N/A'}`
+  ).join('\n');
+
+  return { experienceContext, skillsList: skills.join(', ') };
+}
+
+function getSummaryActionPrompt(action: string, currentContent: unknown, context: unknown): string | null {
+  const { experienceContext, skillsList } = buildSummaryExperienceContext(context);
+  if (!experienceContext) return null;
+
+  switch (action) {
+    case 'generate':
+      return `Write a professional summary based EXCLUSIVELY on the user's actual work history below. Do NOT invent roles, companies, or achievements that are not listed.
+
+ACTUAL EXPERIENCE:
+${experienceContext}
+
+ACTUAL SKILLS: ${skillsList || 'N/A'}
+
+Instructions:
+- Synthesize 3-5 sentences that capture total years of experience, primary domain/industry, 2-3 standout achievements WITH metrics pulled from the experience above, and key technical skills.
+- Start with a strong positioning statement that names the user's most recent or most relevant job title.
+- Reference actual company names and account names when they add credibility.
+- Every claim MUST trace back to the experience data above. Do NOT fabricate metrics, companies, or roles.`;
+
+    case 'improve':
+      return `Improve this summary by cross-referencing it with the user's actual work experience below. Replace any generic or vague claims with specific achievements from the experience entries. Add missing metrics, correct any inaccuracies, and ensure every statement is backed by real data from the work history.
+
+CURRENT SUMMARY:
+${JSON.stringify(currentContent)}
+
+ACTUAL EXPERIENCE:
+${experienceContext}
+
+ACTUAL SKILLS: ${skillsList || 'N/A'}
+
+Instructions:
+- Keep the summary between 3-5 sentences.
+- Replace generic phrases like "results-driven professional" with specifics from the experience (actual role titles, company names, account names, metrics).
+- Every claim MUST trace back to the experience data above. Do NOT fabricate.`;
+
+    case 'ats_improve':
+      return `Optimize this summary for ATS scoring while grounding EVERY claim in the user's actual work experience below.
+
+CURRENT SUMMARY:
+${JSON.stringify(currentContent)}
+
+ACTUAL EXPERIENCE:
+${experienceContext}
+
+ACTUAL SKILLS: ${skillsList || 'N/A'}
+
+ATS RULES:
+- Mention at least ${Math.min(5, skillsList.split(', ').filter(Boolean).length)} skills by EXACT name from the skills list.
+- Start sentences with strong action verbs.
+- Include at least 2 quantified achievements pulled from the experience entries.
+- Keep between 3-5 sentences.
+- Every claim MUST trace back to the experience data above. Do NOT fabricate metrics, companies, or roles.`;
+
+    default:
+      return null;
+  }
+}
+
 function buildPrompt(section: string, action: string, currentContent: unknown, context: unknown, fixInstruction?: string): string {
   const baseContext = `You are an expert resume writer and career coach. Your goal is to help users create compelling, ATS-friendly resume content.
 
@@ -148,14 +221,17 @@ ${JSON.stringify(currentContent, null, 2)}
 
   const sectionAtsRules = getSectionSpecificAtsRules(section, currentContent, context);
 
+  // Summary-specific prompts that are grounded in actual experience
+  const summaryOverride = section === 'summary' ? getSummaryActionPrompt(action, currentContent, context) : null;
+
   const actionPrompts: Record<string, string> = {
-    generate: `Generate a detailed, compelling description for this role from scratch based on the resume context. Include 4-6 bullet points covering key responsibilities and measurable achievements. Use power verbs (Led, Managed, Developed, etc.), include specific metrics (percentages, dollar amounts, team sizes), mention relevant tools/technologies, and describe the scope and impact of the work.
+    generate: summaryOverride && action === 'generate' ? summaryOverride : `Generate a detailed, compelling description for this role from scratch based on the resume context. Include 4-6 bullet points covering key responsibilities and measurable achievements. Use power verbs (Led, Managed, Developed, etc.), include specific metrics (percentages, dollar amounts, team sizes), mention relevant tools/technologies, and describe the scope and impact of the work.
 ${section === 'experience' && typeof currentContent === 'object' && currentContent !== null && !Array.isArray(currentContent) && (currentContent as Record<string, unknown>).account ? `ACCOUNT/CLIENT CONTEXT: The user works at "${(currentContent as Record<string, unknown>).company}" but serves the "${(currentContent as Record<string, unknown>).account}" account/client. Research what ${(currentContent as Record<string, unknown>).account} does and tailor the description to reflect the specific products, services, and workflows of ${(currentContent as Record<string, unknown>).account}. Mention the account/client by name in the description and achievements.` : ''}
 Do NOT produce generic one-liner descriptions. Every role must have rich, detailed content.`,
-    improve: `Transform this description into a powerful, detailed narrative. Expand thin descriptions into 4-6 impactful bullet points. Add quantified metrics (percentages, dollar amounts, team sizes), specific technologies, scope of responsibility, and measurable outcomes. Replace weak/passive language with strong action verbs. If the content is only 1-2 sentences, expand it significantly with realistic details based on the role, company, and industry context.
+    improve: summaryOverride && action === 'improve' ? summaryOverride : `Transform this description into a powerful, detailed narrative. Expand thin descriptions into 4-6 impactful bullet points. Add quantified metrics (percentages, dollar amounts, team sizes), specific technologies, scope of responsibility, and measurable outcomes. Replace weak/passive language with strong action verbs. If the content is only 1-2 sentences, expand it significantly with realistic details based on the role, company, and industry context.
 ${section === 'experience' && typeof currentContent === 'object' && currentContent !== null && !Array.isArray(currentContent) && (currentContent as Record<string, unknown>).account ? `ACCOUNT/CLIENT CONTEXT: The user works at "${(currentContent as Record<string, unknown>).company}" but serves the "${(currentContent as Record<string, unknown>).account}" account/client. Weave in specific details about ${(currentContent as Record<string, unknown>).account}'s products, services, or industry. Mention the account/client by name.` : ''}
 Do NOT leave thin, generic descriptions. Every bullet must have substance and specificity.`,
-    ats_improve: `Optimize this resume section to MAXIMIZE the ATS score. The score is computed by a deterministic algorithm with these 6 weighted pillars:
+    ats_improve: summaryOverride && action === 'ats_improve' ? summaryOverride : `Optimize this resume section to MAXIMIZE the ATS score. The score is computed by a deterministic algorithm with these 6 weighted pillars:
 
 1. KEYWORD OPTIMIZATION (35% weight): The scorer checks if each skill from the skills list appears verbatim in the resume text using exact string matching. More keyword echoes = higher score.
 2. CONTENT QUALITY (25% weight): The scorer checks if each bullet starts with a recognized action verb AND contains at least one number/metric.
