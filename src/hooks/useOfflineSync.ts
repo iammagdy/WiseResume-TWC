@@ -11,7 +11,7 @@ export function useOfflineSync() {
   const { isOnline } = useNetworkStatus();
   const prevOnline = useRef(isOnline);
   const [isSyncing, setIsSyncing] = useState(false);
-  const { pendingChanges, removePendingChange, setConflict, clearConflict } = useOfflineSyncStore();
+  const { pendingChanges, removePendingChange } = useOfflineSyncStore();
   const { updateResume } = useResumeMutations();
   const queryClient = useQueryClient();
   const pendingCount = pendingChanges.length;
@@ -38,11 +38,12 @@ export function useOfflineSync() {
         continue;
       }
 
-      // 3. Check for conflict
+      // 3. If server is newer, silently discard local change (keep server version)
       const serverTime = new Date(serverResume.updated_at!).getTime();
       if (serverTime > change.timestamp) {
-        setConflict(change, serverResume.updated_at!);
-        break; // Stop syncing, wait for user decision
+        removePendingChange(change.resumeId);
+        queryClient.invalidateQueries({ queryKey: ['resume', change.resumeId] });
+        continue;
       }
 
       // 4. No conflict -- sync normally
@@ -64,40 +65,7 @@ export function useOfflineSync() {
       haptics.success();
       toast.success(`All changes synced`);
     }
-  }, [updateResume, removePendingChange, setConflict]);
-
-  const forceSync = useCallback(async (resumeId: string) => {
-    // Try pending queue first, fall back to conflictingChange (editor-created conflicts)
-    const change = useOfflineSyncStore.getState().pendingChanges.find(c => c.resumeId === resumeId)
-      || useOfflineSyncStore.getState().conflictingChange?.change;
-    if (!change || change.resumeId !== resumeId) {
-      clearConflict();
-      return;
-    }
-
-    try {
-      await updateResume.mutateAsync({
-        resumeId: change.resumeId,
-        updates: change.updates,
-      });
-      removePendingChange(resumeId);
-    } catch (error) {
-      console.error('Force sync failed for', resumeId, error);
-      toast.error('Failed to overwrite. Will retry later.');
-    }
-
-    clearConflict();
-    // Resume syncing remaining changes
-    syncPending();
-  }, [updateResume, removePendingChange, clearConflict, syncPending]);
-
-  const discardLocal = useCallback((resumeId: string) => {
-    removePendingChange(resumeId);
-    clearConflict();
-    queryClient.invalidateQueries({ queryKey: ['resume', resumeId] });
-    // Resume syncing remaining changes
-    syncPending();
-  }, [removePendingChange, clearConflict, queryClient, syncPending]);
+  }, [updateResume, removePendingChange, queryClient]);
 
   // Sync when coming back online
   useEffect(() => {
@@ -107,5 +75,5 @@ export function useOfflineSync() {
     prevOnline.current = isOnline;
   }, [isOnline, syncPending]);
 
-  return { pendingCount, isSyncing, forceSync, discardLocal };
+  return { pendingCount, isSyncing };
 }

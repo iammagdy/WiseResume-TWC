@@ -5,7 +5,7 @@ import { BottomTabBar } from './BottomTabBar';
 import { DesktopNav } from './DesktopNav';
 import { OfflineBanner } from './OfflineBanner';
 import { ScrollProgressBar } from './ScrollProgressBar';
-import { SyncConflictDialog } from '@/components/editor/SyncConflictDialog';
+
 import { SlowConnectionBanner } from './SlowConnectionBanner';
 import { SwipeBackWrapper } from './SwipeBackWrapper';
 import { useKeyboardAwareScroll } from '@/hooks/useKeyboardAwareScroll';
@@ -89,7 +89,7 @@ export function AppShell() {
         </div>
       </main>
       {showBottomNav && <BottomTabBar className="lg:hidden" />}
-      <SyncConflictDialog />
+      
     </div>
   );
 }

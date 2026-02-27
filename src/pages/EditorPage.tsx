@@ -140,10 +140,8 @@ export default function EditorPage() {
 
   // Single hydration effect: sync DB data into Zustand store + ownership check
   // Also detects stale resume (Fix 2): if server version is newer than local, auto-refresh or show conflict banner
-  const setConflict = useOfflineSyncStore(s => s.setConflict);
   const localLoadedAtRef = useRef<string | null>(null);
   const lastLocalEditAtRef = useRef<number>(0);
-  const lastConflictKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!resumeFromDb || !currentResumeId) return;
@@ -188,20 +186,19 @@ export default function EditorPage() {
         lastSavedResumeRef.current = JSON.stringify(dbToResumeData(resumeFromDb));
         toast.info('Resume updated — refreshed to latest version.', { duration: 3000 });
       } else {
-        // Loop guard: don't reopen the same conflict unless local content changed since last conflict
-        const conflictKey = `${currentResumeId}:${serverUpdatedAt}`;
-        if (lastConflictKeyRef.current !== conflictKey || lastLocalEditAtRef.current > Date.parse(serverUpdatedAt)) {
-          lastConflictKeyRef.current = conflictKey;
-          setConflict(
-            { resumeId: currentResumeId, updates: currentResume, timestamp: lastLocalEditAtRef.current || Date.now() },
-            serverUpdatedAt
-          );
-        }
+        // Silently keep server version (discard local changes)
+        useResumeStore.getState().setCurrentResume(dbToResumeData(resumeFromDb));
+        useResumeStore.getState().setSelectedTemplate(
+          (resumeFromDb.template_id || 'modern') as import('@/types/resume').TemplateId
+        );
+        localLoadedAtRef.current = serverUpdatedAt;
+        lastSavedResumeRef.current = JSON.stringify(dbToResumeData(resumeFromDb));
+        toast.info('Resume updated from another device — refreshed to latest version.', { duration: 3000 });
       }
       // Update the baseline so we don't re-fire on the same server version
       localLoadedAtRef.current = serverUpdatedAt;
     }
-  }, [resumeFromDb, currentResume, currentResumeId, user, setCurrentResumeId, navigate, setConflict]);
+  }, [resumeFromDb, currentResume, currentResumeId, user, setCurrentResumeId, navigate]);
 
   // Safety timeout: if no resume after 8s, bail out (independent of storeHydrated)
   useEffect(() => {
@@ -362,17 +359,8 @@ export default function EditorPage() {
     const serverUpdatedAt = resumeFromDb?.updated_at;
     const sessionLoadedAt = localLoadedAtRef.current;
     if (serverUpdatedAt && sessionLoadedAt && Date.parse(serverUpdatedAt) > Date.parse(sessionLoadedAt)) {
-      // Another device has saved a newer version since we loaded — show SyncConflictDialog
-      const conflictKey = `${currentResumeId}:${serverUpdatedAt}`;
-      if (lastConflictKeyRef.current !== conflictKey || lastLocalEditAtRef.current > Date.parse(serverUpdatedAt)) {
-        lastConflictKeyRef.current = conflictKey;
-        setConflict(
-          { resumeId: currentResumeId, updates: resume, timestamp: lastLocalEditAtRef.current || Date.now() },
-          serverUpdatedAt
-        );
-      }
-      setIsSaving(false);
-      return;
+      // Another device saved a newer version — silently refresh baseline and proceed with save
+      localLoadedAtRef.current = serverUpdatedAt;
     }
 
     setIsSaving(true);
@@ -428,7 +416,7 @@ export default function EditorPage() {
     } finally {
       setIsSaving(false);
     }
-  }, [user, currentResumeId, updateResume, setIsSaving, setLastSavedAt, addPendingChange, resumeFromDb, setConflict]);
+  }, [user, currentResumeId, updateResume, setIsSaving, setLastSavedAt, addPendingChange, resumeFromDb]);
 
   // Track real local edit time for conflict resolution accuracy
   const hydrationDoneRef = useRef(false);
