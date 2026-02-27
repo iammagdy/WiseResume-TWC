@@ -68,7 +68,7 @@ export const SalesTemplate = memo(function SalesTemplate({ resume }: SalesTempla
                   <p className="text-gray-600 mb-2">{exp.company}</p>
                   
                   {exp.achievements.length > 0 && (
-                    <div className="grid grid-cols-2 gap-2">
+                    <div data-break-child className="grid grid-cols-2 gap-2">
                       {exp.achievements.map((achievement, idx) => {
                         const { metric, rest } = extractMetric(achievement);
                         return (

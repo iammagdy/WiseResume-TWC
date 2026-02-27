@@ -30,7 +30,7 @@ export const ZenTemplate = memo(function ZenTemplate({ resume }: TemplateProps) 
               <div key={exp.id} data-break-avoid className="text-center">
                 <h3 className="font-medium text-gray-800">{exp.position}</h3>
                 <p className="text-gray-500 text-xs">{exp.company} · {formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</p>
-                {exp.description && <p className="text-gray-600 mt-2 text-xs max-w-sm mx-auto">{exp.description}</p>}
+                {exp.description && <p data-break-child className="text-gray-600 mt-2 text-xs max-w-sm mx-auto">{exp.description}</p>}
               </div>
             ))}
           </div>

@@ -73,10 +73,10 @@ export const ElegantTemplate = memo(function ElegantTemplate({ resume }: Elegant
                   </div>
                   <p className="text-sm mb-1" style={{ color: roseColor }}>{exp.company}</p>
                   {exp.description && (
-                    <p className="text-gray-600 text-sm">{exp.description}</p>
+                    <p data-break-child className="text-gray-600 text-sm">{exp.description}</p>
                   )}
                   {exp.achievements.length > 0 && (
-                    <ul className="mt-2 space-y-1">
+                    <ul data-break-child className="mt-2 space-y-1">
                       {exp.achievements.map((achievement, idx) => (
                         <li key={idx} className="text-gray-700 text-sm pl-3 relative">
                           <span 

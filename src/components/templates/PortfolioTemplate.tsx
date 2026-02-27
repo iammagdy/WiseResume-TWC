@@ -32,7 +32,7 @@ export const PortfolioTemplate = memo(function PortfolioTemplate({ resume }: Tem
               <div key={exp.id} data-break-avoid className="border border-gray-200 rounded-lg p-3">
                 <div className="flex justify-between items-start"><h3 className="font-bold text-gray-900">{exp.position}</h3><span className="text-xs text-gray-500">{formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</span></div>
                 <p className="text-amber-700 text-xs font-medium">{exp.company}</p>
-                {exp.description && <p className="text-gray-700 mt-2 text-xs">{exp.description}</p>}
+                {exp.description && <p data-break-child className="text-gray-700 mt-2 text-xs">{exp.description}</p>}
               </div>
             ))}
           </div>

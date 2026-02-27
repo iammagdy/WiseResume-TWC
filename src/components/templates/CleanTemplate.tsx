@@ -29,7 +29,7 @@ export const CleanTemplate = memo(function CleanTemplate({ resume }: TemplatePro
               <div key={exp.id} data-break-avoid>
                 <div className="flex justify-between items-baseline"><h3 className="font-medium text-gray-900">{exp.position}</h3><span className="text-xs text-gray-400">{formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</span></div>
                 <p className="text-gray-500 text-xs">{exp.company}</p>
-                {exp.description && <p className="text-gray-600 mt-1 text-xs">{exp.description}</p>}
+                {exp.description && <p data-break-child className="text-gray-600 mt-1 text-xs">{exp.description}</p>}
               </div>
             ))}
           </div>

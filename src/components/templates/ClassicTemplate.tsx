@@ -49,7 +49,7 @@ export const ClassicTemplate = memo(function ClassicTemplate({ resume }: Templat
                 </div>
                 <p className="text-gray-600 italic">{exp.company}</p>
                 {exp.description && (
-                  <p className="text-gray-700 mt-1 text-xs">{exp.description}</p>
+                  <p data-break-child className="text-gray-700 mt-1 text-xs">{exp.description}</p>
                 )}
               </div>
             ))}

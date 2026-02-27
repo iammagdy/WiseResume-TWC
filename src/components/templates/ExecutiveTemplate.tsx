@@ -81,7 +81,7 @@ export const ExecutiveTemplate = memo(function ExecutiveTemplate({ resume }: Tem
                 </div>
                 <p className="text-amber-700 text-sm mb-2">{exp.company}</p>
                 {exp.description && (
-                  <p className="text-gray-600 text-xs">{exp.description}</p>
+                  <p data-break-child className="text-gray-600 text-xs">{exp.description}</p>
                 )}
               </div>
             ))}

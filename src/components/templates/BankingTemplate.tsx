@@ -29,7 +29,7 @@ export const BankingTemplate = memo(function BankingTemplate({ resume }: Templat
             {resume.experience.map(exp => (
               <div key={exp.id} data-break-avoid>
                 <div className="flex justify-between"><h3 className="font-bold text-gray-900 text-xs">{exp.position} — {exp.company}</h3><span className="text-xs text-gray-500">{formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</span></div>
-                {exp.description && <p className="text-gray-700 mt-1 text-xs">{exp.description}</p>}
+                {exp.description && <p data-break-child className="text-gray-700 mt-1 text-xs">{exp.description}</p>}
               </div>
             ))}
           </div>

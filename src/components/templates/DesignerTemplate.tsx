@@ -42,7 +42,7 @@ export const DesignerTemplate = memo(function DesignerTemplate({ resume }: Templ
                 <div key={exp.id} data-break-avoid>
                   <h3 className="font-bold text-gray-900 text-xs">{exp.position}</h3>
                   <p className="text-gray-500 text-[10px]">{exp.company} · {formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</p>
-                  {exp.description && <p className="text-gray-700 mt-1 text-[10px]">{exp.description}</p>}
+                  {exp.description && <p data-break-child className="text-gray-700 mt-1 text-[10px]">{exp.description}</p>}
                 </div>
               ))}
             </div>

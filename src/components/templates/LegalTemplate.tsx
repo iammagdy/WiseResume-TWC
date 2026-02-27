@@ -30,7 +30,7 @@ export const LegalTemplate = memo(function LegalTemplate({ resume }: TemplatePro
               <div key={exp.id} data-break-avoid>
                 <h3 className="font-bold text-gray-900">{exp.position}</h3>
                 <p className="text-gray-600 text-xs italic">{exp.company}, {formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</p>
-                {exp.description && <p className="text-gray-700 mt-1 text-xs text-justify">{exp.description}</p>}
+                {exp.description && <p data-break-child className="text-gray-700 mt-1 text-xs text-justify">{exp.description}</p>}
               </div>
             ))}
           </div>

@@ -30,7 +30,7 @@ export const MonoTemplate = memo(function MonoTemplate({ resume }: TemplateProps
               <div key={exp.id} data-break-avoid>
                 <h3 className="font-medium text-gray-900">{exp.position} <span className="font-normal text-gray-500">— {exp.company}</span></h3>
                 <p className="text-xs text-gray-400">{formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</p>
-                {exp.description && <p className="text-gray-600 mt-1 text-xs">{exp.description}</p>}
+                {exp.description && <p data-break-child className="text-gray-600 mt-1 text-xs">{exp.description}</p>}
               </div>
             ))}
           </div>

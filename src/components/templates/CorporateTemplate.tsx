@@ -29,7 +29,7 @@ export const CorporateTemplate = memo(function CorporateTemplate({ resume }: Tem
             {resume.experience.map(exp => (
               <div key={exp.id} data-break-avoid>
                 <div className="flex justify-between"><div><h3 className="font-bold text-gray-900">{exp.position}</h3><p className="text-gray-600 italic">{exp.company}</p></div><span className="text-xs text-gray-500">{formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</span></div>
-                {exp.description && <p className="text-gray-700 mt-1 text-xs">{exp.description}</p>}
+                {exp.description && <p data-break-child className="text-gray-700 mt-1 text-xs">{exp.description}</p>}
               </div>
             ))}
           </div>

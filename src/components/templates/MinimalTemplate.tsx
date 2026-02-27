@@ -46,7 +46,7 @@ export const MinimalTemplate = memo(function MinimalTemplate({ resume }: Templat
                 </div>
                 <p className="text-gray-500 text-xs mb-1">{exp.company}</p>
                 {exp.description && (
-                  <p className="text-gray-600 text-xs">{exp.description}</p>
+                  <p data-break-child className="text-gray-600 text-xs">{exp.description}</p>
                 )}
               </div>
             ))}

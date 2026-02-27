@@ -55,7 +55,7 @@ export const ExtraSections = memo(function ExtraSections({ resume, exclude = [] 
                   <span className="text-xs text-gray-500">{award.date}</span>
                 </div>
                 <p className="text-gray-600 text-xs">{award.issuer}</p>
-                {award.description && <p className="text-gray-700 text-xs mt-0.5">{award.description}</p>}
+                {award.description && <p data-break-child className="text-gray-700 text-xs mt-0.5">{award.description}</p>}
               </div>
             ))}
           </div>
@@ -76,7 +76,7 @@ export const ExtraSections = memo(function ExtraSections({ resume, exclude = [] 
                   <span className="text-xs text-gray-500">{proj.startDate} – {proj.endDate}</span>
                 </div>
                 <p className="text-gray-600 text-xs">{proj.role}</p>
-                {proj.description && <p className="text-gray-700 text-xs mt-0.5">{proj.description}</p>}
+                {proj.description && <p data-break-child className="text-gray-700 text-xs mt-0.5">{proj.description}</p>}
                 {proj.technologies.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1">
                     {proj.technologies.map((t, i) => (
@@ -101,7 +101,7 @@ export const ExtraSections = memo(function ExtraSections({ resume, exclude = [] 
               <div key={pub.id} data-break-avoid>
                 <span className="font-semibold text-gray-900 text-xs">{pub.title}</span>
                 <p className="text-gray-600 text-xs">{pub.publisher} · {pub.date}</p>
-                {pub.description && <p className="text-gray-700 text-xs mt-0.5">{pub.description}</p>}
+                {pub.description && <p data-break-child className="text-gray-700 text-xs mt-0.5">{pub.description}</p>}
               </div>
             ))}
           </div>
@@ -122,7 +122,7 @@ export const ExtraSections = memo(function ExtraSections({ resume, exclude = [] 
                   <span className="text-xs text-gray-500">{vol.startDate} – {vol.endDate}</span>
                 </div>
                 <p className="text-gray-600 text-xs">{vol.organization}</p>
-                {vol.description && <p className="text-gray-700 text-xs mt-0.5">{vol.description}</p>}
+                {vol.description && <p data-break-child className="text-gray-700 text-xs mt-0.5">{vol.description}</p>}
               </div>
             ))}
           </div>
