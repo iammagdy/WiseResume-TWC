@@ -142,6 +142,7 @@ export default function EditorPage() {
   // Also detects stale resume (Fix 2): if server version is newer than local, auto-refresh or show conflict banner
   const localLoadedAtRef = useRef<string | null>(null);
   const lastLocalEditAtRef = useRef<number>(0);
+  const lastRefreshedServerTs = useRef<string | null>(null);
 
   useEffect(() => {
     if (!resumeFromDb || !currentResumeId) return;
@@ -154,13 +155,14 @@ export default function EditorPage() {
       return;
     }
 
+    const localResume = useResumeStore.getState().currentResume;
+
     // Initial hydration: store is empty → just load from DB
-    if (!currentResume) {
+    if (!localResume) {
       useResumeStore.getState().setCurrentResume(dbToResumeData(resumeFromDb));
       useResumeStore.getState().setSelectedTemplate(
         (resumeFromDb.template_id || 'modern') as import('@/types/resume').TemplateId
       );
-      // Record the server timestamp we loaded from so we can detect future conflicts
       localLoadedAtRef.current = resumeFromDb.updated_at ?? null;
       lastSavedResumeRef.current = JSON.stringify(dbToResumeData(resumeFromDb));
       logAudit('account', 'editor_session_started', {
@@ -170,35 +172,31 @@ export default function EditorPage() {
       return;
     }
 
-    // Fix 2: Stale-resume detection on subsequent React Query refetches (e.g. window focus / foreground return)
+    // Stale-resume detection on subsequent React Query refetches
     const serverUpdatedAt = resumeFromDb.updated_at;
     const localLoadedAt = localLoadedAtRef.current;
-    if (serverUpdatedAt && localLoadedAt && Date.parse(serverUpdatedAt) > Date.parse(localLoadedAt)) {
-      // Server has a newer version than when this session loaded
-      const isClean = lastSavedResumeRef.current === JSON.stringify(currentResume);
-      if (isClean) {
-        // No local edits since last save — auto-refresh silently
-        useResumeStore.getState().setCurrentResume(dbToResumeData(resumeFromDb));
-        useResumeStore.getState().setSelectedTemplate(
-          (resumeFromDb.template_id || 'modern') as import('@/types/resume').TemplateId
-        );
-        localLoadedAtRef.current = serverUpdatedAt;
-        lastSavedResumeRef.current = JSON.stringify(dbToResumeData(resumeFromDb));
-        toast.info('Resume updated — refreshed to latest version.', { duration: 3000 });
-      } else {
-        // Silently keep server version (discard local changes)
-        useResumeStore.getState().setCurrentResume(dbToResumeData(resumeFromDb));
-        useResumeStore.getState().setSelectedTemplate(
-          (resumeFromDb.template_id || 'modern') as import('@/types/resume').TemplateId
-        );
-        localLoadedAtRef.current = serverUpdatedAt;
-        lastSavedResumeRef.current = JSON.stringify(dbToResumeData(resumeFromDb));
-        toast.info('Resume updated from another device — refreshed to latest version.', { duration: 3000 });
-      }
-      // Update the baseline so we don't re-fire on the same server version
+    if (
+      serverUpdatedAt &&
+      localLoadedAt &&
+      Date.parse(serverUpdatedAt) > Date.parse(localLoadedAt) &&
+      serverUpdatedAt !== lastRefreshedServerTs.current
+    ) {
+      const isClean = lastSavedResumeRef.current === JSON.stringify(localResume);
+      useResumeStore.getState().setCurrentResume(dbToResumeData(resumeFromDb));
+      useResumeStore.getState().setSelectedTemplate(
+        (resumeFromDb.template_id || 'modern') as import('@/types/resume').TemplateId
+      );
       localLoadedAtRef.current = serverUpdatedAt;
+      lastSavedResumeRef.current = JSON.stringify(dbToResumeData(resumeFromDb));
+      lastRefreshedServerTs.current = serverUpdatedAt;
+      toast.info(
+        isClean
+          ? 'Resume updated — refreshed to latest version.'
+          : 'Resume updated from another device — refreshed to latest version.',
+        { duration: 3000 }
+      );
     }
-  }, [resumeFromDb, currentResume, currentResumeId, user, setCurrentResumeId, navigate]);
+  }, [resumeFromDb, currentResumeId, user, setCurrentResumeId, navigate]);
 
   // Safety timeout: if no resume after 8s, bail out (independent of storeHydrated)
   useEffect(() => {
