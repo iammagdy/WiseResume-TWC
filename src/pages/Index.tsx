@@ -12,8 +12,10 @@ import { useProfile } from '@/hooks/useProfile';
 import triggerHaptic from '@/lib/haptics';
 import { motion, useReducedMotion, AnimatePresence, type Easing } from 'framer-motion';
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useInView } from '@/hooks/useInView';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
+import { QuickTailorSheet } from '@/components/landing/QuickTailorSheet';
 
 import logoImage from '@/assets/wise-ai-logo.webp';
 
@@ -177,6 +179,16 @@ const Index = () => {
   const prefersReducedMotion = useReducedMotion();
   const [scrolled, setScrolled] = useState(false);
   const progressRef = useRef<HTMLDivElement>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [tailorOpen, setTailorOpen] = useState(false);
+
+  // Auto-open tailor sheet from ?tailor=1 redirect
+  useEffect(() => {
+    if (searchParams.get('tailor') === '1' && isAuthenticated) {
+      setTailorOpen(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, isAuthenticated, setSearchParams]);
 
   // Pre-warm backend connection once per session
   useEffect(() => {
@@ -355,6 +367,26 @@ const Index = () => {
                 {isAuthenticated ? 'Go to Dashboard' : 'Get Started Free'}
               </Button>
             </motion.div>
+          </motion.div>
+
+          {/* Quick Tailor CTA */}
+          <motion.div className="w-full flex justify-center mt-3" {...fade(0.25)}>
+            <Button
+              variant="outline"
+              size="lg"
+              className="w-full max-w-sm gap-2 h-12 text-base font-medium"
+              onClick={() => {
+                triggerHaptic.medium();
+                if (isAuthenticated) {
+                  setTailorOpen(true);
+                } else {
+                  navigate('/auth?redirect=/?tailor=1');
+                }
+              }}
+            >
+              <Wand2 className="w-5 h-5" />
+              Tailor Resume to a Job
+            </Button>
           </motion.div>
 
           {/* Trust bar */}
@@ -613,6 +645,8 @@ const Index = () => {
 
         <Footer />
       </main>
+
+      <QuickTailorSheet open={tailorOpen} onOpenChange={setTailorOpen} />
     </SpaceBackground>
   );
 };
