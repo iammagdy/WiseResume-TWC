@@ -16,6 +16,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useInView } from '@/hooks/useInView';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
 import { QuickTailorSheet } from '@/components/landing/QuickTailorSheet';
+import { InstallButton } from '@/components/pwa/InstallButton';
 
 import logoImage from '@/assets/wise-ai-logo.webp';
 
@@ -387,6 +388,11 @@ const Index = () => {
               <Wand2 className="w-5 h-5" />
               Tailor Resume to a Job
             </Button>
+          </motion.div>
+
+          {/* Install on Device CTA */}
+          <motion.div className="w-full flex justify-center mt-2" {...fade(0.3)}>
+            <InstallButton className="w-full max-w-sm" />
           </motion.div>
 
           {/* Trust bar */}
