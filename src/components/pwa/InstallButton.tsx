@@ -25,6 +25,7 @@ export function InstallButton({ className }: InstallButtonProps) {
   const [showIosSheet, setShowIosSheet] = useState(false);
 
   const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const [showGenericSheet, setShowGenericSheet] = useState(false);
 
   useEffect(() => {
     const standalone =
@@ -64,11 +65,13 @@ export function InstallButton({ className }: InstallButtonProps) {
       setShowIosSheet(true);
       return;
     }
+
+    // Generic fallback for desktop / unsupported browsers
+    setShowGenericSheet(true);
   }, [deferredPrompt, isIos]);
 
-  // Hide if already installed or if not on a supported platform (no prompt & not iOS)
+  // Hide only if already installed as standalone
   if (isInstalled) return null;
-  if (!deferredPrompt && !isIos) return null;
 
   return (
     <>
@@ -113,6 +116,43 @@ export function InstallButton({ className }: InstallButtonProps) {
                 <p className="font-medium text-sm">2. Tap "Add to Home Screen"</p>
                 <p className="text-xs text-muted-foreground">
                   Scroll down in the share menu to find it
+                </p>
+              </div>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+      {/* Generic desktop/unsupported sheet */}
+      <Sheet open={showGenericSheet} onOpenChange={setShowGenericSheet}>
+        <SheetContent side="bottom" className="rounded-t-3xl pb-10">
+          <SheetHeader className="text-center">
+            <SheetTitle>Install WiseResume</SheetTitle>
+            <SheetDescription>
+              Open this page on your phone's browser to install the app
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="mt-6 space-y-5 px-2">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <Smartphone className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium text-sm">1. Open on your phone</p>
+                <p className="text-xs text-muted-foreground">
+                  Visit this website in Chrome (Android) or Safari (iPhone)
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <Plus className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium text-sm">2. Install to home screen</p>
+                <p className="text-xs text-muted-foreground">
+                  Tap "Install" or "Add to Home Screen" from the browser menu
                 </p>
               </div>
             </div>
