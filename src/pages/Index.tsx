@@ -390,10 +390,6 @@ const Index = () => {
             </Button>
           </motion.div>
 
-          {/* Install on Device CTA */}
-          <motion.div className="w-full flex justify-center mt-2" {...fade(0.3)}>
-            <InstallButton className="w-full max-w-sm" />
-          </motion.div>
 
           {/* Trust bar */}
           <motion.div className="mt-5 flex items-center gap-3 sm:gap-4 text-xs text-muted-foreground flex-wrap justify-center" {...fade(0.28)}>
@@ -646,6 +642,20 @@ const Index = () => {
               {isAuthenticated ? 'Go to Dashboard' : 'Get Started Free'}
             </Button>
             <p className="mt-3 text-xs text-muted-foreground">Free forever · No credit card required</p>
+          </div>
+        </section>
+
+        {/* Install on Device Section */}
+        <section className="px-4 sm:px-6 py-10">
+          <div className="flex flex-col items-center text-center gap-4 p-6 rounded-2xl glass-surface border border-border/30">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Sparkles className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-foreground mb-1">Get the app on your phone</h3>
+              <p className="text-sm text-muted-foreground max-w-xs">Install WiseResume for quick access — works like a native app, no app store needed</p>
+            </div>
+            <InstallButton className="w-full max-w-xs" />
           </div>
         </section>
 
