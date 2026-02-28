@@ -955,9 +955,27 @@ export async function generatePDF(
     // Calculate smart break positions that avoid cutting content
     let smartBreaks: number[];
     
-    // If custom pixel positions provided (user dragged), use them directly
+    // If custom pixel positions provided (user dragged), use them + auto-fill remaining
     if (customBreakPositions && customBreakPositions.length > 0) {
-      smartBreaks = [...customBreakPositions].sort((a, b) => a - b);
+      const sorted = [...customBreakPositions].sort((a, b) => a - b);
+      const allBreaks = [...sorted];
+      
+      // Scan layout blocks for smart auto-fill
+      const { flowBlocks, sections } = scanLayoutBlocks(sourceElement);
+      const headerBlocks = createHeaderProtectionBlocks(sourceElement, sections);
+      const allBlocks: ContentBlock[] = [...flowBlocks, ...headerBlocks];
+      allBlocks.sort((a, b) => a.top - b.top);
+      
+      // Auto-fill remaining content after last custom break
+      const lastBreak = sorted[sorted.length - 1] || 0;
+      if (lastBreak < totalHeight - sourceHeightPerPage * 0.5) {
+        const autoFill = computeAutoBreaksInSegment(
+          lastBreak, totalHeight, sourceHeightPerPage, allBlocks, sourceElement
+        );
+        allBreaks.push(...autoFill);
+      }
+      
+      smartBreaks = [...new Set(allBreaks)].sort((a, b) => a - b);
     } else {
       smartBreaks = findSmartBreakPositions(
         sourceElement, 

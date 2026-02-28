@@ -56,12 +56,38 @@ export function PageBreakIndicator({
       return;
     }
 
-    // If using custom dragged positions, use them directly (already in 612px space)
+    // Template is always rendered at 612px, so scaleFactor = 1.0
+    const shpp = PRINTABLE_HEIGHT;
+
+    // If using custom dragged positions, use them + auto-fill remaining content
     if (useCustomPositions) {
-      setBreaks(customBreakPositions!.map((pos) => ({
+      const customTagged: TaggedBreakPosition[] = customBreakPositions!.map((pos) => ({
         position: pos,
         type: 'manual' as const,
-      })));
+      }));
+      
+      // Auto-fill breaks for content after the last custom break
+      const containerH = element.scrollHeight || element.offsetHeight || PAGE_HEIGHT;
+      const sorted = [...customBreakPositions!].sort((a, b) => a - b);
+      const lastCustom = sorted[sorted.length - 1] || 0;
+      
+      if (lastCustom < containerH - shpp * 0.5) {
+        const autoFill = findSmartBreakPositionsTagged(
+          element, shpp, containerH, undefined, templateConfig
+        );
+        // Only keep auto breaks that are AFTER the last custom break
+        const autoAfter = autoFill.filter(b => b.position > lastCustom + 20);
+        customTagged.push(...autoAfter.map(b => ({ ...b, type: 'auto' as const })));
+      }
+      
+      // Deduplicate by position, preferring manual
+      const posMap = new Map<number, TaggedBreakPosition>();
+      customTagged.forEach(t => {
+        const existing = posMap.get(t.position);
+        if (!existing || t.type === 'manual') posMap.set(t.position, t);
+      });
+      
+      setBreaks([...posMap.values()].sort((a, b) => a.position - b.position));
       return;
     }
 
@@ -69,11 +95,8 @@ export function PageBreakIndicator({
     requestAnimationFrame(() => {
       const containerHeight = element.scrollHeight || element.offsetHeight || PAGE_HEIGHT;
 
-      // Template is always rendered at 612px, so scaleFactor = 1.0
-      const sourceHeightPerPage = PRINTABLE_HEIGHT;
-
       // SINGLE-PAGE GUARD
-      const isSinglePage = containerHeight <= sourceHeightPerPage * 1.05;
+      const isSinglePage = containerHeight <= shpp * 1.05;
       
       if (isSinglePage && !manualBreakSections?.length) {
         setBreaks([]);
@@ -83,7 +106,7 @@ export function PageBreakIndicator({
       // Calculate breaks — positions are in 612px PDF coordinate space (same as preview)
       const newBreaks = findSmartBreakPositionsTagged(
         element,
-        sourceHeightPerPage,
+        shpp,
         containerHeight,
         manualBreakSections,
         templateConfig
