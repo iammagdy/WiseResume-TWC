@@ -1,4 +1,4 @@
-import { TemplateId, SectionId } from '@/types/resume';
+import { TemplateId } from '@/types/resume';
 
 export type TemplateLayout = 'linear' | 'linear-grid' | 'fixed-sidebar';
 
@@ -6,193 +6,41 @@ export interface TemplateConfig {
   id: TemplateId;
   name: string;
   layout: TemplateLayout;
-  supportsPageBreaks: boolean;
-  supportsManualBreaks: boolean;
   maxRecommendedPages: number;
-  singlePageOptimized: boolean;
-  breakableSections: SectionId[];
   supportsPhoto: boolean;
-  warningMessage?: string;
-  suggestedAlternatives?: TemplateId[];
 }
 
-/**
- * Template configurations defining pagination capabilities for each template.
- * 
- * Layout Types:
- * - linear: Single column, content flows top to bottom. Full page break support.
- * - linear-grid: Linear flow with a bottom grid section. Partial page break support.
- * - fixed-sidebar: Sidebar runs full height alongside main content. No page breaks.
- */
 export const TEMPLATE_CONFIGS: Record<TemplateId, TemplateConfig> = {
-  minimal: {
-    id: 'minimal',
-    name: 'Minimal',
-    layout: 'linear',
-    supportsPageBreaks: true,
-    supportsManualBreaks: true,
-    maxRecommendedPages: 3,
-    singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'],
-    supportsPhoto: false,
-  },
-  classic: {
-    id: 'classic', name: 'Classic', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 3, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'],
-    supportsPhoto: false,
-  },
-  modern: {
-    id: 'modern', name: 'Modern', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 3, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'],
-    supportsPhoto: false,
-  },
-  developer: {
-    id: 'developer', name: 'Developer', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 2, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'],
-    supportsPhoto: false,
-  },
-  executive: {
-    id: 'executive', name: 'Executive', layout: 'linear-grid', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 2, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'],
-    supportsPhoto: false,
-    warningMessage: "The bottom grid (Education/Skills) cannot be split across pages.",
-  },
-  professional: {
-    id: 'professional', name: 'Professional', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 3, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'],
-    supportsPhoto: false,
-  },
-  creative: {
-    id: 'creative', name: 'Creative', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 3, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'],
-    supportsPhoto: true,
-  },
-  compact: {
-    id: 'compact', name: 'Compact', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 2, singlePageOptimized: true,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'],
-    supportsPhoto: false,
-  },
-  academic: {
-    id: 'academic', name: 'Academic', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 4, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'],
-    supportsPhoto: false,
-  },
-  healthcare: {
-    id: 'healthcare', name: 'Healthcare', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 2, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'],
-    supportsPhoto: false,
-  },
-  sales: {
-    id: 'sales', name: 'Sales', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 2, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'],
-    supportsPhoto: false,
-  },
-  elegant: {
-    id: 'elegant', name: 'Elegant', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 2, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'],
-    supportsPhoto: false,
-  },
-  corporate: {
-    id: 'corporate', name: 'Corporate', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 2, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'], supportsPhoto: false,
-  },
-  banking: {
-    id: 'banking', name: 'Banking', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 2, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'], supportsPhoto: false,
-  },
-  consulting: {
-    id: 'consulting', name: 'Consulting', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 2, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'], supportsPhoto: false,
-  },
-  federal: {
-    id: 'federal', name: 'Federal', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 3, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'], supportsPhoto: false,
-  },
-  legal: {
-    id: 'legal', name: 'Legal', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 2, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'], supportsPhoto: false,
-  },
-  marketing: {
-    id: 'marketing', name: 'Marketing', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 2, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'], supportsPhoto: false,
-  },
-  designer: {
-    id: 'designer', name: 'Designer', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 3, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'], supportsPhoto: true,
-  },
-  portfolio: {
-    id: 'portfolio', name: 'Portfolio', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 2, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'], supportsPhoto: false,
-  },
-  startup: {
-    id: 'startup', name: 'Startup', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 2, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'], supportsPhoto: false,
-  },
-  infographic: {
-    id: 'infographic', name: 'Infographic', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 1, singlePageOptimized: true,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'], supportsPhoto: false,
-  },
-  'data-science': {
-    id: 'data-science', name: 'Data Science', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 2, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'], supportsPhoto: false,
-  },
-  devops: {
-    id: 'devops', name: 'DevOps', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 2, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'], supportsPhoto: false,
-  },
-  cyber: {
-    id: 'cyber', name: 'Cybersecurity', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 2, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'], supportsPhoto: false,
-  },
-  product: {
-    id: 'product', name: 'Product', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 2, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'], supportsPhoto: false,
-  },
-  clean: {
-    id: 'clean', name: 'Clean', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 2, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'], supportsPhoto: false,
-  },
-  swiss: {
-    id: 'swiss', name: 'Swiss', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 2, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'], supportsPhoto: false,
-  },
-  mono: {
-    id: 'mono', name: 'Mono', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 2, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'], supportsPhoto: false,
-  },
-  zen: {
-    id: 'zen', name: 'Zen', layout: 'linear', supportsPageBreaks: true, supportsManualBreaks: true,
-    maxRecommendedPages: 2, singlePageOptimized: false,
-    breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications', 'projects', 'awards', 'publications', 'volunteering', 'hobbies', 'references', 'languages'], supportsPhoto: false,
-  },
+  minimal: { id: 'minimal', name: 'Minimal', layout: 'linear', maxRecommendedPages: 3, supportsPhoto: false },
+  classic: { id: 'classic', name: 'Classic', layout: 'linear', maxRecommendedPages: 3, supportsPhoto: false },
+  modern: { id: 'modern', name: 'Modern', layout: 'linear', maxRecommendedPages: 3, supportsPhoto: false },
+  developer: { id: 'developer', name: 'Developer', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
+  executive: { id: 'executive', name: 'Executive', layout: 'linear-grid', maxRecommendedPages: 2, supportsPhoto: false },
+  professional: { id: 'professional', name: 'Professional', layout: 'linear', maxRecommendedPages: 3, supportsPhoto: false },
+  creative: { id: 'creative', name: 'Creative', layout: 'linear', maxRecommendedPages: 3, supportsPhoto: true },
+  compact: { id: 'compact', name: 'Compact', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
+  academic: { id: 'academic', name: 'Academic', layout: 'linear', maxRecommendedPages: 4, supportsPhoto: false },
+  healthcare: { id: 'healthcare', name: 'Healthcare', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
+  sales: { id: 'sales', name: 'Sales', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
+  elegant: { id: 'elegant', name: 'Elegant', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
+  corporate: { id: 'corporate', name: 'Corporate', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
+  banking: { id: 'banking', name: 'Banking', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
+  consulting: { id: 'consulting', name: 'Consulting', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
+  federal: { id: 'federal', name: 'Federal', layout: 'linear', maxRecommendedPages: 3, supportsPhoto: false },
+  legal: { id: 'legal', name: 'Legal', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
+  marketing: { id: 'marketing', name: 'Marketing', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
+  designer: { id: 'designer', name: 'Designer', layout: 'linear', maxRecommendedPages: 3, supportsPhoto: true },
+  portfolio: { id: 'portfolio', name: 'Portfolio', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
+  startup: { id: 'startup', name: 'Startup', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
+  infographic: { id: 'infographic', name: 'Infographic', layout: 'linear', maxRecommendedPages: 1, supportsPhoto: false },
+  'data-science': { id: 'data-science', name: 'Data Science', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
+  devops: { id: 'devops', name: 'DevOps', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
+  cyber: { id: 'cyber', name: 'Cybersecurity', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
+  product: { id: 'product', name: 'Product', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
+  clean: { id: 'clean', name: 'Clean', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
+  swiss: { id: 'swiss', name: 'Swiss', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
+  mono: { id: 'mono', name: 'Mono', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
+  zen: { id: 'zen', name: 'Zen', layout: 'linear', maxRecommendedPages: 2, supportsPhoto: false },
 };
 
 /**
@@ -200,40 +48,4 @@ export const TEMPLATE_CONFIGS: Record<TemplateId, TemplateConfig> = {
  */
 export function getTemplateConfig(templateId: TemplateId): TemplateConfig {
   return TEMPLATE_CONFIGS[templateId];
-}
-
-/**
- * Checks if a template supports any form of page breaks.
- */
-export function templateSupportsPageBreaks(templateId: TemplateId): boolean {
-  return TEMPLATE_CONFIGS[templateId].supportsPageBreaks;
-}
-
-/**
- * Checks if a template is optimized for single-page layouts.
- */
-export function isTemplateOptimizedForSinglePage(templateId: TemplateId): boolean {
-  return TEMPLATE_CONFIGS[templateId].singlePageOptimized;
-}
-
-/**
- * Gets the breakable sections for a template.
- * Returns empty array if template doesn't support manual breaks.
- */
-export function getBreakableSections(templateId: TemplateId): SectionId[] {
-  const config = TEMPLATE_CONFIGS[templateId];
-  if (!config.supportsManualBreaks) return [];
-  return config.breakableSections;
-}
-
-/**
- * Filters available sections to only those that can have breaks after them.
- */
-export function filterBreakableSections(
-  templateId: TemplateId, 
-  availableSections: SectionId[]
-): SectionId[] {
-  const breakable = getBreakableSections(templateId);
-  if (breakable.length === 0) return [];
-  return availableSections.filter(section => breakable.includes(section));
 }

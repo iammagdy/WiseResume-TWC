@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { ResumeData, JobMatchScore, GapAnalysis, TemplateId, PageBreakSettings, TailorHistory, TailorSectionId, EnhancedTailorResult, CoverLetterContext, MultiJobComparison, JobComparisonEntry, SuperTailorResult, CoverLetterHistory } from '@/types/resume';
+import { ResumeData, JobMatchScore, GapAnalysis, TemplateId, TailorHistory, TailorSectionId, EnhancedTailorResult, CoverLetterContext, MultiJobComparison, JobComparisonEntry, SuperTailorResult, CoverLetterHistory } from '@/types/resume';
 import { TailorIntensity } from '@/lib/aiTailor';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -25,7 +25,6 @@ interface ResumeState {
   gapAnalysis: GapAnalysis | null;
   isAnalyzing: boolean;
   selectedTemplate: TemplateId;
-  pageBreakSettings: PageBreakSettings;
   tailorHistory: TailorHistory[];
   tailorHistoryByResume: Record<string, TailorHistory[]>;
   generatedCoverLetter: string | null;
@@ -52,7 +51,6 @@ interface ResumeState {
   setGapAnalysis: (analysis: GapAnalysis | null) => void;
   setIsAnalyzing: (analyzing: boolean) => void;
   setSelectedTemplate: (template: TemplateId) => void;
-  setPageBreakSettings: (settings: PageBreakSettings) => void;
   addTailorHistory: (entry: Omit<TailorHistory, 'id' | 'createdAt'>, resumeId?: string) => void;
   clearTailorHistory: () => void;
   getTailorHistoryForResume: (resumeId: string) => TailorHistory[];
@@ -119,7 +117,6 @@ export const useResumeStore = create<ResumeState>()(
       gapAnalysis: null,
       isAnalyzing: false,
       selectedTemplate: 'modern',
-      pageBreakSettings: { mode: 'auto', breakAfterSections: [] },
       tailorHistory: [],
       tailorHistoryByResume: {},
       generatedCoverLetter: null,
@@ -168,7 +165,6 @@ export const useResumeStore = create<ResumeState>()(
       setGapAnalysis: (analysis) => set({ gapAnalysis: analysis }),
       setIsAnalyzing: (analyzing) => set({ isAnalyzing: analyzing }),
       setSelectedTemplate: (template) => set({ selectedTemplate: template }),
-      setPageBreakSettings: (settings) => set({ pageBreakSettings: settings }),
 
       addTailorHistory: (entry, resumeId) => set((state) => {
         const newEntry = {
@@ -347,7 +343,6 @@ export const useResumeStore = create<ResumeState>()(
         gapAnalysis: null,
         isAnalyzing: false,
         selectedTemplate: 'modern',
-        pageBreakSettings: { mode: 'auto', breakAfterSections: [] },
         tailorHistory: [],
         tailorHistoryByResume: {},
         generatedCoverLetter: null,
@@ -369,7 +364,6 @@ export const useResumeStore = create<ResumeState>()(
         currentResume: state.currentResume,
         currentResumeId: state.currentResumeId,
         selectedTemplate: state.selectedTemplate,
-        pageBreakSettings: state.pageBreakSettings,
         tailorHistory: state.tailorHistory,
         tailorHistoryByResume: state.tailorHistoryByResume,
         coverLetterHistory: state.coverLetterHistory,
