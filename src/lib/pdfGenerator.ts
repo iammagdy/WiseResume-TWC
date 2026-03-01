@@ -785,8 +785,10 @@ export function calculatePDFDimensions(
   // GLOBAL scale factor - used consistently for ALL pages
   const globalScaleFactor = pageWidth / sourceWidth;
 
-  // How much source height fits on one PDF page (accounting for footer)
-  const sourceHeightPerPage = printableHeight / globalScaleFactor;
+  // How much source height fits on one PDF page
+  // Footer is added as extra space outside the content area (dynamic page height),
+  // so we use the full pageHeight — not printableHeight — for break intervals.
+  const sourceHeightPerPage = pageHeight / globalScaleFactor;
 
   return {
     sourceWidth,

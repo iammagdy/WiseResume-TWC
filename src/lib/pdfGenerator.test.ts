@@ -200,8 +200,8 @@ describe("pdfGenerator", () => {
       expect(dims.sourceWidth).toBe(612);
       expect(dims.totalHeight).toBe(792);
       expect(dims.globalScaleFactor).toBe(1);
-      // DEFAULT_PAGE_HEIGHT (792) - FOOTER_RESERVED (44) = 748
-      expect(dims.sourceHeightPerPage).toBe(748);
+      // Footer is added as extra space outside content, so full page height is used
+      expect(dims.sourceHeightPerPage).toBe(792);
     });
   });
 
