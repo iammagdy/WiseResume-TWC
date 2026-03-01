@@ -1,5 +1,6 @@
 import { ResumeData, TailorProgress, EnhancedTailorStep, EnhancedTailorProgress, SuperTailorResult } from '@/types/resume';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { supabase } from '@/integrations/supabase/safeClient';
 import { trackGeminiUsage } from './aiProvider';
 import { extractErrorMessage } from './errorToast';
 import { checkAIFallback } from './aiFallbackToast';
@@ -226,18 +227,25 @@ export interface ParsedJobData {
 }
 
 export async function parseJobUrl(url: string): Promise<ParsedJobData> {
-  const { data, error } = await edgeFunctions.functions.invoke('parse-job-url', {
-    body: { url },
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://hjnnamwgztlhzkeuufln.supabase.co';
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/parse-job-url`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ url }),
   });
 
-  if (error) {
-    console.error('Parse job URL error:', error);
-    throw new Error(extractErrorMessage(error, data, 'Failed to parse job URL'));
-  }
-  if (data?.error) {
-    throw new Error(data.message || data.error);
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({ error: 'Failed to parse job URL' }));
+    throw new Error(errData.error || 'Failed to parse job URL');
   }
 
+  const data = await response.json();
   trackGeminiUsage();
   return data as ParsedJobData;
 }
