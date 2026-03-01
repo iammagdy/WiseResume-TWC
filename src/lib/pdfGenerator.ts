@@ -1012,16 +1012,40 @@ export async function generatePDF(
        sourceHeightPerPage
      } = calculatePDFDimensions(sourceElement, pageWidth, pageHeight);
 
-     // ALWAYS recalculate breaks on the prepared DOM — never use pre-calculated pixel positions
-     // This ensures break positions match the exact DOM state that html2canvas captures
-     const smartBreaks = findSmartBreakPositions(
-       sourceElement, 
-       sourceHeightPerPage, 
-       totalHeight,
-       manualBreakSections,
-       templateConfig
-     );
-     console.log('[PDF] Breaks calculated on prepared DOM:', smartBreaks, 'totalHeight:', totalHeight);
+      // Use custom dragged positions if provided, otherwise recalculate
+      let smartBreaks: number[];
+      if (customBreakPositions && customBreakPositions.length > 0) {
+        // Sort custom positions
+        const sorted = [...customBreakPositions].sort((a, b) => a - b);
+        
+        // Auto-fill breaks for content after the last custom break
+        const lastCustom = sorted[sorted.length - 1];
+        const autoFill: number[] = [];
+        if (lastCustom < totalHeight - sourceHeightPerPage * 0.5) {
+          const autoBreaks = findSmartBreakPositions(
+            sourceElement, sourceHeightPerPage, totalHeight, undefined, templateConfig
+          );
+          // Only keep auto breaks that are AFTER the last custom break
+          autoBreaks.filter(b => b > lastCustom + 20).forEach(b => autoFill.push(b));
+        }
+        
+        // Merge, deduplicate (within 20px), sort
+        const merged = [...sorted, ...autoFill].sort((a, b) => a - b);
+        smartBreaks = merged.filter((pos, i) => i === 0 || pos - merged[i - 1] > 20);
+        
+        // Min-segment guard: remove breaks that create pages smaller than 50px
+        smartBreaks = smartBreaks.filter((pos, i) => {
+          const prev = i === 0 ? 0 : smartBreaks[i - 1];
+          return pos - prev >= 50;
+        });
+        
+        console.log('[PDF] Using custom break positions:', smartBreaks, 'totalHeight:', totalHeight);
+      } else {
+        smartBreaks = findSmartBreakPositions(
+          sourceElement, sourceHeightPerPage, totalHeight, manualBreakSections, templateConfig
+        );
+        console.log('[PDF] Breaks calculated on prepared DOM:', smartBreaks, 'totalHeight:', totalHeight);
+      }
     
     // Note: fixed-sidebar layout type is no longer used by any template
 
