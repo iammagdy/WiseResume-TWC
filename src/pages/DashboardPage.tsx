@@ -38,7 +38,8 @@ const AnalyzeJobSheet = lazy(() => import('@/components/dashboard/AnalyzeJobShee
 
 import { useAuth } from '@/hooks/useAuth';
 import { useGuestMigration } from '@/hooks/useGuestMigration';
-import { useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
+import { useResumes, useResumeMutations, useTrashedResumes, dbToResumeData } from '@/hooks/useResumes';
+import { TrashSheet } from '@/components/dashboard/TrashSheet';
 import { useResumeStore } from '@/store/resumeStore';
 import { useResumeScore, ResumeHealthScore, backgroundScore } from '@/hooks/useResumeScore';
 import { useATSScoreHistoryStore } from '@/store/atsScoreHistoryStore';
@@ -99,6 +100,8 @@ function DashboardPageContent() {
   });
   const [profilePulseSeen, setProfilePulseSeen] = useState(() => !!localStorage.getItem('wr-profile-pulse-seen'));
   const [showFeatureMap, setShowFeatureMap] = useState(false);
+  const [showTrash, setShowTrash] = useState(false);
+  const { data: trashedResumes = [] } = useTrashedResumes();
 
   // Track session count for progressive disclosure
   useEffect(() => { trackSession(); }, []);
@@ -499,6 +502,18 @@ function DashboardPageContent() {
           </Button>
           <AICreditsIndicator />
           <AIHealthBadge />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="w-11 h-11 rounded-xl touch-manipulation active:scale-95 relative"
+            onClick={() => { haptics.light(); setShowTrash(true); }}
+            aria-label="Trash"
+          >
+            <Trash2 className="w-5 h-5 text-muted-foreground" />
+            {trashedResumes.length > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive border-2 border-background" />
+            )}
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -1062,6 +1077,7 @@ function DashboardPageContent() {
       )}
       {/* Feature Map Sheet */}
       <FeatureMapSheet open={showFeatureMap} onOpenChange={setShowFeatureMap} />
+      <TrashSheet open={showTrash} onOpenChange={setShowTrash} />
     </div>
   );
 }

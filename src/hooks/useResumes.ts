@@ -30,6 +30,7 @@ export interface DatabaseResume {
   is_primary: boolean;
   parent_resume_id: string | null;
   job_url: string | null;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -60,6 +61,7 @@ function parseDbResume(dbResume: any): DatabaseResume {
     is_primary: dbResume.is_primary || false,
     parent_resume_id: dbResume.parent_resume_id,
     job_url: dbResume.job_url || null,
+    deleted_at: dbResume.deleted_at || null,
     created_at: dbResume.created_at,
     updated_at: dbResume.updated_at,
   };
@@ -117,6 +119,7 @@ export function useResumes<TData = DatabaseResume[]>(options?: { select?: (data:
       const { data, error } = await supabase
         .from('resumes')
         .select('*')
+        .is('deleted_at', null)
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
@@ -266,13 +269,14 @@ export function useResumeMutations() {
 
       const { error } = await supabase
         .from('resumes')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', resumeId);
 
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
+      queryClient.invalidateQueries({ queryKey: ['trashed-resumes'] });
     },
     onError: (error) => {
       toast.error('Failed to delete resume');
@@ -286,18 +290,72 @@ export function useResumeMutations() {
 
       const { error } = await supabase
         .from('resumes')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .in('id', resumeIds);
 
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
+      queryClient.invalidateQueries({ queryKey: ['trashed-resumes'] });
       toast.success('Resumes deleted');
     },
     onError: (error) => {
       toast.error('Failed to delete resumes');
       console.error(error);
+    },
+  });
+
+  const restoreResume = useMutation({
+    mutationFn: async (resumeId: string) => {
+      if (!user) throw new Error('Not authenticated');
+      const { error } = await supabase
+        .from('resumes')
+        .update({ deleted_at: null })
+        .eq('id', resumeId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['resumes'] });
+      queryClient.invalidateQueries({ queryKey: ['trashed-resumes'] });
+    },
+    onError: () => {
+      toast.error('Failed to restore resume');
+    },
+  });
+
+  const permanentlyDeleteResume = useMutation({
+    mutationFn: async (resumeId: string) => {
+      if (!user) throw new Error('Not authenticated');
+      const { error } = await supabase
+        .from('resumes')
+        .delete()
+        .eq('id', resumeId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trashed-resumes'] });
+    },
+    onError: () => {
+      toast.error('Failed to delete resume');
+    },
+  });
+
+  const emptyTrash = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error('Not authenticated');
+      const { error } = await supabase
+        .from('resumes')
+        .delete()
+        .eq('user_id', user.id)
+        .not('deleted_at', 'is', null);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trashed-resumes'] });
+    },
+    onError: () => {
+      toast.error('Failed to empty trash');
     },
   });
 
@@ -388,7 +446,30 @@ export function useResumeMutations() {
     deleteMultipleResumes,
     duplicateResume,
     setJobTarget,
+    restoreResume,
+    permanentlyDeleteResume,
+    emptyTrash,
   };
+}
+
+export function useTrashedResumes() {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ['trashed-resumes', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('resumes')
+        .select('*')
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false });
+
+      if (error) throw error;
+      return (data || []).map(parseDbResume);
+    },
+    enabled: !!user,
+    staleTime: 30 * 1000,
+  });
 }
 
 export function useSetMasterCV() {
