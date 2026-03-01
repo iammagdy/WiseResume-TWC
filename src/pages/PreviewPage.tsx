@@ -668,6 +668,7 @@ export default function PreviewPage() {
               customBreakPositions={customBreakPositions}
               templateConfig={templateConfig}
               draggable={true}
+              previewScale={previewScale}
               onBreakPositionChange={handleBreakPositionChange} />
             }
           </PreviewScaledWrapper>

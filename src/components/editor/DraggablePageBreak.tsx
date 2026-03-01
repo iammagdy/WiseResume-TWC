@@ -8,6 +8,7 @@ interface DraggablePageBreakProps {
   type: 'manual' | 'auto';
   minY: number;
   maxY: number;
+  scale?: number;
   onDragEnd: (index: number, newPosition: number) => void;
 }
 
@@ -17,6 +18,7 @@ export const DraggablePageBreak = memo(function DraggablePageBreak({
   type,
   minY,
   maxY,
+  scale = 1,
   onDragEnd,
 }: DraggablePageBreakProps) {
   const [isDragging, setIsDragging] = useState(false);
@@ -40,17 +42,17 @@ export const DraggablePageBreak = memo(function DraggablePageBreak({
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!isDragging) return;
-    const delta = e.clientY - startY.current;
+    const delta = (e.clientY - startY.current) / scale;
     setCurrentY(clamp(startPos.current + delta));
-  }, [isDragging, clamp]);
+  }, [isDragging, clamp, scale]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
     if (!isDragging) return;
     setIsDragging(false);
-    const delta = e.clientY - startY.current;
+    const delta = (e.clientY - startY.current) / scale;
     const finalPos = clamp(startPos.current + delta);
     onDragEnd(index, finalPos);
-  }, [isDragging, clamp, index, onDragEnd]);
+  }, [isDragging, clamp, index, onDragEnd, scale]);
 
   return (
     <div

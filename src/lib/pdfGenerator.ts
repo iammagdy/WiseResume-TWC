@@ -839,76 +839,70 @@ export async function generatePDFPages(
   pageWidth: number = DEFAULT_PAGE_WIDTH,
   pageHeight: number = DEFAULT_PAGE_HEIGHT
 ): Promise<void> {
-  // If no breaks found (e.g. single page or fixed-sidebar), we have 1 page
+  // Pure image cropping: treat the canvas as one long photo and slice at exact break positions
   const numPages = smartBreaks.length + 1;
 
-  // Process pages using smart break positions with CONSISTENT scaling
   for (let pageNum = 0; pageNum < numPages; pageNum++) {
-    // Calculate page boundaries using smart breaks
     const pageStart = pageNum === 0 ? 0 : smartBreaks[pageNum - 1];
     const pageEnd = pageNum === numPages - 1 ? totalHeight : smartBreaks[pageNum];
     const pageContentHeight = pageEnd - pageStart;
 
-    // Calculate the scaled height in PDF points using GLOBAL scale factor
-    const pdfContentHeight = pageContentHeight * globalScaleFactor;
-
-    // Create page canvas at the exact size needed for this slice
-    const pageCanvas = document.createElement('canvas');
-    pageCanvas.width = pageWidth * SCALE;
-    pageCanvas.height = Math.ceil(pdfContentHeight * SCALE);
-    const ctx = pageCanvas.getContext('2d');
-
-    if (!ctx) continue;
-
-    // Fill white background
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-
-    // Source slice from captured canvas (in canvas pixels)
-    const sourceY = pageStart * SCALE;
-    const sourceSliceHeight = Math.min(pageContentHeight * SCALE, canvas.height - sourceY);
-
-    if (sourceSliceHeight <= 0) continue;
-
-    // Debug logging removed for production cleanliness
-
-    // Draw the slice - scaled uniformly by global factor
-    // Source: full width, slice height from captured canvas
-    // Dest: full page canvas (already sized to match scaled dimensions)
-    ctx.drawImage(
-      canvas,
-      0, sourceY,                              // Source x, y
-      canvas.width, sourceSliceHeight,         // Source width, height
-      0, 0,                                    // Dest x, y
-      pageCanvas.width, pageCanvas.height      // Dest width, height (maintains aspect ratio)
+    // Source coordinates in hi-res canvas pixels
+    const sourceY = Math.round(pageStart * SCALE);
+    const sourceH = Math.min(
+      Math.round(pageContentHeight * SCALE),
+      canvas.height - sourceY
     );
 
-    // Convert page canvas to PNG
-    const imgData = pageCanvas.toDataURL('image/png');
+    if (sourceH <= 0) continue;
+
+    // Create a crop canvas at the exact slice size
+    const cropCanvas = document.createElement('canvas');
+    cropCanvas.width = canvas.width;
+    cropCanvas.height = sourceH;
+    const ctx = cropCanvas.getContext('2d');
+    if (!ctx) continue;
+
+    // White background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, cropCanvas.width, cropCanvas.height);
+
+    // Direct crop from the source canvas — no rescaling, no distortion
+    ctx.drawImage(
+      canvas,
+      0, sourceY, canvas.width, sourceH,   // source rect
+      0, 0, canvas.width, sourceH          // dest rect (1:1 copy)
+    );
+
+    // Convert to PNG and embed
+    const imgData = cropCanvas.toDataURL('image/png');
     const pngImage = await pdfDoc.embedPng(imgData);
 
-    // Add page to PDF
+    // Add PDF page
     const page = pdfDoc.addPage([pageWidth, pageHeight]);
 
-    // In PDF, y=0 is BOTTOM. Position image at TOP of page.
-    // The image is already at correct scale, just position it
+    // Scale the crop to fill the page width, maintaining aspect ratio
+    const imgAspect = cropCanvas.height / cropCanvas.width;
+    const drawWidth = pageWidth;
+    const drawHeight = drawWidth * imgAspect;
+
+    // Position at top of page (PDF y=0 is bottom)
     page.drawImage(pngImage, {
       x: 0,
-      y: pageHeight - pdfContentHeight,
-      width: pageWidth,
-      height: pdfContentHeight,
+      y: pageHeight - drawHeight,
+      width: drawWidth,
+      height: drawHeight,
     });
 
-    // Draw white rectangle to cleanly mask ALL unused space below content
-    // This ensures manual page breaks result in clean white space (professional look)
-    const contentBottomY = pageHeight - pdfContentHeight;
+    // White-fill any remaining space below content
+    const contentBottomY = pageHeight - drawHeight;
     if (contentBottomY > 0) {
       page.drawRectangle({
         x: 0,
         y: 0,
         width: pageWidth,
-        height: contentBottomY, // Covers everything from bottom up to content edge
-        color: rgb(1, 1, 1), // White
+        height: contentBottomY,
+        color: rgb(1, 1, 1),
       });
     }
   }
@@ -961,30 +955,12 @@ export async function generatePDF(
       sourceHeightPerPage
     } = calculatePDFDimensions(sourceElement, pageWidth, pageHeight);
 
-    // Calculate smart break positions that avoid cutting content
+    // Calculate smart break positions
     let smartBreaks: number[];
     
-    // If custom pixel positions provided (user dragged), use them + auto-fill remaining
+    // STRICT MODE: If user provided custom break positions, use ONLY those — no auto-fill
     if (customBreakPositions && customBreakPositions.length > 0) {
-      const sorted = [...customBreakPositions].sort((a, b) => a - b);
-      const allBreaks = [...sorted];
-      
-      // Scan layout blocks for smart auto-fill
-      const { flowBlocks, sections } = scanLayoutBlocks(sourceElement);
-      const headerBlocks = createHeaderProtectionBlocks(sourceElement, sections);
-      const allBlocks: ContentBlock[] = [...flowBlocks, ...headerBlocks];
-      allBlocks.sort((a, b) => a.top - b.top);
-      
-      // Auto-fill remaining content after last custom break
-      const lastBreak = sorted[sorted.length - 1] || 0;
-      if (lastBreak < totalHeight - sourceHeightPerPage * 0.5) {
-        const autoFill = computeAutoBreaksInSegment(
-          lastBreak, totalHeight, sourceHeightPerPage, allBlocks, sourceElement
-        );
-        allBreaks.push(...autoFill);
-      }
-      
-      smartBreaks = [...new Set(allBreaks)].sort((a, b) => a - b);
+      smartBreaks = [...customBreakPositions].sort((a, b) => a - b);
     } else {
       smartBreaks = findSmartBreakPositions(
         sourceElement, 
