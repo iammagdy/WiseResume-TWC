@@ -21,6 +21,9 @@ import {
   ArrowRight,
   X,
   Clock,
+  QrCode,
+  Layers,
+  ScanLine,
 } from 'lucide-react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -136,6 +139,15 @@ const toolCategories: { title: string; description: string; tools: ToolEntry[] }
     tools: [
       { id: 'cover-letters', icon: FileSignature, label: 'Cover Letters', desc: 'AI-generated letters', color: 'text-sky-500', cost: 'cover-letter', navigate: '/cover-letters' },
       { id: 'resignation-letters', icon: FileOutput, label: 'Resignation', desc: 'Leave professionally', color: 'text-pink-500', cost: 'cover-letter', navigate: '/resignation-letters' },
+    ],
+  },
+  {
+    title: 'QR Tools',
+    description: 'Generate & scan QR codes',
+    tools: [
+      { id: 'qr-code', icon: QrCode, label: 'QR Generator', desc: 'Custom QR codes', color: 'text-primary', cost: 'free', navigate: '/qr-code' },
+      { id: 'qr-batch', icon: Layers, label: 'Batch QR', desc: 'Bulk CSV → ZIP', color: 'text-amber-500', cost: 'free', navigate: '/qr-batch' },
+      { id: 'qr-scan', icon: ScanLine, label: 'QR Scanner', desc: 'Decode from image', color: 'text-emerald-500', cost: 'free', navigate: '/qr-scan' },
     ],
   },
 ];
