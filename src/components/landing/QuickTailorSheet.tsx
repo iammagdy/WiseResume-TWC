@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, FileText, Wand2, ArrowLeft, Save, FileDown, Mail, CheckCircle2, Loader2, ChevronRight } from 'lucide-react';
+import { Upload, FileText, Wand2, ArrowLeft, Save, FileDown, Mail, CheckCircle2, Loader2, ChevronRight, Trash2, X } from 'lucide-react';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
@@ -52,7 +52,7 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: resumes, isLoading: resumesLoading } = useResumes();
-  const { createResume } = useResumeMutations();
+  const { createResume, deleteResume } = useResumeMutations();
   const { execute } = useAIAction({ operation: 'tailor' });
 
   const [step, setStep] = useState<Step>('select-resume');
@@ -62,6 +62,7 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
   const [tailorProgress, setTailorProgress] = useState<TailorProgressType | EnhancedTailorProgress | null>(null);
   const [tailorResult, setTailorResult] = useState<SuperTailorResult | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [savedResumeId, setSavedResumeId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -78,6 +79,7 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
         setTailorResult(null);
         setIsUploading(false);
         setSavedResumeId(null);
+        setDeleteConfirmId(null);
       }, 300);
     }
   }, [open]);
@@ -305,24 +307,67 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
                       </div>
                     ) : resumes && resumes.length > 0 ? (
                       <div className="space-y-2">
-                        {resumes.map((r) => (
-                          <button
-                            key={r.id}
-                            onClick={() => handleSelectExisting(r)}
-                            className="w-full p-4 rounded-xl glass-elevated text-left flex items-center gap-3 touch-manipulation transition-all hover:scale-[1.01] active:scale-[0.98] border border-border/20"
-                          >
-                            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                              <FileText className="w-5 h-5 text-primary" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-medium text-sm truncate">{r.title}</h3>
-                              <p className="text-xs text-muted-foreground truncate">
-                                {r.contact_info?.fullName || 'No name'} · {r.experience?.length || 0} exp
-                              </p>
-                            </div>
-                            <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-                          </button>
-                        ))}
+                        {resumes.map((r) => {
+                          const isConfirming = deleteConfirmId === r.id;
+                          return (
+                            <button
+                              key={r.id}
+                              onClick={() => {
+                                if (isConfirming) {
+                                  setDeleteConfirmId(null);
+                                  return;
+                                }
+                                handleSelectExisting(r);
+                              }}
+                              className={cn(
+                                "w-full p-4 rounded-xl glass-elevated text-left flex items-center gap-3 touch-manipulation transition-all hover:scale-[1.01] active:scale-[0.98] border",
+                                isConfirming ? "border-destructive/50 bg-destructive/5" : "border-border/20"
+                              )}
+                            >
+                              <div className={cn(
+                                "w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors",
+                                isConfirming ? "bg-destructive/10" : "bg-primary/10"
+                              )}>
+                                <FileText className={cn("w-5 h-5", isConfirming ? "text-destructive" : "text-primary")} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                {isConfirming ? (
+                                  <p className="text-sm font-medium text-destructive">Tap trash again to delete</p>
+                                ) : (
+                                  <>
+                                    <h3 className="font-medium text-sm truncate">{r.title}</h3>
+                                    <p className="text-xs text-muted-foreground truncate">
+                                      {r.contact_info?.fullName || 'No name'} · {r.experience?.length || 0} exp
+                                    </p>
+                                  </>
+                                )}
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (isConfirming) {
+                                    triggerHaptic.medium();
+                                    deleteResume.mutateAsync(r.id).then(() => {
+                                      toast.success('Resume deleted');
+                                      setDeleteConfirmId(null);
+                                    }).catch(() => toast.error('Failed to delete'));
+                                  } else {
+                                    triggerHaptic.light();
+                                    setDeleteConfirmId(r.id);
+                                  }
+                                }}
+                                className={cn(
+                                  "p-1.5 rounded-lg shrink-0 transition-colors",
+                                  isConfirming
+                                    ? "bg-destructive/10 text-destructive hover:bg-destructive/20"
+                                    : "text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                )}
+                              >
+                                {isConfirming ? <Trash2 className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
+                              </button>
+                            </button>
+                          );
+                        })}
                       </div>
                     ) : (
                       <p className="text-sm text-muted-foreground text-center py-4">No resumes yet. Upload one above!</p>
