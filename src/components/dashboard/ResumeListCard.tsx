@@ -30,7 +30,7 @@ import { DatabaseResume, dbToResumeData } from '@/hooks/useResumes';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { TemplateId } from '@/types/resume';
+
 import { useResumeStore } from '@/store/resumeStore';
 import { ScoreRing } from './ScoreRing';
 import { ResumeHealthScore } from '@/hooks/useResumeScore';
@@ -381,17 +381,9 @@ export const ResumeListCard = memo(function ResumeListCard({
           {/* Actions */}
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground font-medium px-2 mb-1">Actions</p>
-            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted/50 active:scale-95 touch-manipulation transition-colors" onClick={async () => {
+            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted/50 active:scale-95 touch-manipulation transition-colors" onClick={() => {
               haptics.light(); setShowActionsSheet(false);
-              try {
-                const { generatePDF } = await import('@/lib/pdfGenerator');
-                const { downloadFile } = await import('@/lib/downloadUtils');
-                const resumeData = dbToResumeData(resume);
-                const blob = await generatePDF(resumeData, (resume.template_id || 'modern') as TemplateId);
-                const fileName = `${resumeData.contactInfo.fullName || resume.title}_Resume.pdf`.replace(/\s+/g, '_');
-                await downloadFile({ blob, fileName });
-                toast.success('PDF downloaded');
-              } catch { toast.error('Failed to download PDF'); }
+              navigateToEditor(`/resume/${resume.id}?action=download`);
             }}>
               <Download className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Download PDF</span>
             </button>

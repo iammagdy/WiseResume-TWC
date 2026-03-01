@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback, lazy, Suspense } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Edit2, Eye, Download, Share2, Copy, Trash2, GitBranch, Crown, CheckCircle2, FileText, Zap, BarChart3, RefreshCw, Mic } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
@@ -43,6 +43,7 @@ const AIEnhanceSheet = lazy(() => import('@/components/editor/ai/AIEnhanceSheet'
 
 export default function ResumeDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { data: dbResume, isLoading } = useResume(id || null);
   const { data: allResumes = [] } = useResumes();
@@ -61,6 +62,30 @@ export default function ResumeDetailPage() {
   const enhancedSectionsRef = useRef<string[]>([]);
   const prevScoreRef = useRef<ReturnType<typeof getCachedScore>>(null);
   const hiddenTemplateRef = useRef<HTMLDivElement>(null);
+
+  // Auto-trigger download when navigated with ?action=download
+  useEffect(() => {
+    if (searchParams.get('action') !== 'download' || !dbResume || isLoading) return;
+    searchParams.delete('action');
+    setSearchParams(searchParams, { replace: true });
+    const timer = setTimeout(async () => {
+      setIsDownloading(true);
+      try {
+        const rd = dbToResumeData(dbResume);
+        const { generatePDF } = await import('@/lib/pdfGenerator');
+        const pdfBlob = await generatePDF(rd, dbResume.template_id as TemplateId, hiddenTemplateRef.current, undefined, { showPageNumbers: true });
+        const fileName = `${rd.contactInfo.fullName?.replace(/\s+/g, '_') || 'Resume'}.pdf`;
+        await downloadFile({ blob: pdfBlob, fileName });
+        toast.success('PDF downloaded!');
+      } catch (err) {
+        console.error('Auto-download failed:', err);
+        toast.error('Failed to generate PDF');
+      } finally {
+        setIsDownloading(false);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [dbResume, isLoading]);
 
   if (isLoading) {
     return (
@@ -128,6 +153,8 @@ export default function ResumeDetailPage() {
       setIsDownloading(false);
     }
   };
+
+
 
   const handleDuplicate = () => {
     duplicateResume.mutate(dbResume.id, {
