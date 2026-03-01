@@ -1020,38 +1020,34 @@ function resolveUserBreaksOnPreparedDOM(
     .map(findNearestSafeBreak)
     .filter(b => b > 0 && b < totalHeight);
 
-  // Build final breaks: auto-fill between user breaks
-  const allBreaks: number[] = [];
-  let segmentStart = 0;
+  // Use resolved user breaks directly — NO auto-fill between them
+  const finalBreaks = [...resolvedUserBreaks];
 
-  for (const userBreak of resolvedUserBreaks) {
-    // Auto-fill within this segment
+  // Only auto-fill AFTER the last user break if remaining content > 1 page
+  const lastUserBreak = resolvedUserBreaks[resolvedUserBreaks.length - 1] || 0;
+  if (totalHeight - lastUserBreak > sourceHeightPerPage) {
     const autoBreaks = computeAutoBreaksInSegment(
-      segmentStart, userBreak, sourceHeightPerPage, allBlocks, sourceElement
+      lastUserBreak, totalHeight, sourceHeightPerPage, allBlocks, sourceElement
     );
-    allBreaks.push(...autoBreaks);
-    allBreaks.push(userBreak);
-    segmentStart = userBreak;
+    finalBreaks.push(...autoBreaks);
   }
 
-  // Auto-fill after last user break
-  if (segmentStart < totalHeight) {
-    const autoBreaks = computeAutoBreaksInSegment(
-      segmentStart, totalHeight, sourceHeightPerPage, allBlocks, sourceElement
-    );
-    allBreaks.push(...autoBreaks);
-  }
-
-  // Deduplicate (within 20px), sort, min-segment guard
-  const deduped = [...new Set(allBreaks)]
+  // Dedup within 20px, sort
+  const deduped = [...new Set(finalBreaks)]
     .filter(b => b > 0 && b < totalHeight)
     .sort((a, b) => a - b)
     .filter((pos, i, arr) => i === 0 || pos - arr[i - 1] > 20);
 
+  // Min-segment guard: only filter AUTO-generated breaks (after last user break)
   const MIN_SEGMENT = sourceHeightPerPage * 0.12;
-  const final = deduped.filter((pos, i) => {
-    const prev = i === 0 ? 0 : deduped[i - 1];
-    const next = i === deduped.length - 1 ? totalHeight : deduped[i + 1];
+  const userBreakSet = new Set(resolvedUserBreaks);
+  const final = deduped.filter((pos) => {
+    // Always keep user-placed breaks
+    if (userBreakSet.has(pos)) return true;
+    // For auto breaks, apply min-segment guard
+    const idx = deduped.indexOf(pos);
+    const prev = idx === 0 ? 0 : deduped[idx - 1];
+    const next = idx === deduped.length - 1 ? totalHeight : deduped[idx + 1];
     return (pos - prev) >= MIN_SEGMENT && (next - pos) >= MIN_SEGMENT;
   });
 
