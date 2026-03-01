@@ -96,6 +96,9 @@ const ReferralPage = lazyWithRetry(() => import("./pages/ReferralPage"));
 const AchievementsPage = lazyWithRetry(() => import("./pages/AchievementsPage"));
 const StoreScreenshotsPage = lazyWithRetry(() => import("./pages/StoreScreenshotsPage"));
 const ScreenshotsGalleryPage = lazyWithRetry(() => import("./pages/ScreenshotsGalleryPage"));
+const QrCodePage = lazyWithRetry(() => import("./pages/QrCodePage"));
+const QrBatchPage = lazyWithRetry(() => import("./pages/QrBatchPage"));
+const QrScanPage = lazyWithRetry(() => import("./pages/QrScanPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -233,6 +236,9 @@ const queryClient = new QueryClient({
                  <Route path="/subscription" element={<Suspense fallback={<DetailSkeleton />}><SubscriptionPage /></Suspense>} />
                  <Route path="/referral" element={<Suspense fallback={<DetailSkeleton />}><ReferralPage /></Suspense>} />
                  <Route path="/achievements" element={<Suspense fallback={<AchievementsSkeleton />}><AchievementsPage /></Suspense>} />
+                 <Route path="/qr-code" element={<Suspense fallback={<DetailSkeleton />}><QrCodePage /></Suspense>} />
+                 <Route path="/qr-batch" element={<Suspense fallback={<DetailSkeleton />}><QrBatchPage /></Suspense>} />
+                 <Route path="/qr-scan" element={<Suspense fallback={<DetailSkeleton />}><QrScanPage /></Suspense>} />
                  <Route path="/activity" element={<Navigate to="/applications" replace />} />
                  <Route path="/jobs/:id" element={<RedirectJobRoute />} />
                  <Route path="/jobs" element={<Navigate to="/applications" replace />} />

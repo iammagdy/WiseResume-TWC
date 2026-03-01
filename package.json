@@ -61,6 +61,8 @@
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.29.2",
     "html2canvas": "^1.4.1",
+    "jsqr": "^1.4.0",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.462.0",
     "mammoth": "^1.11.0",
     "pdf-lib": "^1.17.1",
