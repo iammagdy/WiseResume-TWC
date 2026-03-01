@@ -477,11 +477,11 @@ export default function ResumeDetailPage() {
               position: 'fixed',
               left: '-9999px',
               top: 0,
-              width: '612px',
-              height: '792px',
-              transform: 'scale(1)',
-              transformOrigin: 'top left',
-              overflow: 'visible',
+            width: '612px',
+            minHeight: '792px',
+            transform: 'scale(1)',
+            transformOrigin: 'top left',
+            overflow: 'visible',
             }}
           >
             <Suspense fallback={null}>
