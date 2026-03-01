@@ -137,6 +137,12 @@ function scanLayoutBlocks(sourceElement: HTMLElement): {
     flowBlocks.push(getBlockBounds(htmlEl, sourceElement));
   });
   
+  // Debug: log scanned layout
+  console.debug(
+    `[PageBreak] Scanned ${sections.length} sections: ${sections.map(s => `${s.id}(${Math.round(s.top)}-${Math.round(s.bottom)})`).join(', ')}`
+  );
+  console.debug(`[PageBreak] Found ${breakAvoidElements.length} break-avoid flow blocks`);
+
   return { sections, flowBlocks };
 }
 
@@ -227,6 +233,7 @@ function computeAutoBreaksInSegment(
     
     if (cuttingBlock) {
       const blockHeight = cuttingBlock.bottom - cuttingBlock.top;
+      console.debug(`[PageBreak] Natural break at ${Math.round(naturalBreak)}. Block [${Math.round(cuttingBlock.top)}-${Math.round(cuttingBlock.bottom)}] (${Math.round(blockHeight)}px) being cut.`);
       
       // STRICT: If block fits on a single page, NEVER split it - always move to next page
       if (blockHeight <= sourceHeightPerPage) {
@@ -236,6 +243,7 @@ function computeAutoBreaksInSegment(
         // Ensure we don't create empty pages
         const minPageContent = sourceHeightPerPage * 0.10;
         if (breakBefore - currentPos >= minPageContent) {
+          console.debug(`[PageBreak]   Strategy: break-before at ${Math.round(breakBefore)} (waste: ${Math.round(naturalBreak - breakBefore)}px, ${((naturalBreak - breakBefore) / sourceHeightPerPage * 100).toFixed(1)}%)`);
           breaks.push(breakBefore);
           currentPos = breakBefore;
           continue;
@@ -245,10 +253,10 @@ function computeAutoBreaksInSegment(
       // Block is too large to fit on a single page - try to find child boundaries
       if (sourceElement) {
         const childBreaks = findChildBreakPoints(sourceElement, cuttingBlock.top, cuttingBlock.bottom);
-        // Find the child boundary closest to but before naturalBreak
         const bestChild = childBreaks.reverse().find(bp => bp <= naturalBreak && bp > currentPos + sourceHeightPerPage * 0.15);
         if (bestChild) {
-          breaks.push(bestChild - 4); // Small padding before child
+          console.debug(`[PageBreak]   Strategy: child-break at ${Math.round(bestChild - 4)} (from ${childBreaks.length} candidates)`);
+          breaks.push(bestChild - 4);
           currentPos = bestChild - 4;
           continue;
         }
@@ -266,21 +274,25 @@ function computeAutoBreaksInSegment(
       
       if (wastedSpaceBefore <= extraContentAfter && wastedSpaceBefore < maxWaste) {
         if (breakBefore - currentPos >= minPageContent) {
+          console.debug(`[PageBreak]   Strategy: waste-compare → break-before at ${Math.round(breakBefore)}`);
           breaks.push(breakBefore);
           currentPos = breakBefore;
         } else if (breakAfter < segmentEnd) {
+          console.debug(`[PageBreak]   Strategy: waste-compare → break-after at ${Math.round(breakAfter)}`);
           breaks.push(breakAfter);
           currentPos = breakAfter;
         } else {
+          console.debug(`[PageBreak]   Strategy: no valid option, stopping`);
           break;
         }
       } else if (extraContentAfter < maxWaste && breakAfter < segmentEnd) {
+        console.debug(`[PageBreak]   Strategy: waste-compare → break-after at ${Math.round(breakAfter)}`);
         breaks.push(breakAfter);
         currentPos = breakAfter;
       } else {
-        // Must cut through oversized block — force break at max allowed height
         const maxSegment = sourceHeightPerPage * 1.2;
         const forceBreak = currentPos + maxSegment;
+        console.debug(`[PageBreak]   Strategy: force-cut at ${Math.round(Math.min(forceBreak, naturalBreak))}`);
         breaks.push(Math.min(forceBreak, naturalBreak));
         currentPos = Math.min(forceBreak, naturalBreak);
       }
@@ -293,14 +305,16 @@ function computeAutoBreaksInSegment(
         const gapStart = blockAbove.bottom;
         const gapEnd = blockBelow.top;
         const gapCenter = (gapStart + gapEnd) / 2;
-        // Prefer gap center if gap is meaningful (>8px) and within page bounds
         if (gapEnd - gapStart > 8 && gapCenter > currentPos + sourceHeightPerPage * 0.15) {
+          console.debug(`[PageBreak] Natural break at ${Math.round(naturalBreak)}. No block cut.`);
+          console.debug(`[PageBreak]   Gap: blockAbove.bottom=${Math.round(gapStart)}, blockBelow.top=${Math.round(gapEnd)} (gap=${Math.round(gapEnd - gapStart)}px)`);
+          console.debug(`[PageBreak]   Nudged to gap center: ${Math.round(gapCenter)} (was ${Math.round(naturalBreak)}, delta=${Math.round(gapCenter - naturalBreak)})`);
           breaks.push(gapCenter);
           currentPos = gapCenter;
           continue;
         }
       }
-      // Fallback to natural break position
+      console.debug(`[PageBreak] Natural break at ${Math.round(naturalBreak)}. No block cut, no nudge.`);
       breaks.push(naturalBreak);
       currentPos = naturalBreak;
     }
@@ -430,8 +444,14 @@ export function findSmartBreakPositions(
     const validBreaks = sortedBreaks.filter((b, i) => {
       const prev = i === 0 ? 0 : sortedBreaks[i - 1];
       const next = i === sortedBreaks.length - 1 ? totalHeight : sortedBreaks[i + 1];
-      return (b - prev) >= minSegmentHeight && (next - b) >= minSegmentHeight;
+      const keep = (b - prev) >= minSegmentHeight && (next - b) >= minSegmentHeight;
+      if (!keep) console.debug(`[PageBreak] Min segment guard: removed break at ${Math.round(b)} (segment ${Math.round(prev)}-${Math.round(b)} = ${Math.round(b - prev)}px)`);
+      return keep;
     });
+
+    const segments = validBreaks.map((b, i) => Math.round(b - (i === 0 ? 0 : validBreaks[i - 1])));
+    segments.push(Math.round(totalHeight - (validBreaks[validBreaks.length - 1] || 0)));
+    console.debug(`[PageBreak] Final breaks: [${validBreaks.map(b => Math.round(b)).join(', ')}] | Segments: [${segments.join('px, ')}px]`);
 
     return validBreaks;
   }
@@ -442,11 +462,19 @@ export function findSmartBreakPositions(
   // Min segment height guard for auto mode too
   const MIN_SEGMENT_RATIO_AUTO = 0.12;
   const minSegAuto = sourceHeightPerPage * MIN_SEGMENT_RATIO_AUTO;
-  return autoBreaks.filter((b, i) => {
+  const finalBreaks = autoBreaks.filter((b, i) => {
     const prev = i === 0 ? 0 : autoBreaks[i - 1];
     const next = i === autoBreaks.length - 1 ? totalHeight : autoBreaks[i + 1];
-    return (b - prev) >= minSegAuto && (next - b) >= minSegAuto;
+    const keep = (b - prev) >= minSegAuto && (next - b) >= minSegAuto;
+    if (!keep) console.debug(`[PageBreak] Min segment guard (auto): removed break at ${Math.round(b)} (segment ${Math.round(prev)}-${Math.round(b)} = ${Math.round(b - prev)}px)`);
+    return keep;
   });
+
+  const segments = finalBreaks.map((b, i) => Math.round(b - (i === 0 ? 0 : finalBreaks[i - 1])));
+  segments.push(Math.round(totalHeight - (finalBreaks[finalBreaks.length - 1] || 0)));
+  console.debug(`[PageBreak] Final breaks (auto): [${finalBreaks.map(b => Math.round(b)).join(', ')}] | Segments: [${segments.join('px, ')}px]`);
+
+  return finalBreaks;
 }
 
 /** Tagged break position for UI differentiation */
