@@ -108,35 +108,48 @@ export async function tailorResumeWithProgress(
     }
   }, 25_000);
 
-  const invokeOnce = async () => {
-    const { data, error } = await edgeFunctions.functions.invoke('tailor-resume', {
-      body: { resume, jobDescription, intensity },
-      ...(signal ? { options: { signal } } : {}),
-    } as any);
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://hjnnamwgztlhzkeuufln.supabase.co';
+  const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhqbm5hbXdnenRsaHprZXV1ZmxuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNTE4MTcsImV4cCI6MjA4NTkyNzgxN30.cupd_dz6KHSJaBnUPQzJmQcYc38RTDVIMU5RP25xCso';
 
-    if (error) {
-      console.error('Tailor resume error:', error);
-      const msg = error.message || '';
-      if (msg.includes('401') || msg.includes('Unauthorized')) {
+  const invokeOnce = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_KEY,
+    };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/tailor-resume`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ resume, jobDescription, intensity }),
+      ...(signal ? { signal } : {}),
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({ error: 'Failed to tailor resume' }));
+      const msg = errData.error || errData.message || '';
+      if (response.status === 401) {
         throw new Error('Unauthorized. Please log in again.');
       }
-      if (msg.includes('429') || msg.toLowerCase().includes('rate limit')) {
+      if (response.status === 429 || msg.toLowerCase().includes('rate limit')) {
         const e = new Error('Our AI servers are experiencing high demand. Please try again in a moment or use your own Gemini API key for uninterrupted access.');
         (e as TailorError).code = 'rate_limit';
         throw e;
       }
-      if (msg.includes('402') || msg.toLowerCase().includes('credits')) {
+      if (response.status === 402 || msg.toLowerCase().includes('credits')) {
         const e = new Error('Your AI credits have been used up for today. Add your own Gemini API key for unlimited access.');
         (e as TailorError).code = 'credits_exhausted';
         throw e;
       }
-      // Transient errors — eligible for retry
       const e = new Error(msg || 'Failed to tailor resume');
       (e as TailorError).code = 'generic';
       throw e;
     }
 
-    return data;
+    return await response.json();
   };
 
   try {
@@ -228,10 +241,11 @@ export interface ParsedJobData {
 
 export async function parseJobUrl(url: string): Promise<ParsedJobData> {
   const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://hjnnamwgztlhzkeuufln.supabase.co';
+  const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhqbm5hbXdnenRsaHprZXV1ZmxuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNTE4MTcsImV4cCI6MjA4NTkyNzgxN30.cupd_dz6KHSJaBnUPQzJmQcYc38RTDVIMU5RP25xCso';
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
 
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   const response = await fetch(`${SUPABASE_URL}/functions/v1/parse-job-url`, {
