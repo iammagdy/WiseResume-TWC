@@ -1,14 +1,8 @@
 import { cn } from '@/lib/utils';
-import { findSmartBreakPositionsTagged, TaggedBreakPosition } from '@/lib/pdfGenerator';
+import { findSmartBreakPositionsTagged, TaggedBreakPosition, DEFAULT_PAGE_HEIGHT, DEFAULT_PAGE_WIDTH } from '@/lib/pdfGenerator';
 import { useState, useEffect, RefObject, useMemo, useCallback, useRef } from 'react';
 import { TemplateConfig } from '@/lib/templateConfig';
 import { DraggablePageBreak } from './DraggablePageBreak';
-
-// PDF dimensions (must match pdfGenerator.ts)
-const PAGE_WIDTH = 612;
-const PAGE_HEIGHT = 792;
-const FOOTER_RESERVED_PT = 44;
-const PRINTABLE_HEIGHT = PAGE_HEIGHT - FOOTER_RESERVED_PT;
 
 // Debounce delay for stable measurements
 const DEBOUNCE_MS = 150;
@@ -59,7 +53,8 @@ export function PageBreakIndicator({
     }
 
     // Template is always rendered at 612px, so scaleFactor = 1.0
-    const shpp = PRINTABLE_HEIGHT;
+    // Footer is added as extra space outside content, so use full page height
+    const shpp = DEFAULT_PAGE_HEIGHT;
 
     // If using custom dragged positions, use them + auto-fill remaining content
     if (useCustomPositions) {
@@ -69,7 +64,7 @@ export function PageBreakIndicator({
       }));
       
       // Auto-fill breaks for content after the last custom break
-      const containerH = element.scrollHeight || element.offsetHeight || PAGE_HEIGHT;
+      const containerH = element.scrollHeight || element.offsetHeight || DEFAULT_PAGE_HEIGHT;
       const sorted = [...customBreakPositions!].sort((a, b) => a - b);
       const lastCustom = sorted[sorted.length - 1] || 0;
       
@@ -95,7 +90,7 @@ export function PageBreakIndicator({
 
     // Use requestAnimationFrame to ensure layout is stable
     requestAnimationFrame(() => {
-      const containerHeight = element.scrollHeight || element.offsetHeight || PAGE_HEIGHT;
+      const containerHeight = element.scrollHeight || element.offsetHeight || DEFAULT_PAGE_HEIGHT;
 
       // SINGLE-PAGE GUARD
       const isSinglePage = containerHeight <= shpp * 1.05;
@@ -164,7 +159,7 @@ export function PageBreakIndicator({
   if (!shouldShowIndicators || breaks.length === 0) return null;
 
   // Get container height for drag bounds
-  const containerHeight = templateRef?.current?.scrollHeight || templateRef?.current?.offsetHeight || PAGE_HEIGHT;
+  const containerHeight = templateRef?.current?.scrollHeight || templateRef?.current?.offsetHeight || DEFAULT_PAGE_HEIGHT;
 
   return (
     <div className={cn("absolute inset-0 pointer-events-none", draggable && "pointer-events-auto", className)}>

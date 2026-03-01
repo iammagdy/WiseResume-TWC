@@ -16,9 +16,9 @@ export class PdfGenerationError extends Error {
 }
 
 // PDF dimensions defaults (Letter size in points)
-const DEFAULT_PAGE_WIDTH = 612;
-const DEFAULT_PAGE_HEIGHT = 792;
-const FOOTER_RESERVED_PT = 44; // Space for page numbers + branding
+export const DEFAULT_PAGE_WIDTH = 612;
+export const DEFAULT_PAGE_HEIGHT = 792;
+export const FOOTER_RESERVED_PT = 44; // Space for page numbers + branding
 const SCALE = 2; // Higher scale for better quality
 const MARGIN = 72; // 1 inch margins for cover letter
 
