@@ -20,6 +20,7 @@ interface PageBreakIndicatorProps {
   templateConfig?: TemplateConfig;
   className?: string;
   draggable?: boolean;
+  previewScale?: number;
   onBreakPositionChange?: (positions: number[]) => void;
 }
 
@@ -30,6 +31,7 @@ export function PageBreakIndicator({
   templateConfig,
   className,
   draggable = false,
+  previewScale = 1,
   onBreakPositionChange,
 }: PageBreakIndicatorProps) {
   const [breaks, setBreaks] = useState<TaggedBreakPosition[]>([]);
@@ -179,6 +181,7 @@ export function PageBreakIndicator({
               type={breakItem.type}
               minY={minY}
               maxY={maxY}
+              scale={previewScale}
               onDragEnd={handleDragEnd}
             />
           );

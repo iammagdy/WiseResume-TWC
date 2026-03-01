@@ -210,10 +210,10 @@ describe("pdfGenerator", () => {
       const pdfDoc = await pdfLib.PDFDocument.create();
       const addPageSpy = vi.spyOn(pdfDoc, 'addPage');
 
-      // Mock canvas
+      // Mock canvas with enough height for 2 pages (break at 792, total 1584, scale=2)
       const canvas = document.createElement('canvas');
       canvas.width = 612 * 2;
-      canvas.height = 792 * 2; // 2 pages worth
+      canvas.height = 792 * 2 * 2; // totalHeight * SCALE
 
       // 1 break at 792 (1 page height)
       const smartBreaks = [792];
