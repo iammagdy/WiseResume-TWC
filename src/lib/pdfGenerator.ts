@@ -285,6 +285,22 @@ function computeAutoBreaksInSegment(
         currentPos = Math.min(forceBreak, naturalBreak);
       }
     } else {
+      // Whitespace-aware: nudge break to center of largest nearby gap
+      const blockAbove = blocks.filter(b => b.bottom <= naturalBreak).pop();
+      const blockBelow = blocks.find(b => b.top >= naturalBreak);
+
+      if (blockAbove && blockBelow) {
+        const gapStart = blockAbove.bottom;
+        const gapEnd = blockBelow.top;
+        const gapCenter = (gapStart + gapEnd) / 2;
+        // Prefer gap center if gap is meaningful (>8px) and within page bounds
+        if (gapEnd - gapStart > 8 && gapCenter > currentPos + sourceHeightPerPage * 0.15) {
+          breaks.push(gapCenter);
+          currentPos = gapCenter;
+          continue;
+        }
+      }
+      // Fallback to natural break position
       breaks.push(naturalBreak);
       currentPos = naturalBreak;
     }
@@ -404,13 +420,33 @@ export function findSmartBreakPositions(
     }
     
     // Remove duplicates and sort
-    return [...new Set(allBreaks)]
+    const sortedBreaks = [...new Set(allBreaks)]
       .filter(b => b < totalHeight && b > 0)
       .sort((a, b) => a - b);
+
+    // Min segment height guard: filter out breaks that create tiny pages
+    const MIN_SEGMENT_RATIO = 0.12;
+    const minSegmentHeight = sourceHeightPerPage * MIN_SEGMENT_RATIO;
+    const validBreaks = sortedBreaks.filter((b, i) => {
+      const prev = i === 0 ? 0 : sortedBreaks[i - 1];
+      const next = i === sortedBreaks.length - 1 ? totalHeight : sortedBreaks[i + 1];
+      return (b - prev) >= minSegmentHeight && (next - b) >= minSegmentHeight;
+    });
+
+    return validBreaks;
   }
 
   // Pure auto mode - compute breaks for entire document using all blocks
-  return computeAutoBreaksInSegment(0, totalHeight, sourceHeightPerPage, allBlocks, sourceElement);
+  const autoBreaks = computeAutoBreaksInSegment(0, totalHeight, sourceHeightPerPage, allBlocks, sourceElement);
+
+  // Min segment height guard for auto mode too
+  const MIN_SEGMENT_RATIO_AUTO = 0.12;
+  const minSegAuto = sourceHeightPerPage * MIN_SEGMENT_RATIO_AUTO;
+  return autoBreaks.filter((b, i) => {
+    const prev = i === 0 ? 0 : autoBreaks[i - 1];
+    const next = i === autoBreaks.length - 1 ? totalHeight : autoBreaks[i + 1];
+    return (b - prev) >= minSegAuto && (next - b) >= minSegAuto;
+  });
 }
 
 /** Tagged break position for UI differentiation */
