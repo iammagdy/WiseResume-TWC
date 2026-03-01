@@ -16,6 +16,7 @@ interface PageBreakIndicatorProps {
   draggable?: boolean;
   previewScale?: number;
   onBreakPositionChange?: (positions: number[]) => void;
+  onBreakPositionsCalculated?: (positions: number[]) => void;
 }
 
 export function PageBreakIndicator({ 
@@ -27,6 +28,7 @@ export function PageBreakIndicator({
   draggable = false,
   previewScale = 1,
   onBreakPositionChange,
+  onBreakPositionsCalculated,
 }: PageBreakIndicatorProps) {
   const [breaks, setBreaks] = useState<TaggedBreakPosition[]>([]);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -84,7 +86,9 @@ export function PageBreakIndicator({
         if (!existing || t.type === 'manual') posMap.set(t.position, t);
       });
       
-      setBreaks([...posMap.values()].sort((a, b) => a.position - b.position));
+      const finalBreaks = [...posMap.values()].sort((a, b) => a.position - b.position);
+      setBreaks(finalBreaks);
+      onBreakPositionsCalculated?.(finalBreaks.map(b => b.position));
       return;
     }
 
@@ -110,8 +114,9 @@ export function PageBreakIndicator({
       );
 
       setBreaks(newBreaks);
+      onBreakPositionsCalculated?.(newBreaks.map(b => b.position));
     });
-  }, [templateRef, manualBreakSections, shouldShowIndicators, templateConfig, useCustomPositions, customBreakPositions]);
+  }, [templateRef, manualBreakSections, shouldShowIndicators, templateConfig, useCustomPositions, customBreakPositions, onBreakPositionsCalculated]);
 
   // Debounced version for ResizeObserver
   const debouncedCalculateBreaks = useCallback(() => {

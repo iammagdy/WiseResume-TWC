@@ -125,6 +125,7 @@ export default function PreviewPage() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [domSections, setDomSections] = useState<SectionId[]>([]);
   const [previewScale, setPreviewScale] = useState(1);
+  const [resolvedBreakPositions, setResolvedBreakPositions] = useState<number[]>([]);
   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
   const { exportProgress, onProgress, reset: resetProgress } = useExportProgress();
   const guestPreviewHintShown = useRef(false);
@@ -397,7 +398,7 @@ export default function PreviewPage() {
 
           case 'combined':
             if (!generatedCoverLetter) {toast.error('Generate a cover letter first');return;}
-            pdfBlob = await generateCombinedPDF(currentResume, selectedTemplate, generatedCoverLetter, resumeRef.current, manualBreakSections, pdfOptions, undefined, customBreakPositions);
+            pdfBlob = await generateCombinedPDF(currentResume, selectedTemplate, generatedCoverLetter, resumeRef.current, manualBreakSections, pdfOptions, undefined, resolvedBreakPositions.length > 0 ? resolvedBreakPositions : customBreakPositions);
             fileName = `${baseName}_Application_Package.pdf`;
             break;
 
@@ -431,7 +432,7 @@ export default function PreviewPage() {
 
           case 'resume':
           default:
-            pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current, manualBreakSections, pdfOptions, onProgress, customBreakPositions);
+            pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current, manualBreakSections, pdfOptions, onProgress, resolvedBreakPositions.length > 0 ? resolvedBreakPositions : customBreakPositions);
             fileName = `${baseName}_Resume.pdf`;
             break;
         }
@@ -669,7 +670,8 @@ export default function PreviewPage() {
               templateConfig={templateConfig}
               draggable={true}
               previewScale={previewScale}
-              onBreakPositionChange={handleBreakPositionChange} />
+              onBreakPositionChange={handleBreakPositionChange}
+              onBreakPositionsCalculated={setResolvedBreakPositions} />
             }
           </PreviewScaledWrapper>
         </div>
