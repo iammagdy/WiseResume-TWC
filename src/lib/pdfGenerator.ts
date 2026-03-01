@@ -815,6 +815,15 @@ export async function captureTemplateAsCanvas(
     windowHeight: height,
   });
 
+  // Safety check: warn if captured canvas height is suspiciously small
+  const expectedHeight = sourceElement.scrollHeight * scale;
+  if (canvas.height < expectedHeight * 0.5) {
+    console.warn(
+      `[PDF] Canvas height (${canvas.height}px) is much smaller than expected (${expectedHeight}px). ` +
+      `Source element scrollHeight: ${sourceElement.scrollHeight}px. This may cause truncated pages.`
+    );
+  }
+
   return canvas;
 }
 
@@ -857,7 +866,7 @@ export async function generatePDFPages(
 
     // Source slice from captured canvas (in canvas pixels)
     const sourceY = pageStart * SCALE;
-    const sourceSliceHeight = pageContentHeight * SCALE;
+    const sourceSliceHeight = Math.min(pageContentHeight * SCALE, canvas.height - sourceY);
 
     if (sourceSliceHeight <= 0) continue;
 

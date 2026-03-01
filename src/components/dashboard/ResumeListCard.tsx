@@ -383,7 +383,12 @@ export const ResumeListCard = memo(function ResumeListCard({
             <p className="text-xs text-muted-foreground font-medium px-2 mb-1">Actions</p>
             <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted/50 active:scale-95 touch-manipulation transition-colors" onClick={() => {
               haptics.light(); setShowActionsSheet(false);
-              navigateToEditor(`/resume/${resume.id}?action=download`);
+              // Load resume into store and navigate to preview for download
+              const { setCurrentResumeId, setCurrentResume, setSelectedTemplate } = useResumeStore.getState();
+              setCurrentResumeId(resume.id);
+              setCurrentResume(dbToResumeData(resume));
+              if (resume.template_id) setSelectedTemplate(resume.template_id as import('@/types/resume').TemplateId);
+              navigateToEditor('/preview?action=download');
             }}>
               <Download className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Download PDF</span>
             </button>

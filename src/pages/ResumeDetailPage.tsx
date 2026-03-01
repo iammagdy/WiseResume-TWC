@@ -63,28 +63,17 @@ export default function ResumeDetailPage() {
   const prevScoreRef = useRef<ReturnType<typeof getCachedScore>>(null);
   const hiddenTemplateRef = useRef<HTMLDivElement>(null);
 
-  // Auto-trigger download when navigated with ?action=download
+  // Redirect download action to Preview page for proper page break handling
   useEffect(() => {
     if (searchParams.get('action') !== 'download' || !dbResume || isLoading) return;
     searchParams.delete('action');
     setSearchParams(searchParams, { replace: true });
-    const timer = setTimeout(async () => {
-      setIsDownloading(true);
-      try {
-        const rd = dbToResumeData(dbResume);
-        const { generatePDF } = await import('@/lib/pdfGenerator');
-        const pdfBlob = await generatePDF(rd, dbResume.template_id as TemplateId, hiddenTemplateRef.current, undefined, { showPageNumbers: true });
-        const fileName = `${rd.contactInfo.fullName?.replace(/\s+/g, '_') || 'Resume'}.pdf`;
-        await downloadFile({ blob: pdfBlob, fileName });
-        toast.success('PDF downloaded!');
-      } catch (err) {
-        console.error('Auto-download failed:', err);
-        toast.error('Failed to generate PDF');
-      } finally {
-        setIsDownloading(false);
-      }
-    }, 500);
-    return () => clearTimeout(timer);
+    // Load resume into store and redirect to preview
+    const rd = dbToResumeData(dbResume);
+    setCurrentResume(rd);
+    setCurrentResumeId(dbResume.id);
+    setSelectedTemplate(dbResume.template_id as TemplateId);
+    navigate('/preview?action=download', { replace: true });
   }, [dbResume, isLoading]);
 
   if (isLoading) {
@@ -139,19 +128,12 @@ export default function ResumeDetailPage() {
     navigate('/preview');
   };
 
-  const handleDownload = async () => {
-    setIsDownloading(true);
-    try {
-      const { generatePDF } = await import('@/lib/pdfGenerator');
-      const pdfBlob = await generatePDF(resumeData, dbResume.template_id as TemplateId, hiddenTemplateRef.current, undefined, { showPageNumbers: true });
-      const fileName = `${resumeData.contactInfo.fullName?.replace(/\s+/g, '_') || 'Resume'}.pdf`;
-      await downloadFile({ blob: pdfBlob, fileName });
-      toast.success('PDF downloaded!');
-    } catch {
-      toast.error('Failed to generate PDF');
-    } finally {
-      setIsDownloading(false);
-    }
+  const handleDownload = () => {
+    // Redirect all downloads to Preview page for proper page break handling
+    setCurrentResume(resumeData);
+    setCurrentResumeId(dbResume.id);
+    setSelectedTemplate(dbResume.template_id as TemplateId);
+    navigate('/preview?action=download');
   };
 
 
