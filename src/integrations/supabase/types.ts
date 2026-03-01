@@ -863,6 +863,7 @@ export type Database = {
           contact_info: Json
           created_at: string | null
           customization: Json | null
+          deleted_at: string | null
           education: Json | null
           experience: Json | null
           hobbies: Json | null
@@ -890,6 +891,7 @@ export type Database = {
           contact_info?: Json
           created_at?: string | null
           customization?: Json | null
+          deleted_at?: string | null
           education?: Json | null
           experience?: Json | null
           hobbies?: Json | null
@@ -917,6 +919,7 @@ export type Database = {
           contact_info?: Json
           created_at?: string | null
           customization?: Json | null
+          deleted_at?: string | null
           education?: Json | null
           experience?: Json | null
           hobbies?: Json | null
