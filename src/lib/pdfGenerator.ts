@@ -880,47 +880,20 @@ export async function generatePDFPages(
     const imgData = cropCanvas.toDataURL('image/png');
     const pngImage = await pdfDoc.embedPng(imgData);
 
-    // Add PDF page
-    const page = pdfDoc.addPage([pageWidth, pageHeight]);
+    // Calculate dynamic page height based on this segment's actual content
+    const segmentPdfHeight = pageWidth * (cropCanvas.height / cropCanvas.width);
+    const actualPageHeight = segmentPdfHeight + FOOTER_RESERVED_PT;
 
-    // Scale the crop to fill page width, but constrain to printable area
-    const printableHeight = pageHeight - FOOTER_RESERVED_PT;
-    const imgAspect = cropCanvas.height / cropCanvas.width;
-    const rawDrawHeight = pageWidth * imgAspect;
+    // Create page sized to fit this exact crop — no scaling, no distortion
+    const page = pdfDoc.addPage([pageWidth, actualPageHeight]);
 
-    let drawWidth: number;
-    let drawHeight: number;
-
-    if (rawDrawHeight > printableHeight) {
-      // Segment too tall — scale down proportionally to fit
-      drawHeight = printableHeight;
-      drawWidth = drawHeight / imgAspect;
-    } else {
-      drawWidth = pageWidth;
-      drawHeight = rawDrawHeight;
-    }
-
-    // Center horizontally if scaled down, position at top of page (PDF y=0 is bottom)
-    const x = (pageWidth - drawWidth) / 2;
-    const y = pageHeight - drawHeight; // Always >= FOOTER_RESERVED_PT
-
+    // Draw at full size, positioned above the footer strip
     page.drawImage(pngImage, {
-      x,
-      y,
-      width: drawWidth,
-      height: drawHeight,
+      x: 0,
+      y: FOOTER_RESERVED_PT,
+      width: pageWidth,
+      height: segmentPdfHeight,
     });
-
-    // White-fill any remaining space below content
-    if (y > 0) {
-      page.drawRectangle({
-        x: 0,
-        y: 0,
-        width: pageWidth,
-        height: y,
-        color: rgb(1, 1, 1),
-      });
-    }
   }
 }
 
