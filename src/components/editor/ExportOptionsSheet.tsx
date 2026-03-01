@@ -54,24 +54,28 @@ export function ExportOptionsSheet({
   const [onePageScale, setOnePageScale] = useState<number | null>(null);
   const [customFileName, setCustomFileName] = useState('');
 
-  // Sync with defaults when sheet opens & estimate scale
+  // Sync with defaults when sheet opens (NO DOM mutation here)
   useEffect(() => {
     if (open) {
       setShowPageNumbers(pdfDefaults.showPageNumbers ?? true);
       setShowBranding(pdfDefaults.showBranding ?? true);
       const defaultName = resumeName?.replace(/\s+/g, '_') || 'Resume';
       setCustomFileName(defaultName);
-      
-      if (templateElement) {
-        try {
-          const scale = estimateOnePageScale(templateElement);
-          setOnePageScale(scale);
-        } catch {
-          setOnePageScale(null);
-        }
+      setOnePageScale(null); // Reset; will be calculated lazily if needed
+    }
+  }, [open, pdfDefaults, resumeName]);
+
+  // Lazily calculate one-page scale only when user selects that option
+  useEffect(() => {
+    if (selectedType === 'one-page' && onePageScale === null && templateElement) {
+      try {
+        const scale = estimateOnePageScale(templateElement);
+        setOnePageScale(scale);
+      } catch {
+        setOnePageScale(null);
       }
     }
-  }, [open, pdfDefaults, templateElement]);
+  }, [selectedType, onePageScale, templateElement]);
 
   const exportOptions = [
     {

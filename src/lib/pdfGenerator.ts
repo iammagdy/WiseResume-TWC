@@ -966,6 +966,99 @@ export async function generatePDFPages(
 }
 
 /**
+ * Resolves user-dragged break "hints" (from preview coordinate space) to safe
+ * break positions on the prepared DOM. Each hint is snapped to the nearest
+ * gap between content blocks within a tolerance. Auto-fill breaks are added
+ * for content segments between user breaks and after the last user break.
+ */
+function resolveUserBreaksOnPreparedDOM(
+  userHints: number[],
+  sourceElement: HTMLElement,
+  sourceHeightPerPage: number,
+  totalHeight: number,
+  templateConfig?: TemplateConfig
+): number[] {
+  const { sections, flowBlocks } = scanLayoutBlocks(sourceElement);
+  const headerBlocks = createHeaderProtectionBlocks(sourceElement, sections);
+  const allBlocks: ContentBlock[] = [...flowBlocks, ...headerBlocks];
+  allBlocks.sort((a, b) => a.top - b.top);
+
+  const SNAP_TOLERANCE = 60; // px tolerance for snapping to nearest gap
+
+  // Find the nearest safe gap for a given hint position
+  function findNearestSafeBreak(hint: number): number {
+    // Find blocks around the hint
+    const blockAbove = allBlocks.filter(b => b.bottom <= hint + SNAP_TOLERANCE).pop();
+    const blockBelow = allBlocks.find(b => b.top >= hint - SNAP_TOLERANCE);
+
+    if (blockAbove && blockBelow) {
+      const gapStart = blockAbove.bottom;
+      const gapEnd = blockBelow.top;
+      if (gapEnd - gapStart > 4) {
+        // Snap to gap center
+        const gapCenter = (gapStart + gapEnd) / 2;
+        if (Math.abs(gapCenter - hint) <= SNAP_TOLERANCE) {
+          return gapCenter;
+        }
+      }
+    }
+
+    // Check section boundaries within tolerance
+    for (const section of sections) {
+      if (Math.abs(section.bottom - hint) <= SNAP_TOLERANCE) {
+        return section.bottom + 4;
+      }
+    }
+
+    // No safe snap found — use hint as-is
+    return hint;
+  }
+
+  // Sort and resolve each hint
+  const sorted = [...userHints].sort((a, b) => a - b);
+  const resolvedUserBreaks = sorted
+    .map(findNearestSafeBreak)
+    .filter(b => b > 0 && b < totalHeight);
+
+  // Build final breaks: auto-fill between user breaks
+  const allBreaks: number[] = [];
+  let segmentStart = 0;
+
+  for (const userBreak of resolvedUserBreaks) {
+    // Auto-fill within this segment
+    const autoBreaks = computeAutoBreaksInSegment(
+      segmentStart, userBreak, sourceHeightPerPage, allBlocks, sourceElement
+    );
+    allBreaks.push(...autoBreaks);
+    allBreaks.push(userBreak);
+    segmentStart = userBreak;
+  }
+
+  // Auto-fill after last user break
+  if (segmentStart < totalHeight) {
+    const autoBreaks = computeAutoBreaksInSegment(
+      segmentStart, totalHeight, sourceHeightPerPage, allBlocks, sourceElement
+    );
+    allBreaks.push(...autoBreaks);
+  }
+
+  // Deduplicate (within 20px), sort, min-segment guard
+  const deduped = [...new Set(allBreaks)]
+    .filter(b => b > 0 && b < totalHeight)
+    .sort((a, b) => a - b)
+    .filter((pos, i, arr) => i === 0 || pos - arr[i - 1] > 20);
+
+  const MIN_SEGMENT = sourceHeightPerPage * 0.12;
+  const final = deduped.filter((pos, i) => {
+    const prev = i === 0 ? 0 : deduped[i - 1];
+    const next = i === deduped.length - 1 ? totalHeight : deduped[i + 1];
+    return (pos - prev) >= MIN_SEGMENT && (next - pos) >= MIN_SEGMENT;
+  });
+
+  return final;
+}
+
+/**
  * Generates a PDF from the resume by capturing the rendered React template.
  * This ensures WYSIWYG - what you see in preview is what you get in PDF.
  * 
@@ -1012,34 +1105,18 @@ export async function generatePDF(
        sourceHeightPerPage
      } = calculatePDFDimensions(sourceElement, pageWidth, pageHeight);
 
-      // Use custom dragged positions if provided, otherwise recalculate
+      // Resolve break positions on the PREPARED DOM
       let smartBreaks: number[];
       if (customBreakPositions && customBreakPositions.length > 0) {
-        // Sort custom positions
-        const sorted = [...customBreakPositions].sort((a, b) => a - b);
-        
-        // Auto-fill breaks for content after the last custom break
-        const lastCustom = sorted[sorted.length - 1];
-        const autoFill: number[] = [];
-        if (lastCustom < totalHeight - sourceHeightPerPage * 0.5) {
-          const autoBreaks = findSmartBreakPositions(
-            sourceElement, sourceHeightPerPage, totalHeight, undefined, templateConfig
-          );
-          // Only keep auto breaks that are AFTER the last custom break
-          autoBreaks.filter(b => b > lastCustom + 20).forEach(b => autoFill.push(b));
-        }
-        
-        // Merge, deduplicate (within 20px), sort
-        const merged = [...sorted, ...autoFill].sort((a, b) => a - b);
-        smartBreaks = merged.filter((pos, i) => i === 0 || pos - merged[i - 1] > 20);
-        
-        // Min-segment guard: remove breaks that create pages smaller than 50px
-        smartBreaks = smartBreaks.filter((pos, i) => {
-          const prev = i === 0 ? 0 : smartBreaks[i - 1];
-          return pos - prev >= 50;
-        });
-        
-        console.log('[PDF] Using custom break positions:', smartBreaks, 'totalHeight:', totalHeight);
+        // User-dragged break hints — resolve each to nearest safe gap on the prepared DOM
+        smartBreaks = resolveUserBreaksOnPreparedDOM(
+          customBreakPositions,
+          sourceElement,
+          sourceHeightPerPage,
+          totalHeight,
+          templateConfig
+        );
+        console.log('[PDF] Resolved user break hints:', smartBreaks, 'from hints:', customBreakPositions, 'totalHeight:', totalHeight);
       } else {
         smartBreaks = findSmartBreakPositions(
           sourceElement, sourceHeightPerPage, totalHeight, manualBreakSections, templateConfig
