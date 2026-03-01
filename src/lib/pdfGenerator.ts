@@ -680,11 +680,12 @@ function prepareForCapture(sourceElement: HTMLElement, pageWidth: number = DEFAU
   sourceElement.style.transform = 'none';
 
   // Ensure parent scroll containers show all content (iOS Safari viewport clipping fix)
-  const parentOverflows: { el: HTMLElement; overflow: string }[] = [];
+  const parentOverflows: { el: HTMLElement; overflow: string; scrollTop: number }[] = [];
   let parent = sourceElement.parentElement;
   while (parent) {
-    parentOverflows.push({ el: parent, overflow: parent.style.overflow });
+    parentOverflows.push({ el: parent, overflow: parent.style.overflow, scrollTop: parent.scrollTop });
     parent.style.overflow = 'visible';
+    parent.scrollTop = 0; // Reset scroll so html2canvas captures from top
     parent = parent.parentElement;
   }
 
@@ -700,8 +701,9 @@ function prepareForCapture(sourceElement: HTMLElement, pageWidth: number = DEFAU
     sourceElement.style.maxWidth = originalStyles.maxWidth;
     sourceElement.style.transform = originalStyles.transform;
     sourceElement.style.minHeight = originalStyles.minHeight;
-    parentOverflows.forEach(({ el, overflow }) => {
+    parentOverflows.forEach(({ el, overflow, scrollTop }) => {
       el.style.overflow = overflow;
+      el.scrollTop = scrollTop; // Restore original scroll position
     });
     // Remove injected customization style
     const injectedStyle = sourceElement.querySelector('[data-pdf-customization]');
@@ -934,14 +936,11 @@ export async function generatePDF(
   // Resolve dynamic page dimensions
   const { pageWidth, pageHeight, printableHeight } = getPageDimensions(resume);
 
-   // Measure height BEFORE prepareForCapture modifies the DOM
-   const preHeight = sourceElement.scrollHeight || sourceElement.offsetHeight;
-
    // Prepare element for capture: fix width, remove transforms, ensure visibility
    const cleanup = prepareForCapture(sourceElement, pageWidth);
 
    try {
-     // Calculate dimensions (after prepareForCapture so we get correct width)
+     // Calculate dimensions on the PREPARED DOM (same state html2canvas will see)
      const {
        sourceWidth,
        totalHeight,
@@ -949,27 +948,16 @@ export async function generatePDF(
        sourceHeightPerPage
      } = calculatePDFDimensions(sourceElement, pageWidth, pageHeight);
 
-     // Debug: warn if DOM height changed (should be ~1.0 since both use 612px width)
-     if (Math.abs(totalHeight - preHeight) > 5) {
-       console.warn(`[PDF] Height shifted during prepareForCapture: pre=${preHeight}, post=${totalHeight}, delta=${totalHeight - preHeight}px`);
-     }
-
-     // Calculate smart break positions
-     let smartBreaks: number[];
-     
-     // STRICT MODE: If user provided custom break positions, use EXACTLY as-is — no scaling, no auto-fill
-     if (customBreakPositions && customBreakPositions.length > 0) {
-       smartBreaks = [...customBreakPositions].sort((a, b) => a - b);
-       console.log('[PDF] Using exact resolved break positions:', smartBreaks);
-     } else {
-      smartBreaks = findSmartBreakPositions(
-        sourceElement, 
-        sourceHeightPerPage, 
-        totalHeight,
-        manualBreakSections,
-        templateConfig
-      );
-    }
+     // ALWAYS recalculate breaks on the prepared DOM — never use pre-calculated pixel positions
+     // This ensures break positions match the exact DOM state that html2canvas captures
+     const smartBreaks = findSmartBreakPositions(
+       sourceElement, 
+       sourceHeightPerPage, 
+       totalHeight,
+       manualBreakSections,
+       templateConfig
+     );
+     console.log('[PDF] Breaks calculated on prepared DOM:', smartBreaks, 'totalHeight:', totalHeight);
     
     // Note: fixed-sidebar layout type is no longer used by any template
 
