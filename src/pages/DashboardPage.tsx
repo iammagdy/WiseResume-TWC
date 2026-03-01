@@ -785,7 +785,7 @@ function DashboardPageContent() {
 
                 {/* Swipeable tab panels via Embla */}
                 <div className="overflow-hidden" ref={emblaRef}>
-                  <div className="flex" style={{ touchAction: 'pan-x' }}>
+                  <div className="flex" style={{ touchAction: 'pan-y pinch-zoom' }}>
                     {/* Slide 0: My CVs */}
                     <div className="flex-[0_0_100%] min-w-0">
                       <motion.div
