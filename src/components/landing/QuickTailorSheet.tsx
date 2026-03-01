@@ -310,8 +310,10 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
                         {resumes.map((r) => {
                           const isConfirming = deleteConfirmId === r.id;
                           return (
-                            <button
+                            <div
                               key={r.id}
+                              role="button"
+                              tabIndex={0}
                               onClick={() => {
                                 if (isConfirming) {
                                   setDeleteConfirmId(null);
@@ -319,8 +321,14 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
                                 }
                                 handleSelectExisting(r);
                               }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  if (!isConfirming) handleSelectExisting(r);
+                                }
+                              }}
                               className={cn(
-                                "w-full p-4 rounded-xl glass-elevated text-left flex items-center gap-3 touch-manipulation transition-all hover:scale-[1.01] active:scale-[0.98] border",
+                                "w-full p-4 rounded-xl glass-elevated text-left flex items-center gap-3 touch-manipulation transition-all hover:scale-[1.01] active:scale-[0.98] border cursor-pointer",
                                 isConfirming ? "border-destructive/50 bg-destructive/5" : "border-border/20"
                               )}
                             >
@@ -357,15 +365,15 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
                                   }
                                 }}
                                 className={cn(
-                                  "p-1.5 rounded-lg shrink-0 transition-colors",
+                                  "p-2.5 rounded-lg shrink-0 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center",
                                   isConfirming
                                     ? "bg-destructive/10 text-destructive hover:bg-destructive/20"
                                     : "text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                                 )}
                               >
-                                {isConfirming ? <Trash2 className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
+                                <Trash2 className="w-5 h-5" />
                               </button>
-                            </button>
+                            </div>
                           );
                         })}
                       </div>
