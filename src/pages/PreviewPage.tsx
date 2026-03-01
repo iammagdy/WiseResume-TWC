@@ -528,7 +528,7 @@ export default function PreviewPage() {
     setIsGenerating(true);
     try {
       const { generatePDF } = await import('@/lib/pdfGenerator');
-      const pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current, manualBreakSections, { showPageNumbers: true });
+      const pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current, manualBreakSections, { showPageNumbers: true }, undefined, customBreakPositions);
       const fileName = `${currentResume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Resume'}_Resume.pdf`;
       const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
 
@@ -555,7 +555,7 @@ export default function PreviewPage() {
     if (navigator.share) {
       try {
         const { generatePDF } = await import('@/lib/pdfGenerator');
-        const pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current, manualBreakSections, { showPageNumbers: true });
+        const pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current, manualBreakSections, { showPageNumbers: true }, undefined, customBreakPositions);
         const file = new File([pdfBlob], 'Resume.pdf', { type: 'application/pdf' });
         await navigator.share({ title: 'My Resume', files: [file] });
       } catch (error) {

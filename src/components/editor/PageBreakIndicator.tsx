@@ -151,14 +151,33 @@ export function PageBreakIndicator({
     };
   }, [templateRef, breakKey, shouldShowIndicators, calculateBreaks, debouncedCalculateBreaks]);
 
-  // Handle drag end — positions are already in 612px PDF coordinates
+  // Handle drag end — only emit USER-OWNED positions (not auto breaks)
+  // When a user drags an auto break, it becomes a user-owned break at the new position.
+  // When a user drags a user-owned break, update its position.
   const handleDragEnd = useCallback((index: number, newPosition: number) => {
-    const newPositions = breaks.map((b, i) => {
-      return i === index ? newPosition : b.position;
-    });
-    newPositions.sort((a, b) => a - b);
-    onBreakPositionChange?.(newPositions);
-  }, [breaks, onBreakPositionChange]);
+    const draggedBreak = breaks[index];
+    if (!draggedBreak) return;
+
+    // Start from existing user-only positions
+    const existingUserPositions = (customBreakPositions || []).slice();
+
+    if (draggedBreak.type === 'manual') {
+      // This was already a user-owned break — find and update it
+      const oldPos = draggedBreak.position;
+      const matchIdx = existingUserPositions.findIndex(p => Math.abs(p - oldPos) < 5);
+      if (matchIdx >= 0) {
+        existingUserPositions[matchIdx] = newPosition;
+      } else {
+        existingUserPositions.push(newPosition);
+      }
+    } else {
+      // User dragged an auto break — promote it to user-owned at new position
+      existingUserPositions.push(newPosition);
+    }
+
+    existingUserPositions.sort((a, b) => a - b);
+    onBreakPositionChange?.(existingUserPositions);
+  }, [breaks, customBreakPositions, onBreakPositionChange]);
 
   // Don't render anything for single-page templates or if no breaks
   if (!shouldShowIndicators || breaks.length === 0) return null;
