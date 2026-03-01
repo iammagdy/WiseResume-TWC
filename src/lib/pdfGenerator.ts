@@ -952,6 +952,7 @@ export async function generatePDF(
     // STRICT MODE: If user provided custom break positions, use ONLY those — no auto-fill
     if (customBreakPositions && customBreakPositions.length > 0) {
       smartBreaks = [...customBreakPositions].sort((a, b) => a - b);
+      console.log('[PDF] Using resolved break positions from preview:', smartBreaks);
     } else {
       smartBreaks = findSmartBreakPositions(
         sourceElement, 
