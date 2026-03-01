@@ -2,16 +2,14 @@ import { useState, useRef, useEffect, useMemo, useCallback, lazy, Suspense } fro
 import { TemplateSkeleton } from '@/components/layout/PageSkeletons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Download, Share2, Check, Scissors, FileText, Mic, FolderDown } from 'lucide-react';
+import { Download, Share2, Check, FileText, Mic, FolderDown } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
-import { PageBreakIndicator } from '@/components/editor/PageBreakIndicator';
 import { PreviewScaledWrapper } from '@/components/editor/PreviewScaledWrapper';
 
 // Lazy-loaded templates (only the selected one loads)
-// Lazy-loaded templates — full set matching LivePreviewPanel
 const templateComponentMap: Record<string, ReturnType<typeof lazy>> = {
   modern: lazy(() => import('@/components/templates/ModernTemplate').then((m) => ({ default: m.ModernTemplate }))),
   classic: lazy(() => import('@/components/templates/ClassicTemplate').then((m) => ({ default: m.ClassicTemplate }))),
@@ -46,21 +44,18 @@ const templateComponentMap: Record<string, ReturnType<typeof lazy>> = {
 };
 
 // Lazy-loaded sheets
-const PageBreakSheet = lazy(() => import('@/components/editor/PageBreakSheet').then((m) => ({ default: m.PageBreakSheet })));
 const ExportOptionsSheet = lazy(() => import('@/components/editor/ExportOptionsSheet').then((m) => ({ default: m.ExportOptionsSheet })));
 const ResumePhotoSheet = lazy(() => import('@/components/editor/ResumePhotoSheet').then((m) => ({ default: m.ResumePhotoSheet })));
 const OnePageWizardSheet = lazy(() => import('@/components/editor/ai/OnePageWizardSheet').then((m) => ({ default: m.OnePageWizardSheet })));
 const ShareSheet = lazy(() => import('@/components/editor/ShareSheet').then((m) => ({ default: m.ShareSheet })));
-import { estimatePageCount } from '@/lib/pdfGenerator';
-import { getSectionsInDOMOrder, PdfGenerationError } from '@/lib/pdfUtils';
-import { getTemplateConfig, filterBreakableSections } from '@/lib/templateConfig';
+import { PdfGenerationError } from '@/lib/pdfUtils';
+import { getTemplateConfig } from '@/lib/templateConfig';
 import { downloadFile } from '@/lib/downloadUtils';
-// docxGenerator is dynamically imported when needed to avoid Vite pre-bundle issues
 import { useExportProgress } from '@/hooks/useExportProgress';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { NextStepBanner } from '@/components/editor/NextStepBanner';
-import { TemplateId, SectionId, ExportType } from '@/types/resume';
+import { TemplateId, ExportType } from '@/types/resume';
 import { useRateApp } from '@/hooks/useRateApp';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -108,24 +103,18 @@ export default function PreviewPage() {
     currentResume,
     selectedTemplate,
     setSelectedTemplate,
-    pageBreakSettings,
-    setPageBreakSettings,
     generatedCoverLetter,
     coverLetterJobContext,
     updateResume
   } = useResumeStore();
   const [isGenerating, setIsGenerating] = useState(false);
-  const [showPageBreaks, setShowPageBreaks] = useState(true);
-  const [showPageBreakSheet, setShowPageBreakSheet] = useState(false);
   const [showExportSheet, setShowExportSheet] = useState(false);
   const [showPhotoSheet, setShowPhotoSheet] = useState(false);
   const [showOnePageWizard, setShowOnePageWizard] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const resumeRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [domSections, setDomSections] = useState<SectionId[]>([]);
   const [previewScale, setPreviewScale] = useState(1);
-  const [resolvedBreakPositions, setResolvedBreakPositions] = useState<number[]>([]);
   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
   const { exportProgress, onProgress, reset: resetProgress } = useExportProgress();
   const guestPreviewHintShown = useRef(false);
@@ -164,86 +153,22 @@ export default function PreviewPage() {
     return () => clearTimeout(timer);
   }, [user]);
 
-  // Update section ordering based on actual DOM layout after render
-  useEffect(() => {
-    const updateSectionOrder = () => {
-      if (!resumeRef.current) return;
-      requestAnimationFrame(() => {
-        if (resumeRef.current) {
-          const orderedSections = getSectionsInDOMOrder(resumeRef.current);
-          setDomSections(orderedSections);
-        }
-      });
-    };
-    updateSectionOrder();
-  }, [currentResume, selectedTemplate]);
-
-  // Use DOM-ordered sections, falling back to data-based ordering
-  const availableSections = useMemo(() => {
-    if (domSections.length > 0) return domSections;
-    if (!currentResume) return [];
-    const sections: SectionId[] = [];
-    if (currentResume.summary) sections.push('summary');
-    if (currentResume.experience.length > 0) sections.push('experience');
-    if (currentResume.education.length > 0) sections.push('education');
-    if (currentResume.skills.length > 0) sections.push('skills');
-    if (currentResume.certifications.length > 0) sections.push('certifications');
-    if (currentResume.awards && currentResume.awards.length > 0) sections.push('awards');
-    if (currentResume.projects && currentResume.projects.length > 0) sections.push('projects');
-    if (currentResume.publications && currentResume.publications.length > 0) sections.push('publications');
-    if (currentResume.volunteering && currentResume.volunteering.length > 0) sections.push('volunteering');
-    if (currentResume.hobbies && currentResume.hobbies.filter((h) => h.visible).length > 0) sections.push('hobbies');
-    if (currentResume.references && currentResume.references.length > 0) sections.push('references');
-    if (currentResume.languages && currentResume.languages.length > 0) sections.push('languages');
-    return sections;
-  }, [currentResume, domSections]);
-
-  const manualBreakSections = useMemo(() => {
-    if (pageBreakSettings.mode === 'manual' && pageBreakSettings.breakAfterSections.length > 0) {
-      return pageBreakSettings.breakAfterSections;
-    }
-    return undefined;
-  }, [pageBreakSettings]);
-
-  const customBreakPositions = pageBreakSettings.customBreakPositions;
-
-  const handleBreakPositionChange = useCallback((positions: number[]) => {
-    setPageBreakSettings({
-      ...pageBreakSettings,
-      customBreakPositions: positions,
-    });
-  }, [pageBreakSettings, setPageBreakSettings]);
-
   // Auto-download detection: when arriving with ?action=download
   useEffect(() => {
     if (searchParams.get('action') !== 'download' || downloadTriggered.current) return;
     downloadTriggered.current = true;
-    // Clean up the search param
     const newParams = new URLSearchParams(searchParams);
     newParams.delete('action');
     setSearchParams(newParams, { replace: true });
 
-    // Wait for template to render, then check page count
     const timer = setTimeout(() => {
       if (!resumeRef.current || !currentResume) {
         setShowExportSheet(true);
         return;
       }
 
-      const pageCount = estimatePageCount(resumeRef.current, manualBreakSections, templateConfig);
-      
-      if (pageCount <= 1) {
-        // Single page - auto download immediately
-        handleExport('resume', true);
-      } else {
-        // Multi-page - show page breaks and prompt user to set them
-        setShowPageBreaks(true);
-        toast('Multi-page CV detected! Adjust page break positions, then tap Export.', {
-          duration: 6000,
-          icon: '✂️',
-        });
-        setShowExportSheet(true);
-      }
+      // Auto download immediately
+      handleExport('resume', true);
     }, 800);
 
     return () => clearTimeout(timer);
@@ -398,7 +323,7 @@ export default function PreviewPage() {
 
           case 'combined':
             if (!generatedCoverLetter) {toast.error('Generate a cover letter first');return;}
-            pdfBlob = await generateCombinedPDF(currentResume, selectedTemplate, generatedCoverLetter, resumeRef.current, manualBreakSections, pdfOptions, undefined, customBreakPositions);
+            pdfBlob = await generateCombinedPDF(currentResume, selectedTemplate, generatedCoverLetter, resumeRef.current, undefined, pdfOptions);
             fileName = `${baseName}_Application_Package.pdf`;
             break;
 
@@ -408,7 +333,6 @@ export default function PreviewPage() {
             break;
 
           case 'ats-pdf':{
-              // ATS mode: strip colors, force single column, no photo
               const atsResume = {
                 ...currentResume,
                 customization: {
@@ -432,7 +356,7 @@ export default function PreviewPage() {
 
           case 'resume':
           default:
-            pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current, manualBreakSections, pdfOptions, onProgress, customBreakPositions);
+            pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current, undefined, pdfOptions, onProgress);
             fileName = `${baseName}_Resume.pdf`;
             break;
         }
@@ -487,7 +411,6 @@ export default function PreviewPage() {
         const errMsg = error instanceof Error ? error.message : '';
         const is401 = errMsg.includes('401') || errMsg.toLowerCase().includes('unauthorized') || errMsg.toLowerCase().includes('jwt expired');
 
-        // Session-expired errors show a specific, actionable message
         if (is401) {
           toast.error('Session expired — please sign in again to generate this export.');
           return;
@@ -528,7 +451,7 @@ export default function PreviewPage() {
     setIsGenerating(true);
     try {
       const { generatePDF } = await import('@/lib/pdfGenerator');
-      const pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current, manualBreakSections, { showPageNumbers: true }, undefined, customBreakPositions);
+      const pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current, undefined, { showPageNumbers: true });
       const fileName = `${currentResume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Resume'}_Resume.pdf`;
       const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
 
@@ -555,7 +478,7 @@ export default function PreviewPage() {
     if (navigator.share) {
       try {
         const { generatePDF } = await import('@/lib/pdfGenerator');
-        const pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current, manualBreakSections, { showPageNumbers: true }, undefined, customBreakPositions);
+        const pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current, undefined, { showPageNumbers: true });
         const file = new File([pdfBlob], 'Resume.pdf', { type: 'application/pdf' });
         await navigator.share({ title: 'My Resume', files: [file] });
       } catch (error) {
@@ -606,44 +529,14 @@ export default function PreviewPage() {
 
                 {template.name}
               </button>
-          )}
+           )}
           </div>
-          {/* ATS Ready Badge & Page Break Toggle - merged into template row */}
-          <div className="px-3 pb-2 flex items-center justify-between text-xs pt-[8px]">
+          {/* ATS Ready Badge */}
+          <div className="px-3 pb-2 flex items-center text-xs pt-[8px]">
             <div className="flex items-center gap-1.5">
               <Check className="w-3.5 h-3.5 text-success" />
               <span className="text-success font-medium">ATS-Ready</span>
             </div>
-            <button
-            onClick={() => setShowPageBreakSheet(true)}
-            className={cn(
-              "flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors",
-              !templateConfig.supportsPageBreaks ?
-              "bg-muted text-muted-foreground" :
-              pageBreakSettings.mode === 'manual' ?
-              "bg-blue-100 text-blue-600" :
-              showPageBreaks ?
-              "bg-orange-100 text-orange-600" :
-              "bg-muted text-muted-foreground hover:bg-muted/80"
-            )}>
-
-              {templateConfig.singlePageOptimized ?
-            <>
-                  <FileText className="w-3 h-3" />
-                  Single-page
-                </> :
-
-            <>
-                  <Scissors className="w-3 h-3" />
-                  Page breaks
-                  {pageBreakSettings.mode === 'manual' && templateConfig.supportsManualBreaks &&
-              <span className="ml-0.5 px-1 py-0.5 bg-blue-200 rounded text-xs">
-                      {pageBreakSettings.breakAfterSections.length}
-                    </span>
-              }
-                </>
-            }
-            </button>
           </div>
         </motion.div>
 
@@ -662,17 +555,6 @@ export default function PreviewPage() {
             <Suspense fallback={<TemplateSkeleton />}>
               <TemplateComponent resume={currentResume} />
             </Suspense>
-            {!isGenerating && showPageBreaks && templateConfig.supportsPageBreaks &&
-            <PageBreakIndicator
-              templateRef={resumeRef}
-              manualBreakSections={manualBreakSections}
-              customBreakPositions={customBreakPositions}
-              templateConfig={templateConfig}
-              draggable={true}
-              previewScale={previewScale}
-              onBreakPositionChange={handleBreakPositionChange}
-              onBreakPositionsCalculated={setResolvedBreakPositions} />
-            }
           </PreviewScaledWrapper>
         </div>
 
@@ -750,18 +632,6 @@ export default function PreviewPage() {
 
       {/* Sheets - lazy loaded */}
       <Suspense fallback={null}>
-        {showPageBreakSheet &&
-        <PageBreakSheet
-          open={showPageBreakSheet}
-          onOpenChange={setShowPageBreakSheet}
-          settings={pageBreakSettings}
-          onSettingsChange={setPageBreakSettings}
-          availableSections={availableSections}
-          templateConfig={templateConfig}
-          resume={currentResume ?? undefined}
-          onSwitchTemplate={setSelectedTemplate} />
-
-        }
         {showExportSheet &&
         <ExportOptionsSheet
           open={showExportSheet}
@@ -807,8 +677,7 @@ export default function PreviewPage() {
           resume={currentResume}
           templateId={selectedTemplate}
           templateName={templates.find((t) => t.id === selectedTemplate)?.name || selectedTemplate}
-          resumeRef={resumeRef}
-          manualBreakSections={manualBreakSections} />
+          resumeRef={resumeRef} />
 
         }
       </Suspense>

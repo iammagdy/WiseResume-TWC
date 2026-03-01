@@ -168,11 +168,6 @@ export type SectionId = 'summary' | 'experience' | 'education' | 'skills' | 'cer
 
 export type TailorSectionId = 'summary' | 'skills' | 'experience' | 'education' | 'projects' | 'certifications' | 'awards';
 
-export interface PageBreakSettings {
-  mode: 'auto' | 'manual';
-  breakAfterSections: SectionId[];
-  customBreakPositions?: number[]; // pixel positions relative to template element (draggable)
-}
 
 export interface TemplateInfo {
   id: TemplateId;
