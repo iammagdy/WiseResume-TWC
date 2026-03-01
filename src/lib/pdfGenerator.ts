@@ -934,33 +934,34 @@ export async function generatePDF(
   // Resolve dynamic page dimensions
   const { pageWidth, pageHeight, printableHeight } = getPageDimensions(resume);
 
-  // Measure height BEFORE prepareForCapture modifies the DOM
-  const preHeight = sourceElement.scrollHeight || sourceElement.offsetHeight;
+   // Measure height BEFORE prepareForCapture modifies the DOM
+   const preHeight = sourceElement.scrollHeight || sourceElement.offsetHeight;
 
-  // Prepare element for capture: fix width, remove transforms, ensure visibility
-  const cleanup = prepareForCapture(sourceElement, pageWidth);
+   // Prepare element for capture: fix width, remove transforms, ensure visibility
+   const cleanup = prepareForCapture(sourceElement, pageWidth);
 
-  try {
-    // Calculate dimensions (after prepareForCapture so we get correct width)
-    const {
-      sourceWidth,
-      totalHeight,
-      globalScaleFactor,
-      sourceHeightPerPage
-    } = calculatePDFDimensions(sourceElement, pageWidth, pageHeight);
+   try {
+     // Calculate dimensions (after prepareForCapture so we get correct width)
+     const {
+       sourceWidth,
+       totalHeight,
+       globalScaleFactor,
+       sourceHeightPerPage
+     } = calculatePDFDimensions(sourceElement, pageWidth, pageHeight);
 
-    const postHeight = totalHeight;
-    const heightRatio = preHeight > 0 ? postHeight / preHeight : 1;
-    console.log(`[PDF] Height ratio: pre=${preHeight}, post=${postHeight}, ratio=${heightRatio.toFixed(4)}`);
+     // Debug: warn if DOM height changed (should be ~1.0 since both use 612px width)
+     if (Math.abs(totalHeight - preHeight) > 5) {
+       console.warn(`[PDF] Height shifted during prepareForCapture: pre=${preHeight}, post=${totalHeight}, delta=${totalHeight - preHeight}px`);
+     }
 
-    // Calculate smart break positions
-    let smartBreaks: number[];
-    
-    // STRICT MODE: If user provided custom break positions, use ONLY those — no auto-fill
-    if (customBreakPositions && customBreakPositions.length > 0) {
-      smartBreaks = customBreakPositions.map(pos => Math.round(pos * heightRatio)).sort((a, b) => a - b);
-      console.log('[PDF] Adjusted break positions:', smartBreaks, '(original:', customBreakPositions, ')');
-    } else {
+     // Calculate smart break positions
+     let smartBreaks: number[];
+     
+     // STRICT MODE: If user provided custom break positions, use EXACTLY as-is — no scaling, no auto-fill
+     if (customBreakPositions && customBreakPositions.length > 0) {
+       smartBreaks = [...customBreakPositions].sort((a, b) => a - b);
+       console.log('[PDF] Using exact resolved break positions:', smartBreaks);
+     } else {
       smartBreaks = findSmartBreakPositions(
         sourceElement, 
         sourceHeightPerPage, 
