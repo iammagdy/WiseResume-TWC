@@ -206,7 +206,7 @@ describe("pdfGenerator", () => {
   });
 
   describe("generatePDFPages", () => {
-    it("should generate pages based on smart breaks", async () => {
+    it("should generate pages with dynamic height based on segment", async () => {
       const pdfDoc = await pdfLib.PDFDocument.create();
       const addPageSpy = vi.spyOn(pdfDoc, 'addPage');
 
@@ -222,7 +222,7 @@ describe("pdfGenerator", () => {
 
       await generatePDFPages(pdfDoc, canvas, smartBreaks, totalHeight, globalScaleFactor);
 
-      // Should add 2 pages
+      // Should add 2 pages with dynamic heights (not fixed 792)
       expect(addPageSpy).toHaveBeenCalledTimes(2);
     });
   });
