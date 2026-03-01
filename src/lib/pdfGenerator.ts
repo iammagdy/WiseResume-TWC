@@ -278,9 +278,11 @@ function computeAutoBreaksInSegment(
         breaks.push(breakAfter);
         currentPos = breakAfter;
       } else {
-        // Must cut through oversized block
-        breaks.push(naturalBreak);
-        currentPos = naturalBreak;
+        // Must cut through oversized block — force break at max allowed height
+        const maxSegment = sourceHeightPerPage * 1.2;
+        const forceBreak = currentPos + maxSegment;
+        breaks.push(Math.min(forceBreak, naturalBreak));
+        currentPos = Math.min(forceBreak, naturalBreak);
       }
     } else {
       breaks.push(naturalBreak);
@@ -881,27 +883,41 @@ export async function generatePDFPages(
     // Add PDF page
     const page = pdfDoc.addPage([pageWidth, pageHeight]);
 
-    // Scale the crop to fill the page width, maintaining aspect ratio
+    // Scale the crop to fill page width, but constrain to printable area
+    const printableHeight = pageHeight - FOOTER_RESERVED_PT;
     const imgAspect = cropCanvas.height / cropCanvas.width;
-    const drawWidth = pageWidth;
-    const drawHeight = drawWidth * imgAspect;
+    const rawDrawHeight = pageWidth * imgAspect;
 
-    // Position at top of page (PDF y=0 is bottom)
+    let drawWidth: number;
+    let drawHeight: number;
+
+    if (rawDrawHeight > printableHeight) {
+      // Segment too tall — scale down proportionally to fit
+      drawHeight = printableHeight;
+      drawWidth = drawHeight / imgAspect;
+    } else {
+      drawWidth = pageWidth;
+      drawHeight = rawDrawHeight;
+    }
+
+    // Center horizontally if scaled down, position at top of page (PDF y=0 is bottom)
+    const x = (pageWidth - drawWidth) / 2;
+    const y = pageHeight - drawHeight; // Always >= FOOTER_RESERVED_PT
+
     page.drawImage(pngImage, {
-      x: 0,
-      y: pageHeight - drawHeight,
+      x,
+      y,
       width: drawWidth,
       height: drawHeight,
     });
 
     // White-fill any remaining space below content
-    const contentBottomY = pageHeight - drawHeight;
-    if (contentBottomY > 0) {
+    if (y > 0) {
       page.drawRectangle({
         x: 0,
         y: 0,
         width: pageWidth,
-        height: contentBottomY,
+        height: y,
         color: rgb(1, 1, 1),
       });
     }
