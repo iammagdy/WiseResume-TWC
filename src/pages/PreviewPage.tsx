@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { TemplateSkeleton } from '@/components/layout/PageSkeletons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Download, Share2, Check, Scissors, FileText, Mic, FolderDown } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
@@ -51,6 +51,7 @@ const ExportOptionsSheet = lazy(() => import('@/components/editor/ExportOptionsS
 const ResumePhotoSheet = lazy(() => import('@/components/editor/ResumePhotoSheet').then((m) => ({ default: m.ResumePhotoSheet })));
 const OnePageWizardSheet = lazy(() => import('@/components/editor/ai/OnePageWizardSheet').then((m) => ({ default: m.OnePageWizardSheet })));
 const ShareSheet = lazy(() => import('@/components/editor/ShareSheet').then((m) => ({ default: m.ShareSheet })));
+import { estimatePageCount } from '@/lib/pdfGenerator';
 import { getSectionsInDOMOrder, PdfGenerationError } from '@/lib/pdfUtils';
 import { getTemplateConfig, filterBreakableSections } from '@/lib/templateConfig';
 import { downloadFile } from '@/lib/downloadUtils';
@@ -100,6 +101,7 @@ const templates: {id: TemplateId;name: string;}[] = [
 
 export default function PreviewPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { profile } = useProfile(user?.id, user);
   const {
@@ -126,6 +128,7 @@ export default function PreviewPage() {
   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
   const { exportProgress, onProgress, reset: resetProgress } = useExportProgress();
   const guestPreviewHintShown = useRef(false);
+  const downloadTriggered = useRef(false);
 
   // Get template configuration for the selected template
   const templateConfig = useMemo(() => getTemplateConfig(selectedTemplate), [selectedTemplate]);
@@ -209,6 +212,41 @@ export default function PreviewPage() {
       customBreakPositions: positions,
     });
   }, [pageBreakSettings, setPageBreakSettings]);
+
+  // Auto-download detection: when arriving with ?action=download
+  useEffect(() => {
+    if (searchParams.get('action') !== 'download' || downloadTriggered.current) return;
+    downloadTriggered.current = true;
+    // Clean up the search param
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('action');
+    setSearchParams(newParams, { replace: true });
+
+    // Wait for template to render, then check page count
+    const timer = setTimeout(() => {
+      if (!resumeRef.current || !currentResume) {
+        setShowExportSheet(true);
+        return;
+      }
+
+      const pageCount = estimatePageCount(resumeRef.current, manualBreakSections, templateConfig);
+      
+      if (pageCount <= 1) {
+        // Single page - auto download immediately
+        handleExport('resume', true);
+      } else {
+        // Multi-page - show page breaks and prompt user to set them
+        setShowPageBreaks(true);
+        toast('Multi-page CV detected! Adjust page break positions, then tap Export.', {
+          duration: 6000,
+          icon: '✂️',
+        });
+        setShowExportSheet(true);
+      }
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [searchParams]);
 
   // Resume guard
   if (!currentResume) {
