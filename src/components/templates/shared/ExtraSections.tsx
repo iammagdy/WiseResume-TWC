@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
+import { Globe, Github } from 'lucide-react';
 
 export type ExtraSectionsVariant =
   | 'default'
