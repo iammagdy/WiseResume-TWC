@@ -1,4 +1,4 @@
-import { captureWithRetry } from '@/lib/html2canvasRetry';
+import { captureWithRetry, convertSvgsToImages } from '@/lib/html2canvasRetry';
 import { PDFDocument, StandardFonts, rgb, PDFFont } from 'pdf-lib';
 import { ResumeData, TemplateId, ContactInfo, PDFOptions } from '@/types/resume';
 import { getTemplateConfig } from '@/lib/templateConfig';
@@ -289,6 +289,7 @@ export async function captureTemplateAsCanvas(
     scrollY: 0,
     windowWidth: width,
     windowHeight: height,
+    onclone: (doc: Document) => convertSvgsToImages(doc),
   });
 
   const expectedHeight = sourceElement.scrollHeight * scale;

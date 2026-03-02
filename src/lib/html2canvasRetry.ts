@@ -1,6 +1,40 @@
 import html2canvas from 'html2canvas';
 import { Capacitor } from '@capacitor/core';
 
+/**
+ * Converts inline SVG elements to <img> tags with data URIs in a cloned DOM.
+ * This fixes html2canvas misaligning/mis-sizing inline SVGs (e.g. lucide-react icons).
+ * Safe to call on any cloned document — never mutates the live page.
+ */
+export function convertSvgsToImages(clonedDoc: Document): void {
+  clonedDoc.querySelectorAll('svg').forEach((svg) => {
+    const rect = svg.getBoundingClientRect();
+    const w = rect.width || parseFloat(svg.getAttribute('width') || '0');
+    const h = rect.height || parseFloat(svg.getAttribute('height') || '0');
+    if (!w || !h) return;
+
+    // Ensure the SVG has explicit xmlns for serialisation
+    if (!svg.getAttribute('xmlns')) {
+      svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    }
+
+    const serialized = new XMLSerializer().serializeToString(svg);
+    const dataUri =
+      'data:image/svg+xml;base64,' +
+      btoa(unescape(encodeURIComponent(serialized)));
+
+    const img = clonedDoc.createElement('img');
+    img.src = dataUri;
+    img.style.width = `${w}px`;
+    img.style.height = `${h}px`;
+    img.style.flexShrink = '0';
+    img.style.display = 'inline-block';
+    img.style.verticalAlign = 'middle';
+
+    svg.parentNode?.replaceChild(img, svg);
+  });
+}
+
 const ATTEMPT_CONFIGS = [
   { scale: 2, useCORS: true, allowTaint: true, foreignObjectRendering: false },
   { scale: 1.5, useCORS: true, allowTaint: false, foreignObjectRendering: false },
