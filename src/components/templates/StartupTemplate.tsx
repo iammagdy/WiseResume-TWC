@@ -18,13 +18,13 @@ export const StartupTemplate = memo(function StartupTemplate({ resume }: Templat
       </header>
       {resume.summary && (
         <section data-section="summary" className="mb-6">
-          <h2 className="text-lg font-bold text-emerald-600 mb-2 flex items-center justify-start gap-2"><Rocket className="w-5 h-5" /> About</h2>
+          <h2 className="text-lg font-bold text-emerald-600 mb-2 flex items-center justify-start gap-2"><Rocket className="w-5 h-5" style={{ width: 20, height: 20 }} /> About</h2>
           <p className="text-gray-700">{resume.summary}</p>
         </section>
       )}
       {resume.experience.length > 0 && (
         <section data-section="experience" className="mb-6">
-          <h2 className="text-lg font-bold text-emerald-600 mb-3 flex items-center justify-start gap-2"><Briefcase className="w-5 h-5" /> Experience</h2>
+          <h2 className="text-lg font-bold text-emerald-600 mb-3 flex items-center justify-start gap-2"><Briefcase className="w-5 h-5" style={{ width: 20, height: 20 }} /> Experience</h2>
           <div className="space-y-4">
             {resume.experience.map(exp => (
               <div key={exp.id} data-break-avoid>
@@ -37,13 +37,13 @@ export const StartupTemplate = memo(function StartupTemplate({ resume }: Templat
       )}
       {resume.education.length > 0 && (
         <section data-section="education" className="mb-6">
-          <h2 className="text-lg font-bold text-emerald-600 mb-3 flex items-center justify-start gap-2"><GraduationCap className="w-5 h-5" /> Education</h2>
+          <h2 className="text-lg font-bold text-emerald-600 mb-3 flex items-center justify-start gap-2"><GraduationCap className="w-5 h-5" style={{ width: 20, height: 20 }} /> Education</h2>
           {resume.education.map(edu => (<div key={edu.id} data-break-avoid className="flex justify-between mb-2"><div><h3 className="font-bold text-gray-900 text-xs">{edu.degree} {edu.field && `in ${edu.field}`}</h3><p className="text-gray-600 text-xs">{edu.institution}</p>{edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}</div><span className="text-xs text-gray-400">{formatDisplayDate(edu.endDate)}</span></div>))}
         </section>
       )}
       {resume.skills.length > 0 && (
         <section data-section="skills">
-          <h2 className="text-lg font-bold text-emerald-600 mb-2 flex items-center justify-start gap-2"><Zap className="w-5 h-5" /> Stack</h2>
+          <h2 className="text-lg font-bold text-emerald-600 mb-2 flex items-center justify-start gap-2"><Zap className="w-5 h-5" style={{ width: 20, height: 20 }} /> Stack</h2>
           <div className="flex flex-wrap gap-2">{resume.skills.map((s, i) => <span key={i} className="px-2 py-1 bg-emerald-100 text-emerald-800 rounded-lg text-xs font-medium">{s}</span>)}</div>
         </section>
       )}

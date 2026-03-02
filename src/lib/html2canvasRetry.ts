@@ -16,11 +16,14 @@ export function tagSvgDimensions(container: HTMLElement): () => void {
     const rect = svg.getBoundingClientRect();
     if (rect.width > 0) svg.setAttribute('data-pdf-w', String(rect.width));
     if (rect.height > 0) svg.setAttribute('data-pdf-h', String(rect.height));
+    const color = getComputedStyle(svg).color;
+    if (color) svg.setAttribute('data-pdf-color', color);
   });
   return () => {
     svgs.forEach((svg) => {
       svg.removeAttribute('data-pdf-w');
       svg.removeAttribute('data-pdf-h');
+      svg.removeAttribute('data-pdf-color');
     });
   };
 }
@@ -32,7 +35,6 @@ export function tagSvgDimensions(container: HTMLElement): () => void {
  */
 export function convertSvgsToImages(clonedDoc: Document): void {
   clonedDoc.querySelectorAll('svg').forEach((svg) => {
-    // Priority: data-pdf-* (pre-tagged from live DOM) > inline style > attribute
     const w =
       parseFloat(svg.getAttribute('data-pdf-w') || '0') ||
       parseFloat(svg.style.width) ||
@@ -43,12 +45,26 @@ export function convertSvgsToImages(clonedDoc: Document): void {
       parseFloat(svg.getAttribute('height') || '0');
     if (!w || !h) return;
 
-    // Ensure the SVG has explicit xmlns for serialisation
+    // Ensure viewBox for proper scaling
+    if (!svg.getAttribute('viewBox')) {
+      svg.setAttribute('viewBox', `0 0 ${svg.getAttribute('width') || w} ${svg.getAttribute('height') || h}`);
+    }
+
     if (!svg.getAttribute('xmlns')) {
       svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
     }
 
-    const serialized = new XMLSerializer().serializeToString(svg);
+    svg.setAttribute('width', String(w));
+    svg.setAttribute('height', String(h));
+
+    let serialized = new XMLSerializer().serializeToString(svg);
+
+    // Resolve currentColor to actual computed color
+    const taggedColor = svg.getAttribute('data-pdf-color');
+    if (taggedColor) {
+      serialized = serialized.replace(/currentColor/g, taggedColor);
+    }
+
     const dataUri =
       'data:image/svg+xml;base64,' +
       btoa(unescape(encodeURIComponent(serialized)));
@@ -58,7 +74,6 @@ export function convertSvgsToImages(clonedDoc: Document): void {
     img.style.width = `${w}px`;
     img.style.height = `${h}px`;
     img.style.flexShrink = '0';
-    img.style.alignSelf = 'center';
 
     svg.parentNode?.replaceChild(img, svg);
   });
