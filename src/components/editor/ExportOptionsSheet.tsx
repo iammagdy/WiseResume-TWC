@@ -328,7 +328,7 @@ export function ExportOptionsSheet({
             size="lg"
             className="w-full h-14 text-lg font-semibold gradient-primary"
             onClick={handleExport}
-            disabled={isExporting || (!isPdfType && !isTextType && selectedType !== 'docx' && selectedType !== 'interview-prep' && selectedType !== 'json' && selectedType !== 'image' && !hasCoverLetter)}
+            disabled={isButtonDisabled}
             style={{
               boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)',
             }}

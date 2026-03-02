@@ -537,14 +537,17 @@ export default function PreviewPage() {
             <Button
             size="default"
             variant="outline"
-            className="h-10 sm:h-12 px-3 sm:px-4 touch-manipulation"
+            className="h-10 sm:h-12 px-3 sm:px-4 touch-manipulation gap-1.5"
             onClick={handleQuickDownload}
             disabled={isGenerating}
             title="Quick PDF download">
               {isGenerating ? (
                 <MiniSpinner size={16} />
               ) : (
-                <Download className="w-4 h-4 sm:w-5 sm:h-5" />
+                <>
+                  <Download className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="text-xs font-medium hidden sm:inline">PDF</span>
+                </>
               )}
             </Button>
           </div>
