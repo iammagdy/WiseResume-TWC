@@ -1,4 +1,4 @@
-import { captureWithRetry, convertSvgsToImages } from '@/lib/html2canvasRetry';
+import { captureWithRetry, convertSvgsToImages, tagSvgDimensions } from '@/lib/html2canvasRetry';
 import { PDFDocument, StandardFonts, rgb, PDFFont } from 'pdf-lib';
 import { ResumeData, TemplateId, ContactInfo, PDFOptions } from '@/types/resume';
 import { getTemplateConfig } from '@/lib/templateConfig';
