@@ -62,37 +62,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { supabase } from '@/integrations/supabase/safeClient';
 
-const templates: {id: TemplateId;name: string;}[] = [
-{ id: 'modern', name: 'Modern' },
-{ id: 'classic', name: 'Classic' },
-{ id: 'minimal', name: 'Minimal' },
-{ id: 'professional', name: 'Professional' },
-{ id: 'developer', name: 'Developer' },
-{ id: 'creative', name: 'Creative' },
-{ id: 'executive', name: 'Executive' },
-{ id: 'compact', name: 'Compact' },
-{ id: 'academic', name: 'Academic' },
-{ id: 'healthcare', name: 'Healthcare' },
-{ id: 'sales', name: 'Sales' },
-{ id: 'elegant', name: 'Elegant' },
-{ id: 'corporate', name: 'Corporate' },
-{ id: 'banking', name: 'Banking' },
-{ id: 'consulting', name: 'Consulting' },
-{ id: 'federal', name: 'Federal' },
-{ id: 'legal', name: 'Legal' },
-{ id: 'marketing', name: 'Marketing' },
-{ id: 'designer', name: 'Designer' },
-{ id: 'portfolio', name: 'Portfolio' },
-{ id: 'startup', name: 'Startup' },
-{ id: 'infographic', name: 'Infographic' },
-{ id: 'data-science', name: 'Data Science' },
-{ id: 'devops', name: 'DevOps' },
-{ id: 'cyber', name: 'Cyber' },
-{ id: 'product', name: 'Product' },
-{ id: 'clean', name: 'Clean' },
-{ id: 'swiss', name: 'Swiss' },
-{ id: 'mono', name: 'Mono' },
-{ id: 'zen', name: 'Zen' }];
 
 
 export default function PreviewPage() {
