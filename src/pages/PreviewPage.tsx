@@ -56,6 +56,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { NextStepBanner } from '@/components/editor/NextStepBanner';
 import { TemplateSelector } from '@/components/editor/TemplateSelector';
+import { templates } from '@/lib/templateData';
 import { TemplateId, ExportType } from '@/types/resume';
 import { useRateApp } from '@/hooks/useRateApp';
 import { useAuth } from '@/hooks/useAuth';
