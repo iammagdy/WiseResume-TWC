@@ -191,7 +191,7 @@ export const ExtraSections = memo(function ExtraSections({
                   <div className="flex flex-wrap gap-3 mt-1">
                     {proj.url && (
                       <span className="flex items-center gap-1 text-blue-600 text-[10px]">
-                        <Globe className="w-3 h-3" />
+                        <Globe className="w-3 h-3" style={{ width: 12, height: 12 }} />
                         {proj.url}
                       </span>
                     )}
