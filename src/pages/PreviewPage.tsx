@@ -7,6 +7,7 @@ import { BackButton } from '@/components/ui/BackButton';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { PreviewScaledWrapper } from '@/components/editor/PreviewScaledWrapper';
 
 // Lazy-loaded templates (only the selected one loads)
