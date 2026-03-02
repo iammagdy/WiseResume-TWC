@@ -24,7 +24,7 @@ export const StartupTemplate = memo(function StartupTemplate({ resume }: Templat
       )}
       {resume.experience.length > 0 && (
         <section data-section="experience" className="mb-6">
-          <h2 className="text-lg font-bold text-emerald-600 mb-3 flex items-center justify-start gap-2"><Briefcase className="w-5 h-5" /> Experience</h2>
+          <h2 className="text-lg font-bold text-emerald-600 mb-3 flex items-center justify-start gap-2"><Briefcase className="w-5 h-5" style={{ width: 20, height: 20 }} /> Experience</h2>
           <div className="space-y-4">
             {resume.experience.map(exp => (
               <div key={exp.id} data-break-avoid>
