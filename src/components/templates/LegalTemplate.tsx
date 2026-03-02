@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
+import { ContactLinks } from './shared/ContactLinks';
 import { formatDisplayDate } from '@/lib/dateUtils';
 
 interface TemplateProps { resume: ResumeData; }
@@ -10,11 +11,8 @@ export const LegalTemplate = memo(function LegalTemplate({ resume }: TemplatePro
     <div className="p-8 font-serif text-sm leading-relaxed">
       <header className="text-center mb-6 border-b-2 border-gray-900 pb-4">
         <h1 className="text-2xl font-bold text-gray-900 uppercase">{resume.contactInfo.fullName || 'Your Name'}</h1>
-        <div className="flex justify-center gap-x-3 text-gray-600 text-xs mt-2">
-          {resume.contactInfo.email && <span>{resume.contactInfo.email}</span>}
-          {resume.contactInfo.email2 && <span>| {resume.contactInfo.email2}</span>}
-          {resume.contactInfo.phone && <span>| {resume.contactInfo.phone}</span>}
-          {resume.contactInfo.location && <span>| {resume.contactInfo.location}</span>}
+        <div className="flex justify-center mt-2">
+          <ContactLinks contact={resume.contactInfo} className="text-gray-600 text-xs" iconSize={3} separator="|" />
         </div>
       </header>
       {resume.summary && (

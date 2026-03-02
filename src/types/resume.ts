@@ -5,8 +5,10 @@ export interface ContactInfo {
   phone: string;
   location: string;
   linkedin?: string;
+  github?: string;
   portfolio?: string;
   photoUrl?: string;
+  headerOrder?: string[];
 }
 
 export interface Experience {

@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
+import { Globe, Github } from 'lucide-react';
 
 export type ExtraSectionsVariant =
   | 'default'
@@ -186,6 +187,22 @@ export const ExtraSections = memo(function ExtraSections({
                 </div>
                 <p className="text-gray-600 text-xs">{proj.role}</p>
                 {proj.description && <p data-break-child className="text-gray-700 text-xs mt-0.5">{proj.description}</p>}
+                {(proj.url || proj.githubUrl) && (
+                  <div className="flex flex-wrap gap-3 mt-1">
+                    {proj.url && (
+                      <span className="flex items-center gap-1 text-blue-600 text-[10px]">
+                        <Globe className="w-3 h-3" />
+                        {proj.url}
+                      </span>
+                    )}
+                    {proj.githubUrl && (
+                      <span className="flex items-center gap-1 text-gray-600 text-[10px]">
+                        <Github className="w-3 h-3" />
+                        {proj.githubUrl}
+                      </span>
+                    )}
+                  </div>
+                )}
                 {proj.technologies.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1">
                     {proj.technologies.map((t, i) => (

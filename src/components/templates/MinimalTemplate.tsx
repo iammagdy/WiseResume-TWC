@@ -1,26 +1,17 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
+import { ContactLinks } from './shared/ContactLinks';
 import { formatDisplayDate } from '@/lib/dateUtils';
 
-interface TemplateProps {
-  resume: ResumeData;
-}
+interface TemplateProps { resume: ResumeData; }
 
 export const MinimalTemplate = memo(function MinimalTemplate({ resume }: TemplateProps) {
   return (
     <div className="p-10 font-sans text-sm leading-loose">
-      {/* Header */}
       <header className="mb-8">
-        <h1 className="text-4xl font-light text-gray-900 mb-3">
-          {resume.contactInfo.fullName || 'Your Name'}
-        </h1>
-        <div className="flex flex-wrap gap-4 text-gray-500 text-xs">
-          {resume.contactInfo.email && <span>{resume.contactInfo.email}</span>}
-          {resume.contactInfo.email2 && <span>{resume.contactInfo.email2}</span>}
-          {resume.contactInfo.phone && <span>{resume.contactInfo.phone}</span>}
-          {resume.contactInfo.location && <span>{resume.contactInfo.location}</span>}
-        </div>
+        <h1 className="text-4xl font-light text-gray-900 mb-3">{resume.contactInfo.fullName || 'Your Name'}</h1>
+        <ContactLinks contact={resume.contactInfo} className="text-gray-500 text-xs" iconSize={3} />
       </header>
 
       {/* Summary */}

@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
+import { ContactLinks } from './shared/ContactLinks';
 import { formatDisplayDate } from '@/lib/dateUtils';
 
 interface TemplateProps { resume: ResumeData; }
@@ -10,11 +11,8 @@ export const BankingTemplate = memo(function BankingTemplate({ resume }: Templat
     <div className="p-8 font-serif text-sm leading-relaxed">
       <header className="text-center border-b-2 border-gray-700 pb-4 mb-6">
         <h1 className="text-2xl font-bold text-gray-900 uppercase tracking-widest">{resume.contactInfo.fullName || 'Your Name'}</h1>
-        <div className="flex justify-center gap-x-4 text-gray-600 text-xs mt-2">
-          {resume.contactInfo.email && <span>{resume.contactInfo.email}</span>}
-          {resume.contactInfo.email2 && <span>{resume.contactInfo.email2}</span>}
-          {resume.contactInfo.phone && <span>{resume.contactInfo.phone}</span>}
-          {resume.contactInfo.location && <span>{resume.contactInfo.location}</span>}
+        <div className="flex justify-center mt-2">
+          <ContactLinks contact={resume.contactInfo} className="text-gray-600 text-xs" iconSize={3} />
         </div>
       </header>
       {resume.summary && (

@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
+import { ContactLinks } from './shared/ContactLinks';
 import { formatDisplayDate } from '@/lib/dateUtils';
 
 interface TemplateProps {
@@ -20,26 +21,8 @@ export const ExecutiveTemplate = memo(function ExecutiveTemplate({ resume }: Tem
             {resume.experience[0].position}
           </p>
         )}
-        <div className="flex justify-center flex-wrap gap-3 text-xs text-gray-500">
-          {resume.contactInfo.email && <span>{resume.contactInfo.email}</span>}
-          {resume.contactInfo.email2 && (
-            <>
-              <span className="text-amber-600">•</span>
-              <span>{resume.contactInfo.email2}</span>
-            </>
-          )}
-          {resume.contactInfo.phone && (
-            <>
-              <span className="text-amber-600">•</span>
-              <span>{resume.contactInfo.phone}</span>
-            </>
-          )}
-          {resume.contactInfo.location && (
-            <>
-              <span className="text-amber-600">•</span>
-              <span>{resume.contactInfo.location}</span>
-            </>
-          )}
+        <div className="flex justify-center">
+          <ContactLinks contact={resume.contactInfo} className="text-gray-500 text-xs" iconSize={3} separator="•" />
         </div>
       </header>
 

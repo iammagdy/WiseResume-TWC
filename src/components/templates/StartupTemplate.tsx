@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
+import { ContactLinks } from './shared/ContactLinks';
 import { Rocket, Briefcase, GraduationCap, Zap } from 'lucide-react';
 import { formatDisplayDate } from '@/lib/dateUtils';
 
@@ -11,11 +12,8 @@ export const StartupTemplate = memo(function StartupTemplate({ resume }: Templat
     <div className="p-8 font-sans text-sm leading-relaxed">
       <header className="mb-6">
         <h1 className="text-3xl font-extrabold text-gray-900">{resume.contactInfo.fullName || 'Your Name'}</h1>
-        <div className="flex flex-wrap gap-x-3 text-gray-500 text-xs mt-2">
-          {resume.contactInfo.email && <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">{resume.contactInfo.email}</span>}
-          {resume.contactInfo.email2 && <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">{resume.contactInfo.email2}</span>}
-          {resume.contactInfo.phone && <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">{resume.contactInfo.phone}</span>}
-          {resume.contactInfo.location && <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">{resume.contactInfo.location}</span>}
+        <div className="mt-2">
+          <ContactLinks contact={resume.contactInfo} className="text-emerald-700 text-xs [&>span]:bg-emerald-50 [&>span]:px-2 [&>span]:py-0.5 [&>span]:rounded-full" iconSize={3} />
         </div>
       </header>
       {resume.summary && (

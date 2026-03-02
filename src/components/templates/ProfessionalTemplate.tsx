@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
+import { ContactLinks } from './shared/ContactLinks';
 import { formatDisplayDate } from '@/lib/dateUtils';
 
 interface TemplateProps {
@@ -15,13 +16,7 @@ export const ProfessionalTemplate = memo(function ProfessionalTemplate({ resume 
         <h1 className="text-2xl font-bold mb-2">
           {resume.contactInfo.fullName || 'Your Name'}
         </h1>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-gray-300 text-xs">
-          {resume.contactInfo.email && <span>{resume.contactInfo.email}</span>}
-          {resume.contactInfo.email2 && <span>{resume.contactInfo.email2}</span>}
-          {resume.contactInfo.phone && <span>{resume.contactInfo.phone}</span>}
-          {resume.contactInfo.location && <span>{resume.contactInfo.location}</span>}
-          {resume.contactInfo.linkedin && <span>{resume.contactInfo.linkedin}</span>}
-        </div>
+        <ContactLinks contact={resume.contactInfo} className="text-gray-300 text-xs" iconSize={3} />
       </header>
 
       {/* Summary */}

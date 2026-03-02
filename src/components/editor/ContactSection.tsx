@@ -1,7 +1,7 @@
 import { useState, memo } from 'react';
 import { InputFormField } from '@/components/ui/form-field';
 import { useResumeStore } from '@/store/resumeStore';
-import { User, Mail, Phone, MapPin, Linkedin, Globe } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Linkedin, Globe, Github } from 'lucide-react';
 import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
 import { toast } from 'sonner';
 import { InlineAIButton } from './InlineAIButton';
@@ -15,20 +15,23 @@ import { useResumeNudges } from '@/hooks/useResumeNudges';
 const emailSchema = z.string().email('Please enter a valid email');
 const phoneSchema = z.string().regex(/^[\d\s\-+()]*$/, 'Invalid phone format').optional().or(z.literal(''));
 const linkedinUsernameSchema = z.string().regex(/^[a-zA-Z0-9\-]{3,100}$/, 'Username must be 3+ characters (letters, numbers, hyphens)');
+const githubUsernameSchema = z.string().regex(/^[a-zA-Z0-9\-]{1,39}$/, 'Username must be 1-39 characters (letters, numbers, hyphens)');
 
 const LINKEDIN_PREFIX = 'linkedin.com/in/';
 const LINKEDIN_URL_BASE = 'https://linkedin.com/in/';
+const GITHUB_PREFIX = 'github.com/';
+const GITHUB_URL_BASE = 'https://github.com/';
 
 function extractLinkedInUsername(url: string): string {
   if (!url) return '';
-  const patterns = [
-    /(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/([^/?#]+)/i,
-  ];
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match) return match[1];
-  }
-  return url;
+  const match = url.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/([^/?#]+)/i);
+  return match ? match[1] : url;
+}
+
+function extractGitHubUsername(url: string): string {
+  if (!url) return '';
+  const match = url.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/([^/?#]+)/i);
+  return match ? match[1] : url;
 }
 
 export const ContactSection = memo(function ContactSection() {
@@ -134,6 +137,18 @@ export const ContactSection = memo(function ContactSection() {
     if (!username) return undefined;
     try {
       linkedinUsernameSchema.parse(username);
+      return undefined;
+    } catch (e) {
+      if (e instanceof z.ZodError) return e.errors[0]?.message;
+      return 'Invalid username';
+    }
+  };
+
+  const getGithubError = (): string | undefined => {
+    const username = extractGitHubUsername(contactInfo.github || '');
+    if (!username) return undefined;
+    try {
+      githubUsernameSchema.parse(username);
       return undefined;
     } catch (e) {
       if (e instanceof z.ZodError) return e.errors[0]?.message;
@@ -280,6 +295,22 @@ export const ContactSection = memo(function ContactSection() {
           placeholder="johndoe"
           error={getLinkedinError()}
           touched={touched.linkedin}
+        />
+
+        <InputFormField
+          id="github"
+          label="GitHub (optional)"
+          icon={<Github className="w-4 h-4" />}
+          prefix={GITHUB_PREFIX}
+          value={extractGitHubUsername(contactInfo.github || '')}
+          onChange={(value) => {
+            const username = value.replace(/[^a-zA-Z0-9\-]/g, '');
+            handleChange('github', username ? `${GITHUB_URL_BASE}${username}` : '');
+          }}
+          onBlur={() => handleBlur('github')}
+          placeholder="johndoe"
+          error={getGithubError()}
+          touched={touched.github}
         />
 
         <InputFormField

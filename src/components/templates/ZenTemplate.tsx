@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
+import { ContactLinks } from './shared/ContactLinks';
 import { formatDisplayDate } from '@/lib/dateUtils';
 
 interface TemplateProps { resume: ResumeData; }
@@ -11,11 +12,8 @@ export const ZenTemplate = memo(function ZenTemplate({ resume }: TemplateProps) 
       <header className="text-center mb-10">
         <h1 className="text-2xl font-light text-gray-800 tracking-widest uppercase">{resume.contactInfo.fullName || 'Your Name'}</h1>
         <div className="w-8 h-px bg-gray-400 mx-auto mt-4 mb-3" />
-        <div className="flex justify-center gap-x-4 text-gray-500 text-xs">
-          {resume.contactInfo.email && <span>{resume.contactInfo.email}</span>}
-          {resume.contactInfo.email2 && <span>{resume.contactInfo.email2}</span>}
-          {resume.contactInfo.phone && <span>{resume.contactInfo.phone}</span>}
-          {resume.contactInfo.location && <span>{resume.contactInfo.location}</span>}
+        <div className="flex justify-center">
+          <ContactLinks contact={resume.contactInfo} className="text-gray-500 text-xs" iconSize={3} />
         </div>
       </header>
       {resume.summary && (

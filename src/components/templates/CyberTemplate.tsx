@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
+import { ContactLinks } from './shared/ContactLinks';
 import { formatDisplayDate } from '@/lib/dateUtils';
 
 interface TemplateProps { resume: ResumeData; }
@@ -10,12 +11,7 @@ export const CyberTemplate = memo(function CyberTemplate({ resume }: TemplatePro
     <div className="p-8 font-mono text-sm leading-relaxed">
       <header className="border-b-2 border-red-600 pb-4 mb-6">
         <h1 className="text-2xl font-bold text-gray-900">{resume.contactInfo.fullName || 'Your Name'}</h1>
-        <div className="flex flex-wrap gap-x-4 text-gray-600 text-xs mt-2">
-          {resume.contactInfo.email && <span className="text-red-600">{resume.contactInfo.email}</span>}
-          {resume.contactInfo.email2 && <span className="text-red-600">{resume.contactInfo.email2}</span>}
-          {resume.contactInfo.phone && <span>{resume.contactInfo.phone}</span>}
-          {resume.contactInfo.location && <span>{resume.contactInfo.location}</span>}
-        </div>
+        <ContactLinks contact={resume.contactInfo} className="text-gray-600 text-xs mt-2" iconSize={3} />
       </header>
       {resume.summary && (
         <section data-section="summary" className="mb-5">
