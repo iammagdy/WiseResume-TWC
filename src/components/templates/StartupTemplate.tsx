@@ -43,7 +43,7 @@ export const StartupTemplate = memo(function StartupTemplate({ resume }: Templat
       )}
       {resume.skills.length > 0 && (
         <section data-section="skills">
-          <h2 className="text-lg font-bold text-emerald-600 mb-2 flex items-center justify-start gap-2"><Zap className="w-5 h-5" /> Stack</h2>
+          <h2 className="text-lg font-bold text-emerald-600 mb-2 flex items-center justify-start gap-2"><Zap className="w-5 h-5" style={{ width: 20, height: 20 }} /> Stack</h2>
           <div className="flex flex-wrap gap-2">{resume.skills.map((s, i) => <span key={i} className="px-2 py-1 bg-emerald-100 text-emerald-800 rounded-lg text-xs font-medium">{s}</span>)}</div>
         </section>
       )}
