@@ -43,14 +43,33 @@ export function tagSvgDimensions(container: HTMLElement): () => void {
  */
 export function convertSvgsToImages(clonedDoc: Document): void {
   clonedDoc.querySelectorAll('svg').forEach((svg) => {
-    const w =
+    let w =
       parseFloat(svg.getAttribute('data-pdf-w') || '0') ||
       parseFloat(svg.style.width) ||
       parseFloat(svg.getAttribute('width') || '0');
-    const h =
+    let h =
       parseFloat(svg.getAttribute('data-pdf-h') || '0') ||
       parseFloat(svg.style.height) ||
       parseFloat(svg.getAttribute('height') || '0');
+    // Additional fallback: try computed style for dimensions
+    if (!w || !h) {
+      const cs = clonedDoc.defaultView?.getComputedStyle(svg);
+      if (cs) {
+        if (!w) w = parseFloat(cs.width) || 0;
+        if (!h) h = parseFloat(cs.height) || 0;
+      }
+    }
+    // Last resort fallback for Lucide icons: check viewBox
+    if (!w || !h) {
+      const vb = svg.getAttribute('viewBox');
+      if (vb) {
+        const parts = vb.split(/\s+/);
+        if (parts.length === 4) {
+          if (!w) w = parseFloat(parts[2]) || 0;
+          if (!h) h = parseFloat(parts[3]) || 0;
+        }
+      }
+    }
     if (!w || !h) return;
 
     // Ensure viewBox for proper scaling
