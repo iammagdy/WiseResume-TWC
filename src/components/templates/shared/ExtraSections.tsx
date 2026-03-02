@@ -135,7 +135,7 @@ export const ExtraSections = memo(function ExtraSections({
   const sectionCls = getSectionClasses(variant);
 
   return (
-    <>
+    <div className="mt-6 space-y-6">
       {/* Certifications */}
       {!skip.has('certifications') && resume.certifications && resume.certifications.length > 0 && (
         <section data-section="certifications" className={sectionCls}>
