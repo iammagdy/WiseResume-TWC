@@ -637,6 +637,10 @@ export default function PreviewPage() {
           resumeRef={resumeRef} />
 
         }
+        <TemplateSelector
+          open={showTemplateSheet}
+          onOpenChange={setShowTemplateSheet}
+        />
       </Suspense>
     </div>);
 
