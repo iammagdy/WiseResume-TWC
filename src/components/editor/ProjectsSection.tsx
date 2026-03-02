@@ -105,7 +105,25 @@ export const ProjectsSection = memo(function ProjectsSection() {
       setQuestionsProjectId(proj.id);
       return;
     }
-  }, [currentResume, enhance]);
+
+    // Auto-apply technology suggestions (skip dialog)
+    if (actionId === 'suggest_technologies' && resp?.improved && Array.isArray(resp.improved)) {
+      const existingTechs = new Set(proj.technologies);
+      const newTechs = (resp.improved as string[]).filter(t => typeof t === 'string' && !existingTechs.has(t));
+      if (newTechs.length > 0) {
+        updateResume({
+          projects: projects.map(p =>
+            p.id === proj.id ? { ...p, technologies: [...p.technologies, ...newTechs] } : p
+          ),
+        });
+        toast.success(`Added ${newTechs.length} technologies`);
+      } else {
+        toast.info('No new technologies to suggest');
+      }
+      discard();
+      return;
+    }
+  }, [currentResume, enhance, discard, projects, updateResume]);
 
   const handleQuestionsSubmit = useCallback(async (answers: Record<string, string>) => {
     if (!questionsProjectId) return;
