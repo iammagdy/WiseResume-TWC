@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
+import { ContactLinks } from './shared/ContactLinks';
 import { formatDisplayDate } from '@/lib/dateUtils';
 
 interface TemplateProps { resume: ResumeData; }
@@ -13,12 +14,7 @@ export const PortfolioTemplate = memo(function PortfolioTemplate({ resume }: Tem
           <h1 className="text-3xl font-bold text-gray-900 leading-none">{resume.contactInfo.fullName || 'Your Name'}</h1>
           <div className="h-0.5 flex-1 bg-amber-500" />
         </div>
-        <div className="flex flex-wrap gap-x-4 text-gray-500 text-xs mt-3">
-          {resume.contactInfo.email && <span>{resume.contactInfo.email}</span>}
-          {resume.contactInfo.email2 && <span>{resume.contactInfo.email2}</span>}
-          {resume.contactInfo.phone && <span>{resume.contactInfo.phone}</span>}
-          {resume.contactInfo.location && <span>{resume.contactInfo.location}</span>}
-        </div>
+        <ContactLinks contact={resume.contactInfo} className="text-gray-500 text-xs mt-3" iconSize={3} />
       </header>
       {resume.summary && (
         <section data-section="summary" className="mb-6 bg-amber-50 p-4 rounded-lg">
