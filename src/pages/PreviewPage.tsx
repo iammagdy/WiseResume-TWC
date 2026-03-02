@@ -231,12 +231,12 @@ export default function PreviewPage() {
         // 4K Image export
         if (type === 'image') {
           onProgress('preparing', 10);
-          const { captureWithRetry } = await import('@/lib/html2canvasRetry');
+          const { captureWithRetry, convertSvgsToImages } = await import('@/lib/html2canvasRetry');
           const el = resumeRef.current;
           if (!el) { toast.error('Resume template not found'); return; }
           onProgress('finalizing', 40);
           const scale = 3840 / el.offsetWidth;
-          const canvas = await captureWithRetry(el, { scale, backgroundColor: '#ffffff' });
+          const canvas = await captureWithRetry(el, { scale, backgroundColor: '#ffffff', onclone: (doc: Document) => convertSvgsToImages(doc) });
           onProgress('downloading', 80);
           const dataUrl = canvas.toDataURL('image/png');
           const resp = await fetch(dataUrl);
