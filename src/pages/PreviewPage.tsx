@@ -83,6 +83,7 @@ export default function PreviewPage() {
   const [showPhotoSheet, setShowPhotoSheet] = useState(false);
   const [showOnePageWizard, setShowOnePageWizard] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
+  const [showTemplateSheet, setShowTemplateSheet] = useState(false);
   const resumeRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [previewScale, setPreviewScale] = useState(1);
