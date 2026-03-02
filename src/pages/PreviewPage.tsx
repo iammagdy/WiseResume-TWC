@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo, useCallback, lazy, Suspense } fro
 import { TemplateSkeleton } from '@/components/layout/PageSkeletons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Download, Share2, Check, FileText, Mic, FolderDown } from 'lucide-react';
+import { Download, Share2, Check, FileText, Mic, FolderDown, Palette } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
@@ -55,43 +55,14 @@ import { useExportProgress } from '@/hooks/useExportProgress';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { NextStepBanner } from '@/components/editor/NextStepBanner';
+import { TemplateSelector } from '@/components/editor/TemplateSelector';
+import { templates } from '@/lib/templateData';
 import { TemplateId, ExportType } from '@/types/resume';
 import { useRateApp } from '@/hooks/useRateApp';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { supabase } from '@/integrations/supabase/safeClient';
 
-const templates: {id: TemplateId;name: string;}[] = [
-{ id: 'modern', name: 'Modern' },
-{ id: 'classic', name: 'Classic' },
-{ id: 'minimal', name: 'Minimal' },
-{ id: 'professional', name: 'Professional' },
-{ id: 'developer', name: 'Developer' },
-{ id: 'creative', name: 'Creative' },
-{ id: 'executive', name: 'Executive' },
-{ id: 'compact', name: 'Compact' },
-{ id: 'academic', name: 'Academic' },
-{ id: 'healthcare', name: 'Healthcare' },
-{ id: 'sales', name: 'Sales' },
-{ id: 'elegant', name: 'Elegant' },
-{ id: 'corporate', name: 'Corporate' },
-{ id: 'banking', name: 'Banking' },
-{ id: 'consulting', name: 'Consulting' },
-{ id: 'federal', name: 'Federal' },
-{ id: 'legal', name: 'Legal' },
-{ id: 'marketing', name: 'Marketing' },
-{ id: 'designer', name: 'Designer' },
-{ id: 'portfolio', name: 'Portfolio' },
-{ id: 'startup', name: 'Startup' },
-{ id: 'infographic', name: 'Infographic' },
-{ id: 'data-science', name: 'Data Science' },
-{ id: 'devops', name: 'DevOps' },
-{ id: 'cyber', name: 'Cyber' },
-{ id: 'product', name: 'Product' },
-{ id: 'clean', name: 'Clean' },
-{ id: 'swiss', name: 'Swiss' },
-{ id: 'mono', name: 'Mono' },
-{ id: 'zen', name: 'Zen' }];
 
 
 export default function PreviewPage() {
@@ -112,6 +83,7 @@ export default function PreviewPage() {
   const [showPhotoSheet, setShowPhotoSheet] = useState(false);
   const [showOnePageWizard, setShowOnePageWizard] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
+  const [showTemplateSheet, setShowTemplateSheet] = useState(false);
   const resumeRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [previewScale, setPreviewScale] = useState(1);
@@ -503,42 +475,27 @@ export default function PreviewPage() {
         </div>
       </header>
 
-        {/* Template Quick Switcher + ATS Badge */}
-        <motion.div
-        className="border-b border-border shrink-0"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}>
-
-          <div
-          className="flex gap-1.5 overflow-x-auto px-3 py-2 scrollbar-hide snap-x snap-mandatory"
-          role="radiogroup"
-          aria-label="Resume Templates">
-
-            {templates.map((template) =>
-          <button
-            key={template.id}
-            role="radio"
-            aria-checked={selectedTemplate === template.id}
-            className={cn(
-              'flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all snap-center touch-manipulation min-h-[44px]',
-              selectedTemplate === template.id ?
-              'bg-primary text-primary-foreground' :
-              'bg-muted text-muted-foreground hover:bg-muted/80'
-            )}
-            onClick={() => setSelectedTemplate(template.id)}>
-
-                {template.name}
-              </button>
-           )}
+        {/* Template Compact Switcher */}
+        <div className="border-b border-border shrink-0 px-4 py-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold truncate">
+              {templates.find((t) => t.id === selectedTemplate)?.name || selectedTemplate}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1.5"
+              onClick={() => setShowTemplateSheet(true)}
+            >
+              <Palette className="w-3.5 h-3.5" />
+              Change
+            </Button>
           </div>
-          {/* ATS Ready Badge */}
-          <div className="px-3 pb-2 flex items-center text-xs pt-[8px]">
-            <div className="flex items-center gap-1.5">
-              <Check className="w-3.5 h-3.5 text-success" />
-              <span className="text-success font-medium">ATS-Ready</span>
-            </div>
+          <div className="flex items-center gap-1.5 text-xs">
+            <Check className="w-3.5 h-3.5 text-success" />
+            <span className="text-success font-medium">ATS-Ready</span>
           </div>
-        </motion.div>
+        </div>
 
         {/* AI Tailor Hint Banner */}
         <NextStepBanner variant="tailor" onAction={() => navigate('/editor?openTailor=1')} />
@@ -680,6 +637,10 @@ export default function PreviewPage() {
           resumeRef={resumeRef} />
 
         }
+        <TemplateSelector
+          open={showTemplateSheet}
+          onOpenChange={setShowTemplateSheet}
+        />
       </Suspense>
     </div>);
 
