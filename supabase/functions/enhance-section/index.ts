@@ -8,7 +8,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 const MAX_CONTENT_SIZE = 50 * 1024; // 50KB for current content
 const MAX_CONTEXT_SIZE = 100 * 1024; // 100KB for context (resume data)
 const VALID_SECTIONS = ['summary', 'experience', 'education', 'skills', 'contact', 'custom', 'awards', 'projects', 'publications', 'volunteering', 'certifications', 'languages'];
-const VALID_ACTIONS = ['generate', 'improve', 'ats_improve', 'ats_optimize', 'shorten', 'expand', 'add_metrics', 'generate_bullets', 'fix_error', 'custom'];
+const VALID_ACTIONS = ['generate', 'improve', 'ats_improve', 'ats_optimize', 'shorten', 'expand', 'add_metrics', 'generate_bullets', 'fix_error', 'custom', 'generate_with_answers', 'suggest_technologies'];
 
 interface EnhanceRequest {
   section: 'summary' | 'experience' | 'education' | 'skills' | 'contact';
@@ -381,6 +381,32 @@ The user's ACTUAL company is: "${company}"`;
   return ctx;
 }
 
+function buildProjectContext(currentContent: unknown): string {
+  if (!currentContent || typeof currentContent !== 'object' || Array.isArray(currentContent)) return '';
+  const c = currentContent as Record<string, unknown>;
+  const name = c.name || '';
+  const role = c.role || '';
+  const techs = Array.isArray(c.technologies) ? (c.technologies as string[]).join(', ') : '';
+  const desc = c.description || '';
+  if (!name) return '';
+  let ctx = `PROJECT CONTEXT:\nProject Name: "${name}"`;
+  if (role) ctx += `\nRole: "${role}"`;
+  if (techs) ctx += `\nTechnologies: ${techs}`;
+  if (desc) ctx += `\nExisting Description: ${desc}`;
+  ctx += '\n\n';
+  return ctx;
+}
+
+function shouldAskQuestions(section: string, action: string, currentContent: unknown): boolean {
+  if (section !== 'projects' || action !== 'generate') return false;
+  if (!currentContent || typeof currentContent !== 'object' || Array.isArray(currentContent)) return false;
+  const c = currentContent as Record<string, unknown>;
+  const hasDesc = typeof c.description === 'string' && (c.description as string).trim().length > 10;
+  const hasTechs = Array.isArray(c.technologies) && (c.technologies as unknown[]).length > 0;
+  // Ask questions only if there's very little context (just a name)
+  return !hasDesc && !hasTechs;
+}
+
 function buildPrompt(section: string, action: string, currentContent: unknown, context: unknown, fixInstruction?: string): string {
   const baseContext = `You are an expert resume writer and career coach. Your goal is to help users create compelling, ATS-friendly resume content.
 
@@ -398,12 +424,14 @@ ${JSON.stringify(currentContent, null, 2)}
   const summaryOverride = section === 'summary' ? getSummaryActionPrompt(action, currentContent, context) : null;
 
   const roleContext = section === 'experience' ? buildExperienceRoleContext(currentContent) : '';
+  const projectContext = section === 'projects' ? buildProjectContext(currentContent) : '';
 
   const actionPrompts: Record<string, string> = {
-    generate: summaryOverride && action === 'generate' ? summaryOverride : `${roleContext}Generate a detailed, compelling description for this SPECIFIC role ("${section === 'experience' && typeof currentContent === 'object' && currentContent !== null && !Array.isArray(currentContent) ? (currentContent as Record<string, unknown>).position || '' : ''}") from scratch based on the resume context. Include 4-6 bullet points covering key responsibilities and measurable achievements that are realistic for this exact job title. Use power verbs (Led, Managed, Developed, etc.), include specific metrics (percentages, dollar amounts, team sizes), mention relevant tools/technologies, and describe the scope and impact of the work.
+    generate: summaryOverride && action === 'generate' ? summaryOverride : `${roleContext}${projectContext}Generate a detailed, compelling description for this SPECIFIC role ("${section === 'experience' && typeof currentContent === 'object' && currentContent !== null && !Array.isArray(currentContent) ? (currentContent as Record<string, unknown>).position || '' : ''}") from scratch based on the resume context. Include 4-6 bullet points covering key responsibilities and measurable achievements that are realistic for this exact job title. Use power verbs (Led, Managed, Developed, etc.), include specific metrics (percentages, dollar amounts, team sizes), mention relevant tools/technologies, and describe the scope and impact of the work.
 ${section === 'experience' && typeof currentContent === 'object' && currentContent !== null && !Array.isArray(currentContent) && (currentContent as Record<string, unknown>).account ? `ACCOUNT/CLIENT CONTEXT: The user works at "${(currentContent as Record<string, unknown>).company}" but serves the "${(currentContent as Record<string, unknown>).account}" account/client. Research what ${(currentContent as Record<string, unknown>).account} does and tailor the description to reflect the specific products, services, and workflows of ${(currentContent as Record<string, unknown>).account}. Mention the account/client by name in the description and achievements.` : ''}
+${section === 'projects' ? `Generate a compelling project description for "${(currentContent as Record<string, unknown>)?.name || 'this project'}". Focus on what the project does, the technical approach, your specific contributions, and measurable outcomes. Start with a clear one-sentence summary, then add 2-4 bullet points with impact metrics.` : ''}
 Do NOT produce generic one-liner descriptions. Every role must have rich, detailed content.`,
-    improve: summaryOverride && action === 'improve' ? summaryOverride : `${roleContext}Transform this description into a powerful, detailed narrative that accurately reflects the "${section === 'experience' && typeof currentContent === 'object' && currentContent !== null && !Array.isArray(currentContent) ? (currentContent as Record<string, unknown>).position || '' : ''}" role. Expand thin descriptions into 4-6 impactful bullet points. Add quantified metrics (percentages, dollar amounts, team sizes), specific technologies, scope of responsibility, and measurable outcomes. Replace weak/passive language with strong action verbs. If the content is only 1-2 sentences, expand it significantly with realistic details based on the ACTUAL role title, company, and industry context.
+    improve: summaryOverride && action === 'improve' ? summaryOverride : `${roleContext}${projectContext}Transform this description into a powerful, detailed narrative that accurately reflects the "${section === 'experience' && typeof currentContent === 'object' && currentContent !== null && !Array.isArray(currentContent) ? (currentContent as Record<string, unknown>).position || '' : ''}" role. Expand thin descriptions into 4-6 impactful bullet points. Add quantified metrics (percentages, dollar amounts, team sizes), specific technologies, scope of responsibility, and measurable outcomes. Replace weak/passive language with strong action verbs. If the content is only 1-2 sentences, expand it significantly with realistic details based on the ACTUAL role title, company, and industry context.
 ${section === 'experience' && typeof currentContent === 'object' && currentContent !== null && !Array.isArray(currentContent) && (currentContent as Record<string, unknown>).account ? `ACCOUNT/CLIENT CONTEXT: The user works at "${(currentContent as Record<string, unknown>).company}" but serves the "${(currentContent as Record<string, unknown>).account}" account/client. Weave in specific details about ${(currentContent as Record<string, unknown>).account}'s products, services, or industry. Mention the account/client by name.` : ''}
 Do NOT leave thin, generic descriptions. Every bullet must have substance and specificity.`,
     ats_improve: summaryOverride && action === 'ats_improve' ? summaryOverride : `${roleContext}Optimize this resume section to MAXIMIZE the ATS score. The score is computed by a deterministic algorithm with these 6 weighted pillars:
@@ -422,15 +450,32 @@ ABSOLUTE RULES:
 - NEVER reformat dates — preserve the exact format given
 - Only ADD and IMPROVE — never subtract`,
     ats_optimize: `Optimize this content for Applicant Tracking Systems (ATS). Add relevant industry keywords, use standard section headers, avoid special characters, and ensure the format is easily parseable by automated systems.`,
-    shorten: `Make this content more concise while retaining the most impactful information. Remove filler words, combine related points, and prioritize the most impressive achievements.`,
+    shorten: `${projectContext}Make this content more concise while retaining the most impactful information. Remove filler words, combine related points, and prioritize the most impressive achievements.`,
     expand: `Expand this content with more detail. Add context, specific achievements, technologies used, and measurable outcomes where appropriate.`,
     add_metrics: `Add quantifiable metrics and numbers to this content. Suggest specific percentages, dollar amounts, time saved, team sizes, or other measurable outcomes based on the role and industry.`,
     generate_bullets: `Convert this description into powerful bullet points. Each bullet should start with a strong action verb and include a specific achievement or responsibility.`,
+    generate_with_answers: `${projectContext}Generate a compelling project description using the user's answers to clarifying questions below.
+
+USER ANSWERS:
+${fixInstruction || '(none)'}
+
+Instructions:
+- Write a clear, professional description (3-5 sentences) for the project "${(typeof currentContent === 'object' && currentContent !== null && !Array.isArray(currentContent) ? (currentContent as Record<string, unknown>).name : '') || 'this project'}".
+- Incorporate the user's answers naturally — don't just repeat them verbatim.
+- Highlight technical approach, contributions, and measurable outcomes.
+- Start with a strong summary sentence, then add specific details.
+- Use power verbs and include metrics where possible.`,
+    suggest_technologies: `${projectContext}Based on the project name, role, and description provided, suggest a list of relevant technologies, frameworks, and tools that would typically be used for this type of project.
+
+Return "improved" as a JSON array of strings (technology names only). Example: ["React", "Node.js", "PostgreSQL", "Docker", "AWS"].
+Suggest 5-10 relevant technologies. Consider the project context carefully and only suggest technologies that make sense for this specific project.`,
     fix_error: `Apply the following fix to the content: "${fixInstruction}". Keep the rest of the content consistent, but ensure the specific issue is resolved. Do not invent false information, but you may rephrase or restructure as needed to apply the fix effectively.`,
     custom: `${fixInstruction || String(currentContent)}. Respond with valid JSON only.`
   };
 
-  const schemaInstructions = getSchemaInstructions(section, currentContent);
+  const schemaInstructions = action === 'suggest_technologies'
+    ? `Return "improved" as a flat JSON array of strings ONLY. Example: ["React", "TypeScript", "Docker"]. Do NOT return objects.`
+    : getSchemaInstructions(section, currentContent);
 
   return baseContext + '\n\nTask: ' + (actionPrompts[action] || actionPrompts.improve) + `
 
@@ -545,6 +590,22 @@ serve(async (req) => {
     }
 
     console.log(`Enhancing ${section} with action: ${action}`);
+
+    // Check if we should ask clarifying questions for projects
+    if (shouldAskQuestions(section, action, currentContent)) {
+      console.log('Returning clarifying questions for project');
+      return new Response(JSON.stringify({
+        type: 'questions',
+        questions: [
+          'What problem does this project solve?',
+          'What technologies or frameworks did you use?',
+          'What was the scale or impact of the project?',
+          'What was your specific role and contribution?',
+        ],
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const prompt = buildPrompt(section, action, currentContent, context, fixInstruction);
 
