@@ -15,9 +15,12 @@ import { useResumeNudges } from '@/hooks/useResumeNudges';
 const emailSchema = z.string().email('Please enter a valid email');
 const phoneSchema = z.string().regex(/^[\d\s\-+()]*$/, 'Invalid phone format').optional().or(z.literal(''));
 const linkedinUsernameSchema = z.string().regex(/^[a-zA-Z0-9\-]{3,100}$/, 'Username must be 3+ characters (letters, numbers, hyphens)');
+const githubUsernameSchema = z.string().regex(/^[a-zA-Z0-9\-]{1,39}$/, 'Username must be 1-39 characters (letters, numbers, hyphens)');
 
 const LINKEDIN_PREFIX = 'linkedin.com/in/';
 const LINKEDIN_URL_BASE = 'https://linkedin.com/in/';
+const GITHUB_PREFIX = 'github.com/';
+const GITHUB_URL_BASE = 'https://github.com/';
 
 function extractLinkedInUsername(url: string): string {
   if (!url) return '';
