@@ -110,3 +110,12 @@ verify_jwt = false
 
 [functions.generate-store-screenshots]
 verify_jwt = false
+
+[functions.suggest-template]
+verify_jwt = false
+
+[functions.fetch-github-projects]
+verify_jwt = false
+
+[functions.generate-question-bank]
+verify_jwt = false

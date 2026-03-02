@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Sparkles } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -8,9 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { TemplateThumbnail } from '@/components/editor/TemplateThumbnail';
 import { templates, sampleResumeData, atsScoreColors, atsScoreLabels } from '@/lib/templateData';
-import { TemplateId, TemplateInfo } from '@/types/resume';
+import { TemplateId, TemplateInfo, TemplateCustomization } from '@/types/resume';
 import { useResumeStore } from '@/store/resumeStore';
 import { motion } from 'framer-motion';
+import { TemplateAdvisorSheet } from '@/components/editor/TemplateAdvisorSheet';
 
 type FilterCategory = 'all' | 'professional' | 'creative' | 'tech' | 'minimalist';
 
@@ -26,6 +27,7 @@ export default function TemplatesPage() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<FilterCategory>('all');
   const [previewTemplate, setPreviewTemplate] = useState<TemplateInfo | null>(null);
+  const [showAdvisor, setShowAdvisor] = useState(false);
   const { setSelectedTemplate, updateResume } = useResumeStore();
 
   const filtered = filter === 'all' ? templates : templates.filter(t => t.category === filter);
@@ -35,6 +37,18 @@ export default function TemplatesPage() {
     setSelectedTemplate(id);
     if (currentResumeId) {
       updateResume({ templateId: id });
+      navigate('/editor');
+    } else {
+      navigate('/dashboard?action=create');
+      toast.info('Create a resume first, then apply this template from the editor.');
+    }
+  };
+
+  const handleAdvisorApply = (templateId: TemplateId, customization: Partial<TemplateCustomization>) => {
+    const { currentResumeId } = useResumeStore.getState();
+    setSelectedTemplate(templateId);
+    if (currentResumeId) {
+      updateResume({ templateId, customization: customization as any });
       navigate('/editor');
     } else {
       navigate('/dashboard?action=create');
@@ -66,6 +80,14 @@ export default function TemplatesPage() {
             {chip.label}
           </button>
         ))}
+        <button
+          onClick={() => setShowAdvisor(true)}
+          className="flex items-center gap-1.5 px-4 py-2.5 min-h-[44px] rounded-full text-sm font-medium whitespace-nowrap transition-all touch-manipulation active:scale-95 bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20"
+          aria-label="AI Template Advisor"
+        >
+          <Sparkles className="w-4 h-4" />
+          AI Suggest
+        </button>
       </div>
 
       {/* Grid */}
@@ -132,6 +154,13 @@ export default function TemplatesPage() {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* AI Advisor Sheet */}
+      <TemplateAdvisorSheet
+        open={showAdvisor}
+        onOpenChange={setShowAdvisor}
+        onApply={handleAdvisorApply}
+      />
     </div>
   );
 }

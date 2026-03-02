@@ -1,0 +1,139 @@
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
+import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
+
+serve(async (req) => {
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { userId } = await requireAuth(req);
+    const { jobTitle, company, jobDescription, resumeSummary } = await req.json();
+
+    if (!jobTitle) {
+      return new Response(
+        JSON.stringify({ error: 'Job title is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
+
+    const systemPrompt = `You are an expert interview coach. Generate a targeted question bank for a specific role and company. Create questions that are realistic, challenging, and relevant.
+
+Rules:
+- Generate exactly 4 categories: company, technical, behavioral, curveball
+- Each category should have 3-5 questions
+- Each question must have: question text, context (why they ask this), and answerTip (framework/approach)
+- For behavioral questions, suggest the STAR method framing
+- For technical questions, focus on requirements from the job description
+- For company questions, reference the company's likely values and culture
+- For curveball questions, create thought-provoking unconventional questions
+- Keep answer tips actionable and concise (2-3 sentences max)`;
+
+    const userPrompt = `Generate an interview question bank for:
+Job Title: ${jobTitle}
+Company: ${company || 'Not specified'}
+${jobDescription ? `Job Description: ${jobDescription.slice(0, 3000)}` : ''}
+${resumeSummary ? `Candidate Summary: ${resumeSummary.slice(0, 1000)}` : ''}`;
+
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-3-flash-preview',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        tools: [
+          {
+            type: 'function',
+            function: {
+              name: 'generate_questions',
+              description: 'Return categorized interview questions',
+              parameters: {
+                type: 'object',
+                properties: {
+                  categories: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        id: { type: 'string', enum: ['company', 'technical', 'behavioral', 'curveball'] },
+                        label: { type: 'string' },
+                        questions: {
+                          type: 'array',
+                          items: {
+                            type: 'object',
+                            properties: {
+                              question: { type: 'string' },
+                              context: { type: 'string', description: 'Why interviewers ask this' },
+                              answerTip: { type: 'string', description: 'Brief framework for answering' },
+                            },
+                            required: ['question', 'context', 'answerTip'],
+                            additionalProperties: false,
+                          },
+                        },
+                      },
+                      required: ['id', 'label', 'questions'],
+                      additionalProperties: false,
+                    },
+                  },
+                },
+                required: ['categories'],
+                additionalProperties: false,
+              },
+            },
+          },
+        ],
+        tool_choice: { type: 'function', function: { name: 'generate_questions' } },
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error('AI gateway error:', response.status, errText);
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ error: 'Rate limited, please try again shortly.' }), {
+          status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: 'AI credits exhausted.' }), {
+          status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      throw new Error(`AI error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    if (!toolCall?.function?.arguments) {
+      throw new Error('No tool call returned');
+    }
+
+    const result = JSON.parse(toolCall.function.arguments);
+
+    return new Response(JSON.stringify(result), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  } catch (err) {
+    if (typeof err === 'object' && err !== null && 'status' in err) {
+      return authErrorResponse(err, origin);
+    }
+    console.error('generate-question-bank error:', err);
+    return new Response(
+      JSON.stringify({ error: err instanceof Error ? err.message : 'Unknown error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});

@@ -1,12 +1,13 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Briefcase, FileText, AlertCircle, Sparkles, Rocket, User, UserRound, Zap, Mic, CheckCircle2, XCircle, Building2, Keyboard } from 'lucide-react';
+import { Briefcase, FileText, AlertCircle, Sparkles, Rocket, User, UserRound, Zap, Mic, CheckCircle2, XCircle, Building2, Keyboard, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
 import type { VoiceGender } from '@/hooks/useVoiceInterview';
 import { CompanyBriefingSheet } from './CompanyBriefingSheet';
+import { QuestionBankSheet } from './QuestionBankSheet';
 
 type InterviewMode = 'general' | 'job-targeted' | 'quick-practice';
 
@@ -34,6 +35,7 @@ export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAv
   const [micTestStatus, setMicTestStatus] = useState<'idle' | 'testing' | 'success' | 'failed'>('idle');
   const [micLevel, setMicLevel] = useState(0);
   const [showBriefing, setShowBriefing] = useState(false);
+  const [showQuestionBank, setShowQuestionBank] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
 
   const handleStart = () => {
@@ -389,7 +391,7 @@ export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAv
             )}
           </AnimatePresence>
           {jobDescription.trim() && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
               <Button
                 variant="ghost"
                 size="sm"
@@ -398,6 +400,15 @@ export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAv
               >
                 <Building2 className="w-4 h-4" />
                 Research Company
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full gap-2 text-muted-foreground hover:text-primary min-h-[44px]"
+                onClick={() => { haptics.light(); setShowQuestionBank(true); }}
+              >
+                <Lightbulb className="w-4 h-4" />
+                Question Bank
               </Button>
             </motion.div>
           )}
@@ -420,6 +431,16 @@ export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAv
         onOpenChange={setShowBriefing}
         jobDescription={jobDescription}
         resumeData={resumeData}
+      />
+      <QuestionBankSheet
+        open={showQuestionBank}
+        onOpenChange={setShowQuestionBank}
+        jobTitle={jobDescription ? 'Target Role' : undefined}
+        jobDescription={jobDescription}
+        resumeSummary={resumeData?.summary}
+        onPracticeQuestion={(q) => {
+          onStart(q);
+        }}
       />
     </motion.div>
   );
