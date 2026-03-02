@@ -24,14 +24,14 @@ const GITHUB_URL_BASE = 'https://github.com/';
 
 function extractLinkedInUsername(url: string): string {
   if (!url) return '';
-  const patterns = [
-    /(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/([^/?#]+)/i,
-  ];
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match) return match[1];
-  }
-  return url;
+  const match = url.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/([^/?#]+)/i);
+  return match ? match[1] : url;
+}
+
+function extractGitHubUsername(url: string): string {
+  if (!url) return '';
+  const match = url.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/([^/?#]+)/i);
+  return match ? match[1] : url;
 }
 
 export const ContactSection = memo(function ContactSection() {
