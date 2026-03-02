@@ -140,7 +140,10 @@ export function SetupTab(props: SetupTabProps) {
           Social Links & Contact
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-medium text-foreground">GitHub URL</label>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-medium text-foreground">GitHub URL</label>
+            <GitHubSyncButton githubUrl={githubUrl} />
+          </div>
           <Input placeholder="https://github.com/yourusername" value={githubUrl} onChange={e => onGithubUrlChange(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
         </div>
         <div className="space-y-1">
