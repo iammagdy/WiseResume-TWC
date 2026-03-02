@@ -197,7 +197,7 @@ export const ExtraSections = memo(function ExtraSections({
                     )}
                     {proj.githubUrl && (
                       <span className="flex items-center gap-1 text-gray-600 text-[10px]">
-                        <Github className="w-3 h-3" style={{ width: 12, height: 12 }} />
+                        <Github style={{ width: 12, height: 12, display: 'block', verticalAlign: 'middle', flexShrink: 0 }} />
                         {proj.githubUrl}
                       </span>
                     )}

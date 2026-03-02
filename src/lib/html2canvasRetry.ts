@@ -73,7 +73,13 @@ export function convertSvgsToImages(clonedDoc: Document): void {
     img.src = dataUri;
     img.style.width = `${w}px`;
     img.style.height = `${h}px`;
+    img.style.maxWidth = `${w}px`;
+    img.style.maxHeight = `${h}px`;
     img.style.flexShrink = '0';
+    img.style.display = 'inline-block';
+    img.style.verticalAlign = 'middle';
+    img.style.margin = '0';
+    img.style.padding = '0';
 
     svg.parentNode?.replaceChild(img, svg);
   });
