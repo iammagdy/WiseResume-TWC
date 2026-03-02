@@ -35,6 +35,7 @@ export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAv
   const [micTestStatus, setMicTestStatus] = useState<'idle' | 'testing' | 'success' | 'failed'>('idle');
   const [micLevel, setMicLevel] = useState(0);
   const [showBriefing, setShowBriefing] = useState(false);
+  const [showQuestionBank, setShowQuestionBank] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
 
   const handleStart = () => {
