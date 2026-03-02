@@ -77,96 +77,33 @@ export function ExportOptionsSheet({
     }
   }, [selectedType, onePageScale, templateElement]);
 
-  const exportOptions = [
+  const exportGroups = [
     {
-      id: 'resume' as ExportType,
-      label: 'PDF (Design-Enhanced)',
-      description: 'Full design with colors, icons & visual hierarchy',
-      icon: FileText,
-      available: true,
+      label: 'Documents',
+      options: [
+        { id: 'resume' as ExportType, label: 'PDF (Design-Enhanced)', description: 'Full design with colors, icons & visual hierarchy', icon: FileText, available: true },
+        { id: 'ats-pdf' as ExportType, label: 'PDF (ATS-Optimized)', description: 'Black & white, simple fonts, machine-readable', icon: Shield, available: true, badge: 'ATS-Safe' },
+        { id: 'docx' as ExportType, label: 'Word Document', description: 'ATS-friendly text-selectable DOCX', icon: FileType, available: true, badge: 'ATS-Friendly' },
+        { id: 'one-page' as ExportType, label: 'One-Page Resume', description: 'Scale entire resume to fit one page', icon: Minimize2, available: true },
+      ],
     },
     {
-      id: 'ats-pdf' as ExportType,
-      label: 'PDF (ATS-Optimized)',
-      description: 'Black & white, simple fonts, machine-readable',
-      icon: Shield,
-      available: true,
-      badge: 'ATS-Safe',
+      label: 'Digital',
+      options: [
+        { id: 'linkedin' as ExportType, label: 'LinkedIn Format', description: 'Copy-paste ready sections for LinkedIn', icon: Linkedin, available: true },
+        { id: 'plain-text' as ExportType, label: 'Plain Text (.txt)', description: 'Pure text, email-friendly, ATS-safe', icon: AlignLeft, available: true },
+        { id: 'share-link' as ExportType, label: 'Shareable Web Link', description: 'Generate a public link to your resume', icon: Link2, available: true },
+        { id: 'image' as ExportType, label: '4K Image', description: 'High-resolution single image of your CV', icon: Image, available: true },
+      ],
     },
     {
-      id: 'docx' as ExportType,
-      label: 'Word Document',
-      description: 'ATS-friendly text-selectable DOCX',
-      icon: FileType,
-      available: true,
-      badge: 'ATS-Friendly',
-    },
-    {
-      id: 'one-page' as ExportType,
-      label: 'One-Page Resume',
-      description: 'Scale entire resume to fit one page',
-      icon: Minimize2,
-      available: true,
-    },
-    {
-      id: 'linkedin' as ExportType,
-      label: 'LinkedIn Format',
-      description: 'Copy-paste ready sections for LinkedIn',
-      icon: Linkedin,
-      available: true,
-    },
-    {
-      id: 'plain-text' as ExportType,
-      label: 'Plain Text (.txt)',
-      description: 'Pure text, email-friendly, ATS-safe',
-      icon: AlignLeft,
-      available: true,
-    },
-    {
-      id: 'share-link' as ExportType,
-      label: 'Shareable Web Link',
-      description: 'Generate a public link to your resume',
-      icon: Link2,
-      available: true,
-    },
-    {
-      id: 'interview-prep' as ExportType,
-      label: 'Interview Prep',
-      description: 'Practice answering questions about this resume',
-      icon: Mic,
-      available: true,
-    },
-    {
-      id: 'cover-letter' as ExportType,
-      label: 'Cover Letter Only',
-      description: hasCoverLetter 
-        ? `For ${coverLetterContext?.title || 'position'} at ${coverLetterContext?.company || 'company'}`
-        : 'Generate a cover letter first',
-      icon: FileText,
-      available: hasCoverLetter,
-    },
-    {
-      id: 'combined' as ExportType,
-      label: 'Application Package',
-      description: hasCoverLetter 
-        ? 'Cover letter + Resume in one PDF'
-        : 'Generate a cover letter first',
-      icon: Package,
-      available: hasCoverLetter,
-    },
-    {
-      id: 'json' as ExportType,
-      label: 'JSON Backup',
-      description: 'Full resume data as a portable JSON file',
-      icon: FolderDown,
-      available: true,
-    },
-    {
-      id: 'image' as ExportType,
-      label: '4K Image',
-      description: 'High-resolution single image of your CV',
-      icon: Image,
-      available: true,
+      label: 'Extras',
+      options: [
+        { id: 'interview-prep' as ExportType, label: 'Interview Prep', description: 'Practice answering questions about this resume', icon: Mic, available: true },
+        { id: 'cover-letter' as ExportType, label: 'Cover Letter Only', description: hasCoverLetter ? `For ${coverLetterContext?.title || 'position'} at ${coverLetterContext?.company || 'company'}` : 'Generate a cover letter first', icon: FileText, available: hasCoverLetter },
+        { id: 'combined' as ExportType, label: 'Application Package', description: hasCoverLetter ? 'Cover letter + Resume in one PDF' : 'Generate a cover letter first', icon: Package, available: hasCoverLetter },
+        { id: 'json' as ExportType, label: 'JSON Backup', description: 'Full resume data as a portable JSON file', icon: FolderDown, available: true },
+      ],
     },
   ];
 
