@@ -591,6 +591,22 @@ serve(async (req) => {
 
     console.log(`Enhancing ${section} with action: ${action}`);
 
+    // Check if we should ask clarifying questions for projects
+    if (shouldAskQuestions(section, action, currentContent)) {
+      console.log('Returning clarifying questions for project');
+      return new Response(JSON.stringify({
+        type: 'questions',
+        questions: [
+          'What problem does this project solve?',
+          'What technologies or frameworks did you use?',
+          'What was the scale or impact of the project?',
+          'What was your specific role and contribution?',
+        ],
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const prompt = buildPrompt(section, action, currentContent, context, fixInstruction);
 
     // Call AI using the shared client
