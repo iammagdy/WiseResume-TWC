@@ -418,7 +418,8 @@ export default function PreviewPage() {
   };
 
   const handleQuickDownload = async () => {
-    await handleExport('resume', true);
+    const { pdfDefaults } = useSettingsStore.getState();
+    await handleExport('resume', pdfDefaults.showPageNumbers ?? true, pdfDefaults.showBranding ?? true);
   };
 
   const handleSaveToFiles = async () => {
