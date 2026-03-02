@@ -1,12 +1,13 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Briefcase, FileText, AlertCircle, Sparkles, Rocket, User, UserRound, Zap, Mic, CheckCircle2, XCircle, Building2, Keyboard } from 'lucide-react';
+import { Briefcase, FileText, AlertCircle, Sparkles, Rocket, User, UserRound, Zap, Mic, CheckCircle2, XCircle, Building2, Keyboard, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
 import type { VoiceGender } from '@/hooks/useVoiceInterview';
 import { CompanyBriefingSheet } from './CompanyBriefingSheet';
+import { QuestionBankSheet } from './QuestionBankSheet';
 
 type InterviewMode = 'general' | 'job-targeted' | 'quick-practice';
 
