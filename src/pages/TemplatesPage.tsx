@@ -44,6 +44,18 @@ export default function TemplatesPage() {
     }
   };
 
+  const handleAdvisorApply = (templateId: TemplateId, customization: Partial<TemplateCustomization>) => {
+    const { currentResumeId } = useResumeStore.getState();
+    setSelectedTemplate(templateId);
+    if (currentResumeId) {
+      updateResume({ templateId, customization: customization as any });
+      navigate('/editor');
+    } else {
+      navigate('/dashboard?action=create');
+      toast.info('Create a resume first, then apply this template from the editor.');
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Header */}
