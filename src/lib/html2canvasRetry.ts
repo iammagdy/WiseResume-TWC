@@ -2,21 +2,45 @@ import html2canvas from 'html2canvas';
 import { Capacitor } from '@capacitor/core';
 
 /**
+ * Pre-tags every SVG in a **live** DOM container with its real rendered
+ * dimensions as `data-pdf-w` / `data-pdf-h` attributes.  These survive
+ * html2canvas's DOM clone, so `convertSvgsToImages` can read accurate sizes
+ * even inside the hidden iframe where `getBoundingClientRect()` returns 0.
+ *
+ * Call this on the live element **before** `captureWithRetry`, then invoke
+ * the returned cleanup function after capture completes.
+ */
+export function tagSvgDimensions(container: HTMLElement): () => void {
+  const svgs = container.querySelectorAll('svg');
+  svgs.forEach((svg) => {
+    const rect = svg.getBoundingClientRect();
+    if (rect.width > 0) svg.setAttribute('data-pdf-w', String(rect.width));
+    if (rect.height > 0) svg.setAttribute('data-pdf-h', String(rect.height));
+  });
+  return () => {
+    svgs.forEach((svg) => {
+      svg.removeAttribute('data-pdf-w');
+      svg.removeAttribute('data-pdf-h');
+    });
+  };
+}
+
+/**
  * Converts inline SVG elements to <img> tags with data URIs in a cloned DOM.
  * This fixes html2canvas misaligning/mis-sizing inline SVGs (e.g. lucide-react icons).
  * Safe to call on any cloned document — never mutates the live page.
  */
 export function convertSvgsToImages(clonedDoc: Document): void {
   clonedDoc.querySelectorAll('svg').forEach((svg) => {
-    // Priority: inline style > attribute > getBoundingClientRect
+    // Priority: data-pdf-* (pre-tagged from live DOM) > inline style > attribute
     const w =
+      parseFloat(svg.getAttribute('data-pdf-w') || '0') ||
       parseFloat(svg.style.width) ||
-      parseFloat(svg.getAttribute('width') || '0') ||
-      svg.getBoundingClientRect().width;
+      parseFloat(svg.getAttribute('width') || '0');
     const h =
+      parseFloat(svg.getAttribute('data-pdf-h') || '0') ||
       parseFloat(svg.style.height) ||
-      parseFloat(svg.getAttribute('height') || '0') ||
-      svg.getBoundingClientRect().height;
+      parseFloat(svg.getAttribute('height') || '0');
     if (!w || !h) return;
 
     // Ensure the SVG has explicit xmlns for serialisation

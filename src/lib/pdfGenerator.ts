@@ -280,6 +280,9 @@ export async function captureTemplateAsCanvas(
   height: number,
   scale: number = SCALE
 ): Promise<HTMLCanvasElement> {
+  // Pre-tag SVG dimensions from the live DOM before html2canvas clones it
+  const cleanupTags = tagSvgDimensions(sourceElement);
+
   const canvas = await captureWithRetry(sourceElement, {
     scale,
     backgroundColor: '#ffffff',
@@ -291,6 +294,8 @@ export async function captureTemplateAsCanvas(
     windowHeight: height,
     onclone: (doc: Document) => convertSvgsToImages(doc),
   });
+
+  cleanupTags();
 
   const expectedHeight = sourceElement.scrollHeight * scale;
   if (canvas.height < expectedHeight * 0.5) {
