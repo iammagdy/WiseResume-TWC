@@ -80,6 +80,14 @@ export default function TemplatesPage() {
             {chip.label}
           </button>
         ))}
+        <button
+          onClick={() => setShowAdvisor(true)}
+          className="flex items-center gap-1.5 px-4 py-2.5 min-h-[44px] rounded-full text-sm font-medium whitespace-nowrap transition-all touch-manipulation active:scale-95 bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20"
+          aria-label="AI Template Advisor"
+        >
+          <Sparkles className="w-4 h-4" />
+          AI Suggest
+        </button>
       </div>
 
       {/* Grid */}
