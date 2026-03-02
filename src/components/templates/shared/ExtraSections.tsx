@@ -279,6 +279,6 @@ export const ExtraSections = memo(function ExtraSections({
           )}
         </section>
       )}
-    </>
+    </div>
   );
 });
