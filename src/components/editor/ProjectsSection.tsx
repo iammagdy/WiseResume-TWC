@@ -111,7 +111,11 @@ export const ProjectsSection = memo(function ProjectsSection() {
       const existingTechs = new Set(proj.technologies);
       const newTechs = (resp.improved as string[]).filter(t => typeof t === 'string' && !existingTechs.has(t));
       if (newTechs.length > 0) {
-        updateProject(proj.id, { technologies: [...proj.technologies, ...newTechs] });
+        updateResume({
+          projects: projects.map(p =>
+            p.id === proj.id ? { ...p, technologies: [...p.technologies, ...newTechs] } : p
+          ),
+        });
         toast.success(`Added ${newTechs.length} technologies`);
       } else {
         toast.info('No new technologies to suggest');
@@ -119,7 +123,7 @@ export const ProjectsSection = memo(function ProjectsSection() {
       discard();
       return;
     }
-  }, [currentResume, enhance, discard, projects, updateProject]);
+  }, [currentResume, enhance, discard, projects, updateResume]);
 
   const handleQuestionsSubmit = useCallback(async (answers: Record<string, string>) => {
     if (!questionsProjectId) return;
