@@ -90,7 +90,7 @@ export const ClassicTemplate = memo(function ClassicTemplate({ resume }: Templat
           <p className="text-gray-700 text-xs">{resume.skills.join(' • ')}</p>
         </section>
       )}
-      <ExtraSections resume={resume} />
+      <ExtraSections resume={resume} variant="classic" />
     </div>
   );
 });

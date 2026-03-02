@@ -154,7 +154,7 @@ export const ElegantTemplate = memo(function ElegantTemplate({ resume }: Elegant
             </section>
           )}
         </div>
-        <ExtraSections resume={resume} exclude={['certifications']} />
+        <ExtraSections resume={resume} exclude={['certifications']} variant="elegant" />
       </div>
     </div>
   );

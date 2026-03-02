@@ -49,7 +49,7 @@ export const ZenTemplate = memo(function ZenTemplate({ resume }: TemplateProps) 
           <p className="text-center text-xs text-gray-600">{resume.skills.join('  ·  ')}</p>
         </section>
       )}
-      <ExtraSections resume={resume} />
+      <ExtraSections resume={resume} variant="zen" />
     </div>
   );
 });

@@ -84,7 +84,7 @@ export const MinimalTemplate = memo(function MinimalTemplate({ resume }: Templat
           <p className="text-gray-600 text-xs">{resume.skills.join(', ')}</p>
         </section>
       )}
-      <ExtraSections resume={resume} />
+      <ExtraSections resume={resume} variant="minimal" />
     </div>
   );
 });

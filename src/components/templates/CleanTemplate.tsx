@@ -48,7 +48,7 @@ export const CleanTemplate = memo(function CleanTemplate({ resume }: TemplatePro
           <p className="text-xs text-gray-600">{resume.skills.join('  ·  ')}</p>
         </section>
       )}
-      <ExtraSections resume={resume} />
+      <ExtraSections resume={resume} variant="clean" />
     </div>
   );
 });

@@ -113,7 +113,7 @@ export const CompactTemplate = memo(function CompactTemplate({ resume }: Compact
           </div>
         </section>
       )}
-      <ExtraSections resume={resume} exclude={['certifications']} />
+      <ExtraSections resume={resume} exclude={['certifications']} variant="compact" />
     </div>
   );
 });

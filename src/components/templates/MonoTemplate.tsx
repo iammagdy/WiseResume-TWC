@@ -49,7 +49,7 @@ export const MonoTemplate = memo(function MonoTemplate({ resume }: TemplateProps
           <p className="text-xs text-gray-700">{resume.skills.join(' / ')}</p>
         </section>
       )}
-      <ExtraSections resume={resume} />
+      <ExtraSections resume={resume} variant="mono" />
     </div>
   );
 });

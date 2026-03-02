@@ -210,7 +210,7 @@ export const DeveloperTemplate = memo(function DeveloperTemplate({ resume }: Tem
             </div>
           </section>
         )}
-        <ExtraSections resume={resume} />
+        <ExtraSections resume={resume} variant="developer" />
       </div>
     </div>
   );

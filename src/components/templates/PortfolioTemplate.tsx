@@ -51,7 +51,7 @@ export const PortfolioTemplate = memo(function PortfolioTemplate({ resume }: Tem
           <div className="flex flex-wrap gap-2">{resume.skills.map((s, i) => <span key={i} className="px-2 py-1 border border-amber-300 text-amber-800 rounded text-xs">{s}</span>)}</div>
         </section>
       )}
-      <ExtraSections resume={resume} />
+      <ExtraSections resume={resume} variant="portfolio" />
     </div>
   );
 });

@@ -136,7 +136,7 @@ export const ExecutiveTemplate = memo(function ExecutiveTemplate({ resume }: Tem
           </section>
         )}
       </div>
-      <ExtraSections resume={resume} />
+      <ExtraSections resume={resume} variant="executive" />
     </div>
   );
 });
