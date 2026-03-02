@@ -16,11 +16,14 @@ export function tagSvgDimensions(container: HTMLElement): () => void {
     const rect = svg.getBoundingClientRect();
     if (rect.width > 0) svg.setAttribute('data-pdf-w', String(rect.width));
     if (rect.height > 0) svg.setAttribute('data-pdf-h', String(rect.height));
+    const color = getComputedStyle(svg).color;
+    if (color) svg.setAttribute('data-pdf-color', color);
   });
   return () => {
     svgs.forEach((svg) => {
       svg.removeAttribute('data-pdf-w');
       svg.removeAttribute('data-pdf-h');
+      svg.removeAttribute('data-pdf-color');
     });
   };
 }
