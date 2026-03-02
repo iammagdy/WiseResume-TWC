@@ -8,7 +8,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 const MAX_CONTENT_SIZE = 50 * 1024; // 50KB for current content
 const MAX_CONTEXT_SIZE = 100 * 1024; // 100KB for context (resume data)
 const VALID_SECTIONS = ['summary', 'experience', 'education', 'skills', 'contact', 'custom', 'awards', 'projects', 'publications', 'volunteering', 'certifications', 'languages'];
-const VALID_ACTIONS = ['generate', 'improve', 'ats_improve', 'ats_optimize', 'shorten', 'expand', 'add_metrics', 'generate_bullets', 'fix_error', 'custom'];
+const VALID_ACTIONS = ['generate', 'improve', 'ats_improve', 'ats_optimize', 'shorten', 'expand', 'add_metrics', 'generate_bullets', 'fix_error', 'custom', 'generate_with_answers', 'suggest_technologies'];
 
 interface EnhanceRequest {
   section: 'summary' | 'experience' | 'education' | 'skills' | 'contact';

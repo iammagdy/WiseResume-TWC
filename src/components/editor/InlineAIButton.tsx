@@ -47,6 +47,8 @@ const sectionActions: Record<SectionType, AIActionConfig[]> = {
   projects: [
     { id: 'generate', label: 'Generate Description', icon: <Wand2 className="w-4 h-4" />, description: 'Create compelling project summaries' },
     { id: 'improve', label: 'Improve', icon: <Sparkles className="w-4 h-4" />, description: 'Strengthen technical descriptions' },
+    { id: 'shorten', label: 'Shorten', icon: <Minimize2 className="w-4 h-4" />, description: 'Condense without losing key points' },
+    { id: 'suggest_technologies', label: 'Suggest Technologies', icon: <Plus className="w-4 h-4" />, description: 'Recommend relevant tech stack' },
   ],
   publications: [
     { id: 'generate', label: 'Generate Abstract', icon: <Wand2 className="w-4 h-4" />, description: 'Draft publication abstracts' },
