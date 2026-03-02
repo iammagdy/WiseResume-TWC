@@ -1,6 +1,10 @@
+import { useState } from 'react';
 import {
-  Sparkles, Loader2, CheckCircle2, XCircle, Link2, Zap,
+  Sparkles, Loader2, CheckCircle2, XCircle, Link2, Zap, Github, RefreshCw,
 } from 'lucide-react';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { haptics } from '@/lib/haptics';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
