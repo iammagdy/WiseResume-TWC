@@ -391,7 +391,7 @@ export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAv
             )}
           </AnimatePresence>
           {jobDescription.trim() && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
               <Button
                 variant="ghost"
                 size="sm"
@@ -400,6 +400,15 @@ export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAv
               >
                 <Building2 className="w-4 h-4" />
                 Research Company
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full gap-2 text-muted-foreground hover:text-primary min-h-[44px]"
+                onClick={() => { haptics.light(); setShowQuestionBank(true); }}
+              >
+                <Lightbulb className="w-4 h-4" />
+                Question Bank
               </Button>
             </motion.div>
           )}
