@@ -204,6 +204,13 @@ export const ProjectsSection = memo(function ProjectsSection() {
     if (!result?.improved) return '';
     const imp = result.improved;
     if (typeof imp === 'string') return imp;
+    if (Array.isArray(imp) && imp.length > 0) {
+      const first = imp[0];
+      if (typeof first === 'object' && first !== null) {
+        return (first as Record<string, unknown>).description as string || '';
+      }
+      if (typeof first === 'string') return first;
+    }
     if (typeof imp === 'object' && imp !== null && !Array.isArray(imp)) {
       return (imp as Record<string, unknown>).description as string || '';
     }
