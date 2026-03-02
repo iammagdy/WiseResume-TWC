@@ -27,6 +27,7 @@ export default function TemplatesPage() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<FilterCategory>('all');
   const [previewTemplate, setPreviewTemplate] = useState<TemplateInfo | null>(null);
+  const [showAdvisor, setShowAdvisor] = useState(false);
   const { setSelectedTemplate, updateResume } = useResumeStore();
 
   const filtered = filter === 'all' ? templates : templates.filter(t => t.category === filter);
