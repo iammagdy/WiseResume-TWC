@@ -118,9 +118,11 @@ export function ExportOptionsSheet({
 
   const isPdfType = ['resume', 'ats-pdf', 'one-page', 'cover-letter', 'combined'].includes(selectedType);
   const isTextType = ['linkedin', 'plain-text', 'share-link'].includes(selectedType);
-
   const isInterviewPrep = selectedType === 'interview-prep';
   const isDownloadable = ['resume', 'ats-pdf', 'one-page', 'cover-letter', 'combined', 'docx', 'plain-text', 'json', 'image'].includes(selectedType);
+
+  const selectedOption = exportGroups.flatMap(g => g.options).find(o => o.id === selectedType);
+  const isButtonDisabled = isExporting || (selectedOption ? !selectedOption.available : false);
 
   const getFileSuffix = () => {
     switch (selectedType) {
