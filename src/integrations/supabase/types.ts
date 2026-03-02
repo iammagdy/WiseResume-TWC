@@ -562,6 +562,8 @@ export type Database = {
           created_at: string | null
           digest_enabled: boolean | null
           full_name: string | null
+          github_last_synced: string | null
+          github_projects_cache: Json | null
           github_url: string | null
           hired_at: string | null
           id: string
@@ -604,6 +606,8 @@ export type Database = {
           created_at?: string | null
           digest_enabled?: boolean | null
           full_name?: string | null
+          github_last_synced?: string | null
+          github_projects_cache?: Json | null
           github_url?: string | null
           hired_at?: string | null
           id?: string
@@ -646,6 +650,8 @@ export type Database = {
           created_at?: string | null
           digest_enabled?: boolean | null
           full_name?: string | null
+          github_last_synced?: string | null
+          github_projects_cache?: Json | null
           github_url?: string | null
           hired_at?: string | null
           id?: string
