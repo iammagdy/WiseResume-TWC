@@ -76,7 +76,24 @@ Here are the exact IDs you must preserve:
 ${JSON.stringify((Array.isArray(currentContent) ? currentContent : []).map((e: Record<string, unknown>) => ({
   id: e.id, title: e.title
 })), null, 2)}`;
-    case 'projects':
+    case 'projects': {
+      const isSingleProject = !Array.isArray(currentContent) && typeof currentContent === 'object' && currentContent !== null;
+      if (isSingleProject) {
+        const c = currentContent as Record<string, unknown>;
+        return `Return "improved" as a SINGLE project object (NOT an array). The object MUST have EXACTLY these fields:
+{
+  "id": "${c.id || ''}",
+  "name": "<string>",
+  "role": "<string>",
+  "startDate": "<string>",
+  "endDate": "<string>",
+  "description": "<string>",
+  "technologies": ["<string>", "<string>"],
+  "url": "<string, optional>",
+  "githubUrl": "<string, optional>"
+}
+You MUST preserve the original "id" value exactly. Do NOT omit any field.`;
+      }
       return `Return "improved" as a JSON array of project objects. Each object MUST have EXACTLY these fields:
 {
   "id": "<PRESERVE the original id exactly>",
@@ -87,13 +104,14 @@ ${JSON.stringify((Array.isArray(currentContent) ? currentContent : []).map((e: R
   "description": "<string>",
   "technologies": ["<string>", "<string>"],
   "url": "<string, optional>",
-  "github": "<string, optional>"
+  "githubUrl": "<string, optional>"
 }
 You MUST preserve all original "id" values. Do NOT omit any field. If a field was empty, keep it as empty string or empty array.
 Here are the exact IDs you must preserve:
 ${JSON.stringify((Array.isArray(currentContent) ? currentContent : []).map((e: Record<string, unknown>) => ({
   id: e.id, name: e.name
 })), null, 2)}`;
+    }
     case 'publications':
       return `Return "improved" as a JSON array of publication objects. Each object MUST have EXACTLY these fields:
 {
