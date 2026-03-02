@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Sparkles } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -8,9 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { TemplateThumbnail } from '@/components/editor/TemplateThumbnail';
 import { templates, sampleResumeData, atsScoreColors, atsScoreLabels } from '@/lib/templateData';
-import { TemplateId, TemplateInfo } from '@/types/resume';
+import { TemplateId, TemplateInfo, TemplateCustomization } from '@/types/resume';
 import { useResumeStore } from '@/store/resumeStore';
 import { motion } from 'framer-motion';
+import { TemplateAdvisorSheet } from '@/components/editor/TemplateAdvisorSheet';
 
 type FilterCategory = 'all' | 'professional' | 'creative' | 'tech' | 'minimalist';
 
