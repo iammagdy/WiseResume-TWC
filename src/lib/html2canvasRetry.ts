@@ -8,9 +8,15 @@ import { Capacitor } from '@capacitor/core';
  */
 export function convertSvgsToImages(clonedDoc: Document): void {
   clonedDoc.querySelectorAll('svg').forEach((svg) => {
-    const rect = svg.getBoundingClientRect();
-    const w = rect.width || parseFloat(svg.getAttribute('width') || '0');
-    const h = rect.height || parseFloat(svg.getAttribute('height') || '0');
+    // Priority: inline style > attribute > getBoundingClientRect
+    const w =
+      parseFloat(svg.style.width) ||
+      parseFloat(svg.getAttribute('width') || '0') ||
+      svg.getBoundingClientRect().width;
+    const h =
+      parseFloat(svg.style.height) ||
+      parseFloat(svg.getAttribute('height') || '0') ||
+      svg.getBoundingClientRect().height;
     if (!w || !h) return;
 
     // Ensure the SVG has explicit xmlns for serialisation
@@ -28,8 +34,7 @@ export function convertSvgsToImages(clonedDoc: Document): void {
     img.style.width = `${w}px`;
     img.style.height = `${h}px`;
     img.style.flexShrink = '0';
-    img.style.display = 'inline-block';
-    img.style.verticalAlign = 'middle';
+    img.style.alignSelf = 'center';
 
     svg.parentNode?.replaceChild(img, svg);
   });
