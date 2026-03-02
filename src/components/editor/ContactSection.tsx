@@ -1,7 +1,7 @@
 import { useState, memo } from 'react';
 import { InputFormField } from '@/components/ui/form-field';
 import { useResumeStore } from '@/store/resumeStore';
-import { User, Mail, Phone, MapPin, Linkedin, Globe } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Linkedin, Globe, Github } from 'lucide-react';
 import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
 import { toast } from 'sonner';
 import { InlineAIButton } from './InlineAIButton';
