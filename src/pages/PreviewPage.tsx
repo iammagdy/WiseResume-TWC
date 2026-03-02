@@ -240,9 +240,9 @@ export default function PreviewPage() {
           const canvas = await captureWithRetry(el, { scale, backgroundColor: '#ffffff', onclone: (doc: Document) => convertSvgsToImages(doc) });
           cleanupTags();
           onProgress('downloading', 80);
-          const dataUrl = canvas.toDataURL('image/png');
-          const resp = await fetch(dataUrl);
-          const blob = await resp.blob();
+          const blob = await new Promise<Blob>((resolve, reject) => {
+            canvas.toBlob((b) => b ? resolve(b) : reject(new Error('Failed to create image blob')), 'image/png');
+          });
           const fileName = `${baseName}_Resume_4K.png`;
           const result = await downloadFile({ blob, fileName });
           if (result.success) toast.success('4K image downloaded!');
