@@ -475,42 +475,27 @@ export default function PreviewPage() {
         </div>
       </header>
 
-        {/* Template Quick Switcher + ATS Badge */}
-        <motion.div
-        className="border-b border-border shrink-0"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}>
-
-          <div
-          className="flex gap-1.5 overflow-x-auto px-3 py-2 scrollbar-hide snap-x snap-mandatory"
-          role="radiogroup"
-          aria-label="Resume Templates">
-
-            {templates.map((template) =>
-          <button
-            key={template.id}
-            role="radio"
-            aria-checked={selectedTemplate === template.id}
-            className={cn(
-              'flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all snap-center touch-manipulation min-h-[44px]',
-              selectedTemplate === template.id ?
-              'bg-primary text-primary-foreground' :
-              'bg-muted text-muted-foreground hover:bg-muted/80'
-            )}
-            onClick={() => setSelectedTemplate(template.id)}>
-
-                {template.name}
-              </button>
-           )}
+        {/* Template Compact Switcher */}
+        <div className="border-b border-border shrink-0 px-4 py-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold truncate">
+              {templates.find((t) => t.id === selectedTemplate)?.name || selectedTemplate}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1.5"
+              onClick={() => setShowTemplateSheet(true)}
+            >
+              <Palette className="w-3.5 h-3.5" />
+              Change
+            </Button>
           </div>
-          {/* ATS Ready Badge */}
-          <div className="px-3 pb-2 flex items-center text-xs pt-[8px]">
-            <div className="flex items-center gap-1.5">
-              <Check className="w-3.5 h-3.5 text-success" />
-              <span className="text-success font-medium">ATS-Ready</span>
-            </div>
+          <div className="flex items-center gap-1.5 text-xs">
+            <Check className="w-3.5 h-3.5 text-success" />
+            <span className="text-success font-medium">ATS-Ready</span>
           </div>
-        </motion.div>
+        </div>
 
         {/* AI Tailor Hint Banner */}
         <NextStepBanner variant="tailor" onAction={() => navigate('/editor?openTailor=1')} />
