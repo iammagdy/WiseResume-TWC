@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { ExtraSections } from './shared/ExtraSections';
+import { ContactLinks } from './shared/ContactLinks';
 import { formatDisplayDate } from '@/lib/dateUtils';
 
 interface TemplateProps { resume: ResumeData; }
@@ -11,12 +12,7 @@ export const SwissTemplate = memo(function SwissTemplate({ resume }: TemplatePro
       <header className="mb-8">
         <h1 className="text-4xl font-bold text-gray-900 leading-none">{resume.contactInfo.fullName || 'Your Name'}</h1>
         <div className="w-full h-px bg-gray-900 mt-4 mb-3" />
-        <div className="grid grid-cols-3 gap-2 text-gray-600 text-xs">
-          {resume.contactInfo.email && <span>{resume.contactInfo.email}</span>}
-          {resume.contactInfo.email2 && <span>{resume.contactInfo.email2}</span>}
-          {resume.contactInfo.phone && <span>{resume.contactInfo.phone}</span>}
-          {resume.contactInfo.location && <span>{resume.contactInfo.location}</span>}
-        </div>
+        <ContactLinks contact={resume.contactInfo} className="text-gray-600 text-xs" iconSize={3} />
       </header>
       {resume.summary && (
         <section data-section="summary" className="mb-6">
