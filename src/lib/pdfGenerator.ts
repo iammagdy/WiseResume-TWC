@@ -289,6 +289,7 @@ export async function captureTemplateAsCanvas(
     scrollY: 0,
     windowWidth: width,
     windowHeight: height,
+    onclone: (doc: Document) => convertSvgsToImages(doc),
   });
 
   const expectedHeight = sourceElement.scrollHeight * scale;
