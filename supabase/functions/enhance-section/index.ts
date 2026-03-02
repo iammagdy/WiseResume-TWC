@@ -468,7 +468,7 @@ ABSOLUTE RULES:
 - NEVER reformat dates — preserve the exact format given
 - Only ADD and IMPROVE — never subtract`,
     ats_optimize: `Optimize this content for Applicant Tracking Systems (ATS). Add relevant industry keywords, use standard section headers, avoid special characters, and ensure the format is easily parseable by automated systems.`,
-    shorten: `${projectContext}Make this content more concise while retaining the most impactful information. Remove filler words, combine related points, and prioritize the most impressive achievements.`,
+    shorten: `${projectContext}${section === 'projects' ? 'Shorten ONLY the "description" field of this project to be more concise (2-3 sentences max). Remove filler words, combine related points, and keep only the most impactful information. PRESERVE all other fields (name, role, dates, technologies, URLs) exactly as they are — do not modify them.' : 'Make this content more concise while retaining the most impactful information. Remove filler words, combine related points, and prioritize the most impressive achievements.'}`,
     expand: `Expand this content with more detail. Add context, specific achievements, technologies used, and measurable outcomes where appropriate.`,
     add_metrics: `Add quantifiable metrics and numbers to this content. Suggest specific percentages, dollar amounts, time saved, team sizes, or other measurable outcomes based on the role and industry.`,
     generate_bullets: `Convert this description into powerful bullet points. Each bullet should start with a strong action verb and include a specific achievement or responsibility.`,
