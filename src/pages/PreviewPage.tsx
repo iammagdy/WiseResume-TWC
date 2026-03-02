@@ -7,6 +7,7 @@ import { BackButton } from '@/components/ui/BackButton';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { PreviewScaledWrapper } from '@/components/editor/PreviewScaledWrapper';
 
 // Lazy-loaded templates (only the selected one loads)
@@ -240,9 +241,9 @@ export default function PreviewPage() {
           const canvas = await captureWithRetry(el, { scale, backgroundColor: '#ffffff', onclone: (doc: Document) => convertSvgsToImages(doc) });
           cleanupTags();
           onProgress('downloading', 80);
-          const dataUrl = canvas.toDataURL('image/png');
-          const resp = await fetch(dataUrl);
-          const blob = await resp.blob();
+          const blob = await new Promise<Blob>((resolve, reject) => {
+            canvas.toBlob((b) => b ? resolve(b) : reject(new Error('Failed to create image blob')), 'image/png');
+          });
           const fileName = `${baseName}_Resume_4K.png`;
           const result = await downloadFile({ blob, fileName });
           if (result.success) toast.success('4K image downloaded!');
@@ -413,12 +414,13 @@ export default function PreviewPage() {
       await tryExport();
     } finally {
       setIsGenerating(false);
-      resetProgress();
+      setTimeout(() => resetProgress(), 600);
     }
   };
 
   const handleQuickDownload = async () => {
-    await handleExport('resume', true);
+    const { pdfDefaults } = useSettingsStore.getState();
+    await handleExport('resume', pdfDefaults.showPageNumbers ?? true, pdfDefaults.showBranding ?? true);
   };
 
   const handleSaveToFiles = async () => {
@@ -535,14 +537,17 @@ export default function PreviewPage() {
             <Button
             size="default"
             variant="outline"
-            className="h-10 sm:h-12 px-3 sm:px-4 touch-manipulation"
+            className="h-10 sm:h-12 px-3 sm:px-4 touch-manipulation gap-1.5"
             onClick={handleQuickDownload}
             disabled={isGenerating}
             title="Quick PDF download">
               {isGenerating ? (
                 <MiniSpinner size={16} />
               ) : (
-                <Download className="w-4 h-4 sm:w-5 sm:h-5" />
+                <>
+                  <Download className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="text-xs font-medium hidden sm:inline">PDF</span>
+                </>
               )}
             </Button>
           </div>
