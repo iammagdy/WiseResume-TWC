@@ -298,6 +298,22 @@ export const ContactSection = memo(function ContactSection() {
         />
 
         <InputFormField
+          id="github"
+          label="GitHub (optional)"
+          icon={<Github className="w-4 h-4" />}
+          prefix={GITHUB_PREFIX}
+          value={extractGitHubUsername(contactInfo.github || '')}
+          onChange={(value) => {
+            const username = value.replace(/[^a-zA-Z0-9\-]/g, '');
+            handleChange('github', username ? `${GITHUB_URL_BASE}${username}` : '');
+          }}
+          onBlur={() => handleBlur('github')}
+          placeholder="johndoe"
+          error={getGithubError()}
+          touched={touched.github}
+        />
+
+        <InputFormField
           id="portfolio"
           label="Portfolio (optional)"
           type="url"
