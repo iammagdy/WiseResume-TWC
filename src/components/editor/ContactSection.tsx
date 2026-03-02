@@ -144,6 +144,18 @@ export const ContactSection = memo(function ContactSection() {
     }
   };
 
+  const getGithubError = (): string | undefined => {
+    const username = extractGitHubUsername(contactInfo.github || '');
+    if (!username) return undefined;
+    try {
+      githubUsernameSchema.parse(username);
+      return undefined;
+    } catch (e) {
+      if (e instanceof z.ZodError) return e.errors[0]?.message;
+      return 'Invalid username';
+    }
+  };
+
   const getPortfolioError = (): string | undefined => {
     const portfolio = contactInfo.portfolio;
     if (!portfolio) return undefined;
