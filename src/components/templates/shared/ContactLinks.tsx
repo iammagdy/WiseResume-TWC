@@ -63,7 +63,7 @@ export const ContactLinks = memo(function ContactLinks({
       {items.map((item, i) => (
         <span key={item.key + i} className="flex items-center gap-1">
           {separator && i > 0 && <span className="mr-1">{separator}</span>}
-          {showIcons && <item.icon className={`w-${iconSize} h-${iconSize}`} style={{ width: iconSize * 4, height: iconSize * 4 }} />}
+          {showIcons && <item.icon style={{ width: iconSize * 4, height: iconSize * 4, flexShrink: 0 }} />}
           <span>{item.label}</span>
         </span>
       ))}
