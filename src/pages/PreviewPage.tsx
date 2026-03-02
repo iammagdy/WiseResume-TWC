@@ -413,7 +413,7 @@ export default function PreviewPage() {
       await tryExport();
     } finally {
       setIsGenerating(false);
-      resetProgress();
+      setTimeout(() => resetProgress(), 600);
     }
   };
 

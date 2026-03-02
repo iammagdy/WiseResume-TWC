@@ -637,13 +637,14 @@ export async function generateCombinedPDF(
   const coverLetterBytes = await coverLetterBlob.arrayBuffer();
   const coverLetterDoc = await PDFDocument.load(coverLetterBytes);
 
+  onProgress?.('capturing', 30);
   const resumeBlob = await generatePDF(
     resume,
     templateId,
     templateElement,
     undefined,
     { showPageNumbers: false },
-    undefined,
+    onProgress,
     undefined
   );
   const resumeBytes = await resumeBlob.arrayBuffer();
