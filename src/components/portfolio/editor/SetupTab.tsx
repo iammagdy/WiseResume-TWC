@@ -196,3 +196,64 @@ export function SetupTab(props: SetupTabProps) {
     </div>
   );
 }
+
+function GitHubSyncButton({ githubUrl }: { githubUrl: string }) {
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSync = async () => {
+    if (!githubUrl) {
+      toast.error('Enter a GitHub URL first.');
+      return;
+    }
+    setSyncing(true);
+    haptics.light();
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+
+      const username = githubUrl
+        .replace(/^https?:\/\/(www\.)?github\.com\//i, '')
+        .replace(/\/.*$/, '')
+        .trim();
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-github-projects`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ githubUsername: username }),
+        }
+      );
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Sync failed');
+      }
+
+      const result = await response.json();
+      haptics.medium();
+      toast.success(`Synced ${result.projects?.length || 0} GitHub projects!`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Sync failed');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={handleSync}
+      disabled={syncing || !githubUrl}
+      className="h-7 text-xs px-2 active:scale-95 shrink-0"
+    >
+      {syncing ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <RefreshCw className="w-3 h-3 mr-1" />}
+      {syncing ? 'Syncing...' : 'Sync Projects'}
+    </Button>
+  );
+}

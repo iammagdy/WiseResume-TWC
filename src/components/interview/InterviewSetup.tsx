@@ -432,6 +432,16 @@ export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAv
         jobDescription={jobDescription}
         resumeData={resumeData}
       />
+      <QuestionBankSheet
+        open={showQuestionBank}
+        onOpenChange={setShowQuestionBank}
+        jobTitle={jobDescription ? 'Target Role' : undefined}
+        jobDescription={jobDescription}
+        resumeSummary={resumeData?.summary}
+        onPracticeQuestion={(q) => {
+          onStart(q);
+        }}
+      />
     </motion.div>
   );
 }

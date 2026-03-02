@@ -154,6 +154,13 @@ export default function TemplatesPage() {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* AI Advisor Sheet */}
+      <TemplateAdvisorSheet
+        open={showAdvisor}
+        onOpenChange={setShowAdvisor}
+        onApply={handleAdvisorApply}
+      />
     </div>
   );
 }
