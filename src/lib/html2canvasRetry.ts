@@ -11,11 +11,19 @@ import { Capacitor } from '@capacitor/core';
  * the returned cleanup function after capture completes.
  */
 export function tagSvgDimensions(container: HTMLElement): () => void {
+  // Detect CSS transform scale on the container so we can compensate
+  const containerRect = container.getBoundingClientRect();
+  const scaleX = containerRect.width / (container.offsetWidth || 1);
+  const scaleY = containerRect.height / (container.offsetHeight || 1);
+
   const svgs = container.querySelectorAll('svg');
   svgs.forEach((svg) => {
     const rect = svg.getBoundingClientRect();
-    if (rect.width > 0) svg.setAttribute('data-pdf-w', String(rect.width));
-    if (rect.height > 0) svg.setAttribute('data-pdf-h', String(rect.height));
+    // Compensate for CSS transform to get true unscaled dimensions
+    const w = rect.width / scaleX;
+    const h = rect.height / scaleY;
+    if (w > 0) svg.setAttribute('data-pdf-w', String(w));
+    if (h > 0) svg.setAttribute('data-pdf-h', String(h));
     const color = getComputedStyle(svg).color;
     if (color) svg.setAttribute('data-pdf-color', color);
   });
