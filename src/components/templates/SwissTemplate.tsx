@@ -58,7 +58,7 @@ export const SwissTemplate = memo(function SwissTemplate({ resume }: TemplatePro
           </div>
         </section>
       )}
-      <ExtraSections resume={resume} />
+      <ExtraSections resume={resume} variant="swiss" />
     </div>
   );
 });

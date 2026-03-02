@@ -49,7 +49,7 @@ export const ConsultingTemplate = memo(function ConsultingTemplate({ resume }: T
           <div className="flex flex-wrap gap-2">{resume.skills.map((s, i) => <span key={i} className="px-2 py-0.5 bg-blue-50 text-blue-800 rounded text-xs">{s}</span>)}</div>
         </section>
       )}
-      <ExtraSections resume={resume} />
+      <ExtraSections resume={resume} variant="consulting" />
     </div>
   );
 });

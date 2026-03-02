@@ -148,7 +148,7 @@ export const HealthcareTemplate = memo(function HealthcareTemplate({ resume }: H
             </div>
           </section>
         )}
-        <ExtraSections resume={resume} exclude={['certifications']} />
+        <ExtraSections resume={resume} exclude={['certifications']} variant="healthcare" />
       </div>
     </div>
   );

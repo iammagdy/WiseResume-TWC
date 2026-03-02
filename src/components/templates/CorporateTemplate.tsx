@@ -50,7 +50,7 @@ export const CorporateTemplate = memo(function CorporateTemplate({ resume }: Tem
           <div className="grid grid-cols-3 gap-1 text-xs text-gray-700">{resume.skills.map((s, i) => <span key={i}>• {s}</span>)}</div>
         </section>
       )}
-      <ExtraSections resume={resume} />
+      <ExtraSections resume={resume} variant="corporate" />
     </div>
   );
 });

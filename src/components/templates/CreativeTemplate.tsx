@@ -184,7 +184,7 @@ export const CreativeTemplate = memo(function CreativeTemplate({ resume }: Templ
             </div>
           </section>
         )}
-        <ExtraSections resume={resume} exclude={['certifications']} />
+        <ExtraSections resume={resume} exclude={['certifications']} variant="creative" />
       </div>
     </div>
   );

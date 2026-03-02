@@ -95,7 +95,7 @@ export const ProfessionalTemplate = memo(function ProfessionalTemplate({ resume 
         </section>
       )}
 
-      <ExtraSections resume={resume} />
+      <ExtraSections resume={resume} variant="professional" />
     </div>
   );
 });

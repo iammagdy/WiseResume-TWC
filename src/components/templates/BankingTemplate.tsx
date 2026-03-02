@@ -48,7 +48,7 @@ export const BankingTemplate = memo(function BankingTemplate({ resume }: Templat
           <p className="text-xs text-gray-700">{resume.skills.join(' · ')}</p>
         </section>
       )}
-      <ExtraSections resume={resume} />
+      <ExtraSections resume={resume} variant="banking" />
     </div>
   );
 });

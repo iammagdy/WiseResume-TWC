@@ -131,7 +131,7 @@ export const AcademicTemplate = memo(function AcademicTemplate({ resume }: Acade
           </div>
         </section>
       )}
-      <ExtraSections resume={resume} exclude={['certifications']} />
+      <ExtraSections resume={resume} exclude={['certifications']} variant="academic" />
     </div>
   );
 });

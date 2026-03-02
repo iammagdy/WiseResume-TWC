@@ -75,7 +75,7 @@ export const DesignerTemplate = memo(function DesignerTemplate({ resume }: Templ
           </section>
         )}
 
-        <ExtraSections resume={resume} />
+        <ExtraSections resume={resume} variant="designer" />
       </div>
     </div>
   );
