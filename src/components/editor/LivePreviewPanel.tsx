@@ -125,6 +125,17 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
 
   const TemplateComponent = templateComponents[selectedTemplate];
 
+  // Track resume height for page break indicators
+  useEffect(() => {
+    const el = resumeRef.current;
+    if (!el) return;
+    const update = () => setResumeHeight(el.scrollHeight || el.offsetHeight || 792);
+    update();
+    const obs = new ResizeObserver(update);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [currentResume, selectedTemplate]);
+
   const toggleSection = useCallback((section: string) => {
     setHiddenSections(prev => {
       const next = new Set(prev);
