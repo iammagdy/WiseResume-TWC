@@ -442,7 +442,8 @@ function snapBreaksToContent(
   const maxShift = sourceHeightPerPage * 0.30;
   const HEADING_GUARD = 60; // px — protect section headings from orphaning
 
-  return fixedBreaks.map(breakY => {
+  // --- Sequential break processing: each break is relative to the previous ---
+  const snapOne = (breakY: number): number => {
     // === Pass 1: Section-level snapping ===
     const sectionHit = sectionBounds.find(b => breakY > b.top && breakY < b.bottom);
     if (sectionHit) {
@@ -454,11 +455,9 @@ function snapBreaksToContent(
       }
 
       // Section is too tall for one page — prevent orphaned heading
-      // If break falls within HEADING_GUARD of the section top, push to section top
       if (breakY - sectionHit.top < HEADING_GUARD) {
         return sectionHit.top;
       }
-
       // Section is oversized and break is well past the heading — fall through to entry-level
     }
 
@@ -510,9 +509,26 @@ function snapBreaksToContent(
       if (bestSnap !== breakY) return bestSnap;
     }
 
-    // Fallback: keep original break for oversized elements with no usable boundaries
     return breakY;
-  });
+  };
+
+  // Process breaks sequentially — each break is recalculated from the previous snapped position
+  const result: number[] = [];
+  let prevBreak = 0;
+  const totalHeight = sourceElement.scrollHeight || sourceElement.getBoundingClientRect().height;
+
+  for (let i = 0; i < fixedBreaks.length; i++) {
+    let nextBreak = prevBreak + sourceHeightPerPage;
+
+    // Don't exceed total content height
+    if (nextBreak >= totalHeight) break;
+
+    nextBreak = snapOne(nextBreak);
+    result.push(nextBreak);
+    prevBreak = nextBreak;
+  }
+
+  return result;
 }
 
 /**
