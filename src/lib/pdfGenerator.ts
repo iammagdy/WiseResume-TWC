@@ -409,14 +409,16 @@ function snapBreaksToContent(
   const avoidEls = sourceElement.querySelectorAll('[data-break-avoid]');
   if (!avoidEls.length) return fixedBreaks;
 
-  // Compute the top offset of each avoid element relative to sourceElement
   const sourceRect = sourceElement.getBoundingClientRect();
-  const boundaries: { top: number; bottom: number }[] = [];
+
+  interface Boundary { top: number; bottom: number; el: Element }
+  const boundaries: Boundary[] = [];
   avoidEls.forEach(el => {
     const r = el.getBoundingClientRect();
     boundaries.push({
       top: r.top - sourceRect.top,
       bottom: r.bottom - sourceRect.top,
+      el,
     });
   });
   boundaries.sort((a, b) => a.top - b.top);
@@ -424,16 +426,33 @@ function snapBreaksToContent(
   const maxShift = sourceHeightPerPage * 0.15;
 
   return fixedBreaks.map(breakY => {
-    // Find any element the break cuts through
     const hit = boundaries.find(b => breakY > b.top && breakY < b.bottom);
     if (!hit) return breakY;
 
-    // Snap to top of the element (push break up so element goes to next page)
-    const snapped = hit.top;
-    if (Math.abs(snapped - breakY) <= maxShift) {
-      return snapped;
+    // Tier 1: snap to top of the block if shift is small enough
+    const snappedTop = hit.top;
+    if (Math.abs(snappedTop - breakY) <= maxShift) {
+      return snappedTop;
     }
-    // If shift too large, keep original
+
+    // Tier 2: element is too tall — find a [data-break-child] boundary inside it
+    const children = hit.el.querySelectorAll('[data-break-child]');
+    if (children.length > 0) {
+      let bestSnap = breakY;
+      let bestDist = Infinity;
+      children.forEach(child => {
+        const cr = child.getBoundingClientRect();
+        const childTop = cr.top - sourceRect.top;
+        const dist = Math.abs(childTop - breakY);
+        if (dist < bestDist && dist <= maxShift) {
+          bestDist = dist;
+          bestSnap = childTop;
+        }
+      });
+      if (bestSnap !== breakY) return bestSnap;
+    }
+
+    // Fallback: keep original
     return breakY;
   });
 }
