@@ -398,10 +398,10 @@ export function estimatePageCount(
 
 /**
  * Snaps fixed-interval break positions to avoid splitting elements marked
- * with [data-break-avoid]. Uses a three-tier strategy:
- * Tier 1: push whole block to next page (shift ≤ 30%)
- * Tier 2: snap to nearest [data-break-child] inside block (shift ≤ 30%)
- * Tier 3: snap to nearest direct child element (shift ≤ 30%)
+ * with [data-break-avoid]. Uses a tiered strategy:
+ * Tier 1: if element fits on one page → always push to next page (no shift limit)
+ * Tier 2: oversized elements → snap to nearest [data-break-child] (shift ≤ 30%)
+ * Tier 3: oversized elements → snap to nearest direct child (shift ≤ 30%)
  */
 function snapBreaksToContent(
   fixedBreaks: number[],
