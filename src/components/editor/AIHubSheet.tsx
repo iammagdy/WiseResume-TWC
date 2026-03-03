@@ -87,6 +87,7 @@ interface AIHubSheetProps {
   onChangeTemplate: () => void;
   onViewComparison?: () => void;
   onRecruiterSim?: () => void;
+  onTemplateAdvisor?: () => void;
 }
 
 export function AIHubSheet({
