@@ -524,6 +524,15 @@ export async function generateOnePagePDF(
       height: finalHeight,
     });
 
+    // Add invisible text layer for ATS / Ctrl+F
+    try {
+      const textFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const textLines = extractResumeText(resume);
+      renderTextLayer(page, textFont, textLines, pageWidth, pageHeight);
+    } catch (e) {
+      console.warn('[PDF] Text layer rendering failed, PDF will still work as image-only', e);
+    }
+
     const contentBottomY = pageHeight - finalHeight;
     if (contentBottomY > FOOTER_RESERVED_PT) {
       page.drawRectangle({
