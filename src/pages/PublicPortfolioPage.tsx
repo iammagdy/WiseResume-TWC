@@ -529,6 +529,7 @@ function PublicPortfolioContent() {
     ...(hasSkills ? [{ id: 'section-skills', label: 'Skills' }] : []),
     ...(hasEducation ? [{ id: 'section-education', label: 'Education' }] : []),
     ...(hasProjects ? [{ id: 'section-projects', label: 'Projects' }] : []),
+    ...(hasGithubProjects ? [{ id: 'section-github', label: 'GitHub' }] : []),
     ...(hasCaseStudies ? [{ id: 'section-case-studies', label: 'Case Studies' }] : []),
     ...(hasServices ? [{ id: 'section-services', label: 'Services' }] : []),
     ...(hasTestimonials ? [{ id: 'section-testimonials', label: 'Testimonials' }] : []),
