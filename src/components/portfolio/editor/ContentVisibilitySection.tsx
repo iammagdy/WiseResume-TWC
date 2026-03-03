@@ -24,7 +24,7 @@ export const DEFAULT_SECTIONS: PortfolioSections = {
 export const SECTION_LABELS: Record<keyof PortfolioSections, string> = {
   experience: 'Experience', education: 'Education', skills: 'Skills',
   projects: 'Projects', certifications: 'Certifications', awards: 'Awards',
-  publications: 'Publications', volunteering: 'Volunteering',
+  publications: 'Publications', volunteering: 'Volunteering', githubProjects: 'GitHub Projects',
 };
 
 export interface ContentVisibilitySectionProps {

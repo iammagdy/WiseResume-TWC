@@ -308,7 +308,7 @@ function PublicPortfolioContent() {
   // Section scroll tracking via single IntersectionObserver
   useEffect(() => {
     if (!portfolio) return;
-    const sectionNames = ['experience', 'education', 'skills', 'projects', 'certifications', 'awards', 'publications', 'volunteering', 'case-studies', 'services'];
+    const sectionNames = ['experience', 'education', 'skills', 'projects', 'github', 'certifications', 'awards', 'publications', 'volunteering', 'case-studies', 'services'];
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
