@@ -319,7 +319,8 @@ export async function generatePDFPages(
   totalHeight: number,
   globalScaleFactor: number,
   pageWidth: number = DEFAULT_PAGE_WIDTH,
-  pageHeight: number = DEFAULT_PAGE_HEIGHT
+  pageHeight: number = DEFAULT_PAGE_HEIGHT,
+  resume?: ResumeData
 ): Promise<void> {
   const numPages = smartBreaks.length + 1;
 
