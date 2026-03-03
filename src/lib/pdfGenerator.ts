@@ -4,6 +4,7 @@ import { ResumeData, TemplateId, ContactInfo, PDFOptions } from '@/types/resume'
 import { getTemplateConfig } from '@/lib/templateConfig';
 import { PAGE_FORMAT_PX, generateCustomizationCSS } from '@/lib/templateCustomization';
 import type { OnProgressCallback } from '@/hooks/useExportProgress';
+import { extractResumeText, renderTextLayer } from '@/lib/pdfTextLayer';
 
 /** Typed error class for programmatic handling of PDF generation failures. */
 export class PdfGenerationError extends Error {
