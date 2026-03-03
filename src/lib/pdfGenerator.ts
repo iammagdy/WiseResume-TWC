@@ -398,8 +398,10 @@ export function estimatePageCount(
 
 /**
  * Snaps fixed-interval break positions to avoid splitting elements marked
- * with [data-break-avoid]. Shifts each break to the top of the nearest
- * avoidable element boundary, capped at ±15% of page height.
+ * with [data-break-avoid]. Uses a three-tier strategy:
+ * Tier 1: push whole block to next page (shift ≤ 30%)
+ * Tier 2: snap to nearest [data-break-child] inside block (shift ≤ 30%)
+ * Tier 3: snap to nearest direct child element (shift ≤ 30%)
  */
 function snapBreaksToContent(
   fixedBreaks: number[],
@@ -423,7 +425,7 @@ function snapBreaksToContent(
   });
   boundaries.sort((a, b) => a.top - b.top);
 
-  const maxShift = sourceHeightPerPage * 0.15;
+  const maxShift = sourceHeightPerPage * 0.30;
 
   return fixedBreaks.map(breakY => {
     const hit = boundaries.find(b => breakY > b.top && breakY < b.bottom);
@@ -436,11 +438,28 @@ function snapBreaksToContent(
     }
 
     // Tier 2: element is too tall — find a [data-break-child] boundary inside it
-    const children = hit.el.querySelectorAll('[data-break-child]');
-    if (children.length > 0) {
+    const markedChildren = hit.el.querySelectorAll('[data-break-child]');
+    if (markedChildren.length > 0) {
       let bestSnap = breakY;
       let bestDist = Infinity;
-      children.forEach(child => {
+      markedChildren.forEach(child => {
+        const cr = child.getBoundingClientRect();
+        const childTop = cr.top - sourceRect.top;
+        const dist = Math.abs(childTop - breakY);
+        if (dist < bestDist && dist <= maxShift) {
+          bestDist = dist;
+          bestSnap = childTop;
+        }
+      });
+      if (bestSnap !== breakY) return bestSnap;
+    }
+
+    // Tier 3: fallback to any direct child element boundary
+    const genericChildren = Array.from(hit.el.children);
+    if (genericChildren.length > 1) {
+      let bestSnap = breakY;
+      let bestDist = Infinity;
+      genericChildren.forEach(child => {
         const cr = child.getBoundingClientRect();
         const childTop = cr.top - sourceRect.top;
         const dist = Math.abs(childTop - breakY);
