@@ -35,7 +35,7 @@ export const ElegantTemplate = memo(function ElegantTemplate({ resume }: Elegant
             <h2 className="text-sm font-medium uppercase tracking-widest mb-4 pb-2 border-b-2" style={{ color: roseColor, borderColor: roseMuted }}>Experience</h2>
             <div className="space-y-5">
               {experience.map((exp) => (
-                <div key={exp.id} className="relative pl-4">
+                <div key={exp.id} data-break-avoid className="relative pl-4">
                   <div className="absolute left-0 top-1.5 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: roseColor }} />
                   <div className="flex justify-between items-baseline">
                     <h3 className="font-semibold text-gray-900">{exp.position}</h3>
