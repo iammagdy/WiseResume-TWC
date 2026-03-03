@@ -74,7 +74,7 @@ export const SalesTemplate = memo(function SalesTemplate({ resume }: SalesTempla
               <h2 className="text-sm font-bold uppercase tracking-wide mb-2 text-gray-900">Education</h2>
               <div className="space-y-2">
                 {education.map((edu) => (
-                  <div key={edu.id}><p className="font-semibold text-gray-900 text-sm">{edu.degree}</p><p className="text-gray-600 text-xs">{edu.institution}</p><p className="text-gray-500 text-xs">{formatDisplayDate(edu.endDate)}</p>{edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}</div>
+                  <div key={edu.id} data-break-avoid><p className="font-semibold text-gray-900 text-sm">{edu.degree}</p><p className="text-gray-600 text-xs">{edu.institution}</p><p className="text-gray-500 text-xs">{formatDisplayDate(edu.endDate)}</p>{edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}</div>
                 ))}
               </div>
             </section>
