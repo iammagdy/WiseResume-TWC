@@ -6,6 +6,7 @@ import {
   TrendingUp, 
   BarChart3,
   UserCheck,
+  Palette,
 } from 'lucide-react';
 import {
   Sheet,
