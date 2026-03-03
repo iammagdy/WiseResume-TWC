@@ -119,6 +119,8 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
   const [isGenerating, setIsGenerating] = useState(false);
   const [hiddenSections, setHiddenSections] = useState<Set<string>>(new Set());
   const [showSectionToggles, setShowSectionToggles] = useState(false);
+  const [showPageBreaks, setShowPageBreaks] = useState(true);
+  const [resumeHeight, setResumeHeight] = useState(792);
   const resumeRef = useRef<HTMLDivElement>(null);
 
   const TemplateComponent = templateComponents[selectedTemplate];
