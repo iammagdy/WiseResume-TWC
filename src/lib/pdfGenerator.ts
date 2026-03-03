@@ -408,38 +408,73 @@ function snapBreaksToContent(
   sourceElement: HTMLElement,
   sourceHeightPerPage: number
 ): number[] {
-  const avoidEls = sourceElement.querySelectorAll('[data-break-avoid]');
-  if (!avoidEls.length) return fixedBreaks;
-
   const sourceRect = sourceElement.getBoundingClientRect();
 
+  // --- Pass 1: Collect section-level boundaries ([data-section]) ---
+  const sectionEls = sourceElement.querySelectorAll('[data-section]');
   interface Boundary { top: number; bottom: number; el: Element }
-  const boundaries: Boundary[] = [];
-  avoidEls.forEach(el => {
+  const sectionBounds: Boundary[] = [];
+  sectionEls.forEach(el => {
     const r = el.getBoundingClientRect();
-    boundaries.push({
+    sectionBounds.push({
       top: r.top - sourceRect.top,
       bottom: r.bottom - sourceRect.top,
       el,
     });
   });
-  boundaries.sort((a, b) => a.top - b.top);
+  sectionBounds.sort((a, b) => a.top - b.top);
+
+  // --- Pass 2: Collect entry-level boundaries ([data-break-avoid]) ---
+  const avoidEls = sourceElement.querySelectorAll('[data-break-avoid]');
+  const entryBounds: Boundary[] = [];
+  avoidEls.forEach(el => {
+    const r = el.getBoundingClientRect();
+    entryBounds.push({
+      top: r.top - sourceRect.top,
+      bottom: r.bottom - sourceRect.top,
+      el,
+    });
+  });
+  entryBounds.sort((a, b) => a.top - b.top);
+
+  if (!sectionBounds.length && !entryBounds.length) return fixedBreaks;
 
   const maxShift = sourceHeightPerPage * 0.30;
+  const HEADING_GUARD = 60; // px — protect section headings from orphaning
 
   return fixedBreaks.map(breakY => {
-    const hit = boundaries.find(b => breakY > b.top && breakY < b.bottom);
+    // === Pass 1: Section-level snapping ===
+    const sectionHit = sectionBounds.find(b => breakY > b.top && breakY < b.bottom);
+    if (sectionHit) {
+      const sectionHeight = sectionHit.bottom - sectionHit.top;
+
+      // If the whole section fits on one page, push it entirely to the next page
+      if (sectionHeight < sourceHeightPerPage) {
+        return sectionHit.top;
+      }
+
+      // Section is too tall for one page — prevent orphaned heading
+      // If break falls within HEADING_GUARD of the section top, push to section top
+      if (breakY - sectionHit.top < HEADING_GUARD) {
+        return sectionHit.top;
+      }
+
+      // Section is oversized and break is well past the heading — fall through to entry-level
+    }
+
+    // === Pass 2: Entry-level snapping ([data-break-avoid]) ===
+    const hit = entryBounds.find(b => breakY > b.top && breakY < b.bottom);
     if (!hit) return breakY;
 
     const hitHeight = hit.bottom - hit.top;
     const snappedTop = hit.top;
 
-    // Tier 1: if the element fits on a single page, ALWAYS push it to the next page
+    // Tier 1: if the entry fits on a single page, ALWAYS push it to the next page
     if (hitHeight < sourceHeightPerPage) {
       return snappedTop;
     }
 
-    // --- Element is taller than one page — find best internal break point ---
+    // --- Entry is taller than one page — find best internal break point ---
 
     // Tier 2: find a [data-break-child] boundary inside the oversized block
     const markedChildren = hit.el.querySelectorAll('[data-break-child]');
