@@ -50,7 +50,7 @@ export const HealthcareTemplate = memo(function HealthcareTemplate({ resume }: H
             </h2>
             <div className="space-y-4">
               {experience.map((exp) => (
-                <div key={exp.id} className="border-l-2 pl-3" style={{ borderColor: '#99f6e4' }}>
+                <div key={exp.id} data-break-avoid className="border-l-2 pl-3" style={{ borderColor: '#99f6e4' }}>
                   <div className="flex justify-between items-baseline">
                     <h3 className="font-bold text-gray-900">{exp.position}</h3>
                     <span className="text-gray-500 text-xs">{formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</span>
