@@ -4,6 +4,7 @@ import { ResumeData, TemplateId, ContactInfo, PDFOptions } from '@/types/resume'
 import { getTemplateConfig } from '@/lib/templateConfig';
 import { PAGE_FORMAT_PX, generateCustomizationCSS } from '@/lib/templateCustomization';
 import type { OnProgressCallback } from '@/hooks/useExportProgress';
+import { extractResumeText, renderTextLayer } from '@/lib/pdfTextLayer';
 
 /** Typed error class for programmatic handling of PDF generation failures. */
 export class PdfGenerationError extends Error {
@@ -318,7 +319,8 @@ export async function generatePDFPages(
   totalHeight: number,
   globalScaleFactor: number,
   pageWidth: number = DEFAULT_PAGE_WIDTH,
-  pageHeight: number = DEFAULT_PAGE_HEIGHT
+  pageHeight: number = DEFAULT_PAGE_HEIGHT,
+  resume?: ResumeData
 ): Promise<void> {
   const numPages = smartBreaks.length + 1;
 
@@ -364,6 +366,18 @@ export async function generatePDFPages(
       width: pageWidth,
       height: segmentPdfHeight,
     });
+
+    // Add invisible text layer for ATS / Ctrl+F on first page only
+    // (all text is placed once; ATS parsers read the full document)
+    if (pageNum === 0 && resume) {
+      try {
+        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        const textLines = extractResumeText(resume);
+        renderTextLayer(page, font, textLines, pageWidth, actualPageHeight);
+      } catch (e) {
+        console.warn('[PDF] Text layer rendering failed, PDF will still work as image-only', e);
+      }
+    }
   }
 }
 
@@ -431,7 +445,7 @@ export async function generatePDF(
 
     onProgress?.('paginating', 40);
 
-    await generatePDFPages(pdfDoc, canvas, smartBreaks, totalHeight, globalScaleFactor, pageWidth, pageHeight);
+    await generatePDFPages(pdfDoc, canvas, smartBreaks, totalHeight, globalScaleFactor, pageWidth, pageHeight, resume);
 
     onProgress?.('finalizing', 80);
 
@@ -509,6 +523,15 @@ export async function generateOnePagePDF(
       width: finalWidth,
       height: finalHeight,
     });
+
+    // Add invisible text layer for ATS / Ctrl+F
+    try {
+      const textFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const textLines = extractResumeText(resume);
+      renderTextLayer(page, textFont, textLines, pageWidth, pageHeight);
+    } catch (e) {
+      console.warn('[PDF] Text layer rendering failed, PDF will still work as image-only', e);
+    }
 
     const contentBottomY = pageHeight - finalHeight;
     if (contentBottomY > FOOTER_RESERVED_PT) {
