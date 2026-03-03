@@ -202,7 +202,7 @@ export function renderTextLayer(
         size: fontSize,
         font,
         color: transparentColor,
-        opacity: 0, // Fully transparent – invisible but selectable
+        opacity: 0.01, // Nearly invisible – but indexed by ATS and Ctrl+F
       });
     } catch {
       // Skip lines with characters the font can't encode

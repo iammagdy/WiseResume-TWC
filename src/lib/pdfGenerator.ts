@@ -367,9 +367,8 @@ export async function generatePDFPages(
       height: segmentPdfHeight,
     });
 
-    // Add invisible text layer for ATS / Ctrl+F on first page only
-    // (all text is placed once; ATS parsers read the full document)
-    if (pageNum === 0 && resume) {
+    // Add invisible text layer for ATS / Ctrl+F on every page
+    if (resume) {
       try {
         const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
         const textLines = extractResumeText(resume);
