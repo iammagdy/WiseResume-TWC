@@ -12,6 +12,7 @@ export interface PortfolioSections {
   awards: boolean;
   publications: boolean;
   volunteering: boolean;
+  githubProjects: boolean;
 }
 
 export const DEFAULT_SECTIONS: PortfolioSections = {
