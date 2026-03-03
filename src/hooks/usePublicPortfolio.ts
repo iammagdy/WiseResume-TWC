@@ -47,6 +47,7 @@ export interface PublicProfile {
   testimonials: Array<{ id: string; quote: string; authorName: string; authorTitle?: string; avatarUrl?: string }>;
   highlights: Array<{ id: string; value: string; label: string }>;
   portfolioSyncMode: 'auto' | 'locked';
+  githubProjectsCache: Array<{ name: string; description: string; url: string; language: string | null; stars: number; topics: string[] }>;
 }
 
 export interface PublicResume {
