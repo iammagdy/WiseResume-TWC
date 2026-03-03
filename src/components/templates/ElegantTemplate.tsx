@@ -74,7 +74,7 @@ export const ElegantTemplate = memo(function ElegantTemplate({ resume }: Elegant
               <h2 className="text-sm font-medium uppercase tracking-widest mb-3 pb-2 border-b-2" style={{ color: roseColor, borderColor: roseMuted }}>Education</h2>
               <div className="space-y-3">
                 {education.map((edu) => (
-                  <div key={edu.id}>
+                  <div key={edu.id} data-break-avoid>
                     <h3 className="font-semibold text-gray-900 text-sm">{edu.degree}</h3>
                     <p className="text-gray-600 text-xs">{edu.field}</p>
                     <p className="text-xs" style={{ color: roseColor }}>{edu.institution}</p>
