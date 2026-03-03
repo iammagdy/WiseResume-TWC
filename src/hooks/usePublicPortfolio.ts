@@ -121,6 +121,7 @@ async function fetchPublicPortfolio(username: string): Promise<PublicPortfolioDa
       testimonials: (extras.testimonials as Array<{ id: string; quote: string; authorName: string; authorTitle?: string; avatarUrl?: string }>) || [],
       highlights: (extras.highlights as Array<{ id: string; value: string; label: string }>) || [],
       portfolioSyncMode: ((profile.portfolioSyncMode as string) || 'auto') as 'auto' | 'locked',
+      githubProjectsCache: (profile.githubProjectsCache as Array<{ name: string; description: string; url: string; language: string | null; stars: number; topics: string[] }>) || [],
     },
     resume: {
       id: (resume.id as string) || '',

@@ -198,6 +198,15 @@ export function AIHubSheet({
                 onRecruiterSim?.();
               }}
             />
+            <AIActionTile
+              icon={<Palette className="w-5 h-5 text-primary" />}
+              title="Template Advisor"
+              subtitle={<AICostBadge operation="suggest-template" />}
+              onClick={() => {
+                onOpenChange(false);
+                onTemplateAdvisor?.();
+              }}
+            />
           </div>
 
           {/* Active Comparison Banner */}

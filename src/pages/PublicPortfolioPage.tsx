@@ -841,6 +841,14 @@ function PublicPortfolioContent() {
               </motion.section>
             )}
 
+            {/* GitHub Projects */}
+            {hasGithubProjects && (
+              <motion.section variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-github">
+                <SectionHeader icon={<Github className="w-5 h-5" />} title="GitHub Projects" style={pStyle} />
+                <GitHubProjectsSection projects={profile.githubProjectsCache} accentColor={accentColor} style={pStyle} />
+              </motion.section>
+            )}
+
             {/* Services */}
             {hasServices && (
               <motion.section variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-services">
