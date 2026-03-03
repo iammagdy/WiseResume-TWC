@@ -431,11 +431,12 @@ export async function generatePDF(
        sourceHeightPerPage
      } = calculatePDFDimensions(sourceElement, pageWidth, pageHeight);
 
-      // Simple fixed-interval breaks
-      const smartBreaks: number[] = [];
+      // Fixed-interval breaks, then snap to avoid splitting content blocks
+      const fixedBreaks: number[] = [];
       for (let y = sourceHeightPerPage; y < totalHeight; y += sourceHeightPerPage) {
-        smartBreaks.push(y);
+        fixedBreaks.push(y);
       }
+      const smartBreaks = snapBreaksToContent(fixedBreaks, sourceElement, sourceHeightPerPage);
 
     const pdfDoc = await PDFDocument.create();
 
