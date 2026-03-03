@@ -366,6 +366,18 @@ export async function generatePDFPages(
       width: pageWidth,
       height: segmentPdfHeight,
     });
+
+    // Add invisible text layer for ATS / Ctrl+F on first page only
+    // (all text is placed once; ATS parsers read the full document)
+    if (pageNum === 0 && resume) {
+      try {
+        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        const textLines = extractResumeText(resume);
+        renderTextLayer(page, font, textLines, pageWidth, actualPageHeight);
+      } catch (e) {
+        console.warn('[PDF] Text layer rendering failed, PDF will still work as image-only', e);
+      }
+    }
   }
 }
 
