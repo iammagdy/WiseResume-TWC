@@ -208,6 +208,18 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
         </div>
 
         <div className="flex items-center gap-1.5">
+          {/* Page break toggle */}
+          <button
+            onClick={() => { setShowPageBreaks(v => !v); haptics.light(); }}
+            className={cn(
+              'p-2 rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation active:scale-95',
+              showPageBreaks ? 'bg-destructive/10 text-destructive' : 'text-muted-foreground hover:bg-muted'
+            )}
+            aria-label="Toggle page break indicators"
+          >
+            <Scissors className="w-4 h-4" />
+          </button>
+
           {/* Section toggle button */}
           <button
             onClick={() => { setShowSectionToggles(v => !v); haptics.light(); }}
