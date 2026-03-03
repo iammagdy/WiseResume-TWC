@@ -160,8 +160,8 @@ export function renderTextLayer(
   pageWidth: number,
   pageHeight: number
 ): void {
-  const fontSize = 1; // Tiny font – invisible but parsable by ATS / Ctrl+F
-  const lineHeight = 2;
+  const fontSize = 4; // Small but reliably indexed by PDF readers and ATS
+  const lineHeight = 5;
   const margin = 10;
   const maxWidth = pageWidth - margin * 2;
 
@@ -202,7 +202,7 @@ export function renderTextLayer(
         size: fontSize,
         font,
         color: transparentColor,
-        opacity: 0, // Fully transparent – invisible but selectable
+        opacity: 0.01, // Nearly invisible – but indexed by ATS and Ctrl+F
       });
     } catch {
       // Skip lines with characters the font can't encode

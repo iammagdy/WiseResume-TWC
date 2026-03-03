@@ -367,9 +367,8 @@ export async function generatePDFPages(
       height: segmentPdfHeight,
     });
 
-    // Add invisible text layer for ATS / Ctrl+F on first page only
-    // (all text is placed once; ATS parsers read the full document)
-    if (pageNum === 0 && resume) {
+    // Add invisible text layer for ATS / Ctrl+F on every page
+    if (resume) {
       try {
         const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
         const textLines = extractResumeText(resume);
@@ -398,8 +397,50 @@ export function estimatePageCount(
 }
 
 /**
+ * Snaps fixed-interval break positions to avoid splitting elements marked
+ * with [data-break-avoid]. Shifts each break to the top of the nearest
+ * avoidable element boundary, capped at ±15% of page height.
+ */
+function snapBreaksToContent(
+  fixedBreaks: number[],
+  sourceElement: HTMLElement,
+  sourceHeightPerPage: number
+): number[] {
+  const avoidEls = sourceElement.querySelectorAll('[data-break-avoid]');
+  if (!avoidEls.length) return fixedBreaks;
+
+  // Compute the top offset of each avoid element relative to sourceElement
+  const sourceRect = sourceElement.getBoundingClientRect();
+  const boundaries: { top: number; bottom: number }[] = [];
+  avoidEls.forEach(el => {
+    const r = el.getBoundingClientRect();
+    boundaries.push({
+      top: r.top - sourceRect.top,
+      bottom: r.bottom - sourceRect.top,
+    });
+  });
+  boundaries.sort((a, b) => a.top - b.top);
+
+  const maxShift = sourceHeightPerPage * 0.15;
+
+  return fixedBreaks.map(breakY => {
+    // Find any element the break cuts through
+    const hit = boundaries.find(b => breakY > b.top && breakY < b.bottom);
+    if (!hit) return breakY;
+
+    // Snap to top of the element (push break up so element goes to next page)
+    const snapped = hit.top;
+    if (Math.abs(snapped - breakY) <= maxShift) {
+      return snapped;
+    }
+    // If shift too large, keep original
+    return breakY;
+  });
+}
+
+/**
  * Generates a PDF from the resume by capturing the rendered React template.
- * Uses simple fixed-interval pagination (one page height per page).
+ * Uses fixed-interval pagination with content-aware break snapping.
  */
 export async function generatePDF(
   resume: ResumeData,
@@ -431,11 +472,12 @@ export async function generatePDF(
        sourceHeightPerPage
      } = calculatePDFDimensions(sourceElement, pageWidth, pageHeight);
 
-      // Simple fixed-interval breaks
-      const smartBreaks: number[] = [];
+      // Fixed-interval breaks, then snap to avoid splitting content blocks
+      const fixedBreaks: number[] = [];
       for (let y = sourceHeightPerPage; y < totalHeight; y += sourceHeightPerPage) {
-        smartBreaks.push(y);
+        fixedBreaks.push(y);
       }
+      const smartBreaks = snapBreaksToContent(fixedBreaks, sourceElement, sourceHeightPerPage);
 
     const pdfDoc = await PDFDocument.create();
 
