@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Sparkles, Loader2, Check, X, ArrowRight, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Loader2, Check, X, ArrowRight, ChevronDown, ChevronUp, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -44,13 +44,109 @@ const SECTIONS: { id: SectionType; label: string; key: string }[] = [
 interface SectionResult {
   section: SectionType;
   label: string;
-  original: string;
-  improved: string;
+  original: unknown;
+  improved: unknown;
   rawImproved: unknown;
   changes: string[];
   suggestions?: string[];
   applied: boolean;
+  warning?: string;
 }
+
+// --- Section-aware formatting helpers ---
+
+function formatExperiencePreview(entries: unknown[]): string {
+  return entries.map((e: any) => {
+    const pos = e.position || e.title || 'Untitled Role';
+    const comp = e.company || e.account || '';
+    const desc = typeof e.description === 'string' ? e.description.slice(0, 80) : '';
+    const bullets = Array.isArray(e.achievements) ? e.achievements.length : 0;
+    const resp = Array.isArray(e.responsibilities) ? e.responsibilities.length : 0;
+    const bulletCount = bullets + resp;
+    let line = comp ? `${pos} at ${comp}` : pos;
+    if (desc) line += ` — ${desc}${desc.length >= 80 ? '…' : ''}`;
+    if (bulletCount > 0) line += ` (${bulletCount} bullet${bulletCount !== 1 ? 's' : ''})`;
+    return line;
+  }).join('\n\n');
+}
+
+function formatEducationPreview(entries: unknown[]): string {
+  return entries.map((e: any) => {
+    const degree = e.degree || '';
+    const field = e.field || '';
+    const inst = e.institution || '';
+    const parts = [degree, field].filter(Boolean).join(' in ');
+    return inst ? `${parts} at ${inst}` : parts || 'Education entry';
+  }).join('\n\n');
+}
+
+function formatSkillsPreview(skills: unknown[]): string {
+  return skills.map((s: any) => typeof s === 'string' ? s : s?.name || String(s)).join(', ');
+}
+
+function formatSectionContent(sectionId: SectionType, content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content) || content.length === 0) return '(empty)';
+  switch (sectionId) {
+    case 'experience': return formatExperiencePreview(content);
+    case 'education': return formatEducationPreview(content);
+    case 'skills': return formatSkillsPreview(content);
+    default: return content.map(String).join(', ');
+  }
+}
+
+// --- Structured diff cards for experience/education ---
+
+function ExperienceCard({ entry, variant }: { entry: any; variant: 'original' | 'enhanced' }) {
+  const pos = entry.position || entry.title || 'Untitled';
+  const comp = entry.company || entry.account || '';
+  const desc = typeof entry.description === 'string' ? entry.description : '';
+  const achievements = Array.isArray(entry.achievements) ? entry.achievements : [];
+  const responsibilities = Array.isArray(entry.responsibilities) ? entry.responsibilities : [];
+
+  return (
+    <div className={cn(
+      "p-2.5 rounded-lg text-xs space-y-1",
+      variant === 'original' ? "bg-muted/50 opacity-70" : "bg-primary/5 border border-primary/20"
+    )}>
+      <p className="font-semibold">{pos}{comp ? ` at ${comp}` : ''}</p>
+      {desc && <p className="text-muted-foreground line-clamp-2">{desc}</p>}
+      {achievements.length > 0 && (
+        <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
+          {achievements.slice(0, 3).map((a: string, i: number) => (
+            <li key={i} className="line-clamp-1">{a}</li>
+          ))}
+          {achievements.length > 3 && <li className="text-muted-foreground/60">+{achievements.length - 3} more</li>}
+        </ul>
+      )}
+      {responsibilities.length > 0 && (
+        <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
+          {responsibilities.slice(0, 3).map((r: string, i: number) => (
+            <li key={i} className="line-clamp-1">{r}</li>
+          ))}
+          {responsibilities.length > 3 && <li className="text-muted-foreground/60">+{responsibilities.length - 3} more</li>}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function EducationCard({ entry, variant }: { entry: any; variant: 'original' | 'enhanced' }) {
+  const degree = entry.degree || '';
+  const field = entry.field || '';
+  const inst = entry.institution || '';
+  return (
+    <div className={cn(
+      "p-2.5 rounded-lg text-xs space-y-0.5",
+      variant === 'original' ? "bg-muted/50 opacity-70" : "bg-primary/5 border border-primary/20"
+    )}>
+      <p className="font-semibold">{degree}{field ? ` in ${field}` : ''}</p>
+      {inst && <p className="text-muted-foreground">{inst}</p>}
+    </div>
+  );
+}
+
+// --- Main helpers ---
 
 function getSectionContent(resume: Record<string, unknown>, sectionId: SectionType): unknown {
   switch (sectionId) {
@@ -67,12 +163,6 @@ function sectionHasContent(resume: Record<string, unknown>, sectionId: SectionTy
   if (typeof content === 'string') return content.trim().length > 0;
   if (Array.isArray(content)) return content.length > 0;
   return false;
-}
-
-function contentToPreview(content: unknown, maxLen = 500): string {
-  if (typeof content === 'string') return content.slice(0, maxLen);
-  if (Array.isArray(content)) return JSON.stringify(content, null, 2).slice(0, maxLen);
-  return String(content).slice(0, maxLen);
 }
 
 export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false, disabledSections }: AIEnhanceSheetProps) {
@@ -165,15 +255,24 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
         trackGeminiUsage();
         incrementUsage.mutate();
 
+        // Validate entry count for array sections
+        let warning: string | undefined;
+        if (['experience', 'education'].includes(sectionInfo.id) && Array.isArray(content) && Array.isArray(data.improved)) {
+          if (data.improved.length < (content as unknown[]).length) {
+            warning = `AI returned ${data.improved.length} entries but original has ${(content as unknown[]).length}. Some entries may be missing.`;
+          }
+        }
+
         newResults.push({
           section: sectionInfo.id,
           label: sectionInfo.label,
-          original: contentToPreview(content),
-          improved: contentToPreview(data.improved),
+          original: content,
+          improved: data.improved,
           rawImproved: data.improved,
           changes: data.changes || [],
           suggestions: data.suggestions,
           applied: false,
+          warning,
         });
 
         setResults([...newResults]);
@@ -208,6 +307,16 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     if (result.section === 'experience') {
       if (!Array.isArray(data)) data = [];
       const originals = currentResume.experience || [];
+
+      // Warn if entry count mismatch
+      if ((data as unknown[]).length < originals.length) {
+        toast.warning(`AI returned fewer entries (${(data as unknown[]).length} vs ${originals.length}). Missing entries are preserved from your original.`);
+        // Append missing originals
+        const aiIds = new Set((data as Record<string, unknown>[]).map(e => e.id));
+        const missing = originals.filter(o => !aiIds.has(o.id));
+        data = [...(data as Record<string, unknown>[]), ...missing];
+      }
+
       data = (data as Record<string, unknown>[]).map((aiEntry, i) => {
         const orig = originals.find(o => o.id === (aiEntry.id as string)) || originals[i];
         const base = orig || {} as Record<string, unknown>;
@@ -227,6 +336,14 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     if (result.section === 'education') {
       if (!Array.isArray(data)) data = [];
       const originals = currentResume.education || [];
+
+      if ((data as unknown[]).length < originals.length) {
+        toast.warning(`AI returned fewer entries (${(data as unknown[]).length} vs ${originals.length}). Missing entries are preserved.`);
+        const aiIds = new Set((data as Record<string, unknown>[]).map(e => e.id));
+        const missing = originals.filter(o => !aiIds.has(o.id));
+        data = [...(data as Record<string, unknown>[]), ...missing];
+      }
+
       data = (data as Record<string, unknown>[]).map((aiEntry, i) => {
         const orig = originals.find(o => o.id === (aiEntry.id as string)) || originals[i];
         const base = orig || {} as Record<string, unknown>;
@@ -266,6 +383,39 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
   const availableSections = enabledSections;
 
   const sheetTitle = atsMode ? 'ATS Score Optimization' : 'AI Enhance';
+
+  // Render structured before/after for experience/education, plain text for others
+  const renderSectionPreview = (sectionId: SectionType, content: unknown, variant: 'original' | 'enhanced') => {
+    if (sectionId === 'experience' && Array.isArray(content)) {
+      return (
+        <div className="space-y-2">
+          {content.map((entry: any, i: number) => (
+            <ExperienceCard key={entry?.id || i} entry={entry} variant={variant} />
+          ))}
+        </div>
+      );
+    }
+    if (sectionId === 'education' && Array.isArray(content)) {
+      return (
+        <div className="space-y-2">
+          {content.map((entry: any, i: number) => (
+            <EducationCard key={entry?.id || i} entry={entry} variant={variant} />
+          ))}
+        </div>
+      );
+    }
+    // For summary/skills: readable text
+    const text = formatSectionContent(sectionId, content);
+    const maxLen = variant === 'original' ? 300 : 500;
+    return (
+      <div className={cn(
+        "p-2.5 rounded-lg text-xs max-h-32 overflow-y-auto whitespace-pre-wrap",
+        variant === 'original' ? "bg-muted/50 line-through opacity-60" : "bg-primary/5 border border-primary/20"
+      )}>
+        {text.slice(0, maxLen)}{text.length > maxLen ? '…' : ''}
+      </div>
+    );
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -412,7 +562,6 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
                 return (
                   <Collapsible key={`${r.section}-${i}`} open={isExpanded} onOpenChange={() => toggleResultExpanded(i)}>
                     <div className="rounded-xl border border-border bg-card overflow-hidden">
-                      {/* Collapsed header - always visible */}
                       <CollapsibleTrigger asChild>
                         <button className="w-full flex items-center justify-between px-4 py-3 touch-manipulation min-h-[44px] active:scale-[0.98] transition-transform">
                           <div className="flex items-center gap-2">
@@ -426,6 +575,9 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
                                 {r.changes.length} improvement{r.changes.length !== 1 ? 's' : ''}
                               </Badge>
                             )}
+                            {r.warning && (
+                              <AlertTriangle className="w-3.5 h-3.5 text-yellow-500" />
+                            )}
                           </div>
                           {isExpanded ? (
                             <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -435,24 +587,26 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
                         </button>
                       </CollapsibleTrigger>
 
-                      {/* Expanded content */}
                       <CollapsibleContent>
                         <div className="px-4 pb-4 space-y-3 border-t border-border/50 pt-3">
+                          {r.warning && (
+                            <div className="flex items-start gap-2 p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-xs text-yellow-700 dark:text-yellow-400">
+                              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                              <span>{r.warning}</span>
+                            </div>
+                          )}
+
                           <div className="space-y-2">
                             <div>
                               <p className="text-[10px] font-medium text-muted-foreground mb-1">Original</p>
-                              <div className="p-2.5 rounded-lg bg-muted/50 text-xs line-through opacity-60 max-h-24 overflow-y-auto">
-                                {r.original.slice(0, 300)}{r.original.length > 300 ? '…' : ''}
-                              </div>
+                              {renderSectionPreview(r.section, r.original, 'original')}
                             </div>
                             <div className="flex justify-center">
                               <ArrowRight className="w-3.5 h-3.5 text-primary" />
                             </div>
                             <div>
                               <p className="text-[10px] font-medium text-primary mb-1">Enhanced</p>
-                              <div className="p-2.5 rounded-lg bg-primary/5 border border-primary/20 text-xs max-h-32 overflow-y-auto">
-                                {r.improved.slice(0, 500)}{r.improved.length > 500 ? '…' : ''}
-                              </div>
+                              {renderSectionPreview(r.section, r.improved, 'enhanced')}
                             </div>
                           </div>
 
