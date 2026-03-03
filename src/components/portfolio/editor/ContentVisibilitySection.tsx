@@ -18,6 +18,7 @@ export interface PortfolioSections {
 export const DEFAULT_SECTIONS: PortfolioSections = {
   experience: true, education: true, skills: true, projects: true,
   certifications: true, awards: true, publications: true, volunteering: true,
+  githubProjects: true,
 };
 
 export const SECTION_LABELS: Record<keyof PortfolioSections, string> = {
