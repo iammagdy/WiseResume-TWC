@@ -34,6 +34,7 @@ import { CaseStudyCard } from '@/components/portfolio/public/cards/CaseStudyCard
 import { ServiceCard } from '@/components/portfolio/public/cards/ServiceCard';
 import { TestimonialCard } from '@/components/portfolio/public/cards/TestimonialCard';
 import type { Testimonial } from '@/components/portfolio/public/cards/TestimonialCard';
+import { GitHubProjectsSection } from '@/components/portfolio/GitHubProjectsSection';
 import type { Highlight } from '@/components/portfolio/public/HighlightsStrip';
 import { useActiveStatus, isActiveWithin24h } from '@/hooks/useActiveStatus';
 
