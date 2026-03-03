@@ -1,5 +1,5 @@
 import { memo, useState, useCallback, Suspense, lazy, useRef, CSSProperties, useEffect } from 'react';
-import { ZoomIn, ZoomOut, Download, Eye, EyeOff, X } from 'lucide-react';
+import { ZoomIn, ZoomOut, Download, Eye, EyeOff, X, Scissors } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
