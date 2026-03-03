@@ -1,5 +1,5 @@
 import { memo, useState, useCallback, Suspense, lazy, useRef, CSSProperties, useEffect } from 'react';
-import { ZoomIn, ZoomOut, Download, Eye, EyeOff, X } from 'lucide-react';
+import { ZoomIn, ZoomOut, Download, Eye, EyeOff, X, Scissors } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
@@ -119,9 +119,22 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
   const [isGenerating, setIsGenerating] = useState(false);
   const [hiddenSections, setHiddenSections] = useState<Set<string>>(new Set());
   const [showSectionToggles, setShowSectionToggles] = useState(false);
+  const [showPageBreaks, setShowPageBreaks] = useState(true);
+  const [resumeHeight, setResumeHeight] = useState(792);
   const resumeRef = useRef<HTMLDivElement>(null);
 
   const TemplateComponent = templateComponents[selectedTemplate];
+
+  // Track resume height for page break indicators
+  useEffect(() => {
+    const el = resumeRef.current;
+    if (!el) return;
+    const update = () => setResumeHeight(el.scrollHeight || el.offsetHeight || 792);
+    update();
+    const obs = new ResizeObserver(update);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [currentResume, selectedTemplate]);
 
   const toggleSection = useCallback((section: string) => {
     setHiddenSections(prev => {
@@ -195,6 +208,18 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
         </div>
 
         <div className="flex items-center gap-1.5">
+          {/* Page break toggle */}
+          <button
+            onClick={() => { setShowPageBreaks(v => !v); haptics.light(); }}
+            className={cn(
+              'p-2 rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation active:scale-95',
+              showPageBreaks ? 'bg-destructive/10 text-destructive' : 'text-muted-foreground hover:bg-muted'
+            )}
+            aria-label="Toggle page break indicators"
+          >
+            <Scissors className="w-4 h-4" />
+          </button>
+
           {/* Section toggle button */}
           <button
             onClick={() => { setShowSectionToggles(v => !v); haptics.light(); }}
@@ -263,7 +288,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
           <div
             ref={resumeRef}
             data-resume-template
-            className="bg-white text-black mx-auto shadow-2xl"
+            className="bg-white text-black mx-auto shadow-2xl relative"
             style={{
               width: '100%',
               maxWidth: '612px',
@@ -287,6 +312,24 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
             <Suspense fallback={<PreviewSkeleton />}>
               <TemplateComponent resume={filteredResume} />
             </Suspense>
+
+            {/* Page break indicators */}
+            {showPageBreaks && resumeHeight > 792 && (() => {
+              const PAGE_H = 792;
+              const numBreaks = Math.floor(resumeHeight / PAGE_H);
+              return Array.from({ length: numBreaks }, (_, i) => (
+                <div
+                  key={i}
+                  className="absolute left-0 w-full z-10 pointer-events-none"
+                  style={{ top: `${(i + 1) * PAGE_H}px` }}
+                >
+                  <div className="border-t border-dashed border-destructive/50 w-full" />
+                  <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-destructive text-[9px] font-medium px-1.5 py-0.5 rounded-full shadow-sm whitespace-nowrap">
+                    Page {i + 1} · Page {i + 2}
+                  </span>
+                </div>
+              ));
+            })()}
           </div>
         </div>
       </div>
