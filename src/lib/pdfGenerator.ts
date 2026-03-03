@@ -398,10 +398,10 @@ export function estimatePageCount(
 
 /**
  * Snaps fixed-interval break positions to avoid splitting elements marked
- * with [data-break-avoid]. Uses a three-tier strategy:
- * Tier 1: push whole block to next page (shift ≤ 30%)
- * Tier 2: snap to nearest [data-break-child] inside block (shift ≤ 30%)
- * Tier 3: snap to nearest direct child element (shift ≤ 30%)
+ * with [data-break-avoid]. Uses a tiered strategy:
+ * Tier 1: if element fits on one page → always push to next page (no shift limit)
+ * Tier 2: oversized elements → snap to nearest [data-break-child] (shift ≤ 30%)
+ * Tier 3: oversized elements → snap to nearest direct child (shift ≤ 30%)
  */
 function snapBreaksToContent(
   fixedBreaks: number[],
@@ -431,13 +431,17 @@ function snapBreaksToContent(
     const hit = boundaries.find(b => breakY > b.top && breakY < b.bottom);
     if (!hit) return breakY;
 
-    // Tier 1: snap to top of the block if shift is small enough
+    const hitHeight = hit.bottom - hit.top;
     const snappedTop = hit.top;
-    if (Math.abs(snappedTop - breakY) <= maxShift) {
+
+    // Tier 1: if the element fits on a single page, ALWAYS push it to the next page
+    if (hitHeight < sourceHeightPerPage) {
       return snappedTop;
     }
 
-    // Tier 2: element is too tall — find a [data-break-child] boundary inside it
+    // --- Element is taller than one page — find best internal break point ---
+
+    // Tier 2: find a [data-break-child] boundary inside the oversized block
     const markedChildren = hit.el.querySelectorAll('[data-break-child]');
     if (markedChildren.length > 0) {
       let bestSnap = breakY;
@@ -471,7 +475,7 @@ function snapBreaksToContent(
       if (bestSnap !== breakY) return bestSnap;
     }
 
-    // Fallback: keep original
+    // Fallback: keep original break for oversized elements with no usable boundaries
     return breakY;
   });
 }
