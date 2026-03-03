@@ -34,7 +34,7 @@ export const HealthcareTemplate = memo(function HealthcareTemplate({ resume }: H
             </h2>
             <div className="grid grid-cols-2 gap-2">
               {certifications.map((cert) => (
-                <div key={cert.id} className="p-2 rounded border" style={{ backgroundColor: tealLight, borderColor: '#99f6e4' }}>
+                <div key={cert.id} data-break-avoid className="p-2 rounded border" style={{ backgroundColor: tealLight, borderColor: '#99f6e4' }}>
                   <p className="font-semibold text-gray-900 text-sm">{cert.name}</p>
                   <p className="text-gray-600 text-xs">{cert.issuer}</p>
                   <p className="text-xs mt-0.5" style={{ color: tealColor }}>{cert.date}{cert.expiryDate && ` – Exp: ${cert.expiryDate}`}</p>
