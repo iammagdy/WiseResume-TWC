@@ -74,7 +74,7 @@ export const HealthcareTemplate = memo(function HealthcareTemplate({ resume }: H
             </h2>
             <div className="space-y-2">
               {education.map((edu) => (
-                <div key={edu.id} className="flex justify-between items-baseline">
+                <div key={edu.id} data-break-avoid className="flex justify-between items-baseline">
                   <div>
                     <h3 className="font-semibold text-gray-900">{edu.degree} in {edu.field}</h3>
                     <p className="text-gray-600 text-sm">{edu.institution}</p>

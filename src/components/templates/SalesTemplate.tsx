@@ -83,7 +83,7 @@ export const SalesTemplate = memo(function SalesTemplate({ resume }: SalesTempla
             <section data-section="certifications">
               <h2 className="text-sm font-bold uppercase tracking-wide mb-2 text-gray-900">Certifications</h2>
               <div className="space-y-1">
-                {certifications.map((cert) => (<div key={cert.id}><p className="font-medium text-gray-900 text-sm">{cert.name}</p><p className="text-gray-500 text-xs">{cert.issuer} • {cert.date}</p></div>))}
+                {certifications.map((cert) => (<div key={cert.id} data-break-avoid><p className="font-medium text-gray-900 text-sm">{cert.name}</p><p className="text-gray-500 text-xs">{cert.issuer} • {cert.date}</p></div>))}
               </div>
             </section>
           )}

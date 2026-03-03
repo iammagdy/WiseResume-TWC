@@ -90,7 +90,7 @@ export const ElegantTemplate = memo(function ElegantTemplate({ resume }: Elegant
               <h2 className="text-sm font-medium uppercase tracking-widest mb-3 pb-2 border-b-2" style={{ color: roseColor, borderColor: roseMuted }}>Credentials</h2>
               <div className="space-y-2">
                 {certifications.map((cert) => (
-                  <div key={cert.id} className="p-2 rounded" style={{ backgroundColor: roseLight }}>
+                  <div key={cert.id} data-break-avoid className="p-2 rounded" style={{ backgroundColor: roseLight }}>
                     <p className="font-medium text-gray-900 text-sm">{cert.name}</p>
                     <p className="text-gray-600 text-xs">{cert.issuer} • {cert.date}</p>
                   </div>
