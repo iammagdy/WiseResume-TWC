@@ -34,6 +34,7 @@ import { CaseStudyCard } from '@/components/portfolio/public/cards/CaseStudyCard
 import { ServiceCard } from '@/components/portfolio/public/cards/ServiceCard';
 import { TestimonialCard } from '@/components/portfolio/public/cards/TestimonialCard';
 import type { Testimonial } from '@/components/portfolio/public/cards/TestimonialCard';
+import { GitHubProjectsSection } from '@/components/portfolio/GitHubProjectsSection';
 import type { Highlight } from '@/components/portfolio/public/HighlightsStrip';
 import { useActiveStatus, isActiveWithin24h } from '@/hooks/useActiveStatus';
 
@@ -307,7 +308,7 @@ function PublicPortfolioContent() {
   // Section scroll tracking via single IntersectionObserver
   useEffect(() => {
     if (!portfolio) return;
-    const sectionNames = ['experience', 'education', 'skills', 'projects', 'certifications', 'awards', 'publications', 'volunteering', 'case-studies', 'services'];
+    const sectionNames = ['experience', 'education', 'skills', 'projects', 'github', 'certifications', 'awards', 'publications', 'volunteering', 'case-studies', 'services'];
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
@@ -474,6 +475,7 @@ function PublicPortfolioContent() {
   const hasAwards = show('awards') && resume.awards?.length > 0;
   const hasPublications = show('publications') && resume.publications?.length > 0;
   const hasVolunteering = show('volunteering') && resume.volunteering?.length > 0;
+  const hasGithubProjects = show('githubProjects') && profile.githubProjectsCache?.length > 0;
   const hasCaseStudies = profile.caseStudies?.length > 0;
   const hasServices = profile.services?.length > 0;
   const hasTestimonials = (profile as unknown as Record<string, unknown>).testimonials && ((profile as unknown as Record<string, unknown>).testimonials as Testimonial[])?.length > 0;
@@ -528,6 +530,7 @@ function PublicPortfolioContent() {
     ...(hasSkills ? [{ id: 'section-skills', label: 'Skills' }] : []),
     ...(hasEducation ? [{ id: 'section-education', label: 'Education' }] : []),
     ...(hasProjects ? [{ id: 'section-projects', label: 'Projects' }] : []),
+    ...(hasGithubProjects ? [{ id: 'section-github', label: 'GitHub' }] : []),
     ...(hasCaseStudies ? [{ id: 'section-case-studies', label: 'Case Studies' }] : []),
     ...(hasServices ? [{ id: 'section-services', label: 'Services' }] : []),
     ...(hasTestimonials ? [{ id: 'section-testimonials', label: 'Testimonials' }] : []),
@@ -835,6 +838,14 @@ function PublicPortfolioContent() {
                     <ProjectCard key={p.id || i} project={p} style={pStyle} />
                   ))}
                 </div>
+              </motion.section>
+            )}
+
+            {/* GitHub Projects */}
+            {hasGithubProjects && (
+              <motion.section variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-github">
+                <SectionHeader icon={<Github className="w-5 h-5" />} title="GitHub Projects" style={pStyle} />
+                <GitHubProjectsSection projects={profile.githubProjectsCache} accentColor={accentColor} style={pStyle} />
               </motion.section>
             )}
 

@@ -6,6 +6,7 @@ import {
   TrendingUp, 
   BarChart3,
   UserCheck,
+  Palette,
 } from 'lucide-react';
 import {
   Sheet,
@@ -86,6 +87,7 @@ interface AIHubSheetProps {
   onChangeTemplate: () => void;
   onViewComparison?: () => void;
   onRecruiterSim?: () => void;
+  onTemplateAdvisor?: () => void;
 }
 
 export function AIHubSheet({
@@ -100,6 +102,7 @@ export function AIHubSheet({
   onChangeTemplate,
   onViewComparison,
   onRecruiterSim,
+  onTemplateAdvisor,
 }: AIHubSheetProps) {
   const { currentComparison } = useResumeStore();
 
@@ -193,6 +196,15 @@ export function AIHubSheet({
               onClick={() => {
                 onOpenChange(false);
                 onRecruiterSim?.();
+              }}
+            />
+            <AIActionTile
+              icon={<Palette className="w-5 h-5 text-primary" />}
+              title="Template Advisor"
+              subtitle={<AICostBadge operation="suggest-template" />}
+              onClick={() => {
+                onOpenChange(false);
+                onTemplateAdvisor?.();
               }}
             />
           </div>

@@ -12,17 +12,19 @@ export interface PortfolioSections {
   awards: boolean;
   publications: boolean;
   volunteering: boolean;
+  githubProjects: boolean;
 }
 
 export const DEFAULT_SECTIONS: PortfolioSections = {
   experience: true, education: true, skills: true, projects: true,
   certifications: true, awards: true, publications: true, volunteering: true,
+  githubProjects: true,
 };
 
 export const SECTION_LABELS: Record<keyof PortfolioSections, string> = {
   experience: 'Experience', education: 'Education', skills: 'Skills',
   projects: 'Projects', certifications: 'Certifications', awards: 'Awards',
-  publications: 'Publications', volunteering: 'Volunteering',
+  publications: 'Publications', volunteering: 'Volunteering', githubProjects: 'GitHub Projects',
 };
 
 export interface ContentVisibilitySectionProps {
