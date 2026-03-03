@@ -445,7 +445,7 @@ export async function generatePDF(
 
     onProgress?.('paginating', 40);
 
-    await generatePDFPages(pdfDoc, canvas, smartBreaks, totalHeight, globalScaleFactor, pageWidth, pageHeight);
+    await generatePDFPages(pdfDoc, canvas, smartBreaks, totalHeight, globalScaleFactor, pageWidth, pageHeight, resume);
 
     onProgress?.('finalizing', 80);
 
