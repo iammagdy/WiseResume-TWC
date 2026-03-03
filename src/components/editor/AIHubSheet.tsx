@@ -102,6 +102,7 @@ export function AIHubSheet({
   onChangeTemplate,
   onViewComparison,
   onRecruiterSim,
+  onTemplateAdvisor,
 }: AIHubSheetProps) {
   const { currentComparison } = useResumeStore();
 
