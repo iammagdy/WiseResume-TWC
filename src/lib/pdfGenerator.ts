@@ -431,13 +431,17 @@ function snapBreaksToContent(
     const hit = boundaries.find(b => breakY > b.top && breakY < b.bottom);
     if (!hit) return breakY;
 
-    // Tier 1: snap to top of the block if shift is small enough
+    const hitHeight = hit.bottom - hit.top;
     const snappedTop = hit.top;
-    if (Math.abs(snappedTop - breakY) <= maxShift) {
+
+    // Tier 1: if the element fits on a single page, ALWAYS push it to the next page
+    if (hitHeight < sourceHeightPerPage) {
       return snappedTop;
     }
 
-    // Tier 2: element is too tall — find a [data-break-child] boundary inside it
+    // --- Element is taller than one page — find best internal break point ---
+
+    // Tier 2: find a [data-break-child] boundary inside the oversized block
     const markedChildren = hit.el.querySelectorAll('[data-break-child]');
     if (markedChildren.length > 0) {
       let bestSnap = breakY;
@@ -471,7 +475,7 @@ function snapBreaksToContent(
       if (bestSnap !== breakY) return bestSnap;
     }
 
-    // Fallback: keep original
+    // Fallback: keep original break for oversized elements with no usable boundaries
     return breakY;
   });
 }
