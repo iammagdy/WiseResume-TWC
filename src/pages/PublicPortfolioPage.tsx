@@ -474,6 +474,7 @@ function PublicPortfolioContent() {
   const hasAwards = show('awards') && resume.awards?.length > 0;
   const hasPublications = show('publications') && resume.publications?.length > 0;
   const hasVolunteering = show('volunteering') && resume.volunteering?.length > 0;
+  const hasGithubProjects = show('githubProjects') && profile.githubProjectsCache?.length > 0;
   const hasCaseStudies = profile.caseStudies?.length > 0;
   const hasServices = profile.services?.length > 0;
   const hasTestimonials = (profile as unknown as Record<string, unknown>).testimonials && ((profile as unknown as Record<string, unknown>).testimonials as Testimonial[])?.length > 0;
