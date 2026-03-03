@@ -42,7 +42,7 @@ export const CompactTemplate = memo(function CompactTemplate({ resume }: Compact
           <h2 className="text-xs font-bold text-gray-900 uppercase tracking-wide mb-1.5 pb-0.5 border-b border-gray-200">Education</h2>
           <div className="space-y-1.5">
             {education.map((edu) => (
-              <div key={edu.id} className="flex justify-between">
+              <div key={edu.id} data-break-avoid className="flex justify-between">
                 <div>
                   <h3 className="font-semibold text-gray-900">{edu.degree} in {edu.field}</h3>
                   <p className="text-gray-600 text-[10px]">{edu.institution}</p>
