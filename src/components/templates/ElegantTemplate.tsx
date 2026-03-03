@@ -35,7 +35,7 @@ export const ElegantTemplate = memo(function ElegantTemplate({ resume }: Elegant
             <h2 className="text-sm font-medium uppercase tracking-widest mb-4 pb-2 border-b-2" style={{ color: roseColor, borderColor: roseMuted }}>Experience</h2>
             <div className="space-y-5">
               {experience.map((exp) => (
-                <div key={exp.id} className="relative pl-4">
+                <div key={exp.id} data-break-avoid className="relative pl-4">
                   <div className="absolute left-0 top-1.5 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: roseColor }} />
                   <div className="flex justify-between items-baseline">
                     <h3 className="font-semibold text-gray-900">{exp.position}</h3>
@@ -74,7 +74,7 @@ export const ElegantTemplate = memo(function ElegantTemplate({ resume }: Elegant
               <h2 className="text-sm font-medium uppercase tracking-widest mb-3 pb-2 border-b-2" style={{ color: roseColor, borderColor: roseMuted }}>Education</h2>
               <div className="space-y-3">
                 {education.map((edu) => (
-                  <div key={edu.id}>
+                  <div key={edu.id} data-break-avoid>
                     <h3 className="font-semibold text-gray-900 text-sm">{edu.degree}</h3>
                     <p className="text-gray-600 text-xs">{edu.field}</p>
                     <p className="text-xs" style={{ color: roseColor }}>{edu.institution}</p>
@@ -90,7 +90,7 @@ export const ElegantTemplate = memo(function ElegantTemplate({ resume }: Elegant
               <h2 className="text-sm font-medium uppercase tracking-widest mb-3 pb-2 border-b-2" style={{ color: roseColor, borderColor: roseMuted }}>Credentials</h2>
               <div className="space-y-2">
                 {certifications.map((cert) => (
-                  <div key={cert.id} className="p-2 rounded" style={{ backgroundColor: roseLight }}>
+                  <div key={cert.id} data-break-avoid className="p-2 rounded" style={{ backgroundColor: roseLight }}>
                     <p className="font-medium text-gray-900 text-sm">{cert.name}</p>
                     <p className="text-gray-600 text-xs">{cert.issuer} • {cert.date}</p>
                   </div>

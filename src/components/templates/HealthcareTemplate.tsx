@@ -34,7 +34,7 @@ export const HealthcareTemplate = memo(function HealthcareTemplate({ resume }: H
             </h2>
             <div className="grid grid-cols-2 gap-2">
               {certifications.map((cert) => (
-                <div key={cert.id} className="p-2 rounded border" style={{ backgroundColor: tealLight, borderColor: '#99f6e4' }}>
+                <div key={cert.id} data-break-avoid className="p-2 rounded border" style={{ backgroundColor: tealLight, borderColor: '#99f6e4' }}>
                   <p className="font-semibold text-gray-900 text-sm">{cert.name}</p>
                   <p className="text-gray-600 text-xs">{cert.issuer}</p>
                   <p className="text-xs mt-0.5" style={{ color: tealColor }}>{cert.date}{cert.expiryDate && ` – Exp: ${cert.expiryDate}`}</p>
@@ -50,7 +50,7 @@ export const HealthcareTemplate = memo(function HealthcareTemplate({ resume }: H
             </h2>
             <div className="space-y-4">
               {experience.map((exp) => (
-                <div key={exp.id} className="border-l-2 pl-3" style={{ borderColor: '#99f6e4' }}>
+                <div key={exp.id} data-break-avoid className="border-l-2 pl-3" style={{ borderColor: '#99f6e4' }}>
                   <div className="flex justify-between items-baseline">
                     <h3 className="font-bold text-gray-900">{exp.position}</h3>
                     <span className="text-gray-500 text-xs">{formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</span>
@@ -74,7 +74,7 @@ export const HealthcareTemplate = memo(function HealthcareTemplate({ resume }: H
             </h2>
             <div className="space-y-2">
               {education.map((edu) => (
-                <div key={edu.id} className="flex justify-between items-baseline">
+                <div key={edu.id} data-break-avoid className="flex justify-between items-baseline">
                   <div>
                     <h3 className="font-semibold text-gray-900">{edu.degree} in {edu.field}</h3>
                     <p className="text-gray-600 text-sm">{edu.institution}</p>

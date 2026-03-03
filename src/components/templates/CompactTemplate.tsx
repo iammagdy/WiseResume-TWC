@@ -20,7 +20,7 @@ export const CompactTemplate = memo(function CompactTemplate({ resume }: Compact
           <h2 className="text-xs font-bold text-gray-900 uppercase tracking-wide mb-1.5 pb-0.5 border-b border-gray-200">Experience</h2>
           <div className="space-y-2">
             {experience.map((exp) => (
-              <div key={exp.id}>
+              <div key={exp.id} data-break-avoid>
                 <div className="flex justify-between items-baseline">
                   <h3 className="font-semibold text-gray-900">{exp.position}</h3>
                   <span className="text-gray-500 text-[10px]">{formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</span>
@@ -42,7 +42,7 @@ export const CompactTemplate = memo(function CompactTemplate({ resume }: Compact
           <h2 className="text-xs font-bold text-gray-900 uppercase tracking-wide mb-1.5 pb-0.5 border-b border-gray-200">Education</h2>
           <div className="space-y-1.5">
             {education.map((edu) => (
-              <div key={edu.id} className="flex justify-between">
+              <div key={edu.id} data-break-avoid className="flex justify-between">
                 <div>
                   <h3 className="font-semibold text-gray-900">{edu.degree} in {edu.field}</h3>
                   <p className="text-gray-600 text-[10px]">{edu.institution}</p>
@@ -65,7 +65,7 @@ export const CompactTemplate = memo(function CompactTemplate({ resume }: Compact
           <h2 className="text-xs font-bold text-gray-900 uppercase tracking-wide mb-1 pb-0.5 border-b border-gray-200">Certifications</h2>
           <div className="space-y-0.5">
             {certifications.map((cert) => (
-              <div key={cert.id} className="flex justify-between">
+              <div key={cert.id} data-break-avoid className="flex justify-between">
                 <span className="text-gray-700">{cert.name} – {cert.issuer}</span>
                 <span className="text-gray-500 text-[10px]">{cert.date}</span>
               </div>
