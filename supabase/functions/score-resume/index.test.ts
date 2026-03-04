@@ -106,6 +106,77 @@ Deno.test("parsability: floor at 0", () => {
   assertEquals(score >= 0, true);
 });
 
+Deno.test("parsability: all-unknown date formats → no mixed penalty", () => {
+  const score = scoreParsability({
+    experience: [
+      { startDate: "sometime in 2020", endDate: "around 2022", achievements: ["x"] },
+    ],
+  });
+  assertEquals(score, 100);
+});
+
+Deno.test("parsability: multiple special bullet chars → still only -10", () => {
+  const score = scoreParsability({
+    experience: [
+      { startDate: "2020-01", endDate: "2021-01", description: "● did A", achievements: ["x"] },
+      { startDate: "2021-01", endDate: "2022-01", description: "■ did B", achievements: ["x"] },
+      { startDate: "2022-01", endDate: "2023-01", description: "➤ did C", achievements: ["x"] },
+    ],
+  });
+  assertEquals(score, 90);
+});
+
+Deno.test("parsability: Present/Current endDate → no penalty", () => {
+  const score = scoreParsability({
+    experience: [
+      { startDate: "2020-01", endDate: "Present", achievements: ["x"] },
+    ],
+  });
+  assertEquals(score, 100);
+});
+
+Deno.test("parsability: all entries missing everything → heavy penalties", () => {
+  const score = scoreParsability({
+    experience: [{}, {}, {}, {}],
+  });
+  assertEquals(score, 40);
+});
+
+Deno.test("parsability: education-only mixed formats → -15", () => {
+  const score = scoreParsability({
+    education: [
+      { startDate: "2016-01", endDate: "2020-01" },
+      { startDate: "Sep 2020", endDate: "Jun 2022" },
+    ],
+  });
+  assertEquals(score, 85);
+});
+
+Deno.test("parsability: empty experience array → 100", () => {
+  assertEquals(scoreParsability({ experience: [] }), 100);
+});
+
+Deno.test("parsability: single entry all penalties combined", () => {
+  const score = scoreParsability({
+    experience: [
+      { endDate: "Jan 2022", description: "● did stuff" },
+    ],
+    education: [
+      { startDate: "2016-01", endDate: "2020-01" },
+    ],
+  });
+  assertEquals(score, 65);
+});
+
+Deno.test("parsability: large clean resume → 100", () => {
+  const entries = Array.from({ length: 12 }, (_, i) => ({
+    startDate: `${2010 + i}-01`,
+    endDate: `${2011 + i}-01`,
+    achievements: ["Did something measurable"],
+  }));
+  assertEquals(scoreParsability({ experience: entries }), 100);
+});
+
 // ── scoreLengthDensity ──────────────────────────────────────────────
 
 Deno.test("lengthDensity: no bullets, no experience, few skills → 0", () => {
