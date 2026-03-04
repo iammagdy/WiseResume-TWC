@@ -504,8 +504,11 @@ export default function PortfolioEditorPage() {
                 views={profile?.views || 0}
                 onOpenCareerCard={() => setShowCareerCard(true)}
                 hasLivePortfolio={portfolioEnabled && !!username}
+                twitterUrl={twitterUrl}
+                onTwitterUrlChange={setTwitterUrl}
+                websiteUrl={websiteUrl}
+                onWebsiteUrlChange={setWebsiteUrl}
               />
-            )}
           </motion.div>
         </AnimatePresence>
       </div>
