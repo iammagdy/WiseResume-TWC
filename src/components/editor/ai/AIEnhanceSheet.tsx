@@ -275,7 +275,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
 
         // Validate entry count for array sections
         let warning: string | undefined;
-        if (['experience', 'education'].includes(sectionInfo.id) && Array.isArray(content) && Array.isArray(data.improved)) {
+        if (['experience', 'education', 'certifications', 'awards', 'projects', 'publications', 'volunteering', 'languages'].includes(sectionInfo.id) && Array.isArray(content) && Array.isArray(data.improved)) {
           if (data.improved.length < (content as unknown[]).length) {
             warning = `AI returned ${data.improved.length} entries but original has ${(content as unknown[]).length}. Some entries may be missing.`;
           }
