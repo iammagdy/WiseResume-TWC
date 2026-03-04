@@ -273,7 +273,14 @@ export function ExportOptionsSheet({
                   variant="link"
                   size="sm"
                   className="h-auto p-0 ml-1 text-sm font-semibold underline"
-                  onClick={() => { haptics.light(); setSelectedType('ats-pdf'); }}
+                  onClick={() => {
+                    haptics.light();
+                    setSelectedType('ats-pdf');
+                    setHighlightedType('ats-pdf');
+                    setTimeout(() => {
+                      document.querySelector('[data-export-id="ats-pdf"]')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }, 50);
+                  }}
                 >
                   Switch to ATS-Optimized
                 </Button>
