@@ -235,7 +235,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
 
     const newResults: SectionResult[] = [];
 
-    for (const sectionInfo of SECTIONS) {
+    for (const sectionInfo of ALL_SECTIONS) {
       if (!selectedSections.has(sectionInfo.id)) continue;
 
       const content = getSectionContent(currentResume as unknown as Record<string, unknown>, sectionInfo.id);
