@@ -6,6 +6,7 @@ import {
   scoreLengthDensity,
   scoreKeywordOptimization,
   scoreContentQuality,
+  scoreTemplateFriendliness,
   generateFeedback,
 } from "../_shared/scoringFunctions.ts";
 
