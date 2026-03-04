@@ -258,8 +258,16 @@ export function ExportOptionsSheet({
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription className="text-sm">
                 {templateAtsScore === 'low'
-                  ? 'Your template has low ATS compatibility. Use ATS-Optimized or DOCX for job applications.'
-                  : 'Your template has moderate ATS compatibility. Consider using ATS-Optimized for job applications.'}
+                  ? 'Your template has low ATS compatibility.'
+                  : 'Your template has moderate ATS compatibility.'}
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="h-auto p-0 ml-1 text-sm font-semibold underline"
+                  onClick={() => { haptics.light(); setSelectedType('ats-pdf'); }}
+                >
+                  Switch to ATS-Optimized
+                </Button>
               </AlertDescription>
             </Alert>
           )}
