@@ -291,6 +291,7 @@ export default function PortfolioEditorPage() {
         githubUrl: githubUrl || null,
         websiteUrl: websiteUrl || null,
         twitterUrl: twitterUrl || null,
+        linkedinUrl: linkedinUrl || null,
         contactEmail: contactEmail || null,
         theme: selectedTheme,
         portfolioSections: sections,
