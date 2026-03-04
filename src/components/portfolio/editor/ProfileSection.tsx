@@ -44,8 +44,8 @@ export function ProfileSection(props: ProfileSectionProps) {
     openSections, toggleSection, username, onUsernameChange, usernameError,
     usernameAvailable, checkingUsername, resumes, selectedResumeId,
     onSelectedResumeIdChange, bio, onBioChange, onGenerateBio, generatingBio,
-    githubUrl, onGithubUrlChange, websiteUrl, onWebsiteUrlChange,
-    twitterUrl, onTwitterUrlChange, contactEmail, onContactEmailChange,
+    linkedinUrl, onLinkedinUrlChange,
+    githubUrl, onGithubUrlChange, contactEmail, onContactEmailChange,
     openToWork, onOpenToWorkChange, availabilityHeadline, onAvailabilityHeadlineChange,
     onGenerateAvailability, generatingAvailability,
   } = props;
