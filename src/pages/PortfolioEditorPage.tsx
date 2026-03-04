@@ -52,6 +52,7 @@ export default function PortfolioEditorPage() {
   const [githubUrl, setGithubUrl] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [twitterUrl, setTwitterUrl] = useState('');
+  const [linkedinUrl, setLinkedinUrl] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [selectedTheme, setSelectedTheme] = useState('system');
   const [generatingBio, setGeneratingBio] = useState(false);
@@ -101,6 +102,7 @@ export default function PortfolioEditorPage() {
       setGithubUrl(profile.githubUrl || '');
       setWebsiteUrl(profile.websiteUrl || '');
       setTwitterUrl(profile.twitterUrl || '');
+      setLinkedinUrl(profile.linkedinUrl || '');
       setContactEmail(profile.contactEmail || '');
       setSelectedTheme(profile.theme || 'system');
       const p = profile as unknown as Record<string, unknown>;
@@ -289,6 +291,7 @@ export default function PortfolioEditorPage() {
         githubUrl: githubUrl || null,
         websiteUrl: websiteUrl || null,
         twitterUrl: twitterUrl || null,
+        linkedinUrl: linkedinUrl || null,
         contactEmail: contactEmail || null,
         theme: selectedTheme,
         portfolioSections: sections,
@@ -351,7 +354,7 @@ export default function PortfolioEditorPage() {
     { ok: !!profile?.avatarUrl, tip: 'Add a profile photo in Settings → Profile' },
     { ok: bio.length >= 50, tip: 'Write a bio (at least 50 characters)' },
     { ok: username.length >= 3, tip: 'Set a portfolio username' },
-    { ok: !!(githubUrl || websiteUrl || twitterUrl || contactEmail), tip: 'Add at least one social link or contact email' },
+    { ok: !!(linkedinUrl || githubUrl || websiteUrl || twitterUrl || contactEmail), tip: 'Add at least one social link or contact email' },
     { ok: availabilityHeadline.length > 0, tip: 'Set an availability headline' },
     { ok: metaTitle.length > 0, tip: 'Add a custom page title for SEO' },
     { ok: metaDescription.length > 0, tip: 'Add a meta description for SEO' },
@@ -441,12 +444,10 @@ export default function PortfolioEditorPage() {
                 onBioChange={setBio}
                 onGenerateBio={handleGenerateBio}
                 generatingBio={generatingBio}
+                linkedinUrl={linkedinUrl}
+                onLinkedinUrlChange={setLinkedinUrl}
                 githubUrl={githubUrl}
                 onGithubUrlChange={setGithubUrl}
-                websiteUrl={websiteUrl}
-                onWebsiteUrlChange={setWebsiteUrl}
-                twitterUrl={twitterUrl}
-                onTwitterUrlChange={setTwitterUrl}
                 contactEmail={contactEmail}
                 onContactEmailChange={setContactEmail}
                 openToWork={openToWork}
@@ -503,6 +504,10 @@ export default function PortfolioEditorPage() {
                 views={profile?.views || 0}
                 onOpenCareerCard={() => setShowCareerCard(true)}
                 hasLivePortfolio={portfolioEnabled && !!username}
+                twitterUrl={twitterUrl}
+                onTwitterUrlChange={setTwitterUrl}
+                websiteUrl={websiteUrl}
+                onWebsiteUrlChange={setWebsiteUrl}
               />
             )}
           </motion.div>

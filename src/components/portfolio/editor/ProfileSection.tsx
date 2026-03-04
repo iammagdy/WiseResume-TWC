@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  User, Sparkles, Loader2, CheckCircle2, XCircle, Link2, Zap,
+  User, Sparkles, Loader2, CheckCircle2, XCircle, Link2, Zap, Linkedin, Github,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -24,12 +24,10 @@ export interface ProfileSectionProps {
   onBioChange: (val: string) => void;
   onGenerateBio: () => void;
   generatingBio: boolean;
+  linkedinUrl: string;
+  onLinkedinUrlChange: (val: string) => void;
   githubUrl: string;
   onGithubUrlChange: (val: string) => void;
-  websiteUrl: string;
-  onWebsiteUrlChange: (val: string) => void;
-  twitterUrl: string;
-  onTwitterUrlChange: (val: string) => void;
   contactEmail: string;
   onContactEmailChange: (val: string) => void;
   openToWork: boolean;
@@ -46,8 +44,8 @@ export function ProfileSection(props: ProfileSectionProps) {
     openSections, toggleSection, username, onUsernameChange, usernameError,
     usernameAvailable, checkingUsername, resumes, selectedResumeId,
     onSelectedResumeIdChange, bio, onBioChange, onGenerateBio, generatingBio,
-    githubUrl, onGithubUrlChange, websiteUrl, onWebsiteUrlChange,
-    twitterUrl, onTwitterUrlChange, contactEmail, onContactEmailChange,
+    linkedinUrl, onLinkedinUrlChange,
+    githubUrl, onGithubUrlChange, contactEmail, onContactEmailChange,
     openToWork, onOpenToWorkChange, availabilityHeadline, onAvailabilityHeadlineChange,
     onGenerateAvailability, generatingAvailability,
   } = props;
@@ -79,7 +77,8 @@ export function ProfileSection(props: ProfileSectionProps) {
       {/* Source Resume */}
       {resumes.length > 0 && (
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">Source Resume</label>
+          <label className="text-sm font-medium text-foreground">Resume to display</label>
+          <p className="text-xs text-muted-foreground">Choose which resume powers your portfolio content.</p>
           <Select value={selectedResumeId} onValueChange={onSelectedResumeIdChange}>
             <SelectTrigger><SelectValue placeholder="Select a resume" /></SelectTrigger>
             <SelectContent>
@@ -106,20 +105,17 @@ export function ProfileSection(props: ProfileSectionProps) {
       {/* Social Links */}
       <SubSectionHeading icon={<Link2 className="w-3.5 h-3.5" />} label="Social Links & Contact" />
       <div className="space-y-2">
-        <label className="text-xs font-medium text-foreground">GitHub URL</label>
+        <label className="text-xs font-medium text-foreground flex items-center gap-1.5"><Linkedin className="w-3.5 h-3.5" /> LinkedIn URL</label>
+        <Input placeholder="https://linkedin.com/in/yourusername" value={linkedinUrl} onChange={(e) => onLinkedinUrlChange(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+      </div>
+      <div className="space-y-2">
+        <label className="text-xs font-medium text-foreground flex items-center gap-1.5"><Github className="w-3.5 h-3.5" /> GitHub URL</label>
         <Input placeholder="https://github.com/yourusername" value={githubUrl} onChange={(e) => onGithubUrlChange(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
       </div>
       <div className="space-y-2">
-        <label className="text-xs font-medium text-foreground">Personal Website</label>
-        <Input placeholder="https://yourwebsite.com" value={websiteUrl} onChange={(e) => onWebsiteUrlChange(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
-      </div>
-      <div className="space-y-2">
-        <label className="text-xs font-medium text-foreground">X (Twitter) URL</label>
-        <Input placeholder="https://x.com/yourusername" value={twitterUrl} onChange={(e) => onTwitterUrlChange(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
-      </div>
-      <div className="space-y-2">
-        <label className="text-xs font-medium text-foreground">Contact Email (for "Hire Me" button)</label>
+        <label className="text-xs font-medium text-foreground">Contact Email</label>
         <Input type="email" placeholder="your@email.com" value={contactEmail} onChange={(e) => onContactEmailChange(e.target.value)} autoComplete="email" autoCapitalize="none" inputMode="email" />
+        <p className="text-xs text-muted-foreground">Public email shown on your portfolio. Defaults to your account email if empty.</p>
       </div>
 
       {/* Availability */}

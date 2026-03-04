@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Sparkles, Loader2, CheckCircle2, XCircle, Link2, Zap, Github, RefreshCw,
+  Sparkles, Loader2, CheckCircle2, XCircle, Link2, Zap, Github, RefreshCw, Linkedin,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,12 +24,10 @@ export interface SetupTabProps {
   onBioChange: (val: string) => void;
   onGenerateBio: () => void;
   generatingBio: boolean;
+  linkedinUrl: string;
+  onLinkedinUrlChange: (val: string) => void;
   githubUrl: string;
   onGithubUrlChange: (val: string) => void;
-  websiteUrl: string;
-  onWebsiteUrlChange: (val: string) => void;
-  twitterUrl: string;
-  onTwitterUrlChange: (val: string) => void;
   contactEmail: string;
   onContactEmailChange: (val: string) => void;
   openToWork: boolean;
@@ -45,11 +43,14 @@ export function SetupTab(props: SetupTabProps) {
     username, onUsernameChange, usernameError, usernameAvailable, checkingUsername,
     resumes, selectedResumeId, onSelectedResumeIdChange,
     bio, onBioChange, onGenerateBio, generatingBio,
-    githubUrl, onGithubUrlChange, websiteUrl, onWebsiteUrlChange,
-    twitterUrl, onTwitterUrlChange, contactEmail, onContactEmailChange,
+    linkedinUrl, onLinkedinUrlChange,
+    githubUrl, onGithubUrlChange, contactEmail, onContactEmailChange,
     openToWork, onOpenToWorkChange, availabilityHeadline, onAvailabilityHeadlineChange,
     onGenerateAvailability, generatingAvailability,
   } = props;
+
+  const now = new Date();
+  const currentMonthYear = `${now.toLocaleString('default', { month: 'long' })} ${now.getFullYear()}`;
 
   return (
     <div className="space-y-5">
@@ -91,10 +92,11 @@ export function SetupTab(props: SetupTabProps) {
         )}
       </div>
 
-      {/* Source Resume */}
+      {/* Resume to display */}
       {resumes.length > 0 && (
         <div className="space-y-1">
-          <label className="text-xs font-medium text-foreground">Source Resume</label>
+          <label className="text-xs font-medium text-foreground">Resume to display</label>
+          <p className="text-[11px] text-muted-foreground">Choose which resume powers your portfolio content.</p>
           <Select value={selectedResumeId} onValueChange={onSelectedResumeIdChange}>
             <SelectTrigger><SelectValue placeholder="Select a resume" /></SelectTrigger>
             <SelectContent>
@@ -139,24 +141,29 @@ export function SetupTab(props: SetupTabProps) {
           <Link2 className="w-3.5 h-3.5" />
           Social Links & Contact
         </div>
+
+        {/* LinkedIn URL */}
         <div className="space-y-1">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-medium text-foreground">GitHub URL</label>
-            <GitHubSyncButton githubUrl={githubUrl} />
-          </div>
+          <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+            <Linkedin className="w-3.5 h-3.5" /> LinkedIn URL
+          </label>
+          <Input placeholder="https://linkedin.com/in/yourusername" value={linkedinUrl} onChange={e => onLinkedinUrlChange(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+        </div>
+
+        {/* GitHub URL + Sync button below */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+            <Github className="w-3.5 h-3.5" /> GitHub URL
+          </label>
           <Input placeholder="https://github.com/yourusername" value={githubUrl} onChange={e => onGithubUrlChange(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+          {githubUrl && <GitHubSyncButton githubUrl={githubUrl} />}
         </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-foreground">Personal Website</label>
-          <Input placeholder="https://yourwebsite.com" value={websiteUrl} onChange={e => onWebsiteUrlChange(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-foreground">X (Twitter) URL</label>
-          <Input placeholder="https://x.com/yourusername" value={twitterUrl} onChange={e => onTwitterUrlChange(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
-        </div>
+
+        {/* Contact Email */}
         <div className="space-y-1">
           <label className="text-xs font-medium text-foreground">Contact Email</label>
           <Input type="email" placeholder="your@email.com" value={contactEmail} onChange={e => onContactEmailChange(e.target.value)} autoComplete="email" autoCapitalize="none" inputMode="email" />
+          <p className="text-[11px] text-muted-foreground">Public email shown on your portfolio. Defaults to your account email if empty.</p>
         </div>
       </div>
 
@@ -185,7 +192,7 @@ export function SetupTab(props: SetupTabProps) {
             <Input
               value={availabilityHeadline}
               onChange={e => onAvailabilityHeadlineChange(e.target.value)}
-              placeholder="Open to remote full-time · From June 2025"
+              placeholder={`Open to remote full-time · From ${currentMonthYear}`}
               maxLength={100}
               autoCapitalize="sentences"
             />
@@ -246,14 +253,14 @@ function GitHubSyncButton({ githubUrl }: { githubUrl: string }) {
 
   return (
     <Button
-      variant="ghost"
+      variant="outline"
       size="sm"
       onClick={handleSync}
-      disabled={syncing || !githubUrl}
-      className="h-7 text-xs px-2 active:scale-95 shrink-0"
+      disabled={syncing}
+      className="w-full h-9 text-xs active:scale-95 touch-manipulation"
     >
-      {syncing ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <RefreshCw className="w-3 h-3 mr-1" />}
-      {syncing ? 'Syncing...' : 'Sync Projects'}
+      {syncing ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1.5" />}
+      {syncing ? 'Syncing GitHub Projects...' : 'Sync GitHub Projects'}
     </Button>
   );
 }
