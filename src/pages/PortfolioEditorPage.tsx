@@ -444,12 +444,10 @@ export default function PortfolioEditorPage() {
                 onBioChange={setBio}
                 onGenerateBio={handleGenerateBio}
                 generatingBio={generatingBio}
+                linkedinUrl={linkedinUrl}
+                onLinkedinUrlChange={setLinkedinUrl}
                 githubUrl={githubUrl}
                 onGithubUrlChange={setGithubUrl}
-                websiteUrl={websiteUrl}
-                onWebsiteUrlChange={setWebsiteUrl}
-                twitterUrl={twitterUrl}
-                onTwitterUrlChange={setTwitterUrl}
                 contactEmail={contactEmail}
                 onContactEmailChange={setContactEmail}
                 openToWork={openToWork}
