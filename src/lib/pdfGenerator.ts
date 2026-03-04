@@ -663,7 +663,7 @@ export async function generateOnePagePDF(
     try {
       const textFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
       const textLines = extractResumeText(resume);
-      renderTextLayer(page, textFont, textLines, pageWidth, pageHeight);
+      renderTextLayerForPage(page, textFont, textLines, 0, 1, pageWidth, pageHeight);
     } catch (e) {
       console.warn('[PDF] Text layer rendering failed, PDF will still work as image-only', e);
     }
