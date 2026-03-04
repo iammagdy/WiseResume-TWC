@@ -13,15 +13,17 @@ const mockGetSession = vi.fn(() => Promise.resolve({
   error: null,
 }));
 
-vi.mock('@/integrations/supabase/safeClient', () => ({
-  supabase: {
-    auth: {
-      onAuthStateChange: () => mockOnAuthStateChange(),
-      getSession: () => mockGetSession(),
-      signOut: vi.fn(),
+vi.mock('@/integrations/supabase/safeClient', () => {
+  return {
+    supabase: {
+      auth: {
+        onAuthStateChange: (...args: any[]) => mockOnAuthStateChange(...args),
+        getSession: (...args: any[]) => mockGetSession(...args),
+        signOut: vi.fn(),
+      },
     },
-  },
-}));
+  };
+});
 
 const TestComponent = () => {
   useAuth();
