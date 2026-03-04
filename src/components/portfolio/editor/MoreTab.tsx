@@ -1,6 +1,6 @@
 import {
   Eye, Sparkles, Briefcase, Star, Search, Plus, X,
-  MessageSquareQuote, TrendingUp, Loader2,
+  MessageSquareQuote, TrendingUp, Loader2, Link2,
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
