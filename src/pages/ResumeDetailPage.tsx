@@ -164,24 +164,7 @@ export default function ResumeDetailPage() {
     navigate('/interview');
   };
 
-  const actions = [
-    { icon: Edit2, label: 'Edit', onClick: handleEdit },
-    { icon: Eye, label: 'Preview', onClick: handlePreview },
-    { icon: Download, label: 'Download', onClick: handleDownload, loading: isDownloading },
-    { icon: GitBranch, label: 'Tailor', onClick: handleTailor },
-    { icon: Mic, label: 'Interview', onClick: handleInterview },
-    { icon: Share2, label: 'Share', onClick: () => {
-      createShare.mutate({ resumeId: dbResume.id }, {
-        onSuccess: (data) => {
-          const url = `${window.location.origin}/share/${data.token}`;
-          navigator.clipboard.writeText(url);
-          toast.success('Share link copied to clipboard!');
-        },
-      });
-    }},
-    { icon: Copy, label: 'Duplicate', onClick: handleDuplicate },
-    { icon: Trash2, label: 'Delete', onClick: () => setDeleteOpen(true), destructive: true },
-  ];
+
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
