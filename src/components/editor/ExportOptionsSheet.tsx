@@ -195,7 +195,8 @@ export function ExportOptionsSheet({
                           ? 'border-primary bg-primary/5'
                           : option.available
                             ? 'border-border hover:border-primary/50'
-                            : 'border-border opacity-50 cursor-not-allowed'
+                            : 'border-border opacity-50 cursor-not-allowed',
+                        highlightedType === option.id && 'ring-2 ring-primary/60 shadow-lg shadow-primary/20 transition-shadow duration-300'
                       )}
                       whileTap={option.available ? { scale: 0.98 } : {}}
                     >
