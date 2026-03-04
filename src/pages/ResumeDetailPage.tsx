@@ -1,7 +1,8 @@
-import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react';
+import { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Edit2, Eye, Download, Share2, Copy, Trash2, GitBranch, Crown, CheckCircle2, FileText, Zap, BarChart3, RefreshCw, Mic } from 'lucide-react';
+import { Edit2, Eye, Download, Share2, Copy, Trash2, GitBranch, Crown, Zap, BarChart3, RefreshCw, Mic, MoreVertical, Sparkles } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { BackButton } from '@/components/ui/BackButton';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
@@ -23,8 +24,7 @@ import { useResume, useResumes, useResumeMutations, dbToResumeData } from '@/hoo
 import { useResumeScore, clearCachedScore } from '@/hooks/useResumeScore';
 import { useResumeStore } from '@/store/resumeStore';
 import { templates } from '@/lib/templateData';
-import { formatDistanceToNow, format } from 'date-fns';
-import { downloadFile } from '@/lib/downloadUtils';
+import { formatDistanceToNow } from 'date-fns';
 import { useResumeShareMutations } from '@/hooks/useResumeShares';
 import { toast } from 'sonner';
 import { TemplateId } from '@/types/resume';
@@ -163,28 +163,11 @@ export default function ResumeDetailPage() {
     navigate('/interview');
   };
 
-  const actions = [
-    { icon: Edit2, label: 'Edit', onClick: handleEdit },
-    { icon: Eye, label: 'Preview', onClick: handlePreview },
-    { icon: Download, label: 'Download', onClick: handleDownload, loading: isDownloading },
-    { icon: GitBranch, label: 'Tailor', onClick: handleTailor },
-    { icon: Mic, label: 'Interview', onClick: handleInterview },
-    { icon: Share2, label: 'Share', onClick: () => {
-      createShare.mutate({ resumeId: dbResume.id }, {
-        onSuccess: (data) => {
-          const url = `${window.location.origin}/share/${data.token}`;
-          navigator.clipboard.writeText(url);
-          toast.success('Share link copied to clipboard!');
-        },
-      });
-    }},
-    { icon: Copy, label: 'Duplicate', onClick: handleDuplicate },
-    { icon: Trash2, label: 'Delete', onClick: () => setDeleteOpen(true), destructive: true },
-  ];
+
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      {/* Header */}
+      {/* Header with overflow menu */}
       <div className="shrink-0 flex items-center gap-3 px-4 h-14 border-b border-border glass-elevated backdrop-blur-md">
         <BackButton />
         <h1 className="text-lg font-bold text-foreground truncate flex-1">{dbResume.title}</h1>
@@ -200,6 +183,37 @@ export default function ResumeDetailPage() {
             Tailored
           </Badge>
         )}
+        {tailoredCount > 0 && !isTailored && (
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 shrink-0">
+            {tailoredCount} tailored
+          </Badge>
+        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="p-2 -mr-2 rounded-xl hover:bg-muted/50 min-h-[44px] min-w-[44px] flex items-center justify-center" aria-label="More options">
+              <MoreVertical className="w-5 h-5 text-muted-foreground" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleDuplicate}>
+              <Copy className="w-4 h-4 mr-2" /> Duplicate
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => {
+              createShare.mutate({ resumeId: dbResume.id }, {
+                onSuccess: (data) => {
+                  const url = `${window.location.origin}/share/${data.token}`;
+                  navigator.clipboard.writeText(url);
+                  toast.success('Share link copied!');
+                },
+              });
+            }}>
+              <Share2 className="w-4 h-4 mr-2" /> Share Link
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setDeleteOpen(true)} className="text-destructive focus:text-destructive">
+              <Trash2 className="w-4 h-4 mr-2" /> Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Sticky Action Bar */}
@@ -215,7 +229,7 @@ export default function ResumeDetailPage() {
         </Button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 max-w-3xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 max-w-3xl mx-auto w-full">
         {/* Tailored Context */}
         {isTailored && (dbResume.target_job_title || dbResume.target_company) && (
           <div className="glass-elevated rounded-2xl p-4 border border-primary/20">
@@ -233,136 +247,174 @@ export default function ResumeDetailPage() {
           </div>
         )}
 
-        {/* Template Preview */}
-        <div className="max-w-xs mx-auto rounded-2xl overflow-hidden border border-border shadow-lg">
-          <TemplateThumbnail templateId={dbResume.template_id as TemplateId} resume={resumeData} />
-        </div>
+        {/* Hero Card: Compact thumbnail + ATS score + metadata */}
+        <div className="glass-elevated rounded-2xl p-4 border border-border/20">
+          <div className="flex gap-4">
+            {/* Small thumbnail */}
+            <div className="w-[100px] shrink-0 rounded-xl overflow-hidden border border-border/50 shadow-sm">
+              <TemplateThumbnail templateId={dbResume.template_id as TemplateId} resume={resumeData} />
+            </div>
 
-        {/* ATS Score Section */}
-        <div className="flex flex-col items-center gap-3">
-          {healthScore ? (
-            <>
-              <ScoreRing score={healthScore.overallScore} size={80} />
-              <p className="text-sm font-semibold text-muted-foreground tracking-wide">ATS Score</p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 min-h-[44px] active:scale-95 transition-transform"
-                  disabled={scoringId === dbResume.id}
-                  onClick={() => {
-                    clearCachedScore(dbResume.id, dbResume.updated_at);
-                    scoreResume(dbResume.id, resumeData, dbResume.updated_at);
-                  }}
-                >
-                  {scoringId === dbResume.id ? (
-                    <MiniSpinner size={16} />
+            {/* Score + Meta */}
+            <div className="flex-1 min-w-0 flex flex-col justify-between">
+              <div className="flex items-start gap-3">
+                {/* ATS Score */}
+                <div className="flex flex-col items-center gap-1">
+                  {healthScore ? (
+                    <>
+                      <ScoreRing score={healthScore.overallScore} size={56} strokeWidth={4} />
+                      <span className="text-[10px] font-semibold text-muted-foreground">ATS</span>
+                    </>
                   ) : (
-                    <RefreshCw className="w-4 h-4" />
+                    <button
+                      onClick={() => scoreResume(dbResume.id, resumeData, dbResume.updated_at)}
+                      disabled={scoringId === dbResume.id}
+                      className="flex flex-col items-center gap-1"
+                      aria-label="Score resume"
+                    >
+                      <div className="w-14 h-14 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
+                        {scoringId === dbResume.id ? <MiniSpinner size={20} /> : <BarChart3 className="w-5 h-5 text-muted-foreground/50" />}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground">Score</span>
+                    </button>
                   )}
-                  Re-score
-                </Button>
-                <Button
-                  size="sm"
-                  className="gap-2 min-h-[44px] active:scale-95 transition-transform"
-                  onClick={() => {
-                    setShowEnhance(true);
-                  }}
-                >
-                  <Zap className="w-4 h-4" />
-                  Improve Score
-                </Button>
+                </div>
+
+                {/* Metadata */}
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5">{templateInfo?.name || dbResume.template_id}</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {completedSections}/{totalSections} sections · {completionScore}%
+                  </p>
+                  <p className="text-[11px] text-muted-foreground/70">
+                    Edited {formatDistanceToNow(new Date(dbResume.updated_at), { addSuffix: true })}
+                  </p>
+                </div>
               </div>
-            </>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              disabled={scoringId === dbResume.id}
-              onClick={() => scoreResume(dbResume.id, resumeData, dbResume.updated_at)}
-            >
-              {scoringId === dbResume.id ? (
-                <MiniSpinner size={16} />
-              ) : (
-                <BarChart3 className="w-4 h-4" />
+
+              {/* ATS action buttons */}
+              {healthScore && (
+                <div className="flex gap-2 mt-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2.5 text-xs gap-1.5"
+                    disabled={scoringId === dbResume.id}
+                    onClick={() => {
+                      clearCachedScore(dbResume.id, dbResume.updated_at);
+                      scoreResume(dbResume.id, resumeData, dbResume.updated_at);
+                    }}
+                  >
+                    {scoringId === dbResume.id ? <MiniSpinner size={14} /> : <RefreshCw className="w-3.5 h-3.5" />}
+                    Re-score
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="h-8 px-2.5 text-xs gap-1.5"
+                    onClick={() => setShowEnhance(true)}
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    Improve
+                  </Button>
+                </div>
               )}
-              {scoringId === dbResume.id ? 'Scoring…' : 'Score Resume'}
-            </Button>
-          )}
-
-          {/* Score Trend Chart */}
-          {scoreHistory.length >= 2 && (
-            <Collapsible defaultOpen>
-              <Card>
-                <CollapsibleTrigger className="w-full flex items-center justify-between p-4">
-                  <span className="text-sm font-semibold text-foreground">Score History</span>
-                  <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform [[data-state=open]>svg&]:rotate-180" />
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <CardContent className="pt-0">
-                    <Suspense fallback={<div className="h-[200px] bg-muted animate-pulse rounded-xl" />}>
-                      <ATSScoreTrendChart history={scoreHistory} mode="full" />
-                    </Suspense>
-                  </CardContent>
-                </CollapsibleContent>
-              </Card>
-            </Collapsible>
-          )}
-        </div>
-
-        {/* Quick Stats */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="glass-elevated rounded-2xl p-3 text-center">
-            <p className="text-xl font-bold text-foreground">{completedSections}/{totalSections}</p>
-            <p className="text-[11px] text-muted-foreground">Sections</p>
-          </div>
-          <div className="glass-elevated rounded-2xl p-3 text-center">
-            <p className="text-xl font-bold text-foreground">{tailoredCount}</p>
-            <p className="text-[11px] text-muted-foreground">Tailored</p>
+            </div>
           </div>
         </div>
 
         {/* Progress Bar */}
-        <ProgressBar resume={resumeData} />
+        <ProgressBar resume={resumeData} compact />
 
-        {/* Metadata */}
-        <div className="glass-elevated rounded-2xl p-4 space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Template</span>
-            <Badge variant="secondary" className="text-xs">{templateInfo?.name || dbResume.template_id}</Badge>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Created</span>
-            <span className="text-foreground">{format(new Date(dbResume.created_at), 'MMM d, yyyy')}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Last edited</span>
-            <span className="text-foreground">{formatDistanceToNow(new Date(dbResume.updated_at), { addSuffix: true })}</span>
-          </div>
-        </div>
+        {/* Score History (collapsible) */}
+        {scoreHistory.length >= 2 && (
+          <Collapsible>
+            <Card>
+              <CollapsibleTrigger className="w-full flex items-center justify-between p-4">
+                <span className="text-sm font-semibold text-foreground">Score History</span>
+                <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform [[data-state=open]>svg&]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="pt-0">
+                  <Suspense fallback={<div className="h-[200px] bg-muted animate-pulse rounded-xl" />}>
+                    <ATSScoreTrendChart history={scoreHistory} mode="full" />
+                  </Suspense>
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
+        )}
 
-        {/* More Actions */}
-        <p className="text-xs font-medium text-muted-foreground">More Actions</p>
-        <div className="grid grid-cols-3 gap-3">
-          {actions.filter(a => !['Edit', 'Preview', 'Download'].includes(a.label)).map(action => (
+        {/* Quick Actions — 2-column layout */}
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground px-1">Quick Actions</p>
+          <div className="grid grid-cols-2 gap-2">
+            {/* AI-powered actions */}
             <button
-              key={action.label}
-              onClick={action.onClick}
-              disabled={action.loading}
-              className={`flex flex-col items-center gap-2 p-4 rounded-2xl glass-elevated hover:scale-[1.02] transition-all touch-manipulation active:scale-[0.98] min-h-[80px] ${
-                action.destructive ? 'text-destructive' : 'text-foreground'
-              }`}
-              aria-label={action.label}
+              onClick={handleTailor}
+              className="flex items-center gap-3 p-3.5 rounded-2xl glass-elevated hover:border-primary/30 border border-border/20 transition-all touch-manipulation active:scale-[0.98] min-h-[56px]"
+              aria-label="Tailor resume"
             >
-              {action.loading ? (
-                <MiniSpinner size={24} />
-              ) : (
-                <action.icon className="w-6 h-6" />
-              )}
-              <span className="text-xs font-medium">{action.label}</span>
+              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <Sparkles className="w-4.5 h-4.5 text-primary" />
+              </div>
+              <div className="text-left min-w-0">
+                <p className="text-sm font-medium text-foreground">Tailor</p>
+                <p className="text-[11px] text-muted-foreground truncate">Customize for a job</p>
+              </div>
             </button>
-          ))}
+
+            <button
+              onClick={handleInterview}
+              className="flex items-center gap-3 p-3.5 rounded-2xl glass-elevated hover:border-primary/30 border border-border/20 transition-all touch-manipulation active:scale-[0.98] min-h-[56px]"
+              aria-label="Interview prep"
+            >
+              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <Mic className="w-4.5 h-4.5 text-primary" />
+              </div>
+              <div className="text-left min-w-0">
+                <p className="text-sm font-medium text-foreground">Interview</p>
+                <p className="text-[11px] text-muted-foreground truncate">Practice questions</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => {
+                createShare.mutate({ resumeId: dbResume.id }, {
+                  onSuccess: (data) => {
+                    const url = `${window.location.origin}/share/${data.token}`;
+                    navigator.clipboard.writeText(url);
+                    toast.success('Share link copied!');
+                  },
+                });
+              }}
+              className="flex items-center gap-3 p-3.5 rounded-2xl glass-elevated hover:border-border/50 border border-border/20 transition-all touch-manipulation active:scale-[0.98] min-h-[56px]"
+              aria-label="Share resume"
+            >
+              <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                <Share2 className="w-4.5 h-4.5 text-muted-foreground" />
+              </div>
+              <div className="text-left min-w-0">
+                <p className="text-sm font-medium text-foreground">Share</p>
+                <p className="text-[11px] text-muted-foreground truncate">Get a web link</p>
+              </div>
+            </button>
+
+            <button
+              onClick={handleDuplicate}
+              className="flex items-center gap-3 p-3.5 rounded-2xl glass-elevated hover:border-border/50 border border-border/20 transition-all touch-manipulation active:scale-[0.98] min-h-[56px]"
+              aria-label="Duplicate resume"
+            >
+              <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                <Copy className="w-4.5 h-4.5 text-muted-foreground" />
+              </div>
+              <div className="text-left min-w-0">
+                <p className="text-sm font-medium text-foreground">Duplicate</p>
+                <p className="text-[11px] text-muted-foreground truncate">Make a copy</p>
+              </div>
+            </button>
+          </div>
         </div>
       </div>
 
