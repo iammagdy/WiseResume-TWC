@@ -77,7 +77,8 @@ export function ProfileSection(props: ProfileSectionProps) {
       {/* Source Resume */}
       {resumes.length > 0 && (
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">Source Resume</label>
+          <label className="text-sm font-medium text-foreground">Resume to display</label>
+          <p className="text-xs text-muted-foreground">Choose which resume powers your portfolio content.</p>
           <Select value={selectedResumeId} onValueChange={onSelectedResumeIdChange}>
             <SelectTrigger><SelectValue placeholder="Select a resume" /></SelectTrigger>
             <SelectContent>
