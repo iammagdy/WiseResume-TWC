@@ -353,7 +353,7 @@ export default function PortfolioEditorPage() {
     { ok: !!profile?.avatarUrl, tip: 'Add a profile photo in Settings → Profile' },
     { ok: bio.length >= 50, tip: 'Write a bio (at least 50 characters)' },
     { ok: username.length >= 3, tip: 'Set a portfolio username' },
-    { ok: !!(githubUrl || websiteUrl || twitterUrl || contactEmail), tip: 'Add at least one social link or contact email' },
+    { ok: !!(linkedinUrl || githubUrl || websiteUrl || twitterUrl || contactEmail), tip: 'Add at least one social link or contact email' },
     { ok: availabilityHeadline.length > 0, tip: 'Set an availability headline' },
     { ok: metaTitle.length > 0, tip: 'Add a custom page title for SEO' },
     { ok: metaDescription.length > 0, tip: 'Add a meta description for SEO' },
