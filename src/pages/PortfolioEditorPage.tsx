@@ -52,6 +52,7 @@ export default function PortfolioEditorPage() {
   const [githubUrl, setGithubUrl] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [twitterUrl, setTwitterUrl] = useState('');
+  const [linkedinUrl, setLinkedinUrl] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [selectedTheme, setSelectedTheme] = useState('system');
   const [generatingBio, setGeneratingBio] = useState(false);
