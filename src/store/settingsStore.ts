@@ -50,6 +50,9 @@ interface SettingsState {
   // Theme
   theme: 'light' | 'dark' | 'system';
   
+  // Export
+  lastExportType: string | null;
+  
   // AI Provider Settings
   aiProvider: AIProvider;
   geminiApiKey: string;
