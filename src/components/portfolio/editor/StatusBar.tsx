@@ -27,7 +27,6 @@ export function StatusBar({
   copied,
   onCopyUrl,
   onOpenQR,
-  onViewLive,
   strengthScore,
   strengthLabel,
   strengthMissing,
