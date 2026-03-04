@@ -24,8 +24,7 @@ import { useResume, useResumes, useResumeMutations, dbToResumeData } from '@/hoo
 import { useResumeScore, clearCachedScore } from '@/hooks/useResumeScore';
 import { useResumeStore } from '@/store/resumeStore';
 import { templates } from '@/lib/templateData';
-import { formatDistanceToNow, format } from 'date-fns';
-import { downloadFile } from '@/lib/downloadUtils';
+import { formatDistanceToNow } from 'date-fns';
 import { useResumeShareMutations } from '@/hooks/useResumeShares';
 import { toast } from 'sonner';
 import { TemplateId } from '@/types/resume';
