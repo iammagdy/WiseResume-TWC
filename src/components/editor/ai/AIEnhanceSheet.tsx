@@ -34,11 +34,17 @@ const MODES: { id: ActionType; label: string }[] = [
   { id: 'expand', label: 'Expand Detail' },
 ];
 
-const SECTIONS: { id: SectionType; label: string; key: string }[] = [
+const ALL_SECTIONS: { id: SectionType; label: string; key: string }[] = [
   { id: 'summary', label: 'Summary', key: 'summary' },
   { id: 'experience', label: 'Experience', key: 'experience' },
   { id: 'skills', label: 'Skills', key: 'skills' },
   { id: 'education', label: 'Education', key: 'education' },
+  { id: 'certifications', label: 'Certifications', key: 'certifications' },
+  { id: 'awards', label: 'Awards', key: 'awards' },
+  { id: 'projects', label: 'Projects', key: 'projects' },
+  { id: 'publications', label: 'Publications', key: 'publications' },
+  { id: 'volunteering', label: 'Volunteering', key: 'volunteering' },
+  { id: 'languages', label: 'Languages', key: 'languages' },
 ];
 
 interface SectionResult {
@@ -91,6 +97,12 @@ function formatSectionContent(sectionId: SectionType, content: unknown): string 
     case 'experience': return formatExperiencePreview(content);
     case 'education': return formatEducationPreview(content);
     case 'skills': return formatSkillsPreview(content);
+    case 'certifications': return content.map((c: any) => `${c.name || 'Cert'} — ${c.issuer || ''}`).join('\n');
+    case 'awards': return content.map((a: any) => `${a.title || 'Award'} — ${a.issuer || ''}`).join('\n');
+    case 'projects': return content.map((p: any) => `${p.name || 'Project'} — ${(p.description || '').slice(0, 60)}`).join('\n');
+    case 'publications': return content.map((p: any) => `${p.title || 'Publication'} — ${p.publisher || ''}`).join('\n');
+    case 'volunteering': return content.map((v: any) => `${v.role || 'Role'} at ${v.organization || ''}`).join('\n');
+    case 'languages': return content.map((l: any) => `${l.name || 'Language'} (${l.proficiency || ''})`).join(', ');
     default: return content.map(String).join(', ');
   }
 }
@@ -154,6 +166,12 @@ function getSectionContent(resume: Record<string, unknown>, sectionId: SectionTy
     case 'experience': return resume.experience || [];
     case 'skills': return resume.skills || [];
     case 'education': return resume.education || [];
+    case 'certifications': return resume.certifications || [];
+    case 'awards': return resume.awards || [];
+    case 'projects': return resume.projects || [];
+    case 'publications': return resume.publications || [];
+    case 'volunteering': return resume.volunteering || [];
+    case 'languages': return resume.languages || [];
     default: return '';
   }
 }
@@ -217,7 +235,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
 
     const newResults: SectionResult[] = [];
 
-    for (const sectionInfo of SECTIONS) {
+    for (const sectionInfo of ALL_SECTIONS) {
       if (!selectedSections.has(sectionInfo.id)) continue;
 
       const content = getSectionContent(currentResume as unknown as Record<string, unknown>, sectionInfo.id);
@@ -257,7 +275,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
 
         // Validate entry count for array sections
         let warning: string | undefined;
-        if (['experience', 'education'].includes(sectionInfo.id) && Array.isArray(content) && Array.isArray(data.improved)) {
+        if (['experience', 'education', 'certifications', 'awards', 'projects', 'publications', 'volunteering', 'languages'].includes(sectionInfo.id) && Array.isArray(content) && Array.isArray(data.improved)) {
           if (data.improved.length < (content as unknown[]).length) {
             warning = `AI returned ${data.improved.length} entries but original has ${(content as unknown[]).length}. Some entries may be missing.`;
           }
@@ -358,6 +376,29 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
       });
     }
 
+    // Generic ID-preserving merge for other array sections
+    const idSections = ['certifications', 'awards', 'projects', 'publications', 'volunteering', 'languages'] as const;
+    if ((idSections as readonly string[]).includes(result.section)) {
+      if (!Array.isArray(data)) data = [];
+      const originals = (currentResume as unknown as Record<string, unknown>)[result.section] as Record<string, unknown>[] || [];
+      
+      if ((data as unknown[]).length < originals.length) {
+        const aiIds = new Set((data as Record<string, unknown>[]).map(e => e.id));
+        const missing = originals.filter(o => !aiIds.has(o.id));
+        data = [...(data as Record<string, unknown>[]), ...missing];
+      }
+
+      data = (data as Record<string, unknown>[]).map((aiEntry, i) => {
+        const orig = originals.find(o => o.id === (aiEntry.id as string)) || originals[i];
+        const base = orig || {} as Record<string, unknown>;
+        return {
+          ...base,
+          ...aiEntry,
+          id: (aiEntry.id as string) || (orig?.id as string) || crypto.randomUUID(),
+        };
+      });
+    }
+
     updateResume({ [result.section]: data });
 
     setResults(prev => prev.map((r, i) => i === index ? { ...r, applied: true } : r));
@@ -370,12 +411,12 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     setResults(prev => prev.filter((_, i) => i !== index));
   }, []);
 
-  const enabledSections = SECTIONS.filter(s =>
+  const enabledSections = ALL_SECTIONS.filter(s =>
     currentResume && sectionHasContent(currentResume as unknown as Record<string, unknown>, s.id) &&
     !disabledSections?.has(s.id)
   );
 
-  const disabledSectionsList = SECTIONS.filter(s =>
+  const disabledSectionsList = ALL_SECTIONS.filter(s =>
     currentResume && sectionHasContent(currentResume as unknown as Record<string, unknown>, s.id) &&
     disabledSections?.has(s.id)
   );
