@@ -380,7 +380,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     const idSections = ['certifications', 'awards', 'projects', 'publications', 'volunteering', 'languages'] as const;
     if ((idSections as readonly string[]).includes(result.section)) {
       if (!Array.isArray(data)) data = [];
-      const originals = (currentResume as Record<string, unknown>)[result.section] as Record<string, unknown>[] || [];
+      const originals = (currentResume as unknown as Record<string, unknown>)[result.section] as Record<string, unknown>[] || [];
       
       if ((data as unknown[]).length < originals.length) {
         const aiIds = new Set((data as Record<string, unknown>[]).map(e => e.id));
