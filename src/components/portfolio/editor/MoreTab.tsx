@@ -290,6 +290,26 @@ export function MoreTab(props: MoreTabProps) {
         />
       </CollapsibleCard>
 
+      {/* Extra Links */}
+      <CollapsibleCard
+        id="extralinks"
+        icon={<Link2 className="w-4 h-4" />}
+        title="Extra Links"
+        hint={twitterUrl || websiteUrl ? <span className="text-[11px]">configured</span> : undefined}
+        openSections={openSections}
+        toggleSection={toggleSection}
+      >
+        <p className="text-[11px] text-muted-foreground mb-3">Optional links shown on your portfolio.</p>
+        <div className="space-y-2">
+          <label className="text-xs font-medium text-foreground">X (Twitter) URL</label>
+          <Input placeholder="https://x.com/yourusername" value={twitterUrl} onChange={e => onTwitterUrlChange(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+        </div>
+        <div className="space-y-2">
+          <label className="text-xs font-medium text-foreground">Personal Website</label>
+          <Input placeholder="https://yourwebsite.com" value={websiteUrl} onChange={e => onWebsiteUrlChange(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+        </div>
+      </CollapsibleCard>
+
       {/* Career Card */}
       {hasLivePortfolio && (
         <Button
