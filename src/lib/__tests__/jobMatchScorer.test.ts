@@ -38,6 +38,9 @@ function makeJob(overrides: Partial<Job> = {}): Job {
     user_id: 'u1',
     created_at: '',
     updated_at: '',
+    company_logo: null,
+    salary_range: null,
+    source_url: null,
     ...overrides,
   };
 }
