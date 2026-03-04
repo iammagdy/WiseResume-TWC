@@ -45,6 +45,28 @@ export function scoreSectionStructure(resume: Record<string, unknown>): number {
   return Math.min(score, 100);
 }
 
+// ── Template Friendliness ───────────────────────────────────────────
+
+const TEMPLATE_ATS_RATINGS: Record<string, 'high' | 'medium' | 'low'> = {
+  modern: 'high', classic: 'high', clean: 'high', minimal: 'high',
+  executive: 'high', compact: 'high', ats: 'high',
+  developer: 'medium', technical: 'medium', elegant: 'medium',
+  professional: 'medium', timeline: 'medium', bold: 'medium',
+  swiss: 'medium', nordic: 'medium', formal: 'medium',
+  creative: 'low', designer: 'low', infographic: 'low',
+  artistic: 'low', portfolio: 'low', magazine: 'low',
+};
+
+export function scoreTemplateFriendliness(templateId?: string, atsRating?: string): number {
+  const rating = atsRating || TEMPLATE_ATS_RATINGS[templateId || ''] || 'medium';
+  switch (rating) {
+    case 'high': return 100;
+    case 'medium': return 60;
+    case 'low': return 20;
+    default: return 60;
+  }
+}
+
 export function scoreParsability(resume: Record<string, unknown>): number {
   let score = 100;
 
@@ -102,6 +124,16 @@ export function scoreParsability(resume: Record<string, unknown>): number {
       score -= 10;
       break;
     }
+  }
+
+  // Penalties for image-hostile patterns that hurt real ATS parsing
+  const contactInfo = resume.contactInfo as Record<string, unknown> | undefined;
+  if (contactInfo?.photoUrl) score -= 5;
+
+  const customization = resume.customization as Record<string, unknown> | undefined;
+  if (customization) {
+    const layout = String(customization.layout || 'single');
+    if (layout !== 'single' && layout !== 'linear') score -= 10;
   }
 
   return Math.max(score, 0);
