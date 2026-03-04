@@ -4,7 +4,7 @@ import { ResumeData, TemplateId, ContactInfo, PDFOptions } from '@/types/resume'
 import { getTemplateConfig } from '@/lib/templateConfig';
 import { PAGE_FORMAT_PX, generateCustomizationCSS } from '@/lib/templateCustomization';
 import type { OnProgressCallback } from '@/hooks/useExportProgress';
-import { extractResumeText, renderTextLayer } from '@/lib/pdfTextLayer';
+import { extractResumeText, renderTextLayerForPage } from '@/lib/pdfTextLayer';
 
 /** Typed error class for programmatic handling of PDF generation failures. */
 export class PdfGenerationError extends Error {
@@ -367,12 +367,12 @@ export async function generatePDFPages(
       height: segmentPdfHeight,
     });
 
-    // Add invisible text layer for ATS / Ctrl+F on every page
+    // Add invisible text layer for ATS / Ctrl+F — distributed across pages
     if (resume) {
       try {
         const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
         const textLines = extractResumeText(resume);
-        renderTextLayer(page, font, textLines, pageWidth, actualPageHeight);
+        renderTextLayerForPage(page, font, textLines, pageNum, numPages, pageWidth, actualPageHeight);
       } catch (e) {
         console.warn('[PDF] Text layer rendering failed, PDF will still work as image-only', e);
       }
@@ -663,7 +663,7 @@ export async function generateOnePagePDF(
     try {
       const textFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
       const textLines = extractResumeText(resume);
-      renderTextLayer(page, textFont, textLines, pageWidth, pageHeight);
+      renderTextLayerForPage(page, textFont, textLines, 0, 1, pageWidth, pageHeight);
     } catch (e) {
       console.warn('[PDF] Text layer rendering failed, PDF will still work as image-only', e);
     }

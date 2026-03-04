@@ -15,6 +15,7 @@ export interface ResumeHealthScore {
     parsability: number;
     contactCompleteness: number;
     lengthDensity: number;
+    templateFriendliness: number;
   };
   topStrength: string;
   topImprovement: string;
@@ -33,20 +34,20 @@ export function clearCachedScore(resumeId: string, updatedAt: string) {
 }
 
 /** Strip non-content fields so identical content always produces identical requests */
-function normalizeForScoring(resume: ResumeData): Partial<ResumeData> {
+function normalizeForScoring(resume: ResumeData): { content: Partial<ResumeData>; templateId?: string } {
   const { id, createdAt, updatedAt, templateId, customization, ...content } = resume;
   // Sort skills for consistent ordering
   if (content.skills) {
     content.skills = [...content.skills].sort();
   }
-  return content;
+  return { content, templateId };
 }
 
 /** Helper: wait ms */
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function invokeScoreResume(resume: ResumeData): Promise<{ data: any; latencyMs: number }> {
-  const normalized = normalizeForScoring(resume);
+  const { content: normalized, templateId } = normalizeForScoring(resume);
   const _start = Date.now();
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData?.session?.access_token;
@@ -65,7 +66,7 @@ async function invokeScoreResume(resume: ResumeData): Promise<{ data: any; laten
       'Authorization': `Bearer ${token}`,
       'apikey': anonKey,
     },
-    body: JSON.stringify({ resume: normalized }),
+    body: JSON.stringify({ resume: normalized, templateId }),
   });
 
   if (!res.ok) {
