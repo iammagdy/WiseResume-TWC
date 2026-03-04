@@ -105,20 +105,17 @@ export function ProfileSection(props: ProfileSectionProps) {
       {/* Social Links */}
       <SubSectionHeading icon={<Link2 className="w-3.5 h-3.5" />} label="Social Links & Contact" />
       <div className="space-y-2">
-        <label className="text-xs font-medium text-foreground">GitHub URL</label>
+        <label className="text-xs font-medium text-foreground flex items-center gap-1.5"><Linkedin className="w-3.5 h-3.5" /> LinkedIn URL</label>
+        <Input placeholder="https://linkedin.com/in/yourusername" value={linkedinUrl} onChange={(e) => onLinkedinUrlChange(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+      </div>
+      <div className="space-y-2">
+        <label className="text-xs font-medium text-foreground flex items-center gap-1.5"><Github className="w-3.5 h-3.5" /> GitHub URL</label>
         <Input placeholder="https://github.com/yourusername" value={githubUrl} onChange={(e) => onGithubUrlChange(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
       </div>
       <div className="space-y-2">
-        <label className="text-xs font-medium text-foreground">Personal Website</label>
-        <Input placeholder="https://yourwebsite.com" value={websiteUrl} onChange={(e) => onWebsiteUrlChange(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
-      </div>
-      <div className="space-y-2">
-        <label className="text-xs font-medium text-foreground">X (Twitter) URL</label>
-        <Input placeholder="https://x.com/yourusername" value={twitterUrl} onChange={(e) => onTwitterUrlChange(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
-      </div>
-      <div className="space-y-2">
-        <label className="text-xs font-medium text-foreground">Contact Email (for "Hire Me" button)</label>
+        <label className="text-xs font-medium text-foreground">Contact Email</label>
         <Input type="email" placeholder="your@email.com" value={contactEmail} onChange={(e) => onContactEmailChange(e.target.value)} autoComplete="email" autoCapitalize="none" inputMode="email" />
+        <p className="text-xs text-muted-foreground">Public email shown on your portfolio. Defaults to your account email if empty.</p>
       </div>
 
       {/* Availability */}
