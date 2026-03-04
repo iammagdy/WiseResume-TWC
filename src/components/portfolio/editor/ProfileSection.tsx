@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  User, Sparkles, Loader2, CheckCircle2, XCircle, Link2, Zap,
+  User, Sparkles, Loader2, CheckCircle2, XCircle, Link2, Zap, Linkedin, Github,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
