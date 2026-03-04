@@ -55,6 +55,14 @@ export function ExportOptionsSheet({
   const [showBranding, setShowBranding] = useState(pdfDefaults.showBranding ?? true);
   const [onePageScale, setOnePageScale] = useState<number | null>(null);
   const [customFileName, setCustomFileName] = useState('');
+  const [highlightedType, setHighlightedType] = useState<ExportType | null>(null);
+
+  // Auto-clear highlight after 800ms
+  useEffect(() => {
+    if (!highlightedType) return;
+    const t = setTimeout(() => setHighlightedType(null), 800);
+    return () => clearTimeout(t);
+  }, [highlightedType]);
 
   // Sync with defaults when sheet opens (NO DOM mutation here)
   useEffect(() => {
