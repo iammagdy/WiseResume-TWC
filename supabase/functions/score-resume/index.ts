@@ -78,7 +78,7 @@ serve(async (req) => {
       );
     }
 
-    const { resume } = await req.json();
+    const { resume, templateId } = await req.json();
 
     if (!resume || typeof resume !== 'object') {
       return new Response(
