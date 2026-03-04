@@ -55,6 +55,14 @@ export function ExportOptionsSheet({
   const [showBranding, setShowBranding] = useState(pdfDefaults.showBranding ?? true);
   const [onePageScale, setOnePageScale] = useState<number | null>(null);
   const [customFileName, setCustomFileName] = useState('');
+  const [highlightedType, setHighlightedType] = useState<ExportType | null>(null);
+
+  // Auto-clear highlight after 800ms
+  useEffect(() => {
+    if (!highlightedType) return;
+    const t = setTimeout(() => setHighlightedType(null), 800);
+    return () => clearTimeout(t);
+  }, [highlightedType]);
 
   // Sync with defaults when sheet opens (NO DOM mutation here)
   useEffect(() => {
@@ -179,6 +187,7 @@ export function ExportOptionsSheet({
                   {group.options.map((option) => (
                     <motion.button
                       key={option.id}
+                      data-export-id={option.id}
                       onClick={() => { if (option.available) { haptics.light(); setSelectedType(option.id); } }}
                       disabled={!option.available}
                       className={cn(
@@ -187,7 +196,8 @@ export function ExportOptionsSheet({
                           ? 'border-primary bg-primary/5'
                           : option.available
                             ? 'border-border hover:border-primary/50'
-                            : 'border-border opacity-50 cursor-not-allowed'
+                            : 'border-border opacity-50 cursor-not-allowed',
+                        highlightedType === option.id && 'ring-2 ring-primary/60 shadow-lg shadow-primary/20 transition-shadow duration-300'
                       )}
                       whileTap={option.available ? { scale: 0.98 } : {}}
                     >
@@ -264,7 +274,14 @@ export function ExportOptionsSheet({
                   variant="link"
                   size="sm"
                   className="h-auto p-0 ml-1 text-sm font-semibold underline"
-                  onClick={() => { haptics.light(); setSelectedType('ats-pdf'); }}
+                  onClick={() => {
+                    haptics.light();
+                    setSelectedType('ats-pdf');
+                    setHighlightedType('ats-pdf');
+                    setTimeout(() => {
+                      document.querySelector('[data-export-id="ats-pdf"]')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }, 50);
+                  }}
                 >
                   Switch to ATS-Optimized
                 </Button>
