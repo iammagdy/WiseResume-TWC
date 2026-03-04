@@ -216,19 +216,6 @@ export default function ResumeDetailPage() {
         </DropdownMenu>
       </div>
 
-      {/* Sticky Action Bar */}
-      <div className="shrink-0 flex items-center gap-2 px-4 py-2 border-b border-border/50 bg-background/80 backdrop-blur-sm">
-        <Button size="sm" className="flex-1 gap-2 min-h-[44px] active:scale-95 transition-transform" onClick={handleEdit}>
-          <Edit2 className="w-4 h-4" /> Edit
-        </Button>
-        <Button variant="outline" size="sm" className="flex-1 gap-2 min-h-[44px] active:scale-95 transition-transform" onClick={handlePreview}>
-          <Eye className="w-4 h-4" /> Preview
-        </Button>
-        <Button variant="outline" size="sm" className="flex-1 gap-2 min-h-[44px] active:scale-95 transition-transform" onClick={handleDownload} disabled={isDownloading}>
-          {isDownloading ? <MiniSpinner size={16} /> : <Download className="w-4 h-4" />} PDF
-        </Button>
-      </div>
-
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 max-w-3xl mx-auto w-full">
         {/* Tailored Context */}
         {isTailored && (dbResume.target_job_title || dbResume.target_company) && (
@@ -247,18 +234,16 @@ export default function ResumeDetailPage() {
           </div>
         )}
 
-        {/* Hero Card: Compact thumbnail + ATS score + metadata */}
-        <div className="glass-elevated rounded-2xl p-4 border border-border/20">
+        {/* Hero Card: Thumbnail + ATS + Meta + Progress + Actions */}
+        <div className="glass-elevated rounded-2xl p-4 border border-border/20 space-y-4">
+          {/* Top row: thumbnail + score + meta */}
           <div className="flex gap-4">
-            {/* Small thumbnail */}
             <div className="w-[100px] shrink-0 rounded-xl overflow-hidden border border-border/50 shadow-sm">
               <TemplateThumbnail templateId={dbResume.template_id as TemplateId} resume={resumeData} />
             </div>
 
-            {/* Score + Meta */}
             <div className="flex-1 min-w-0 flex flex-col justify-between">
               <div className="flex items-start gap-3">
-                {/* ATS Score */}
                 <div className="flex flex-col items-center gap-1">
                   {healthScore ? (
                     <>
@@ -280,11 +265,8 @@ export default function ResumeDetailPage() {
                   )}
                 </div>
 
-                {/* Metadata */}
                 <div className="flex-1 min-w-0 space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5">{templateInfo?.name || dbResume.template_id}</Badge>
-                  </div>
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5">{templateInfo?.name || dbResume.template_id}</Badge>
                   <p className="text-xs text-muted-foreground">
                     {completedSections}/{totalSections} sections · {completionScore}%
                   </p>
@@ -294,7 +276,6 @@ export default function ResumeDetailPage() {
                 </div>
               </div>
 
-              {/* ATS action buttons */}
               {healthScore && (
                 <div className="flex gap-2 mt-2">
                   <Button
@@ -322,10 +303,25 @@ export default function ResumeDetailPage() {
               )}
             </div>
           </div>
-        </div>
 
-        {/* Progress Bar */}
-        <ProgressBar resume={resumeData} compact />
+          {/* Inline Progress */}
+          <ProgressBar resume={resumeData} compact />
+
+          {/* Primary CTA */}
+          <Button className="w-full gap-2 min-h-[48px] active:scale-[0.98] transition-transform text-base" onClick={handleEdit}>
+            <Edit2 className="w-4.5 h-4.5" /> Edit Resume
+          </Button>
+
+          {/* Secondary actions */}
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1 gap-2 min-h-[44px] active:scale-[0.98] transition-transform" onClick={handlePreview}>
+              <Eye className="w-4 h-4" /> Preview & Export
+            </Button>
+            <Button variant="outline" className="flex-1 gap-2 min-h-[44px] active:scale-[0.98] transition-transform" onClick={handleDownload} disabled={isDownloading}>
+              {isDownloading ? <MiniSpinner size={16} /> : <Download className="w-4 h-4" />} Download PDF
+            </Button>
+          </div>
+        </div>
 
         {/* Score History (collapsible) */}
         {scoreHistory.length >= 2 && (
@@ -346,11 +342,10 @@ export default function ResumeDetailPage() {
           </Collapsible>
         )}
 
-        {/* Quick Actions — 2-column layout */}
+        {/* AI Tools */}
         <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground px-1">Quick Actions</p>
+          <p className="text-xs font-medium text-muted-foreground px-1">AI Tools</p>
           <div className="grid grid-cols-2 gap-2">
-            {/* AI-powered actions */}
             <button
               onClick={handleTailor}
               className="flex items-center gap-3 p-3.5 rounded-2xl glass-elevated hover:border-primary/30 border border-border/20 transition-all touch-manipulation active:scale-[0.98] min-h-[56px]"
@@ -376,42 +371,6 @@ export default function ResumeDetailPage() {
               <div className="text-left min-w-0">
                 <p className="text-sm font-medium text-foreground">Interview</p>
                 <p className="text-[11px] text-muted-foreground truncate">Practice questions</p>
-              </div>
-            </button>
-
-            <button
-              onClick={() => {
-                createShare.mutate({ resumeId: dbResume.id }, {
-                  onSuccess: (data) => {
-                    const url = `${window.location.origin}/share/${data.token}`;
-                    navigator.clipboard.writeText(url);
-                    toast.success('Share link copied!');
-                  },
-                });
-              }}
-              className="flex items-center gap-3 p-3.5 rounded-2xl glass-elevated hover:border-border/50 border border-border/20 transition-all touch-manipulation active:scale-[0.98] min-h-[56px]"
-              aria-label="Share resume"
-            >
-              <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
-                <Share2 className="w-4.5 h-4.5 text-muted-foreground" />
-              </div>
-              <div className="text-left min-w-0">
-                <p className="text-sm font-medium text-foreground">Share</p>
-                <p className="text-[11px] text-muted-foreground truncate">Get a web link</p>
-              </div>
-            </button>
-
-            <button
-              onClick={handleDuplicate}
-              className="flex items-center gap-3 p-3.5 rounded-2xl glass-elevated hover:border-border/50 border border-border/20 transition-all touch-manipulation active:scale-[0.98] min-h-[56px]"
-              aria-label="Duplicate resume"
-            >
-              <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
-                <Copy className="w-4.5 h-4.5 text-muted-foreground" />
-              </div>
-              <div className="text-left min-w-0">
-                <p className="text-sm font-medium text-foreground">Duplicate</p>
-                <p className="text-[11px] text-muted-foreground truncate">Make a copy</p>
               </div>
             </button>
           </div>
