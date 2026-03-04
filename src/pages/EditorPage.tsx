@@ -650,6 +650,7 @@ export default function EditorPage() {
         parsability: sectionScores.education,
         contactCompleteness: sectionScores.contact,
         lengthDensity: Math.round((sectionScores.experience + sectionScores.education) / 2),
+        templateFriendliness: 60,
       },
       topStrength: '',
       topImprovement: overallScore < 70 ? 'Fill in more sections to improve your score' : '',
