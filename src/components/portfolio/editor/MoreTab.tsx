@@ -51,6 +51,11 @@ export interface MoreTabProps {
   // Career Card
   onOpenCareerCard: () => void;
   hasLivePortfolio: boolean;
+  // Extra links (moved from Setup)
+  twitterUrl: string;
+  onTwitterUrlChange: (val: string) => void;
+  websiteUrl: string;
+  onWebsiteUrlChange: (val: string) => void;
 }
 
 export function MoreTab(props: MoreTabProps) {
