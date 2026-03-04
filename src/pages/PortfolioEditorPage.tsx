@@ -509,6 +509,7 @@ export default function PortfolioEditorPage() {
                 websiteUrl={websiteUrl}
                 onWebsiteUrlChange={setWebsiteUrl}
               />
+            )}
           </motion.div>
         </AnimatePresence>
       </div>
