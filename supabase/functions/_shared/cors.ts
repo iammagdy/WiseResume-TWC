@@ -5,6 +5,7 @@ const ALLOWED_ORIGINS = [
   'https://localhost',          // Capacitor Android v5+
   'capacitor://localhost',      // Capacitor iOS
   'https://wiseresume.magdysaber.com',
+  'https://wiseresume.lovable.app',
 ];
 
 export const getCorsHeaders = (origin?: string | null) => {
