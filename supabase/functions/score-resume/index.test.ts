@@ -338,8 +338,8 @@ Deno.test("contentQuality: mixed experiences, only bullets scored", () => {
       { description: "General operations work" },
     ],
   });
-  // hasOnlyParagraphs=false (has achievements), 2 bullets: 2/2 action (reduced, led)=50, 1/2 quantified (30%)=25 → 75
-  assertEquals(score, 75);
+  // hasOnlyParagraphs=false (has achievements), 2 bullets: 2/2 action (reduced, led)=50, 2/2 quantified (30%, 5)=50 → 100
+  assertEquals(score, 100);
 });
 
 Deno.test("contentQuality: empty achievements array → description fallback", () => {
