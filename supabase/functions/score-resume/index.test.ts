@@ -164,7 +164,7 @@ Deno.test("keywordOptimization: full echo → 95", () => {
 });
 
 Deno.test("keywordOptimization: 8+ skills bonus", () => {
-  const skills = ["a", "b", "c", "d", "e", "f", "g", "h"];
+  const skills = ["react", "vue", "angular", "python", "java", "docker", "redis", "graphql"];
   const score = scoreKeywordOptimization({
     skills,
     summary: skills.join(" "),
