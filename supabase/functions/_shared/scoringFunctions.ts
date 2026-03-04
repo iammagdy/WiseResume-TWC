@@ -296,6 +296,10 @@ export function generateFeedback(categories: Record<string, number>): { topStren
       strength: 'Good density of bullet points across experience entries.',
       improvement: 'Add more achievement bullets to your experience entries for better depth.',
     },
+    templateFriendliness: {
+      strength: 'Using an ATS-friendly template layout.',
+      improvement: 'Switch to a single-column, text-focused template for better ATS parsing.',
+    },
   };
 
   let bestKey = 'sectionStructure';

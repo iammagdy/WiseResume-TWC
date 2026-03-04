@@ -95,21 +95,23 @@ serve(async (req) => {
       );
     }
 
-    // ── Compute ALL 6 deterministic scores ───────────────────────────
+    // ── Compute ALL 7 deterministic scores ───────────────────────────
     const contactCompleteness = scoreContactCompleteness(resume.contactInfo || {});
     const sectionStructure = scoreSectionStructure(resume);
     const parsability = scoreParsability(resume);
     const lengthDensity = scoreLengthDensity(resume);
     const keywordOptimization = scoreKeywordOptimization(resume);
     const contentQuality = scoreContentQuality(resume);
+    const templateFriendliness = scoreTemplateFriendliness(templateId);
 
     const overallScore = Math.round(
       keywordOptimization * 0.35 +
       contentQuality * 0.25 +
-      sectionStructure * 0.15 +
+      sectionStructure * 0.10 +
       parsability * 0.10 +
-      contactCompleteness * 0.10 +
-      lengthDensity * 0.05
+      contactCompleteness * 0.05 +
+      lengthDensity * 0.05 +
+      templateFriendliness * 0.10
     );
 
     const categories = {
@@ -119,6 +121,7 @@ serve(async (req) => {
       parsability,
       contactCompleteness,
       lengthDensity,
+      templateFriendliness,
     };
 
     const { topStrength, topImprovement } = generateFeedback(categories);

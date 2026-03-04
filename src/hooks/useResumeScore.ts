@@ -47,7 +47,7 @@ function normalizeForScoring(resume: ResumeData): { content: Partial<ResumeData>
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function invokeScoreResume(resume: ResumeData): Promise<{ data: any; latencyMs: number }> {
-  const normalized = normalizeForScoring(resume);
+  const { content: normalized, templateId } = normalizeForScoring(resume);
   const _start = Date.now();
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData?.session?.access_token;
@@ -66,7 +66,7 @@ async function invokeScoreResume(resume: ResumeData): Promise<{ data: any; laten
       'Authorization': `Bearer ${token}`,
       'apikey': anonKey,
     },
-    body: JSON.stringify({ resume: normalized }),
+    body: JSON.stringify({ resume: normalized, templateId }),
   });
 
   if (!res.ok) {
