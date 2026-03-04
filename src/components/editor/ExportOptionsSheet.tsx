@@ -44,6 +44,7 @@ export function ExportOptionsSheet({
   exportProgress,
   resumeName,
   templateName,
+  templateAtsScore,
 }: ExportOptionsSheetProps) {
   const { pdfDefaults } = useSettingsStore();
   const navigate = useNavigate();
