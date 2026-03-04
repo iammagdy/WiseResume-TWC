@@ -160,6 +160,12 @@ function getSectionContent(resume: Record<string, unknown>, sectionId: SectionTy
     case 'experience': return resume.experience || [];
     case 'skills': return resume.skills || [];
     case 'education': return resume.education || [];
+    case 'certifications': return resume.certifications || [];
+    case 'awards': return resume.awards || [];
+    case 'projects': return resume.projects || [];
+    case 'publications': return resume.publications || [];
+    case 'volunteering': return resume.volunteering || [];
+    case 'languages': return resume.languages || [];
     default: return '';
   }
 }
