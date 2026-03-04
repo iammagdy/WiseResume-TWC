@@ -34,13 +34,13 @@ export function clearCachedScore(resumeId: string, updatedAt: string) {
 }
 
 /** Strip non-content fields so identical content always produces identical requests */
-function normalizeForScoring(resume: ResumeData): Partial<ResumeData> {
+function normalizeForScoring(resume: ResumeData): { content: Partial<ResumeData>; templateId?: string } {
   const { id, createdAt, updatedAt, templateId, customization, ...content } = resume;
   // Sort skills for consistent ordering
   if (content.skills) {
     content.skills = [...content.skills].sort();
   }
-  return content;
+  return { content, templateId };
 }
 
 /** Helper: wait ms */
