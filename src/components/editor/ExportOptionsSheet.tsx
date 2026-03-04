@@ -1,23 +1,17 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Download, FileText, Package, Check, Minimize2, FileType, AlertTriangle, Shield, Linkedin, AlignLeft, Link2, Copy, Mic, WifiOff, FolderDown, Image } from 'lucide-react';
-import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { Download, FileText, Package, Minimize2, FileType, Shield, Linkedin, AlignLeft, Link2, Mic, FolderDown, Image } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { ExportType, CoverLetterContext } from '@/types/resume';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useSettingsStore } from '@/store/settingsStore';
 import { estimateOnePageScale } from '@/lib/pdfUtils';
-import { cn } from '@/lib/utils';
 import haptics from '@/lib/haptics';
 import type { ExportProgress } from '@/hooks/useExportProgress';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { ExportTypeList } from './export/ExportTypeList';
+import { AtsWarningAlert } from './export/AtsWarningAlert';
+import { PdfOptionsFooter } from './export/PdfOptionsFooter';
+import { ExportProgressBar } from './export/ExportProgressBar';
 
 interface ExportOptionsSheetProps {
   open: boolean;
@@ -34,22 +28,13 @@ interface ExportOptionsSheetProps {
 }
 
 export function ExportOptionsSheet({
-  open,
-  onOpenChange,
-  hasCoverLetter,
-  coverLetterContext,
-  onExport,
-  isExporting,
-  templateElement,
-  exportProgress,
-  resumeName,
-  templateName,
-  templateAtsScore,
+  open, onOpenChange, hasCoverLetter, coverLetterContext, onExport,
+  isExporting, templateElement, exportProgress, resumeName, templateName, templateAtsScore,
 }: ExportOptionsSheetProps) {
   const { pdfDefaults } = useSettingsStore();
   const navigate = useNavigate();
   const { isOnline } = useNetworkStatus();
-  
+
   const [selectedType, setSelectedType] = useState<ExportType>('resume');
   const [showPageNumbers, setShowPageNumbers] = useState(pdfDefaults.showPageNumbers ?? true);
   const [showBranding, setShowBranding] = useState(pdfDefaults.showBranding ?? true);
@@ -57,33 +42,24 @@ export function ExportOptionsSheet({
   const [customFileName, setCustomFileName] = useState('');
   const [highlightedType, setHighlightedType] = useState<ExportType | null>(null);
 
-  // Auto-clear highlight after 800ms
   useEffect(() => {
     if (!highlightedType) return;
     const t = setTimeout(() => setHighlightedType(null), 800);
     return () => clearTimeout(t);
   }, [highlightedType]);
 
-  // Sync with defaults when sheet opens (NO DOM mutation here)
   useEffect(() => {
     if (open) {
       setShowPageNumbers(pdfDefaults.showPageNumbers ?? true);
       setShowBranding(pdfDefaults.showBranding ?? true);
-      const defaultName = resumeName?.replace(/\s+/g, '_') || 'Resume';
-      setCustomFileName(defaultName);
-      setOnePageScale(null); // Reset; will be calculated lazily if needed
+      setCustomFileName(resumeName?.replace(/\s+/g, '_') || 'Resume');
+      setOnePageScale(null);
     }
   }, [open, pdfDefaults, resumeName]);
 
-  // Lazily calculate one-page scale only when user selects that option
   useEffect(() => {
     if (selectedType === 'one-page' && onePageScale === null && templateElement) {
-      try {
-        const scale = estimateOnePageScale(templateElement);
-        setOnePageScale(scale);
-      } catch {
-        setOnePageScale(null);
-      }
+      try { setOnePageScale(estimateOnePageScale(templateElement)); } catch { setOnePageScale(null); }
     }
   }, [selectedType, onePageScale, templateElement]);
 
@@ -118,19 +94,23 @@ export function ExportOptionsSheet({
   ];
 
   const handleExport = () => {
-    if (selectedType === 'interview-prep') {
-      onOpenChange(false);
-      navigate('/interview');
-      return;
-    }
+    if (selectedType === 'interview-prep') { onOpenChange(false); navigate('/interview'); return; }
     onExport(selectedType, showPageNumbers, showBranding, customFileName || undefined);
+  };
+
+  const handleSwitchToAts = () => {
+    haptics.light();
+    setSelectedType('ats-pdf');
+    setHighlightedType('ats-pdf');
+    setTimeout(() => {
+      document.querySelector('[data-export-id="ats-pdf"]')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 50);
   };
 
   const isPdfType = ['resume', 'ats-pdf', 'one-page', 'cover-letter', 'combined'].includes(selectedType);
   const isTextType = ['linkedin', 'plain-text', 'share-link'].includes(selectedType);
   const isInterviewPrep = selectedType === 'interview-prep';
   const isDownloadable = ['resume', 'ats-pdf', 'one-page', 'cover-letter', 'combined', 'docx', 'plain-text', 'json', 'image'].includes(selectedType);
-
   const selectedOption = exportGroups.flatMap(g => g.options).find(o => o.id === selectedType);
   const isButtonDisabled = isExporting || (selectedOption ? !selectedOption.available : false);
 
@@ -178,217 +158,41 @@ export function ExportOptionsSheet({
         </SheetHeader>
 
         <div className="flex flex-col gap-4 min-h-0 pb-safe">
-          {/* Export type selection */}
-          <div className="space-y-4 flex-1 overflow-y-auto min-h-0">
-            {exportGroups.map((group) => (
-              <div key={group.label}>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">{group.label}</p>
-                <div className="space-y-2">
-                  {group.options.map((option) => (
-                    <motion.button
-                      key={option.id}
-                      data-export-id={option.id}
-                      onClick={() => { if (option.available) { haptics.light(); setSelectedType(option.id); } }}
-                      disabled={!option.available}
-                      className={cn(
-                        'w-full p-4 rounded-xl border-2 text-left transition-all',
-                        selectedType === option.id && option.available
-                          ? 'border-primary bg-primary/5'
-                          : option.available
-                            ? 'border-border hover:border-primary/50'
-                            : 'border-border opacity-50 cursor-not-allowed',
-                        highlightedType === option.id && 'ring-2 ring-primary/60 shadow-lg shadow-primary/20 transition-shadow duration-300'
-                      )}
-                      whileTap={option.available ? { scale: 0.98 } : {}}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className={cn(
-                          'w-10 h-10 rounded-lg flex items-center justify-center shrink-0',
-                          selectedType === option.id && option.available
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted text-muted-foreground'
-                        )}>
-                          <option.icon className="w-5 h-5" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold">{option.label}</span>
-                            {selectedType === option.id && option.available && (
-                              <Check className="w-4 h-4 text-primary" />
-                            )}
-                            {'badge' in option && option.badge && (
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-green-500/50 text-green-600 dark:text-green-400">
-                                {option.badge}
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-sm text-muted-foreground mt-0.5">
-                            {option.description}
-                          </p>
-                          {option.id === 'one-page' && onePageScale !== null && (
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                'mt-1 text-[10px] px-1.5 py-0',
-                                onePageScale >= 100
-                                  ? 'border-green-500/50 text-green-600 dark:text-green-400'
-                                  : onePageScale >= 70
-                                    ? 'border-amber-500/50 text-amber-600 dark:text-amber-400'
-                                    : 'border-destructive/50 text-destructive'
-                              )}
-                            >
-                              {onePageScale >= 100 ? 'No scaling needed' : `${onePageScale}% scale`}
-                            </Badge>
-                          )}
-                          {option.id === 'one-page' && onePageScale !== null && onePageScale < 50 && (
-                            <Alert variant="destructive" className="mt-2 py-2 px-3">
-                              <AlertTriangle className="h-4 w-4" />
-                              <AlertDescription className="text-xs">
-                                Text may be too small to read comfortably at this scale. Consider using the AI One-Page Wizard to condense content first.
-                              </AlertDescription>
-                            </Alert>
-                          )}
-                        </div>
-                      </div>
-                    </motion.button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+          <ExportTypeList
+            exportGroups={exportGroups}
+            selectedType={selectedType}
+            highlightedType={highlightedType}
+            onePageScale={onePageScale}
+            onSelect={setSelectedType}
+          />
 
-          {/* ATS compatibility warning for Design-Enhanced with weak templates */}
-          {selectedType === 'resume' && templateAtsScore && templateAtsScore !== 'high' && (
-            <Alert
-              variant={templateAtsScore === 'low' ? 'destructive' : 'default'}
-              className={cn(
-                templateAtsScore === 'medium' && 'border-amber-500/50 text-amber-700 dark:text-amber-400 [&>svg]:text-amber-600 dark:[&>svg]:text-amber-400'
-              )}
-            >
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription className="text-sm">
-                {templateAtsScore === 'low'
-                  ? 'Your template has low ATS compatibility.'
-                  : 'Your template has moderate ATS compatibility.'}
-                <Button
-                  variant="link"
-                  size="sm"
-                  className="h-auto p-0 ml-1 text-sm font-semibold underline"
-                  onClick={() => {
-                    haptics.light();
-                    setSelectedType('ats-pdf');
-                    setHighlightedType('ats-pdf');
-                    setTimeout(() => {
-                      document.querySelector('[data-export-id="ats-pdf"]')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    }, 50);
-                  }}
-                >
-                  Switch to ATS-Optimized
-                </Button>
-              </AlertDescription>
-            </Alert>
+          {selectedType === 'resume' && (
+            <AtsWarningAlert templateAtsScore={templateAtsScore} onSwitchToAts={handleSwitchToAts} />
           )}
 
-          {/* Footer options - always rendered for stable layout, hidden via opacity when not relevant */}
-          <div
-            className={cn(
-              'space-y-3 shrink-0 transition-opacity duration-150',
-              isPdfType && !isTextType && selectedType !== 'ats-pdf'
-                ? 'opacity-100'
-                : 'opacity-0 pointer-events-none h-0 overflow-hidden'
-            )}
-          >
-              <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50">
-                <div className="space-y-0.5">
-                  <Label htmlFor="page-numbers" className="font-medium">
-                    Page Numbers
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    Show "Page X of Y" in footer
-                  </p>
-                </div>
-                <Switch
-                  id="page-numbers"
-                  checked={showPageNumbers}
-                  onCheckedChange={setShowPageNumbers}
-                />
-              </div>
+          <PdfOptionsFooter
+            visible={isPdfType && !isTextType && selectedType !== 'ats-pdf'}
+            showPageNumbers={showPageNumbers}
+            showBranding={showBranding}
+            onPageNumbersChange={setShowPageNumbers}
+            onBrandingChange={setShowBranding}
+          />
 
-              <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50">
-                <div className="space-y-0.5">
-                  <Label htmlFor="branding" className="font-medium flex items-center gap-1.5">
-                    <span className="text-primary">✦</span>
-                    WiseResume Badge
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    Professional prestige stamp
-                  </p>
-                </div>
-                <Switch
-                  id="branding"
-                  checked={showBranding}
-                  onCheckedChange={setShowBranding}
-                />
-              </div>
-          </div>
-
-          {/* Filename input for downloadable formats */}
-          {isDownloadable && (
-            <div className="flex items-center gap-2 p-3 rounded-xl bg-muted/50">
-              <Label className="text-sm font-medium shrink-0">File name</Label>
-              <Input
-                value={customFileName}
-                onChange={(e) => setCustomFileName(e.target.value)}
-                className="h-8 text-sm"
-                placeholder="Resume"
-              />
-              <span className="text-xs text-muted-foreground shrink-0">{getFileSuffix()}</span>
-            </div>
-          )}
-
-          {/* Progress indicator */}
-          {exportProgress?.isActive && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">{exportProgress.message}</span>
-                <span className="font-medium">{Math.round(exportProgress.progress)}%</span>
-              </div>
-              <Progress value={exportProgress.progress} className="h-2" />
-            </div>
-          )}
-
-          {/* Offline warning for network-required exports */}
-          {!isOnline && (selectedType === 'combined' || selectedType === 'cover-letter') && (
-            <Alert>
-              <WifiOff className="h-4 w-4" />
-              <AlertDescription className="text-sm">
-                You're offline. This export requires an internet connection. PDF and DOCX exports still work offline.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Export button */}
-          <Button
-            size="lg"
-            className="w-full h-14 text-lg font-semibold gradient-primary"
-            onClick={handleExport}
-            disabled={isButtonDisabled}
-            style={{
-              boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)',
-            }}
-          >
-            {isExporting ? (
-              <>
-                <MiniSpinner size={20} className="mr-2" />
-                {exportProgress?.isActive ? exportProgress.message : 'Generating...'}
-              </>
-            ) : (
-              <>
-                {isInterviewPrep ? <Mic className="w-5 h-5 mr-2" /> : isTextType ? <Copy className="w-5 h-5 mr-2" /> : <Download className="w-5 h-5 mr-2" />}
-                {getButtonLabel()}
-              </>
-            )}
-          </Button>
+          <ExportProgressBar
+            exportProgress={exportProgress}
+            isOnline={isOnline}
+            selectedType={selectedType}
+            isDownloadable={isDownloadable}
+            customFileName={customFileName}
+            fileSuffix={getFileSuffix()}
+            buttonLabel={getButtonLabel()}
+            isExporting={isExporting}
+            isButtonDisabled={isButtonDisabled}
+            isTextType={isTextType}
+            isInterviewPrep={isInterviewPrep}
+            onFileNameChange={setCustomFileName}
+            onExport={handleExport}
+          />
         </div>
       </SheetContent>
     </Sheet>
