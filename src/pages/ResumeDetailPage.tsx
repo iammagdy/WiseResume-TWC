@@ -294,7 +294,15 @@ export default function ResumeDetailPage() {
                   <Button
                     size="sm"
                     className="h-8 px-2.5 text-xs gap-1.5"
-                    onClick={() => setShowEnhance(true)}
+                    onClick={() => {
+                      setCurrentResume(resumeData);
+                      setCurrentResumeId(dbResume.id);
+                      setSelectedTemplate(dbResume.template_id as TemplateId);
+                      prevScoreRef.current = getCachedScore(dbResume.id, dbResume.updated_at);
+                      enhancedRef.current = false;
+                      enhancedSectionsRef.current = [];
+                      setShowEnhance(true);
+                    }}
                   >
                     <Zap className="w-3.5 h-3.5" />
                     Improve
@@ -413,15 +421,6 @@ export default function ResumeDetailPage() {
                 }
               }}
               onOpenChange={(open) => {
-                if (open) {
-                  enhancedRef.current = false;
-                  enhancedSectionsRef.current = [];
-                  setCurrentResume(resumeData);
-                  setCurrentResumeId(dbResume.id);
-                  setSelectedTemplate(dbResume.template_id as TemplateId);
-                  prevScoreRef.current = getCachedScore(dbResume.id, dbResume.updated_at);
-                }
-
                 if (!open && !enhancedRef.current) {
                   // Closed without changes — just close, zero API calls
                   setShowEnhance(false);
