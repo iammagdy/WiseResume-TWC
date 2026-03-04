@@ -376,6 +376,29 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
       });
     }
 
+    // Generic ID-preserving merge for other array sections
+    const idSections = ['certifications', 'awards', 'projects', 'publications', 'volunteering', 'languages'] as const;
+    if ((idSections as readonly string[]).includes(result.section)) {
+      if (!Array.isArray(data)) data = [];
+      const originals = (currentResume as Record<string, unknown>)[result.section] as Record<string, unknown>[] || [];
+      
+      if ((data as unknown[]).length < originals.length) {
+        const aiIds = new Set((data as Record<string, unknown>[]).map(e => e.id));
+        const missing = originals.filter(o => !aiIds.has(o.id));
+        data = [...(data as Record<string, unknown>[]), ...missing];
+      }
+
+      data = (data as Record<string, unknown>[]).map((aiEntry, i) => {
+        const orig = originals.find(o => o.id === (aiEntry.id as string)) || originals[i];
+        const base = orig || {} as Record<string, unknown>;
+        return {
+          ...base,
+          ...aiEntry,
+          id: (aiEntry.id as string) || (orig?.id as string) || crypto.randomUUID(),
+        };
+      });
+    }
+
     updateResume({ [result.section]: data });
 
     setResults(prev => prev.map((r, i) => i === index ? { ...r, applied: true } : r));
