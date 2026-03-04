@@ -30,6 +30,7 @@ interface ExportOptionsSheetProps {
   exportProgress?: ExportProgress;
   resumeName?: string;
   templateName?: string;
+  templateAtsScore?: 'high' | 'medium' | 'low';
 }
 
 export function ExportOptionsSheet({
