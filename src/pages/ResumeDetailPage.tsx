@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Edit2, Eye, Download, Share2, Copy, Trash2, GitBranch, Crown, CheckCircle2, FileText, Zap, BarChart3, RefreshCw, Mic } from 'lucide-react';
+import { Edit2, Eye, Download, Share2, Copy, Trash2, GitBranch, Crown, CheckCircle2, FileText, Zap, BarChart3, RefreshCw, Mic, MoreVertical, Sparkles } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { BackButton } from '@/components/ui/BackButton';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
