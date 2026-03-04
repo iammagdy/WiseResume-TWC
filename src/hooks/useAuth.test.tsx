@@ -3,27 +3,26 @@ import { useAuth } from './useAuth';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
-// Mock the supabase client
-const mockOnAuthStateChange = vi.fn(() => ({
-  data: { subscription: { unsubscribe: vi.fn() } },
+// Mock the supabase client — vi.hoisted ensures these exist before vi.mock runs
+const { mockOnAuthStateChange, mockGetSession } = vi.hoisted(() => ({
+  mockOnAuthStateChange: vi.fn(() => ({
+    data: { subscription: { unsubscribe: vi.fn() } },
+  })),
+  mockGetSession: vi.fn(() => Promise.resolve({
+    data: { session: null },
+    error: null,
+  })),
 }));
 
-const mockGetSession = vi.fn(() => Promise.resolve({
-  data: { session: null },
-  error: null,
-}));
-
-vi.mock('@/integrations/supabase/safeClient', () => {
-  return {
-    supabase: {
-      auth: {
-        onAuthStateChange: () => mockOnAuthStateChange(),
-        getSession: () => mockGetSession(),
-        signOut: vi.fn(),
-      },
+vi.mock('@/integrations/supabase/safeClient', () => ({
+  supabase: {
+    auth: {
+      onAuthStateChange: () => mockOnAuthStateChange(),
+      getSession: () => mockGetSession(),
+      signOut: vi.fn(),
     },
-  };
-});
+  },
+}));
 
 const TestComponent = () => {
   useAuth();
