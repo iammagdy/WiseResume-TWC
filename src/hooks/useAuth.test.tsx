@@ -17,8 +17,8 @@ vi.mock('@/integrations/supabase/safeClient', () => {
   return {
     supabase: {
       auth: {
-        onAuthStateChange: (...args: any[]) => mockOnAuthStateChange(...args),
-        getSession: (...args: any[]) => mockGetSession(...args),
+        onAuthStateChange: () => mockOnAuthStateChange(),
+        getSession: () => mockGetSession(),
         signOut: vi.fn(),
       },
     },
