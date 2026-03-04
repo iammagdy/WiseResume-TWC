@@ -283,6 +283,84 @@ Deno.test("contentQuality: action verbs + quantified → high score", () => {
   assertEquals(score, 100);
 });
 
+Deno.test("contentQuality: mixed action verbs + partial quantified", () => {
+  const score = scoreContentQuality({
+    experience: [{ achievements: [
+      "Led migration to cloud",        // action verb, no metric
+      "Increased sales by 20%",         // action verb + quantified
+      "Handled daily operations",       // no action verb, no metric
+      "Saved $100k in costs",           // no action verb (saved not in set), quantified
+    ] }],
+  });
+  // 2/4 action (led, increased) = 25, 2/4 quantified (20%, $100k) = 25 → 50
+  assertEquals(score, 50);
+});
+
+Deno.test("contentQuality: responsibilities field scored same as achievements", () => {
+  const score = scoreContentQuality({
+    experience: [{ responsibilities: ["Led the team", "Managed the project"] }],
+  });
+  // 2/2 action = 50, 0/2 quantified = 0 → 50
+  assertEquals(score, 50);
+});
+
+Deno.test("contentQuality: single bullet, action verb + quantified → 100", () => {
+  const score = scoreContentQuality({
+    experience: [{ achievements: ["Delivered $2M project on time"] }],
+  });
+  // 1/1 action (delivered) = 50, 1/1 quantified ($2M) = 50 → 100
+  assertEquals(score, 100);
+});
+
+Deno.test("contentQuality: single bullet, no action verb, no metric → 0", () => {
+  const score = scoreContentQuality({
+    experience: [{ achievements: ["Worked on stuff"] }],
+  });
+  // 0/1 action, 0/1 quantified → 0
+  assertEquals(score, 0);
+});
+
+Deno.test("contentQuality: paragraph-only entries capped at 15", () => {
+  const score = scoreContentQuality({
+    experience: [
+      { description: "Led team of 10 and increased revenue by 50%" },
+      { description: "Managed $5M budget across departments" },
+    ],
+  });
+  // No achievements/responsibilities arrays → hasDesc=true → 15
+  assertEquals(score, 15);
+});
+
+Deno.test("contentQuality: mixed experiences, only bullets scored", () => {
+  const score = scoreContentQuality({
+    experience: [
+      { achievements: ["Reduced costs by 30%", "Led team of 5"] },
+      { description: "General operations work" },
+    ],
+  });
+  // hasOnlyParagraphs=false (has achievements), 2 bullets: 2/2 action (reduced, led)=50, 2/2 quantified (30%, 5)=50 → 100
+  assertEquals(score, 100);
+});
+
+Deno.test("contentQuality: empty achievements array → description fallback", () => {
+  const score = scoreContentQuality({
+    experience: [{ achievements: [], description: "Did various tasks" }],
+  });
+  // 0 bullets, hasDesc=true → 15
+  assertEquals(score, 15);
+});
+
+Deno.test("contentQuality: euro/pound symbols count as quantified", () => {
+  const score = scoreContentQuality({
+    experience: [{ achievements: [
+      "Managed €500k budget",
+      "Delivered £1M project",
+    ] }],
+  });
+  // 2/2 action (managed, delivered) = 50, 2/2 quantified (€, £) = 50 → 100
+  assertEquals(score, 100);
+});
+
 // ── generateFeedback ────────────────────────────────────────────────
 
 Deno.test("generateFeedback: returns strength for highest, improvement for lowest", () => {
