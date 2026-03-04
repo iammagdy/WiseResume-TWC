@@ -169,6 +169,7 @@ export const useSettingsStore = create<SettingsState>()(
       setHasSeenAIStudioTour: (value) => set({ hasSeenAIStudioTour: value }),
       setElevenlabsApiKey: (key) => set({ elevenlabsApiKey: key }),
       setTheme: (theme) => set({ theme }),
+      setLastExportType: (type) => set({ lastExportType: type }),
       
       // AI Provider Actions
       setAIProvider: (provider) => set({ aiProvider: provider }),
