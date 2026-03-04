@@ -607,7 +607,8 @@ export default function PreviewPage() {
           templateElement={resumeRef.current}
           exportProgress={exportProgress}
           resumeName={currentResume?.contactInfo?.fullName || 'Resume'}
-          templateName={templates.find((t) => t.id === selectedTemplate)?.name || selectedTemplate} />
+          templateName={templates.find((t) => t.id === selectedTemplate)?.name || selectedTemplate}
+          templateAtsScore={templates.find((t) => t.id === selectedTemplate)?.atsScore as 'high' | 'medium' | 'low' | undefined} />
 
         }
         {showOnePageWizard &&
