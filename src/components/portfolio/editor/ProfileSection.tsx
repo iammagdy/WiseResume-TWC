@@ -24,12 +24,10 @@ export interface ProfileSectionProps {
   onBioChange: (val: string) => void;
   onGenerateBio: () => void;
   generatingBio: boolean;
+  linkedinUrl: string;
+  onLinkedinUrlChange: (val: string) => void;
   githubUrl: string;
   onGithubUrlChange: (val: string) => void;
-  websiteUrl: string;
-  onWebsiteUrlChange: (val: string) => void;
-  twitterUrl: string;
-  onTwitterUrlChange: (val: string) => void;
   contactEmail: string;
   onContactEmailChange: (val: string) => void;
   openToWork: boolean;
