@@ -70,6 +70,7 @@ export function MoreTab(props: MoreTabProps) {
     onGenerateSEO, generatingSEO, seoPlaceholderName, seoPlaceholderTitle,
     portfolioUsername, userId, portfolioEnabled, views,
     onOpenCareerCard, hasLivePortfolio,
+    twitterUrl, onTwitterUrlChange, websiteUrl, onWebsiteUrlChange,
   } = props;
 
   const visibleCount = Object.values(sections).filter(Boolean).length;
