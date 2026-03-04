@@ -362,7 +362,70 @@ Deno.test("contentQuality: euro/pound symbols count as quantified", () => {
   assertEquals(score, 100);
 });
 
-// ── generateFeedback ────────────────────────────────────────────────
+// ── scoreTemplateFriendliness ────────────────────────────────────────
+
+Deno.test("templateFriendliness: high-rated template → 100", () => {
+  assertEquals(scoreTemplateFriendliness("modern"), 100);
+  assertEquals(scoreTemplateFriendliness("classic"), 100);
+  assertEquals(scoreTemplateFriendliness("clean"), 100);
+});
+
+Deno.test("templateFriendliness: medium-rated template → 60", () => {
+  assertEquals(scoreTemplateFriendliness("developer"), 60);
+  assertEquals(scoreTemplateFriendliness("elegant"), 60);
+});
+
+Deno.test("templateFriendliness: low-rated template → 20", () => {
+  assertEquals(scoreTemplateFriendliness("creative"), 20);
+  assertEquals(scoreTemplateFriendliness("infographic"), 20);
+});
+
+Deno.test("templateFriendliness: unknown template defaults to 60", () => {
+  assertEquals(scoreTemplateFriendliness("nonexistent"), 60);
+  assertEquals(scoreTemplateFriendliness(undefined), 60);
+});
+
+Deno.test("templateFriendliness: explicit atsRating overrides templateId", () => {
+  assertEquals(scoreTemplateFriendliness("creative", "high"), 100);
+  assertEquals(scoreTemplateFriendliness("modern", "low"), 20);
+});
+
+// ── parsability: image-hostile pattern penalties ────────────────────
+
+Deno.test("parsability: photo present → -5 penalty", () => {
+  const score = scoreParsability({
+    experience: [{ startDate: "2020-01", endDate: "2022-01", achievements: ["x"] }],
+    contactInfo: { photoUrl: "https://example.com/photo.jpg" },
+  });
+  assertEquals(score, 95);
+});
+
+Deno.test("parsability: multi-column layout → -10 penalty", () => {
+  const score = scoreParsability({
+    experience: [{ startDate: "2020-01", endDate: "2022-01", achievements: ["x"] }],
+    customization: { layout: "two-column" },
+  });
+  assertEquals(score, 90);
+});
+
+Deno.test("parsability: photo + multi-column → cumulative -15", () => {
+  const score = scoreParsability({
+    experience: [{ startDate: "2020-01", endDate: "2022-01", achievements: ["x"] }],
+    contactInfo: { photoUrl: "photo.jpg" },
+    customization: { layout: "sidebar" },
+  });
+  assertEquals(score, 85);
+});
+
+Deno.test("parsability: single/linear layout → no layout penalty", () => {
+  const score = scoreParsability({
+    experience: [{ startDate: "2020-01", endDate: "2022-01", achievements: ["x"] }],
+    customization: { layout: "single" },
+  });
+  assertEquals(score, 100);
+});
+
+// ── generateFeedback (updated with templateFriendliness) ────────────
 
 Deno.test("generateFeedback: returns strength for highest, improvement for lowest", () => {
   const result = generateFeedback({
@@ -372,7 +435,34 @@ Deno.test("generateFeedback: returns strength for highest, improvement for lowes
     parsability: 50,
     contactCompleteness: 50,
     lengthDensity: 50,
+    templateFriendliness: 50,
   });
   assertEquals(result.topStrength, 'Skills are well-echoed throughout experience descriptions.');
   assertEquals(result.topImprovement, 'Start bullets with action verbs and add numbers/metrics to quantify your impact.');
+});
+
+Deno.test("generateFeedback: templateFriendliness as worst → template improvement", () => {
+  const result = generateFeedback({
+    keywordOptimization: 80,
+    contentQuality: 80,
+    sectionStructure: 80,
+    parsability: 80,
+    contactCompleteness: 80,
+    lengthDensity: 80,
+    templateFriendliness: 20,
+  });
+  assertEquals(result.topImprovement, 'Switch to a single-column, text-focused template for better ATS parsing.');
+});
+
+Deno.test("generateFeedback: templateFriendliness as best → template strength", () => {
+  const result = generateFeedback({
+    keywordOptimization: 10,
+    contentQuality: 10,
+    sectionStructure: 10,
+    parsability: 10,
+    contactCompleteness: 10,
+    lengthDensity: 10,
+    templateFriendliness: 100,
+  });
+  assertEquals(result.topStrength, 'Using an ATS-friendly template layout.');
 });
