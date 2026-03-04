@@ -388,12 +388,12 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     setResults(prev => prev.filter((_, i) => i !== index));
   }, []);
 
-  const enabledSections = SECTIONS.filter(s =>
+  const enabledSections = ALL_SECTIONS.filter(s =>
     currentResume && sectionHasContent(currentResume as unknown as Record<string, unknown>, s.id) &&
     !disabledSections?.has(s.id)
   );
 
-  const disabledSectionsList = SECTIONS.filter(s =>
+  const disabledSectionsList = ALL_SECTIONS.filter(s =>
     currentResume && sectionHasContent(currentResume as unknown as Record<string, unknown>, s.id) &&
     disabledSections?.has(s.id)
   );
