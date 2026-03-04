@@ -50,6 +50,9 @@ interface SettingsState {
   // Theme
   theme: 'light' | 'dark' | 'system';
   
+  // Export
+  lastExportType: string | null;
+  
   // AI Provider Settings
   aiProvider: AIProvider;
   geminiApiKey: string;
@@ -81,6 +84,7 @@ interface SettingsState {
   setHasSeenAIStudioTour: (value: boolean) => void;
   setElevenlabsApiKey: (key: string) => void;
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
+  setLastExportType: (type: string) => void;
   
   // AI Provider Actions
   setAIProvider: (provider: AIProvider) => void;
@@ -121,6 +125,7 @@ const defaultSettings = {
   hasSeenAIStudioTour: false,
   elevenlabsApiKey: '',
   theme: 'dark' as 'light' | 'dark' | 'system',
+  lastExportType: null as string | null,
   // AI Provider defaults
   aiProvider: 'wiseresume' as AIProvider,
   geminiApiKey: '',
@@ -164,6 +169,7 @@ export const useSettingsStore = create<SettingsState>()(
       setHasSeenAIStudioTour: (value) => set({ hasSeenAIStudioTour: value }),
       setElevenlabsApiKey: (key) => set({ elevenlabsApiKey: key }),
       setTheme: (theme) => set({ theme }),
+      setLastExportType: (type) => set({ lastExportType: type }),
       
       // AI Provider Actions
       setAIProvider: (provider) => set({ aiProvider: provider }),
