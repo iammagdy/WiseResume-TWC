@@ -102,6 +102,7 @@ export default function PortfolioEditorPage() {
       setGithubUrl(profile.githubUrl || '');
       setWebsiteUrl(profile.websiteUrl || '');
       setTwitterUrl(profile.twitterUrl || '');
+      setLinkedinUrl(profile.linkedinUrl || '');
       setContactEmail(profile.contactEmail || '');
       setSelectedTheme(profile.theme || 'system');
       const p = profile as unknown as Record<string, unknown>;
