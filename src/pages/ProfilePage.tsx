@@ -188,14 +188,15 @@ export default function ProfilePage() {
           )}
           <div className="grid grid-cols-3 gap-2">
             {profile?.username && profile?.portfolioEnabled && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 rounded-xl text-xs active:scale-95 touch-manipulation"
-                onClick={() => { haptics.light(); openExternal(getPortfolioUrl(profile.username)); }}
+              <a
+                href={getPortfolioUrl(profile.username)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => haptics.light()}
+                className="inline-flex items-center justify-center h-9 rounded-xl text-xs active:scale-95 touch-manipulation border border-input bg-background hover:bg-accent hover:text-accent-foreground px-3"
               >
                 <ExternalLink className="w-3.5 h-3.5 mr-1" /> Preview
-              </Button>
+              </a>
             )}
             {profile?.username && profile?.portfolioEnabled && (
               <Button
