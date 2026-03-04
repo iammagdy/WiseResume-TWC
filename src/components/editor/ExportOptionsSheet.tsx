@@ -187,6 +187,7 @@ export function ExportOptionsSheet({
                   {group.options.map((option) => (
                     <motion.button
                       key={option.id}
+                      data-export-id={option.id}
                       onClick={() => { if (option.available) { haptics.light(); setSelectedType(option.id); } }}
                       disabled={!option.available}
                       className={cn(
