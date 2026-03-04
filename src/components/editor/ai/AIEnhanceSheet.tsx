@@ -97,6 +97,12 @@ function formatSectionContent(sectionId: SectionType, content: unknown): string 
     case 'experience': return formatExperiencePreview(content);
     case 'education': return formatEducationPreview(content);
     case 'skills': return formatSkillsPreview(content);
+    case 'certifications': return content.map((c: any) => `${c.name || 'Cert'} — ${c.issuer || ''}`).join('\n');
+    case 'awards': return content.map((a: any) => `${a.title || 'Award'} — ${a.issuer || ''}`).join('\n');
+    case 'projects': return content.map((p: any) => `${p.name || 'Project'} — ${(p.description || '').slice(0, 60)}`).join('\n');
+    case 'publications': return content.map((p: any) => `${p.title || 'Publication'} — ${p.publisher || ''}`).join('\n');
+    case 'volunteering': return content.map((v: any) => `${v.role || 'Role'} at ${v.organization || ''}`).join('\n');
+    case 'languages': return content.map((l: any) => `${l.name || 'Language'} (${l.proficiency || ''})`).join(', ');
     default: return content.map(String).join(', ');
   }
 }
