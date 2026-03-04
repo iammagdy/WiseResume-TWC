@@ -345,7 +345,7 @@ export default function PreviewPage() {
         }
 
         if (result.success) {
-          const successMessages: Record<ExportType, string> = {
+          const successMessages: Record<string, string> = {
             'resume': 'Resume downloaded!',
             'cover-letter': 'Cover letter downloaded!',
             'combined': 'Application package downloaded!',
@@ -355,7 +355,6 @@ export default function PreviewPage() {
             'linkedin': 'LinkedIn format copied!',
             'plain-text': 'Plain text downloaded!',
             'share-link': 'Share link generated!',
-            'interview-prep': 'Starting interview prep...',
             'json': 'JSON backup downloaded!',
             'image': '4K image downloaded!',
           };
