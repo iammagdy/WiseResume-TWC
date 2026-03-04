@@ -384,7 +384,7 @@ export default function PortfolioEditorPage() {
           copied={copied}
           onCopyUrl={handleCopyUrl}
           onOpenQR={() => { haptics.light(); setShowQR(true); }}
-          onViewLive={() => actualPortfolioUrl && openExternal(actualPortfolioUrl)}
+          
           strengthScore={strengthScore}
           strengthLabel={strengthLabel}
           strengthMissing={strengthMissing}

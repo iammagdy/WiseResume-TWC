@@ -15,7 +15,6 @@ export interface StatusBarProps {
   copied: boolean;
   onCopyUrl: () => void;
   onOpenQR: () => void;
-  onViewLive: () => void;
   strengthScore: number;
   strengthLabel: string;
   strengthMissing: StrengthTip[];
@@ -28,7 +27,6 @@ export function StatusBar({
   copied,
   onCopyUrl,
   onOpenQR,
-  onViewLive,
   strengthScore,
   strengthLabel,
   strengthMissing,
@@ -48,13 +46,15 @@ export function StatusBar({
 
       {/* Tappable URL */}
       {actualPortfolioUrl ? (
-        <button
-          onClick={onViewLive}
+        <a
+          href={actualPortfolioUrl}
+          target="_blank"
+          rel="noopener noreferrer"
           className="flex items-center gap-1 flex-1 min-w-0 text-xs font-mono text-muted-foreground truncate hover:text-foreground transition-colors touch-manipulation"
         >
           <span className="truncate">{portfolioDisplayUrl}</span>
           <ExternalLink className="w-3 h-3 shrink-0 text-primary" />
-        </button>
+        </a>
       ) : (
         <span className="flex-1 text-xs text-muted-foreground italic">No username set</span>
       )}
