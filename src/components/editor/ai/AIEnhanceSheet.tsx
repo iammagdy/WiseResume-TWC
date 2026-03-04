@@ -34,11 +34,17 @@ const MODES: { id: ActionType; label: string }[] = [
   { id: 'expand', label: 'Expand Detail' },
 ];
 
-const SECTIONS: { id: SectionType; label: string; key: string }[] = [
+const ALL_SECTIONS: { id: SectionType; label: string; key: string }[] = [
   { id: 'summary', label: 'Summary', key: 'summary' },
   { id: 'experience', label: 'Experience', key: 'experience' },
   { id: 'skills', label: 'Skills', key: 'skills' },
   { id: 'education', label: 'Education', key: 'education' },
+  { id: 'certifications', label: 'Certifications', key: 'certifications' },
+  { id: 'awards', label: 'Awards', key: 'awards' },
+  { id: 'projects', label: 'Projects', key: 'projects' },
+  { id: 'publications', label: 'Publications', key: 'publications' },
+  { id: 'volunteering', label: 'Volunteering', key: 'volunteering' },
+  { id: 'languages', label: 'Languages', key: 'languages' },
 ];
 
 interface SectionResult {
