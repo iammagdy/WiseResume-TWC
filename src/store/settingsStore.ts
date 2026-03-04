@@ -84,6 +84,7 @@ interface SettingsState {
   setHasSeenAIStudioTour: (value: boolean) => void;
   setElevenlabsApiKey: (key: string) => void;
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
+  setLastExportType: (type: string) => void;
   
   // AI Provider Actions
   setAIProvider: (provider: AIProvider) => void;
