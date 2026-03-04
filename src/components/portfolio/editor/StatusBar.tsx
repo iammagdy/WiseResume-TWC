@@ -15,7 +15,6 @@ export interface StatusBarProps {
   copied: boolean;
   onCopyUrl: () => void;
   onOpenQR: () => void;
-  onViewLive: () => void;
   strengthScore: number;
   strengthLabel: string;
   strengthMissing: StrengthTip[];
