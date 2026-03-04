@@ -367,12 +367,12 @@ export async function generatePDFPages(
       height: segmentPdfHeight,
     });
 
-    // Add invisible text layer for ATS / Ctrl+F on every page
+    // Add invisible text layer for ATS / Ctrl+F — distributed across pages
     if (resume) {
       try {
         const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
         const textLines = extractResumeText(resume);
-        renderTextLayer(page, font, textLines, pageWidth, actualPageHeight);
+        renderTextLayerForPage(page, font, textLines, pageNum, numPages, pageWidth, actualPageHeight);
       } catch (e) {
         console.warn('[PDF] Text layer rendering failed, PDF will still work as image-only', e);
       }

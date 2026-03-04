@@ -149,9 +149,33 @@ export function extractResumeText(resume: ResumeData): string[] {
 }
 
 /**
- * Renders an invisible text layer on a PDF page.
- * Text is drawn with opacity 0 (fully transparent) so it's
- * selectable and searchable but doesn't affect the visual appearance.
+ * Renders an invisible text layer for a specific page of a multi-page PDF.
+ * Text lines are distributed proportionally across pages to avoid duplication.
+ * This prevents ATS parsers from seeing repeated content on every page.
+ */
+export function renderTextLayerForPage(
+  page: PDFPage,
+  font: PDFFont,
+  textLines: string[],
+  pageNum: number,
+  totalPages: number,
+  pageWidth: number,
+  pageHeight: number
+): void {
+  // Distribute lines proportionally across pages
+  const linesPerPage = Math.ceil(textLines.length / totalPages);
+  const startLine = pageNum * linesPerPage;
+  const endLine = Math.min(startLine + linesPerPage, textLines.length);
+  const pageLines = textLines.slice(startLine, endLine);
+
+  if (pageLines.length === 0) return;
+
+  renderTextLines(page, font, pageLines, pageWidth, pageHeight);
+}
+
+/**
+ * @deprecated Use renderTextLayerForPage for per-page distribution.
+ * Renders ALL text on a single page (causes duplication on multi-page PDFs).
  */
 export function renderTextLayer(
   page: PDFPage,
@@ -160,12 +184,22 @@ export function renderTextLayer(
   pageWidth: number,
   pageHeight: number
 ): void {
-  const fontSize = 4; // Small but reliably indexed by PDF readers and ATS
+  renderTextLines(page, font, textLines, pageWidth, pageHeight);
+}
+
+/** Internal: renders given text lines on a PDF page as invisible text. */
+function renderTextLines(
+  page: PDFPage,
+  font: PDFFont,
+  textLines: string[],
+  pageWidth: number,
+  pageHeight: number
+): void {
+  const fontSize = 4;
   const lineHeight = 5;
   const margin = 10;
   const maxWidth = pageWidth - margin * 2;
 
-  // Word-wrap each line to fit within page width
   const wrappedLines: string[] = [];
   for (const line of textLines) {
     if (!line.trim()) continue;
@@ -181,7 +215,6 @@ export function renderTextLayer(
           current = test;
         }
       } catch {
-        // If font can't measure (special chars), just append
         current = test;
       }
     }
@@ -189,12 +222,10 @@ export function renderTextLayer(
   }
 
   let y = pageHeight - margin;
-  // Use fully transparent color
   const transparentColor = rgb(0, 0, 0);
 
   for (const line of wrappedLines) {
-    if (y < margin) break; // Stop if we run out of page space
-
+    if (y < margin) break;
     try {
       page.drawText(line, {
         x: margin,
@@ -202,12 +233,11 @@ export function renderTextLayer(
         size: fontSize,
         font,
         color: transparentColor,
-        opacity: 0.01, // Nearly invisible – but indexed by ATS and Ctrl+F
+        opacity: 0.01,
       });
     } catch {
       // Skip lines with characters the font can't encode
     }
-
     y -= lineHeight;
   }
 }
