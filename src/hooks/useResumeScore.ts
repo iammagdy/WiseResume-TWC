@@ -15,6 +15,7 @@ export interface ResumeHealthScore {
     parsability: number;
     contactCompleteness: number;
     lengthDensity: number;
+    templateFriendliness: number;
   };
   topStrength: string;
   topImprovement: string;
