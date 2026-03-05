@@ -31,8 +31,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { apiKey, provider } = await req.json();
-    if (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length < 10) {
+    const { apiKey, provider, baseUrl, model } = await req.json();
+    
+    // Ollama may have empty API key (some setups don't need auth)
+    if (provider !== 'ollama' && (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length < 10)) {
       return new Response(JSON.stringify({ isValid: false, error: 'Invalid API key format' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -46,25 +48,6 @@ Deno.serve(async (req) => {
 
     // ===== Ollama validation =====
     if (provider === 'ollama') {
-      const { baseUrl, model } = await req.json().then(() => ({})).catch(() => ({}));
-      // Re-parse body since we already consumed it
-      const body = { apiKey, provider, baseUrl: (await req.clone().json?.()) };
-    }
-    // We need to re-read body for ollama-specific fields
-    // Actually, let's re-structure: parse full body first
-    // The body was already parsed above for apiKey/provider. Let's get baseUrl from there too.
-    // Fix: we need to re-read. Let me restructure.
-
-    if (provider === 'ollama') {
-      // baseUrl was passed alongside apiKey and provider
-      const bodyText = await req.clone().text();
-      let baseUrl = '';
-      let model = '';
-      try {
-        const fullBody = JSON.parse(bodyText);
-        baseUrl = fullBody.baseUrl || '';
-        model = fullBody.model || '';
-      } catch {}
 
       if (!baseUrl) {
         return new Response(JSON.stringify({ isValid: false, error: 'Base URL is required for Ollama' }), {

@@ -79,21 +79,28 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === 'POST') {
-      const { provider, apiKey, keyTier } = await req.json();
+      const { provider, apiKey, keyTier, baseUrl } = await req.json();
       if (!provider || !apiKey) {
         return new Response(JSON.stringify({ error: 'provider and apiKey are required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
       const encryptedKey = await encrypt(apiKey);
 
+      const upsertData: Record<string, unknown> = {
+        user_id: userId,
+        provider,
+        encrypted_key: encryptedKey,
+        key_tier: keyTier || 'unknown',
+      };
+      
+      // Include base_url for providers that need it (e.g. Ollama)
+      if (baseUrl !== undefined) {
+        upsertData.base_url = baseUrl || null;
+      }
+
       const { error } = await supabase
         .from('user_api_keys')
-        .upsert({
-          user_id: userId,
-          provider,
-          encrypted_key: encryptedKey,
-          key_tier: keyTier || 'unknown',
-        }, { onConflict: 'user_id,provider' });
+        .upsert(upsertData, { onConflict: 'user_id,provider' });
 
       if (error) throw error;
       return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
