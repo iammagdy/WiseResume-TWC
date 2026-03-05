@@ -1,15 +1,18 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, RefreshCw, MapPin, Briefcase, Clock, TrendingUp } from 'lucide-react';
+import { Sparkles, RefreshCw, MapPin, Briefcase, Clock, TrendingUp, Shield, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CareerQuizSheet, QuizAnswers } from '@/components/career/CareerQuizSheet';
 import { CareerRoadmap } from '@/components/career/CareerRoadmap';
-import { SkillGapAnalyzer } from '@/components/career/SkillGapAnalyzer';
+import { CareerMindmap } from '@/components/career/CareerMindmap';
+import { SkillCourseCard } from '@/components/career/SkillCourseCard';
 import { useCareerAssessment, useCareerMutations } from '@/hooks/useCareerAssessment';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
@@ -24,16 +27,21 @@ export default function CareerPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: assessment, isLoading, refetch } = useCareerAssessment();
-  const { createAssessment } = useCareerMutations();
+  const { createAssessment, toggleMilestone } = useCareerMutations();
   const { data: resumes } = useResumes();
-  const { toggleMilestone } = useCareerMutations();
   const [showQuiz, setShowQuiz] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const { execute: executeAI } = useAIAction({ operation: 'career-assessment' });
 
-  // Auth guard handled by ProtectedRoute
-
   const primaryResume = resumes?.find(r => r.is_primary) || resumes?.[0];
+
+  // Compute skill completion progress
+  const skillProgress = useMemo(() => {
+    if (!assessment?.result?.skillGaps) return { completed: 0, total: 0, percent: 0 };
+    const total = assessment.result.skillGaps.length;
+    const completed = assessment.completed_milestones.filter(m => m.startsWith('skill:')).length;
+    return { completed, total, percent: total > 0 ? Math.round((completed / total) * 100) : 0 };
+  }, [assessment]);
 
   const handleQuizComplete = async (answers: QuizAnswers) => {
     if (!primaryResume) {
@@ -87,10 +95,16 @@ export default function CareerPage() {
     });
   };
 
+  const handleToggleSkill = (skillName: string) => {
+    handleToggleMilestone(`skill:${skillName}`);
+  };
+
   const handleRefresh = async () => {
     await refetch();
     haptics.success();
   };
+
+  const r = assessment?.result;
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
@@ -98,10 +112,21 @@ export default function CareerPage() {
       <header className="shrink-0 sticky top-0 z-50 glass-header border-b border-border px-4 py-3 pt-safe">
         <div className="flex items-center gap-3">
           <BackButton />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-1">
             <TrendingUp className="w-5 h-5 text-primary" />
             <h1 className="text-page-title">Career Plan</h1>
           </div>
+          {assessment && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { haptics.medium(); setShowQuiz(true); }}
+              className="h-8 gap-1 text-xs"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Re-analyze
+            </Button>
+          )}
         </div>
       </header>
 
@@ -114,28 +139,28 @@ export default function CareerPage() {
               <Skeleton className="h-64 rounded-2xl" />
             </div>
           ) : !assessment ? (
-            /* Empty state - start assessment */
+            /* Empty state */
             <Card className="overflow-hidden">
               <div className="gradient-primary p-6 text-primary-foreground">
                 <Sparkles className="w-10 h-10 mb-3" />
                 <h2 className="text-xl font-bold mb-1">Discover Your Career Path</h2>
                 <p className="text-sm opacity-90">
-                  Answer 10 quick questions and let AI analyze your resume to create a personalized career roadmap.
+                  AI will deeply analyze your resume to create a personalized career roadmap with real course recommendations.
                 </p>
               </div>
               <CardContent className="p-4">
                 <div className="space-y-3">
                   <div className="flex items-center gap-3 text-sm">
                     <MapPin className="w-4 h-4 text-primary shrink-0" />
-                    <span>Personalized skill gap analysis</span>
+                    <span>Interactive career mindmap visualization</span>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
                     <Briefcase className="w-4 h-4 text-primary shrink-0" />
-                    <span>Next role recommendations with match scores</span>
+                    <span>Real YouTube courses for skill gaps</span>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
                     <Clock className="w-4 h-4 text-primary shrink-0" />
-                    <span>Step-by-step action plan with milestones</span>
+                    <span>Progress tracking & reminders</span>
                   </div>
                 </div>
                 <Button
@@ -157,98 +182,171 @@ export default function CareerPage() {
                 )}
               </CardContent>
             </Card>
-          ) : (
-            /* Assessment results */
+          ) : r && (
             <>
-              {/* Summary card */}
+              {/* Summary Card */}
               <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center shrink-0">
                       <TrendingUp className="w-6 h-6 text-primary-foreground" />
                     </div>
-                    <div>
-                      <h3 className="font-semibold">{assessment.result.primaryField}</h3>
+                    <div className="min-w-0">
+                      <h3 className="font-semibold truncate">{r.primaryField}</h3>
                       <p className="text-sm text-muted-foreground capitalize">
-                        {assessment.result.currentLevel} level · {assessment.result.yearsExperience} years
+                        {r.currentLevel} · {r.yearsExperience}yr exp
                       </p>
                     </div>
+                  </div>
+
+                  {r.strengthSummary && (
+                    <div className="rounded-xl bg-green-500/10 border border-green-500/20 p-3">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Shield className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+                        <p className="text-xs font-semibold text-green-700 dark:text-green-400">Your Strengths</p>
+                      </div>
+                      <p className="text-xs text-green-800 dark:text-green-300">{r.strengthSummary}</p>
+                    </div>
+                  )}
+
+                  {r.riskFactors && r.riskFactors.length > 0 && (
+                    <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                        <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">Watch Out</p>
+                      </div>
+                      <ul className="space-y-1">
+                        {r.riskFactors.map((risk, i) => (
+                          <li key={i} className="text-xs text-amber-800 dark:text-amber-300">• {risk}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Skill progress */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-medium text-muted-foreground">Skill Progress</p>
+                      <div className="flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-primary" />
+                        <span className="text-xs font-semibold">{skillProgress.completed}/{skillProgress.total}</span>
+                      </div>
+                    </div>
+                    <Progress value={skillProgress.percent} className="h-2" />
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Roadmap */}
-              <div>
-                <h2 className="text-sm font-semibold text-muted-foreground mb-3">Your Roadmap</h2>
-                <CareerRoadmap
-                  result={assessment.result}
-                  completedMilestones={assessment.completed_milestones}
-                  onToggleMilestone={handleToggleMilestone}
-                />
-              </div>
+              {/* Tabs */}
+              <Tabs defaultValue="overview" className="space-y-3">
+                <TabsList className="w-full grid grid-cols-4 h-10">
+                  <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
+                  <TabsTrigger value="mindmap" className="text-xs">Mindmap</TabsTrigger>
+                  <TabsTrigger value="skills" className="text-xs">Skills</TabsTrigger>
+                  <TabsTrigger value="roles" className="text-xs">Roles</TabsTrigger>
+                </TabsList>
 
-              {/* Skill gaps */}
-              <SkillGapAnalyzer
-                skillGaps={assessment.result.skillGaps}
-                currentSkills={primaryResume ? dbToResumeData(primaryResume).skills : []}
-              />
+                {/* Overview Tab */}
+                <TabsContent value="overview" className="space-y-4 mt-0">
+                  <CareerRoadmap
+                    result={r}
+                    completedMilestones={assessment.completed_milestones}
+                    onToggleMilestone={handleToggleMilestone}
+                  />
+                </TabsContent>
 
-              {/* Next roles */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Recommended Next Roles</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {assessment.result.nextRoles.map((role, i) => (
-                    <div key={i} className="glass-input rounded-xl p-3">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="text-sm font-semibold">{role.title}</p>
-                        <Badge className="text-[10px]">{role.matchScore}%</Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground">{role.description}</p>
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {role.requiredSkills.slice(0, 3).map((s, j) => (
-                          <Badge key={j} variant="secondary" className="text-[10px]">{s}</Badge>
-                        ))}
-                      </div>
-                    </div>
+                {/* Mindmap Tab */}
+                <TabsContent value="mindmap" className="mt-0">
+                  {r.careerMap ? (
+                    <CareerMindmap careerMap={r.careerMap} />
+                  ) : (
+                    <Card>
+                      <CardContent className="p-6 text-center text-muted-foreground">
+                        <p className="text-sm">Re-analyze to generate your career mindmap</p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => { haptics.medium(); setShowQuiz(true); }}
+                          className="mt-3"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Re-analyze
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )}
+                </TabsContent>
+
+                {/* Skills Tab */}
+                <TabsContent value="skills" className="space-y-3 mt-0">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold">Skill Gaps & Courses</h3>
+                    <Badge variant="outline" className="text-xs">{skillProgress.percent}% complete</Badge>
+                  </div>
+                  {r.skillGaps.map((gap, i) => (
+                    <SkillCourseCard
+                      key={i}
+                      gap={gap}
+                      isCompleted={assessment.completed_milestones.includes(`skill:${gap.skill}`)}
+                      onToggleComplete={() => handleToggleSkill(gap.skill)}
+                    />
                   ))}
-                </CardContent>
-              </Card>
+                </TabsContent>
 
-              {/* Industry alternatives */}
-              {assessment.result.industryAlternatives.length > 0 && (
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base">Industry Alternatives</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {assessment.result.industryAlternatives.map((alt, i) => (
-                      <div key={i} className="glass-input rounded-xl p-3">
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="text-sm font-semibold">{alt.role}</p>
-                          <Badge
-                            variant={alt.salaryComparison === 'higher' ? 'default' : 'secondary'}
-                            className="text-[10px]"
-                          >
-                            {alt.salaryComparison} pay
-                          </Badge>
+                {/* Roles Tab */}
+                <TabsContent value="roles" className="space-y-4 mt-0">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">Recommended Next Roles</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {r.nextRoles.map((role, i) => (
+                        <div key={i} className="glass-input rounded-xl p-3">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-sm font-semibold">{role.title}</p>
+                            <Badge className="text-[10px]">{role.matchScore}%</Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">{role.description}</p>
+                          <p className="text-[11px] text-muted-foreground/70 mt-1">Ready in: {role.timeToReady}</p>
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {role.requiredSkills.slice(0, 4).map((s, j) => (
+                              <Badge key={j} variant="secondary" className="text-[10px]">{s}</Badge>
+                            ))}
+                          </div>
                         </div>
-                        <p className="text-xs text-muted-foreground">{alt.industry}</p>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              )}
+                      ))}
+                    </CardContent>
+                  </Card>
 
-              {/* Re-analyze */}
-              <Button
-                variant="outline"
-                onClick={() => { haptics.medium(); setShowQuiz(true); }}
-                className="w-full min-h-[48px]"
-              >
-                <RefreshCw className="w-4 h-4 mr-2" /> Re-analyze Career Path
-              </Button>
+                  {r.industryAlternatives.length > 0 && (
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">Industry Alternatives</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {r.industryAlternatives.map((alt, i) => (
+                          <div key={i} className="glass-input rounded-xl p-3">
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-sm font-semibold">{alt.role}</p>
+                              <Badge
+                                variant={alt.salaryComparison === 'higher' ? 'default' : 'secondary'}
+                                className="text-[10px]"
+                              >
+                                {alt.salaryComparison} pay
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">{alt.industry}</p>
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {alt.transferableSkills.slice(0, 3).map((s, j) => (
+                                <Badge key={j} variant="outline" className="text-[10px]">✓ {s}</Badge>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  )}
+                </TabsContent>
+              </Tabs>
             </>
           )}
         </div>

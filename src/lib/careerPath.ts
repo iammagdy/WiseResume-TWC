@@ -18,6 +18,7 @@ export interface SkillGap {
   priority: 'critical' | 'important' | 'nice-to-have';
   forRoles: string[];
   suggestion: string;
+  youtubeQuery?: string;
 }
 
 export interface IndustryAlternative {
@@ -35,6 +36,23 @@ export interface ActionStep {
   impact: 'high' | 'medium' | 'low';
 }
 
+export interface CareerMapRole {
+  title: string;
+  timeframe: string;
+  matchScore: number;
+  requiredSkills: string[];
+}
+
+export interface CareerMapBranch {
+  direction: string;
+  roles: CareerMapRole[];
+}
+
+export interface CareerMap {
+  current: { title: string; level: string };
+  branches: CareerMapBranch[];
+}
+
 export interface CareerPathResult {
   currentLevel: string;
   yearsExperience: number;
@@ -43,6 +61,9 @@ export interface CareerPathResult {
   skillGaps: SkillGap[];
   industryAlternatives: IndustryAlternative[];
   actionPlan: ActionStep[];
+  careerMap?: CareerMap;
+  strengthSummary?: string;
+  riskFactors?: string[];
 }
 
 export async function analyzeCareerPath(
