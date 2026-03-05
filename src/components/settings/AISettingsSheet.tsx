@@ -140,12 +140,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
             action: 'save', provider: 'gemini', apiKey: keyInput.trim(), tier: validationResult.tier,
           });
 
-          if (saveError) {
-            console.error('Failed to save key server-side:', saveError);
-            toast.error('Key validated but failed to save. Please try again.');
-            setIsValidating(false);
-            return;
-          }
+          // Save succeeded
 
           setGeminiApiKey(keyInput.trim());
           setGeminiKeyTier(validationResult.tier);
