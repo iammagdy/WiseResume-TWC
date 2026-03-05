@@ -68,7 +68,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     const [showOllamaKey, setShowOllamaKey] = useState(false);
     const [isValidatingOllama, setIsValidatingOllama] = useState(false);
 
-    const safeProvider = (aiProvider === 'wiseresume' || aiProvider === 'gemini' || aiProvider === 'ollama') 
+    const safeProvider = (['wiseresume', 'gemini', 'ollama'] as const).includes(aiProvider as any) 
       ? aiProvider 
       : 'wiseresume';
 

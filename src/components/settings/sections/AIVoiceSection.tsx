@@ -26,7 +26,7 @@ export const AIVoiceSection = memo(function AIVoiceSection({
                 type="navigation"
                 label="AI Provider"
                 description="Powers analysis, tailoring, and enhancements"
-                value={aiProvider === 'wiseresume' ? 'Wise AI' : 'Gemini'}
+                value={aiProvider === 'wiseresume' ? 'Wise AI' : aiProvider === 'ollama' ? 'Ollama' : 'Gemini'}
                 icon={<Brain className="w-4 h-4" />}
                 onClick={onOpenAISettings}
             />
