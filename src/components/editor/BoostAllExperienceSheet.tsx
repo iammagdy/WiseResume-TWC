@@ -104,6 +104,7 @@ export function BoostAllExperienceSheet({ open, onOpenChange }: BoostAllExperien
             <Sparkles className="w-5 h-5 text-primary" />
             Boost All Experience
           </SheetTitle>
+          <AIProviderVia className="mt-0.5" />
           <SheetDescription>
             {isEnhancing
               ? 'Analyzing all your work experience…'

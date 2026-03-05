@@ -33,9 +33,10 @@ export function useAIProviderInfo(): AIProviderInfo {
   }
 
   if (aiProvider === 'ollama') {
+    const modelSuffix = ollamaKeyValidated && ollamaModel ? ` · ${ollamaModel}` : '';
     return {
       provider: 'ollama',
-      name: 'Ollama',
+      name: `Ollama${modelSuffix}`,
       isCustomKey: true,
       tier: ollamaKeyValidated ? 'paid' : 'free',
       tierLabel: ollamaKeyValidated ? 'Connected' : 'Not Configured',

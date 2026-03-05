@@ -584,6 +584,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
               AI Resume Tailor
               <AICostBadge operation="tailor" />
             </SheetTitle>
+            <AIProviderVia className="mt-0.5" />
             <div className="flex items-center gap-1 mr-8">
               <Button
                 size="sm"

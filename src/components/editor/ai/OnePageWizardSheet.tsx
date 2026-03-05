@@ -166,6 +166,7 @@ export function OnePageWizardSheet({ open, onOpenChange, onExportOnePage }: OneP
             <FileText className="w-5 h-5 text-primary" />
             One-Page Wizard
           </SheetTitle>
+          <AIProviderVia className="mt-0.5" />
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto min-h-0">

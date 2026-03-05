@@ -267,6 +267,7 @@ export function CareerPathSheet({ open, onOpenChange }: CareerPathSheetProps) {
             <TrendingUp className="w-5 h-5 text-primary" />
             Career Path Advisor
           </SheetTitle>
+          <AIProviderVia className="mt-0.5" />
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto px-4 pb-6 min-h-0">
