@@ -214,18 +214,22 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
     // Priority 1: Lovable AI Gateway (always first — unless user has BYOK)
     if (lovableKey && !userOllamaData && !userGeminiKey) {
       console.log('[AI] Using Lovable AI Gateway for model:', model);
-      return await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+      const res = await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+      return { ...res, providerUsed: 'lovable' };
     }
 
-    // Priority 2: User BYOK Ollama key
+    // Priority 2: User BYOK Ollama key — use stored model name
     if (userOllamaData && userOllamaData.baseUrl) {
-      console.log('[AI] Using user BYOK Ollama key at:', userOllamaData.baseUrl);
+      const ollamaModel = userOllamaData.model || model;
+      console.log('[AI] Using user BYOK Ollama key at:', userOllamaData.baseUrl, 'model:', ollamaModel);
       try {
-        return await callOllamaDirect(userOllamaData.key, userOllamaData.baseUrl, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+        const res = await callOllamaDirect(userOllamaData.key, userOllamaData.baseUrl, ollamaModel, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+        return { ...res, providerUsed: 'ollama' };
       } catch (err) {
         console.warn('[AI] Ollama BYOK failed, falling back to Lovable Gateway:', err instanceof Error ? err.message : err);
         if (lovableKey) {
-          return { ...(await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal)), fallbackUsed: true, fallbackReason: 'ollama_error' };
+          const res = await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+          return { ...res, fallbackUsed: true, fallbackReason: 'ollama_error', providerUsed: 'lovable_fallback' };
         }
         throw err;
       }
@@ -235,11 +239,13 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
     if (userGeminiKey) {
       console.log('[AI] Using user BYOK Gemini key for model:', model);
       try {
-        return await callGeminiDirect(userGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+        const res = await callGeminiDirect(userGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+        return { ...res, providerUsed: 'gemini_byok' };
       } catch (err) {
         console.warn('[AI] Gemini BYOK failed, falling back to Lovable Gateway:', err instanceof Error ? err.message : err);
         if (lovableKey) {
-          return { ...(await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal)), fallbackUsed: true, fallbackReason: 'gemini_error' };
+          const res = await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+          return { ...res, fallbackUsed: true, fallbackReason: 'gemini_error', providerUsed: 'lovable_fallback' };
         }
         throw err;
       }
@@ -248,18 +254,21 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
     // Priority 4: Lovable Gateway (if we have BYOK but it was skipped)
     if (lovableKey) {
       console.log('[AI] Using Lovable AI Gateway for model:', model);
-      return await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+      const res = await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+      return { ...res, providerUsed: 'lovable' };
     }
 
     // Priority 5: Global GEMINI_API_KEY (legacy)
     if (globalGeminiKey) {
       console.log('[AI] Using global GEMINI_API_KEY for model:', model);
-      return await callGeminiDirect(globalGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+      const res = await callGeminiDirect(globalGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+      return { ...res, providerUsed: 'gemini_global' };
     }
 
     // Priority 6: Emergent Universal API (legacy)
     console.log('[AI] Using Emergent Universal Key for model:', model);
-    return await callEmergentUniversal(emergentKey!, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+    const res = await callEmergentUniversal(emergentKey!, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+    return { ...res, providerUsed: 'emergent' };
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       throw createAIError('network', `AI request timed out after ${Math.round(timeout / 1000)} seconds. Please try again.`, 408);

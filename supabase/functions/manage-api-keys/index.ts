@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === 'POST') {
-      const { provider, apiKey, keyTier, baseUrl } = await req.json();
+      const { provider, apiKey, keyTier, baseUrl, model } = await req.json();
       if (!provider || !apiKey) {
         return new Response(JSON.stringify({ error: 'provider and apiKey are required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
