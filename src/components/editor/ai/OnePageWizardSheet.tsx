@@ -317,8 +317,8 @@ export function OnePageWizardSheet({ open, onOpenChange, onExportOnePage }: OneP
                             {item.section}
                           </Badge>
                         </div>
-                        <p className="text-sm font-medium">{item.item}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{item.reason}</p>
+                        <p className="text-sm font-medium">{item.item || item.name || item.title || JSON.stringify(item)}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{item.reason || item.description || ''}</p>
                       </div>
                     ))}
                   </div>
