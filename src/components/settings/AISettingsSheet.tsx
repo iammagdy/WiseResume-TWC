@@ -289,7 +289,9 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
           resetFallbackToast();
           haptics.success();
           
-          const modelCount = validationResult.availableModels?.length || 0;
+          const models = validationResult.availableModels || [];
+          setOllamaAvailableModels(models);
+          const modelCount = models.length;
           toast.success(`Ollama connected! ${modelCount} model${modelCount !== 1 ? 's' : ''} available.`);
         } else {
           haptics.error();
