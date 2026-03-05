@@ -322,6 +322,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       setOllamaBaseUrl('');
       setOllamaModel('');
       setOllamaKeyValidated(false);
+      setOllamaAvailableModels([]);
       toast.success('Ollama configuration removed');
     };
 
