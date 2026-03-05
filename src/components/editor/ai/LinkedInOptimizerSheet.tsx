@@ -30,6 +30,7 @@ import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { useAIAction } from '@/hooks/useAIAction';
 import { activityTracker } from '@/lib/activityTracker';
+import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { downloadFile } from '@/lib/downloadUtils';
 
 
