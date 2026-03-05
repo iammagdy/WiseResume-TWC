@@ -125,10 +125,10 @@ Return a JSON object:
       });
 
       result.humanized = parseAIJSON(humanizeResponse.content || '{}');
+      lastProviderUsed = humanizeResponse.providerUsed;
     }
 
-    const providerMeta = { provider: (result.detection as any)?.providerUsed || (result.humanized as any)?.providerUsed || 'unknown' };
-    await recordUsage(userId, 'detect_humanize', providerMeta);
+    await recordUsage(userId, 'detect_humanize', { provider: lastProviderUsed || 'unknown' });
 
     return new Response(
       JSON.stringify({ success: true, ...result }),
