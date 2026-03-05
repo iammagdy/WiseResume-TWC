@@ -10,6 +10,7 @@ import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useCompanyBriefing } from '@/hooks/useCompanyBriefing';
 import { AITrustBadge } from '@/components/ui/AITrustBadge';
+import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import type { CompanyBriefing } from '@/types/companyBriefing';
 
 interface CompanyBriefingSheetProps {
