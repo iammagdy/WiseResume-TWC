@@ -32,6 +32,8 @@ export interface AICallOptions {
   userId?: string;
   /** Override default timeout in ms */
   timeout?: number;
+  /** Preferred AI provider — if omitted, read from user_preferences table */
+  preferredProvider?: 'gemini' | 'ollama' | 'wiseresume';
 }
 
 export interface AIResponse {
