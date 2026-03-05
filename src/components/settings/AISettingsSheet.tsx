@@ -161,10 +161,8 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
         if (session?.user) {
           const { error } = await supabase
             .from('user_preferences')
-            .upsert(
-              { user_id: session.user.id, ai_provider: value, updated_at: new Date().toISOString() },
-              { onConflict: 'user_id' }
-            );
+            .update({ ai_provider: value })
+            .eq('user_id', session.user.id);
           if (error) {
             console.error('Failed to sync AI provider preference:', error);
             toast.error('Failed to save AI engine preference');

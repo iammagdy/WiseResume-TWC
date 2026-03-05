@@ -24,28 +24,34 @@ export function useCompanyBriefing() {
     setError(null);
     setBriefing(null);
 
-    const result = await execute(async () => {
-      const { data, error: fnError } = await edgeFunctions.functions.invoke('company-briefing', {
-        body: {
-          jobDescription: params.jobDescription,
-          resumeData: params.resumeData,
-        },
+    try {
+      const result = await execute(async () => {
+        const { data, error: fnError } = await edgeFunctions.functions.invoke('company-briefing', {
+          body: {
+            jobDescription: params.jobDescription,
+            resumeData: params.resumeData,
+          },
+        });
+
+        if (fnError) throw new Error(fnError.message || 'Failed to generate briefing');
+        if (data?.error) throw new Error(data.error);
+        if (!data?.briefing) throw new Error('No briefing returned');
+
+        return data.briefing as CompanyBriefing;
       });
 
-      if (fnError) throw new Error(fnError.message || 'Failed to generate briefing');
-      if (data?.error) throw new Error(data.error);
-      if (!data?.briefing) throw new Error('No briefing returned');
-
-      return data.briefing as CompanyBriefing;
-    });
-
-    if (result) {
-      setBriefing(result);
-    } else {
-      setError('Could not generate briefing');
+      if (result) {
+        setBriefing(result);
+      } else {
+        setError('Could not generate briefing');
+      }
+      return result;
+    } catch (err: any) {
+      setError(err?.message || 'Could not generate briefing');
+      return null;
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
-    return result;
   }, [execute]);
 
   const reset = useCallback(() => {
