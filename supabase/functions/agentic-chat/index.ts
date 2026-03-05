@@ -392,7 +392,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    await recordUsage(user.id, 'chat');
+    await recordUsage(user.id, 'chat', { provider: aiResponse.providerUsed || 'unknown' });
 
     const result: TextResult = {
       type: "text",

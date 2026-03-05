@@ -479,7 +479,7 @@ Analyze deeply, then return this exact JSON structure:
 
     console.log("Successfully tailored resume with SUPERCHARGED data");
 
-    await recordUsage(userId, 'tailor');
+    await recordUsage(userId, 'tailor', { provider: aiResponse.providerUsed || 'unknown' });
 
     return new Response(
       JSON.stringify(tailoredResult),

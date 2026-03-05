@@ -125,7 +125,7 @@ If you can't find certain fields, use null or empty arrays. Always extract title
       redFlags: result.redFlags || [],
     };
 
-    await recordUsage(user.id, 'parse_job_text');
+    await recordUsage(user.id, 'parse_job_text', { provider: aiResponse.providerUsed || 'unknown' });
 
     return new Response(
       JSON.stringify(result),

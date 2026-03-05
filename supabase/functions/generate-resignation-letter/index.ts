@@ -129,7 +129,7 @@ Write the complete letter with proper business letter formatting.`;
     const letter = aiResponse.content;
     if (!letter) throw new Error("No content in AI response");
 
-    await recordUsage(user.id, 'resignation');
+    await recordUsage(user.id, 'resignation', { provider: aiResponse.providerUsed || 'unknown' });
 
     return new Response(
       JSON.stringify({ letter }),

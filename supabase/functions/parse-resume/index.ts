@@ -563,7 +563,7 @@ serve(async (req) => {
 
     // Only record usage for local users (cross-project users have ext: prefix or are anonymous)
     if (userId !== 'anonymous' && !userId.startsWith('ext:')) {
-      try { await recordUsage(userId, 'parse_resume'); } catch (e) { console.warn('recordUsage skipped:', e); }
+      try { await recordUsage(userId, 'parse_resume', { provider: aiResponse.providerUsed || 'unknown' }); } catch (e) { console.warn('recordUsage skipped:', e); }
     }
 
     return new Response(JSON.stringify({

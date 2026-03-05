@@ -126,7 +126,8 @@ Return a JSON object:
       result.humanized = parseAIJSON(humanizeResponse.content || '{}');
     }
 
-    await recordUsage(userId, 'detect_humanize');
+    const providerMeta = { provider: (result.detection as any)?.providerUsed || (result.humanized as any)?.providerUsed || 'unknown' };
+    await recordUsage(userId, 'detect_humanize', providerMeta);
 
     return new Response(
       JSON.stringify({ success: true, ...result }),

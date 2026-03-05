@@ -206,7 +206,7 @@ After EVERY candidate answer, include this scoring block at the end of your resp
 
     const reply = aiResponse.content || "I couldn't generate a response. Let's try again.";
 
-    await recordUsage(user.id, 'interview');
+    await recordUsage(user.id, 'interview', { provider: aiResponse.providerUsed || 'unknown' });
 
     return new Response(JSON.stringify({ reply }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
