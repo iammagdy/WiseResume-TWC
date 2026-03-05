@@ -97,6 +97,11 @@ Deno.serve(async (req) => {
       if (baseUrl !== undefined) {
         upsertData.base_url = baseUrl || null;
       }
+      
+      // Include model for providers that need it (e.g. Ollama)
+      if (model !== undefined) {
+        upsertData.model = model || null;
+      }
 
       const { error } = await supabase
         .from('user_api_keys')
