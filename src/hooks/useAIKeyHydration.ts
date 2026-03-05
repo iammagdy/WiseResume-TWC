@@ -18,33 +18,44 @@ export function useAIKeyHydration() {
       if (!session?.user) return;
 
       try {
+        // Hydrate keys from manage-api-keys
         const { data, error } = await edgeFunctions.functions.invoke('manage-api-keys', {
           body: { action: 'get' },
         });
 
-        if (error || !data?.keys) return;
-
         const store = useSettingsStore.getState();
-        const keys = data.keys as Array<{
-          provider: string;
-          key_tier: string;
-          base_url: string | null;
-          model: string | null;
-        }>;
 
-        for (const key of keys) {
-          if (key.provider === 'ollama') {
-            store.setOllamaBaseUrl(key.base_url || '');
-            store.setOllamaModel(key.model || '');
-            store.setOllamaKeyValidated(true);
-            store.setAIProvider('ollama');
-          }
+        if (!error && data?.keys) {
+          const keys = data.keys as Array<{
+            provider: string;
+            key_tier: string;
+            base_url: string | null;
+            model: string | null;
+          }>;
 
-          if (key.provider === 'gemini') {
-            store.setGeminiKeyTier(key.key_tier as any);
-            store.setGeminiKeyValidated(true);
-            store.setAIProvider('gemini');
+          for (const key of keys) {
+            if (key.provider === 'ollama') {
+              store.setOllamaBaseUrl(key.base_url || '');
+              store.setOllamaModel(key.model || '');
+              store.setOllamaKeyValidated(true);
+            }
+
+            if (key.provider === 'gemini') {
+              store.setGeminiKeyTier(key.key_tier as any);
+              store.setGeminiKeyValidated(true);
+            }
           }
+        }
+
+        // Hydrate the user's actual provider preference from user_preferences
+        const { data: prefs } = await supabase
+          .from('user_preferences')
+          .select('ai_provider')
+          .eq('user_id', session.user.id)
+          .maybeSingle();
+
+        if (prefs?.ai_provider) {
+          store.setAIProvider(prefs.ai_provider as any);
         }
 
         hydrated.current = true;
