@@ -3,7 +3,7 @@
  * Provides real-time updates when the AI provider settings change
  */
 
-import { useSettingsStore, AIProvider, GeminiKeyTier } from '@/store/settingsStore';
+import { useSettingsStore, AIProvider } from '@/store/settingsStore';
 
 export interface AIProviderInfo {
   provider: AIProvider;
