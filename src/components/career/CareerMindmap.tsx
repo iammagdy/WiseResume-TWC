@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PORTFOLIO_DOMAIN } from '@/lib/portfolioUrl';
+import { tagSvgDimensions, convertSvgsToImages, captureWithRetry } from '@/lib/html2canvasRetry';
 
 interface Props {
   careerMap: CareerMap;
@@ -193,12 +194,21 @@ export function CareerMindmap({ careerMap }: Props) {
   const handleDownload = useCallback(async () => {
     if (!containerRef.current) return;
     haptics.medium();
+    const cleanupTags = tagSvgDimensions(containerRef.current);
     try {
-      const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(containerRef.current, {
+      const canvas = await captureWithRetry(containerRef.current, {
         backgroundColor: '#0f172a',
-        scale: 2,
-        useCORS: true,
+        scale: 3,
+        onclone: (doc: Document) => {
+          convertSvgsToImages(doc);
+          doc.querySelectorAll('.animate-spin, .animate-pulse').forEach(el => {
+            (el as HTMLElement).style.animation = 'none';
+          });
+          doc.querySelectorAll('[class*="backdrop-blur"]').forEach(el => {
+            (el as HTMLElement).style.backdropFilter = 'none';
+            (el as HTMLElement).style.setProperty('-webkit-backdrop-filter', 'none');
+          });
+        },
       });
       const link = document.createElement('a');
       link.download = 'career-mindmap.png';
@@ -207,6 +217,8 @@ export function CareerMindmap({ careerMap }: Props) {
       toast.success('Mindmap downloaded!');
     } catch {
       toast.error('Failed to download mindmap');
+    } finally {
+      cleanupTags();
     }
   }, []);
 
