@@ -121,7 +121,8 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
             if (!ollamaKeyValidated) {
               setOllamaBaseUrl(key.base_url || '');
               setOllamaModel(key.model || '');
-              setOllamaKeyValidated(true);
+          setOllamaKeyValidated(true);
+              setAIProvider('ollama');
             }
           }
           if (key.provider === 'gemini') {
@@ -285,6 +286,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
           setOllamaBaseUrl(ollamaUrlInput.trim());
           setOllamaModel(ollamaModelInput.trim());
           setOllamaKeyValidated(true);
+          setAIProvider('ollama');
           logAudit('api_key', 'key_saved', { provider: 'ollama' });
           resetFallbackToast();
           haptics.success();
