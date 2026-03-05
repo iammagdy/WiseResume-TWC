@@ -24,11 +24,36 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSettingsStore, AIProvider, GeminiKeyTier } from '@/store/settingsStore';
 import { resetFallbackToast } from '@/lib/aiFallbackToast';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { logAudit } from '@/lib/auditLogger';
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://hjnnamwgztlhzkeuufln.supabase.co';
+const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+async function invokeWithAuth(fnName: string, body: Record<string, unknown>) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  if (!token) throw new Error('Not authenticated');
+
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/${fnName}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      'apikey': SUPABASE_ANON,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
 
 interface AISettingsSheetProps {
   open: boolean;
@@ -106,29 +131,16 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       haptics.light();
 
       try {
-        const { data: validationResult, error: validationError } = await edgeFunctions.functions.invoke('validate-api-key', {
-          body: { apiKey: keyInput.trim(), provider: 'gemini' },
+        const validationResult = await invokeWithAuth('validate-api-key', {
+          apiKey: keyInput.trim(), provider: 'gemini',
         });
 
-        if (validationError) {
-          haptics.error();
-          toast.error('Failed to validate key. Please try again.');
-          setGeminiKeyValidated(false);
-          setIsValidating(false);
-          return;
-        }
-
         if (validationResult?.isValid) {
-          const { error: saveError } = await edgeFunctions.functions.invoke('manage-api-keys', {
-            body: { action: 'save', provider: 'gemini', apiKey: keyInput.trim(), tier: validationResult.tier },
+          await invokeWithAuth('manage-api-keys', {
+            action: 'save', provider: 'gemini', apiKey: keyInput.trim(), tier: validationResult.tier,
           });
 
-          if (saveError) {
-            console.error('Failed to save key server-side:', saveError);
-            toast.error('Key validated but failed to save. Please try again.');
-            setIsValidating(false);
-            return;
-          }
+          // Save succeeded
 
           setGeminiApiKey(keyInput.trim());
           setGeminiKeyTier(validationResult.tier);
@@ -154,9 +166,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     const handleClearKey = async () => {
       haptics.light();
       try {
-        await edgeFunctions.functions.invoke('manage-api-keys', {
-          body: { action: 'delete', provider: 'gemini' },
-        });
+        await invokeWithAuth('manage-api-keys', { action: 'delete', provider: 'gemini' });
         logAudit('api_key', 'key_deleted', { provider: 'gemini' });
       } catch (e) {
         console.error('Failed to delete key server-side:', e);
@@ -179,41 +189,24 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       haptics.light();
 
       try {
-        const { data: validationResult, error: validationError } = await edgeFunctions.functions.invoke('validate-api-key', {
-          body: { 
-            apiKey: ollamaKeyInput.trim() || 'ollama-no-key', 
-            provider: 'ollama',
-            baseUrl: ollamaUrlInput.trim(),
-            model: ollamaModelInput.trim(),
-          },
+        const validationResult = await invokeWithAuth('validate-api-key', { 
+          apiKey: ollamaKeyInput.trim() || 'ollama-no-key', 
+          provider: 'ollama',
+          baseUrl: ollamaUrlInput.trim(),
+          model: ollamaModelInput.trim(),
         });
-
-        if (validationError) {
-          haptics.error();
-          toast.error('Failed to connect. Please check your URL.');
-          setOllamaKeyValidated(false);
-          setIsValidatingOllama(false);
-          return;
-        }
 
         if (validationResult?.isValid) {
           // Save key + base_url server-side
-          const { error: saveError } = await edgeFunctions.functions.invoke('manage-api-keys', {
-            body: { 
-              action: 'save', 
-              provider: 'ollama', 
-              apiKey: ollamaKeyInput.trim() || 'ollama-no-key',
-              keyTier: 'paid',
-              baseUrl: ollamaUrlInput.trim(),
-            },
+          await invokeWithAuth('manage-api-keys', { 
+            action: 'save', 
+            provider: 'ollama', 
+            apiKey: ollamaKeyInput.trim() || 'ollama-no-key',
+            keyTier: 'paid',
+            baseUrl: ollamaUrlInput.trim(),
           });
 
-          if (saveError) {
-            console.error('Failed to save Ollama key server-side:', saveError);
-            toast.error('Connected but failed to save. Please try again.');
-            setIsValidatingOllama(false);
-            return;
-          }
+          // Save succeeded
 
           setOllamaApiKey(ollamaKeyInput.trim());
           setOllamaBaseUrl(ollamaUrlInput.trim());
@@ -242,9 +235,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     const handleClearOllama = async () => {
       haptics.light();
       try {
-        await edgeFunctions.functions.invoke('manage-api-keys', {
-          body: { action: 'delete', provider: 'ollama' },
-        });
+        await invokeWithAuth('manage-api-keys', { action: 'delete', provider: 'ollama' });
         logAudit('api_key', 'key_deleted', { provider: 'ollama' });
       } catch (e) {
         console.error('Failed to delete Ollama key server-side:', e);
