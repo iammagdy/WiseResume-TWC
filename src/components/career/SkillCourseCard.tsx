@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { SkillGap } from '@/lib/careerPath';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, CheckCircle2, Code2, ExternalLink, GraduationCap, Info, Search, Youtube, Copy } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Code2, ExternalLink, GraduationCap, Info, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { Capacitor } from '@capacitor/core';
@@ -24,7 +24,6 @@ const priorityConfig = {
 };
 
 const platformConfig = {
-  youtube: { icon: Youtube, label: 'YouTube', className: 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30' },
   coursera: { icon: GraduationCap, label: 'Coursera', className: 'text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30' },
   freecodecamp: { icon: Code2, label: 'freeCodeCamp', className: 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30' },
 };
@@ -36,11 +35,9 @@ async function openUrl(url: string) {
     return;
   }
 
-  // Try window.open first
   const win = window.open(url, '_blank', 'noopener,noreferrer');
   if (win) return;
 
-  // Fallback: copy URL to clipboard and notify user
   try {
     await navigator.clipboard.writeText(url);
     toast.success('Link copied! Paste in your browser to open it.');
@@ -76,8 +73,6 @@ export function SkillCourseCard({ gap, isCompleted, onToggleComplete }: Props) {
   const Icon = config.icon;
   const curatedCourses = useMemo(() => findCuratedCourses(gap.skill), [gap.skill]);
 
-  const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(gap.youtubeQuery || `${gap.skill} full course free 2025`)}`;
-
   return (
     <div className={cn('rounded-xl border p-3 space-y-2 transition-all', isCompleted && 'opacity-60', config.bg)}>
       <div className="flex items-start gap-2">
@@ -112,17 +107,6 @@ export function SkillCourseCard({ gap, isCompleted, onToggleComplete }: Props) {
           ))}
         </div>
       )}
-
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => openUrl(youtubeUrl)}
-        className="w-full h-8 text-xs gap-1.5 bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800/30 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/40"
-      >
-        <Search className="w-3.5 h-3.5" />
-        {curatedCourses.length > 0 ? 'Search More on YouTube' : 'Find Free Courses'}
-        <ExternalLink className="w-3 h-3 ml-auto" />
-      </Button>
     </div>
   );
 }
