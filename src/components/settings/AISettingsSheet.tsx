@@ -572,6 +572,52 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
               )}
             </AnimatePresence>
 
+            {/* Usage History */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <History className="w-4 h-4 text-primary" />
+                Recent AI Requests
+              </div>
+              {loadingHistory ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                </div>
+              ) : usageHistory.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-2">No AI requests yet.</p>
+              ) : (
+                <ScrollArea className="max-h-48">
+                  <div className="space-y-1.5">
+                    {usageHistory.map((log) => {
+                      const provider = (log.metadata as any)?.provider || 'wiseresume';
+                      const providerLabel: Record<string, string> = {
+                        ollama: '🟢 Ollama',
+                        gemini_byok: '🔵 Gemini BYOK',
+                        lovable: '⚡ WiseResume',
+                        lovable_fallback: '⚡ WiseResume (fallback)',
+                        gemini_global: '🔵 Gemini',
+                        emergent: '🟣 Emergent',
+                        wiseresume: '⚡ WiseResume',
+                        unknown: '❓ Unknown',
+                      };
+                      return (
+                        <div key={log.id} className="flex items-center justify-between px-2 py-1.5 rounded-md bg-muted/40 text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{log.action_type}</span>
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                              {providerLabel[provider] || provider}
+                            </Badge>
+                          </div>
+                          <span className="text-muted-foreground">
+                            {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              )}
+            </div>
+
             {/* Tips Card */}
             <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
               <div className="flex gap-3">
