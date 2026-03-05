@@ -153,7 +153,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     const handleClearKey = async () => {
       haptics.light();
       try {
-        await invokeWithAuth('manage-api-keys', { action: 'delete', provider: 'gemini' });
+        await edgeFunctions.functions.invoke('manage-api-keys', { body: { action: 'delete', provider: 'gemini' } });
         logAudit('api_key', 'key_deleted', { provider: 'gemini' });
       } catch (e) {
         console.error('Failed to delete key server-side:', e);
