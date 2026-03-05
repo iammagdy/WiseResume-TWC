@@ -354,6 +354,68 @@ export function sanitizeInputText(text: string, maxChars = 15_000): string {
 }
 
 /**
+ * Calls an Ollama-compatible API (OpenAI-compatible endpoint)
+ */
+async function callOllamaDirect(
+  apiKey: string,
+  baseUrl: string,
+  model: string,
+  messages: AIMessage[],
+  temperature: number,
+  maxTokens?: number,
+  tools?: AITool[],
+  toolChoice?: { type: 'function'; function: { name: string } } | 'auto',
+  signal?: AbortSignal
+): Promise<AIResponse> {
+  // Normalize base URL
+  const cleanUrl = baseUrl.replace(/\/+$/, '');
+  const endpoint = `${cleanUrl}/v1/chat/completions`;
+
+  const body: Record<string, unknown> = { model, messages, temperature };
+  if (maxTokens) body.max_tokens = maxTokens;
+  if (tools && tools.length > 0) {
+    body.tools = tools;
+    if (toolChoice) body.tool_choice = toolChoice;
+  }
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (apiKey) {
+    headers['Authorization'] = `Bearer ${apiKey}`;
+  }
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+    signal,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Ollama API error:', response.status, errorText);
+
+    let errorMessage = 'Ollama request failed';
+    try {
+      const parsed = JSON.parse(errorText);
+      errorMessage = parsed.error?.message || parsed.error || errorMessage;
+    } catch {}
+
+    if (response.status === 401 || response.status === 403) {
+      throw createAIError('invalid_key', 'Invalid Ollama API key. Please check your settings.', 401);
+    }
+    if (response.status === 429) {
+      throw createAIError('rate_limit', 'Ollama rate limit reached. Please wait.', 429);
+    }
+    throw createAIError('unknown', errorMessage, response.status);
+  }
+
+  const data = await response.json();
+  return parseOpenAIResponse(data);
+}
+
+/**
  * Calls Google Gemini API directly
  * Uses the OpenAI-compatible endpoint for consistency
  */

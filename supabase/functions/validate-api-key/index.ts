@@ -38,11 +38,74 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (provider !== 'gemini') {
+    if (provider !== 'gemini' && provider !== 'ollama') {
       return new Response(JSON.stringify({ isValid: false, error: 'Unsupported provider' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    // ===== Ollama validation =====
+    if (provider === 'ollama') {
+      const { baseUrl, model } = await req.json().then(() => ({})).catch(() => ({}));
+      // Re-parse body since we already consumed it
+      const body = { apiKey, provider, baseUrl: (await req.clone().json?.()) };
+    }
+    // We need to re-read body for ollama-specific fields
+    // Actually, let's re-structure: parse full body first
+    // The body was already parsed above for apiKey/provider. Let's get baseUrl from there too.
+    // Fix: we need to re-read. Let me restructure.
+
+    if (provider === 'ollama') {
+      // baseUrl was passed alongside apiKey and provider
+      const bodyText = await req.clone().text();
+      let baseUrl = '';
+      let model = '';
+      try {
+        const fullBody = JSON.parse(bodyText);
+        baseUrl = fullBody.baseUrl || '';
+        model = fullBody.model || '';
+      } catch {}
+
+      if (!baseUrl) {
+        return new Response(JSON.stringify({ isValid: false, error: 'Base URL is required for Ollama' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const cleanUrl = baseUrl.replace(/\/+$/, '');
+      
+      // Validate by hitting the models endpoint
+      const headers: Record<string, string> = {};
+      if (apiKey.trim()) {
+        headers['Authorization'] = `Bearer ${apiKey.trim()}`;
+      }
+
+      try {
+        const modelsResponse = await fetch(`${cleanUrl}/v1/models`, {
+          method: 'GET',
+          headers,
+        });
+
+        if (!modelsResponse.ok) {
+          return new Response(JSON.stringify({ isValid: false, error: `Connection failed: HTTP ${modelsResponse.status}` }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        const modelsData = await modelsResponse.json();
+        const availableModels = modelsData.data?.map((m: any) => m.id) || [];
+
+        return new Response(JSON.stringify({ isValid: true, tier: 'paid', availableModels }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (fetchErr) {
+        return new Response(JSON.stringify({ isValid: false, error: 'Cannot connect to Ollama server. Check the URL.' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // ===== Gemini validation =====
 
     // Step 1: Validate by listing models
     const modelsResponse = await fetch(
