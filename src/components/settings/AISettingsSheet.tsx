@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Brain, 
   Key, 
@@ -19,15 +20,18 @@ import {
   Info, 
   Loader2,
   Server,
+  History,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSettingsStore, AIProvider, GeminiKeyTier } from '@/store/settingsStore';
 import { resetFallbackToast } from '@/lib/aiFallbackToast';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { supabase } from '@/integrations/supabase/client';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { logAudit } from '@/lib/auditLogger';
+import { formatDistanceToNow } from 'date-fns';
 
 interface AISettingsSheetProps {
   open: boolean;

@@ -659,8 +659,8 @@ serve(async (req) => {
 
     console.log('Enhancement complete:', JSON.stringify(enhancedContent).slice(0, 200));
 
-    // Record usage for rate limiting
-    await recordUsage(userId, 'enhance', { section, action });
+    // Record usage for rate limiting — include which provider handled the request
+    await recordUsage(userId, 'enhance', { section, action, provider: aiResponse.providerUsed || 'unknown' });
 
     const responseBody: Record<string, unknown> = { ...(enhancedContent as Record<string, unknown>) };
     if (aiResponse.fallbackUsed) {
