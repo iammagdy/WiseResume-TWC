@@ -488,7 +488,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                           type={showOllamaKey ? 'text' : 'password'}
                           value={ollamaKeyInput}
                           onChange={(e) => setOllamaKeyInput(e.target.value)}
-                          placeholder="sk-... (leave empty if no auth)"
+                          placeholder="Enter your Ollama API key"
                           className="pr-10"
                         />
                         <button
