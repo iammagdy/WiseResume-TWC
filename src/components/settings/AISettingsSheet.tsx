@@ -32,6 +32,13 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { logAudit } from '@/lib/auditLogger';
 import { formatDistanceToNow } from 'date-fns';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface AISettingsSheetProps {
   open: boolean;
@@ -70,6 +77,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     const [ollamaModelInput, setOllamaModelInput] = useState(ollamaModel);
     const [showOllamaKey, setShowOllamaKey] = useState(false);
     const [isValidatingOllama, setIsValidatingOllama] = useState(false);
+    const [ollamaAvailableModels, setOllamaAvailableModels] = useState<string[]>([]);
 
     // Usage history
     interface UsageLog {
@@ -281,7 +289,9 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
           resetFallbackToast();
           haptics.success();
           
-          const modelCount = validationResult.availableModels?.length || 0;
+          const models = validationResult.availableModels || [];
+          setOllamaAvailableModels(models);
+          const modelCount = models.length;
           toast.success(`Ollama connected! ${modelCount} model${modelCount !== 1 ? 's' : ''} available.`);
         } else {
           haptics.error();
@@ -312,6 +322,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       setOllamaBaseUrl('');
       setOllamaModel('');
       setOllamaKeyValidated(false);
+      setOllamaAvailableModels([]);
       toast.success('Ollama configuration removed');
     };
 
@@ -521,7 +532,9 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                       Ollama Configuration
                     </div>
                     {ollamaKeyValidated && (
-                      <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Connected</Badge>
+                      <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                        Connected{ollamaAvailableModels.length > 0 ? ` · ${ollamaAvailableModels.length} models` : ''}
+                      </Badge>
                     )}
                   </div>
 
@@ -559,12 +572,37 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Model Name</Label>
-                      <Input
-                        value={ollamaModelInput}
-                        onChange={(e) => setOllamaModelInput(e.target.value)}
-                        placeholder="e.g. glm-5:cloud, llama3.1, mistral"
-                      />
+                      <Label className="text-xs text-muted-foreground">
+                        Model Name
+                        {ollamaAvailableModels.length > 0 && (
+                          <span className="ml-1.5 text-primary">· {ollamaAvailableModels.length} available</span>
+                        )}
+                      </Label>
+                      {ollamaAvailableModels.length > 0 ? (
+                        <Select
+                          value={ollamaModelInput}
+                          onValueChange={(value) => setOllamaModelInput(value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a model" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <ScrollArea className="max-h-[200px]">
+                              {ollamaAvailableModels.map((model) => (
+                                <SelectItem key={model} value={model}>
+                                  {model}
+                                </SelectItem>
+                              ))}
+                            </ScrollArea>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          value={ollamaModelInput}
+                          onChange={(e) => setOllamaModelInput(e.target.value)}
+                          placeholder="e.g. glm-5:cloud, llama3.1, mistral"
+                        />
+                      )}
                     </div>
                   </div>
 
