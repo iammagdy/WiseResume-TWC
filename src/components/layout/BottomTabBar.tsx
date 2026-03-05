@@ -10,6 +10,7 @@ import { shouldShowDiscovery } from '@/lib/discoveryManager';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useChangelogBadge } from '@/hooks/useChangelogBadge';
+import { useCareerAssessment } from '@/hooks/useCareerAssessment';
 import { toast } from 'sonner';
 
 interface TabItem {
@@ -91,8 +92,13 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
   const { user } = useAuth();
   const { data: resumes } = useResumes({ select: (data) => data.slice(0, 1) });
   const { hasNew, markSeen } = useChangelogBadge();
+  const { data: careerAssessment } = useCareerAssessment();
   const pendingCount = useOfflineSyncStore(s => s.pendingChanges.length);
   const prefersReducedMotion = useReducedMotion();
+
+  // Career plan has incomplete skill gaps
+  const hasCareerReminder = !!careerAssessment?.result?.skillGaps?.length &&
+    careerAssessment.completed_milestones.filter((m: string) => m.startsWith('skill:')).length < careerAssessment.result.skillGaps.length;
 
   // First-visit discovery dots — gated by progressive disclosure
   const showDots = shouldShowDiscovery('discovery-dots');
@@ -236,6 +242,12 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                           <span
                             className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary border-2 border-background animate-pulse"
                             aria-label="Discover AI tools"
+                          />
+                        )}
+                        {tab.path === '/ai-studio' && !discoveryDots.aiTools && hasCareerReminder && !active && (
+                          <span
+                            className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 border-2 border-background"
+                            aria-label="Career plan needs attention"
                           />
                         )}
                         {tab.path === '/portfolio' && discoveryDots.portfolio && !active && (
