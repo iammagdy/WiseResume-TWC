@@ -188,10 +188,15 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
   let userGeminiKey: string | undefined;
   let userOllamaData: { key: string; baseUrl: string | null; model: string | null } | undefined;
   if (userId) {
-    // Check for Ollama key first
-    userOllamaData = await getUserKeyAndUrlFromDB(userId, 'ollama');
-    if (!userOllamaData) {
+    // Read user's preferred provider from user_preferences table
+    const preferredProvider = options.preferredProvider || await getUserPreferredProvider(userId);
+    
+    if (preferredProvider === 'ollama') {
+      userOllamaData = await getUserKeyAndUrlFromDB(userId, 'ollama');
+    } else if (preferredProvider === 'gemini') {
       userGeminiKey = await getUserKeyFromDB(userId);
+    } else {
+      // No preference or 'wiseresume': skip BYOK, use Lovable Gateway
     }
   }
   if (!userGeminiKey && !userOllamaData && options.userGeminiKey) {
