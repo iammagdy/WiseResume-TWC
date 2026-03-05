@@ -176,24 +176,40 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       haptics.light();
 
       try {
-        const validationResult = await invokeWithAuth('validate-api-key', { 
-          apiKey: ollamaKeyInput.trim() || 'ollama-no-key', 
-          provider: 'ollama',
-          baseUrl: ollamaUrlInput.trim(),
-          model: ollamaModelInput.trim(),
+        const { data: validationResult, error: validationError } = await edgeFunctions.functions.invoke('validate-api-key', {
+          body: { 
+            apiKey: ollamaKeyInput.trim() || 'ollama-no-key', 
+            provider: 'ollama',
+            baseUrl: ollamaUrlInput.trim(),
+            model: ollamaModelInput.trim(),
+          },
         });
 
+        if (validationError) {
+          haptics.error();
+          toast.error('Failed to connect. Please check your URL.');
+          setOllamaKeyValidated(false);
+          setIsValidatingOllama(false);
+          return;
+        }
+
         if (validationResult?.isValid) {
-          // Save key + base_url server-side
-          await invokeWithAuth('manage-api-keys', { 
-            action: 'save', 
-            provider: 'ollama', 
-            apiKey: ollamaKeyInput.trim() || 'ollama-no-key',
-            keyTier: 'paid',
-            baseUrl: ollamaUrlInput.trim(),
+          const { error: saveError } = await edgeFunctions.functions.invoke('manage-api-keys', {
+            body: { 
+              action: 'save', 
+              provider: 'ollama', 
+              apiKey: ollamaKeyInput.trim() || 'ollama-no-key',
+              keyTier: 'paid',
+              baseUrl: ollamaUrlInput.trim(),
+            },
           });
 
-          // Save succeeded
+          if (saveError) {
+            console.error('Failed to save Ollama key server-side:', saveError);
+            toast.error('Connected but failed to save. Please try again.');
+            setIsValidatingOllama(false);
+            return;
+          }
 
           setOllamaApiKey(ollamaKeyInput.trim());
           setOllamaBaseUrl(ollamaUrlInput.trim());
