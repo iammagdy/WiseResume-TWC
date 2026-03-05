@@ -16,8 +16,10 @@ export function useAIHealth() {
   const aiProvider = useSettingsStore((s) => s.aiProvider);
   const geminiApiKey = useSettingsStore((s) => s.geminiApiKey);
   const geminiKeyValidated = useSettingsStore((s) => s.geminiKeyValidated);
+  const ollamaKeyValidated = useSettingsStore((s) => s.ollamaKeyValidated);
 
-  const provider: 'wiseresume' | 'gemini' =
+  const provider: 'wiseresume' | 'gemini' | 'ollama' =
+    aiProvider === 'ollama' && ollamaKeyValidated ? 'ollama' :
     aiProvider === 'gemini' && geminiKeyValidated ? 'gemini' : 'wiseresume';
 
   return {

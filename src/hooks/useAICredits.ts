@@ -102,8 +102,9 @@ export function useAICreditsMutations() {
   const checkCredits = async (): Promise<boolean> => {
     if (!user) return true;
     // Read fresh state to avoid stale closures after provider switch
-    const { aiProvider, geminiKeyValidated } = useSettingsStore.getState();
+    const { aiProvider, geminiKeyValidated, ollamaKeyValidated } = useSettingsStore.getState();
     if (aiProvider === 'gemini' && geminiKeyValidated) return true;
+    if (aiProvider === 'ollama' && ollamaKeyValidated) return true;
 
     const { data } = await supabase
       .from('ai_credits')

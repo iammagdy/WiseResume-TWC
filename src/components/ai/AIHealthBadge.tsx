@@ -70,7 +70,7 @@ export function AIHealthBadge() {
             <div>
               <span className="block text-foreground/50">Provider</span>
               <span className="font-medium text-foreground">
-                {provider === 'wiseresume' ? 'WiseResume AI' : 'Gemini'}
+                {provider === 'wiseresume' ? 'WiseResume AI' : provider === 'ollama' ? 'Ollama' : 'Gemini'}
               </span>
             </div>
             {errorCode ? (
