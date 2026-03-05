@@ -77,6 +77,8 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     const [ollamaModelInput, setOllamaModelInput] = useState(ollamaModel);
     const [showOllamaKey, setShowOllamaKey] = useState(false);
     const [isValidatingOllama, setIsValidatingOllama] = useState(false);
+    const [ollamaAvailableModels, setOllamaAvailableModels] = useState<string[]>([]);
+    const [isValidatingOllama, setIsValidatingOllama] = useState(false);
 
     // Usage history
     interface UsageLog {
