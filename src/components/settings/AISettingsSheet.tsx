@@ -581,7 +581,27 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                       {ollamaAvailableModels.length > 0 ? (
                         <Select
                           value={ollamaModelInput}
-                          onValueChange={(value) => setOllamaModelInput(value)}
+                          onValueChange={async (value) => {
+                            setOllamaModelInput(value);
+                            setOllamaModel(value);
+                            // Auto-save model selection to DB
+                            try {
+                              await edgeFunctions.functions.invoke('manage-api-keys', {
+                                body: {
+                                  action: 'save',
+                                  provider: 'ollama',
+                                  apiKey: ollamaKeyInput.trim() || 'ollama-no-key',
+                                  keyTier: 'paid',
+                                  baseUrl: ollamaUrlInput.trim(),
+                                  model: value,
+                                },
+                              });
+                              toast.success(`Model set to ${value}`);
+                            } catch (e) {
+                              console.error('Failed to save model selection:', e);
+                              toast.error('Failed to save model selection');
+                            }
+                          }}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select a model" />
