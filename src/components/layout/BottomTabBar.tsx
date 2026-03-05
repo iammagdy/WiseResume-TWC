@@ -10,6 +10,7 @@ import { shouldShowDiscovery } from '@/lib/discoveryManager';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useChangelogBadge } from '@/hooks/useChangelogBadge';
+import { useCareerAssessment } from '@/hooks/useCareerAssessment';
 import { toast } from 'sonner';
 
 interface TabItem {
