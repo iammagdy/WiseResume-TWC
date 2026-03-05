@@ -25,7 +25,7 @@ export function SkillCourseCard({ gap, isCompleted, onToggleComplete }: Props) {
 
   const handleFindCourses = () => {
     haptics.light();
-    const query = gap.youtubeQuery || `${gap.skill} free course tutorial`;
+    const query = gap.youtubeQuery || `${gap.skill} full course free 2025`;
     openExternal(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`);
   };
 

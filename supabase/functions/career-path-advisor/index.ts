@@ -84,12 +84,13 @@ Return ONLY valid JSON with this structure:
   "yearsExperience": <number>,
   "primaryField": "<field>",
   "nextRoles": [{"title":"","matchScore":0,"requiredSkills":[],"existingSkills":[],"timeToReady":"","description":""}],
-  "skillGaps": [{"skill":"","priority":"critical|important|nice-to-have","forRoles":[],"suggestion":""}],
+  "skillGaps": [{"skill":"","priority":"critical|important|nice-to-have","forRoles":[],"suggestion":"","youtubeQuery":"<precise YouTube search query for a free tutorial or course on this skill, e.g. 'Python for data science full course free 2025'>"}],
   "industryAlternatives": [{"industry":"","role":"","transferableSkills":[],"newSkillsNeeded":[],"salaryComparison":"higher|similar|lower"}],
   "actionPlan": [{"step":1,"action":"","timeframe":"","impact":"high|medium|low"}]
 }
 
-Generate 4-5 next roles, 4-6 skill gaps, 3-4 industry alternatives, and a 5-step action plan.`;
+Generate 4-5 next roles, 4-6 skill gaps, 3-4 industry alternatives, and a 5-step action plan.
+YouTube queries must be specific and include the skill name plus "full course free 2025" — they should surface real popular tutorials on YouTube.`;
 
     const userPrompt = `Analyze this resume:
 
