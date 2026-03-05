@@ -19,6 +19,7 @@ export function useAIProviderInfo(): AIProviderInfo {
   const geminiKeyTier = useSettingsStore((s) => s.geminiKeyTier);
   const geminiKeyValidated = useSettingsStore((s) => s.geminiKeyValidated);
   const ollamaKeyValidated = useSettingsStore((s) => s.ollamaKeyValidated);
+  const ollamaModel = useSettingsStore((s) => s.ollamaModel);
 
   if (aiProvider === 'wiseresume') {
     return {
