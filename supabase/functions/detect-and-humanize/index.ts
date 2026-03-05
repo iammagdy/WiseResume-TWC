@@ -52,6 +52,7 @@ Deno.serve(async (req) => {
     }
 
     const result: Record<string, unknown> = {};
+    let lastProviderUsed: string | undefined;
 
     // Detection
     if (action === 'detect' || action === 'both') {
