@@ -19,6 +19,7 @@ import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { RedirectJobRoute } from "@/components/layout/RedirectJobRoute";
+import { useAIKeyHydration } from "@/hooks/useAIKeyHydration";
 
 const CommandPalette = lazyWithRetry(() => import("@/components/layout/CommandPalette"));
 

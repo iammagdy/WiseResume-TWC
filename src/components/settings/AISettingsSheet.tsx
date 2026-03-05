@@ -81,7 +81,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     const [usageHistory, setUsageHistory] = useState<UsageLog[]>([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
 
-    // Load usage history when sheet opens
+    // Load usage history + hydrate saved keys when sheet opens
     useEffect(() => {
       if (!open) return;
       setLoadingHistory(true);
@@ -94,6 +94,36 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
           setUsageHistory((data as UsageLog[]) || []);
           setLoadingHistory(false);
         });
+
+      // Hydrate saved provider config from server
+      edgeFunctions.functions.invoke('manage-api-keys', {
+        body: { action: 'get' },
+      }).then(({ data }) => {
+        if (!data?.keys) return;
+        const keys = data.keys as Array<{
+          provider: string;
+          key_tier: string;
+          base_url: string | null;
+          model: string | null;
+        }>;
+        for (const key of keys) {
+          if (key.provider === 'ollama') {
+            if (key.base_url) setOllamaUrlInput(key.base_url);
+            if (key.model) setOllamaModelInput(key.model);
+            if (!ollamaKeyValidated) {
+              setOllamaBaseUrl(key.base_url || '');
+              setOllamaModel(key.model || '');
+              setOllamaKeyValidated(true);
+            }
+          }
+          if (key.provider === 'gemini') {
+            if (!geminiKeyValidated) {
+              setGeminiKeyTier(key.key_tier as any);
+              setGeminiKeyValidated(true);
+            }
+          }
+        }
+      }).catch(() => {});
     }, [open]);
 
     const safeProvider = (['wiseresume', 'gemini', 'ollama'] as const).includes(aiProvider as any) 
@@ -105,8 +135,8 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       if (open) {
         setKeyInput(geminiApiKey);
         setOllamaKeyInput(ollamaApiKey);
-        setOllamaUrlInput(ollamaBaseUrl);
-        setOllamaModelInput(ollamaModel);
+        if (ollamaBaseUrl) setOllamaUrlInput(ollamaBaseUrl);
+        if (ollamaModel) setOllamaModelInput(ollamaModel);
       }
     }, [open, geminiApiKey, ollamaApiKey, ollamaBaseUrl, ollamaModel]);
 
