@@ -61,6 +61,12 @@ interface SettingsState {
   geminiKeyValidated: boolean;
   geminiDailyUsage: GeminiDailyUsage;
   
+  // Ollama Provider Settings (in-memory only, keys stored server-side)
+  ollamaApiKey: string;
+  ollamaBaseUrl: string;
+  ollamaModel: string;
+  ollamaKeyValidated: boolean;
+  
   // Actions
   setShowAutoSaveToasts: (value: boolean) => void;
   setAutoSaveToastMode: (mode: AutoSaveToastMode) => void;
