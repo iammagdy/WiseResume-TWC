@@ -144,6 +144,11 @@ const defaultSettings = {
   geminiKeyTier: 'unknown' as GeminiKeyTier,
   geminiKeyValidated: false,
   geminiDailyUsage: { date: '', count: 0 } as GeminiDailyUsage,
+  // Ollama defaults
+  ollamaApiKey: '',
+  ollamaBaseUrl: '',
+  ollamaModel: '',
+  ollamaKeyValidated: false,
 };
 
 // Helper to get Pacific midnight reset
