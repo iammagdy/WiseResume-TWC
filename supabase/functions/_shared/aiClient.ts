@@ -186,7 +186,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
 
   // Resolve user BYOK keys only if userId provided
   let userGeminiKey: string | undefined;
-  let userOllamaData: { key: string; baseUrl: string | null } | undefined;
+  let userOllamaData: { key: string; baseUrl: string | null; model: string | null } | undefined;
   if (userId) {
     // Check for Ollama key first
     userOllamaData = await getUserKeyAndUrlFromDB(userId, 'ollama');
