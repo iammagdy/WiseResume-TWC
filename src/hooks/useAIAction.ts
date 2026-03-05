@@ -28,7 +28,14 @@ export function useAIAction({ operation }: UseAIActionOptions) {
       if (!hasCredits) return null;
 
       // 2. Execute
-      const result = await action();
+      let result: T;
+      try {
+        result = await action();
+      } catch (err: any) {
+        const message = err?.message || 'AI action failed';
+        toast.error(message);
+        return null;
+      }
 
       // 3. Deduct (fire-and-forget for each credit unit)
       for (let i = 0; i < cost; i++) {

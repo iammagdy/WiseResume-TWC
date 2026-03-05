@@ -1,10 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Building2, Newspaper, Heart, Users, MessageSquareQuote, HelpCircle, Copy, X } from 'lucide-react';
+import { Building2, Newspaper, Heart, Users, MessageSquareQuote, HelpCircle, Copy, X, Sparkles } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerClose } from '@/components/ui/drawer';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -26,16 +27,24 @@ interface CompanyBriefingSheetProps {
 
 export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resumeData }: CompanyBriefingSheetProps) {
   const { generate, briefing, isLoading, error, reset } = useCompanyBriefing();
+  const [localJD, setLocalJD] = useState('');
+  const hasProvidedJD = jobDescription.trim().length > 0;
 
   useEffect(() => {
-    if (open && !briefing && !isLoading && jobDescription.trim()) {
+    if (open && !briefing && !isLoading && hasProvidedJD) {
       generate({ jobDescription, resumeData });
     }
   }, [open]);
 
   const handleClose = () => {
     onOpenChange(false);
-    setTimeout(reset, 300);
+    setTimeout(() => { reset(); setLocalJD(''); }, 300);
+  };
+
+  const handleGenerate = () => {
+    if (!localJD.trim()) return;
+    haptics.light();
+    generate({ jobDescription: localJD.trim(), resumeData });
   };
 
   const handleCopy = () => {
@@ -72,11 +81,30 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
 
         <ScrollArea className="flex-1 px-4 pb-6 max-h-[75vh]">
           <AITrustBadge className="mb-3" />
+          {!hasProvidedJD && !briefing && !isLoading && (
+            <div className="space-y-3 mb-4">
+              <Textarea
+                placeholder="Paste the job description here..."
+                value={localJD}
+                onChange={(e) => setLocalJD(e.target.value)}
+                rows={5}
+                className="text-sm resize-none"
+              />
+              <Button
+                onClick={handleGenerate}
+                disabled={!localJD.trim()}
+                className="w-full gap-2"
+              >
+                <Sparkles className="w-4 h-4" />
+                Generate Briefing
+              </Button>
+            </div>
+          )}
           {isLoading && <BriefingSkeleton />}
           {error && (
             <div className="text-center py-8 text-muted-foreground">
               <p className="text-sm">{error}</p>
-              <Button variant="outline" size="sm" className="mt-3" onClick={() => generate({ jobDescription, resumeData })}>
+              <Button variant="outline" size="sm" className="mt-3" onClick={() => generate({ jobDescription: hasProvidedJD ? jobDescription : localJD.trim(), resumeData })}>
                 Try Again
               </Button>
             </div>
