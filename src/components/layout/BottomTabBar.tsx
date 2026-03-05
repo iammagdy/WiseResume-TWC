@@ -244,6 +244,12 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                             aria-label="Discover AI tools"
                           />
                         )}
+                        {tab.path === '/ai-studio' && !discoveryDots.aiTools && hasCareerReminder && !active && (
+                          <span
+                            className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 border-2 border-background"
+                            aria-label="Career plan needs attention"
+                          />
+                        )}
                         {tab.path === '/portfolio' && discoveryDots.portfolio && !active && (
                           <span
                             className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary border-2 border-background animate-pulse"
