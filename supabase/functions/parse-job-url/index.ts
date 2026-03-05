@@ -328,7 +328,7 @@ If you can't find certain fields, make reasonable guesses based on context. The 
 
       console.log("Successfully parsed job posting with enhanced intelligence:", result.title);
 
-      await recordUsage(userId, 'parse_job', { provider: aiResponse.providerUsed || 'unknown' });
+      await recordUsage(userId, 'parse_job', { provider: aiProviderUsed || 'unknown' });
 
       return new Response(
         JSON.stringify(result),
