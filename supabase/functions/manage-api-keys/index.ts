@@ -26,20 +26,10 @@ async function encrypt(plaintext: string): Promise<string> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const encoded = new TextEncoder().encode(plaintext);
   const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
-  // Concatenate iv + ciphertext, base64 encode
   const combined = new Uint8Array(iv.length + new Uint8Array(ciphertext).length);
   combined.set(iv);
   combined.set(new Uint8Array(ciphertext), iv.length);
   return btoa(String.fromCharCode(...combined));
-}
-
-async function decrypt(encoded: string): Promise<string> {
-  const key = await getEncryptionKey();
-  const combined = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
-  const iv = combined.slice(0, 12);
-  const ciphertext = combined.slice(12);
-  const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
-  return new TextDecoder().decode(decrypted);
 }
 
 Deno.serve(async (req) => {
@@ -67,19 +57,42 @@ Deno.serve(async (req) => {
     }
     const userId = user.id;
 
-    if (req.method === 'GET') {
-      // Get user's API keys (returns provider + tier, NOT the actual key)
-      const { data, error } = await supabase
-        .from('user_api_keys')
-        .select('provider, key_tier, created_at, updated_at')
-        .eq('user_id', userId);
-
-      if (error) throw error;
-      return new Response(JSON.stringify({ keys: data || [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
+    // All requests come via POST (supabase.functions.invoke always uses POST)
+    // Route by `action` field in body: 'save' | 'delete' | 'get'
     if (req.method === 'POST') {
-      const { provider, apiKey, keyTier, baseUrl, model } = await req.json();
+      const body = await req.json();
+      const action = body.action || 'save'; // default to save for backward compat
+
+      // ===== GET: return user's saved keys (provider + tier + base_url + model, NOT the actual key) =====
+      if (action === 'get') {
+        const { data, error } = await supabase
+          .from('user_api_keys')
+          .select('provider, key_tier, base_url, model, created_at, updated_at')
+          .eq('user_id', userId);
+
+        if (error) throw error;
+        return new Response(JSON.stringify({ keys: data || [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      // ===== DELETE: remove a provider's key =====
+      if (action === 'delete') {
+        const { provider } = body;
+        if (!provider) {
+          return new Response(JSON.stringify({ error: 'provider is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+
+        const { error } = await supabase
+          .from('user_api_keys')
+          .delete()
+          .eq('user_id', userId)
+          .eq('provider', provider);
+
+        if (error) throw error;
+        return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      // ===== SAVE (default): upsert a provider's key =====
+      const { provider, apiKey, keyTier, baseUrl, model } = body;
       if (!provider || !apiKey) {
         return new Response(JSON.stringify({ error: 'provider and apiKey are required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
@@ -93,12 +106,10 @@ Deno.serve(async (req) => {
         key_tier: keyTier || 'unknown',
       };
       
-      // Include base_url for providers that need it (e.g. Ollama)
       if (baseUrl !== undefined) {
         upsertData.base_url = baseUrl || null;
       }
       
-      // Include model for providers that need it (e.g. Ollama)
       if (model !== undefined) {
         upsertData.model = model || null;
       }
@@ -111,20 +122,15 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    if (req.method === 'DELETE') {
-      const { provider } = await req.json();
-      if (!provider) {
-        return new Response(JSON.stringify({ error: 'provider is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
-
-      const { error } = await supabase
+    // Legacy GET support (direct HTTP GET)
+    if (req.method === 'GET') {
+      const { data, error } = await supabase
         .from('user_api_keys')
-        .delete()
-        .eq('user_id', userId)
-        .eq('provider', provider);
+        .select('provider, key_tier, base_url, model, created_at, updated_at')
+        .eq('user_id', userId);
 
       if (error) throw error;
-      return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ keys: data || [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
