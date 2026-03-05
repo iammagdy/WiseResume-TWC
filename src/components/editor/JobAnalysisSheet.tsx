@@ -12,6 +12,7 @@ import { analyzeResume } from '@/lib/aiAnalysis';
 import { useAIAction } from '@/hooks/useAIAction';
 import { toast } from 'sonner';
 import { activityTracker } from '@/lib/activityTracker';
+import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 
 interface JobAnalysisSheetProps {
   open: boolean;
