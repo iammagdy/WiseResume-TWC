@@ -34,6 +34,7 @@ import { activityTracker } from '@/lib/activityTracker';
 import haptics from '@/lib/haptics';
 
 import { AITrustBadge } from '@/components/ui/AITrustBadge';
+import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { useResumeMutations, resumeDataToDb, useResumes, dbToResumeData, DatabaseResume } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/safeClient';
