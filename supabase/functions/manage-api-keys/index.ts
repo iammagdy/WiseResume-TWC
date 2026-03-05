@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === 'POST') {
-      const { provider, apiKey, keyTier, baseUrl } = await req.json();
+      const { provider, apiKey, keyTier, baseUrl, model } = await req.json();
       if (!provider || !apiKey) {
         return new Response(JSON.stringify({ error: 'provider and apiKey are required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
@@ -96,6 +96,11 @@ Deno.serve(async (req) => {
       // Include base_url for providers that need it (e.g. Ollama)
       if (baseUrl !== undefined) {
         upsertData.base_url = baseUrl || null;
+      }
+      
+      // Include model for providers that need it (e.g. Ollama)
+      if (model !== undefined) {
+        upsertData.model = model || null;
       }
 
       const { error } = await supabase

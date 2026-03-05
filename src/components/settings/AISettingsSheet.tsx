@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Brain, 
   Key, 
@@ -19,15 +20,18 @@ import {
   Info, 
   Loader2,
   Server,
+  History,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSettingsStore, AIProvider, GeminiKeyTier } from '@/store/settingsStore';
 import { resetFallbackToast } from '@/lib/aiFallbackToast';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { supabase } from '@/integrations/supabase/client';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { logAudit } from '@/lib/auditLogger';
+import { formatDistanceToNow } from 'date-fns';
 
 interface AISettingsSheetProps {
   open: boolean;
@@ -66,6 +70,31 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     const [ollamaModelInput, setOllamaModelInput] = useState(ollamaModel);
     const [showOllamaKey, setShowOllamaKey] = useState(false);
     const [isValidatingOllama, setIsValidatingOllama] = useState(false);
+
+    // Usage history
+    interface UsageLog {
+      id: string;
+      action_type: string;
+      metadata: { provider?: string; section?: string; action?: string } | null;
+      created_at: string;
+    }
+    const [usageHistory, setUsageHistory] = useState<UsageLog[]>([]);
+    const [loadingHistory, setLoadingHistory] = useState(false);
+
+    // Load usage history when sheet opens
+    useEffect(() => {
+      if (!open) return;
+      setLoadingHistory(true);
+      supabase
+        .from('ai_usage_logs')
+        .select('id, action_type, metadata, created_at')
+        .order('created_at', { ascending: false })
+        .limit(20)
+        .then(({ data }) => {
+          setUsageHistory((data as UsageLog[]) || []);
+          setLoadingHistory(false);
+        });
+    }, [open]);
 
     const safeProvider = (['wiseresume', 'gemini', 'ollama'] as const).includes(aiProvider as any) 
       ? aiProvider 
@@ -201,6 +230,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
               apiKey: ollamaKeyInput.trim() || 'ollama-no-key',
               keyTier: 'paid',
               baseUrl: ollamaUrlInput.trim(),
+              model: ollamaModelInput.trim(),
             },
           });
 
@@ -541,6 +571,52 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {/* Usage History */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <History className="w-4 h-4 text-primary" />
+                Recent AI Requests
+              </div>
+              {loadingHistory ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                </div>
+              ) : usageHistory.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-2">No AI requests yet.</p>
+              ) : (
+                <ScrollArea className="max-h-48">
+                  <div className="space-y-1.5">
+                    {usageHistory.map((log) => {
+                      const provider = (log.metadata as any)?.provider || 'wiseresume';
+                      const providerLabel: Record<string, string> = {
+                        ollama: '🟢 Ollama',
+                        gemini_byok: '🔵 Gemini BYOK',
+                        lovable: '⚡ WiseResume',
+                        lovable_fallback: '⚡ WiseResume (fallback)',
+                        gemini_global: '🔵 Gemini',
+                        emergent: '🟣 Emergent',
+                        wiseresume: '⚡ WiseResume',
+                        unknown: '❓ Unknown',
+                      };
+                      return (
+                        <div key={log.id} className="flex items-center justify-between px-2 py-1.5 rounded-md bg-muted/40 text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{log.action_type}</span>
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                              {providerLabel[provider] || provider}
+                            </Badge>
+                          </div>
+                          <span className="text-muted-foreground">
+                            {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              )}
+            </div>
 
             {/* Tips Card */}
             <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">

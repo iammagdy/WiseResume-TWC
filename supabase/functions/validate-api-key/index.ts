@@ -57,20 +57,21 @@ Deno.serve(async (req) => {
 
       const cleanUrl = baseUrl.replace(/\/+$/, '');
       
-      // Validate by hitting the models endpoint
-      const headers: Record<string, string> = {};
+      const reqHeaders: Record<string, string> = {};
       if (apiKey.trim()) {
-        headers['Authorization'] = `Bearer ${apiKey.trim()}`;
+        reqHeaders['Authorization'] = `Bearer ${apiKey.trim()}`;
       }
 
       try {
+        // Step 1: List models to verify connectivity
         const modelsResponse = await fetch(`${cleanUrl}/v1/models`, {
           method: 'GET',
-          headers,
+          headers: reqHeaders,
         });
 
         if (!modelsResponse.ok) {
-          return new Response(JSON.stringify({ isValid: false, error: `Connection failed: HTTP ${modelsResponse.status}` }), {
+          const errText = await modelsResponse.text();
+          return new Response(JSON.stringify({ isValid: false, error: `Connection failed: HTTP ${modelsResponse.status} - ${errText.slice(0, 200)}` }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
@@ -78,11 +79,38 @@ Deno.serve(async (req) => {
         const modelsData = await modelsResponse.json();
         const availableModels = modelsData.data?.map((m: any) => m.id) || [];
 
+        // Step 2: Real completion test with the chosen model
+        const testModel = model || availableModels[0];
+        if (testModel) {
+          const completionResponse = await fetch(`${cleanUrl}/v1/chat/completions`, {
+            method: 'POST',
+            headers: { ...reqHeaders, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: testModel,
+              messages: [{ role: 'user', content: 'Say OK' }],
+              max_tokens: 5,
+              temperature: 0,
+            }),
+          });
+
+          if (!completionResponse.ok) {
+            const errText = await completionResponse.text();
+            return new Response(JSON.stringify({ 
+              isValid: false, 
+              error: `Connected but model "${testModel}" failed: HTTP ${completionResponse.status} - ${errText.slice(0, 200)}` 
+            }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          // Consume the body
+          await completionResponse.json();
+        }
+
         return new Response(JSON.stringify({ isValid: true, tier: 'paid', availableModels }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       } catch (fetchErr) {
-        return new Response(JSON.stringify({ isValid: false, error: 'Cannot connect to Ollama server. Check the URL.' }), {
+        return new Response(JSON.stringify({ isValid: false, error: 'Cannot connect to Ollama server. Check the URL and API key.' }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }

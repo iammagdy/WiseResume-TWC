@@ -1106,6 +1106,7 @@ export type Database = {
           encrypted_key: string
           id: string
           key_tier: string
+          model: string | null
           provider: string
           updated_at: string
           user_id: string
@@ -1116,6 +1117,7 @@ export type Database = {
           encrypted_key: string
           id?: string
           key_tier?: string
+          model?: string | null
           provider: string
           updated_at?: string
           user_id: string
@@ -1126,6 +1128,7 @@ export type Database = {
           encrypted_key?: string
           id?: string
           key_tier?: string
+          model?: string | null
           provider?: string
           updated_at?: string
           user_id?: string
