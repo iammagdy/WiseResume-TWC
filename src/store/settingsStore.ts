@@ -101,6 +101,12 @@ interface SettingsState {
   incrementGeminiDailyUsage: () => void;
   resetGeminiDailyUsage: () => void;
   
+  // Ollama Actions
+  setOllamaApiKey: (key: string) => void;
+  setOllamaBaseUrl: (url: string) => void;
+  setOllamaModel: (model: string) => void;
+  setOllamaKeyValidated: (validated: boolean) => void;
+  
   resetSettings: () => void;
 }
 
