@@ -2,7 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { SkillGap } from '@/lib/careerPath';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, CheckCircle2, Code2, ExternalLink, GraduationCap, Info, Search } from 'lucide-react';
+import { AlertTriangle, BookOpen, CheckCircle2, Code2, ExternalLink, GraduationCap, Info, Play, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { Capacitor } from '@capacitor/core';
@@ -25,6 +25,8 @@ const priorityConfig = {
 const platformConfig = {
   coursera: { icon: GraduationCap, label: 'Coursera', className: 'text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30' },
   freecodecamp: { icon: Code2, label: 'freeCodeCamp', className: 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30' },
+  udemy: { icon: Play, label: 'Udemy', className: 'text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30' },
+  edx: { icon: BookOpen, label: 'edX', className: 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30' },
 };
 
 async function openUrl(url: string) {

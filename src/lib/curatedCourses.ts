@@ -1,6 +1,6 @@
 export interface CuratedCourse {
   title: string;
-  platform: 'coursera' | 'freecodecamp';
+  platform: 'coursera' | 'freecodecamp' | 'udemy' | 'edx';
   url: string;
   duration?: string;
 }
@@ -10,22 +10,29 @@ export const CURATED_COURSES: Record<string, CuratedCourse[]> = {
   python: [
     { title: 'Scientific Computing with Python', platform: 'freecodecamp', url: 'https://www.freecodecamp.org/learn/scientific-computing-with-python/', duration: '300h' },
     { title: 'Python for Everybody', platform: 'coursera', url: 'https://www.coursera.org/specializations/python', duration: '8 months' },
+    { title: 'Introduction to Computer Science (CS50)', platform: 'edx', url: 'https://www.edx.org/course/introduction-computer-science-harvardx-cs50x', duration: '12 weeks' },
+    { title: 'Complete Python Bootcamp', platform: 'udemy', url: 'https://www.udemy.com/course/complete-python-bootcamp/', duration: '22h' },
   ],
   javascript: [
     { title: 'JavaScript Algorithms & Data Structures', platform: 'freecodecamp', url: 'https://www.freecodecamp.org/learn/javascript-algorithms-and-data-structures-v8/', duration: '300h' },
     { title: 'HTML, CSS, and Javascript for Web Developers', platform: 'coursera', url: 'https://www.coursera.org/learn/html-css-javascript-for-web-developers', duration: '5 weeks' },
+    { title: 'The Complete JavaScript Course', platform: 'udemy', url: 'https://www.udemy.com/course/the-complete-javascript-course/', duration: '69h' },
   ],
   typescript: [
     { title: 'TypeScript for Professionals', platform: 'coursera', url: 'https://www.coursera.org/learn/typescript', duration: '3 weeks' },
+    { title: 'Understanding TypeScript', platform: 'udemy', url: 'https://www.udemy.com/course/understanding-typescript/', duration: '15h' },
   ],
   java: [
     { title: 'Java Programming and Software Engineering', platform: 'coursera', url: 'https://www.coursera.org/specializations/java-programming', duration: '5 months' },
+    { title: 'Software Construction in Java', platform: 'edx', url: 'https://www.edx.org/course/software-construction-in-java', duration: '10 weeks' },
   ],
   'c++': [
     { title: 'Coding for Everyone: C and C++', platform: 'coursera', url: 'https://www.coursera.org/specializations/coding-for-everyone', duration: '5 months' },
+    { title: 'Beginning C++ Programming', platform: 'udemy', url: 'https://www.udemy.com/course/beginning-c-plus-plus-programming/', duration: '46h' },
   ],
   'c#': [
     { title: 'Introduction to C# Programming', platform: 'coursera', url: 'https://www.coursera.org/learn/introduction-programming-unity', duration: '4 weeks' },
+    { title: 'Complete C# Masterclass', platform: 'udemy', url: 'https://www.udemy.com/course/complete-csharp-masterclass/', duration: '45h' },
   ],
   go: [
     { title: 'Programming with Google Go', platform: 'coursera', url: 'https://www.coursera.org/specializations/google-golang', duration: '3 months' },
@@ -35,6 +42,7 @@ export const CURATED_COURSES: Record<string, CuratedCourse[]> = {
   ],
   swift: [
     { title: 'iOS App Development with Swift', platform: 'coursera', url: 'https://www.coursera.org/specializations/app-development', duration: '5 months' },
+    { title: 'iOS & Swift - The Complete iOS App Development', platform: 'udemy', url: 'https://www.udemy.com/course/ios-13-app-development-bootcamp/', duration: '55h' },
   ],
   kotlin: [
     { title: 'Kotlin for Java Developers', platform: 'coursera', url: 'https://www.coursera.org/learn/kotlin-for-java-developers', duration: '5 weeks' },
@@ -47,21 +55,25 @@ export const CURATED_COURSES: Record<string, CuratedCourse[]> = {
   ],
   r: [
     { title: 'R Programming', platform: 'coursera', url: 'https://www.coursera.org/learn/r-programming', duration: '4 weeks' },
+    { title: 'Data Science: R Basics', platform: 'edx', url: 'https://www.edx.org/course/data-science-r-basics', duration: '8 weeks' },
   ],
   scala: [
     { title: 'Functional Programming in Scala', platform: 'coursera', url: 'https://www.coursera.org/specializations/scala', duration: '7 months' },
   ],
   dart: [
     { title: 'Flutter & Dart - The Complete Guide', platform: 'coursera', url: 'https://www.coursera.org/learn/flutter', duration: '4 weeks' },
+    { title: 'Flutter & Dart - The Complete Guide', platform: 'udemy', url: 'https://www.udemy.com/course/learn-flutter-dart-to-build-ios-android-apps/', duration: '42h' },
   ],
 
   // === Frameworks / Libraries ===
   react: [
     { title: 'Front End Development Libraries', platform: 'freecodecamp', url: 'https://www.freecodecamp.org/learn/front-end-development-libraries/', duration: '300h' },
     { title: 'React Basics by Meta', platform: 'coursera', url: 'https://www.coursera.org/learn/react-basics', duration: '4 weeks' },
+    { title: 'React - The Complete Guide', platform: 'udemy', url: 'https://www.udemy.com/course/react-the-complete-guide-incl-redux/', duration: '68h' },
   ],
   angular: [
     { title: 'Single Page Web Apps with AngularJS', platform: 'coursera', url: 'https://www.coursera.org/learn/single-page-web-apps-with-angularjs', duration: '5 weeks' },
+    { title: 'Angular - The Complete Guide', platform: 'udemy', url: 'https://www.udemy.com/course/the-complete-guide-to-angular-2/', duration: '37h' },
   ],
   'vue.js': [
     { title: 'Vue.js Fundamentals', platform: 'coursera', url: 'https://www.coursera.org/search?query=vue.js', duration: '4 weeks' },
@@ -96,18 +108,23 @@ export const CURATED_COURSES: Record<string, CuratedCourse[]> = {
   // === Cloud / DevOps ===
   aws: [
     { title: 'AWS Cloud Technical Essentials', platform: 'coursera', url: 'https://www.coursera.org/learn/aws-cloud-technical-essentials', duration: '4 weeks' },
+    { title: 'AWS Certified Solutions Architect', platform: 'udemy', url: 'https://www.udemy.com/course/aws-certified-solutions-architect-associate-saa-c03/', duration: '27h' },
+    { title: 'AWS Developer: Building on AWS', platform: 'edx', url: 'https://www.edx.org/course/aws-developer-building-on-aws', duration: '6 weeks' },
   ],
   azure: [
     { title: 'Microsoft Azure Fundamentals', platform: 'coursera', url: 'https://www.coursera.org/learn/microsoft-azure-cloud-services', duration: '4 weeks' },
+    { title: 'Azure Fundamentals (AZ-900)', platform: 'udemy', url: 'https://www.udemy.com/course/az900-azure/', duration: '11h' },
   ],
   gcp: [
     { title: 'Google Cloud Fundamentals', platform: 'coursera', url: 'https://www.coursera.org/learn/gcp-fundamentals', duration: '2 weeks' },
   ],
   docker: [
     { title: 'Docker Essentials', platform: 'coursera', url: 'https://www.coursera.org/learn/ibm-containers-docker-kubernetes-openshift', duration: '3 weeks' },
+    { title: 'Docker & Kubernetes: The Practical Guide', platform: 'udemy', url: 'https://www.udemy.com/course/docker-kubernetes-the-practical-guide/', duration: '24h' },
   ],
   kubernetes: [
     { title: 'Getting Started with Google Kubernetes', platform: 'coursera', url: 'https://www.coursera.org/learn/google-kubernetes-engine', duration: '3 weeks' },
+    { title: 'Introduction to Kubernetes', platform: 'edx', url: 'https://www.edx.org/course/introduction-to-kubernetes', duration: '14 weeks' },
   ],
   terraform: [
     { title: 'HashiCorp Terraform', platform: 'coursera', url: 'https://www.coursera.org/search?query=terraform', duration: '3 weeks' },
@@ -132,17 +149,22 @@ export const CURATED_COURSES: Record<string, CuratedCourse[]> = {
   sql: [
     { title: 'Relational Database', platform: 'freecodecamp', url: 'https://www.freecodecamp.org/learn/relational-database/', duration: '300h' },
     { title: 'Introduction to SQL', platform: 'coursera', url: 'https://www.coursera.org/learn/intro-sql', duration: '4 weeks' },
+    { title: 'The Complete SQL Bootcamp', platform: 'udemy', url: 'https://www.udemy.com/course/the-complete-sql-bootcamp/', duration: '9h' },
   ],
   'data analysis': [
     { title: 'Data Analysis with Python', platform: 'freecodecamp', url: 'https://www.freecodecamp.org/learn/data-analysis-with-python/', duration: '300h' },
     { title: 'Google Data Analytics', platform: 'coursera', url: 'https://www.coursera.org/professional-certificates/google-data-analytics', duration: '6 months' },
+    { title: 'Data Analysis and Visualization with Python', platform: 'edx', url: 'https://www.edx.org/course/data-analysis-and-visualization-with-python', duration: '5 weeks' },
   ],
   'machine learning': [
     { title: 'Machine Learning with Python', platform: 'freecodecamp', url: 'https://www.freecodecamp.org/learn/machine-learning-with-python/', duration: '300h' },
     { title: 'Machine Learning by Stanford', platform: 'coursera', url: 'https://www.coursera.org/learn/machine-learning', duration: '11 weeks' },
+    { title: 'Machine Learning A-Z', platform: 'udemy', url: 'https://www.udemy.com/course/machinelearning/', duration: '44h' },
+    { title: 'Machine Learning with Python', platform: 'edx', url: 'https://www.edx.org/course/machine-learning-with-python-from-linear-models-to', duration: '5 weeks' },
   ],
   'deep learning': [
     { title: 'Deep Learning Specialization', platform: 'coursera', url: 'https://www.coursera.org/specializations/deep-learning', duration: '5 months' },
+    { title: 'Deep Learning A-Z', platform: 'udemy', url: 'https://www.udemy.com/course/deeplearning/', duration: '23h' },
   ],
   nlp: [
     { title: 'Natural Language Processing', platform: 'coursera', url: 'https://www.coursera.org/specializations/natural-language-processing', duration: '4 months' },
@@ -177,6 +199,7 @@ export const CURATED_COURSES: Record<string, CuratedCourse[]> = {
   // === Security ===
   cybersecurity: [
     { title: 'Google Cybersecurity', platform: 'coursera', url: 'https://www.coursera.org/professional-certificates/google-cybersecurity', duration: '6 months' },
+    { title: 'Cybersecurity Fundamentals', platform: 'edx', url: 'https://www.edx.org/course/cybersecurity-fundamentals', duration: '8 weeks' },
   ],
   'ethical hacking': [
     { title: 'Ethical Hacking Essentials', platform: 'coursera', url: 'https://www.coursera.org/learn/ethical-hacking-essentials', duration: '4 weeks' },
