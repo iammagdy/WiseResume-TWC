@@ -271,6 +271,7 @@ Return JSON with this comprehensive format:
 If you can't find certain fields, make reasonable guesses based on context. The description should be detailed and include all requirements and qualifications mentioned.`;
 
       let aiContent: string;
+      let aiProviderUsed: string | undefined;
       try {
         const aiResponse = await callAI({
           model: 'google/gemini-3-flash-preview',
@@ -282,6 +283,7 @@ If you can't find certain fields, make reasonable guesses based on context. The 
           userId: user.id,
         });
         aiContent = aiResponse.content || '';
+        aiProviderUsed = aiResponse.providerUsed;
       } catch (aiErr: unknown) {
         if (isAIError(aiErr)) {
           return new Response(
