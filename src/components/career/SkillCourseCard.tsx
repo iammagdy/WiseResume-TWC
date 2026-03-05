@@ -1,9 +1,8 @@
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { SkillGap } from '@/lib/careerPath';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, CheckCircle2, Code2, ExternalLink, GraduationCap, Info, Copy } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Code2, ExternalLink, GraduationCap, Info, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { Capacitor } from '@capacitor/core';
@@ -68,10 +67,26 @@ function CuratedCourseLink({ course }: { course: CuratedCourse }) {
   );
 }
 
+function CourseraSearchFallback({ skill }: { skill: string }) {
+  const url = `https://www.coursera.org/search?query=${encodeURIComponent(skill)}`;
+
+  return (
+    <button
+      onClick={() => openUrl(url)}
+      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-colors touch-manipulation active:scale-[0.98] text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+    >
+      <Search className="w-3.5 h-3.5 shrink-0" />
+      <span className="text-xs font-medium flex-1 min-w-0 truncate">Search "{skill}" on Coursera</span>
+      <ExternalLink className="w-3 h-3 shrink-0 opacity-50" />
+    </button>
+  );
+}
+
 export function SkillCourseCard({ gap, isCompleted, onToggleComplete }: Props) {
   const config = priorityConfig[gap.priority];
   const Icon = config.icon;
   const curatedCourses = useMemo(() => findCuratedCourses(gap.skill), [gap.skill]);
+  const hasCourses = curatedCourses.length > 0;
 
   return (
     <div className={cn('rounded-xl border p-3 space-y-2 transition-all', isCompleted && 'opacity-60', config.bg)}>
@@ -99,14 +114,18 @@ export function SkillCourseCard({ gap, isCompleted, onToggleComplete }: Props) {
         </div>
       </div>
 
-      {curatedCourses.length > 0 && (
-        <div className="space-y-1 pt-1">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1">Recommended Courses</p>
-          {curatedCourses.map((course, i) => (
+      <div className="space-y-1 pt-1">
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1">
+          {hasCourses ? 'Recommended Courses' : 'Find Courses'}
+        </p>
+        {hasCourses ? (
+          curatedCourses.map((course, i) => (
             <CuratedCourseLink key={i} course={course} />
-          ))}
-        </div>
-      )}
+          ))
+        ) : (
+          <CourseraSearchFallback skill={gap.skill} />
+        )}
+      </div>
     </div>
   );
 }
