@@ -7,7 +7,7 @@ export type AutoSaveToastMode = 'always' | 'errors-only';
 export type AITipFrequency = 'daily' | 'weekly' | 'on-demand';
 
 // AI Provider types
-export type AIProvider = 'wiseresume' | 'gemini';
+export type AIProvider = 'wiseresume' | 'gemini' | 'ollama';
 export type GeminiKeyTier = 'free' | 'paid' | 'unknown';
 
 interface GeminiDailyUsage {
