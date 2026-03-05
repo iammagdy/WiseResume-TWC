@@ -182,12 +182,17 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
   // Lovable AI Gateway (primary)
   const lovableKey = Deno.env.get('LOVABLE_API_KEY');
 
-  // Resolve user BYOK Gemini key only if userId provided
+  // Resolve user BYOK keys only if userId provided
   let userGeminiKey: string | undefined;
+  let userOllamaData: { key: string; baseUrl: string | null } | undefined;
   if (userId) {
-    userGeminiKey = await getUserKeyFromDB(userId);
+    // Check for Ollama key first
+    userOllamaData = await getUserKeyAndUrlFromDB(userId, 'ollama');
+    if (!userOllamaData) {
+      userGeminiKey = await getUserKeyFromDB(userId);
+    }
   }
-  if (!userGeminiKey && options.userGeminiKey) {
+  if (!userGeminiKey && !userOllamaData && options.userGeminiKey) {
     userGeminiKey = options.userGeminiKey; // deprecated body param
   }
 
@@ -195,7 +200,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
   const globalGeminiKey = Deno.env.get('GEMINI_API_KEY');
   const emergentKey = Deno.env.get('EMERGENT_LLM_KEY');
 
-  if (!lovableKey && !userGeminiKey && !globalGeminiKey && !emergentKey) {
+  if (!lovableKey && !userGeminiKey && !userOllamaData && !globalGeminiKey && !emergentKey) {
     console.error('[AI] No API key available');
     throw createAIError('invalid_key', 'No AI API key configured. Please add your API key in Settings.', 500);
   }
@@ -204,25 +209,53 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
-    // Priority 1: Lovable AI Gateway (always first)
+    // Priority 1: Lovable AI Gateway (always first — unless user has BYOK)
+    if (lovableKey && !userOllamaData && !userGeminiKey) {
+      console.log('[AI] Using Lovable AI Gateway for model:', model);
+      return await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+    }
+
+    // Priority 2: User BYOK Ollama key
+    if (userOllamaData && userOllamaData.baseUrl) {
+      console.log('[AI] Using user BYOK Ollama key at:', userOllamaData.baseUrl);
+      try {
+        return await callOllamaDirect(userOllamaData.key, userOllamaData.baseUrl, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+      } catch (err) {
+        console.warn('[AI] Ollama BYOK failed, falling back to Lovable Gateway:', err instanceof Error ? err.message : err);
+        if (lovableKey) {
+          return { ...(await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal)), fallbackUsed: true, fallbackReason: 'ollama_error' };
+        }
+        throw err;
+      }
+    }
+
+    // Priority 3: User BYOK Gemini key (fallback)
+    if (userGeminiKey) {
+      console.log('[AI] Using user BYOK Gemini key for model:', model);
+      try {
+        return await callGeminiDirect(userGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+      } catch (err) {
+        console.warn('[AI] Gemini BYOK failed, falling back to Lovable Gateway:', err instanceof Error ? err.message : err);
+        if (lovableKey) {
+          return { ...(await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal)), fallbackUsed: true, fallbackReason: 'gemini_error' };
+        }
+        throw err;
+      }
+    }
+
+    // Priority 4: Lovable Gateway (if we have BYOK but it was skipped)
     if (lovableKey) {
       console.log('[AI] Using Lovable AI Gateway for model:', model);
       return await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
     }
 
-    // Priority 2: User BYOK Gemini key (fallback)
-    if (userGeminiKey) {
-      console.log('[AI] Using user BYOK Gemini key for model:', model);
-      return await callGeminiDirect(userGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
-    }
-
-    // Priority 3: Global GEMINI_API_KEY (legacy)
+    // Priority 5: Global GEMINI_API_KEY (legacy)
     if (globalGeminiKey) {
       console.log('[AI] Using global GEMINI_API_KEY for model:', model);
       return await callGeminiDirect(globalGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
     }
 
-    // Priority 4: Emergent Universal API (legacy)
+    // Priority 6: Emergent Universal API (legacy)
     console.log('[AI] Using Emergent Universal Key for model:', model);
     return await callEmergentUniversal(emergentKey!, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
   } catch (error) {
