@@ -100,9 +100,14 @@ Deno.serve(async (req) => {
 
           if (!completionResponse.ok) {
             const errText = await completionResponse.text();
+            const cStatus = completionResponse.status;
+            let hint = '';
+            if (cStatus === 401 || cStatus === 403) {
+              hint = ' Verify your API key and base URL (Ollama Cloud uses https://ollama.com).';
+            }
             return new Response(JSON.stringify({ 
               isValid: false, 
-              error: `Connected but model "${testModel}" failed: HTTP ${completionResponse.status} - ${errText.slice(0, 200)}` 
+              error: `Connected but model "${testModel}" failed: HTTP ${cStatus} - ${errText.slice(0, 150)}.${hint}` 
             }), {
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             });
