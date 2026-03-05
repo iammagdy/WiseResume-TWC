@@ -1101,6 +1101,7 @@ export type Database = {
       }
       user_api_keys: {
         Row: {
+          base_url: string | null
           created_at: string
           encrypted_key: string
           id: string
@@ -1110,6 +1111,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          base_url?: string | null
           created_at?: string
           encrypted_key: string
           id?: string
@@ -1119,6 +1121,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          base_url?: string | null
           created_at?: string
           encrypted_key?: string
           id?: string
