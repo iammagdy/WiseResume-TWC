@@ -121,7 +121,8 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
             if (!ollamaKeyValidated) {
               setOllamaBaseUrl(key.base_url || '');
               setOllamaModel(key.model || '');
-              setOllamaKeyValidated(true);
+          setOllamaKeyValidated(true);
+              setAIProvider('ollama');
             }
           }
           if (key.provider === 'gemini') {
