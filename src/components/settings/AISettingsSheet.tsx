@@ -571,12 +571,37 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Model Name</Label>
-                      <Input
-                        value={ollamaModelInput}
-                        onChange={(e) => setOllamaModelInput(e.target.value)}
-                        placeholder="e.g. glm-5:cloud, llama3.1, mistral"
-                      />
+                      <Label className="text-xs text-muted-foreground">
+                        Model Name
+                        {ollamaAvailableModels.length > 0 && (
+                          <span className="ml-1.5 text-primary">· {ollamaAvailableModels.length} available</span>
+                        )}
+                      </Label>
+                      {ollamaAvailableModels.length > 0 ? (
+                        <Select
+                          value={ollamaModelInput}
+                          onValueChange={(value) => setOllamaModelInput(value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a model" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <ScrollArea className="max-h-[200px]">
+                              {ollamaAvailableModels.map((model) => (
+                                <SelectItem key={model} value={model}>
+                                  {model}
+                                </SelectItem>
+                              ))}
+                            </ScrollArea>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          value={ollamaModelInput}
+                          onChange={(e) => setOllamaModelInput(e.target.value)}
+                          placeholder="e.g. glm-5:cloud, llama3.1, mistral"
+                        />
+                      )}
                     </div>
                   </div>
 
