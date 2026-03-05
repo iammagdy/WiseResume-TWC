@@ -151,9 +151,22 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       }
     }, [open, geminiApiKey, ollamaApiKey, ollamaBaseUrl, ollamaModel]);
 
-    const handleProviderChange = (value: string) => {
+    const handleProviderChange = async (value: string) => {
       haptics.selection();
       setAIProvider(value as AIProvider);
+      
+      // Sync to user_preferences table so backend knows the preferred provider
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase
+            .from('user_preferences')
+            .update({ ai_provider: value })
+            .eq('user_id', user.id);
+        }
+      } catch (err) {
+        console.warn('Failed to sync AI provider preference:', err);
+      }
       
       if (value === 'gemini' && !geminiApiKey) {
         toast.info('Add your Gemini API key below to use your own AI');
