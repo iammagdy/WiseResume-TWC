@@ -91,6 +91,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       }
       if (value === 'ollama' && !ollamaBaseUrl) {
         setOllamaUrlInput('https://api.ollama.com');
+        setOllamaModelInput('glm-5:cloud');
         toast.info('Enter your Ollama API key below to connect');
       }
     };
