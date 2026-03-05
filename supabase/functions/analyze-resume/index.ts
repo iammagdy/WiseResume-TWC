@@ -164,7 +164,7 @@ Provide analysis in this exact JSON format:
       );
     }
 
-    await recordUsage(user.id, 'analyze');
+    await recordUsage(user.id, 'analyze', { provider: aiResponse.providerUsed || 'unknown' });
 
     return new Response(
       JSON.stringify(analysisResult),

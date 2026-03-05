@@ -79,6 +79,7 @@ Return JSON:
 If you can't find certain fields, use null or empty arrays. Always extract title and company.`;
 
     let aiContent: string;
+    let aiProviderUsed: string | undefined;
     try {
       const aiResponse = await callAI({
         model: 'google/gemini-3-flash-preview',
@@ -90,6 +91,7 @@ If you can't find certain fields, use null or empty arrays. Always extract title
         userId: user.id,
       });
       aiContent = aiResponse.content || '';
+      aiProviderUsed = aiResponse.providerUsed;
     } catch (aiErr: unknown) {
       if (isAIError(aiErr)) {
         return new Response(
@@ -125,7 +127,7 @@ If you can't find certain fields, use null or empty arrays. Always extract title
       redFlags: result.redFlags || [],
     };
 
-    await recordUsage(user.id, 'parse_job_text');
+    await recordUsage(user.id, 'parse_job_text', { provider: aiProviderUsed || 'unknown' });
 
     return new Response(
       JSON.stringify(result),

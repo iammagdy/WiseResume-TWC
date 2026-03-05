@@ -190,7 +190,7 @@ Deno.serve(async (req) => {
     }
 
     // Record usage
-    await recordUsage(userId, 'company_briefing');
+    await recordUsage(userId, 'company_briefing', { provider: aiResponse.providerUsed || 'unknown' });
 
     return new Response(JSON.stringify({ briefing }), {
       headers: { ...cors, 'Content-Type': 'application/json' },

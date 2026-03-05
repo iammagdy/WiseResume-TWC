@@ -116,7 +116,7 @@ serve(async (req) => {
 
     const result = JSON.parse(toolCall.function.arguments);
 
-    await recordUsage(userId, 'explain_gap');
+    await recordUsage(userId, 'explain_gap', { provider: aiResponse.providerUsed || 'unknown' });
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

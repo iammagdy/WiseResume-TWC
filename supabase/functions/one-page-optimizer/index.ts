@@ -155,7 +155,7 @@ Return ONLY a JSON object with this EXACT structure (no markdown, no code fences
       );
     }
 
-    await recordUsage(user.id, 'one_page');
+    await recordUsage(user.id, 'one_page', { provider: aiResponse.providerUsed || 'unknown' });
 
     return new Response(
       JSON.stringify({ success: true, ...result }),

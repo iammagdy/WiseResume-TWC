@@ -52,6 +52,7 @@ Deno.serve(async (req) => {
     }
 
     const result: Record<string, unknown> = {};
+    let lastProviderUsed: string | undefined;
 
     // Detection
     if (action === 'detect' || action === 'both') {
@@ -86,6 +87,7 @@ ${text}
       });
 
       result.detection = parseAIJSON(detectResponse.content || '{}');
+      lastProviderUsed = detectResponse.providerUsed;
     }
 
     // Humanization
@@ -124,9 +126,10 @@ Return a JSON object:
       });
 
       result.humanized = parseAIJSON(humanizeResponse.content || '{}');
+      lastProviderUsed = humanizeResponse.providerUsed;
     }
 
-    await recordUsage(userId, 'detect_humanize');
+    await recordUsage(userId, 'detect_humanize', { provider: lastProviderUsed || 'unknown' });
 
     return new Response(
       JSON.stringify({ success: true, ...result }),

@@ -145,7 +145,7 @@ Extract: Summary/About, Experience, Education, Skills. For dates, use "Jan 2020"
 
     const extractedData = JSON.parse(toolCall.function.arguments);
 
-    await recordUsage(user.id, 'parse_linkedin');
+    await recordUsage(user.id, 'parse_linkedin', { provider: aiResponse.providerUsed || 'unknown' });
 
     return new Response(JSON.stringify(extractedData), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

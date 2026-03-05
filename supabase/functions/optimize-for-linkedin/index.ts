@@ -196,7 +196,7 @@ Generate a comprehensive LinkedIn optimization package.`;
       );
     }
 
-    await recordUsage(user.id, 'linkedin_opt');
+    await recordUsage(user.id, 'linkedin_opt', { provider: aiResponse.providerUsed || 'unknown' });
 
     return new Response(
       JSON.stringify({ success: true, ...result }),

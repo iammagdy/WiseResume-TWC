@@ -211,7 +211,7 @@ Analyze this resume from your unique perspective as ${personaConfig.name}. Be sp
       );
     }
 
-    await recordUsage(user.id, 'recruiter_sim');
+    await recordUsage(user.id, 'recruiter_sim', { provider: aiResponse.providerUsed || 'unknown' });
 
     return new Response(
       JSON.stringify({

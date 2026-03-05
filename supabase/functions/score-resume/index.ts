@@ -136,7 +136,7 @@ serve(async (req) => {
     // Only record usage for local users (cross-project users don't exist in auth.users)
     if (!userId.startsWith('ext:')) {
       try {
-        await recordUsage(userId, 'score');
+        await recordUsage(userId, 'score', { provider: 'deterministic' });
       } catch (usageErr) {
         console.warn('recordUsage skipped (cross-project user):', usageErr);
       }
