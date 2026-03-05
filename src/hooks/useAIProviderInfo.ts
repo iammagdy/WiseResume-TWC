@@ -3,7 +3,7 @@
  * Provides real-time updates when the AI provider settings change
  */
 
-import { useSettingsStore, AIProvider, GeminiKeyTier } from '@/store/settingsStore';
+import { useSettingsStore, AIProvider } from '@/store/settingsStore';
 
 export interface AIProviderInfo {
   provider: AIProvider;
@@ -19,6 +19,7 @@ export function useAIProviderInfo(): AIProviderInfo {
   const geminiKeyTier = useSettingsStore((s) => s.geminiKeyTier);
   const geminiKeyValidated = useSettingsStore((s) => s.geminiKeyValidated);
   const ollamaKeyValidated = useSettingsStore((s) => s.ollamaKeyValidated);
+  const ollamaModel = useSettingsStore((s) => s.ollamaModel);
 
   if (aiProvider === 'wiseresume') {
     return {
@@ -32,9 +33,10 @@ export function useAIProviderInfo(): AIProviderInfo {
   }
 
   if (aiProvider === 'ollama') {
+    const modelSuffix = ollamaKeyValidated && ollamaModel ? ` · ${ollamaModel}` : '';
     return {
       provider: 'ollama',
-      name: 'Ollama',
+      name: `Ollama${modelSuffix}`,
       isCustomKey: true,
       tier: ollamaKeyValidated ? 'paid' : 'free',
       tierLabel: ollamaKeyValidated ? 'Connected' : 'Not Configured',

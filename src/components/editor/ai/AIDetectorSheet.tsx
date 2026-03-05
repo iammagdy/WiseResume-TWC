@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { useAIAction } from '@/hooks/useAIAction';
 import { activityTracker } from '@/lib/activityTracker';
+import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import type { ResumeData, Experience, Project, Volunteering, Award, Publication } from '@/types/resume';
 
 
@@ -375,6 +376,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
             <Shield className="w-5 h-5 text-primary" />
             AI Detector & Humanizer
           </SheetTitle>
+          <AIProviderVia className="mt-0.5" />
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto min-h-0">

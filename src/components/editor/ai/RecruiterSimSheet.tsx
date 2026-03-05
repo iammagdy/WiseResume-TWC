@@ -35,6 +35,7 @@ import { findTargetContent } from '@/lib/ai/fixHelpers';
 import { Experience, Education } from '@/types/resume';
 import { useAIAction } from '@/hooks/useAIAction';
 import { activityTracker } from '@/lib/activityTracker';
+import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 
 
 interface RecruiterSimSheetProps {
@@ -216,6 +217,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
             <UserCheck className="w-5 h-5 text-primary" />
             Recruiter Simulation
           </SheetTitle>
+          <AIProviderVia className="mt-0.5" />
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto min-h-0">

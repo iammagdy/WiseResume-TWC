@@ -34,6 +34,7 @@ import { activityTracker } from '@/lib/activityTracker';
 import haptics from '@/lib/haptics';
 
 import { AITrustBadge } from '@/components/ui/AITrustBadge';
+import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { useResumeMutations, resumeDataToDb, useResumes, dbToResumeData, DatabaseResume } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/safeClient';
@@ -583,6 +584,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
               AI Resume Tailor
               <AICostBadge operation="tailor" />
             </SheetTitle>
+            <AIProviderVia className="mt-0.5" />
             <div className="flex items-center gap-1 mr-8">
               <Button
                 size="sm"

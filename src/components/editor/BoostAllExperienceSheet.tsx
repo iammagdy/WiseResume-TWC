@@ -6,6 +6,7 @@ import { useAIEnhance } from '@/hooks/useAIEnhance';
 import { useResumeStore } from '@/store/resumeStore';
 import { Experience } from '@/types/resume';
 import { toast } from 'sonner';
+import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 
 interface BoostAllExperienceSheetProps {
   open: boolean;
@@ -103,6 +104,7 @@ export function BoostAllExperienceSheet({ open, onOpenChange }: BoostAllExperien
             <Sparkles className="w-5 h-5 text-primary" />
             Boost All Experience
           </SheetTitle>
+          <AIProviderVia className="mt-0.5" />
           <SheetDescription>
             {isEnhancing
               ? 'Analyzing all your work experience…'

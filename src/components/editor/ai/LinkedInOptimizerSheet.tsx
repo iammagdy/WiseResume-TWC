@@ -30,6 +30,7 @@ import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { useAIAction } from '@/hooks/useAIAction';
 import { activityTracker } from '@/lib/activityTracker';
+import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { downloadFile } from '@/lib/downloadUtils';
 
 
@@ -304,6 +305,7 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
             <Linkedin className="w-5 h-5 text-[#0A66C2]" />
             LinkedIn Optimizer
           </SheetTitle>
+          <AIProviderVia className="mt-0.5" />
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto min-h-0">

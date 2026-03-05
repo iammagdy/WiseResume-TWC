@@ -10,6 +10,7 @@ import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useCompanyBriefing } from '@/hooks/useCompanyBriefing';
 import { AITrustBadge } from '@/components/ui/AITrustBadge';
+import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import type { CompanyBriefing } from '@/types/companyBriefing';
 
 interface CompanyBriefingSheetProps {
@@ -53,6 +54,7 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
           <DrawerTitle className="flex items-center gap-2 text-base font-bold">
             <Building2 className="w-5 h-5 text-primary" />
             Company Briefing
+            <AIProviderVia className="ml-1" />
           </DrawerTitle>
           <div className="flex items-center gap-2">
             {briefing && (
