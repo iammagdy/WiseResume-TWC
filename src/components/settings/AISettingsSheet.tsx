@@ -105,16 +105,29 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       haptics.light();
 
       try {
-        const validationResult = await invokeWithAuth('validate-api-key', {
-          apiKey: keyInput.trim(), provider: 'gemini',
+        const { data: validationResult, error: validationError } = await edgeFunctions.functions.invoke('validate-api-key', {
+          body: { apiKey: keyInput.trim(), provider: 'gemini' },
         });
 
+        if (validationError) {
+          haptics.error();
+          toast.error('Failed to validate key. Please try again.');
+          setGeminiKeyValidated(false);
+          setIsValidating(false);
+          return;
+        }
+
         if (validationResult?.isValid) {
-          await invokeWithAuth('manage-api-keys', {
-            action: 'save', provider: 'gemini', apiKey: keyInput.trim(), tier: validationResult.tier,
+          const { error: saveError } = await edgeFunctions.functions.invoke('manage-api-keys', {
+            body: { action: 'save', provider: 'gemini', apiKey: keyInput.trim(), tier: validationResult.tier },
           });
 
-          // Save succeeded
+          if (saveError) {
+            console.error('Failed to save key server-side:', saveError);
+            toast.error('Key validated but failed to save. Please try again.');
+            setIsValidating(false);
+            return;
+          }
 
           setGeminiApiKey(keyInput.trim());
           setGeminiKeyTier(validationResult.tier);
