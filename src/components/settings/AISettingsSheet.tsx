@@ -91,6 +91,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       }
       if (value === 'ollama' && !ollamaBaseUrl) {
         setOllamaUrlInput('https://api.ollama.com');
+        setOllamaModelInput('glm-5:cloud');
         toast.info('Enter your Ollama API key below to connect');
       }
     };
@@ -506,7 +507,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                       <Input
                         value={ollamaModelInput}
                         onChange={(e) => setOllamaModelInput(e.target.value)}
-                        placeholder="e.g. llama3.1, mistral, qwen2.5"
+                        placeholder="e.g. glm-5:cloud, llama3.1, mistral"
                       />
                     </div>
                   </div>
