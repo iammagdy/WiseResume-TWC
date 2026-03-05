@@ -291,11 +291,13 @@ export function OnePageWizardSheet({ open, onOpenChange, onExportOnePage }: OneP
                       <div key={i} className="p-3 rounded-xl border border-border space-y-2">
                         <div className="flex items-center justify-between">
                           <Badge variant="secondary" className="capitalize">
-                            {reduction.section}
+                            {reduction.section || 'Content'}
                           </Badge>
-                          <span className="text-xs text-success">
-                            -{reduction.wordsRemoved} words
-                          </span>
+                          {reduction.wordsRemoved != null && (
+                            <span className="text-xs text-success">
+                              -{reduction.wordsRemoved} words
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-muted-foreground">{reduction.strategy}</p>
                       </div>
@@ -317,8 +319,8 @@ export function OnePageWizardSheet({ open, onOpenChange, onExportOnePage }: OneP
                             {item.section}
                           </Badge>
                         </div>
-                        <p className="text-sm font-medium">{item.item}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{item.reason}</p>
+                        <p className="text-sm font-medium">{item.item || (item as any).name || (item as any).title || JSON.stringify(item)}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{item.reason || (item as any).description || ''}</p>
                       </div>
                     ))}
                   </div>

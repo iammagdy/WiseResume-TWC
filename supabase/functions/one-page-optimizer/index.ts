@@ -127,7 +127,17 @@ ${targetRole ? `Target role: ${targetRole}` : ''}
 ${yearsOfExperience ? `Years of experience: ${yearsOfExperience}` : ''}
 Preserve the most recent ${preserveRecent} jobs in full detail.
 
-Return a JSON object with: currentEstimatedPages, optimizedEstimatedPages, reductions, removedItems, condensedSummary, condensedExperience, layoutSuggestions, overallStrategy.`;
+Return ONLY a JSON object with this EXACT structure (no markdown, no code fences):
+{
+  "currentEstimatedPages": ${currentPages},
+  "optimizedEstimatedPages": 1,
+  "reductions": [{ "section": "Experience|Summary|Skills|etc", "original": "original text snippet", "condensed": "condensed version", "wordsRemoved": 12, "strategy": "why this was condensed" }],
+  "removedItems": [{ "section": "Experience|Education|Skills|etc", "item": "name or description of what was removed", "reason": "why it was removed" }],
+  "condensedSummary": "new condensed summary text",
+  "condensedExperience": [{ "id": "original experience id", "description": "condensed description", "achievements": ["condensed achievement 1"] }],
+  "layoutSuggestions": ["tip 1", "tip 2"],
+  "overallStrategy": "brief explanation of the overall condensing approach"
+}`;
 
     const aiResponse = await callAI({
       model: 'google/gemini-2.5-flash',
