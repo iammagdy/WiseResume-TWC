@@ -473,12 +473,15 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                       <Input
                         value={ollamaUrlInput}
                         onChange={(e) => setOllamaUrlInput(e.target.value)}
-                        placeholder="https://your-ollama-server.com"
+                        placeholder="https://api.ollama.com"
                       />
+                      <p className="text-[11px] text-muted-foreground">
+                        Default: https://api.ollama.com (Ollama Cloud)
+                      </p>
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">API Key (optional)</Label>
+                      <Label className="text-xs text-muted-foreground">API Key</Label>
                       <div className="relative">
                         <Input
                           type={showOllamaKey ? 'text' : 'password'}
