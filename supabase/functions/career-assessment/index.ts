@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAI, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient.ts";
+import { callAIWithRetry, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 
 const MAX_BODY_SIZE = 150 * 1024;
@@ -137,20 +137,24 @@ ${resume.projects?.map((p: any) => `- ${p.name}: ${p.description} (Tech: ${(p.te
 Certifications:
 ${resume.certifications?.map((c: any) => `- ${c.name} from ${c.issuer}`).join("\n") || "Not provided"}`;
 
-    const aiResponse = await callAI({
-      model: 'google/gemini-2.5-pro',
+    const aiResponse = await callAIWithRetry({
+      model: 'google/gemini-2.5-flash',
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
       temperature: 0.5,
-      maxTokens: 6000,
+      maxTokens: 8000,
       userId: user.id,
-      timeout: 55_000,
+      timeout: 45_000,
     });
 
-    const result = parseAIJSON(aiResponse.content || '{}');
-    if (!result) throw new Error("Failed to parse career assessment");
+    const rawContent = aiResponse.content || '{}';
+    const result = parseAIJSON(rawContent);
+    if (!result) {
+      console.error("Failed to parse AI response. Raw content:", rawContent.substring(0, 500));
+      throw new Error("Career assessment returned invalid data. Please try again.");
+    }
 
     const sanitized = {
       currentLevel: (result as any).currentLevel || "mid",
