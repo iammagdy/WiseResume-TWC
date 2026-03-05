@@ -529,10 +529,10 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                       <Input
                         value={ollamaUrlInput}
                         onChange={(e) => setOllamaUrlInput(e.target.value)}
-                        placeholder="https://api.ollama.com"
+                        placeholder="https://ollama.com"
                       />
                       <p className="text-[11px] text-muted-foreground">
-                        Default: https://api.ollama.com (Ollama Cloud)
+                        Ollama Cloud: https://ollama.com — or your self-hosted URL
                       </p>
                     </div>
 
