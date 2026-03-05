@@ -17,7 +17,8 @@ export interface AICredits {
 function useIsBYOK(): boolean {
   const aiProvider = useSettingsStore((s) => s.aiProvider);
   const geminiKeyValidated = useSettingsStore((s) => s.geminiKeyValidated);
-  return aiProvider === 'gemini' && geminiKeyValidated;
+  const ollamaKeyValidated = useSettingsStore((s) => s.ollamaKeyValidated);
+  return (aiProvider === 'gemini' && geminiKeyValidated) || (aiProvider === 'ollama' && ollamaKeyValidated);
 }
 
 export function useAICredits() {
