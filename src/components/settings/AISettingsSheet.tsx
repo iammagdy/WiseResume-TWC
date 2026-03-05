@@ -71,6 +71,31 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     const [showOllamaKey, setShowOllamaKey] = useState(false);
     const [isValidatingOllama, setIsValidatingOllama] = useState(false);
 
+    // Usage history
+    interface UsageLog {
+      id: string;
+      action_type: string;
+      metadata: { provider?: string; section?: string; action?: string } | null;
+      created_at: string;
+    }
+    const [usageHistory, setUsageHistory] = useState<UsageLog[]>([]);
+    const [loadingHistory, setLoadingHistory] = useState(false);
+
+    // Load usage history when sheet opens
+    useEffect(() => {
+      if (!open) return;
+      setLoadingHistory(true);
+      supabase
+        .from('ai_usage_logs')
+        .select('id, action_type, metadata, created_at')
+        .order('created_at', { ascending: false })
+        .limit(20)
+        .then(({ data }) => {
+          setUsageHistory((data as UsageLog[]) || []);
+          setLoadingHistory(false);
+        });
+    }, [open]);
+
     const safeProvider = (['wiseresume', 'gemini', 'ollama'] as const).includes(aiProvider as any) 
       ? aiProvider 
       : 'wiseresume';
