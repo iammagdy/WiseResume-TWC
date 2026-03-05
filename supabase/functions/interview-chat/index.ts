@@ -128,7 +128,7 @@ Return JSON with this exact structure: {"title":"exact job title","keySkills":["
       }
 
       // Fix #7: Record usage for analyzeRole path
-      await recordUsage(user.id, 'interview');
+      await recordUsage(user.id, 'interview', { provider: aiResponse.providerUsed || 'unknown' });
 
       return new Response(JSON.stringify({ reply: "Role analyzed", roleAnalysis }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
