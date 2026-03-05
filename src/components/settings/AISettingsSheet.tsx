@@ -286,6 +286,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
           setOllamaBaseUrl(ollamaUrlInput.trim());
           setOllamaModel(ollamaModelInput.trim());
           setOllamaKeyValidated(true);
+          setAIProvider('ollama');
           logAudit('api_key', 'key_saved', { provider: 'ollama' });
           resetFallbackToast();
           haptics.success();

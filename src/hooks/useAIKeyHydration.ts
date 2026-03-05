@@ -34,25 +34,16 @@ export function useAIKeyHydration() {
 
         for (const key of keys) {
           if (key.provider === 'ollama') {
-            // Only hydrate if store doesn't already have validated state with URL
-            if (!store.ollamaKeyValidated || !store.ollamaBaseUrl) {
-              store.setOllamaBaseUrl(key.base_url || '');
-              store.setOllamaModel(key.model || '');
-              store.setOllamaKeyValidated(true);
-              if (store.aiProvider !== 'ollama') {
-                store.setAIProvider('ollama');
-              }
-            }
+            store.setOllamaBaseUrl(key.base_url || '');
+            store.setOllamaModel(key.model || '');
+            store.setOllamaKeyValidated(true);
+            store.setAIProvider('ollama');
           }
 
           if (key.provider === 'gemini') {
-            if (!store.geminiKeyValidated) {
-              store.setGeminiKeyTier(key.key_tier as any);
-              store.setGeminiKeyValidated(true);
-              if (store.aiProvider !== 'gemini') {
-                store.setAIProvider('gemini');
-              }
-            }
+            store.setGeminiKeyTier(key.key_tier as any);
+            store.setGeminiKeyValidated(true);
+            store.setAIProvider('gemini');
           }
         }
 
