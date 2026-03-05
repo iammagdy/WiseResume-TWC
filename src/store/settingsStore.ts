@@ -210,6 +210,12 @@ export const useSettingsStore = create<SettingsState>()(
       },
       resetGeminiDailyUsage: () => set({ geminiDailyUsage: { date: '', count: 0 } }),
       
+      // Ollama Actions
+      setOllamaApiKey: (key) => set({ ollamaApiKey: key, ollamaKeyValidated: false }),
+      setOllamaBaseUrl: (url) => set({ ollamaBaseUrl: url }),
+      setOllamaModel: (model) => set({ ollamaModel: model }),
+      setOllamaKeyValidated: (validated) => set({ ollamaKeyValidated: validated }),
+      
       resetSettings: () => set(defaultSettings),
     }),
     {
