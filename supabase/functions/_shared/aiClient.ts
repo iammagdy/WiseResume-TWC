@@ -231,8 +231,15 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
       } catch (err) {
         console.warn('[AI] Ollama BYOK failed, falling back to Lovable Gateway:', err instanceof Error ? err.message : err);
         if (lovableKey) {
-          const res = await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
-          return { ...res, fallbackUsed: true, fallbackReason: 'ollama_error', providerUsed: 'lovable_fallback' };
+          // Create a fresh controller for the fallback — the original may already be aborted
+          const fallbackController = new AbortController();
+          const fallbackTimeout = setTimeout(() => fallbackController.abort(), timeout);
+          try {
+            const res = await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, fallbackController.signal);
+            return { ...res, fallbackUsed: true, fallbackReason: 'ollama_error', providerUsed: 'lovable_fallback' };
+          } finally {
+            clearTimeout(fallbackTimeout);
+          }
         }
         throw err;
       }
