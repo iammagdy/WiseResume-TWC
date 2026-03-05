@@ -198,14 +198,12 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
 
         if (validationResult?.isValid) {
           // Save key + base_url server-side
-          const { error: saveError } = await edgeFunctions.functions.invoke('manage-api-keys', {
-            body: { 
-              action: 'save', 
-              provider: 'ollama', 
-              apiKey: ollamaKeyInput.trim() || 'ollama-no-key',
-              keyTier: 'paid',
-              baseUrl: ollamaUrlInput.trim(),
-            },
+          await invokeWithAuth('manage-api-keys', { 
+            action: 'save', 
+            provider: 'ollama', 
+            apiKey: ollamaKeyInput.trim() || 'ollama-no-key',
+            keyTier: 'paid',
+            baseUrl: ollamaUrlInput.trim(),
           });
 
           if (saveError) {
