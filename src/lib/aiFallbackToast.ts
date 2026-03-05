@@ -14,8 +14,7 @@ export function checkAIFallback(responseData: unknown): void {
   if (!responseData || typeof responseData !== 'object') return;
   const data = responseData as Record<string, unknown>;
 
-  if (data._fallbackUsed && !hasShownFallbackToast) {
-    hasShownFallbackToast = true;
+  if (data._fallbackUsed) {
 
     const reason = data._fallbackReason;
     let message = 'Your API key failed — using WiseResume AI instead.';

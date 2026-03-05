@@ -148,8 +148,8 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
         toast.info('Add your Gemini API key below to use your own AI');
       }
       if (value === 'ollama' && !ollamaBaseUrl) {
-        setOllamaUrlInput('https://api.ollama.com');
-        setOllamaModelInput('glm-5:cloud');
+        setOllamaUrlInput('https://ollama.com');
+        setOllamaModelInput('');
         toast.info('Enter your Ollama API key below to connect');
       }
     };
@@ -529,10 +529,10 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                       <Input
                         value={ollamaUrlInput}
                         onChange={(e) => setOllamaUrlInput(e.target.value)}
-                        placeholder="https://api.ollama.com"
+                        placeholder="https://ollama.com"
                       />
                       <p className="text-[11px] text-muted-foreground">
-                        Default: https://api.ollama.com (Ollama Cloud)
+                        Ollama Cloud: https://ollama.com — or your self-hosted URL
                       </p>
                     </div>
 
@@ -566,10 +566,15 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                     </div>
                   </div>
 
-                  {ollamaKeyValidated && (
+                  {ollamaKeyValidated ? (
                     <div className="flex items-center gap-2 text-sm text-emerald-500">
                       <CheckCircle2 className="w-4 h-4" />
                       Connected to Ollama server
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-sm text-amber-500">
+                      <AlertCircle className="w-4 h-4" />
+                      Not connected — AI features will use WiseResume AI until validated
                     </div>
                   )}
 
