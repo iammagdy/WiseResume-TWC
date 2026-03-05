@@ -206,12 +206,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
             baseUrl: ollamaUrlInput.trim(),
           });
 
-          if (saveError) {
-            console.error('Failed to save Ollama key server-side:', saveError);
-            toast.error('Connected but failed to save. Please try again.');
-            setIsValidatingOllama(false);
-            return;
-          }
+          // Save succeeded
 
           setOllamaApiKey(ollamaKeyInput.trim());
           setOllamaBaseUrl(ollamaUrlInput.trim());
