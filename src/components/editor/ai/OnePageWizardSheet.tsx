@@ -26,6 +26,7 @@ import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { useAIAction } from '@/hooks/useAIAction';
+import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 
 
 interface OnePageWizardSheetProps {
