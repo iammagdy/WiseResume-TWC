@@ -32,6 +32,8 @@ export interface AICallOptions {
   userId?: string;
   /** Override default timeout in ms */
   timeout?: number;
+  /** Preferred AI provider — if omitted, read from user_preferences table */
+  preferredProvider?: 'gemini' | 'ollama' | 'wiseresume';
 }
 
 export interface AIResponse {
@@ -174,6 +176,31 @@ export async function getUserKeyAndUrlFromDB(userId: string, provider: string): 
 }
 
 /**
+ * Reads the user's preferred AI provider from user_preferences table.
+ * Returns 'gemini', 'ollama', 'wiseresume', or null if not set.
+ */
+async function getUserPreferredProvider(userId: string): Promise<string | null> {
+  try {
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .select('ai_provider')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error || !data?.ai_provider) return null;
+    return data.ai_provider;
+  } catch (err) {
+    console.warn('[aiClient] Failed to fetch user AI provider preference:', err);
+    return null;
+  }
+}
+
+/**
  * Calls AI API (Gemini or Emergent Universal).
  * If userId is provided, attempts to fetch their Gemini key from the DB.
  * Falls back to global GEMINI_API_KEY env var, then EMERGENT_LLM_KEY.
@@ -188,10 +215,15 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
   let userGeminiKey: string | undefined;
   let userOllamaData: { key: string; baseUrl: string | null; model: string | null } | undefined;
   if (userId) {
-    // Check for Ollama key first
-    userOllamaData = await getUserKeyAndUrlFromDB(userId, 'ollama');
-    if (!userOllamaData) {
+    // Read user's preferred provider from user_preferences table
+    const preferredProvider = options.preferredProvider || await getUserPreferredProvider(userId);
+    
+    if (preferredProvider === 'ollama') {
+      userOllamaData = await getUserKeyAndUrlFromDB(userId, 'ollama');
+    } else if (preferredProvider === 'gemini') {
       userGeminiKey = await getUserKeyFromDB(userId);
+    } else {
+      // No preference or 'wiseresume': skip BYOK, use Lovable Gateway
     }
   }
   if (!userGeminiKey && !userOllamaData && options.userGeminiKey) {
