@@ -7,7 +7,7 @@ export interface AIHealthData {
   status: AIHealthStatus;
   latencyMs: number | null;
   lastChecked: Date | null;
-  provider: 'wiseresume' | 'gemini';
+  provider: 'wiseresume' | 'gemini' | 'ollama';
   errorCode: number | null;
 }
 
