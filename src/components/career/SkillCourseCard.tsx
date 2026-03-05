@@ -5,7 +5,6 @@ import { SkillGap } from '@/lib/careerPath';
 import { cn } from '@/lib/utils';
 import { AlertTriangle, CheckCircle2, ExternalLink, Info, Youtube } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
-import { openExternal } from '@/lib/openExternal';
 
 interface Props {
   gap: SkillGap;
@@ -23,11 +22,7 @@ export function SkillCourseCard({ gap, isCompleted, onToggleComplete }: Props) {
   const config = priorityConfig[gap.priority];
   const Icon = config.icon;
 
-  const handleFindCourses = () => {
-    haptics.light();
-    const query = gap.youtubeQuery || `${gap.skill} full course free 2025`;
-    openExternal(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`);
-  };
+  const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(gap.youtubeQuery || `${gap.skill} full course free 2025`)}`;
 
   return (
     <div className={cn('rounded-xl border p-3 space-y-2 transition-all', isCompleted && 'opacity-60', config.bg)}>
@@ -58,12 +53,19 @@ export function SkillCourseCard({ gap, isCompleted, onToggleComplete }: Props) {
       <Button
         variant="outline"
         size="sm"
-        onClick={handleFindCourses}
+        asChild
         className="w-full h-8 text-xs gap-1.5 bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800/30 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/40"
       >
-        <Youtube className="w-3.5 h-3.5" />
-        Find Free Courses
-        <ExternalLink className="w-3 h-3 ml-auto" />
+        <a
+          href={youtubeUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => haptics.light()}
+        >
+          <Youtube className="w-3.5 h-3.5" />
+          Find Free Courses
+          <ExternalLink className="w-3 h-3 ml-auto" />
+        </a>
       </Button>
     </div>
   );
