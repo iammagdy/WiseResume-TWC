@@ -347,7 +347,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                     <Badge variant="outline" className="text-xs">Cloud API</Badge>
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Connect to your Ollama cloud server with API key.
+                    Use your Ollama API key from ollama.com.
                   </p>
                 </div>
               </motion.div>
