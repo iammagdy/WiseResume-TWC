@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { SkillGap } from '@/lib/careerPath';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, CheckCircle2, Code2, ExternalLink, GraduationCap, Info, Search, Youtube } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Code2, ExternalLink, GraduationCap, Info, Search, Youtube, Copy } from 'lucide-react';
+import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
@@ -32,14 +33,19 @@ async function openUrl(url: string) {
   haptics.light();
   if (Capacitor.isNativePlatform()) {
     await Browser.open({ url });
-  } else {
-    const a = document.createElement('a');
-    a.href = url;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    return;
+  }
+
+  // Try window.open first
+  const win = window.open(url, '_blank', 'noopener,noreferrer');
+  if (win) return;
+
+  // Fallback: copy URL to clipboard and notify user
+  try {
+    await navigator.clipboard.writeText(url);
+    toast.success('Link copied! Paste in your browser to open it.');
+  } catch {
+    prompt('Copy this link to open it:', url);
   }
 }
 
