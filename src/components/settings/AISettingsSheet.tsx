@@ -201,6 +201,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
               apiKey: ollamaKeyInput.trim() || 'ollama-no-key',
               keyTier: 'paid',
               baseUrl: ollamaUrlInput.trim(),
+              model: ollamaModelInput.trim(),
             },
           });
 
