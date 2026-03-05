@@ -506,7 +506,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                       <Input
                         value={ollamaModelInput}
                         onChange={(e) => setOllamaModelInput(e.target.value)}
-                        placeholder="e.g. llama3.1, mistral, qwen2.5"
+                        placeholder="e.g. glm-5:cloud, llama3.1, mistral"
                       />
                     </div>
                   </div>
