@@ -235,9 +235,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     const handleClearOllama = async () => {
       haptics.light();
       try {
-        await edgeFunctions.functions.invoke('manage-api-keys', {
-          body: { action: 'delete', provider: 'ollama' },
-        });
+        await invokeWithAuth('manage-api-keys', { action: 'delete', provider: 'ollama' });
         logAudit('api_key', 'key_deleted', { provider: 'ollama' });
       } catch (e) {
         console.error('Failed to delete Ollama key server-side:', e);
