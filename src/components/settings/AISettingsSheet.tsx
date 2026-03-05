@@ -135,7 +135,9 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       if (open) {
         setKeyInput(geminiApiKey);
         setOllamaKeyInput(ollamaApiKey);
-        if (ollamaBaseUrl) setOllamaUrlInput(ollamaBaseUrl);
+        // Auto-correct legacy api.ollama.com → ollama.com
+        const correctedUrl = ollamaBaseUrl?.replace(/api\.ollama\.com/i, 'ollama.com') || '';
+        if (correctedUrl) setOllamaUrlInput(correctedUrl);
         if (ollamaModel) setOllamaModelInput(ollamaModel);
       }
     }, [open, geminiApiKey, ollamaApiKey, ollamaBaseUrl, ollamaModel]);

@@ -367,6 +367,10 @@ export function sanitizeInputText(text: string, maxChars = 15_000): string {
 /**
  * Calls an Ollama-compatible API (OpenAI-compatible endpoint)
  */
+function isOllamaCloud(url: string): boolean {
+  return /ollama\.com/i.test(url);
+}
+
 async function callOllamaDirect(
   apiKey: string,
   baseUrl: string,
@@ -380,20 +384,32 @@ async function callOllamaDirect(
 ): Promise<AIResponse> {
   // Normalize base URL
   const cleanUrl = baseUrl.replace(/\/+$/, '');
-  const endpoint = `${cleanUrl}/v1/chat/completions`;
-
-  const body: Record<string, unknown> = { model, messages, temperature };
-  if (maxTokens) body.max_tokens = maxTokens;
-  if (tools && tools.length > 0) {
-    body.tools = tools;
-    if (toolChoice) body.tool_choice = toolChoice;
-  }
+  const useNativeApi = isOllamaCloud(cleanUrl);
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
   if (apiKey) {
     headers['Authorization'] = `Bearer ${apiKey}`;
+  }
+
+  let endpoint: string;
+  let body: Record<string, unknown>;
+
+  if (useNativeApi) {
+    // Native Ollama API (ollama.com): POST /api/chat
+    endpoint = `${cleanUrl}/api/chat`;
+    body = { model, messages, stream: false };
+    // Native Ollama doesn't support tools via /api/chat the same way
+  } else {
+    // OpenAI-compatible (self-hosted): POST /v1/chat/completions
+    endpoint = `${cleanUrl}/v1/chat/completions`;
+    body = { model, messages, temperature };
+    if (maxTokens) body.max_tokens = maxTokens;
+    if (tools && tools.length > 0) {
+      body.tools = tools;
+      if (toolChoice) body.tool_choice = toolChoice;
+    }
   }
 
   const response = await fetch(endpoint, {
@@ -423,6 +439,19 @@ async function callOllamaDirect(
   }
 
   const data = await response.json();
+
+  // Parse native Ollama response format
+  if (useNativeApi && data.message) {
+    return {
+      content: data.message.content || null,
+      usage: data.eval_count ? {
+        promptTokens: data.prompt_eval_count || 0,
+        completionTokens: data.eval_count || 0,
+      } : undefined,
+      providerUsed: 'ollama-native',
+    };
+  }
+
   return parseOpenAIResponse(data);
 }
 
