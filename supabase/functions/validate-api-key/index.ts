@@ -71,7 +71,12 @@ Deno.serve(async (req) => {
 
         if (!modelsResponse.ok) {
           const errText = await modelsResponse.text();
-          return new Response(JSON.stringify({ isValid: false, error: `Connection failed: HTTP ${modelsResponse.status} - ${errText.slice(0, 200)}` }), {
+          const status = modelsResponse.status;
+          let hint = '';
+          if (status === 401 || status === 403) {
+            hint = ' Check your API key and ensure the URL is correct (Ollama Cloud uses https://ollama.com).';
+          }
+          return new Response(JSON.stringify({ isValid: false, error: `Connection failed: HTTP ${status} - ${errText.slice(0, 150)}.${hint}` }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }

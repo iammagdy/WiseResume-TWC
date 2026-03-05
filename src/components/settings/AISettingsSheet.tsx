@@ -566,10 +566,15 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                     </div>
                   </div>
 
-                  {ollamaKeyValidated && (
+                  {ollamaKeyValidated ? (
                     <div className="flex items-center gap-2 text-sm text-emerald-500">
                       <CheckCircle2 className="w-4 h-4" />
                       Connected to Ollama server
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-sm text-amber-500">
+                      <AlertCircle className="w-4 h-4" />
+                      Not connected — AI features will use WiseResume AI until validated
                     </div>
                   )}
 
