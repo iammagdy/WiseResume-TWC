@@ -220,7 +220,10 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
 
     // Priority 2: User BYOK Ollama key — use stored model name
     if (userOllamaData && userOllamaData.baseUrl) {
-      const ollamaModel = userOllamaData.model || model;
+      const ollamaModel = userOllamaData.model;
+      if (!ollamaModel) {
+        throw createAIError('invalid_key', 'No Ollama model selected. Please choose a model in AI Settings.', 400);
+      }
       console.log('[AI] Using user BYOK Ollama key at:', userOllamaData.baseUrl, 'model:', ollamaModel);
       try {
         const res = await callOllamaDirect(userOllamaData.key, userOllamaData.baseUrl, ollamaModel, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
