@@ -531,7 +531,9 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                       Ollama Configuration
                     </div>
                     {ollamaKeyValidated && (
-                      <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Connected</Badge>
+                      <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                        Connected{ollamaAvailableModels.length > 0 ? ` · ${ollamaAvailableModels.length} models` : ''}
+                      </Badge>
                     )}
                   </div>
 
