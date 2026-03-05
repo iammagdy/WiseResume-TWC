@@ -291,11 +291,13 @@ export function OnePageWizardSheet({ open, onOpenChange, onExportOnePage }: OneP
                       <div key={i} className="p-3 rounded-xl border border-border space-y-2">
                         <div className="flex items-center justify-between">
                           <Badge variant="secondary" className="capitalize">
-                            {reduction.section}
+                            {reduction.section || 'Content'}
                           </Badge>
-                          <span className="text-xs text-success">
-                            -{reduction.wordsRemoved} words
-                          </span>
+                          {reduction.wordsRemoved != null && (
+                            <span className="text-xs text-success">
+                              -{reduction.wordsRemoved} words
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-muted-foreground">{reduction.strategy}</p>
                       </div>
