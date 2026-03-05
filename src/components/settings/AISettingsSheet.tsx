@@ -131,8 +131,8 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       haptics.light();
 
       try {
-        const { data: validationResult, error: validationError } = await edgeFunctions.functions.invoke('validate-api-key', {
-          body: { apiKey: keyInput.trim(), provider: 'gemini' },
+        const validationResult = await invokeWithAuth('validate-api-key', {
+          apiKey: keyInput.trim(), provider: 'gemini',
         });
 
         if (validationError) {
