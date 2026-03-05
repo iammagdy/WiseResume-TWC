@@ -196,14 +196,6 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
           model: ollamaModelInput.trim(),
         });
 
-        if (validationError) {
-          haptics.error();
-          toast.error('Failed to connect. Please check your URL.');
-          setOllamaKeyValidated(false);
-          setIsValidatingOllama(false);
-          return;
-        }
-
         if (validationResult?.isValid) {
           // Save key + base_url server-side
           const { error: saveError } = await edgeFunctions.functions.invoke('manage-api-keys', {
