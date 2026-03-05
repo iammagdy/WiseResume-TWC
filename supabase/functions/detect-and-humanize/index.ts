@@ -87,7 +87,7 @@ ${text}
       });
 
       result.detection = parseAIJSON(detectResponse.content || '{}');
-    }
+      lastProviderUsed = detectResponse.providerUsed;
 
     // Humanization
     if (action === 'humanize' || action === 'both') {
