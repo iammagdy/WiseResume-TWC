@@ -83,8 +83,9 @@ export function useAICreditsMutations() {
     mutationFn: async () => {
       if (!user) throw new Error('Not authenticated');
       // BYOK: skip credit deduction — read fresh state to avoid stale closures
-      const { aiProvider, geminiKeyValidated } = useSettingsStore.getState();
+      const { aiProvider, geminiKeyValidated, ollamaKeyValidated } = useSettingsStore.getState();
       if (aiProvider === 'gemini' && geminiKeyValidated) return;
+      if (aiProvider === 'ollama' && ollamaKeyValidated) return;
 
       const { error } = await supabase.rpc('increment_ai_usage', {
         p_user_id: user.id,
