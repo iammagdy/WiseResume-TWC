@@ -189,13 +189,11 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       haptics.light();
 
       try {
-        const { data: validationResult, error: validationError } = await edgeFunctions.functions.invoke('validate-api-key', {
-          body: { 
-            apiKey: ollamaKeyInput.trim() || 'ollama-no-key', 
-            provider: 'ollama',
-            baseUrl: ollamaUrlInput.trim(),
-            model: ollamaModelInput.trim(),
-          },
+        const validationResult = await invokeWithAuth('validate-api-key', { 
+          apiKey: ollamaKeyInput.trim() || 'ollama-no-key', 
+          provider: 'ollama',
+          baseUrl: ollamaUrlInput.trim(),
+          model: ollamaModelInput.trim(),
         });
 
         if (validationError) {
