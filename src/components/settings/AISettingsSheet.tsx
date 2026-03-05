@@ -136,8 +136,8 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
         });
 
         if (validationResult?.isValid) {
-          const { error: saveError } = await edgeFunctions.functions.invoke('manage-api-keys', {
-            body: { action: 'save', provider: 'gemini', apiKey: keyInput.trim(), tier: validationResult.tier },
+          await invokeWithAuth('manage-api-keys', {
+            action: 'save', provider: 'gemini', apiKey: keyInput.trim(), tier: validationResult.tier,
           });
 
           if (saveError) {
