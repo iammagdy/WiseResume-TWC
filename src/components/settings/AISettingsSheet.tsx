@@ -135,14 +135,6 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
           apiKey: keyInput.trim(), provider: 'gemini',
         });
 
-        if (validationError) {
-          haptics.error();
-          toast.error('Failed to validate key. Please try again.');
-          setGeminiKeyValidated(false);
-          setIsValidating(false);
-          return;
-        }
-
         if (validationResult?.isValid) {
           const { error: saveError } = await edgeFunctions.functions.invoke('manage-api-keys', {
             body: { action: 'save', provider: 'gemini', apiKey: keyInput.trim(), tier: validationResult.tier },
