@@ -52,6 +52,8 @@ export interface AIResponse {
   fallbackUsed?: boolean;
   /** Reason for fallback (e.g. 'quota_exceeded', 'rate_limit', 'invalid_key') */
   fallbackReason?: string;
+  /** Which provider actually handled this request */
+  providerUsed?: string;
 }
 
 export interface AIError {
