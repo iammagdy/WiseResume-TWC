@@ -90,7 +90,8 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
         toast.info('Add your Gemini API key below to use your own AI');
       }
       if (value === 'ollama' && !ollamaBaseUrl) {
-        toast.info('Add your Ollama server URL and API key below');
+        setOllamaUrlInput('https://api.ollama.com');
+        toast.info('Enter your Ollama API key below to connect');
       }
     };
 
