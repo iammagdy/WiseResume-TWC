@@ -92,8 +92,13 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
   const { user } = useAuth();
   const { data: resumes } = useResumes({ select: (data) => data.slice(0, 1) });
   const { hasNew, markSeen } = useChangelogBadge();
+  const { data: careerAssessment } = useCareerAssessment();
   const pendingCount = useOfflineSyncStore(s => s.pendingChanges.length);
   const prefersReducedMotion = useReducedMotion();
+
+  // Career plan has incomplete skill gaps
+  const hasCareerReminder = !!careerAssessment?.result?.skillGaps?.length &&
+    careerAssessment.completed_milestones.filter((m: string) => m.startsWith('skill:')).length < careerAssessment.result.skillGaps.length;
 
   // First-visit discovery dots — gated by progressive disclosure
   const showDots = shouldShowDiscovery('discovery-dots');
