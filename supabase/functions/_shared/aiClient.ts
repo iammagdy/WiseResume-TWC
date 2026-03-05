@@ -130,13 +130,41 @@ export async function getUserKeyFromDB(userId: string, provider = 'gemini'): Pro
 
     const { data, error } = await supabase
       .from('user_api_keys')
-      .select('encrypted_key')
+      .select('encrypted_key, base_url')
       .eq('user_id', userId)
       .eq('provider', provider)
       .maybeSingle();
 
     if (error || !data?.encrypted_key) return undefined;
     return await decryptKey(data.encrypted_key);
+  } catch (err) {
+    console.warn('[aiClient] Failed to fetch user key from DB:', err);
+    return undefined;
+  }
+}
+
+/**
+ * Fetches a user's API key + base_url from the database (decrypted).
+ */
+export async function getUserKeyAndUrlFromDB(userId: string, provider: string): Promise<{ key: string; baseUrl: string | null } | undefined> {
+  if (!ENCRYPTION_SECRET) return undefined;
+
+  try {
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    const { data, error } = await supabase
+      .from('user_api_keys')
+      .select('encrypted_key, base_url')
+      .eq('user_id', userId)
+      .eq('provider', provider)
+      .maybeSingle();
+
+    if (error || !data?.encrypted_key) return undefined;
+    const key = await decryptKey(data.encrypted_key);
+    return { key, baseUrl: data.base_url ?? null };
   } catch (err) {
     console.warn('[aiClient] Failed to fetch user key from DB:', err);
     return undefined;
@@ -154,12 +182,17 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
   // Lovable AI Gateway (primary)
   const lovableKey = Deno.env.get('LOVABLE_API_KEY');
 
-  // Resolve user BYOK Gemini key only if userId provided
+  // Resolve user BYOK keys only if userId provided
   let userGeminiKey: string | undefined;
+  let userOllamaData: { key: string; baseUrl: string | null } | undefined;
   if (userId) {
-    userGeminiKey = await getUserKeyFromDB(userId);
+    // Check for Ollama key first
+    userOllamaData = await getUserKeyAndUrlFromDB(userId, 'ollama');
+    if (!userOllamaData) {
+      userGeminiKey = await getUserKeyFromDB(userId);
+    }
   }
-  if (!userGeminiKey && options.userGeminiKey) {
+  if (!userGeminiKey && !userOllamaData && options.userGeminiKey) {
     userGeminiKey = options.userGeminiKey; // deprecated body param
   }
 
@@ -167,7 +200,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
   const globalGeminiKey = Deno.env.get('GEMINI_API_KEY');
   const emergentKey = Deno.env.get('EMERGENT_LLM_KEY');
 
-  if (!lovableKey && !userGeminiKey && !globalGeminiKey && !emergentKey) {
+  if (!lovableKey && !userGeminiKey && !userOllamaData && !globalGeminiKey && !emergentKey) {
     console.error('[AI] No API key available');
     throw createAIError('invalid_key', 'No AI API key configured. Please add your API key in Settings.', 500);
   }
@@ -176,25 +209,53 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
-    // Priority 1: Lovable AI Gateway (always first)
+    // Priority 1: Lovable AI Gateway (always first — unless user has BYOK)
+    if (lovableKey && !userOllamaData && !userGeminiKey) {
+      console.log('[AI] Using Lovable AI Gateway for model:', model);
+      return await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+    }
+
+    // Priority 2: User BYOK Ollama key
+    if (userOllamaData && userOllamaData.baseUrl) {
+      console.log('[AI] Using user BYOK Ollama key at:', userOllamaData.baseUrl);
+      try {
+        return await callOllamaDirect(userOllamaData.key, userOllamaData.baseUrl, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+      } catch (err) {
+        console.warn('[AI] Ollama BYOK failed, falling back to Lovable Gateway:', err instanceof Error ? err.message : err);
+        if (lovableKey) {
+          return { ...(await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal)), fallbackUsed: true, fallbackReason: 'ollama_error' };
+        }
+        throw err;
+      }
+    }
+
+    // Priority 3: User BYOK Gemini key (fallback)
+    if (userGeminiKey) {
+      console.log('[AI] Using user BYOK Gemini key for model:', model);
+      try {
+        return await callGeminiDirect(userGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+      } catch (err) {
+        console.warn('[AI] Gemini BYOK failed, falling back to Lovable Gateway:', err instanceof Error ? err.message : err);
+        if (lovableKey) {
+          return { ...(await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal)), fallbackUsed: true, fallbackReason: 'gemini_error' };
+        }
+        throw err;
+      }
+    }
+
+    // Priority 4: Lovable Gateway (if we have BYOK but it was skipped)
     if (lovableKey) {
       console.log('[AI] Using Lovable AI Gateway for model:', model);
       return await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
     }
 
-    // Priority 2: User BYOK Gemini key (fallback)
-    if (userGeminiKey) {
-      console.log('[AI] Using user BYOK Gemini key for model:', model);
-      return await callGeminiDirect(userGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
-    }
-
-    // Priority 3: Global GEMINI_API_KEY (legacy)
+    // Priority 5: Global GEMINI_API_KEY (legacy)
     if (globalGeminiKey) {
       console.log('[AI] Using global GEMINI_API_KEY for model:', model);
       return await callGeminiDirect(globalGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
     }
 
-    // Priority 4: Emergent Universal API (legacy)
+    // Priority 6: Emergent Universal API (legacy)
     console.log('[AI] Using Emergent Universal Key for model:', model);
     return await callEmergentUniversal(emergentKey!, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
   } catch (error) {
@@ -290,6 +351,68 @@ export function sanitizeInputText(text: string, maxChars = 15_000): string {
   }
 
   return truncated;
+}
+
+/**
+ * Calls an Ollama-compatible API (OpenAI-compatible endpoint)
+ */
+async function callOllamaDirect(
+  apiKey: string,
+  baseUrl: string,
+  model: string,
+  messages: AIMessage[],
+  temperature: number,
+  maxTokens?: number,
+  tools?: AITool[],
+  toolChoice?: { type: 'function'; function: { name: string } } | 'auto',
+  signal?: AbortSignal
+): Promise<AIResponse> {
+  // Normalize base URL
+  const cleanUrl = baseUrl.replace(/\/+$/, '');
+  const endpoint = `${cleanUrl}/v1/chat/completions`;
+
+  const body: Record<string, unknown> = { model, messages, temperature };
+  if (maxTokens) body.max_tokens = maxTokens;
+  if (tools && tools.length > 0) {
+    body.tools = tools;
+    if (toolChoice) body.tool_choice = toolChoice;
+  }
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (apiKey) {
+    headers['Authorization'] = `Bearer ${apiKey}`;
+  }
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+    signal,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Ollama API error:', response.status, errorText);
+
+    let errorMessage = 'Ollama request failed';
+    try {
+      const parsed = JSON.parse(errorText);
+      errorMessage = parsed.error?.message || parsed.error || errorMessage;
+    } catch {}
+
+    if (response.status === 401 || response.status === 403) {
+      throw createAIError('invalid_key', 'Invalid Ollama API key. Please check your settings.', 401);
+    }
+    if (response.status === 429) {
+      throw createAIError('rate_limit', 'Ollama rate limit reached. Please wait.', 429);
+    }
+    throw createAIError('unknown', errorMessage, response.status);
+  }
+
+  const data = await response.json();
+  return parseOpenAIResponse(data);
 }
 
 /**

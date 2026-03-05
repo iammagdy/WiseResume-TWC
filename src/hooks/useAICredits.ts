@@ -17,7 +17,8 @@ export interface AICredits {
 function useIsBYOK(): boolean {
   const aiProvider = useSettingsStore((s) => s.aiProvider);
   const geminiKeyValidated = useSettingsStore((s) => s.geminiKeyValidated);
-  return aiProvider === 'gemini' && geminiKeyValidated;
+  const ollamaKeyValidated = useSettingsStore((s) => s.ollamaKeyValidated);
+  return (aiProvider === 'gemini' && geminiKeyValidated) || (aiProvider === 'ollama' && ollamaKeyValidated);
 }
 
 export function useAICredits() {
@@ -82,8 +83,9 @@ export function useAICreditsMutations() {
     mutationFn: async () => {
       if (!user) throw new Error('Not authenticated');
       // BYOK: skip credit deduction — read fresh state to avoid stale closures
-      const { aiProvider, geminiKeyValidated } = useSettingsStore.getState();
+      const { aiProvider, geminiKeyValidated, ollamaKeyValidated } = useSettingsStore.getState();
       if (aiProvider === 'gemini' && geminiKeyValidated) return;
+      if (aiProvider === 'ollama' && ollamaKeyValidated) return;
 
       const { error } = await supabase.rpc('increment_ai_usage', {
         p_user_id: user.id,
@@ -100,8 +102,9 @@ export function useAICreditsMutations() {
   const checkCredits = async (): Promise<boolean> => {
     if (!user) return true;
     // Read fresh state to avoid stale closures after provider switch
-    const { aiProvider, geminiKeyValidated } = useSettingsStore.getState();
+    const { aiProvider, geminiKeyValidated, ollamaKeyValidated } = useSettingsStore.getState();
     if (aiProvider === 'gemini' && geminiKeyValidated) return true;
+    if (aiProvider === 'ollama' && ollamaKeyValidated) return true;
 
     const { data } = await supabase
       .from('ai_credits')

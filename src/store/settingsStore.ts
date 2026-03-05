@@ -7,7 +7,7 @@ export type AutoSaveToastMode = 'always' | 'errors-only';
 export type AITipFrequency = 'daily' | 'weekly' | 'on-demand';
 
 // AI Provider types
-export type AIProvider = 'wiseresume' | 'gemini';
+export type AIProvider = 'wiseresume' | 'gemini' | 'ollama';
 export type GeminiKeyTier = 'free' | 'paid' | 'unknown';
 
 interface GeminiDailyUsage {
@@ -61,6 +61,12 @@ interface SettingsState {
   geminiKeyValidated: boolean;
   geminiDailyUsage: GeminiDailyUsage;
   
+  // Ollama Provider Settings (in-memory only, keys stored server-side)
+  ollamaApiKey: string;
+  ollamaBaseUrl: string;
+  ollamaModel: string;
+  ollamaKeyValidated: boolean;
+  
   // Actions
   setShowAutoSaveToasts: (value: boolean) => void;
   setAutoSaveToastMode: (mode: AutoSaveToastMode) => void;
@@ -94,6 +100,12 @@ interface SettingsState {
   setGeminiKeyValidated: (validated: boolean) => void;
   incrementGeminiDailyUsage: () => void;
   resetGeminiDailyUsage: () => void;
+  
+  // Ollama Actions
+  setOllamaApiKey: (key: string) => void;
+  setOllamaBaseUrl: (url: string) => void;
+  setOllamaModel: (model: string) => void;
+  setOllamaKeyValidated: (validated: boolean) => void;
   
   resetSettings: () => void;
 }
@@ -132,6 +144,11 @@ const defaultSettings = {
   geminiKeyTier: 'unknown' as GeminiKeyTier,
   geminiKeyValidated: false,
   geminiDailyUsage: { date: '', count: 0 } as GeminiDailyUsage,
+  // Ollama defaults
+  ollamaApiKey: '',
+  ollamaBaseUrl: '',
+  ollamaModel: '',
+  ollamaKeyValidated: false,
 };
 
 // Helper to get Pacific midnight reset
@@ -193,6 +210,12 @@ export const useSettingsStore = create<SettingsState>()(
       },
       resetGeminiDailyUsage: () => set({ geminiDailyUsage: { date: '', count: 0 } }),
       
+      // Ollama Actions
+      setOllamaApiKey: (key) => set({ ollamaApiKey: key, ollamaKeyValidated: false }),
+      setOllamaBaseUrl: (url) => set({ ollamaBaseUrl: url }),
+      setOllamaModel: (model) => set({ ollamaModel: model }),
+      setOllamaKeyValidated: (validated) => set({ ollamaKeyValidated: validated }),
+      
       resetSettings: () => set(defaultSettings),
     }),
     {
@@ -200,7 +223,7 @@ export const useSettingsStore = create<SettingsState>()(
       partialize: (state) => {
         // Exclude sensitive keys from localStorage persistence
         // Keys are now stored server-side via manage-api-keys edge function
-        const { geminiApiKey, elevenlabsApiKey, ...rest } = state;
+        const { geminiApiKey, elevenlabsApiKey, ollamaApiKey, ...rest } = state;
         return rest;
       },
     }

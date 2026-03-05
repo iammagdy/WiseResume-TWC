@@ -18,6 +18,7 @@ export function useAIProviderInfo(): AIProviderInfo {
   const aiProvider = useSettingsStore((s) => s.aiProvider);
   const geminiKeyTier = useSettingsStore((s) => s.geminiKeyTier);
   const geminiKeyValidated = useSettingsStore((s) => s.geminiKeyValidated);
+  const ollamaKeyValidated = useSettingsStore((s) => s.ollamaKeyValidated);
 
   if (aiProvider === 'wiseresume') {
     return {
@@ -27,6 +28,17 @@ export function useAIProviderInfo(): AIProviderInfo {
       tier: 'default',
       tierLabel: '',
       isValidated: true,
+    };
+  }
+
+  if (aiProvider === 'ollama') {
+    return {
+      provider: 'ollama',
+      name: 'Ollama',
+      isCustomKey: true,
+      tier: ollamaKeyValidated ? 'paid' : 'free',
+      tierLabel: ollamaKeyValidated ? 'Connected' : 'Not Configured',
+      isValidated: ollamaKeyValidated,
     };
   }
 

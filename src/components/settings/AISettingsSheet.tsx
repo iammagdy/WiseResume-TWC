@@ -17,7 +17,8 @@ import {
   Eye, 
   EyeOff, 
   Info, 
-  Loader2 
+  Loader2,
+  Server,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSettingsStore, AIProvider, GeminiKeyTier } from '@/store/settingsStore';
@@ -45,22 +46,41 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       geminiKeyValidated,
       setGeminiKeyValidated,
       geminiDailyUsage,
+      // Ollama
+      ollamaApiKey,
+      setOllamaApiKey,
+      ollamaBaseUrl,
+      setOllamaBaseUrl,
+      ollamaModel,
+      setOllamaModel,
+      ollamaKeyValidated,
+      setOllamaKeyValidated,
     } = useSettingsStore();
 
     const [showKey, setShowKey] = useState(false);
     const [keyInput, setKeyInput] = useState(geminiApiKey);
     const [isValidating, setIsValidating] = useState(false);
 
-    const safeProvider = (aiProvider === 'wiseresume' || aiProvider === 'gemini') 
+    // Ollama local state
+    const [ollamaKeyInput, setOllamaKeyInput] = useState(ollamaApiKey);
+    const [ollamaUrlInput, setOllamaUrlInput] = useState(ollamaBaseUrl);
+    const [ollamaModelInput, setOllamaModelInput] = useState(ollamaModel);
+    const [showOllamaKey, setShowOllamaKey] = useState(false);
+    const [isValidatingOllama, setIsValidatingOllama] = useState(false);
+
+    const safeProvider = (['wiseresume', 'gemini', 'ollama'] as const).includes(aiProvider as any) 
       ? aiProvider 
       : 'wiseresume';
 
-    // Sync keyInput when sheet opens
+    // Sync inputs when sheet opens
     useEffect(() => {
       if (open) {
         setKeyInput(geminiApiKey);
+        setOllamaKeyInput(ollamaApiKey);
+        setOllamaUrlInput(ollamaBaseUrl);
+        setOllamaModelInput(ollamaModel);
       }
-    }, [open, geminiApiKey]);
+    }, [open, geminiApiKey, ollamaApiKey, ollamaBaseUrl, ollamaModel]);
 
     const handleProviderChange = (value: string) => {
       haptics.selection();
@@ -68,6 +88,9 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       
       if (value === 'gemini' && !geminiApiKey) {
         toast.info('Add your Gemini API key below to use your own AI');
+      }
+      if (value === 'ollama' && !ollamaBaseUrl) {
+        toast.info('Add your Ollama server URL and API key below');
       }
     };
 
@@ -81,7 +104,6 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       haptics.light();
 
       try {
-        // Validate server-side via edge function (key never exposed in browser network)
         const { data: validationResult, error: validationError } = await edgeFunctions.functions.invoke('validate-api-key', {
           body: { apiKey: keyInput.trim(), provider: 'gemini' },
         });
@@ -95,7 +117,6 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
         }
 
         if (validationResult?.isValid) {
-          // Save key server-side via manage-api-keys edge function
           const { error: saveError } = await edgeFunctions.functions.invoke('manage-api-keys', {
             body: { action: 'save', provider: 'gemini', apiKey: keyInput.trim(), tier: validationResult.tier },
           });
@@ -130,7 +151,6 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
 
     const handleClearKey = async () => {
       haptics.light();
-      // Delete key server-side
       try {
         await edgeFunctions.functions.invoke('manage-api-keys', {
           body: { action: 'delete', provider: 'gemini' },
@@ -144,6 +164,97 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       setGeminiKeyTier('unknown');
       setGeminiKeyValidated(false);
       toast.success('API key removed');
+    };
+
+    // ===== Ollama handlers =====
+    const handleValidateOllama = async () => {
+      if (!ollamaUrlInput.trim()) {
+        toast.error('Please enter your Ollama server URL');
+        return;
+      }
+
+      setIsValidatingOllama(true);
+      haptics.light();
+
+      try {
+        const { data: validationResult, error: validationError } = await edgeFunctions.functions.invoke('validate-api-key', {
+          body: { 
+            apiKey: ollamaKeyInput.trim() || 'ollama-no-key', 
+            provider: 'ollama',
+            baseUrl: ollamaUrlInput.trim(),
+            model: ollamaModelInput.trim(),
+          },
+        });
+
+        if (validationError) {
+          haptics.error();
+          toast.error('Failed to connect. Please check your URL.');
+          setOllamaKeyValidated(false);
+          setIsValidatingOllama(false);
+          return;
+        }
+
+        if (validationResult?.isValid) {
+          // Save key + base_url server-side
+          const { error: saveError } = await edgeFunctions.functions.invoke('manage-api-keys', {
+            body: { 
+              action: 'save', 
+              provider: 'ollama', 
+              apiKey: ollamaKeyInput.trim() || 'ollama-no-key',
+              keyTier: 'paid',
+              baseUrl: ollamaUrlInput.trim(),
+            },
+          });
+
+          if (saveError) {
+            console.error('Failed to save Ollama key server-side:', saveError);
+            toast.error('Connected but failed to save. Please try again.');
+            setIsValidatingOllama(false);
+            return;
+          }
+
+          setOllamaApiKey(ollamaKeyInput.trim());
+          setOllamaBaseUrl(ollamaUrlInput.trim());
+          setOllamaModel(ollamaModelInput.trim());
+          setOllamaKeyValidated(true);
+          logAudit('api_key', 'key_saved', { provider: 'ollama' });
+          resetFallbackToast();
+          haptics.success();
+          
+          const modelCount = validationResult.availableModels?.length || 0;
+          toast.success(`Ollama connected! ${modelCount} model${modelCount !== 1 ? 's' : ''} available.`);
+        } else {
+          haptics.error();
+          toast.error(validationResult?.error || 'Cannot connect to Ollama server');
+          setOllamaKeyValidated(false);
+        }
+      } catch (error) {
+        haptics.error();
+        toast.error('Failed to connect. Please check your URL and try again.');
+        setOllamaKeyValidated(false);
+      } finally {
+        setIsValidatingOllama(false);
+      }
+    };
+
+    const handleClearOllama = async () => {
+      haptics.light();
+      try {
+        await edgeFunctions.functions.invoke('manage-api-keys', {
+          body: { action: 'delete', provider: 'ollama' },
+        });
+        logAudit('api_key', 'key_deleted', { provider: 'ollama' });
+      } catch (e) {
+        console.error('Failed to delete Ollama key server-side:', e);
+      }
+      setOllamaKeyInput('');
+      setOllamaUrlInput('');
+      setOllamaModelInput('');
+      setOllamaApiKey('');
+      setOllamaBaseUrl('');
+      setOllamaModel('');
+      setOllamaKeyValidated(false);
+      toast.success('Ollama configuration removed');
     };
 
     const getTierBadge = (tier: GeminiKeyTier) => {
@@ -214,6 +325,28 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">
                     Use your own Google AI Studio key for direct access.
+                  </p>
+                </div>
+              </motion.div>
+
+              <motion.div
+                whileTap={{ scale: 0.98 }}
+                onClick={() => handleProviderChange('ollama')}
+                className={cn(
+                  "flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all",
+                  safeProvider === 'ollama' 
+                    ? "border-primary bg-primary/5" 
+                    : "border-border bg-card hover:bg-accent/50"
+                )}
+              >
+                <RadioGroupItem value="ollama" id="ollama-sheet" className="mt-0.5" />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">Ollama</span>
+                    <Badge variant="outline" className="text-xs">Cloud API</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Connect to your Ollama cloud server with API key.
                   </p>
                 </div>
               </motion.div>
@@ -314,6 +447,102 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
               )}
             </AnimatePresence>
 
+            {/* Ollama Configuration */}
+            <AnimatePresence mode="wait">
+              {aiProvider === 'ollama' && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="space-y-4 pt-2"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <Server className="w-4 h-4 text-primary" />
+                      Ollama Configuration
+                    </div>
+                    {ollamaKeyValidated && (
+                      <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Connected</Badge>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Server URL</Label>
+                      <Input
+                        value={ollamaUrlInput}
+                        onChange={(e) => setOllamaUrlInput(e.target.value)}
+                        placeholder="https://your-ollama-server.com"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">API Key (optional)</Label>
+                      <div className="relative">
+                        <Input
+                          type={showOllamaKey ? 'text' : 'password'}
+                          value={ollamaKeyInput}
+                          onChange={(e) => setOllamaKeyInput(e.target.value)}
+                          placeholder="sk-... (leave empty if no auth)"
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowOllamaKey(!showOllamaKey)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {showOllamaKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Model Name</Label>
+                      <Input
+                        value={ollamaModelInput}
+                        onChange={(e) => setOllamaModelInput(e.target.value)}
+                        placeholder="e.g. llama3.1, mistral, qwen2.5"
+                      />
+                    </div>
+                  </div>
+
+                  {ollamaKeyValidated && (
+                    <div className="flex items-center gap-2 text-sm text-emerald-500">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Connected to Ollama server
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleValidateOllama}
+                      disabled={isValidatingOllama || !ollamaUrlInput.trim()}
+                      className="flex-1"
+                    >
+                      {isValidatingOllama ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Connecting...
+                        </>
+                      ) : (
+                        'Connect & Validate'
+                      )}
+                    </Button>
+                    {ollamaKeyValidated && (
+                      <Button
+                        variant="outline"
+                        onClick={handleClearOllama}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* Tips Card */}
             <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
               <div className="flex gap-3">
@@ -324,6 +553,9 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                     <li>• Free tier keys have strict daily limits</li>
                     <li>• Keys are encrypted and stored securely on the server</li>
                     <li>• WiseResume AI is recommended for best experience</li>
+                    {aiProvider === 'ollama' && (
+                      <li>• Ollama server must expose an OpenAI-compatible endpoint</li>
+                    )}
                   </ul>
                 </div>
               </div>
