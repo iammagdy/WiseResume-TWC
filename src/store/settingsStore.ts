@@ -223,7 +223,7 @@ export const useSettingsStore = create<SettingsState>()(
       partialize: (state) => {
         // Exclude sensitive keys from localStorage persistence
         // Keys are now stored server-side via manage-api-keys edge function
-        const { geminiApiKey, elevenlabsApiKey, ...rest } = state;
+        const { geminiApiKey, elevenlabsApiKey, ollamaApiKey, ...rest } = state;
         return rest;
       },
     }
