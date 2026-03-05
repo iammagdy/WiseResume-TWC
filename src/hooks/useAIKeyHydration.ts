@@ -54,8 +54,17 @@ export function useAIKeyHydration() {
           .eq('user_id', session.user.id)
           .maybeSingle();
 
-        if (prefs?.ai_provider) {
+        // Only override local state if DB has a non-null value
+        // This ensures the DB is the source of truth once synced
+        if (prefs?.ai_provider && prefs.ai_provider !== 'wiseresume') {
           store.setAIProvider(prefs.ai_provider as any);
+        } else if (prefs?.ai_provider === 'wiseresume') {
+          // DB explicitly says wiseresume — only override if local isn't already set to something else
+          // (prevents overwriting a selection that failed to sync)
+          const currentLocal = store.aiProvider;
+          if (currentLocal === 'wiseresume') {
+            store.setAIProvider('wiseresume');
+          }
         }
 
         hydrated.current = true;

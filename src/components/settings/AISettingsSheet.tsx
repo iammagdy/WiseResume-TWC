@@ -157,15 +157,22 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       
       // Sync to user_preferences table so backend knows the preferred provider
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          await supabase
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { error } = await supabase
             .from('user_preferences')
-            .update({ ai_provider: value })
-            .eq('user_id', user.id);
+            .upsert(
+              { user_id: session.user.id, ai_provider: value, updated_at: new Date().toISOString() },
+              { onConflict: 'user_id' }
+            );
+          if (error) {
+            console.error('Failed to sync AI provider preference:', error);
+            toast.error('Failed to save AI engine preference');
+          }
         }
       } catch (err) {
-        console.warn('Failed to sync AI provider preference:', err);
+        console.error('Failed to sync AI provider preference:', err);
+        toast.error('Failed to save AI engine preference');
       }
       
       if (value === 'gemini' && !geminiApiKey) {
