@@ -31,7 +31,11 @@ export function SkillCourseCard({ gap, isCompleted, onToggleComplete }: Props) {
     if (Capacitor.isNativePlatform()) {
       await Browser.open({ url: youtubeUrl });
     } else {
-      (window.top || window).open(youtubeUrl, '_blank', 'noopener,noreferrer');
+      try {
+        window.top?.open(youtubeUrl, '_blank', 'noopener,noreferrer');
+      } catch {
+        window.open(youtubeUrl, '_blank', 'noopener,noreferrer');
+      }
     }
   };
 
