@@ -1,6 +1,10 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders } from '../_shared/cors.ts';
 
+function isOllamaCloud(url: string): boolean {
+  return /ollama\.com/i.test(url);
+}
+
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') {
@@ -56,6 +60,7 @@ Deno.serve(async (req) => {
       }
 
       const cleanUrl = baseUrl.replace(/\/+$/, '');
+      const useNativeApi = isOllamaCloud(cleanUrl);
       
       const reqHeaders: Record<string, string> = {};
       if (apiKey.trim()) {
@@ -63,8 +68,14 @@ Deno.serve(async (req) => {
       }
 
       try {
-        // Step 1: List models to verify connectivity
-        const modelsResponse = await fetch(`${cleanUrl}/v1/models`, {
+        // Step 1: List models
+        const modelsEndpoint = useNativeApi
+          ? `${cleanUrl}/api/tags`
+          : `${cleanUrl}/v1/models`;
+
+        console.log(`[validate] Ollama: listing models at ${modelsEndpoint} (native=${useNativeApi})`);
+
+        const modelsResponse = await fetch(modelsEndpoint, {
           method: 'GET',
           headers: reqHeaders,
         });
@@ -74,7 +85,11 @@ Deno.serve(async (req) => {
           const status = modelsResponse.status;
           let hint = '';
           if (status === 401 || status === 403) {
-            hint = ' Check your API key and ensure the URL is correct (Ollama Cloud uses https://ollama.com).';
+            hint = ' Check your API key. For Ollama Cloud, the base URL should be https://ollama.com';
+          } else if (status === 404) {
+            hint = useNativeApi
+              ? ' The /api/tags endpoint was not found. Check the base URL.'
+              : ' The /v1/models endpoint was not found. If using Ollama Cloud, set the URL to https://ollama.com';
           }
           return new Response(JSON.stringify({ isValid: false, error: `Connection failed: HTTP ${status} - ${errText.slice(0, 150)}.${hint}` }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -82,28 +97,59 @@ Deno.serve(async (req) => {
         }
 
         const modelsData = await modelsResponse.json();
-        const availableModels = modelsData.data?.map((m: any) => m.id) || [];
+        
+        // Parse models list differently based on API format
+        let availableModels: string[] = [];
+        if (useNativeApi) {
+          // Native Ollama: { models: [{ name: "model:tag", ... }] }
+          availableModels = modelsData.models?.map((m: any) => m.name || m.model) || [];
+        } else {
+          // OpenAI-compatible: { data: [{ id: "model" }] }
+          availableModels = modelsData.data?.map((m: any) => m.id) || [];
+        }
+
+        console.log(`[validate] Ollama: found ${availableModels.length} models, native=${useNativeApi}`);
 
         // Step 2: Real completion test with the chosen model
         const testModel = model || availableModels[0];
         if (testModel) {
-          const completionResponse = await fetch(`${cleanUrl}/v1/chat/completions`, {
-            method: 'POST',
-            headers: { ...reqHeaders, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              model: testModel,
-              messages: [{ role: 'user', content: 'Say OK' }],
-              max_tokens: 5,
-              temperature: 0,
-            }),
-          });
+          let completionResponse: Response;
+
+          if (useNativeApi) {
+            // Native Ollama API: POST /api/chat
+            completionResponse = await fetch(`${cleanUrl}/api/chat`, {
+              method: 'POST',
+              headers: { ...reqHeaders, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                model: testModel,
+                messages: [{ role: 'user', content: 'Say OK' }],
+                stream: false,
+              }),
+            });
+          } else {
+            // OpenAI-compatible: POST /v1/chat/completions
+            completionResponse = await fetch(`${cleanUrl}/v1/chat/completions`, {
+              method: 'POST',
+              headers: { ...reqHeaders, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                model: testModel,
+                messages: [{ role: 'user', content: 'Say OK' }],
+                max_tokens: 5,
+                temperature: 0,
+              }),
+            });
+          }
 
           if (!completionResponse.ok) {
             const errText = await completionResponse.text();
             const cStatus = completionResponse.status;
             let hint = '';
             if (cStatus === 401 || cStatus === 403) {
-              hint = ' Verify your API key and base URL (Ollama Cloud uses https://ollama.com).';
+              hint = ' Verify your API key and base URL.';
+            } else if (cStatus === 404) {
+              hint = useNativeApi
+                ? ' The /api/chat endpoint was not found.'
+                : ' The /v1/chat/completions endpoint was not found. If using Ollama Cloud, set URL to https://ollama.com';
             }
             return new Response(JSON.stringify({ 
               isValid: false, 
@@ -120,6 +166,7 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       } catch (fetchErr) {
+        console.error('[validate] Ollama fetch error:', fetchErr);
         return new Response(JSON.stringify({ isValid: false, error: 'Cannot connect to Ollama server. Check the URL and API key.' }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
