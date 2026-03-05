@@ -35,6 +35,7 @@ import {
 } from '@/lib/careerPath';
 import { haptics } from '@/lib/haptics';
 import { useAIAction } from '@/hooks/useAIAction';
+import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 
 interface CareerPathSheetProps {
   open: boolean;
