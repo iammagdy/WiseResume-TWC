@@ -130,13 +130,41 @@ export async function getUserKeyFromDB(userId: string, provider = 'gemini'): Pro
 
     const { data, error } = await supabase
       .from('user_api_keys')
-      .select('encrypted_key')
+      .select('encrypted_key, base_url')
       .eq('user_id', userId)
       .eq('provider', provider)
       .maybeSingle();
 
     if (error || !data?.encrypted_key) return undefined;
     return await decryptKey(data.encrypted_key);
+  } catch (err) {
+    console.warn('[aiClient] Failed to fetch user key from DB:', err);
+    return undefined;
+  }
+}
+
+/**
+ * Fetches a user's API key + base_url from the database (decrypted).
+ */
+export async function getUserKeyAndUrlFromDB(userId: string, provider: string): Promise<{ key: string; baseUrl: string | null } | undefined> {
+  if (!ENCRYPTION_SECRET) return undefined;
+
+  try {
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    const { data, error } = await supabase
+      .from('user_api_keys')
+      .select('encrypted_key, base_url')
+      .eq('user_id', userId)
+      .eq('provider', provider)
+      .maybeSingle();
+
+    if (error || !data?.encrypted_key) return undefined;
+    const key = await decryptKey(data.encrypted_key);
+    return { key, baseUrl: data.base_url ?? null };
   } catch (err) {
     console.warn('[aiClient] Failed to fetch user key from DB:', err);
     return undefined;
