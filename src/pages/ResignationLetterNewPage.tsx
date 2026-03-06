@@ -15,7 +15,7 @@ import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useResignationLetterMutations } from '@/hooks/useResignationLetters';
 import { supabase } from '@/integrations/supabase/safeClient';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://hjnnamwgztlhzkeuufln.supabase.co';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://jnsfmkzgxsviuthaqlyy.supabase.co';
 import { haptics } from '@/lib/haptics';
 import { useBackNavigation } from '@/hooks/useBackNavigation';
 
