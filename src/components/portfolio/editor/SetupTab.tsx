@@ -3,7 +3,7 @@ import {
   Sparkles, Loader2, CheckCircle2, XCircle, Link2, Zap, Github, RefreshCw, Linkedin,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
+import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
 import { haptics } from '@/lib/haptics';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -215,8 +215,8 @@ function GitHubSyncButton({ githubUrl }: { githubUrl: string }) {
     setSyncing(true);
     haptics.light();
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Not authenticated');
+      const token = await getClerkSupabaseToken();
+      if (!token) throw new Error('Not authenticated');
 
       const username = githubUrl
         .replace(/^https?:\/\/(www\.)?github\.com\//i, '')
@@ -228,7 +228,7 @@ function GitHubSyncButton({ githubUrl }: { githubUrl: string }) {
         {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${session.access_token}`,
+            Authorization: `Bearer ${token}`,
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
             'Content-Type': 'application/json',
           },

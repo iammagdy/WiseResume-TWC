@@ -1,10 +1,11 @@
-import React, { createContext, useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import React, { createContext, useEffect, useState, useMemo, useCallback } from 'react';
+import { useUser, useSession as useClerkSession, useClerk } from '@clerk/clerk-react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/safeClient';
 import { Capacitor } from '@capacitor/core';
 import { migrateLocalKeysToServer } from '@/lib/migrateLocalKeys';
 import { logAudit } from '@/lib/auditLogger';
 import { runDailyCleanup } from '@/lib/dbCleanup';
+import { useClerkSupabaseClient } from '@/lib/clerkSupabase';
 
 interface AuthState {
   user: User | null;
@@ -30,124 +31,92 @@ async function hideSplashScreen() {
   }
 }
 
-// Eagerly start auth fetch at module load time so it runs in parallel with splash
-const earlySessionPromise = supabase.auth.getSession().catch(() => ({ data: { session: null as Session | null } }));
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<AuthState>({
-    user: null,
-    session: null,
-    loading: true,
-  });
+  const { user: clerkUser, isLoaded: isUserLoaded } = useUser();
+  const { session: clerkSession, isLoaded: isSessionLoaded } = useClerkSession();
+  const { signOut: clerkSignOut } = useClerk();
+  const supabase = useClerkSupabaseClient();
 
-  // Track the active user ID to prevent session hijacking from stale second sessions
-  const activeUserIdRef = useRef<string | null>(null);
-  // Track whether a user was previously authenticated (to detect unexpected sign-outs)
-  const wasAuthenticatedRef = useRef<boolean>(false);
-  // Track whether the current sign-out was user-initiated
-  const userInitiatedSignOutRef = useRef<boolean>(false);
+  const [splashHidden, setSplashHidden] = useState(false);
 
+  // Derive the supabase UUID from Clerk public metadata
+  const supabaseUuid = (clerkUser?.publicMetadata as Record<string, unknown> | undefined)?.supabaseUuid as string | undefined;
+
+  const isLoaded = isUserLoaded && isSessionLoaded;
+  const isAuthenticated = !!clerkUser && !!clerkSession && !!supabaseUuid;
+
+  // Build a minimal User-shaped object for consumers
+  const mappedUser: User | null = useMemo(() => {
+    if (!clerkUser || !supabaseUuid) return null;
+    // Create a minimal object that satisfies consumers using user.id and user.email
+    return {
+      id: supabaseUuid,
+      email: clerkUser.primaryEmailAddress?.emailAddress || '',
+      app_metadata: {},
+      user_metadata: {
+        full_name: clerkUser.fullName || '',
+        clerk_id: clerkUser.id,
+      },
+      aud: 'authenticated',
+      created_at: clerkUser.createdAt?.toISOString() || '',
+    } as unknown as User;
+  }, [clerkUser, supabaseUuid]);
+
+  // Build a minimal Session-shaped object
+  const mappedSession: Session | null = useMemo(() => {
+    if (!clerkSession || !mappedUser) return null;
+    return {
+      access_token: '', // Not used — Clerk token is fetched via getClerkSupabaseToken()
+      refresh_token: '',
+      expires_in: 3600,
+      expires_at: Math.floor(Date.now() / 1000) + 3600,
+      token_type: 'bearer',
+      user: mappedUser,
+    } as unknown as Session;
+  }, [clerkSession, mappedUser]);
+
+  // Hide splash screen when auth is resolved
   useEffect(() => {
-    let initialResolved = false;
-
-    const resolveInitialLoad = (user: User | null, session: Session | null) => {
-      if (!initialResolved) {
-        initialResolved = true;
-        // Signal auth ready — hide native splash screen immediately
-        if (Capacitor.isNativePlatform()) {
-          window.dispatchEvent(new CustomEvent('app:auth-ready'));
-          hideSplashScreen();
-        }
-      }
-      activeUserIdRef.current = user?.id ?? null;
-      // Detect unexpected sign-out (session expired, force-logout from another device)
-      if (!user && wasAuthenticatedRef.current && !userInitiatedSignOutRef.current) {
-        window.dispatchEvent(new CustomEvent('app:session-expired'));
-      }
-      if (user) {
-        wasAuthenticatedRef.current = true;
-        userInitiatedSignOutRef.current = false;
-        migrateLocalKeysToServer();
-        runDailyCleanup();
-        // Touch last_active_at — fire-and-forget, no UX impact if it fails
-        supabase
-          .from('profiles')
-          .update({ last_active_at: new Date().toISOString() })
-          .eq('user_id', user.id)
-          .then(() => { });
-      }
-      setState(prev => {
-        if (prev.user?.id === user?.id && !prev.loading) {
-          return prev;
-        }
-        return { user, session, loading: false };
-      });
-    };
-
-    // Safety timeout: force loading=false after 5s, also hide splash
-    const timeout = setTimeout(() => {
-      if (!initialResolved) {
-        console.warn('Auth session fetch timed out after 5s');
+    if (isLoaded && !splashHidden) {
+      setSplashHidden(true);
+      if (Capacitor.isNativePlatform()) {
+        window.dispatchEvent(new CustomEvent('app:auth-ready'));
         hideSplashScreen();
-        resolveInitialLoad(null, null);
       }
-    }, 5000);
+    }
+  }, [isLoaded, splashHidden]);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        const incomingUserId = session?.user?.id ?? null;
+  // Side effects when user is authenticated
+  useEffect(() => {
+    if (!isAuthenticated || !mappedUser || !supabase) return;
 
-        // Always accept these events
-        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
-          resolveInitialLoad(session?.user ?? null, session);
-          return;
-        }
+    migrateLocalKeysToServer();
+    runDailyCleanup();
 
-        // For TOKEN_REFRESHED and other events, only accept if user ID matches
-        if (activeUserIdRef.current && incomingUserId && incomingUserId !== activeUserIdRef.current) {
-          console.warn('Ignored auth event from different user:', event, incomingUserId);
-          return;
-        }
-
-        resolveInitialLoad(session?.user ?? null, session);
-      }
-    );
-
-    // Use the eagerly-started session promise instead of a fresh call
-    earlySessionPromise
-      .then(({ data: { session } }) => {
-        resolveInitialLoad(session?.user ?? null, session);
-      })
-      .catch(() => {
-        console.warn('Failed to fetch auth session');
-        hideSplashScreen();
-        resolveInitialLoad(null, null);
-      });
-
-    return () => {
-      clearTimeout(timeout);
-      subscription.unsubscribe();
-    };
-  }, []);
+    // Touch last_active_at — fire-and-forget
+    supabase
+      .from('profiles')
+      .update({ last_active_at: new Date().toISOString() })
+      .eq('user_id', mappedUser.id)
+      .then(() => {});
+  }, [isAuthenticated, mappedUser?.id, supabase]);
 
   const signOut = useCallback(async () => {
     logAudit('auth', 'signed_out');
-    userInitiatedSignOutRef.current = true;
-    wasAuthenticatedRef.current = false;
-    activeUserIdRef.current = null;
-    setState({ user: null, session: null, loading: false });
     try {
-      await supabase.auth.signOut({ scope: 'local' });
+      await clerkSignOut();
     } catch (e) {
       console.error('Sign-out failed:', e);
     }
-  }, []);
+  }, [clerkSignOut]);
 
-  const value = useMemo(() => ({
-    ...state,
+  const value = useMemo<AuthContextType>(() => ({
+    user: mappedUser,
+    session: mappedSession,
+    loading: !isLoaded,
     signOut,
-    isAuthenticated: !!state.user,
-  }), [state, signOut]);
+    isAuthenticated,
+  }), [mappedUser, mappedSession, isLoaded, signOut, isAuthenticated]);
 
   return (
     <AuthContext.Provider value={value}>

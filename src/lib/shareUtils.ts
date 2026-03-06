@@ -1,7 +1,8 @@
 import { downloadFile } from '@/lib/downloadUtils';
 import { toast } from 'sonner';
 import type { ResumeData } from '@/types/resume';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { supabase } from '@/integrations/supabase/client';
+import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
 import { PORTFOLIO_DOMAIN } from '@/lib/portfolioUrl';
 
 export async function shareAsPDF(blob: Blob, fileName: string): Promise<boolean> {
@@ -38,8 +39,11 @@ function generateSlug(length = 5): string {
 /** Create a universal short URL for any app path */
 export async function createShortUrl(targetPath: string, label?: string): Promise<string | null> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
+    const token = await getClerkSupabaseToken();
+    if (!token) return null;
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const userId = payload?.sub;
+    if (!userId) return null;
 
     for (let attempt = 0; attempt < 3; attempt++) {
       const slug = generateSlug(5);
@@ -47,7 +51,7 @@ export async function createShortUrl(targetPath: string, label?: string): Promis
         .from('short_links')
         .insert({
           id: slug,
-          owner_user_id: user.id,
+          owner_user_id: userId,
           target_url: targetPath,
           label: label || 'Shared Link',
         } as any);

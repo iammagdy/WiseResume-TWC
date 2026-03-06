@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { HeartHandshake, Send, CheckCircle2, MapPin, Info, Wrench, AlertTriangle, ToggleLeft, ToggleRight } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
+import { supabase } from '@/integrations/supabase/client';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import {
   onBugReport,
@@ -130,11 +131,13 @@ export function BugReportDialog() {
     let userEmail = 'anonymous';
     let sessionId: string | undefined;
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const session = sessionData.session;
-      userId = session?.user?.id;
-      userEmail = session?.user?.email || 'anonymous';
-      sessionId = session?.access_token?.slice(-8);
+      const token = await getClerkSupabaseToken();
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        userId = payload?.sub;
+        userEmail = payload?.email || 'anonymous';
+        sessionId = token.slice(-8);
+      }
     } catch { /* proceed without auth */ }
 
     const appVersion = await getAppVersion();

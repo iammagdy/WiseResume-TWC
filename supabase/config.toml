@@ -119,3 +119,6 @@ verify_jwt = false
 
 [functions.generate-question-bank]
 verify_jwt = false
+
+[functions.clerk-webhook]
+verify_jwt = false

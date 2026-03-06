@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { useResumeStore } from '@/store/resumeStore';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
 import { trackGeminiUsage } from '@/lib/aiProvider';
 import { useAICreditsMutations } from '@/hooks/useAICredits';
 import { toast } from 'sonner';
@@ -241,8 +241,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
       const content = getSectionContent(currentResume as unknown as Record<string, unknown>, sectionInfo.id);
 
       try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData?.session?.access_token;
+        const token = await getClerkSupabaseToken();
         if (!token) throw new Error('No session – please sign in');
 
         const CLOUD_URL = import.meta.env.VITE_SUPABASE_URL || 'https://jnsfmkzgxsviuthaqlyy.supabase.co';

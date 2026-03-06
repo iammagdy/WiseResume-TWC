@@ -13,7 +13,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useResignationLetterMutations } from '@/hooks/useResignationLetters';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://jnsfmkzgxsviuthaqlyy.supabase.co';
 import { haptics } from '@/lib/haptics';
@@ -113,14 +113,14 @@ export default function ResignationLetterNewPage() {
     setGenerating(true);
     haptics.light();
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const token = await getClerkSupabaseToken();
       const response = await fetch(
         `${SUPABASE_URL}/functions/v1/generate-resignation-letter`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${session?.access_token}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             recipientName,

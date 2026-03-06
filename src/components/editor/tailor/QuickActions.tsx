@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Plus, ArrowUpDown, Hash } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
 import { useAIAction } from '@/hooks/useAIAction';
 import { showErrorToast } from '@/lib/errorToast';
 import { toast } from 'sonner';
@@ -68,8 +68,7 @@ Return JSON: { "recommendedOrder": ["section1", "section2", ...], "reasoning": "
       }
 
       const result = await executeAI(async () => {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData?.session?.access_token;
+        const token = await getClerkSupabaseToken();
         if (!token) throw new Error('Not authenticated');
 
         const res = await fetch(`${CLOUD_URL}/functions/v1/enhance-section`, {
