@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useSignIn, useSignUp, useClerk } from '@clerk/clerk-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, ArrowLeft } from 'lucide-react';
+import { Mail, ArrowLeft, User } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { MobileLayout } from '@/components/layout/MobileLayout';
@@ -27,6 +27,7 @@ export default function ClerkAuthPage() {
 
   const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
@@ -78,10 +79,10 @@ export default function ClerkAuthPage() {
 
   const handleEmailSignUp = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!signUp || !email || !password) return;
+    if (!signUp || !email || !password || !username) return;
     setIsLoading(true);
     try {
-      const result = await signUp.create({ emailAddress: email, password });
+      const result = await signUp.create({ emailAddress: email, password, username });
       if (result.status === 'complete' && result.createdSessionId) {
         await setActive({ session: result.createdSessionId });
         navigate(redirectTo, { replace: true });
@@ -120,6 +121,7 @@ export default function ClerkAuthPage() {
   const switchMode = () => {
     setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in');
     setPassword('');
+    setUsername('');
     setShowPassword(false);
   };
 
@@ -233,6 +235,18 @@ export default function ClerkAuthPage() {
 
                 {/* Email/Password Form */}
                 <form onSubmit={mode === 'sign-in' ? handleEmailSignIn : handleEmailSignUp} className="space-y-4">
+                  {mode === 'sign-up' && (
+                    <InputFormField
+                      id="username"
+                      label="Username"
+                      icon={<User className="w-4 h-4" />}
+                      value={username}
+                      onChange={setUsername}
+                      placeholder="johndoe"
+                      autoComplete="username"
+                      required
+                    />
+                  )}
                   <InputFormField
                     id="email"
                     label="Email"
@@ -258,7 +272,7 @@ export default function ClerkAuthPage() {
                     type="submit"
                     size="lg"
                     className="w-full h-12 text-base font-semibold gradient-primary glow-primary"
-                    disabled={isLoading || !email || !password}
+                    disabled={isLoading || !email || !password || (mode === 'sign-up' && !username)}
                   >
                     {isLoading ? <MiniSpinner size={20} /> : mode === 'sign-in' ? 'Sign In' : 'Create Account'}
                   </Button>
