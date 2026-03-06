@@ -66,14 +66,14 @@ export interface AIError {
 
 // Model mapping for direct Gemini calls
 const MODEL_MAPPING: Record<string, string> = {
-  'google/gemini-2.5-flash': 'gemini-2.0-flash',
-  'google/gemini-2.5-pro': 'gemini-1.5-pro',
-  'google/gemini-2.5-flash-lite': 'gemini-2.0-flash-lite',
-  'google/gemini-3-flash-preview': 'gemini-2.0-flash',
-  'google/gemini-3-pro-preview': 'gemini-2.0-pro-exp-02-05',
-  'gemini-2.5-flash': 'gemini-2.0-flash',
-  'gemini-2.5-pro': 'gemini-1.5-pro',
-  'gemini-3-flash-preview': 'gemini-2.0-flash',
+  'google/gemini-2.5-flash': 'gemini-2.5-flash',
+  'google/gemini-2.5-pro': 'gemini-2.5-pro',
+  'google/gemini-2.5-flash-lite': 'gemini-2.5-flash-lite-preview-06-17',
+  'google/gemini-3-flash-preview': 'gemini-2.5-flash',
+  'google/gemini-3-pro-preview': 'gemini-2.5-pro',
+  'gemini-2.5-flash': 'gemini-2.5-flash',
+  'gemini-2.5-pro': 'gemini-2.5-pro',
+  'gemini-3-flash-preview': 'gemini-2.5-flash',
 };
 
 function mapModelForGemini(model: string): string {
