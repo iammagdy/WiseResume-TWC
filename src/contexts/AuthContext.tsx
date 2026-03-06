@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useState, useMemo, useCallback } from 'react';
+import React, { createContext, useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useUser, useSession as useClerkSession, useClerk } from '@clerk/clerk-react';
 import { User, Session } from '@supabase/supabase-js';
 import { Capacitor } from '@capacitor/core';
@@ -6,6 +6,7 @@ import { migrateLocalKeysToServer } from '@/lib/migrateLocalKeys';
 import { logAudit } from '@/lib/auditLogger';
 import { runDailyCleanup } from '@/lib/dbCleanup';
 import { useClerkSupabaseClient } from '@/lib/clerkSupabase';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabaseConstants';
 
 interface AuthState {
   user: User | null;
@@ -42,11 +43,48 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = useClerkSupabaseClient();
 
   const [splashHidden, setSplashHidden] = useState(false);
+  const [provisioning, setProvisioning] = useState(false);
+  const provisionAttempted = useRef(false);
 
   const supabaseUuid = (clerkUser?.publicMetadata as Record<string, unknown> | undefined)?.supabaseUuid as string | undefined;
 
   const isLoaded = isUserLoaded && isSessionLoaded;
   const isAuthenticated = !!clerkUser && !!clerkSession && !!supabaseUuid;
+
+  // Auto-provision supabaseUuid if missing
+  useEffect(() => {
+    if (!isLoaded || !clerkUser || supabaseUuid || provisionAttempted.current || provisioning) return;
+
+    provisionAttempted.current = true;
+    setProvisioning(true);
+
+    (async () => {
+      try {
+        console.log('[Auth] supabaseUuid missing, provisioning...');
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/provision-clerk-user`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ clerkUserId: clerkUser.id }),
+        });
+
+        const data = await res.json();
+        if (res.ok && data.supabaseUuid) {
+          console.log('[Auth] Provisioned, reloading user metadata...');
+          // Reload Clerk user to pick up the new publicMetadata
+          await clerkUser.reload();
+        } else {
+          console.error('[Auth] Provisioning failed:', data);
+        }
+      } catch (e) {
+        console.error('[Auth] Provisioning error:', e);
+      } finally {
+        setProvisioning(false);
+      }
+    })();
+  }, [isLoaded, clerkUser, supabaseUuid, provisioning]);
 
   const mappedUser: User | null = useMemo(() => {
     if (!clerkUser || !supabaseUuid) return null;
@@ -76,14 +114,14 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   }, [clerkSession, mappedUser]);
 
   useEffect(() => {
-    if (isLoaded && !splashHidden) {
+    if (isLoaded && !provisioning && !splashHidden) {
       setSplashHidden(true);
       if (Capacitor.isNativePlatform()) {
         window.dispatchEvent(new CustomEvent('app:auth-ready'));
         hideSplashScreen();
       }
     }
-  }, [isLoaded, splashHidden]);
+  }, [isLoaded, provisioning, splashHidden]);
 
   useEffect(() => {
     if (!isAuthenticated || !mappedUser || !supabase) return;
@@ -110,10 +148,10 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<AuthContextType>(() => ({
     user: mappedUser,
     session: mappedSession,
-    loading: !isLoaded,
+    loading: !isLoaded || provisioning,
     signOut,
     isAuthenticated,
-  }), [mappedUser, mappedSession, isLoaded, signOut, isAuthenticated]);
+  }), [mappedUser, mappedSession, isLoaded, provisioning, signOut, isAuthenticated]);
 
   return (
     <AuthContext.Provider value={value}>

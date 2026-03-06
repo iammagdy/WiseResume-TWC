@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { AppIcon } from '@/components/brand/AppIcon';
+import { useAuth } from '@/hooks/useAuth';
 import { InputFormField } from '@/components/ui/form-field';
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import { Button } from '@/components/ui/button';
@@ -21,9 +22,17 @@ export default function ClerkAuthPage() {
   const { setActive } = useClerk();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { isAuthenticated, loading: authLoading } = useAuth();
 
   const redirectTo = searchParams.get('redirect') || '/dashboard';
   const initialMode = searchParams.get('mode') === 'signup' ? 'sign-up' : 'sign-in';
+
+  // Redirect if already fully authenticated
+  useEffect(() => {
+    if (isAuthenticated && !authLoading) {
+      navigate(redirectTo, { replace: true });
+    }
+  }, [isAuthenticated, authLoading, navigate, redirectTo]);
 
   const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState('');
@@ -136,11 +145,12 @@ export default function ClerkAuthPage() {
     setShowPassword(false);
   };
 
-  if (!isReady) {
+  if (!isReady || authLoading) {
     return (
       <MobileLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
           <MiniSpinner size={32} />
+          {authLoading && <p className="text-sm text-muted-foreground">Setting up your account...</p>}
         </div>
       </MobileLayout>
     );
