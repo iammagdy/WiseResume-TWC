@@ -1,5 +1,5 @@
 import { useParams, useSearchParams } from 'react-router-dom';
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://jnsfmkzgxsviuthaqlyy.supabase.co';
+import { SUPABASE_URL } from '@/lib/supabaseConstants';
 import { usePublicPortfolio } from '@/hooks/usePublicPortfolio';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -366,7 +366,7 @@ function PublicPortfolioContent() {
       };
       const ogTitle = profile.metaTitle || (profile.jobTitle ? `${name} — ${profile.jobTitle}` : `${name}'s Portfolio`);
       const ogDesc = profile.metaDescription || profile.portfolioBio || `${name}'s professional portfolio`;
-      const ogImageUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/og-image?username=${encodeURIComponent(profile.username)}`;
+      const ogImageUrl = `${SUPABASE_URL}/functions/v1/og-image?username=${encodeURIComponent(profile.username)}`;
       setMeta('og:title', ogTitle);
       setMeta('og:description', ogDesc);
       setMeta('og:type', 'profile');

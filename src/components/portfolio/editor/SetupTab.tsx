@@ -223,13 +223,14 @@ function GitHubSyncButton({ githubUrl }: { githubUrl: string }) {
         .replace(/\/.*$/, '')
         .trim();
 
+      const { SUPABASE_URL, SUPABASE_ANON_KEY } = await import('@/lib/supabaseConstants');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-github-projects`,
+        `${SUPABASE_URL}/functions/v1/fetch-github-projects`,
         {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            apikey: SUPABASE_ANON_KEY,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ githubUsername: username }),
