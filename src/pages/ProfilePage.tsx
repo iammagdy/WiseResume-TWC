@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit2, Share2, FileText, Briefcase, Globe, ExternalLink, MapPin, Copy, Clock } from 'lucide-react';
+import { Edit2, Share2, FileText, Briefcase, Globe, ExternalLink, MapPin, Copy, Clock, HardDrive } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -12,6 +12,7 @@ import { useResumes } from '@/hooks/useResumes';
 import { useJobApplications } from '@/hooks/useJobApplications';
 import { EditProfileSheet } from '@/components/settings/EditProfileSheet';
 import { CareerMilestonesRow } from '@/components/dashboard/CareerMilestonesRow';
+import { AccountBackupSheet } from '@/components/profile/AccountBackupSheet';
 import { ResumeListCard } from '@/components/dashboard/ResumeListCard';
 import { useResumeStore } from '@/store/resumeStore';
 import { dbToResumeData, useResumeMutations } from '@/hooks/useResumes';
@@ -31,6 +32,7 @@ export default function ProfilePage() {
   const { deleteResume, duplicateResume } = useResumeMutations();
   const { setCurrentResume, setCurrentResumeId, setSelectedTemplate } = useResumeStore();
   const [editOpen, setEditOpen] = useState(false);
+  const [backupOpen, setBackupOpen] = useState(false);
 
   if (authLoading || (!profile && profileLoading)) {
     return <ProfilePageSkeleton />;
@@ -147,7 +149,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Actions */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={handleShareProfile}>
             <Share2 className="w-4 h-4 mr-2" /> Share
           </Button>
@@ -156,6 +158,9 @@ export default function ProfilePage() {
           </Button>
           <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={() => setEditOpen(true)}>
             <Edit2 className="w-4 h-4 mr-2" /> Edit
+          </Button>
+          <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={() => { haptics.light(); setBackupOpen(true); }}>
+            <HardDrive className="w-4 h-4 mr-2" /> Backup
           </Button>
         </div>
 
@@ -263,6 +268,14 @@ export default function ProfilePage() {
         userId={user.id}
         userEmail={user.email}
         onSave={updateProfile}
+      />
+
+      <AccountBackupSheet
+        open={backupOpen}
+        onOpenChange={setBackupOpen}
+        userId={user.id}
+        userEmail={user.email}
+        fullName={profile?.fullName}
       />
     </div>
   );
