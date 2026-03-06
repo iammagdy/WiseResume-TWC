@@ -1,5 +1,5 @@
 import { useParams, useSearchParams } from 'react-router-dom';
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://hjnnamwgztlhzkeuufln.supabase.co';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://jnsfmkzgxsviuthaqlyy.supabase.co';
 import { usePublicPortfolio } from '@/hooks/usePublicPortfolio';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
