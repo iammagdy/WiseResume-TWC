@@ -105,9 +105,16 @@ export default function ClerkAuthPage() {
     setIsLoading(true);
     try {
       const result = await signUp.attemptEmailAddressVerification({ code: verificationCode });
-      if (result.status === 'complete' && result.createdSessionId) {
-        await setActive({ session: result.createdSessionId });
+      console.log('[Clerk Verify]', { status: result.status, missingFields: result.missingFields, resultSession: result.createdSessionId, signUpSession: signUp.createdSessionId });
+      
+      const sessionId = result.createdSessionId || signUp.createdSessionId;
+      
+      if (result.status === 'complete' && sessionId) {
+        await setActive({ session: sessionId });
         navigate(redirectTo, { replace: true });
+      } else if (result.status === 'missing_requirements') {
+        const missing = result.missingFields?.join(', ') || 'unknown fields';
+        toast.error(`Sign-up requires additional info: ${missing}`);
       } else {
         toast.error('Verification incomplete. Please try again.');
       }
