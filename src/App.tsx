@@ -198,7 +198,7 @@ const queryClient = new QueryClient({
           {/* Public routes - no auth required */}
           <Route path="/" element={<Index />} />
            <Route element={<AppShell />}>
-              <Route path="/auth" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />
+              <Route path="/auth" element={<Suspense fallback={<AuthSkeleton />}>{CLERK_PUBLISHABLE_KEY ? <ClerkAuthPage /> : <AuthPage />}</Suspense>} />
               <Route path="/sign-in" element={<Suspense fallback={<AuthSkeleton />}><ClerkAuthPage /></Suspense>} />
               <Route path="/sign-in/sso-callback" element={<Suspense fallback={<AuthSkeleton />}><ClerkAuthPage /></Suspense>} />
               <Route path="/auth/callback" element={<Suspense fallback={<PageLoadingSpinner />}><AuthCallbackPage /></Suspense>} />
