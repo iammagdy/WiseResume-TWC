@@ -168,15 +168,22 @@ export async function importFullAccount(
     stepIdx: number,
     table: string,
     rows: Record<string, unknown>[],
-    opts?: { ownerCol?: string }
+    opts?: { ownerCol?: string; stripCols?: string[] }
   ) {
     const col = opts?.ownerCol || 'user_id';
+    const extraStrip = opts?.stripCols || [];
     if (!rows.length) { setStep(stepIdx, 'done'); success++; return; }
     setStep(stepIdx, 'importing');
     try {
       const mapped = rows.map(r => {
-        const { id, ...rest } = r as any;
-        return { ...rest, [col]: userId };
+        const clone = { ...r };
+        // Strip metadata fields to let DB set defaults
+        delete clone.id;
+        delete clone.created_at;
+        delete clone.updated_at;
+        for (const c of extraStrip) delete clone[c];
+        clone[col] = userId;
+        return clone;
       });
       const { error } = await supabase.from(table as any).insert(mapped as any);
       if (error) throw error;
