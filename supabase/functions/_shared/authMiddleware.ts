@@ -29,7 +29,11 @@ export async function requireAuth(req: Request): Promise<AuthResult> {
     throw { status: 401, message: 'Unauthorized' };
   }
 
-  return { userId: data.claims.sub as string, client };
+  // Use supabaseUuid custom claim from Clerk JWT, fall back to sub
+  const userId = (data.claims as Record<string, unknown>).supabaseUuid as string
+    || data.claims.sub as string;
+
+  return { userId, client };
 }
 
 /**
