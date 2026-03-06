@@ -517,7 +517,7 @@ serve(async (req) => {
   }
 
   try {
-    // Authentication check
+    // Authentication via getClaims
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(
@@ -533,30 +533,15 @@ serve(async (req) => {
     );
 
     const token = authHeader.replace('Bearer ', '');
-    let userId: string | null = null;
-
-    // Try standard auth first
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
-    if (!authError && user) {
-      userId = user.id;
-    } else {
-      // Fallback: decode JWT payload for cross-project tokens
-      try {
-        const payloadB64 = token.split('.')[1];
-        const b64 = payloadB64.replace(/-/g, '+').replace(/_/g, '/');
-        const padded = b64 + '='.repeat((4 - b64.length % 4) % 4);
-        const payload = JSON.parse(atob(padded));
-        if (payload.sub) userId = payload.sub;
-      } catch (_) { /* ignore */ }
-    }
-
-    if (!userId) {
+    const { data: claimsData, error: authError } = await supabaseClient.auth.getClaims(token);
+    if (authError || !claimsData?.claims) {
       console.error('Auth error:', authError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    const userId = claimsData.claims.sub as string;
     console.log('Authenticated user:', userId);
 
     // Server-side rate limiting

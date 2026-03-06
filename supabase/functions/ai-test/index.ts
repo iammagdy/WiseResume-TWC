@@ -12,7 +12,7 @@ serve(async (req) => {
   const startTime = Date.now();
 
   try {
-    // Auth
+    // Auth via getClaims
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
@@ -27,19 +27,26 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user } } = await supabase.auth.getUser(token);
-    if (!user) {
+    const { data, error: authError } = await supabase.auth.getClaims(token);
+    if (authError || !data?.claims) {
       return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    const userId = data.claims.sub as string;
+
+    // Single admin client for all admin operations
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
 
     // Get user's preferred provider
     const { data: prefs } = await supabase
       .from('user_preferences')
       .select('ai_provider')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .maybeSingle();
 
     const preferredProvider = (prefs?.ai_provider as 'gemini' | 'ollama' | 'wiseresume') || 'wiseresume';
@@ -50,26 +57,20 @@ serve(async (req) => {
     let testModel = 'google/gemini-2.5-flash';
 
     if (preferredProvider === 'gemini') {
-      userGeminiKey = await getUserKeyFromDB(user.id, 'gemini');
-      // Read user's selected Gemini model from DB
-      const supabaseAdmin = createClient(
-        Deno.env.get('SUPABASE_URL')!,
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      );
+      userGeminiKey = await getUserKeyFromDB(userId, 'gemini');
       const { data: keyData } = await supabaseAdmin
         .from('user_api_keys')
         .select('model')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('provider', 'gemini')
         .maybeSingle();
       if (keyData?.model) {
-        // If the stored model doesn't have a prefix, add the google/ prefix for the gateway
         testModel = keyData.model.startsWith('google/') || keyData.model.startsWith('gemini-')
           ? (keyData.model.startsWith('gemini-') ? `google/${keyData.model}` : keyData.model)
           : `google/${keyData.model}`;
       }
     } else if (preferredProvider === 'ollama') {
-      ollamaConfig = await getUserKeyAndUrlFromDB(user.id, 'ollama');
+      ollamaConfig = await getUserKeyAndUrlFromDB(userId, 'ollama');
     }
 
     const aiResponse = await callAI({
@@ -83,19 +84,15 @@ serve(async (req) => {
       timeout: 15000,
       preferredProvider,
       userGeminiKey,
-      userId: user.id,
+      userId,
     });
 
     const latencyMs = Date.now() - startTime;
     const providerUsed = aiResponse.providerUsed || preferredProvider;
 
-    // Log test call to ai_usage_logs so it appears in Recent AI Requests
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
+    // Log test call
     await supabaseAdmin.from('ai_usage_logs').insert({
-      user_id: user.id,
+      user_id: userId,
       action_type: 'test',
       metadata: {
         provider: providerUsed,
