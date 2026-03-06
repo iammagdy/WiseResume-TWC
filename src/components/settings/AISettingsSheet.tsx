@@ -768,6 +768,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                           quota_exceeded: 'Gemini quota exhausted',
                           rate_limit: 'Gemini rate limited',
                           invalid_key: 'Gemini key is invalid',
+                          model_not_found: 'Gemini model unavailable — fell back to WiseResume AI',
                         };
                         const reason = testResult.fallbackReason || '';
                         return reasonMap[reason] || (reason ? `Fallback used: ${reason}` : 'Fallback used');
