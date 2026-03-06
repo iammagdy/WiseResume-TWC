@@ -87,7 +87,12 @@ export async function exportFullAccount(
   const careerAssessments = await fetchAll('career_assessments', userId); tick();
   const resignationLetters = await fetchAll('resignation_letters', userId); tick();
   const tailorHistory = await fetchAll('tailor_history', userId); tick();
-  const shortLinks = await fetchAll('short_links', userId); tick();
+  const { data: shortLinksData } = await supabase
+    .from('short_links')
+    .select('*')
+    .eq('owner_user_id', userId);
+  const shortLinks = (shortLinksData || []) as Record<string, unknown>[];
+  tick();
 
   // Preferences
   const { data: prefs } = await supabase
