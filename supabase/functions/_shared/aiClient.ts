@@ -284,7 +284,8 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
         const res = await callGeminiDirect(userGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
         return { ...res, providerUsed: 'gemini_byok' };
       } catch (err) {
-        console.warn('[AI] Gemini BYOK failed, falling back to Lovable Gateway:', err instanceof Error ? err.message : err);
+        const errDetail = err instanceof Error ? `${err.message} (type=${(err as any)?.type}, status=${(err as any)?.status})` : String(err);
+        console.warn('[AI] Gemini BYOK failed, falling back to Lovable Gateway:', errDetail);
         // Extract specific error type for better fallback reporting
         const fallbackReason = (err as any)?.type === 'quota_exceeded' ? 'quota_exceeded'
           : (err as any)?.type === 'invalid_key' ? 'invalid_key'
@@ -524,6 +525,7 @@ async function callGeminiDirect(
   signal?: AbortSignal
 ): Promise<AIResponse> {
   const geminiModel = mapModelForGemini(model);
+  console.log(`[AI] callGeminiDirect: input model="${model}" → mapped="${geminiModel}"`);
 
   const body: Record<string, unknown> = { model: geminiModel, messages, temperature };
   if (maxTokens) body.max_tokens = maxTokens;
@@ -714,6 +716,9 @@ function handleGeminiError(status: number, errorText: string): never {
 
   if (status === 401 || status === 403) {
     throw createAIError('invalid_key', 'Invalid Gemini API key. Please check your settings.', 401);
+  }
+  if (status === 404) {
+    throw createAIError('invalid_key', `Model not found: ${errorMessage}. Check your selected model in AI Settings.`, 404);
   }
   if (status === 429) {
     if (errorText.includes('RESOURCE_EXHAUSTED') || errorText.includes('quota')) {

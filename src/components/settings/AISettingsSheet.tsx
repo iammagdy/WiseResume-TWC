@@ -126,7 +126,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
 
       edgeFunctions.functions.invoke('manage-api-keys', {
         body: { action: 'get' },
-      }).then(({ data }) => {
+      }).then(async ({ data }) => {
         if (!data?.keys) return;
         const keys = data.keys as Array<{
           provider: string;
@@ -143,6 +143,24 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
               setOllamaModel(key.model || '');
               setOllamaKeyValidated(true);
               setAIProvider('ollama');
+            }
+            // Fetch available models in background so dropdown persists on reopen
+            if (key.base_url) {
+              try {
+                const { data: valResult } = await edgeFunctions.functions.invoke('validate-api-key', {
+                  body: { 
+                    apiKey: 'ollama-no-key', 
+                    provider: 'ollama',
+                    baseUrl: key.base_url,
+                    model: key.model || '',
+                  },
+                });
+                if (valResult?.availableModels?.length) {
+                  setOllamaAvailableModels(valResult.availableModels);
+                }
+              } catch {
+                // Silently fail — user can still type model manually
+              }
             }
           }
           if (key.provider === 'gemini') {
@@ -832,13 +850,14 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                   {testResult.fallbackUsed && (
                     <div className="flex items-center gap-1.5 text-xs text-amber-500 ml-6">
                       <AlertCircle className="w-3 h-3" />
-                      {(() => {
+                       {(() => {
                         const reasonMap: Record<string, string> = {
                           gemini_error: 'Gemini key failed — fell back to WiseResume AI',
                           quota_exceeded: 'Gemini quota exhausted',
                           rate_limit: 'Gemini rate limited',
                           invalid_key: 'Gemini key is invalid',
                           model_not_found: 'Gemini model unavailable — fell back to WiseResume AI',
+                          ollama_error: 'Ollama connection failed — fell back to WiseResume AI',
                         };
                         const reason = testResult.fallbackReason || '';
                         return reasonMap[reason] || (reason ? `Fallback used: ${reason}` : 'Fallback used');
