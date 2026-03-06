@@ -31,7 +31,11 @@ async function hideSplashScreen() {
   }
 }
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+/**
+ * Inner provider that relies on Clerk hooks.
+ * Only rendered when ClerkProvider is guaranteed to be in the tree.
+ */
+function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   const { user: clerkUser, isLoaded: isUserLoaded } = useUser();
   const { session: clerkSession, isLoaded: isSessionLoaded } = useClerkSession();
   const { signOut: clerkSignOut } = useClerk();
@@ -39,16 +43,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const [splashHidden, setSplashHidden] = useState(false);
 
-  // Derive the supabase UUID from Clerk public metadata
   const supabaseUuid = (clerkUser?.publicMetadata as Record<string, unknown> | undefined)?.supabaseUuid as string | undefined;
 
   const isLoaded = isUserLoaded && isSessionLoaded;
   const isAuthenticated = !!clerkUser && !!clerkSession && !!supabaseUuid;
 
-  // Build a minimal User-shaped object for consumers
   const mappedUser: User | null = useMemo(() => {
     if (!clerkUser || !supabaseUuid) return null;
-    // Create a minimal object that satisfies consumers using user.id and user.email
     return {
       id: supabaseUuid,
       email: clerkUser.primaryEmailAddress?.emailAddress || '',
@@ -62,11 +63,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } as unknown as User;
   }, [clerkUser, supabaseUuid]);
 
-  // Build a minimal Session-shaped object
   const mappedSession: Session | null = useMemo(() => {
     if (!clerkSession || !mappedUser) return null;
     return {
-      access_token: '', // Not used — Clerk token is fetched via getClerkSupabaseToken()
+      access_token: '',
       refresh_token: '',
       expires_in: 3600,
       expires_at: Math.floor(Date.now() / 1000) + 3600,
@@ -75,7 +75,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } as unknown as Session;
   }, [clerkSession, mappedUser]);
 
-  // Hide splash screen when auth is resolved
   useEffect(() => {
     if (isLoaded && !splashHidden) {
       setSplashHidden(true);
@@ -86,14 +85,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isLoaded, splashHidden]);
 
-  // Side effects when user is authenticated
   useEffect(() => {
     if (!isAuthenticated || !mappedUser || !supabase) return;
 
     migrateLocalKeysToServer();
     runDailyCleanup();
 
-    // Touch last_active_at — fire-and-forget
     supabase
       .from('profiles')
       .update({ last_active_at: new Date().toISOString() })
@@ -122,5 +119,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
+  );
+}
+
+/**
+ * Public AuthProvider — wraps ClerkAuthProvider with a defensive error boundary
+ * so that if ClerkProvider is ever absent the app doesn't crash.
+ */
+class ClerkGuardBoundary extends React.Component<
+  { children: React.ReactNode; fallback: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode; fallback: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error) {
+    if (error.message?.includes('ClerkProvider') || error.message?.includes('useUser')) {
+      console.warn('AuthProvider: Clerk context unavailable, using unauthenticated fallback.');
+    } else {
+      throw error; // Re-throw non-Clerk errors
+    }
+  }
+
+  render() {
+    if (this.state.hasError) return this.props.fallback;
+    return this.props.children;
+  }
+}
+
+const unauthenticatedFallback: AuthContextType = {
+  user: null,
+  session: null,
+  loading: false,
+  signOut: async () => {},
+  isAuthenticated: false,
+};
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const fallback = (
+    <AuthContext.Provider value={unauthenticatedFallback}>
+      {children}
+    </AuthContext.Provider>
+  );
+
+  return (
+    <ClerkGuardBoundary fallback={fallback}>
+      <ClerkAuthProvider>{children}</ClerkAuthProvider>
+    </ClerkGuardBoundary>
   );
 }
