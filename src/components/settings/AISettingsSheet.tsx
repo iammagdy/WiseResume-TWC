@@ -799,12 +799,14 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                         const providerLabel: Record<string, string> = {
                           ollama: '🟢 Ollama',
                           gemini_byok: '🔵 Gemini',
-                          lovable: '⚡ Wise',
+                          lovable: '⚡ WiseResume AI',
+                          'lovable-gateway': '⚡ WiseResume AI',
                           lovable_fallback: '⚡ Fallback',
                           gemini_global: '🔵 Gemini',
                           emergent: '🟣 Emergent',
-                          wiseresume: '⚡ Wise',
-                          unknown: '❓',
+                          wiseresume: '⚡ WiseResume AI',
+                          deterministic: '🔧 Local Engine',
+                          unknown: '❓ Unknown',
                         };
                         return (
                           <div key={log.id} className="flex items-center justify-between px-2 py-1.5 rounded-md bg-muted/40 text-xs">
