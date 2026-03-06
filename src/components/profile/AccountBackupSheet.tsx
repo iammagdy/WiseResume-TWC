@@ -7,6 +7,7 @@ import { Download, Upload, AlertTriangle, CheckCircle2, XCircle } from 'lucide-r
 import { exportFullAccount, importFullAccount, type ImportProgress } from '@/lib/accountBackup';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface AccountBackupSheetProps {
   open: boolean;
@@ -23,6 +24,7 @@ export function AccountBackupSheet({ open, onOpenChange, userId, userEmail, full
   const [importSteps, setImportSteps] = useState<ImportProgress[]>([]);
   const [importResult, setImportResult] = useState<{ success: number; failed: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -59,6 +61,13 @@ export function AccountBackupSheet({ open, onOpenChange, userId, userEmail, full
       setIsImporting(false);
       if (fileRef.current) fileRef.current.value = '';
     }
+  };
+
+  const handleDone = () => {
+    queryClient.invalidateQueries();
+    setImportResult(null);
+    setImportSteps([]);
+    onOpenChange(false);
   };
 
   const TABLE_LABELS: Record<string, string> = {
@@ -154,9 +163,15 @@ export function AccountBackupSheet({ open, onOpenChange, userId, userEmail, full
           )}
 
           {importResult && (
-            <p className="text-xs text-center text-muted-foreground">
-              ✅ {importResult.success} sections restored{importResult.failed > 0 && `, ⚠️ ${importResult.failed} failed`}
-            </p>
+            <div className="space-y-3">
+              <p className="text-xs text-center text-muted-foreground">
+                ✅ {importResult.success} sections restored{importResult.failed > 0 && `, ⚠️ ${importResult.failed} failed`}
+              </p>
+              <Button className="w-full" onClick={handleDone}>
+                <CheckCircle2 className="w-4 h-4 mr-2" />
+                Done — Refresh Data
+              </Button>
+            </div>
           )}
         </div>
       </SheetContent>
