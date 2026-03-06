@@ -18,13 +18,13 @@ import {
   Trash2, 
   Eye, 
   EyeOff, 
-  Info, 
   Loader2,
   Server,
   History,
   ChevronDown,
   Play,
   Clock,
+  Activity,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSettingsStore, AIProvider, GeminiKeyTier } from '@/store/settingsStore';
@@ -36,7 +36,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { logAudit } from '@/lib/auditLogger';
 import { formatDistanceToNow } from 'date-fns';
-import { deriveLastProvider } from '@/store/aiHealthStore';
+import { deriveLastProvider, useAIHealthStore } from '@/store/aiHealthStore';
 import {
   Select,
   SelectContent,
@@ -142,11 +142,20 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       supabase
         .from('ai_usage_logs')
         .select('id, action_type, metadata, created_at')
+        .neq('action_type', 'score')
         .order('created_at', { ascending: false })
-        .limit(20)
+        .limit(10)
         .then(({ data }) => {
-          setUsageHistory((data as UsageLog[]) || []);
+          const logs = (data as UsageLog[]) || [];
+          setUsageHistory(logs);
           setLoadingHistory(false);
+          // Seed "last used" provider from most recent real AI request
+          if (logs.length > 0) {
+            const lastProvider = (logs[0].metadata as any)?.provider;
+            if (lastProvider && lastProvider !== 'deterministic') {
+              useAIHealthStore.getState().recordProvider(lastProvider);
+            }
+          }
         });
 
       edgeFunctions.functions.invoke('manage-api-keys', {
@@ -1033,11 +1042,11 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                 Key Connection History
               </button>
 
-              {/* Collapsible Usage History */}
+              {/* Recent AI Requests */}
               <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
                 <CollapsibleTrigger className="flex items-center justify-between w-full px-1 py-2 text-sm font-medium hover:text-foreground text-muted-foreground transition-colors">
                   <div className="flex items-center gap-2">
-                    <History className="w-4 h-4" />
+                    <Activity className="w-4 h-4" />
                     Recent AI Requests
                     {usageHistory.length > 0 && (
                       <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{usageHistory.length}</Badge>
@@ -1060,19 +1069,31 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                           const providerLabel: Record<string, string> = {
                             ollama: '🟢 Ollama',
                             gemini_byok: '🔵 Gemini',
-                            lovable: '⚡ WiseResume AI',
-                            'lovable-gateway': '⚡ WiseResume AI',
+                            lovable: '⚡ WiseResume',
+                            'lovable-gateway': '⚡ WiseResume',
                             lovable_fallback: '⚡ Fallback',
                             gemini_global: '🔵 Gemini',
                             emergent: '🟣 Emergent',
-                            wiseresume: '⚡ WiseResume AI',
-                            deterministic: '🔧 Local Engine',
-                            unknown: '❓ Unknown',
+                            wiseresume: '⚡ WiseResume',
                           };
+                          const actionLabels: Record<string, string> = {
+                            enhance: 'Enhance',
+                            rewrite: 'Rewrite',
+                            tailor: 'Tailor',
+                            interview: 'Interview',
+                            cover_letter: 'Cover Letter',
+                            generate: 'Generate',
+                            summarize: 'Summarize',
+                            chat: 'Chat',
+                            test: 'Test',
+                            resignation: 'Resignation',
+                            career_assessment: 'Assessment',
+                          };
+                          const actionLabel = actionLabels[log.action_type] || log.action_type.charAt(0).toUpperCase() + log.action_type.slice(1);
                           return (
                             <div key={log.id} className="flex items-center justify-between px-2 py-1.5 rounded-md bg-muted/40 text-xs">
                               <div className="flex items-center gap-2">
-                                <span className="font-medium truncate max-w-[120px]">{log.action_type}</span>
+                                <span className="font-medium truncate max-w-[120px]">{actionLabel}</span>
                                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
                                   {providerLabel[provider] || provider}
                                 </Badge>
@@ -1089,28 +1110,6 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                 </CollapsibleContent>
               </Collapsible>
 
-              {/* Collapsible Tips */}
-              <Collapsible>
-                <CollapsibleTrigger className="flex items-center justify-between w-full px-1 py-2 text-sm font-medium hover:text-foreground text-muted-foreground transition-colors">
-                  <div className="flex items-center gap-2">
-                    <Info className="w-4 h-4" />
-                    Tips
-                  </div>
-                  <ChevronDown className="w-4 h-4 transition-transform [[data-state=open]>&]:rotate-180" />
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
-                    <ul className="space-y-0.5 text-xs text-muted-foreground">
-                      <li>• Free tier keys have strict daily limits</li>
-                      <li>• Keys are encrypted and stored securely on the server</li>
-                      <li>• WiseResume AI is recommended for best experience</li>
-                      {aiProvider === 'ollama' && (
-                        <li>• Ollama server must expose an OpenAI-compatible endpoint</li>
-                      )}
-                    </ul>
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
             </div>
           </SheetContent>
         </Sheet>
