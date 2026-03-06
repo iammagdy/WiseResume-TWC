@@ -45,6 +45,7 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   const [splashHidden, setSplashHidden] = useState(false);
   const [provisioning, setProvisioning] = useState(false);
   const provisionAttempted = useRef(false);
+  const [provisionVersion, setProvisionVersion] = useState(0);
 
   const supabaseUuid = (clerkUser?.publicMetadata as Record<string, unknown> | undefined)?.supabaseUuid as string | undefined;
 
@@ -58,6 +59,9 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
     provisionAttempted.current = true;
     setProvisioning(true);
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
+
     (async () => {
       try {
         console.log('[Auth] supabaseUuid missing, provisioning...');
@@ -68,22 +72,32 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
             'apikey': SUPABASE_ANON_KEY,
           },
           body: JSON.stringify({ clerkUserId: clerkUser.id }),
+          signal: controller.signal,
         });
 
         const data = await res.json();
         if (res.ok && data.supabaseUuid) {
           console.log('[Auth] Provisioned, reloading user metadata...');
-          // Reload Clerk user to pick up the new publicMetadata
           await clerkUser.reload();
+          // Small delay to let Clerk hooks pick up updated metadata
+          await new Promise(r => setTimeout(r, 500));
+          setProvisionVersion(v => v + 1);
         } else {
           console.error('[Auth] Provisioning failed:', data);
         }
       } catch (e) {
-        console.error('[Auth] Provisioning error:', e);
+        if ((e as Error).name === 'AbortError') {
+          console.error('[Auth] Provisioning timed out');
+        } else {
+          console.error('[Auth] Provisioning error:', e);
+        }
       } finally {
+        clearTimeout(timeout);
         setProvisioning(false);
       }
     })();
+
+    return () => { clearTimeout(timeout); controller.abort(); };
   }, [isLoaded, clerkUser, supabaseUuid, provisioning]);
 
   const mappedUser: User | null = useMemo(() => {

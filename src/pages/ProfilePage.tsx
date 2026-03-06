@@ -33,8 +33,16 @@ export default function ProfilePage() {
   const { setCurrentResume, setCurrentResumeId, setSelectedTemplate } = useResumeStore();
   const [editOpen, setEditOpen] = useState(false);
   const [backupOpen, setBackupOpen] = useState(false);
+  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
 
-  if (authLoading || (!profile && profileLoading)) {
+  useEffect(() => {
+    const timer = setTimeout(() => setLoadingTimedOut(true), 8000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const isLoading = !loadingTimedOut && (authLoading || (!profile && profileLoading));
+
+  if (isLoading) {
     return <ProfilePageSkeleton />;
   }
   if (!user) return null;

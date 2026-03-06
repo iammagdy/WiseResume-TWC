@@ -30,7 +30,6 @@ const tabs: TabItem[] = [
   matchPaths: [
     '/dashboard',
     '/settings',
-    '/profile',
     '/notifications',
     '/templates',
     '/examples',
@@ -109,7 +108,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
 
   const isActive = (tab: TabItem) => {
     if (tab.matchPaths) {
-      return tab.matchPaths.some((p) => location.pathname.startsWith(p));
+      return tab.matchPaths.some((p) => location.pathname === p || location.pathname.startsWith(p + '/'));
     }
     return location.pathname === tab.path;
   };
