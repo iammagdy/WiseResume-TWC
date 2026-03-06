@@ -55,7 +55,7 @@ serve(async (req) => {
     }
 
     const aiResponse = await callAI({
-      model: 'gemini-2.0-flash-lite',
+      model: 'google/gemini-2.5-flash-lite',
       messages: [
         { role: 'system', content: 'Reply with exactly: OK' },
         { role: 'user', content: 'Test' },
