@@ -55,6 +55,8 @@ interface TestResult {
   error?: string;
   fallbackUsed?: boolean;
   fallbackReason?: string;
+  response?: string;
+  model?: string;
 }
 
 export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
@@ -385,6 +387,8 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
             latencyMs: data.latencyMs || 0,
             fallbackUsed: data.fallbackUsed,
             fallbackReason: data.fallbackReason,
+            response: data.response,
+            model: data.model,
           });
         } else {
           haptics.error();
@@ -745,6 +749,16 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                   <div className="flex items-center gap-2 text-xs text-muted-foreground ml-6">
                     <span>Provider: <span className="text-foreground font-medium">{deriveLastProvider(testResult.providerUsed)}</span></span>
                   </div>
+                  {testResult.model && (
+                    <div className="text-xs text-muted-foreground ml-6">
+                      Model: <span className="text-foreground font-medium">{testResult.model}</span>
+                    </div>
+                  )}
+                  {testResult.response && (
+                    <div className="text-xs text-muted-foreground ml-6">
+                      AI replied: <span className="text-foreground font-medium italic">"{testResult.response}"</span>
+                    </div>
+                  )}
                   {testResult.fallbackUsed && (
                     <div className="flex items-center gap-1.5 text-xs text-amber-500 ml-6">
                       <AlertCircle className="w-3 h-3" />
