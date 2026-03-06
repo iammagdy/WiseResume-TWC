@@ -27,6 +27,8 @@ export default function ClerkAuthPage() {
 
   const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -82,7 +84,7 @@ export default function ClerkAuthPage() {
     if (!signUp || !email || !password || !username) return;
     setIsLoading(true);
     try {
-      const result = await signUp.create({ emailAddress: email, password, username });
+      const result = await signUp.create({ emailAddress: email, password, username, firstName, lastName });
       if (result.status === 'complete' && result.createdSessionId) {
         await setActive({ session: result.createdSessionId });
         navigate(redirectTo, { replace: true });
@@ -129,6 +131,8 @@ export default function ClerkAuthPage() {
     setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in');
     setPassword('');
     setUsername('');
+    setFirstName('');
+    setLastName('');
     setShowPassword(false);
   };
 
@@ -242,17 +246,39 @@ export default function ClerkAuthPage() {
 
                 {/* Email/Password Form */}
                 <form onSubmit={mode === 'sign-in' ? handleEmailSignIn : handleEmailSignUp} className="space-y-4">
-                  {mode === 'sign-up' && (
-                    <InputFormField
-                      id="username"
-                      label="Username"
-                      icon={<User className="w-4 h-4" />}
-                      value={username}
-                      onChange={setUsername}
-                      placeholder="johndoe"
-                      autoComplete="username"
-                      required
-                    />
+                {mode === 'sign-up' && (
+                    <>
+                      <div className="grid grid-cols-2 gap-3">
+                        <InputFormField
+                          id="first-name"
+                          label="First Name"
+                          icon={<User className="w-4 h-4" />}
+                          value={firstName}
+                          onChange={setFirstName}
+                          placeholder="John"
+                          autoComplete="given-name"
+                          required
+                        />
+                        <InputFormField
+                          id="last-name"
+                          label="Last Name"
+                          value={lastName}
+                          onChange={setLastName}
+                          placeholder="Doe"
+                          autoComplete="family-name"
+                          required
+                        />
+                      </div>
+                      <InputFormField
+                        id="username"
+                        label="Username"
+                        value={username}
+                        onChange={setUsername}
+                        placeholder="johndoe"
+                        autoComplete="username"
+                        required
+                      />
+                    </>
                   )}
                   <InputFormField
                     id="email"
@@ -279,7 +305,7 @@ export default function ClerkAuthPage() {
                     type="submit"
                     size="lg"
                     className="w-full h-12 text-base font-semibold gradient-primary glow-primary"
-                    disabled={isLoading || !email || !password || (mode === 'sign-up' && !username)}
+                    disabled={isLoading || !email || !password || (mode === 'sign-up' && (!username || !firstName || !lastName))}
                   >
                     {isLoading ? <MiniSpinner size={20} /> : mode === 'sign-in' ? 'Sign In' : 'Create Account'}
                   </Button>
