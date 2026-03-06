@@ -132,7 +132,7 @@ ${resume.education?.map((e: any) => `- ${e.degree} in ${e.field} from ${e.instit
 
     await recordUsage(user.id, 'career_path', { provider: aiResponse.providerUsed || 'unknown' });
 
-    return new Response(JSON.stringify(sanitized), {
+    return new Response(JSON.stringify({ ...sanitized, _providerUsed: aiResponse.providerUsed || 'unknown' }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

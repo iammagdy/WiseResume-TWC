@@ -11,14 +11,17 @@ interface AICallResult {
 
 interface AIHealthState {
   results: AICallResult[];
+  lastProviderUsed: string | null;
   recordSuccess: (latencyMs: number) => void;
   recordFailure: (errorCode: number) => void;
+  recordProvider: (provider: string) => void;
 }
 
 const MAX_RESULTS = 5;
 
 export const useAIHealthStore = create<AIHealthState>((set) => ({
   results: [],
+  lastProviderUsed: null,
   recordSuccess: (latencyMs: number) =>
     set((state) => ({
       results: [...state.results, { success: true, latencyMs, errorCode: null, timestamp: Date.now() }].slice(-MAX_RESULTS),
@@ -27,6 +30,8 @@ export const useAIHealthStore = create<AIHealthState>((set) => ({
     set((state) => ({
       results: [...state.results, { success: false, latencyMs: 0, errorCode, timestamp: Date.now() }].slice(-MAX_RESULTS),
     })),
+  recordProvider: (provider: string) =>
+    set({ lastProviderUsed: provider }),
 }));
 
 /** Derive health status from recent results */
@@ -52,4 +57,18 @@ export function deriveLastChecked(results: AICallResult[]): Date | null {
 export function deriveErrorCode(results: AICallResult[]): number | null {
   const lastFailure = [...results].reverse().find((r) => !r.success);
   return lastFailure?.errorCode ?? null;
+}
+
+export function deriveLastProvider(lastProviderUsed: string | null): string {
+  if (!lastProviderUsed) return '—';
+  const map: Record<string, string> = {
+    'lovable': 'WiseResume AI',
+    'lovable-gateway': 'WiseResume AI',
+    'gemini': 'Gemini BYOK',
+    'gemini-byok': 'Gemini BYOK',
+    'ollama': 'Ollama',
+    'lovable-fallback': 'WiseResume (Fallback)',
+    'deterministic': 'Local',
+  };
+  return map[lastProviderUsed.toLowerCase()] || lastProviderUsed;
 }

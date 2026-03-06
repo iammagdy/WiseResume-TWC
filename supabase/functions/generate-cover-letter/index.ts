@@ -141,7 +141,7 @@ Write a ${validTone} cover letter with a professional header containing actual c
     await recordUsage(user.id, 'cover_letter', { provider: aiResponse.providerUsed || 'unknown' });
 
     return new Response(
-      JSON.stringify({ coverLetter }),
+      JSON.stringify({ coverLetter, _providerUsed: aiResponse.providerUsed || 'unknown' }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {

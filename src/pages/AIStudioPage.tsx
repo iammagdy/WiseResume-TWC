@@ -42,6 +42,7 @@ import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
 import { CompanyBriefingSheet } from '@/components/interview/CompanyBriefingSheet';
 import { AICostBadge } from '@/components/ai/AICostBadge';
+import { AIHealthBadge } from '@/components/ai/AIHealthBadge';
 import { Badge } from '@/components/ui/badge';
 
 // Lazy-loaded sheets
@@ -303,14 +304,17 @@ export default function AIStudioPage() {
         </h1>
         <div className="flex items-center justify-between mt-2">
           <AIEngineBadge showSettingsLink />
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div><AICreditsIndicator /></div>
-              </TooltipTrigger>
-              <TooltipContent>AI Credits Remaining</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <div className="flex items-center gap-2">
+            <AIHealthBadge />
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div><AICreditsIndicator /></div>
+                </TooltipTrigger>
+                <TooltipContent>AI Credits Remaining</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </div>
       </motion.div>
 

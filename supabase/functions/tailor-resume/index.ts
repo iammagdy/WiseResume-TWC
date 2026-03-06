@@ -482,7 +482,7 @@ Analyze deeply, then return this exact JSON structure:
     await recordUsage(userId, 'tailor', { provider: aiResponse.providerUsed || 'unknown' });
 
     return new Response(
-      JSON.stringify(tailoredResult),
+      JSON.stringify({ ...tailoredResult, _providerUsed: aiResponse.providerUsed || 'unknown' }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 

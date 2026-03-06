@@ -399,7 +399,7 @@ Deno.serve(async (req: Request) => {
       content: content || "I'm not sure how to help with that. Could you rephrase?",
     };
 
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify({ ...result, _providerUsed: aiResponse.providerUsed || 'unknown' }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 

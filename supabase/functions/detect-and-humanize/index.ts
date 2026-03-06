@@ -132,7 +132,7 @@ Return a JSON object:
     await recordUsage(userId, 'detect_humanize', { provider: lastProviderUsed || 'unknown' });
 
     return new Response(
-      JSON.stringify({ success: true, ...result }),
+      JSON.stringify({ success: true, ...result, _providerUsed: lastProviderUsed || 'unknown' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
