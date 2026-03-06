@@ -1,4 +1,5 @@
-import { supabase } from '@/integrations/supabase/safeClient';
+import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
+import { supabase } from '@/integrations/supabase/client';
 
 type AuditCategory = 'migration' | 'account' | 'api_key' | 'auth';
 
@@ -13,12 +14,14 @@ export function logAudit(
 ): void {
   (async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return; // Can't log without a user
+      const token = await getClerkSupabaseToken();
+      if (!token) return;
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const userId = payload?.sub;
+      if (!userId) return;
 
-      // Use type assertion since audit_logs may not be in generated types yet
       await (supabase.from('audit_logs' as never) as any).insert({
-        user_id: user.id,
+        user_id: userId,
         category,
         action,
         metadata,

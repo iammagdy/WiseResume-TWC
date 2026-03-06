@@ -6,7 +6,8 @@ import { BackButton } from '@/components/ui/BackButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useResumes } from '@/hooks/useResumes';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
+import { supabase } from '@/integrations/supabase/client';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://jnsfmkzgxsviuthaqlyy.supabase.co';
 import { toast } from 'sonner';
@@ -192,10 +193,10 @@ export default function PortfolioEditorPage() {
 
   const callPortfolioAI = async (action: string, extraBody?: Record<string, unknown>) => {
     const selectedResume = resumes.find(r => r.id === selectedResumeId) || resumes[0];
-    const { data: { session } } = await supabase.auth.getSession();
+    const token = await getClerkSupabaseToken();
     const res = await fetch(`${SUPABASE_URL}/functions/v1/generate-portfolio-bio`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         action,
         summary: selectedResume?.summary || '',

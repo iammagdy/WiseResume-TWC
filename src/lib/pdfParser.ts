@@ -12,7 +12,7 @@ import { extractTextFromPDF, PDFParseError, ExtractionResult } from './pdf/textE
 import { extractTextWithOCR, OCRProgressCallback, estimateOCRTime } from './pdf/ocrExtractor';
 import { parseResumeText } from './pdf/sectionParsers';
 import { preprocessResumeText, extractContactHints } from './pdf/textPreprocessor';
-import { supabase } from '@/integrations/supabase/safeClient';
+
 import { handleAIError } from './aiProvider';
 
 export { PDFParseError, estimateOCRTime };
@@ -46,9 +46,9 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
   try {
     if (import.meta.env.DEV) console.log('Calling AI to parse resume text...');
     
-    // Get token from old project — edge function will accept it gracefully
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
+    // Get Clerk-issued Supabase JWT
+    const { getClerkSupabaseToken } = await import('@/lib/clerkSupabase');
+    const token = await getClerkSupabaseToken();
     
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',

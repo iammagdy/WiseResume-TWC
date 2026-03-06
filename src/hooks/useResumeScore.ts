@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
 
 import { ResumeData } from '@/types/resume';
 import { toast } from 'sonner';
@@ -49,8 +49,7 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function invokeScoreResume(resume: ResumeData): Promise<{ data: any; latencyMs: number }> {
   const { content: normalized, templateId } = normalizeForScoring(resume);
   const _start = Date.now();
-  const { data: sessionData } = await supabase.auth.getSession();
-  const token = sessionData?.session?.access_token;
+  const token = await getClerkSupabaseToken();
 
   if (!token) {
     throw Object.assign(new Error('Not authenticated. Please sign in again.'), { isAuth: true });

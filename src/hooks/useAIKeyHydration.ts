@@ -5,6 +5,7 @@
 import { useEffect, useRef } from 'react';
 import { useSettingsStore } from '@/store/settingsStore';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
 import { supabase } from '@/integrations/supabase/client';
 
 export function useAIKeyHydration() {
@@ -14,8 +15,8 @@ export function useAIKeyHydration() {
     if (hydrated.current) return;
 
     const hydrate = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return;
+      const token = await getClerkSupabaseToken();
+      if (!token) return;
 
       try {
         // Hydrate keys from manage-api-keys
@@ -51,10 +52,14 @@ export function useAIKeyHydration() {
         }
 
         // Hydrate the user's actual provider preference from user_preferences
+        // Decode the JWT to get the user ID (sub claim)
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const userId = payload?.sub;
+        if (!userId) return;
         const { data: prefs } = await supabase
           .from('user_preferences')
           .select('ai_provider')
-          .eq('user_id', session.user.id)
+          .eq('user_id', userId)
           .maybeSingle();
 
         // Only override local state if DB has a non-null value

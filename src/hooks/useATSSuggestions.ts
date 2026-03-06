@@ -1,6 +1,6 @@
 import { useMemo, useCallback, useRef, useState } from 'react';
 import { ResumeData, SectionId } from '@/types/resume';
-import { supabase } from '@/integrations/supabase/client';
+import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
 import { showErrorToast } from '@/lib/errorToast';
 import { hasPassiveVerbs, hasMetrics, hasLongBullets, findPassiveStarter } from '@/lib/contentAnalysis';
 import { useAICreditsMutations } from './useAICredits';
@@ -254,8 +254,7 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
     setAnalyzingSections(prev => new Set(prev).add(section));
     try {
       const currentContent = getSectionContent(resume, section);
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
+      const token = await getClerkSupabaseToken();
       if (!token) throw new Error('Please sign in to use AI features');
 
       const res = await fetch(`${CLOUD_URL}/functions/v1/enhance-section`, {

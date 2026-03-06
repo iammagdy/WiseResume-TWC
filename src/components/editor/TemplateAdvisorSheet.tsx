@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
-import { supabase } from '@/integrations/supabase/client';
+import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
 import { useResumeStore } from '@/store/resumeStore';
 import { templates } from '@/lib/templateData';
 import type { TemplateId, TemplateCustomization } from '@/types/resume';
@@ -39,8 +39,8 @@ export function TemplateAdvisorSheet({ open, onOpenChange, onApply }: TemplateAd
     setLoading(true);
     haptics.light();
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Not authenticated');
+      const token = await getClerkSupabaseToken();
+      if (!token) throw new Error('Not authenticated');
 
       const skills = currentResume.skills?.map(s =>
         typeof s === 'string' ? s : (s as any).name || String(s)
@@ -55,7 +55,7 @@ export function TemplateAdvisorSheet({ open, onOpenChange, onApply }: TemplateAd
         {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${session.access_token}`,
+            Authorization: `Bearer ${token}`,
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
             'Content-Type': 'application/json',
           },

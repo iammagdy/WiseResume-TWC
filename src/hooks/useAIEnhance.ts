@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
 import { toast } from 'sonner';
 import { trackGeminiUsage } from '@/lib/aiProvider';
 import { useAIAction } from '@/hooks/useAIAction';
@@ -60,8 +60,7 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
       const data = await executeAI(async () => {
         const _start = Date.now();
 
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData?.session?.access_token;
+        const token = await getClerkSupabaseToken();
         if (!token) throw new Error('401 Unauthorized – no session');
 
         const res = await fetch(`${CLOUD_URL}/functions/v1/enhance-section`, {

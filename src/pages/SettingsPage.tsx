@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, calculateProfileCompletion } from '@/hooks/useProfile';
 import { useSettingsStore } from '@/store/settingsStore';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
 import { useResumeStore } from '@/store/resumeStore';
 import { useResumes } from '@/hooks/useResumes';
 import { haptics } from '@/lib/haptics';
@@ -205,16 +205,9 @@ export default function SettingsPage() {
   }, [signOut, navigate]);
 
   const handleChangePassword = useCallback(async () => {
-    if (!user?.email) return;
-    const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
-      redirectTo: `${getAppUrl()}/auth/callback?type=recovery`,
-    });
-    if (error) {
-      toast.error('Could not send reset email');
-    } else {
-      toast.success('Password reset email sent');
-    }
-  }, [user?.email]);
+    // With Clerk, password management is handled via Clerk's UI
+    toast.info('Password changes are managed through your account settings.');
+  }, []);
 
   const handleDataDeleted = useCallback(() => {
     navigate('/');
@@ -423,7 +416,7 @@ export default function SettingsPage() {
               onTakeTour={async () => {
                 haptics.light();
                 if (user) {
-                  await supabase.from('profiles').update({ onboarding_completed: false }).eq('user_id', user.id);
+                  await (await import('@/integrations/supabase/client')).supabase.from('profiles').update({ onboarding_completed: false }).eq('user_id', user.id);
                 } else {
                   localStorage.removeItem('wr-onboarding-seen');
                 }
