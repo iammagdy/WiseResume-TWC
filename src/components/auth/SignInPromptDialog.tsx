@@ -2,7 +2,6 @@ import { useNavigate } from 'react-router-dom';
 import { Check, Mail } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { signInWithGoogle } from '@/lib/socialAuth';
 
 const DEFAULT_BENEFITS = [
   'Save your resume permanently',
@@ -36,9 +35,9 @@ export function SignInPromptDialog({
     navigate('/auth?mode=signup');
   };
 
-  const handleGoogle = async () => {
-    try { await signInWithGoogle(); }
-    catch { /* handled in helper */ }
+  const handleGoogle = () => {
+    onOpenChange(false);
+    navigate('/auth');
   };
 
   const handleContinueAsGuest = () => {

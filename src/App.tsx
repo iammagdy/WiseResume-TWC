@@ -58,7 +58,7 @@ import Index from "./pages/Index";
 const UploadPage = lazyWithRetry(() => import("./pages/UploadPage"));
 const EditorPage = lazyWithRetry(() => import("./pages/EditorPage"));
 const PreviewPage = lazyWithRetry(() => import("./pages/PreviewPage"));
-const AuthPage = lazyWithRetry(() => import("./pages/AuthPage"));
+
 const ClerkAuthPage = lazyWithRetry(() => import("./pages/ClerkAuthPage"));
 const SSOCallbackPage = lazyWithRetry(() => import("./pages/SSOCallbackPage"));
 const DashboardPage = lazyWithRetry(() => import("./pages/DashboardPage"));
