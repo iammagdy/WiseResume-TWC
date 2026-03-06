@@ -3,7 +3,7 @@
  * Exports all user data to a single JSON file and imports it under a new userId.
  */
 
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/safeClient';
 import { downloadFile } from '@/lib/downloadUtils';
 import { useSettingsStore } from '@/store/settingsStore';
 

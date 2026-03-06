@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { HeartHandshake, Send, CheckCircle2, MapPin, Info, Wrench, AlertTriangle, ToggleLeft, ToggleRight } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/safeClient';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import {
   onBugReport,
