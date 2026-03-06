@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useSignIn, useSignUp, useClerk } from '@clerk/clerk-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
@@ -20,14 +20,25 @@ export default function ClerkAuthPage() {
   const { signUp, isLoaded: signUpLoaded } = useSignUp();
   const { setActive } = useClerk();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  const [mode, setMode] = useState<Mode>('sign-in');
+  const redirectTo = searchParams.get('redirect') || '/dashboard';
+  const initialMode = searchParams.get('mode') === 'signup' ? 'sign-up' : 'sign-in';
+
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+
+  // Show session expired toast if redirected with reason
+  useEffect(() => {
+    if (searchParams.get('reason') === 'session_expired') {
+      toast.info('Your session has expired. Please sign in again.');
+    }
+  }, [searchParams]);
 
   const isReady = signInLoaded && signUpLoaded;
 
@@ -38,7 +49,7 @@ export default function ClerkAuthPage() {
       await signIn.authenticateWithRedirect({
         strategy: 'oauth_google',
         redirectUrl: '/sign-in/sso-callback',
-        redirectUrlComplete: '/dashboard',
+        redirectUrlComplete: redirectTo,
       });
     } catch (err: any) {
       toast.error(err?.errors?.[0]?.longMessage || 'Google sign-in failed');
@@ -54,7 +65,7 @@ export default function ClerkAuthPage() {
       const result = await signIn.create({ identifier: email, password });
       if (result.status === 'complete' && result.createdSessionId) {
         await setActive({ session: result.createdSessionId });
-        navigate('/dashboard', { replace: true });
+        navigate(redirectTo, { replace: true });
       } else {
         toast.error('Sign-in incomplete. Please try again.');
       }
@@ -73,7 +84,7 @@ export default function ClerkAuthPage() {
       const result = await signUp.create({ emailAddress: email, password });
       if (result.status === 'complete' && result.createdSessionId) {
         await setActive({ session: result.createdSessionId });
-        navigate('/dashboard', { replace: true });
+        navigate(redirectTo, { replace: true });
       } else {
         // Email verification needed
         await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
@@ -95,7 +106,7 @@ export default function ClerkAuthPage() {
       const result = await signUp.attemptEmailAddressVerification({ code: verificationCode });
       if (result.status === 'complete' && result.createdSessionId) {
         await setActive({ session: result.createdSessionId });
-        navigate('/dashboard', { replace: true });
+        navigate(redirectTo, { replace: true });
       } else {
         toast.error('Verification incomplete. Please try again.');
       }
