@@ -13,7 +13,7 @@ import { ResignationChecklist } from '@/components/resignation/ResignationCheckl
 import { useAuth } from '@/hooks/useAuth';
 import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://jnsfmkzgxsviuthaqlyy.supabase.co';
+import { SUPABASE_URL } from '@/lib/supabaseConstants';
 import { haptics } from '@/lib/haptics';
 
 import { toast } from 'sonner';

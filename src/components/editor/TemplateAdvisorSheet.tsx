@@ -50,13 +50,14 @@ export function TemplateAdvisorSheet({ open, onOpenChange, onApply }: TemplateAd
       const jobTitle = latestExp?.position || '';
       const industry = '';
 
+      const { SUPABASE_URL, SUPABASE_ANON_KEY } = await import('@/lib/supabaseConstants');
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/suggest-template`,
+        `${SUPABASE_URL}/functions/v1/suggest-template`,
         {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            apikey: SUPABASE_ANON_KEY,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ jobTitle, industry, skills: skills.slice(0, 15) }),

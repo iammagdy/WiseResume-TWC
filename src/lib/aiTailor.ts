@@ -108,8 +108,7 @@ export async function tailorResumeWithProgress(
     }
   }, 25_000);
 
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://jnsfmkzgxsviuthaqlyy.supabase.co';
-  const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impuc2Zta3pneHN2aXV0aGFxbHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4ODM4MzQsImV4cCI6MjA4NzQ1OTgzNH0.gzgKuVPKUU3I6TFk9A5C2EPdd8Opz1SYafymiT62lV0';
+  const { SUPABASE_URL, SUPABASE_ANON_KEY: SUPABASE_KEY } = await import('@/lib/supabaseConstants');
 
   const invokeOnce = async () => {
     const token = await getClerkSupabaseToken();
@@ -239,8 +238,7 @@ export interface ParsedJobData {
 }
 
 export async function parseJobUrl(url: string): Promise<ParsedJobData> {
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://jnsfmkzgxsviuthaqlyy.supabase.co';
-  const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impuc2Zta3pneHN2aXV0aGFxbHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4ODM4MzQsImV4cCI6MjA4NzQ1OTgzNH0.gzgKuVPKUU3I6TFk9A5C2EPdd8Opz1SYafymiT62lV0';
+  const { SUPABASE_URL, SUPABASE_ANON_KEY: SUPABASE_KEY } = await import('@/lib/supabaseConstants');
   const token = await getClerkSupabaseToken();
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY };
