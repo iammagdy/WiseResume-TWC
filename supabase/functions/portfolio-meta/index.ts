@@ -51,7 +51,16 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const APP_URL = Deno.env.get('ALLOWED_ORIGIN') || 'https://wiseresume.lovable.app';
+    // Resolve app URL dynamically from request origin/referer
+    const KNOWN_DOMAINS = [
+      'https://thewise.cloud',
+      'https://wiseresume.magdysaber.com',
+    ];
+    const DEFAULT_URL = 'https://wiseresume.lovable.app';
+    const origin = req.headers.get('origin') || '';
+    const referer = req.headers.get('referer') || '';
+    const APP_URL = KNOWN_DOMAINS.find((d) => origin.startsWith(d) || referer.startsWith(d)) || DEFAULT_URL;
+
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
     const portfolioUrl = `${APP_URL}/p/${username}`;
     const ogImageUrl = `${SUPABASE_URL}/functions/v1/og-image?username=${encodeURIComponent(username)}`;
