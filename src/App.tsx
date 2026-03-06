@@ -294,6 +294,53 @@ function AppInstallPrompt() {
 }
  
 import { CLERK_PUBLISHABLE_KEY } from '@/lib/supabaseConstants';
+import React from 'react';
+
+/**
+ * Error boundary specifically for Clerk initialization failures.
+ * Catches errors like "Something went wrong initializing Clerk" and
+ * 401 "Browser unauthenticated" loops in development instances.
+ */
+class ClerkInitBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex items-center justify-center min-h-screen bg-background text-foreground p-6">
+          <div className="text-center max-w-md space-y-4">
+            <div className="text-5xl">🔒</div>
+            <h1 className="text-xl font-bold text-foreground">Authentication Unavailable</h1>
+            <p className="text-sm text-muted-foreground">
+              The authentication service failed to initialize. This usually happens when the app domain
+              isn't registered in the Clerk Dashboard.
+            </p>
+            <p className="text-xs text-muted-foreground/70 bg-muted rounded-lg p-3 text-left">
+              {this.state.error?.message || 'Unknown error'}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const App = () => {
   if (!CLERK_PUBLISHABLE_KEY) {
@@ -310,22 +357,24 @@ const App = () => {
   }
 
   return (
-    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-            <ErrorBoundary>
-              <Toaster />
-              <BrowserRouter>
-                <AuthProvider>
-                  <AppRoutes />
-                  <DeferredProviders />
-                  <AppInstallPrompt />
-                </AuthProvider>
-              </BrowserRouter>
-            </ErrorBoundary>
-        </TooltipProvider>
-      </QueryClientProvider>
-    </ClerkProvider>
+    <ClerkInitBoundary>
+      <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+              <ErrorBoundary>
+                <Toaster />
+                <BrowserRouter>
+                  <AuthProvider>
+                    <AppRoutes />
+                    <DeferredProviders />
+                    <AppInstallPrompt />
+                  </AuthProvider>
+                </BrowserRouter>
+              </ErrorBoundary>
+          </TooltipProvider>
+        </QueryClientProvider>
+      </ClerkProvider>
+    </ClerkInitBoundary>
   );
 };
 
