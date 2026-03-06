@@ -1,6 +1,8 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
+import { callAI, toUserError } from '../_shared/aiClient.ts';
+import { recordUsage } from '../_shared/rateLimiter.ts';
 
 serve(async (req) => {
   const origin = req.headers.get('origin');
@@ -20,9 +22,6 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
 
     const templateIds = [
       'minimal', 'classic', 'modern', 'developer', 'executive', 'professional',
@@ -55,87 +54,72 @@ Guidelines:
 For colors: use professional, muted tones for corporate roles; bolder accents for creative; dark tones for tech.
 For fonts: serif pairs for traditional industries; sans-serif for modern/tech; display fonts for creative.`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          {
-            role: 'user',
-            content: `Recommend a template for:
+    const aiResponse = await callAI({
+      model: 'google/gemini-3-flash-preview',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        {
+          role: 'user',
+          content: `Recommend a template for:
 Job Title: ${jobTitle || 'Not specified'}
 Industry: ${industry || 'Not specified'}
 Career Level: ${careerLevel || 'Not specified'}
 Key Skills: ${skills?.join(', ') || 'Not specified'}`,
-          },
-        ],
-        tools: [
-          {
-            type: 'function',
-            function: {
-              name: 'suggest_template',
-              description: 'Return the recommended template and customization settings',
-              parameters: {
-                type: 'object',
-                properties: {
-                  recommendedTemplateId: {
-                    type: 'string',
-                    description: 'The template ID from the available list',
-                    enum: templateIds,
-                  },
-                  customization: {
-                    type: 'object',
-                    properties: {
-                      accentColor: { type: 'string', description: 'Hex color e.g. #1e3a5f' },
-                      fontHeading: { type: 'string', enum: ['Inter', "'Playfair Display', serif", 'Roboto, sans-serif', "'Merriweather', serif", 'Poppins, sans-serif', 'Lato, sans-serif'] },
-                      fontBody: { type: 'string', enum: ['Inter', 'Roboto, sans-serif', 'Poppins, sans-serif', 'Lato, sans-serif'] },
-                      fontSize: { type: 'string', enum: ['small', 'medium', 'large'] },
-                      spacing: { type: 'string', enum: ['compact', 'normal', 'spacious'] },
-                    },
-                    required: ['accentColor', 'fontHeading', 'fontBody', 'fontSize', 'spacing'],
-                  },
-                  reasoning: { type: 'string', description: 'Brief explanation of why this template fits (max 2 sentences)' },
+        },
+      ],
+      tools: [
+        {
+          type: 'function',
+          function: {
+            name: 'suggest_template',
+            description: 'Return the recommended template and customization settings',
+            parameters: {
+              type: 'object',
+              properties: {
+                recommendedTemplateId: {
+                  type: 'string',
+                  description: 'The template ID from the available list',
+                  enum: templateIds,
                 },
-                required: ['recommendedTemplateId', 'customization', 'reasoning'],
-                additionalProperties: false,
+                customization: {
+                  type: 'object',
+                  properties: {
+                    accentColor: { type: 'string', description: 'Hex color e.g. #1e3a5f' },
+                    fontHeading: { type: 'string', enum: ['Inter', "'Playfair Display', serif", 'Roboto, sans-serif', "'Merriweather', serif", 'Poppins, sans-serif', 'Lato, sans-serif'] },
+                    fontBody: { type: 'string', enum: ['Inter', 'Roboto, sans-serif', 'Poppins, sans-serif', 'Lato, sans-serif'] },
+                    fontSize: { type: 'string', enum: ['small', 'medium', 'large'] },
+                    spacing: { type: 'string', enum: ['compact', 'normal', 'spacious'] },
+                  },
+                  required: ['accentColor', 'fontHeading', 'fontBody', 'fontSize', 'spacing'],
+                },
+                reasoning: { type: 'string', description: 'Brief explanation of why this template fits (max 2 sentences)' },
               },
+              required: ['recommendedTemplateId', 'customization', 'reasoning'],
+              additionalProperties: false,
             },
           },
-        ],
-        tool_choice: { type: 'function', function: { name: 'suggest_template' } },
-      }),
+        },
+      ],
+      toolChoice: { type: 'function', function: { name: 'suggest_template' } },
+      userId,
     });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error('AI gateway error:', response.status, errText);
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: 'Rate limited, please try again shortly.' }), {
-          status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: 'AI credits exhausted.' }), {
-          status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      throw new Error(`AI error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    const toolCall = aiResponse.toolCalls?.[0];
     if (!toolCall?.function?.arguments) {
       throw new Error('No tool call returned');
     }
 
     const result = JSON.parse(toolCall.function.arguments);
+    const providerUsed = aiResponse.providerUsed || 'unknown';
 
-    return new Response(JSON.stringify(result), {
+    await recordUsage(userId, 'suggest_template', { provider: providerUsed });
+
+    return new Response(JSON.stringify({
+      ...result,
+      _providerUsed: providerUsed,
+      _fallbackUsed: aiResponse.fallbackUsed || false,
+      _fallbackReason: aiResponse.fallbackReason || null,
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
@@ -143,9 +127,10 @@ Key Skills: ${skills?.join(', ') || 'Not specified'}`,
       return authErrorResponse(err, origin);
     }
     console.error('suggest-template error:', err);
+    const userErr = toUserError(err);
     return new Response(
-      JSON.stringify({ error: err instanceof Error ? err.message : 'Unknown error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: userErr.error, message: userErr.message }),
+      { status: userErr.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

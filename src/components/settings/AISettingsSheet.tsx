@@ -1107,6 +1107,8 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                             proofread: 'Proofread',
                             recruiter_sim: 'Recruiter Sim',
                             parse_linkedin: 'Parse LinkedIn',
+                            question_bank: 'Question Bank',
+                            suggest_template: 'Template Suggest',
                           };
                           const actionLabel = actionLabels[log.action_type] || log.action_type.charAt(0).toUpperCase() + log.action_type.slice(1);
                           return (
