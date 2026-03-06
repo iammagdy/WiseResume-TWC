@@ -135,28 +135,31 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       return `${key.slice(0, 4)}...${key.slice(-4)}`;
     };
 
-    // Load usage history + hydrate saved keys when sheet opens
-    useEffect(() => {
-      if (!open) return;
+    // Reusable helper to refresh usage history
+    const refreshUsageHistory = async () => {
       setLoadingHistory(true);
-      supabase
+      const { data } = await supabase
         .from('ai_usage_logs')
         .select('id, action_type, metadata, created_at')
         .neq('action_type', 'score')
         .order('created_at', { ascending: false })
-        .limit(10)
-        .then(({ data }) => {
-          const logs = (data as UsageLog[]) || [];
-          setUsageHistory(logs);
-          setLoadingHistory(false);
-          // Seed "last used" provider from most recent real AI request
-          if (logs.length > 0) {
-            const lastProvider = (logs[0].metadata as any)?.provider;
-            if (lastProvider && lastProvider !== 'deterministic') {
-              useAIHealthStore.getState().recordProvider(lastProvider);
-            }
-          }
-        });
+        .limit(10);
+      const logs = (data as UsageLog[]) || [];
+      setUsageHistory(logs);
+      setLoadingHistory(false);
+      // Seed "last used" provider from most recent real AI request
+      if (logs.length > 0) {
+        const lastProvider = (logs[0].metadata as any)?.provider;
+        if (lastProvider && lastProvider !== 'deterministic') {
+          useAIHealthStore.getState().recordProvider(lastProvider);
+        }
+      }
+    };
+
+    // Load usage history + hydrate saved keys when sheet opens
+    useEffect(() => {
+      if (!open) return;
+      refreshUsageHistory();
 
       edgeFunctions.functions.invoke('manage-api-keys', {
         body: { action: 'get' },
@@ -495,6 +498,8 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
         });
       } finally {
         setIsTesting(false);
+        // Refresh usage history immediately so the test entry appears
+        refreshUsageHistory();
       }
     };
 
@@ -1085,7 +1090,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                             generate: 'Generate',
                             summarize: 'Summarize',
                             chat: 'Chat',
-                            test: 'Test',
+                            test: '🧪 Test AI Connection',
                             resignation: 'Resignation',
                             career_assessment: 'Assessment',
                           };
