@@ -43,6 +43,9 @@ export function useAIKeyHydration() {
             if (key.provider === 'gemini') {
               store.setGeminiKeyTier(key.key_tier as any);
               store.setGeminiKeyValidated(true);
+              if (key.model) {
+                store.setGeminiModel(key.model);
+              }
             }
           }
         }

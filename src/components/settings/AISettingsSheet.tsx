@@ -70,6 +70,8 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       geminiKeyValidated,
       setGeminiKeyValidated,
       geminiDailyUsage,
+      geminiModel,
+      setGeminiModel,
       ollamaApiKey,
       setOllamaApiKey,
       ollamaBaseUrl,
@@ -83,6 +85,8 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     const [showKey, setShowKey] = useState(false);
     const [keyInput, setKeyInput] = useState(geminiApiKey);
     const [isValidating, setIsValidating] = useState(false);
+    const [geminiAvailableModels, setGeminiAvailableModels] = useState<string[]>([]);
+    const [geminiModelInput, setGeminiModelInput] = useState(geminiModel || 'gemini-2.5-flash');
 
     const [ollamaKeyInput, setOllamaKeyInput] = useState(ollamaApiKey);
     const [ollamaUrlInput, setOllamaUrlInput] = useState(ollamaBaseUrl);
@@ -145,6 +149,10 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
             if (!geminiKeyValidated) {
               setGeminiKeyTier(key.key_tier as any);
               setGeminiKeyValidated(true);
+            }
+            if (key.model) {
+              setGeminiModelInput(key.model);
+              setGeminiModel(key.model);
             }
           }
         }
@@ -221,8 +229,23 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
         }
 
         if (validationResult?.isValid) {
+          // Populate available models for the dropdown
+          const models = validationResult.availableModels || [];
+          setGeminiAvailableModels(models);
+
+          // Auto-select first model if current selection isn't available
+          const selectedModel = geminiModelInput;
+          if (models.length > 0 && !models.includes(selectedModel)) {
+            const defaultModel = models.includes('gemini-2.5-flash') ? 'gemini-2.5-flash' : models[0];
+            setGeminiModelInput(defaultModel);
+          }
+
+          const modelToSave = models.includes(geminiModelInput) ? geminiModelInput 
+            : models.includes('gemini-2.5-flash') ? 'gemini-2.5-flash' 
+            : models[0] || 'gemini-2.5-flash';
+
           const { error: saveError } = await edgeFunctions.functions.invoke('manage-api-keys', {
-            body: { action: 'save', provider: 'gemini', apiKey: keyInput.trim(), tier: validationResult.tier },
+            body: { action: 'save', provider: 'gemini', apiKey: keyInput.trim(), tier: validationResult.tier, model: modelToSave },
           });
 
           if (saveError) {
@@ -235,10 +258,11 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
           setGeminiApiKey(keyInput.trim());
           setGeminiKeyTier(validationResult.tier);
           setGeminiKeyValidated(true);
-          logAudit('api_key', 'key_saved', { provider: 'gemini', tier: validationResult.tier });
+          setGeminiModel(modelToSave);
+          logAudit('api_key', 'key_saved', { provider: 'gemini', tier: validationResult.tier, model: modelToSave });
           resetFallbackToast();
           haptics.success();
-          toast.success(`API key validated & saved! Tier: ${validationResult.tier === 'paid' ? 'Paid' : 'Free'}`);
+          toast.success(`API key validated & saved! Tier: ${validationResult.tier === 'paid' ? 'Paid' : 'Free'} · ${models.length} models available`);
         } else {
           haptics.error();
           toast.error(validationResult?.error || 'Invalid API key');
@@ -542,6 +566,51 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                             </Button>
                           )}
                         </div>
+
+                        {/* Gemini Model Selector */}
+                        {geminiKeyValidated && geminiAvailableModels.length > 0 && (
+                          <div className="space-y-1">
+                            <Label className="text-[11px] text-muted-foreground">
+                              Model
+                              <span className="ml-1 text-primary">· {geminiAvailableModels.length} available</span>
+                            </Label>
+                            <Select
+                              value={geminiModelInput}
+                              onValueChange={async (value) => {
+                                setGeminiModelInput(value);
+                                setGeminiModel(value);
+                                try {
+                                  await edgeFunctions.functions.invoke('manage-api-keys', {
+                                    body: {
+                                      action: 'save',
+                                      provider: 'gemini',
+                                      apiKey: keyInput.trim(),
+                                      tier: geminiKeyTier,
+                                      model: value,
+                                    },
+                                  });
+                                  toast.success(`Model set to ${value}`);
+                                } catch (e) {
+                                  console.error('Failed to save model selection:', e);
+                                  toast.error('Failed to save model selection');
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="h-9 text-sm">
+                                <SelectValue placeholder="Select a model" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <ScrollArea className="max-h-[200px]">
+                                  {geminiAvailableModels.map((model) => (
+                                    <SelectItem key={model} value={model}>
+                                      {model}
+                                    </SelectItem>
+                                  ))}
+                                </ScrollArea>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
 
                         <button
                           onClick={() => openExternal('https://aistudio.google.com/apikey')}
