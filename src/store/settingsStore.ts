@@ -60,6 +60,7 @@ interface SettingsState {
   geminiKeyTier: GeminiKeyTier;
   geminiKeyValidated: boolean;
   geminiDailyUsage: GeminiDailyUsage;
+  geminiModel: string;
   
   // Ollama Provider Settings (in-memory only, keys stored server-side)
   ollamaApiKey: string;
@@ -98,6 +99,7 @@ interface SettingsState {
   
   setGeminiKeyTier: (tier: GeminiKeyTier) => void;
   setGeminiKeyValidated: (validated: boolean) => void;
+  setGeminiModel: (model: string) => void;
   incrementGeminiDailyUsage: () => void;
   resetGeminiDailyUsage: () => void;
   
@@ -144,6 +146,7 @@ const defaultSettings = {
   geminiKeyTier: 'unknown' as GeminiKeyTier,
   geminiKeyValidated: false,
   geminiDailyUsage: { date: '', count: 0 } as GeminiDailyUsage,
+  geminiModel: 'gemini-2.5-flash',
   // Ollama defaults
   ollamaApiKey: '',
   ollamaBaseUrl: '',
@@ -197,6 +200,7 @@ export const useSettingsStore = create<SettingsState>()(
       }),
       setGeminiKeyTier: (tier) => set({ geminiKeyTier: tier }),
       setGeminiKeyValidated: (validated) => set({ geminiKeyValidated: validated }),
+      setGeminiModel: (model) => set({ geminiModel: model }),
       incrementGeminiDailyUsage: () => {
         const today = getTodayPacific();
         const current = get().geminiDailyUsage;

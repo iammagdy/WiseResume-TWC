@@ -285,12 +285,18 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
         return { ...res, providerUsed: 'gemini_byok' };
       } catch (err) {
         console.warn('[AI] Gemini BYOK failed, falling back to Lovable Gateway:', err instanceof Error ? err.message : err);
+        // Extract specific error type for better fallback reporting
+        const fallbackReason = (err as any)?.type === 'quota_exceeded' ? 'quota_exceeded'
+          : (err as any)?.type === 'invalid_key' ? 'invalid_key'
+          : (err as any)?.type === 'rate_limit' ? 'rate_limit'
+          : (err instanceof Error && err.message?.includes('not found')) ? 'model_not_found'
+          : 'gemini_error';
         if (lovableKey) {
           const fallbackController = new AbortController();
           const fallbackTimeout = setTimeout(() => fallbackController.abort(), timeout);
           try {
             const res = await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, fallbackController.signal);
-            return { ...res, fallbackUsed: true, fallbackReason: 'gemini_error', providerUsed: 'lovable_fallback' };
+            return { ...res, fallbackUsed: true, fallbackReason, providerUsed: 'lovable_fallback' };
           } finally {
             clearTimeout(fallbackTimeout);
           }

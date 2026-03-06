@@ -194,9 +194,20 @@ Deno.serve(async (req) => {
     }
 
     const modelsData = await modelsResponse.json();
-    const availableModels = modelsData.models
+    const allModels = modelsData.models
       ?.filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
       ?.map((m: any) => m.name.replace('models/', '')) || [];
+
+    // Filter to only useful generative models (exclude embedding, TTS, vision-only, etc.)
+    const GEMINI_MODEL_PREFIXES = ['gemini-'];
+    const EXCLUDED_SUFFIXES = ['-vision', '-embedding', '-aqa'];
+    const availableModels = allModels.filter((name: string) => {
+      const lower = name.toLowerCase();
+      if (!GEMINI_MODEL_PREFIXES.some(p => lower.startsWith(p))) return false;
+      if (EXCLUDED_SUFFIXES.some(s => lower.endsWith(s))) return false;
+      if (lower.includes('embedding') || lower.includes('tts') || lower.includes('imagen')) return false;
+      return true;
+    });
 
     if (availableModels.length === 0) {
       return new Response(JSON.stringify({ isValid: false, tier: 'unknown', error: 'No compatible models available' }), {
@@ -204,9 +215,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Step 2: Detect tier via minimal request
+    // Step 2: Detect tier via minimal request using a model we know exists
+    const testModel = availableModels.includes('gemini-2.5-flash') ? 'gemini-2.5-flash' 
+      : availableModels.includes('gemini-2.0-flash') ? 'gemini-2.0-flash'
+      : availableModels[0];
+
     const tierResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey.trim()}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${testModel}:generateContent?key=${apiKey.trim()}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -218,11 +233,36 @@ Deno.serve(async (req) => {
     );
 
     let tier: 'free' | 'paid' | 'unknown' = 'unknown';
-    const rateLimitHeader = tierResponse.headers.get('x-ratelimit-limit-requests');
+
+    // Check multiple rate limit headers for tier detection
+    const rateLimitHeader = tierResponse.headers.get('x-ratelimit-limit-requests')
+      || tierResponse.headers.get('x-ratelimit-limit-requests-per-model')
+      || tierResponse.headers.get('x-ratelimit-limit-requests-per-minute');
+
     if (rateLimitHeader) {
       const rpm = parseInt(rateLimitHeader, 10);
       if (!isNaN(rpm)) {
         tier = rpm < 100 ? 'free' : 'paid';
+      }
+    }
+
+    // If headers didn't give us tier info, check the response body for quota hints
+    if (tier === 'unknown' && tierResponse.ok) {
+      // Successful response — check remaining headers
+      const remaining = tierResponse.headers.get('x-ratelimit-remaining-requests');
+      if (remaining) {
+        const rem = parseInt(remaining, 10);
+        // Free tier has very low limits (typically 2-15 RPM)
+        tier = rem < 50 ? 'free' : 'paid';
+      }
+    }
+
+    // If tier detection via a 429 error
+    if (tier === 'unknown' && tierResponse.status === 429) {
+      const errorBody = await tierResponse.json().catch(() => null);
+      const errorMsg = errorBody?.error?.message || '';
+      if (errorMsg.includes('free') || errorMsg.includes('RESOURCE_EXHAUSTED')) {
+        tier = 'free';
       }
     }
 

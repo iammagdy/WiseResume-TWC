@@ -47,14 +47,31 @@ serve(async (req) => {
     // Resolve user keys
     let userGeminiKey: string | undefined;
     let ollamaConfig: { key: string; baseUrl: string | null; model: string | null } | undefined;
+    let testModel = 'google/gemini-2.5-flash';
 
     if (preferredProvider === 'gemini') {
       userGeminiKey = await getUserKeyFromDB(user.id, 'gemini');
+      // Read user's selected Gemini model from DB
+      const supabaseAdmin = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      );
+      const { data: keyData } = await supabaseAdmin
+        .from('user_api_keys')
+        .select('model')
+        .eq('user_id', user.id)
+        .eq('provider', 'gemini')
+        .maybeSingle();
+      if (keyData?.model) {
+        // If the stored model doesn't have a prefix, add the google/ prefix for the gateway
+        testModel = keyData.model.startsWith('google/') || keyData.model.startsWith('gemini-')
+          ? (keyData.model.startsWith('gemini-') ? `google/${keyData.model}` : keyData.model)
+          : `google/${keyData.model}`;
+      }
     } else if (preferredProvider === 'ollama') {
       ollamaConfig = await getUserKeyAndUrlFromDB(user.id, 'ollama');
     }
 
-    const testModel = 'google/gemini-2.5-flash-lite';
     const aiResponse = await callAI({
       model: testModel,
       messages: [
