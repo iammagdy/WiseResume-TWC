@@ -54,11 +54,12 @@ serve(async (req) => {
       ollamaConfig = await getUserKeyAndUrlFromDB(user.id, 'ollama');
     }
 
+    const testModel = 'google/gemini-2.5-flash-lite';
     const aiResponse = await callAI({
-      model: 'google/gemini-2.5-flash-lite',
+      model: testModel,
       messages: [
-        { role: 'system', content: 'Reply with exactly: OK' },
-        { role: 'user', content: 'Test' },
+        { role: 'system', content: 'You are a helpful AI. Reply with a short greeting that includes the name of the AI model you are. Keep it under 10 words.' },
+        { role: 'user', content: 'Say hello and identify yourself.' },
       ],
       temperature: 0,
       maxTokens: 10,
@@ -75,6 +76,7 @@ serve(async (req) => {
       providerUsed: aiResponse.providerUsed || preferredProvider,
       latencyMs,
       response: aiResponse.content?.trim() || 'OK',
+      model: testModel,
       fallbackUsed: aiResponse.fallbackUsed || false,
       fallbackReason: aiResponse.fallbackReason || null,
     }), {
