@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Activity, Zap, AlertTriangle, WifiOff, Key, Radio } from 'lucide-react';
+import { Activity, Zap, AlertTriangle, WifiOff, Settings, Radio } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { useAIHealth, AIHealthStatus } from '@/hooks/useAIHealth';
 import { useAIHealthStore, deriveLastProvider } from '@/store/aiHealthStore';
@@ -100,13 +100,7 @@ export function AIHealthBadge() {
               onClick={() => setShowSettings(true)}
               className="flex items-center gap-1.5 w-full text-xs text-primary hover:underline"
             >
-              <Key className="w-3 h-3" />
-              Use Your Own API Key
-            </button>
-            <button
-              onClick={() => setShowSettings(true)}
-              className="flex items-center gap-1.5 w-full text-xs text-muted-foreground hover:text-foreground hover:underline mt-1"
-            >
+              <Settings className="w-3 h-3" />
               Open AI Settings
             </button>
           </div>
