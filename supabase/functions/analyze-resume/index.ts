@@ -167,7 +167,7 @@ Provide analysis in this exact JSON format:
     await recordUsage(user.id, 'analyze', { provider: aiResponse.providerUsed || 'unknown' });
 
     return new Response(
-      JSON.stringify(analysisResult),
+      JSON.stringify({ ...analysisResult as Record<string, unknown>, _providerUsed: aiResponse.providerUsed || 'unknown' }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 

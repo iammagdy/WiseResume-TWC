@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Activity, Zap, AlertTriangle, WifiOff, Key } from 'lucide-react';
+import { Activity, Zap, AlertTriangle, WifiOff, Key, Radio } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { useAIHealth, AIHealthStatus } from '@/hooks/useAIHealth';
+import { useAIHealthStore, deriveLastProvider } from '@/store/aiHealthStore';
 import { cn } from '@/lib/utils';
 import { AISettingsSheet } from '@/components/settings/AISettingsSheet';
 
@@ -33,10 +34,12 @@ const STATUS_CONFIG: Record<AIHealthStatus, {
 
 export function AIHealthBadge() {
   const { status, latencyMs, provider, errorCode } = useAIHealth();
+  const lastProviderUsed = useAIHealthStore((s) => s.lastProviderUsed);
   const [showSettings, setShowSettings] = useState(false);
 
   const config = STATUS_CONFIG[status];
   const Icon = config.icon;
+  const lastProviderLabel = deriveLastProvider(lastProviderUsed);
 
   return (
     <Popover>
@@ -68,9 +71,18 @@ export function AIHealthBadge() {
               </span>
             </div>
             <div>
-              <span className="block text-foreground/50">Provider</span>
+              <span className="block text-foreground/50">Configured</span>
               <span className="font-medium text-foreground">
                 {provider === 'wiseresume' ? 'WiseResume AI' : provider === 'ollama' ? 'Ollama' : 'Gemini'}
+              </span>
+            </div>
+            <div className="col-span-2">
+              <span className="block text-foreground/50">
+                <Radio className="w-3 h-3 inline mr-1" />
+                Last used
+              </span>
+              <span className="font-medium text-foreground">
+                {lastProviderLabel}
               </span>
             </div>
             {errorCode ? (

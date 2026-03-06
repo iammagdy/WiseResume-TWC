@@ -146,7 +146,7 @@ FACTUAL CONSTRAINTS:
 
     await recordUsage(user.id, 'fill_gap', { provider: aiResponse.providerUsed || 'unknown' });
 
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify({ ...result, _providerUsed: aiResponse.providerUsed || 'unknown' }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

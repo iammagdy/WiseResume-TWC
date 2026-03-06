@@ -1,21 +1,28 @@
 /**
  * AI Fallback Toast
  * Shows a one-per-session notification when BYOK key fails and system falls back to default AI.
+ * Also tracks which provider actually handled each request.
  */
 import { toast } from 'sonner';
+import { useAIHealthStore } from '@/store/aiHealthStore';
 
 let hasShownFallbackToast = false;
 
 /**
  * Call this after receiving a response from an AI edge function.
  * If the response contains `_fallbackUsed: true`, shows a toast once per session.
+ * Also tracks `_providerUsed` in the health store.
  */
 export function checkAIFallback(responseData: unknown): void {
   if (!responseData || typeof responseData !== 'object') return;
   const data = responseData as Record<string, unknown>;
 
-  if (data._fallbackUsed) {
+  // Track provider
+  if (data._providerUsed && typeof data._providerUsed === 'string') {
+    useAIHealthStore.getState().recordProvider(data._providerUsed);
+  }
 
+  if (data._fallbackUsed) {
     const reason = data._fallbackReason;
     let message = 'Your API key failed — using WiseResume AI instead.';
     if (reason === 'quota_exceeded') {
