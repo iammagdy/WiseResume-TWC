@@ -57,7 +57,7 @@ export function useAIProviderInfo(): AIProviderInfo {
   }
 
   const tier: 'free' | 'paid' = geminiKeyTier === 'paid' ? 'paid' : 'free';
-  const tierLabel = geminiKeyTier === 'paid' ? 'Paid' : 'Free';
+  const tierLabel = geminiKeyTier === 'paid' ? 'Paid' : geminiKeyTier === 'unknown' ? '' : 'Free';
 
   return {
     provider: 'gemini',

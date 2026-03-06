@@ -441,6 +441,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       if (provider === 'gemini') {
         if (!geminiKeyValidated) return <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">Not Set</Badge>;
         if (geminiKeyTier === 'paid') return <Badge className="text-[10px] px-1.5 py-0 bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Paid ✓</Badge>;
+        if (geminiKeyTier === 'unknown') return <Badge className="text-[10px] px-1.5 py-0 bg-blue-500/20 text-blue-400 border-blue-500/30">Connected ✓</Badge>;
         return <Badge className="text-[10px] px-1.5 py-0 bg-amber-500/20 text-amber-400 border-amber-500/30">Free ✓</Badge>;
       }
       if (provider === 'ollama') {

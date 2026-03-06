@@ -234,6 +234,11 @@ Deno.serve(async (req) => {
 
     let tier: 'free' | 'paid' | 'unknown' = 'unknown';
 
+    // Log all response headers for debugging
+    const headerEntries: Record<string, string> = {};
+    tierResponse.headers.forEach((v, k) => { headerEntries[k] = v; });
+    console.log('[validate] Gemini tier response headers:', JSON.stringify(headerEntries));
+
     // Check multiple rate limit headers for tier detection
     const rateLimitHeader = tierResponse.headers.get('x-ratelimit-limit-requests')
       || tierResponse.headers.get('x-ratelimit-limit-requests-per-model')
@@ -243,17 +248,29 @@ Deno.serve(async (req) => {
       const rpm = parseInt(rateLimitHeader, 10);
       if (!isNaN(rpm)) {
         tier = rpm < 100 ? 'free' : 'paid';
+        console.log(`[validate] Tier from RPM header: ${tier} (rpm=${rpm})`);
       }
     }
 
-    // If headers didn't give us tier info, check the response body for quota hints
+    // Check daily request limit header (free: ~1500, paid: ~10000+)
+    if (tier === 'unknown') {
+      const rpdHeader = tierResponse.headers.get('x-ratelimit-limit-requests-per-day');
+      if (rpdHeader) {
+        const rpd = parseInt(rpdHeader, 10);
+        if (!isNaN(rpd)) {
+          tier = rpd > 2000 ? 'paid' : 'free';
+          console.log(`[validate] Tier from RPD header: ${tier} (rpd=${rpd})`);
+        }
+      }
+    }
+
+    // Check remaining requests header
     if (tier === 'unknown' && tierResponse.ok) {
-      // Successful response — check remaining headers
       const remaining = tierResponse.headers.get('x-ratelimit-remaining-requests');
       if (remaining) {
         const rem = parseInt(remaining, 10);
-        // Free tier has very low limits (typically 2-15 RPM)
         tier = rem < 50 ? 'free' : 'paid';
+        console.log(`[validate] Tier from remaining header: ${tier} (rem=${rem})`);
       }
     }
 
@@ -263,11 +280,41 @@ Deno.serve(async (req) => {
       const errorMsg = errorBody?.error?.message || '';
       if (errorMsg.includes('free') || errorMsg.includes('RESOURCE_EXHAUSTED')) {
         tier = 'free';
+        console.log('[validate] Tier from 429 error: free');
       }
     }
 
-    // Default to free for safety
-    if (tier === 'unknown') tier = 'free';
+    // RPM probe: if still unknown, make a rapid second call
+    // Free tier (2-15 RPM) will likely 429; paid tier won't
+    if (tier === 'unknown' && tierResponse.ok) {
+      console.log('[validate] Tier unknown, attempting RPM probe...');
+      try {
+        const probeResponse = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${testModel}:generateContent?key=${apiKey.trim()}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: 'Hi' }] }],
+              generationConfig: { maxOutputTokens: 1 },
+            }),
+          }
+        );
+        if (probeResponse.ok) {
+          tier = 'paid';
+          console.log('[validate] RPM probe succeeded → paid');
+        } else if (probeResponse.status === 429) {
+          tier = 'free';
+          console.log('[validate] RPM probe 429 → free');
+        }
+        // Consume body
+        await probeResponse.text();
+      } catch (probeErr) {
+        console.log('[validate] RPM probe error, leaving tier unknown');
+      }
+    }
+
+    console.log(`[validate] Final tier: ${tier}`);
 
     return new Response(JSON.stringify({ isValid: true, tier, availableModels }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
