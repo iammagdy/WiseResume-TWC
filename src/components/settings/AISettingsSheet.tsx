@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   Brain, 
   Key, 
@@ -21,8 +21,10 @@ import {
   Loader2,
   Server,
   History,
+  ChevronDown,
+  Play,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useSettingsStore, AIProvider, GeminiKeyTier } from '@/store/settingsStore';
 import { resetFallbackToast } from '@/lib/aiFallbackToast';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
@@ -32,6 +34,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { logAudit } from '@/lib/auditLogger';
 import { formatDistanceToNow } from 'date-fns';
+import { deriveLastProvider } from '@/store/aiHealthStore';
 import {
   Select,
   SelectContent,
@@ -45,6 +48,15 @@ interface AISettingsSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
+interface TestResult {
+  status: 'success' | 'error';
+  providerUsed: string;
+  latencyMs: number;
+  error?: string;
+  fallbackUsed?: boolean;
+  fallbackReason?: string;
+}
+
 export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     const {
       aiProvider,
@@ -56,7 +68,6 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       geminiKeyValidated,
       setGeminiKeyValidated,
       geminiDailyUsage,
-      // Ollama
       ollamaApiKey,
       setOllamaApiKey,
       ollamaBaseUrl,
@@ -71,13 +82,16 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     const [keyInput, setKeyInput] = useState(geminiApiKey);
     const [isValidating, setIsValidating] = useState(false);
 
-    // Ollama local state
     const [ollamaKeyInput, setOllamaKeyInput] = useState(ollamaApiKey);
     const [ollamaUrlInput, setOllamaUrlInput] = useState(ollamaBaseUrl);
     const [ollamaModelInput, setOllamaModelInput] = useState(ollamaModel);
     const [showOllamaKey, setShowOllamaKey] = useState(false);
     const [isValidatingOllama, setIsValidatingOllama] = useState(false);
     const [ollamaAvailableModels, setOllamaAvailableModels] = useState<string[]>([]);
+
+    // Test connection state
+    const [isTesting, setIsTesting] = useState(false);
+    const [testResult, setTestResult] = useState<TestResult | null>(null);
 
     // Usage history
     interface UsageLog {
@@ -88,6 +102,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     }
     const [usageHistory, setUsageHistory] = useState<UsageLog[]>([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
+    const [historyOpen, setHistoryOpen] = useState(false);
 
     // Load usage history + hydrate saved keys when sheet opens
     useEffect(() => {
@@ -103,7 +118,6 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
           setLoadingHistory(false);
         });
 
-      // Hydrate saved provider config from server
       edgeFunctions.functions.invoke('manage-api-keys', {
         body: { action: 'get' },
       }).then(({ data }) => {
@@ -121,7 +135,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
             if (!ollamaKeyValidated) {
               setOllamaBaseUrl(key.base_url || '');
               setOllamaModel(key.model || '');
-          setOllamaKeyValidated(true);
+              setOllamaKeyValidated(true);
               setAIProvider('ollama');
             }
           }
@@ -139,23 +153,22 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       ? aiProvider 
       : 'wiseresume';
 
-    // Sync inputs when sheet opens
     useEffect(() => {
       if (open) {
         setKeyInput(geminiApiKey);
         setOllamaKeyInput(ollamaApiKey);
-        // Auto-correct legacy api.ollama.com → ollama.com
         const correctedUrl = ollamaBaseUrl?.replace(/api\.ollama\.com/i, 'ollama.com') || '';
         if (correctedUrl) setOllamaUrlInput(correctedUrl);
         if (ollamaModel) setOllamaModelInput(ollamaModel);
+        setTestResult(null);
       }
     }, [open, geminiApiKey, ollamaApiKey, ollamaBaseUrl, ollamaModel]);
 
     const handleProviderChange = async (value: string) => {
       haptics.selection();
       setAIProvider(value as AIProvider);
+      setTestResult(null);
       
-      // Sync to user_preferences table so backend knows the preferred provider
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
@@ -253,7 +266,6 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       toast.success('API key removed');
     };
 
-    // ===== Ollama handlers =====
     const handleValidateOllama = async () => {
       if (!ollamaUrlInput.trim()) {
         toast.error('Please enter your Ollama server URL');
@@ -346,16 +358,82 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       toast.success('Ollama configuration removed');
     };
 
-    const getTierBadge = (tier: GeminiKeyTier) => {
-      switch (tier) {
-        case 'paid':
-          return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Paid</Badge>;
-        case 'free':
-          return <Badge variant="secondary" className="bg-amber-500/20 text-amber-400 border-amber-500/30">Free Tier</Badge>;
-        default:
-          return <Badge variant="outline" className="text-muted-foreground">Unknown</Badge>;
+    const handleTestConnection = async () => {
+      setIsTesting(true);
+      setTestResult(null);
+      haptics.light();
+
+      try {
+        const { data, error } = await edgeFunctions.functions.invoke('ai-test');
+
+        if (error) {
+          haptics.error();
+          setTestResult({
+            status: 'error',
+            providerUsed: safeProvider,
+            latencyMs: 0,
+            error: 'Failed to reach AI service',
+          });
+          return;
+        }
+
+        if (data?.success) {
+          haptics.success();
+          setTestResult({
+            status: 'success',
+            providerUsed: data.providerUsed || safeProvider,
+            latencyMs: data.latencyMs || 0,
+            fallbackUsed: data.fallbackUsed,
+            fallbackReason: data.fallbackReason,
+          });
+        } else {
+          haptics.error();
+          setTestResult({
+            status: 'error',
+            providerUsed: safeProvider,
+            latencyMs: data?.latencyMs || 0,
+            error: data?.error || 'Test failed',
+          });
+        }
+      } catch (err) {
+        haptics.error();
+        setTestResult({
+          status: 'error',
+          providerUsed: safeProvider,
+          latencyMs: 0,
+          error: err instanceof Error ? err.message : 'Unknown error',
+        });
+      } finally {
+        setIsTesting(false);
       }
     };
+
+    const getProviderStatus = (provider: AIProvider) => {
+      if (provider === 'wiseresume') return <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Default</Badge>;
+      if (provider === 'gemini') {
+        if (!geminiKeyValidated) return <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">Not Set</Badge>;
+        if (geminiKeyTier === 'paid') return <Badge className="text-[10px] px-1.5 py-0 bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Paid ✓</Badge>;
+        return <Badge className="text-[10px] px-1.5 py-0 bg-amber-500/20 text-amber-400 border-amber-500/30">Free ✓</Badge>;
+      }
+      if (provider === 'ollama') {
+        if (!ollamaKeyValidated) return <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">Not Set</Badge>;
+        return <Badge className="text-[10px] px-1.5 py-0 bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Connected</Badge>;
+      }
+      return null;
+    };
+
+    const providerIcon = (provider: AIProvider) => {
+      if (provider === 'wiseresume') return <Zap className="w-4 h-4 text-primary" />;
+      if (provider === 'gemini') return <Key className="w-4 h-4 text-blue-400" />;
+      if (provider === 'ollama') return <Server className="w-4 h-4 text-green-400" />;
+      return null;
+    };
+
+    const providers: { id: AIProvider; label: string; desc: string }[] = [
+      { id: 'wiseresume', label: 'WiseResume AI', desc: 'Built-in AI · No setup needed' },
+      { id: 'gemini', label: 'Gemini API Key', desc: 'Your own Google AI Studio key' },
+      { id: 'ollama', label: 'Ollama', desc: 'Cloud API or self-hosted' },
+    ];
 
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -367,379 +445,385 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
             </SheetTitle>
           </SheetHeader>
           
-          <div className="flex-1 min-h-0 overflow-y-auto space-y-4 py-4">
-            {/* Provider Selection */}
-            <RadioGroup
-              key={safeProvider}
-              value={safeProvider}
-              onValueChange={handleProviderChange}
-              className="space-y-3"
-            >
-              <motion.div
-                whileTap={{ scale: 0.98 }}
-                onClick={() => handleProviderChange('wiseresume')}
-                className={cn(
-                  "flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all",
-                  safeProvider === 'wiseresume' 
-                    ? "border-primary bg-primary/5" 
-                    : "border-border bg-card hover:bg-accent/50"
-                )}
-              >
-                <RadioGroupItem value="wiseresume" id="wiseresume-sheet" className="mt-0.5" />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">WiseResume AI</span>
-                    <Badge variant="secondary" className="text-xs">Default</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Built-in AI powered by multiple models. No setup required.
-                  </p>
-                </div>
-              </motion.div>
-
-              <motion.div
-                whileTap={{ scale: 0.98 }}
-                onClick={() => handleProviderChange('gemini')}
-                className={cn(
-                  "flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all",
-                  safeProvider === 'gemini' 
-                    ? "border-primary bg-primary/5" 
-                    : "border-border bg-card hover:bg-accent/50"
-                )}
-              >
-                <RadioGroupItem value="gemini" id="gemini-sheet" className="mt-0.5" />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">Your Gemini API Key</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Use your own Google AI Studio key for direct access.
-                  </p>
-                </div>
-              </motion.div>
-
-              <motion.div
-                whileTap={{ scale: 0.98 }}
-                onClick={() => handleProviderChange('ollama')}
-                className={cn(
-                  "flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all",
-                  safeProvider === 'ollama' 
-                    ? "border-primary bg-primary/5" 
-                    : "border-border bg-card hover:bg-accent/50"
-                )}
-              >
-                <RadioGroupItem value="ollama" id="ollama-sheet" className="mt-0.5" />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">Ollama</span>
-                    <Badge variant="outline" className="text-xs">Cloud API</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Use your Ollama API key from ollama.com.
-                  </p>
-                </div>
-              </motion.div>
-            </RadioGroup>
-
-            {/* Gemini API Key Management */}
-            <AnimatePresence mode="wait">
-              {aiProvider === 'gemini' && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="space-y-4 pt-2"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                      <Key className="w-4 h-4 text-primary" />
-                      Gemini API Key
-                    </div>
-                    {geminiKeyValidated && getTierBadge(geminiKeyTier)}
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <Input
-                        type={showKey ? 'text' : 'password'}
-                        value={keyInput}
-                        onChange={(e) => setKeyInput(e.target.value)}
-                        placeholder="AIzaSy..."
-                        className="pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowKey(!showKey)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      >
-                        {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  {geminiKeyValidated && (
-                    <div className="flex items-center gap-2 text-sm text-emerald-500">
-                      <CheckCircle2 className="w-4 h-4" />
-                      Key validated successfully
-                    </div>
-                  )}
-
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={handleValidateKey}
-                      disabled={isValidating || !keyInput.trim()}
-                      className="flex-1"
-                    >
-                      {isValidating ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Validating...
-                        </>
-                      ) : (
-                        'Validate Key'
-                      )}
-                    </Button>
-                    {geminiApiKey && (
-                      <Button
-                        variant="outline"
-                        onClick={handleClearKey}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+          <div className="flex-1 min-h-0 overflow-y-auto space-y-3 py-4">
+            {/* Compact Provider Selection */}
+            <div className="space-y-1">
+              {providers.map((p) => (
+                <div key={p.id}>
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleProviderChange(p.id)}
+                    className={cn(
+                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-left",
+                      safeProvider === p.id 
+                        ? "bg-primary/10 border border-primary/30" 
+                        : "hover:bg-accent/50"
                     )}
-                  </div>
-
-                  <button
-                    onClick={() => openExternal('https://aistudio.google.com/apikey')}
-                    className="flex items-center gap-2 text-sm text-primary hover:underline touch-manipulation"
                   >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    Get a key at Google AI Studio
-                  </button>
-
-                  {/* Usage Stats (for Gemini free tier) */}
-                  {geminiKeyTier === 'free' && geminiKeyValidated && (
-                    <div className="p-3 rounded-lg bg-muted/50">
-                      <div className="flex items-center gap-2 text-sm mb-1">
-                        <Info className="w-4 h-4 text-muted-foreground" />
-                        <span className="font-medium">Daily Usage</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Requests today</span>
-                        <span className="font-medium">{geminiDailyUsage.count}</span>
-                      </div>
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Ollama Configuration */}
-            <AnimatePresence mode="wait">
-              {aiProvider === 'ollama' && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="space-y-4 pt-2"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                      <Server className="w-4 h-4 text-primary" />
-                      Ollama Configuration
-                    </div>
-                    {ollamaKeyValidated && (
-                      <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-                        Connected{ollamaAvailableModels.length > 0 ? ` · ${ollamaAvailableModels.length} models` : ''}
-                      </Badge>
-                    )}
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Server URL</Label>
-                      <Input
-                        value={ollamaUrlInput}
-                        onChange={(e) => setOllamaUrlInput(e.target.value)}
-                        placeholder="https://ollama.com"
-                      />
-                      <p className="text-[11px] text-muted-foreground">
-                        Ollama Cloud: https://ollama.com — or your self-hosted URL
-                      </p>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">API Key</Label>
-                      <div className="relative">
-                        <Input
-                          type={showOllamaKey ? 'text' : 'password'}
-                          value={ollamaKeyInput}
-                          onChange={(e) => setOllamaKeyInput(e.target.value)}
-                          placeholder="Enter your Ollama API key"
-                          className="pr-10"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowOllamaKey(!showOllamaKey)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        >
-                          {showOllamaKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">
-                        Model Name
-                        {ollamaAvailableModels.length > 0 && (
-                          <span className="ml-1.5 text-primary">· {ollamaAvailableModels.length} available</span>
-                        )}
-                      </Label>
-                      {ollamaAvailableModels.length > 0 ? (
-                        <Select
-                          value={ollamaModelInput}
-                          onValueChange={async (value) => {
-                            setOllamaModelInput(value);
-                            setOllamaModel(value);
-                            // Auto-save model selection to DB
-                            try {
-                              await edgeFunctions.functions.invoke('manage-api-keys', {
-                                body: {
-                                  action: 'save',
-                                  provider: 'ollama',
-                                  apiKey: ollamaKeyInput.trim() || 'ollama-no-key',
-                                  keyTier: 'paid',
-                                  baseUrl: ollamaUrlInput.trim(),
-                                  model: value,
-                                },
-                              });
-                              toast.success(`Model set to ${value}`);
-                            } catch (e) {
-                              console.error('Failed to save model selection:', e);
-                              toast.error('Failed to save model selection');
-                            }
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a model" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <ScrollArea className="max-h-[200px]">
-                              {ollamaAvailableModels.map((model) => (
-                                <SelectItem key={model} value={model}>
-                                  {model}
-                                </SelectItem>
-                              ))}
-                            </ScrollArea>
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Input
-                          value={ollamaModelInput}
-                          onChange={(e) => setOllamaModelInput(e.target.value)}
-                          placeholder="e.g. glm-5:cloud, llama3.1, mistral"
-                        />
+                    <div className={cn(
+                      "w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0",
+                      safeProvider === p.id ? "border-primary" : "border-muted-foreground/40"
+                    )}>
+                      {safeProvider === p.id && (
+                        <div className="w-2 h-2 rounded-full bg-primary" />
                       )}
                     </div>
-                  </div>
-
-                  {ollamaKeyValidated ? (
-                    <div className="flex items-center gap-2 text-sm text-emerald-500">
-                      <CheckCircle2 className="w-4 h-4" />
-                      Connected to Ollama server
+                    {providerIcon(p.id)}
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium">{p.label}</span>
+                      {safeProvider !== p.id && (
+                        <p className="text-[11px] text-muted-foreground truncate">{p.desc}</p>
+                      )}
                     </div>
-                  ) : (
-                    <div className="flex items-center gap-2 text-sm text-amber-500">
-                      <AlertCircle className="w-4 h-4" />
-                      Not connected — AI features will use WiseResume AI until validated
-                    </div>
-                  )}
+                    {getProviderStatus(p.id)}
+                  </motion.button>
 
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={handleValidateOllama}
-                      disabled={isValidatingOllama || !ollamaUrlInput.trim()}
-                      className="flex-1"
+                  {/* Expanded config for selected provider */}
+                  {safeProvider === p.id && p.id === 'gemini' && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="ml-7 mt-1 mb-2 space-y-3 pl-3 border-l-2 border-primary/20"
                     >
-                      {isValidatingOllama ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Connecting...
-                        </>
-                      ) : (
-                        'Connect & Validate'
-                      )}
-                    </Button>
-                    {ollamaKeyValidated && (
-                      <Button
-                        variant="outline"
-                        onClick={handleClearOllama}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Usage History */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <History className="w-4 h-4 text-primary" />
-                Recent AI Requests
-              </div>
-              {loadingHistory ? (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                </div>
-              ) : usageHistory.length === 0 ? (
-                <p className="text-xs text-muted-foreground py-2">No AI requests yet.</p>
-              ) : (
-                <ScrollArea className="max-h-48">
-                  <div className="space-y-1.5">
-                    {usageHistory.map((log) => {
-                      const provider = (log.metadata as any)?.provider || 'wiseresume';
-                      const providerLabel: Record<string, string> = {
-                        ollama: '🟢 Ollama',
-                        gemini_byok: '🔵 Gemini BYOK',
-                        lovable: '⚡ WiseResume',
-                        lovable_fallback: '⚡ WiseResume (fallback)',
-                        gemini_global: '🔵 Gemini',
-                        emergent: '🟣 Emergent',
-                        wiseresume: '⚡ WiseResume',
-                        unknown: '❓ Unknown',
-                      };
-                      return (
-                        <div key={log.id} className="flex items-center justify-between px-2 py-1.5 rounded-md bg-muted/40 text-xs">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{log.action_type}</span>
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                              {providerLabel[provider] || provider}
-                            </Badge>
-                          </div>
-                          <span className="text-muted-foreground">
-                            {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
-                          </span>
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <Input
+                            type={showKey ? 'text' : 'password'}
+                            value={keyInput}
+                            onChange={(e) => setKeyInput(e.target.value)}
+                            placeholder="AIzaSy..."
+                            className="pr-10 h-9 text-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowKey(!showKey)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          >
+                            {showKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          </button>
                         </div>
-                      );
-                    })}
+
+                        {geminiKeyValidated && (
+                          <div className="flex items-center gap-1.5 text-xs text-emerald-500">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Key validated
+                          </div>
+                        )}
+
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={handleValidateKey}
+                            disabled={isValidating || !keyInput.trim()}
+                            className="flex-1 h-8 text-xs"
+                          >
+                            {isValidating ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                                Validating...
+                              </>
+                            ) : (
+                              'Validate Key'
+                            )}
+                          </Button>
+                          {geminiApiKey && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleClearKey}
+                              className="h-8 text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                        </div>
+
+                        <button
+                          onClick={() => openExternal('https://aistudio.google.com/apikey')}
+                          className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          Get a key at Google AI Studio
+                        </button>
+
+                        {geminiKeyTier === 'free' && geminiKeyValidated && (
+                          <div className="p-2 rounded-md bg-muted/50 text-xs">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Requests today</span>
+                              <span className="font-medium">{geminiDailyUsage.count}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {safeProvider === p.id && p.id === 'ollama' && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="ml-7 mt-1 mb-2 space-y-3 pl-3 border-l-2 border-primary/20"
+                    >
+                      <div className="space-y-2.5">
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">Server URL</Label>
+                          <Input
+                            value={ollamaUrlInput}
+                            onChange={(e) => setOllamaUrlInput(e.target.value)}
+                            placeholder="https://ollama.com"
+                            className="h-9 text-sm"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">API Key</Label>
+                          <div className="relative">
+                            <Input
+                              type={showOllamaKey ? 'text' : 'password'}
+                              value={ollamaKeyInput}
+                              onChange={(e) => setOllamaKeyInput(e.target.value)}
+                              placeholder="Enter your Ollama API key"
+                              className="pr-10 h-9 text-sm"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowOllamaKey(!showOllamaKey)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            >
+                              {showOllamaKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">
+                            Model
+                            {ollamaAvailableModels.length > 0 && (
+                              <span className="ml-1 text-primary">· {ollamaAvailableModels.length} available</span>
+                            )}
+                          </Label>
+                          {ollamaAvailableModels.length > 0 ? (
+                            <Select
+                              value={ollamaModelInput}
+                              onValueChange={async (value) => {
+                                setOllamaModelInput(value);
+                                setOllamaModel(value);
+                                try {
+                                  await edgeFunctions.functions.invoke('manage-api-keys', {
+                                    body: {
+                                      action: 'save',
+                                      provider: 'ollama',
+                                      apiKey: ollamaKeyInput.trim() || 'ollama-no-key',
+                                      keyTier: 'paid',
+                                      baseUrl: ollamaUrlInput.trim(),
+                                      model: value,
+                                    },
+                                  });
+                                  toast.success(`Model set to ${value}`);
+                                } catch (e) {
+                                  console.error('Failed to save model selection:', e);
+                                  toast.error('Failed to save model selection');
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="h-9 text-sm">
+                                <SelectValue placeholder="Select a model" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <ScrollArea className="max-h-[200px]">
+                                  {ollamaAvailableModels.map((model) => (
+                                    <SelectItem key={model} value={model}>
+                                      {model}
+                                    </SelectItem>
+                                  ))}
+                                </ScrollArea>
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Input
+                              value={ollamaModelInput}
+                              onChange={(e) => setOllamaModelInput(e.target.value)}
+                              placeholder="e.g. glm-5:cloud, llama3.1"
+                              className="h-9 text-sm"
+                            />
+                          )}
+                        </div>
+                      </div>
+
+                      {ollamaKeyValidated ? (
+                        <div className="flex items-center gap-1.5 text-xs text-emerald-500">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Connected to Ollama server
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-xs text-amber-500">
+                          <AlertCircle className="w-3.5 h-3.5" />
+                          Not connected — will use WiseResume AI
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={handleValidateOllama}
+                          disabled={isValidatingOllama || !ollamaUrlInput.trim()}
+                          className="flex-1 h-8 text-xs"
+                        >
+                          {isValidatingOllama ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                              Connecting...
+                            </>
+                          ) : (
+                            'Connect & Validate'
+                          )}
+                        </Button>
+                        {ollamaKeyValidated && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleClearOllama}
+                            className="h-8 text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Test Connection */}
+            <div className="space-y-2 pt-1">
+              <Button
+                variant="outline"
+                onClick={handleTestConnection}
+                disabled={isTesting}
+                className="w-full h-9 text-sm gap-2"
+              >
+                {isTesting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Testing...
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4" />
+                    Test AI Connection
+                  </>
+                )}
+              </Button>
+
+              {testResult && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={cn(
+                    "p-3 rounded-lg border text-sm space-y-1",
+                    testResult.status === 'success'
+                      ? "bg-emerald-500/5 border-emerald-500/20"
+                      : "bg-destructive/5 border-destructive/20"
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    {testResult.status === 'success' ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 text-destructive shrink-0" />
+                    )}
+                    <span className="font-medium">
+                      {testResult.status === 'success' 
+                        ? `Response in ${testResult.latencyMs}ms`
+                        : 'Connection failed'
+                      }
+                    </span>
                   </div>
-                </ScrollArea>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground ml-6">
+                    <span>Provider: <span className="text-foreground font-medium">{deriveLastProvider(testResult.providerUsed)}</span></span>
+                  </div>
+                  {testResult.fallbackUsed && (
+                    <div className="flex items-center gap-1.5 text-xs text-amber-500 ml-6">
+                      <AlertCircle className="w-3 h-3" />
+                      Fallback used{testResult.fallbackReason ? `: ${testResult.fallbackReason}` : ''}
+                    </div>
+                  )}
+                  {testResult.error && (
+                    <p className="text-xs text-destructive ml-6">{testResult.error}</p>
+                  )}
+                </motion.div>
               )}
             </div>
 
-            {/* Tips Card */}
-            <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
-              <div className="flex gap-3">
-                <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                <div className="space-y-1 text-xs">
-                  <p className="font-medium text-amber-500">Tips</p>
-                  <ul className="space-y-0.5 text-muted-foreground">
+            {/* Collapsible Usage History */}
+            <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
+              <CollapsibleTrigger className="flex items-center justify-between w-full px-1 py-2 text-sm font-medium hover:text-foreground text-muted-foreground transition-colors">
+                <div className="flex items-center gap-2">
+                  <History className="w-4 h-4" />
+                  Recent AI Requests
+                  {usageHistory.length > 0 && (
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{usageHistory.length}</Badge>
+                  )}
+                </div>
+                <ChevronDown className={cn("w-4 h-4 transition-transform", historyOpen && "rotate-180")} />
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                {loadingHistory ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : usageHistory.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-2 px-1">No AI requests yet.</p>
+                ) : (
+                  <ScrollArea className="max-h-48">
+                    <div className="space-y-1">
+                      {usageHistory.map((log) => {
+                        const provider = (log.metadata as any)?.provider || 'wiseresume';
+                        const providerLabel: Record<string, string> = {
+                          ollama: '🟢 Ollama',
+                          gemini_byok: '🔵 Gemini',
+                          lovable: '⚡ Wise',
+                          lovable_fallback: '⚡ Fallback',
+                          gemini_global: '🔵 Gemini',
+                          emergent: '🟣 Emergent',
+                          wiseresume: '⚡ Wise',
+                          unknown: '❓',
+                        };
+                        return (
+                          <div key={log.id} className="flex items-center justify-between px-2 py-1.5 rounded-md bg-muted/40 text-xs">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium truncate max-w-[120px]">{log.action_type}</span>
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
+                                {providerLabel[provider] || provider}
+                              </Badge>
+                            </div>
+                            <span className="text-muted-foreground shrink-0 text-[10px]">
+                              {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Collapsible Tips */}
+            <Collapsible>
+              <CollapsibleTrigger className="flex items-center justify-between w-full px-1 py-2 text-sm font-medium hover:text-foreground text-muted-foreground transition-colors">
+                <div className="flex items-center gap-2">
+                  <Info className="w-4 h-4" />
+                  Tips
+                </div>
+                <ChevronDown className="w-4 h-4 transition-transform [[data-state=open]>&]:rotate-180" />
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
+                  <ul className="space-y-0.5 text-xs text-muted-foreground">
                     <li>• Free tier keys have strict daily limits</li>
                     <li>• Keys are encrypted and stored securely on the server</li>
                     <li>• WiseResume AI is recommended for best experience</li>
@@ -748,8 +832,8 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                     )}
                   </ul>
                 </div>
-              </div>
-            </div>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
         </SheetContent>
       </Sheet>
