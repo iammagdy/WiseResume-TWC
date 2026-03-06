@@ -6,6 +6,7 @@ const ALLOWED_ORIGINS = [
   'capacitor://localhost',      // Capacitor iOS
   'https://wiseresume.magdysaber.com',
   'https://wiseresume.lovable.app',
+  'https://thewise.cloud',
 ];
 
 export const getCorsHeaders = (origin?: string | null) => {
