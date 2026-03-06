@@ -6,7 +6,7 @@ import { useEffect, useRef } from 'react';
 import { useSettingsStore } from '@/store/settingsStore';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/safeClient';
 
 export function useAIKeyHydration() {
   const hydrated = useRef(false);

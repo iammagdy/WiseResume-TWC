@@ -1,5 +1,5 @@
 import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/safeClient';
 
 type AuditCategory = 'migration' | 'account' | 'api_key' | 'auth';
 

@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useResumes } from '@/hooks/useResumes';
 import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/safeClient';
 
 import { SUPABASE_URL } from '@/lib/supabaseConstants';
 import { toast } from 'sonner';
