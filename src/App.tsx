@@ -1,4 +1,5 @@
 import { Suspense, useEffect, useState } from "react";
+import { ClerkProvider } from "@clerk/clerk-react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -288,21 +289,31 @@ function AppInstallPrompt() {
   return <InstallPrompt />;
 }
  
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-        <ErrorBoundary>
-          <Toaster />
-          <BrowserRouter>
-            <AuthProvider>
-              <AppRoutes />
-              <DeferredProviders />
-              <AppInstallPrompt />
-            </AuthProvider>
-          </BrowserRouter>
-        </ErrorBoundary>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
+
+const App = () => {
+  const app = (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+          <ErrorBoundary>
+            <Toaster />
+            <BrowserRouter>
+              <AuthProvider>
+                <AppRoutes />
+                <DeferredProviders />
+                <AppInstallPrompt />
+              </AuthProvider>
+            </BrowserRouter>
+          </ErrorBoundary>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+
+  if (CLERK_PUBLISHABLE_KEY) {
+    return <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>{app}</ClerkProvider>;
+  }
+
+  return app;
+};
 
 export default App;
