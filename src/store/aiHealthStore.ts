@@ -68,6 +68,7 @@ export function deriveLastProvider(lastProviderUsed: string | null): string {
     'gemini-byok': 'Gemini BYOK',
     'ollama': 'Ollama',
     'lovable-fallback': 'WiseResume (Fallback)',
+    'lovable_fallback': 'WiseResume (Fallback)',
     'deterministic': 'Local',
   };
   return map[lastProviderUsed.toLowerCase()] || lastProviderUsed;

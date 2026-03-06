@@ -762,7 +762,16 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                   {testResult.fallbackUsed && (
                     <div className="flex items-center gap-1.5 text-xs text-amber-500 ml-6">
                       <AlertCircle className="w-3 h-3" />
-                      Fallback used{testResult.fallbackReason ? `: ${testResult.fallbackReason}` : ''}
+                      {(() => {
+                        const reasonMap: Record<string, string> = {
+                          gemini_error: 'Gemini key failed — fell back to WiseResume AI',
+                          quota_exceeded: 'Gemini quota exhausted',
+                          rate_limit: 'Gemini rate limited',
+                          invalid_key: 'Gemini key is invalid',
+                        };
+                        const reason = testResult.fallbackReason || '';
+                        return reasonMap[reason] || (reason ? `Fallback used: ${reason}` : 'Fallback used');
+                      })()}
                     </div>
                   )}
                   {testResult.error && (
