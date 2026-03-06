@@ -498,8 +498,8 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
         });
       } finally {
         setIsTesting(false);
-        // Refresh usage history immediately so the test entry appears
-        refreshUsageHistory();
+        // Delay allows the edge function's DB insert to complete before refreshing
+        setTimeout(() => refreshUsageHistory(), 1500);
       }
     };
 
@@ -1093,6 +1093,20 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                             test: '🧪 Test AI Connection',
                             resignation: 'Resignation',
                             career_assessment: 'Assessment',
+                            career_assess: 'Career Assessment',
+                            career_path: 'Career Path',
+                            company_briefing: 'Company Briefing',
+                            detect_humanize: 'AI Detection',
+                            one_page: 'One-Page Resume',
+                            parse_job: 'Parse Job',
+                            parse_job_text: 'Parse Job Text',
+                            fill_gap: 'Fill Gap',
+                            explain_gap: 'Explain Gap',
+                            linkedin_opt: 'LinkedIn Optimize',
+                            linkedinOpt: 'LinkedIn Optimize',
+                            proofread: 'Proofread',
+                            recruiter_sim: 'Recruiter Sim',
+                            parse_linkedin: 'Parse LinkedIn',
                           };
                           const actionLabel = actionLabels[log.action_type] || log.action_type.charAt(0).toUpperCase() + log.action_type.slice(1);
                           return (
