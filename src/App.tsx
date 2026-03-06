@@ -198,7 +198,7 @@ const queryClient = new QueryClient({
           {/* Public routes - no auth required */}
           <Route path="/" element={<Index />} />
            <Route element={<AppShell />}>
-              <Route path="/auth" element={<Suspense fallback={<AuthSkeleton />}>{CLERK_PUBLISHABLE_KEY ? <ClerkAuthPage /> : <AuthPage />}</Suspense>} />
+              <Route path="/auth" element={<Suspense fallback={<AuthSkeleton />}><ClerkAuthPage /></Suspense>} />
               <Route path="/sign-in" element={<Suspense fallback={<AuthSkeleton />}><ClerkAuthPage /></Suspense>} />
               <Route path="/sign-in/sso-callback" element={<Suspense fallback={<AuthSkeleton />}><ClerkAuthPage /></Suspense>} />
               <Route path="/auth/callback" element={<Suspense fallback={<PageLoadingSpinner />}><AuthCallbackPage /></Suspense>} />
@@ -292,31 +292,40 @@ function AppInstallPrompt() {
   return <InstallPrompt />;
 }
  
-const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
+import { CLERK_PUBLISHABLE_KEY } from '@/lib/supabaseConstants';
 
 const App = () => {
-  const app = (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-          <ErrorBoundary>
-            <Toaster />
-            <BrowserRouter>
-              <AuthProvider>
-                <AppRoutes />
-                <DeferredProviders />
-                <AppInstallPrompt />
-              </AuthProvider>
-            </BrowserRouter>
-          </ErrorBoundary>
-      </TooltipProvider>
-    </QueryClientProvider>
-  );
-
-  if (CLERK_PUBLISHABLE_KEY) {
-    return <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>{app}</ClerkProvider>;
+  if (!CLERK_PUBLISHABLE_KEY) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background text-foreground p-6">
+        <div className="text-center max-w-md space-y-4">
+          <h1 className="text-2xl font-bold text-destructive">Configuration Error</h1>
+          <p className="text-muted-foreground">
+            Missing Clerk publishable key. Please check the application configuration.
+          </p>
+        </div>
+      </div>
+    );
   }
 
-  return app;
+  return (
+    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+            <ErrorBoundary>
+              <Toaster />
+              <BrowserRouter>
+                <AuthProvider>
+                  <AppRoutes />
+                  <DeferredProviders />
+                  <AppInstallPrompt />
+                </AuthProvider>
+              </BrowserRouter>
+            </ErrorBoundary>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ClerkProvider>
+  );
 };
 
 export default App;
