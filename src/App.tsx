@@ -59,6 +59,7 @@ const UploadPage = lazyWithRetry(() => import("./pages/UploadPage"));
 const EditorPage = lazyWithRetry(() => import("./pages/EditorPage"));
 const PreviewPage = lazyWithRetry(() => import("./pages/PreviewPage"));
 const AuthPage = lazyWithRetry(() => import("./pages/AuthPage"));
+const ClerkAuthPage = lazyWithRetry(() => import("./pages/ClerkAuthPage"));
 const DashboardPage = lazyWithRetry(() => import("./pages/DashboardPage"));
 const SettingsPage = lazyWithRetry(() => import("./pages/SettingsPage"));
 const InterviewPage = lazyWithRetry(() => import("./pages/InterviewPage"));
@@ -197,7 +198,9 @@ const queryClient = new QueryClient({
           {/* Public routes - no auth required */}
           <Route path="/" element={<Index />} />
            <Route element={<AppShell />}>
-             <Route path="/auth" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />
+              <Route path="/auth" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />
+              <Route path="/sign-in" element={<Suspense fallback={<AuthSkeleton />}><ClerkAuthPage /></Suspense>} />
+              <Route path="/sign-in/sso-callback" element={<Suspense fallback={<AuthSkeleton />}><ClerkAuthPage /></Suspense>} />
               <Route path="/auth/callback" element={<Suspense fallback={<PageLoadingSpinner />}><AuthCallbackPage /></Suspense>} />
               <Route path="/privacy" element={<Suspense fallback={<PageLoadingSpinner />}><PrivacyPage /></Suspense>} />
                <Route path="/terms" element={<Suspense fallback={<PageLoadingSpinner />}><TermsPage /></Suspense>} />
