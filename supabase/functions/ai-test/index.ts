@@ -87,10 +87,28 @@ serve(async (req) => {
     });
 
     const latencyMs = Date.now() - startTime;
+    const providerUsed = aiResponse.providerUsed || preferredProvider;
+
+    // Log test call to ai_usage_logs so it appears in Recent AI Requests
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+    await supabaseAdmin.from('ai_usage_logs').insert({
+      user_id: user.id,
+      action_type: 'test',
+      metadata: {
+        provider: providerUsed,
+        model: testModel,
+        latencyMs,
+        response: (aiResponse.content?.trim() || 'OK').slice(0, 100),
+        fallbackUsed: aiResponse.fallbackUsed || false,
+      },
+    });
 
     return new Response(JSON.stringify({
       success: true,
-      providerUsed: aiResponse.providerUsed || preferredProvider,
+      providerUsed,
       latencyMs,
       response: aiResponse.content?.trim() || 'OK',
       model: testModel,
