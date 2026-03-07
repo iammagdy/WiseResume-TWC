@@ -7,6 +7,17 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-07
+- Issue ID: ISSUE-A
+- Summary: Auth route audit for thewise.cloud. (1) Removed dead `wasLoggedInRef` and its unused `useEffect` from `ProtectedRoute` (dead code, never read). (2) Moved `/store-screenshots` and `/screenshots-gallery` inside a bare `<ProtectedRoute>` wrapper in `App.tsx` — these internal tooling pages were previously accessible to anonymous visitors. (3) Fixed `ProtectedRoute`'s loading skeleton container from `bg-background` → `bg-transparent` so `SkyWallpaper` remains visible during the Clerk initialisation phase (MEMORY.md compliance). Known edge case documented but not patched: `AuthCallbackPage` can show a spinner for up to 10 s if the `provision-clerk-user` edge function is cold-starting (ISSUE-A4); patching is deferred to an external tool session per MEMORY.md auth constraints.
+- Files touched:
+  - `src/components/layout/ProtectedRoute.tsx` (removed `useRef` import + `wasLoggedInRef` + its effect; `bg-background` → `bg-transparent`)
+  - `src/App.tsx` (wrapped `/store-screenshots` and `/screenshots-gallery` in a `<ProtectedRoute>` block)
+  - `enhancements-for-vibe-coding/CHANGELOG-local.md` (this entry)
+- Notes / Constraints: All existing protected routes verified as already correctly nested under `<ProtectedRoute>`. Public routes (`/`, `/auth`, `/share/:token`, `/p/:username`, `/l/:linkId`, etc.) confirmed untouched. No Clerk key logic, OAuth redirect URLs, or SSO callback handler modified. MEMORY.md "Do Not Touch" files respected.
+
+---
+
+- Date: 2026-03-07
 - Issue ID: ISSUE-003
 - Summary: Applied targeted first-time UX improvements to the resume editor. (1) Re-added the missing Edit/Preview/ATS tab strip on mobile so users can discover the live preview. (2) Renamed the stepper pill label "Work" → "Experience" for consistency with the section card heading. (3) Replaced vague SectionCard tip strings with action-oriented guidance (Contact, Summary, Experience, Education, Skills). (4) Added a dismissible first-visit onboarding banner that appears only on blank new resumes (gated by `wr-onboarding-hint-seen` in localStorage, consistent with banner-etiquette memory). (5) Added a helper hint under the Description label in expanded Experience entries, visible only while the field is empty.
 - Files touched:
