@@ -37,8 +37,8 @@ const comparisons = [
 ];
 
 const getBonusChips = (authenticated: boolean) => [
-  { icon: LayoutGrid, label: '30 Templates', href: authenticated ? '/templates' : '/auth' },
-  { icon: Users, label: '4 AI Recruiters', href: authenticated ? '/ai-studio' : '/auth' },
+  { icon: LayoutGrid, label: '30 Templates', href: authenticated ? '/templates' : `/auth?redirect=${encodeURIComponent('/templates')}` },
+  { icon: Users, label: '4 AI Recruiters', href: authenticated ? '/ai-studio' : `/auth?redirect=${encodeURIComponent('/ai-studio')}` },
 ];
 
 // Theme colors for portfolio demo cycling (using CSS variable refs)
