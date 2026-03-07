@@ -7,6 +7,16 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-07
+- Issue ID: ISSUE-002
+- Summary: Added "Load More" pagination to the dashboard resume list to reduce initial mount/animation cost. Each tab (My CVs, Tailored) now renders at most 10 cards on first load, with a "Load more (N)" button that reveals the next 10. Visible counts reset when search query, active tab, sort, or filters change. Tab count badges continue to reflect the full filtered set. No new dependencies added.
+- Files touched:
+  - `src/pages/DashboardPage.tsx` (added `PAGE_SIZE`, `visibleMyCVs`, `visibleTailored` state; reset effect; sliced render lists; Load More buttons)
+  - `enhancements-for-vibe-coding/CHANGELOG-local.md` (this entry)
+- Notes / Constraints: Zero behavior change to existing card actions (edit, duplicate, delete, rename, interview, selection). Stagger animation now runs over ≤10 items eliminating the 50-card simultaneous mount spike on mobile. No Radix Popper introduced. All MEMORY.md "Do Not Touch" files respected.
+
+---
+
+- Date: 2026-03-07
 - Issue ID: ISSUE-001 (continued)
 - Summary: Extracted two JSX subcomponents from EditorPage, reducing it from ~1,178 → ~923 lines (−255 lines) with zero behavior change.
   - `EditorHeader` — the sticky header block (back button, title, undo/redo, version history, Template/Design/Live/Wise-AI buttons, mobile equivalents).
