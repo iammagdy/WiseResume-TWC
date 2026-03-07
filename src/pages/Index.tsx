@@ -483,7 +483,7 @@ const Index = () => {
                   variant="outline"
                   size="sm"
                   className="w-full max-w-[200px] gap-1.5 touch-manipulation active:scale-95 transition-transform"
-                  onClick={() => { triggerHaptic.light(); navigate(isAuthenticated ? '/dashboard' : '/auth'); }}
+                  onClick={() => { triggerHaptic.light(); navigate(isAuthenticated ? '/dashboard' : `/auth?redirect=${encodeURIComponent('/dashboard')}`); }}
                 >
                   Try the AI Editor <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
