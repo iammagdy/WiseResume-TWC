@@ -7,6 +7,17 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-07
+- Issue ID: ISSUE-B
+- Summary: Public link safety audit for thewise.cloud. Two targeted hardening changes were applied after auditing all public resume/portfolio share routes (`/share/:token`, `/p/:username`, `/l/:linkId`). (1) **Open-redirect guard (MEDIUM)** — `resolve-short-link` edge function now strips any `target_url` that does not start with `/` before returning it to the client, preventing a future DB-level injection from ever producing an external redirect payload. `ShortLinkPage.tsx` also independently validates `target_url.startsWith('/')` before calling `navigate()` (defence-in-depth). (2) **Fetch timeout (LOW UX)** — Added a 7-second `AbortController` timeout to the short-link resolution fetch; users now see the "Link Not Found" page instead of an indefinite spinner if the edge function is slow or unreachable. (3) **Finding 2 (LOW, deferred)** — `get_shared_resume` RPC returns the full resume row including `user_id` and internal fields via `row_to_json(v_resume)`. These fields are not rendered in the UI but are visible in DevTools. Patching requires a DB migration to replace `row_to_json(v_resume)` with an explicit `jsonb_build_object` listing only public fields. Deferred to an external tool session per MEMORY.md §7 (backend/security scope). All other findings verified as safe: `get_public_portfolio` exposes no private profile fields; password gate uses server-side BCrypt; comment RLS rate-limiting is correct; `portfolio_enabled` gate prevents disabled portfolios from being served.
+- Files touched:
+  - `supabase/functions/resolve-short-link/index.ts` (strip non-relative `target_url` before returning)
+  - `src/pages/ShortLinkPage.tsx` (client-side `target_url` relative-path guard; 7s `AbortController` timeout; eagerly import constants at module level instead of dynamic import)
+  - `enhancements-for-vibe-coding/CHANGELOG-local.md` (this entry)
+- Notes / Constraints: No public routes changed to require auth. No layout or styling changes. No Clerk/auth logic touched. No `App.tsx`, `types.ts`, or `client.ts` touched. All MEMORY.md "Do Not Touch" files respected. Finding 2 (`get_shared_resume` over-exposure) documented and deferred.
+
+---
+
+- Date: 2026-03-07
 - Issue ID: ISSUE-A
 - Summary: Auth route audit for thewise.cloud. (1) Removed dead `wasLoggedInRef` and its unused `useEffect` from `ProtectedRoute` (dead code, never read). (2) Moved `/store-screenshots` and `/screenshots-gallery` inside a bare `<ProtectedRoute>` wrapper in `App.tsx` — these internal tooling pages were previously accessible to anonymous visitors. (3) Fixed `ProtectedRoute`'s loading skeleton container from `bg-background` → `bg-transparent` so `SkyWallpaper` remains visible during the Clerk initialisation phase (MEMORY.md compliance). Known edge case documented but not patched: `AuthCallbackPage` can show a spinner for up to 10 s if the `provision-clerk-user` edge function is cold-starting (ISSUE-A4); patching is deferred to an external tool session per MEMORY.md auth constraints.
 - Files touched:

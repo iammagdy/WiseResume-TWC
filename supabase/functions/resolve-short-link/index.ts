@@ -52,6 +52,12 @@ serve(async (req) => {
       });
     }
 
+    // Security: strip any target_url that is not a relative path to prevent
+    // open-redirect payloads from ever reaching the client.
+    if (data.target_url && !String(data.target_url).startsWith('/')) {
+      data.target_url = null;
+    }
+
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
