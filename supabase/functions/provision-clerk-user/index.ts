@@ -76,15 +76,52 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Profile missing for existingUuid — re-provision using the same UUID
-      // (don't generate a new one, to stay consistent with what's in Clerk metadata)
-      console.log(`Profile missing for existingUuid ${existingUuid}, re-provisioning...`);
+      // Profile missing for existingUuid — check if there's another profile for this user by email
+      console.log(`Profile missing for existingUuid ${existingUuid}, searching for existing profile...`);
       const email = clerkUser.email_addresses?.[0]?.email_address;
       const fullName = [clerkUser.first_name, clerkUser.last_name].filter(Boolean).join(" ") || undefined;
 
+      // Search for an existing profile by email (catches UUID migrations / legacy data)
+      let correctUuid = existingUuid;
+      if (email) {
+        const { data: profileByEmail } = await adminClient
+          .from("profiles")
+          .select("user_id")
+          .eq("contact_email", email)
+          .maybeSingle();
+
+        if (profileByEmail && profileByEmail.user_id !== existingUuid) {
+          // Found existing data under a different UUID — update Clerk metadata to point there
+          correctUuid = profileByEmail.user_id;
+          console.log(`Found existing profile for email ${email} under ${correctUuid}, updating Clerk metadata...`);
+
+          const CLERK_SECRET_KEY = Deno.env.get("CLERK_SECRET_KEY");
+          if (CLERK_SECRET_KEY) {
+            const patchRes = await fetch(`https://api.clerk.com/v1/users/${clerkUserId}`, {
+              method: "PATCH",
+              headers: {
+                Authorization: `Bearer ${CLERK_SECRET_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ public_metadata: { supabaseUuid: correctUuid } }),
+            });
+            if (!patchRes.ok) {
+              const errText = await patchRes.text();
+              console.error(`Failed to update Clerk metadata: ${patchRes.status} ${errText}`);
+            }
+          }
+
+          return new Response(
+            JSON.stringify({ supabaseUuid: correctUuid, repaired: true }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+
+      // No existing profile found — create a new one for existingUuid
       // Ensure shadow auth user exists
       const { error: createError } = await adminClient.auth.admin.createUser({
-        id: existingUuid,
+        id: correctUuid,
         email: email || `${clerkUserId}@clerk.placeholder`,
         email_confirm: true,
         user_metadata: { clerk_id: clerkUserId, full_name: fullName },
@@ -99,16 +136,16 @@ Deno.serve(async (req) => {
       }
 
       // Create the missing profile row
-      const profileData: Record<string, string> = { user_id: existingUuid };
+      const profileData: Record<string, string> = { user_id: correctUuid };
       if (fullName) profileData.full_name = fullName;
       if (email) profileData.contact_email = email;
       await adminClient
         .from("profiles")
         .upsert(profileData, { onConflict: "user_id", ignoreDuplicates: false });
 
-      console.log(`Re-provisioned profile for ${clerkUserId} under existing uuid ${existingUuid}`);
+      console.log(`Re-provisioned profile for ${clerkUserId} under uuid ${correctUuid}`);
       return new Response(
-        JSON.stringify({ supabaseUuid: existingUuid, reprovisioned: true }),
+        JSON.stringify({ supabaseUuid: correctUuid, reprovisioned: true }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
