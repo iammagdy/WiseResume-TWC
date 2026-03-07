@@ -309,8 +309,6 @@ export default function EditorPage() {
   }, [isMobile, currentResume]);
 
   // Network status for enhanced save indicator
-  const { isOnline } = useNetworkStatus();
-  const saveToCloud = useCallback(async () => {
     const resume = resumeRef.current;
     if (!user || !currentResumeId || !resume) return;
 
