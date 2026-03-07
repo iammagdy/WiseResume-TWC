@@ -56,7 +56,7 @@ import { useEditorSectionScores } from '@/hooks/useEditorSectionScores';
 import { useATSSuggestions } from '@/hooks/useATSSuggestions';
 import { AIIntroTooltip } from '@/components/editor/AIIntroTooltip';
 import { ProgressBar } from '@/components/editor/ProgressBar';
-import { Tabs, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { EditorHeader } from '@/components/editor/EditorHeader';
 import { EditorSectionContent } from '@/components/editor/EditorSectionContent';
 import { AddSectionSheet } from '@/components/editor/AddSectionSheet';
