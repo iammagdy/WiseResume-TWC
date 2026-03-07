@@ -7,6 +7,18 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-07
+- Issue ID: ISSUE-003
+- Summary: Applied targeted first-time UX improvements to the resume editor. (1) Re-added the missing Edit/Preview/ATS tab strip on mobile so users can discover the live preview. (2) Renamed the stepper pill label "Work" → "Experience" for consistency with the section card heading. (3) Replaced vague SectionCard tip strings with action-oriented guidance (Contact, Summary, Experience, Education, Skills). (4) Added a dismissible first-visit onboarding banner that appears only on blank new resumes (gated by `wr-onboarding-hint-seen` in localStorage, consistent with banner-etiquette memory). (5) Added a helper hint under the Description label in expanded Experience entries, visible only while the field is empty.
+- Files touched:
+  - `src/pages/EditorPage.tsx` (added TabsList import; added 3-tab mobile tab strip; changed step label Work → Experience)
+  - `src/components/editor/EditorSectionContent.tsx` (added useState import; added onboarding banner with localStorage gate; updated all 5 section tip strings)
+  - `src/components/editor/ExperienceSection.tsx` (added description helper hint, conditionally shown when field is empty)
+  - `enhancements-for-vibe-coding/CHANGELOG-local.md` (this entry)
+- Notes / Constraints: No behavior changes. Autosave, preview linking, and all card actions untouched. No Radix Popper introduced. No large layout rewrites. All MEMORY.md "Do Not Touch" files respected. Banner follows the app's existing non-blocking, dismissible pattern.
+
+---
+
+- Date: 2026-03-07
 - Issue ID: ISSUE-002
 - Summary: Added "Load More" pagination to the dashboard resume list to reduce initial mount/animation cost. Each tab (My CVs, Tailored) now renders at most 10 cards on first load, with a "Load more (N)" button that reveals the next 10. Visible counts reset when search query, active tab, sort, or filters change. Tab count badges continue to reflect the full filtered set. No new dependencies added.
 - Files touched:
