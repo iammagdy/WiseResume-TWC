@@ -308,8 +308,7 @@ export default function EditorPage() {
     return () => clearTimeout(timer);
   }, [isMobile, currentResume]);
 
-  // Network status for enhanced save indicator
-    const resume = resumeRef.current;
+  const { isOnline } = useNetworkStatus();
     if (!user || !currentResumeId || !resume) return;
 
     const currentResumeJson = JSON.stringify(resume);
