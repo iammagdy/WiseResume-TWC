@@ -52,9 +52,14 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   const isLoaded = isUserLoaded && isSessionLoaded;
   const isAuthenticated = !!clerkUser && !!clerkSession && !!supabaseUuid;
 
-  // Auto-provision supabaseUuid if missing
+  // Auto-provision supabaseUuid if missing, or force-reprovision if supabaseUuid exists
+  // but points to a profile that doesn't exist in the DB (UUID mismatch scenario).
   useEffect(() => {
-    if (!isLoaded || !clerkUser || supabaseUuid || provisionAttempted.current || provisioning) return;
+    // Always attempt provisioning if supabaseUuid is missing
+    // For existing UUID: only trigger once per session via provisionAttempted ref
+    if (!isLoaded || !clerkUser || provisionAttempted.current || provisioning) return;
+    // If UUID is present, we still try once to verify — but only if not already done
+    if (supabaseUuid && provisionAttempted.current) return;
 
     provisionAttempted.current = true;
     setProvisioning(true);
