@@ -517,7 +517,7 @@ const Index = () => {
                   variant="outline"
                   size="sm"
                   className="w-full max-w-[200px] gap-1.5 touch-manipulation active:scale-95 transition-transform"
-                  onClick={() => { triggerHaptic.light(); navigate(isAuthenticated ? '/portfolio' : '/auth'); }}
+                  onClick={() => { triggerHaptic.light(); navigate(isAuthenticated ? '/portfolio' : `/auth?redirect=${encodeURIComponent('/portfolio')}`); }}
                 >
                   Build Your Portfolio <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
