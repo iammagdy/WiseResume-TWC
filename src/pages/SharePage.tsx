@@ -92,6 +92,9 @@ export default function SharePage() {
           >
             Unlock
           </Button>
+          <p className="text-center text-[11px] text-muted-foreground pt-1">
+            <a href="/" className="hover:text-foreground transition-colors">← Go to WiseResume</a>
+          </p>
         </div>
       </div>
     );

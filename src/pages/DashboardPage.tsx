@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LazyMotion, domAnimation, m as motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle } from 'lucide-react';
+import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import useEmblaCarousel from 'embla-carousel-react';
 import { ResumeFilters, SortOption, CategoryFilter, ScoreFilter } from '@/components/dashboard/ResumeFilters';
@@ -74,7 +74,7 @@ function DashboardPageContent() {
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createTailoredParentId, setCreateTailoredParentId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  // searchQuery state moved below with sessionStorage initializer
   const [sortOption, setSortOption] = useState<SortOption>('updated');
   const [categoryFilters, setCategoryFilters] = useState<CategoryFilter[]>([]);
   const [scoreFilters, setScoreFilters] = useState<ScoreFilter[]>([]);
@@ -91,7 +91,12 @@ function DashboardPageContent() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
-  const [activeTab, setActiveTab] = useState('my-cvs');
+  const [searchQuery, setSearchQuery] = useState(
+    () => sessionStorage.getItem('wr-dash-search') || ''
+  );
+  const [activeTab, setActiveTab] = useState(
+    () => sessionStorage.getItem('wr-dash-tab') || 'my-cvs'
+  );
   const [showTrustBanner, setShowTrustBanner] = useState(() => {
     const visitCount = parseInt(localStorage.getItem('wr-trust-banner-visits') || '0', 10);
     if (visitCount >= 3 || localStorage.getItem('wr-trust-banner-seen')) return false;
@@ -123,16 +128,27 @@ function DashboardPageContent() {
     }
   }, [activeTab, emblaApi]);
 
+  // Persist helpers for sessionStorage sync (D-3)
+  const handleSetActiveTab = useCallback((tab: string) => {
+    sessionStorage.setItem('wr-dash-tab', tab);
+    setActiveTab(tab);
+  }, []);
+
+  const handleSetSearchQuery = useCallback((q: string) => {
+    sessionStorage.setItem('wr-dash-search', q);
+    setSearchQuery(q);
+  }, []);
+
   // Sync carousel → tab
   useEffect(() => {
     if (!emblaApi) return;
     const onSelect = () => {
       const index = emblaApi.selectedScrollSnap();
-      setActiveTab(index === 0 ? 'my-cvs' : 'tailored');
+      handleSetActiveTab(index === 0 ? 'my-cvs' : 'tailored');
     };
     emblaApi.on('select', onSelect);
     return () => { emblaApi.off('select', onSelect); };
-  }, [emblaApi]);
+  }, [emblaApi, handleSetActiveTab]);
 
   // Reset loading state when dialog opens
   useEffect(() => {
@@ -681,7 +697,7 @@ function DashboardPageContent() {
                   <Input
                     placeholder={`Search in ${activeTab === 'my-cvs' ? 'My CVs' : 'Tailored'}...`}
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => handleSetSearchQuery(e.target.value)}
                     className="pl-10 rounded-full h-10 sm:h-11 text-base glass-input"
                   />
                 </div>
@@ -768,6 +784,21 @@ function DashboardPageContent() {
                 Retry
               </button>
             </div>
+          ) : resumesError && !resumes ? (
+            /* Server error while online — show actionable error state (D-2) */
+            <div className="flex flex-col items-center justify-center px-6 py-16 gap-4 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center">
+                <AlertCircle className="w-8 h-8 text-destructive" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg mb-1">Something went wrong</h3>
+                <p className="text-sm text-muted-foreground">We couldn't load your resumes.</p>
+              </div>
+              <Button variant="outline" onClick={() => refetch()} className="min-h-[44px] gap-2">
+                <RefreshCw className="w-4 h-4" />
+                Tap to retry
+              </Button>
+            </div>
           ) : !resumes || resumes.length === 0 ? (
             <>
               <EmptyState onCreateNew={handleCreateNew} onBrowseTemplates={() => setShowCreateDialog(true)} onStartOnboarding={() => setShowOnboarding(true)} />
@@ -791,7 +822,7 @@ function DashboardPageContent() {
             </div>
           ) : (
             <div className="px-4 pb-4">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <Tabs value={activeTab} onValueChange={handleSetActiveTab} className="w-full">
                 <TabsList className="w-full mb-4">
                   <TabsTrigger value="my-cvs" className="flex-1 gap-1.5">
                     My CVs
