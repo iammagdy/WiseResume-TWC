@@ -49,67 +49,67 @@ function AuthBackground() {
   return (
     <>
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none" aria-hidden="true">
-        {/* Deep space base */}
+        {/* Deep space base — richer directional gradient with warmth */}
         <div
           className="absolute inset-0"
           style={{
             background:
-              'linear-gradient(160deg, hsl(240 30% 4%) 0%, hsl(270 35% 6%) 50%, hsl(240 30% 3%) 100%)',
+              'linear-gradient(160deg, hsl(240 35% 5%) 0%, hsl(270 40% 7%) 45%, hsl(355 35% 6%) 100%)',
           }}
         />
 
-        {/* Primary blob — top right (brand red) */}
+        {/* Primary blob — top right (brand red) — boosted to 0.35 */}
         <div
           style={{
             position: 'absolute',
             top: '-10%',
             right: '-10%',
-            width: '360px',
-            height: '360px',
+            width: '280px',
+            height: '280px',
             borderRadius: '50%',
-            background: 'radial-gradient(circle, hsl(355 85% 52% / 0.2) 0%, transparent 70%)',
+            background: 'radial-gradient(circle, hsl(355 85% 52% / 0.35) 0%, transparent 70%)',
             animation: prefersReducedMotion ? 'none' : 'auth-float 9s ease-in-out infinite',
           }}
         />
 
-        {/* Cyan blob — bottom left */}
+        {/* Cyan blob — bottom left — boosted to 0.28 */}
         <div
           style={{
             position: 'absolute',
             bottom: '-8%',
             left: '-8%',
-            width: '300px',
-            height: '300px',
+            width: '260px',
+            height: '260px',
             borderRadius: '50%',
-            background: 'radial-gradient(circle, hsl(185 90% 45% / 0.15) 0%, transparent 70%)',
+            background: 'radial-gradient(circle, hsl(185 90% 45% / 0.28) 0%, transparent 70%)',
             animation: prefersReducedMotion ? 'none' : 'auth-float 11s ease-in-out 2s infinite reverse',
           }}
         />
 
-        {/* Accent purple blob — mid-center */}
+        {/* Accent purple blob — mid-center — boosted to 0.22 */}
         <div
           style={{
             position: 'absolute',
             top: '35%',
             left: '20%',
-            width: '220px',
-            height: '220px',
+            width: '200px',
+            height: '200px',
             borderRadius: '50%',
-            background: 'radial-gradient(circle, hsl(270 70% 55% / 0.12) 0%, transparent 70%)',
+            background: 'radial-gradient(circle, hsl(270 70% 55% / 0.22) 0%, transparent 70%)',
             animation: prefersReducedMotion ? 'none' : 'auth-float 7s ease-in-out 1s infinite',
           }}
         />
 
-        {/* Pink blob — bottom right */}
+        {/* Pink blob — bottom right — boosted to 0.18 */}
         <div
           style={{
             position: 'absolute',
             bottom: '15%',
             right: '5%',
-            width: '180px',
-            height: '180px',
+            width: '160px',
+            height: '160px',
             borderRadius: '50%',
-            background: 'radial-gradient(circle, hsl(330 80% 60% / 0.10) 0%, transparent 70%)',
+            background: 'radial-gradient(circle, hsl(330 80% 60% / 0.18) 0%, transparent 70%)',
             animation: prefersReducedMotion ? 'none' : 'auth-float 8s ease-in-out 4s infinite reverse',
           }}
         />
