@@ -144,6 +144,10 @@ function AuthBackground() {
           0%, 100% { opacity: 0.35; transform: scale(1); }
           50% { opacity: 1; transform: scale(1.5); }
         }
+        @keyframes pulse-icon {
+          0%, 100% { box-shadow: 0 0 0 2px hsl(355 85% 52% / 0.35), 0 0 20px hsl(355 85% 52% / 0.30); }
+          50% { box-shadow: 0 0 0 4px hsl(355 85% 52% / 0.55), 0 0 36px hsl(355 85% 52% / 0.50); }
+        }
       `}</style>
     </>
   );
