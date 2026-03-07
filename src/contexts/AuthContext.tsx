@@ -6,7 +6,7 @@ import { migrateLocalKeysToServer } from '@/lib/migrateLocalKeys';
 import { logAudit } from '@/lib/auditLogger';
 import { runDailyCleanup } from '@/lib/dbCleanup';
 import { useClerkSupabaseClient } from '@/lib/clerkSupabase';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabaseConstants';
+import { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY } from '@/lib/supabaseConstants';
 
 interface AuthState {
   user: User | null;
