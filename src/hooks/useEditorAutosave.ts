@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { useAppLifecycle } from '@/hooks/useAppLifecycle';
 import { backgroundScore } from '@/hooks/useResumeScore';
 import type { ResumeData } from '@/types/resume';
-import type { User } from '@/hooks/useAuth';
+import type { AuthContextType } from '@/contexts/AuthContext';
 
 interface UpdateResumeMutation {
   mutateAsync: (args: { resumeId: string; updates: ResumeData }) => Promise<{ updated_at?: string } | void>;
