@@ -128,16 +128,27 @@ function DashboardPageContent() {
     }
   }, [activeTab, emblaApi]);
 
+  // Persist helpers for sessionStorage sync (D-3)
+  const handleSetActiveTab = useCallback((tab: string) => {
+    sessionStorage.setItem('wr-dash-tab', tab);
+    setActiveTab(tab);
+  }, []);
+
+  const handleSetSearchQuery = useCallback((q: string) => {
+    sessionStorage.setItem('wr-dash-search', q);
+    setSearchQuery(q);
+  }, []);
+
   // Sync carousel → tab
   useEffect(() => {
     if (!emblaApi) return;
     const onSelect = () => {
       const index = emblaApi.selectedScrollSnap();
-      setActiveTab(index === 0 ? 'my-cvs' : 'tailored');
+      handleSetActiveTab(index === 0 ? 'my-cvs' : 'tailored');
     };
     emblaApi.on('select', onSelect);
     return () => { emblaApi.off('select', onSelect); };
-  }, [emblaApi]);
+  }, [emblaApi, handleSetActiveTab]);
 
   // Reset loading state when dialog opens
   useEffect(() => {
