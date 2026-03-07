@@ -512,7 +512,9 @@ function DashboardPageContent() {
             <HelpCircle className="w-4.5 h-4.5 text-muted-foreground" />
           </Button>
           <AICreditsIndicator />
-          <AIHealthBadge />
+          <div className="hidden sm:flex">
+            <AIHealthBadge />
+          </div>
           <Button
             variant="ghost"
             size="icon"

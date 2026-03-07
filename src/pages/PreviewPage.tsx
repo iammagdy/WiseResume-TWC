@@ -500,8 +500,10 @@ export default function PreviewPage() {
           </div>
         </div>
 
-        {/* AI Tailor Hint Banner */}
-        <NextStepBanner variant="tailor" onAction={() => navigate('/editor?openTailor=1')} />
+        {/* AI Tailor Hint Banner — hidden on mobile to keep preview immediately visible */}
+        <div className="hidden sm:block">
+          <NextStepBanner variant="tailor" onAction={() => navigate('/editor?openTailor=1')} />
+        </div>
 
         {/* Preview area */}
         <div ref={scrollContainerRef} className="flex-1 overflow-auto p-1 sm:p-4 bg-muted/30">

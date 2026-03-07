@@ -275,6 +275,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Section index chips */}
+          <div className="relative">
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-2 -mx-1 px-1">
             {SECTIONS.map(({ id, label, icon: SIcon }) => {
               if (id === 'section-account' && !user) return null;
