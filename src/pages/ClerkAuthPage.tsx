@@ -298,7 +298,8 @@ export default function ClerkAuthPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="w-full max-w-sm space-y-6"
+          className="w-full max-w-sm space-y-6 glass-elevated rounded-2xl border border-white/10 p-6 shadow-2xl"
+          style={{ boxShadow: '0 0 80px -20px hsl(355 85% 52% / 0.25), 0 25px 50px -12px rgba(0,0,0,0.6)' }}
         >
           {/* Logo */}
           <div className="flex flex-col items-center gap-3">
