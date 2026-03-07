@@ -52,14 +52,11 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   const isLoaded = isUserLoaded && isSessionLoaded;
   const isAuthenticated = !!clerkUser && !!clerkSession && !!supabaseUuid;
 
-  // Auto-provision supabaseUuid if missing, or force-reprovision if supabaseUuid exists
-  // but points to a profile that doesn't exist in the DB (UUID mismatch scenario).
+  // Auto-provision: called when supabaseUuid is missing (new user) OR when the UUID
+  // exists in Clerk metadata but the profile row is absent in the DB (UUID mismatch).
+  // Pass forceReprovision=true to skip the "already provisioned" early-return in the function.
   useEffect(() => {
-    // Always attempt provisioning if supabaseUuid is missing
-    // For existing UUID: only trigger once per session via provisionAttempted ref
     if (!isLoaded || !clerkUser || provisionAttempted.current || provisioning) return;
-    // If UUID is present, we still try once to verify — but only if not already done
-    if (supabaseUuid && provisionAttempted.current) return;
 
     provisionAttempted.current = true;
     setProvisioning(true);
@@ -69,24 +66,32 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
 
     (async () => {
       try {
-        console.log('[Auth] supabaseUuid missing, provisioning...');
+        // If UUID is already set, pass forceReprovision so the edge function
+        // verifies the profile exists and re-provisions/repairs if not.
+        const forceReprovision = !!supabaseUuid;
+        console.log(`[Auth] ${forceReprovision ? 'Verifying provisioning' : 'Provisioning new user'}...`);
+
         const res = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/provision-clerk-user`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'apikey': EDGE_FUNCTIONS_ANON_KEY,
           },
-          body: JSON.stringify({ clerkUserId: clerkUser.id }),
+          body: JSON.stringify({ clerkUserId: clerkUser.id, forceReprovision }),
           signal: controller.signal,
         });
 
         const data = await res.json();
         if (res.ok && data.supabaseUuid) {
-          console.log('[Auth] Provisioned, reloading user metadata...');
-          await clerkUser.reload();
-          // Small delay to let Clerk hooks pick up updated metadata
-          await new Promise(r => setTimeout(r, 500));
-          setProvisionVersion(v => v + 1);
+          if (data.alreadyProvisioned && forceReprovision) {
+            // UUID matches DB — all good, no reload needed
+            console.log('[Auth] Provisioning verified OK');
+          } else {
+            console.log('[Auth] Provisioned/repaired, reloading user metadata...');
+            await clerkUser.reload();
+            await new Promise(r => setTimeout(r, 500));
+            setProvisionVersion(v => v + 1);
+          }
         } else {
           console.error('[Auth] Provisioning failed:', data);
         }
