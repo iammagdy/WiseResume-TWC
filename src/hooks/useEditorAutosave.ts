@@ -11,7 +11,6 @@ interface UpdateResumeMutation {
 
 interface DatabaseResumeLike {
   updated_at?: string | null;
-  [key: string]: unknown;
 }
 
 interface UseEditorAutosaveOptions {
