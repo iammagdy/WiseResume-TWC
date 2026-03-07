@@ -64,9 +64,9 @@ export function QuestionBankSheet({
       const token = await getClerkSupabaseToken();
       if (!token) throw new Error('Not authenticated');
 
-      const { SUPABASE_URL, SUPABASE_ANON_KEY } = await import('@/lib/supabaseConstants');
+      const { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY } = await import('@/lib/supabaseConstants');
       const response = await fetch(
-        `${SUPABASE_URL}/functions/v1/generate-question-bank`,
+        `${EDGE_FUNCTIONS_URL}/functions/v1/generate-question-bank`,
         {
           method: 'POST',
           headers: {
