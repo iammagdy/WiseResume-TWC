@@ -42,7 +42,7 @@ import haptics from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { ActionsPanel, type ActionsPanelGroup } from '@/components/ActionsPanel';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Target, LayoutGrid, MessageSquare, Palette } from 'lucide-react';
+import { Target, LayoutGrid, MessageSquare, Palette, Clock, Plus } from 'lucide-react';
 import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
