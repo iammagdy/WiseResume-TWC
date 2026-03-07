@@ -475,7 +475,7 @@ export default function ClerkAuthPage() {
                   <form onSubmit={mode === 'sign-in' ? handleEmailSignIn : handleEmailSignUp} className="space-y-4">
                     {mode === 'sign-up' && (
                       <>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <InputFormField
                             id="first-name"
                             label="First Name"

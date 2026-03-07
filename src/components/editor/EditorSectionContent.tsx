@@ -203,7 +203,7 @@ export function EditorSectionContent({
               navigate('/preview');
             }}
           >
-            <Download className="w-4 h-4 mr-1.5" />
+            <Eye className="w-4 h-4 mr-1.5" />
             Preview & Export
           </Button>
         ) : (
