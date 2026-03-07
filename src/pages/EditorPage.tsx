@@ -598,23 +598,43 @@ export default function EditorPage() {
             <ProgressBar resume={currentResume} compact />
           </div>
           {user && currentResumeId && (
-            <div className="flex items-center gap-1 text-[11px] text-muted-foreground shrink-0">
-              {!isOnline ? (
-                <>
-                  <CloudOff className="w-3 h-3 text-warning" />
-                  <span className="text-warning">Offline</span>
-                </>
-              ) : isSaving ? (
-                <Cloud className="w-3 h-3 animate-pulse" />
-              ) : showSavedCheck ? (
-                <Check className="w-3 h-3 text-success" style={{ animation: 'save-check-pop 0.3s ease-out' }} />
-              ) : hasUnsavedChanges ? (
-                <>
-                  <span className="w-1.5 h-1.5 rounded-full bg-warning inline-block animate-pulse" />
-                  <span className="text-warning text-[11px]">Unsaved</span>
-                </>
-              ) : (
-                <Cloud className="w-3 h-3 opacity-40" />
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Cloud status icon */}
+              <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                {!isOnline ? (
+                  <>
+                    <CloudOff className="w-3 h-3 text-warning" />
+                    <span className="text-warning">Offline</span>
+                  </>
+                ) : isSaving ? (
+                  <Cloud className="w-3 h-3 animate-pulse" />
+                ) : showSavedCheck ? (
+                  <Check className="w-3 h-3 text-success" style={{ animation: 'save-check-pop 0.3s ease-out' }} />
+                ) : hasUnsavedChanges ? (
+                  <>
+                    <span className="w-1.5 h-1.5 rounded-full bg-warning inline-block animate-pulse" />
+                    <span className="text-warning text-[11px]">Unsaved</span>
+                  </>
+                ) : (
+                  <Cloud className="w-3 h-3 opacity-40" />
+                )}
+              </div>
+              {/* Manual Save button — appears when there are unsaved changes or pending offline items */}
+              {(hasUnsavedChanges || pendingCountForResume > 0) && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => { haptics.light(); saveToCloud(); }}
+                  disabled={isSaving || !isOnline}
+                  className="h-8 min-h-[36px] px-3 text-[11px] gap-1.5 rounded-lg border-warning/40 text-warning hover:bg-warning/10 hover:border-warning/60"
+                >
+                  {isSaving ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Save className="w-3 h-3" />
+                  )}
+                  Save
+                </Button>
               )}
             </div>
           )}

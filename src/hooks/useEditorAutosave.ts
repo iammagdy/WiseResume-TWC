@@ -116,8 +116,21 @@ export function useEditorAutosave({
       } else if (isAuthError) {
         toast.warning('Session expired — your changes are saved locally. Please sign back in.', { duration: 5000 });
       } else {
-        console.error('Auto-save failed:', error);
-        toast.warning('Auto-save failed — your changes are safe locally and will retry.', { duration: 4000 });
+        // Silent retry once after 2s (handles transient JWT warm-up race on first save)
+        await new Promise(r => setTimeout(r, 2000));
+        try {
+          const retryResult = await updateResume.mutateAsync({ resumeId: currentResumeId, updates: resume });
+          lastSavedResumeRef.current = currentResumeJson;
+          setLastSavedAt(new Date());
+          if ((retryResult as { updated_at?: string })?.updated_at) {
+            localLoadedAtRef.current = (retryResult as { updated_at: string }).updated_at;
+          }
+          // Retry succeeded — no toast shown
+        } catch (retryError: unknown) {
+          console.error('Auto-save failed after retry:', retryError);
+          if (currentResumeId) addPendingChange(currentResumeId, resume);
+          toast.warning('Auto-save failed — your changes are saved locally. Tap Save to retry.', { duration: 4000 });
+        }
       }
     } finally {
       isSavingRef.current = false;
