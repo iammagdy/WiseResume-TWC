@@ -17,3 +17,12 @@ export const SUPABASE_ANON_KEY =
  */
 export const CLERK_PUBLISHABLE_KEY =
   'pk_test_YnJpZ2h0LWdob3N0LTM0LmNsZXJrLmFjY291bnRzLmRldiQ';
+
+/**
+ * Edge functions are deployed to the Lovable Cloud project, not the
+ * external database project.  All fetch() calls to /functions/v1/*
+ * must use these constants.
+ */
+export const EDGE_FUNCTIONS_URL = 'https://hjnnamwgztlhzkeuufln.supabase.co';
+export const EDGE_FUNCTIONS_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhqbm5hbXdnenRsaHprZXV1ZmxuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNTE4MTcsImV4cCI6MjA4NTkyNzgxN30.cupd_dz6KHSJaBnUPQzJmQcYc38RTDVIMU5RP25xCso';

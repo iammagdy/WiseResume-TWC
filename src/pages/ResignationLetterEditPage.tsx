@@ -13,7 +13,7 @@ import { ResignationChecklist } from '@/components/resignation/ResignationCheckl
 import { useAuth } from '@/hooks/useAuth';
 import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
 
-import { SUPABASE_URL } from '@/lib/supabaseConstants';
+import { EDGE_FUNCTIONS_URL } from '@/lib/supabaseConstants';
 import { haptics } from '@/lib/haptics';
 
 import { toast } from 'sonner';
@@ -132,7 +132,7 @@ export default function ResignationLetterEditPage() {
     try {
       const token = await getClerkSupabaseToken();
       const response = await fetch(
-        `${SUPABASE_URL}/functions/v1/generate-resignation-letter`,
+        `${EDGE_FUNCTIONS_URL}/functions/v1/generate-resignation-letter`,
         {
           method: 'POST',
           headers: {

@@ -1,5 +1,5 @@
 import { useParams, useSearchParams } from 'react-router-dom';
-import { SUPABASE_URL } from '@/lib/supabaseConstants';
+import { EDGE_FUNCTIONS_URL } from '@/lib/supabaseConstants';
 import { usePublicPortfolio } from '@/hooks/usePublicPortfolio';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -285,7 +285,7 @@ function PublicPortfolioContent() {
       sectionsViewed: [...sectionsViewedRef.current],
       timeSpentSeconds,
     });
-    const url = `${SUPABASE_URL}/functions/v1/track-portfolio-view`;
+    const url = `${EDGE_FUNCTIONS_URL}/functions/v1/track-portfolio-view`;
     if (navigator.sendBeacon) {
       navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
     } else {
@@ -366,7 +366,7 @@ function PublicPortfolioContent() {
       };
       const ogTitle = profile.metaTitle || (profile.jobTitle ? `${name} — ${profile.jobTitle}` : `${name}'s Portfolio`);
       const ogDesc = profile.metaDescription || profile.portfolioBio || `${name}'s professional portfolio`;
-      const ogImageUrl = `${SUPABASE_URL}/functions/v1/og-image?username=${encodeURIComponent(profile.username)}`;
+      const ogImageUrl = `${EDGE_FUNCTIONS_URL}/functions/v1/og-image?username=${encodeURIComponent(profile.username)}`;
       setMeta('og:title', ogTitle);
       setMeta('og:description', ogDesc);
       setMeta('og:type', 'profile');

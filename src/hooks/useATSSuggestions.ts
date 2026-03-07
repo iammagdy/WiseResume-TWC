@@ -5,7 +5,7 @@ import { showErrorToast } from '@/lib/errorToast';
 import { hasPassiveVerbs, hasMetrics, hasLongBullets, findPassiveStarter } from '@/lib/contentAnalysis';
 import { useAICreditsMutations } from './useAICredits';
 
-import { SUPABASE_URL as CLOUD_URL, SUPABASE_ANON_KEY as CLOUD_KEY } from '@/lib/supabaseConstants';
+import { EDGE_FUNCTIONS_URL as CLOUD_URL, EDGE_FUNCTIONS_ANON_KEY as CLOUD_KEY } from '@/lib/supabaseConstants';
 
 export interface ATSSuggestion {
   id: string;

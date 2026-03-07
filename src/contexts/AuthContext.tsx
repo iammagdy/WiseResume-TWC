@@ -6,7 +6,7 @@ import { migrateLocalKeysToServer } from '@/lib/migrateLocalKeys';
 import { logAudit } from '@/lib/auditLogger';
 import { runDailyCleanup } from '@/lib/dbCleanup';
 import { useClerkSupabaseClient } from '@/lib/clerkSupabase';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabaseConstants';
+import { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY } from '@/lib/supabaseConstants';
 
 interface AuthState {
   user: User | null;
@@ -65,11 +65,11 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       try {
         console.log('[Auth] supabaseUuid missing, provisioning...');
-        const res = await fetch(`${SUPABASE_URL}/functions/v1/provision-clerk-user`, {
+        const res = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/provision-clerk-user`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': SUPABASE_ANON_KEY,
+            'apikey': EDGE_FUNCTIONS_ANON_KEY,
           },
           body: JSON.stringify({ clerkUserId: clerkUser.id }),
           signal: controller.signal,

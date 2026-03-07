@@ -8,7 +8,7 @@ import { showErrorToast } from '@/lib/errorToast';
 import { toast } from 'sonner';
 import { ResumeData, SuperTailorResult } from '@/types/resume';
 
-import { SUPABASE_URL as CLOUD_URL, SUPABASE_ANON_KEY as CLOUD_KEY } from '@/lib/supabaseConstants';
+import { EDGE_FUNCTIONS_URL as CLOUD_URL, EDGE_FUNCTIONS_ANON_KEY as CLOUD_KEY } from '@/lib/supabaseConstants';
 
 interface QuickActionsProps {
   resume: ResumeData;

@@ -19,13 +19,13 @@ export default function ShortLinkPage() {
 
     (async () => {
       try {
-        const { SUPABASE_URL, SUPABASE_ANON_KEY } = await import('@/lib/supabaseConstants');
+        const { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY } = await import('@/lib/supabaseConstants');
         const res = await fetch(
-          `${SUPABASE_URL}/functions/v1/resolve-short-link?id=${encodeURIComponent(linkId)}`,
+          `${EDGE_FUNCTIONS_URL}/functions/v1/resolve-short-link?id=${encodeURIComponent(linkId)}`,
           {
             headers: {
-              apikey: SUPABASE_ANON_KEY,
-              Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+              apikey: EDGE_FUNCTIONS_ANON_KEY,
+              Authorization: `Bearer ${EDGE_FUNCTIONS_ANON_KEY}`,
             },
           }
         );

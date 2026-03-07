@@ -39,7 +39,7 @@ export interface ParseResult {
  * Exported for use with Word and Image parsing.
  */
 export async function parseTextWithAI(text: string): Promise<ResumeData> {
-  const { SUPABASE_URL } = await import('@/lib/supabaseConstants');
+  const { EDGE_FUNCTIONS_URL } = await import('@/lib/supabaseConstants');
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), PARSE_TIMEOUT);
 
@@ -57,7 +57,7 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/parse-resume`, {
+    const response = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/parse-resume`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ text }),

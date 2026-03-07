@@ -108,7 +108,7 @@ export async function tailorResumeWithProgress(
     }
   }, 25_000);
 
-  const { SUPABASE_URL, SUPABASE_ANON_KEY: SUPABASE_KEY } = await import('@/lib/supabaseConstants');
+  const { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY: SUPABASE_KEY } = await import('@/lib/supabaseConstants');
 
   const invokeOnce = async () => {
     const token = await getClerkSupabaseToken();
@@ -119,7 +119,7 @@ export async function tailorResumeWithProgress(
     };
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/tailor-resume`, {
+    const response = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/tailor-resume`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ resume, jobDescription, intensity }),
@@ -238,13 +238,13 @@ export interface ParsedJobData {
 }
 
 export async function parseJobUrl(url: string): Promise<ParsedJobData> {
-  const { SUPABASE_URL, SUPABASE_ANON_KEY: SUPABASE_KEY } = await import('@/lib/supabaseConstants');
+  const { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY: SUPABASE_KEY } = await import('@/lib/supabaseConstants');
   const token = await getClerkSupabaseToken();
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/parse-job-url`, {
+  const response = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/parse-job-url`, {
     method: 'POST',
     headers,
     body: JSON.stringify({ url }),

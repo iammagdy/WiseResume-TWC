@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, X, Send } from 'lucide-react';
 import { toast } from 'sonner';
-import { SUPABASE_URL } from '@/lib/supabaseConstants';
+import { EDGE_FUNCTIONS_URL } from '@/lib/supabaseConstants';
 import type { PublicProfile, PublicResume } from '@/hooks/usePublicPortfolio';
 
 interface ChatMessage { role: 'user' | 'assistant'; content: string; }
@@ -44,7 +44,7 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
     setLoading(true);
 
     try {
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/ask-portfolio`, {
+      const res = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/ask-portfolio`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
