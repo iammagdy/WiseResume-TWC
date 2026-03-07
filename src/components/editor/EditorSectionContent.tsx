@@ -27,7 +27,7 @@ const ReferencesSection = lazy(() => import('@/components/editor/ReferencesSecti
 const CertificationsSection = lazy(() => import('@/components/editor/CertificationsSection').then(m => ({ default: m.CertificationsSection })));
 const LanguagesSection = lazy(() => import('@/components/editor/LanguagesSection').then(m => ({ default: m.LanguagesSection })));
 
-const MORE_SECTION_COMPONENTS: Record<string, { icon: React.ComponentType<{ className?: string }>; title: string; hasAI: boolean; Component: React.LazyExoticComponent<React.ComponentType> }> = {
+const MORE_SECTION_COMPONENTS: Record<string, { icon: React.FC<{ className?: string }>; title: string; hasAI: boolean; Component: React.LazyExoticComponent<React.ComponentType> }> = {
   awards: { icon: Trophy, title: 'Awards & Achievements', hasAI: true, Component: AwardsSection },
   projects: { icon: Rocket, title: 'Projects', hasAI: true, Component: ProjectsSection },
   certifications: { icon: Award, title: 'Certifications', hasAI: true, Component: CertificationsSection },
