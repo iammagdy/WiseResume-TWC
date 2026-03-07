@@ -7,6 +7,19 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-07
+- Issue ID: ISSUE-C (A-3, A-4, A-5, E-2, E-4, E-5 fixes)
+- Summary: Six Medium UX issues fixed in one pass. **(A-3)** Added live portfolio URL helper text below the username field on sign-up: `thewise.cloud/p/{username}`. **(A-4)** Wired the existing `PasswordStrengthMeter` component into the sign-up password field (sign-in form unchanged — still shows "Forgot password?" link). **(A-5)** Changed first/last name grid from `grid-cols-2` → `grid-cols-1 sm:grid-cols-2` so fields stack vertically on iPhone SE (375px). **(E-2)** Replaced `Download` icon with `Eye` icon on the "Preview & Export" button in the editor, matching its actual navigation-to-/preview behaviour. **(E-4)** Renamed the "ATS" mobile tab to "ATS Score" for clarity. **(E-5)** Removed `hidden xs:inline` from the "Offline" status label so it is always visible on 375px viewports.
+- Files touched:
+  - `src/pages/ClerkAuthPage.tsx` (A-3: username helper text; A-4: PasswordStrengthMeter import + sign-up wire; A-5: grid-cols-1 sm:grid-cols-2)
+  - `src/components/editor/EditorSectionContent.tsx` (E-2: Download → Eye icon)
+  - `src/pages/EditorPage.tsx` (E-4: "ATS" → "ATS Score" tab label; E-5: remove hidden xs:inline)
+  - `enhancements-for-vibe-coding/CHANGELOG-local.md` (this entry)
+- Notes / Constraints: No behavior changes. No handlers, logic, or routing modified. `App.tsx`, `types.ts`, `client.ts` untouched. All MEMORY.md "Do Not Touch" constraints respected.
+
+---
+
+
+- Date: 2026-03-07
 - Issue ID: ISSUE-C (A-1 + A-2 fixes)
 - Summary: Fixed the two Critical auth issues identified in the ISSUE-C audit. (1) **A-1 — Forgot password flow** — Extended `Mode` type with `'forgot-password'` and `'reset-password'`. Added a `handleForgotPassword` handler that calls `signIn.create({ strategy: 'reset_password_email_code' })` and a `handleResetPassword` handler that calls `signIn.attemptFirstFactor` then sets the session. Added two new animated screens inside `AnimatePresence`. Added a "Forgot password?" text-link below the password field on the sign-in form. `ResetPasswordPage` already redirects to `/auth?mode=forgot`; extended `initialMode` to map that to `'forgot-password'`. (2) **A-2 — Resend code** — Added a `handleResendCode` callback that calls `signUp.prepareEmailAddressVerification({ strategy: 'email_code' })` with `resendLoading` guard. Added a "Resend code" ghost button on the verify-email screen between "Verify & Continue" and "Back". Header copy (`headingText`/`subtitleText` records) extended to cover all five modes.
 - Files touched:
