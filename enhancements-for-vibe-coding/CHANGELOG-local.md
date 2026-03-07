@@ -7,6 +7,16 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-07
+- Issue ID: ISSUE-C
+- Summary: Completed a full UI/UX audit of the entire WiseResume application (landing page, auth, dashboard, editor, preview, share, portfolio editor, public portfolio, applications, AI studio, settings, interview, and profile pages). Found 2 Critical issues, 22 Medium issues, and 18 Low/polish issues. All findings documented with severity ratings, specific file/component references, and recommended fixes. No code changes were made. Full report written to `enhancements-for-vibe-coding/UI-UX-AUDIT.md`.
+- Files touched:
+  - `enhancements-for-vibe-coding/UI-UX-AUDIT.md` (created — full audit report with per-page findings, severity table, and prioritised fix order)
+  - `enhancements-for-vibe-coding/CHANGELOG-local.md` (this entry)
+- Notes / Constraints: Audit only — zero code changes. All MEMORY.md "Do Not Touch" files respected. Critical issues A-1 (missing Forgot Password link) and A-2 (missing Resend Code button) flagged for immediate fix in next session.
+
+---
+
+- Date: 2026-03-07
 - Issue ID: ISSUE-B
 - Summary: Public link safety audit for thewise.cloud. Two targeted hardening changes were applied after auditing all public resume/portfolio share routes (`/share/:token`, `/p/:username`, `/l/:linkId`). (1) **Open-redirect guard (MEDIUM)** — `resolve-short-link` edge function now strips any `target_url` that does not start with `/` before returning it to the client, preventing a future DB-level injection from ever producing an external redirect payload. `ShortLinkPage.tsx` also independently validates `target_url.startsWith('/')` before calling `navigate()` (defence-in-depth). (2) **Fetch timeout (LOW UX)** — Added a 7-second `AbortController` timeout to the short-link resolution fetch; users now see the "Link Not Found" page instead of an indefinite spinner if the edge function is slow or unreachable. (3) **Finding 2 (LOW, deferred)** — `get_shared_resume` RPC returns the full resume row including `user_id` and internal fields via `row_to_json(v_resume)`. These fields are not rendered in the UI but are visible in DevTools. Patching requires a DB migration to replace `row_to_json(v_resume)` with an explicit `jsonb_build_object` listing only public fields. Deferred to an external tool session per MEMORY.md §7 (backend/security scope). All other findings verified as safe: `get_public_portfolio` exposes no private profile fields; password gate uses server-side BCrypt; comment RLS rate-limiting is correct; `portfolio_enabled` gate prevents disabled portfolios from being served.
 - Files touched:
