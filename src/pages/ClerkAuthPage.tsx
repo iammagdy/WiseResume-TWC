@@ -60,7 +60,7 @@ export default function ClerkAuthPage() {
     try {
       await signIn.authenticateWithRedirect({
         strategy: 'oauth_google',
-        redirectUrl: '/sign-in/sso-callback',
+        redirectUrl: `${window.location.origin}/sign-in/sso-callback`,
         redirectUrlComplete: redirectTo,
       });
     } catch (err: any) {
