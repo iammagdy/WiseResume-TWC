@@ -276,26 +276,29 @@ export default function SettingsPage() {
 
           {/* Section index chips */}
           <div className="relative">
-          <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-2 -mx-1 px-1">
-            {SECTIONS.map(({ id, label, icon: SIcon }) => {
-              if (id === 'section-account' && !user) return null;
-              const isActive = activeSection === id;
-              return (
-                <button
-                  key={id}
-                  onClick={() => scrollToSection(id)}
-                  className={cn(
-                    'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all active:scale-95 touch-manipulation shrink-0 min-h-[44px]',
-                    isActive
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'bg-muted/60 text-muted-foreground hover:bg-muted'
-                  )}
-                >
-                  <SIcon className="w-3 h-3" />
-                  {label}
-                </button>
-              );
-            })}
+            <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-2 -mx-1 px-1">
+              {SECTIONS.map(({ id, label, icon: SIcon }) => {
+                if (id === 'section-account' && !user) return null;
+                const isActive = activeSection === id;
+                return (
+                  <button
+                    key={id}
+                    onClick={() => scrollToSection(id)}
+                    className={cn(
+                      'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all active:scale-95 touch-manipulation shrink-0 min-h-[44px]',
+                      isActive
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'bg-muted/60 text-muted-foreground hover:bg-muted'
+                    )}
+                  >
+                    <SIcon className="w-3 h-3" />
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            {/* Right-edge fade to hint horizontal scroll */}
+            <div className="absolute right-0 top-0 bottom-0 w-8 pointer-events-none bg-gradient-to-l from-background to-transparent" />
           </div>
         </header>
 

@@ -76,54 +76,58 @@ export const StepperNav = memo(function StepperNav({
     return (
       <>
         {/* Horizontal scrollable pill bar */}
-        <div className="px-2 py-1 overflow-x-auto scrollbar-hide">
-          <div className="flex items-center gap-1.5 w-max">
-            {steps.map((step) => {
-              const moreDef = step.id === 'more' && activeMoreSection
-                ? MORE_SECTIONS.find(s => s.id === activeMoreSection)
-                : null;
-              const Icon = moreDef ? moreDef.icon : (STEP_ICONS[step.id] || Plus);
-              const displayLabel = moreDef ? moreDef.label : step.label;
-              const isActive = step.id === activeStep;
-              const isCompleted = completedSteps[step.id];
-              const score = sectionScores?.[step.id] ?? (isCompleted ? 100 : 0);
-              const isInProgress = score > 0 && score < 100;
+        <div className="relative">
+          <div className="px-2 py-1 overflow-x-auto scrollbar-hide">
+            <div className="flex items-center gap-1.5 w-max">
+              {steps.map((step) => {
+                const moreDef = step.id === 'more' && activeMoreSection
+                  ? MORE_SECTIONS.find(s => s.id === activeMoreSection)
+                  : null;
+                const Icon = moreDef ? moreDef.icon : (STEP_ICONS[step.id] || Plus);
+                const displayLabel = moreDef ? moreDef.label : step.label;
+                const isActive = step.id === activeStep;
+                const isCompleted = completedSteps[step.id];
+                const score = sectionScores?.[step.id] ?? (isCompleted ? 100 : 0);
+                const isInProgress = score > 0 && score < 100;
 
-              return (
-                <button
-                  key={step.id}
-                  onClick={() => {
-                    onStepClick(step.id);
-                    haptics.light();
-                  }}
-                  className={cn(
-                    'flex items-center gap-1.5 px-3 h-7 rounded-full border text-xs font-medium whitespace-nowrap transition-all touch-manipulation active:scale-95 shrink-0',
-                    isActive
-                      ? 'bg-primary/15 border-primary/40 text-primary'
-                      : isCompleted
-                        ? 'bg-success/10 border-success/30 text-success'
-                        : isInProgress
-                          ? 'bg-warning/10 border-warning/30 text-warning'
-                          : 'bg-card border-border text-muted-foreground'
-                  )}
-                  aria-current={isActive ? 'step' : undefined}
-                >
-                  {isCompleted ? (
-                    <Check className="w-3.5 h-3.5" />
-                  ) : (
-                    <Icon className="w-3.5 h-3.5" />
-                  )}
-                  {displayLabel}
-                  {isInProgress && !isCompleted && (
-                    <span className="text-[9px] font-bold bg-warning text-warning-foreground rounded-full px-1 py-px leading-tight">
-                      {score}%
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+                return (
+                  <button
+                    key={step.id}
+                    onClick={() => {
+                      onStepClick(step.id);
+                      haptics.light();
+                    }}
+                    className={cn(
+                      'flex items-center gap-1.5 px-3 h-7 rounded-full border text-xs font-medium whitespace-nowrap transition-all touch-manipulation active:scale-95 shrink-0',
+                      isActive
+                        ? 'bg-primary/15 border-primary/40 text-primary'
+                        : isCompleted
+                          ? 'bg-success/10 border-success/30 text-success'
+                          : isInProgress
+                            ? 'bg-warning/10 border-warning/30 text-warning'
+                            : 'bg-card border-border text-muted-foreground'
+                    )}
+                    aria-current={isActive ? 'step' : undefined}
+                  >
+                    {isCompleted ? (
+                      <Check className="w-3.5 h-3.5" />
+                    ) : (
+                      <Icon className="w-3.5 h-3.5" />
+                    )}
+                    {displayLabel}
+                    {isInProgress && !isCompleted && (
+                      <span className="text-[9px] font-bold bg-warning text-warning-foreground rounded-full px-1 py-px leading-tight">
+                        {score}%
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
 
+            </div>
           </div>
+          {/* Right-edge fade to hint horizontal scroll */}
+          <div className="absolute right-0 top-0 bottom-0 w-8 pointer-events-none bg-gradient-to-l from-background to-transparent" />
         </div>
 
         {/* More sections sheet */}
