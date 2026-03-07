@@ -7,7 +7,7 @@ import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, Sparkles, MessageSquare, Lock, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock, Info, X, Plus, Trophy, Rocket, BookOpen, Heart, Palette, Users, Eye, Award, Globe, PanelLeftClose, PanelLeft, ChevronDown, BarChart3, Undo2, Redo2, Scissors, LayoutTemplate } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 // Tooltip removed – Radix Popper causes infinite setRef loop on this page
-import { calcContactScore, calcSummaryScore, calcExperienceScore, calcEducationScore, calcSkillsScore, calcOverallScore, getSectionStatus, getNextIncompleteSection } from '@/lib/resumeCompletionRules';
+import { getSectionStatus } from '@/lib/resumeCompletionRules';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { StepperNav } from '@/components/editor/StepperNav';
 import { SectionCard } from '@/components/editor/SectionCard';
@@ -63,7 +63,7 @@ const LivePreviewSheet = lazy(() => import('@/components/editor/LivePreviewSheet
 const ATSParserPreview = lazy(() => import('@/components/editor/ATSParserPreview'));
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { ATSScoreBreakdown, getScoreColorClass } from '@/components/dashboard/ATSScoreBreakdown';
-import { useResumeScore, ResumeHealthScore, backgroundScore } from '@/hooks/useResumeScore';
+import { useResumeScore, ResumeHealthScore } from '@/hooks/useResumeScore';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { KeyboardToolbar } from '@/components/editor/KeyboardToolbar';
 import { OfflineIndicator } from '@/components/editor/OfflineIndicator';
@@ -84,7 +84,9 @@ import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 import { getBackRoute } from '@/lib/navigation';
 import { UnsavedChangesDialog } from '@/components/editor/UnsavedChangesDialog';
 import { useBackButton } from '@/hooks/useBackButton';
-import { useAppLifecycle } from '@/hooks/useAppLifecycle';
+import { useEditorHydration } from '@/hooks/useEditorHydration';
+import { useEditorAutosave } from '@/hooks/useEditorAutosave';
+import { useEditorSectionScores } from '@/hooks/useEditorSectionScores';
 export default function EditorPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -138,67 +140,20 @@ export default function EditorPage() {
     };
   }, [currentResumeId]);
 
-  // Single hydration effect: sync DB data into Zustand store + ownership check
-  // Also detects stale resume (Fix 2): if server version is newer than local, auto-refresh or show conflict banner
-  const localLoadedAtRef = useRef<string | null>(null);
-  const lastLocalEditAtRef = useRef<number>(0);
-  const lastRefreshedServerTs = useRef<string | null>(null);
+  // Track last saved version to detect changes (declared here so both hooks share it)
+  const lastSavedResumeRef = useRef<string>('');
   const isSavingRef = useRef(false);
 
-  useEffect(() => {
-    if (!resumeFromDb || !currentResumeId) return;
-
-    // Ownership check
-    if (user && resumeFromDb.user_id !== user.id) {
-      setCurrentResumeId(null);
-      toast.error('Access denied.');
-      navigate('/dashboard', { replace: true });
-      return;
-    }
-
-    const localResume = useResumeStore.getState().currentResume;
-
-    // Initial hydration: store is empty → just load from DB
-    if (!localResume) {
-      useResumeStore.getState().setCurrentResume(dbToResumeData(resumeFromDb));
-      useResumeStore.getState().setSelectedTemplate(
-        (resumeFromDb.template_id || 'modern') as import('@/types/resume').TemplateId
-      );
-      localLoadedAtRef.current = resumeFromDb.updated_at ?? null;
-      lastSavedResumeRef.current = JSON.stringify(dbToResumeData(resumeFromDb));
-      logAudit('account', 'editor_session_started', {
-        resumeId: currentResumeId,
-        resumeTitle: resumeFromDb.title,
-      });
-      return;
-    }
-
-    // Stale-resume detection on subsequent React Query refetches
-    const serverUpdatedAt = resumeFromDb.updated_at;
-    const localLoadedAt = localLoadedAtRef.current;
-    if (
-      !isSavingRef.current &&
-      serverUpdatedAt &&
-      localLoadedAt &&
-      Date.parse(serverUpdatedAt) > Date.parse(localLoadedAt) &&
-      serverUpdatedAt !== lastRefreshedServerTs.current
-    ) {
-      const isClean = lastSavedResumeRef.current === JSON.stringify(localResume);
-      useResumeStore.getState().setCurrentResume(dbToResumeData(resumeFromDb));
-      useResumeStore.getState().setSelectedTemplate(
-        (resumeFromDb.template_id || 'modern') as import('@/types/resume').TemplateId
-      );
-      localLoadedAtRef.current = serverUpdatedAt;
-      lastSavedResumeRef.current = JSON.stringify(dbToResumeData(resumeFromDb));
-      lastRefreshedServerTs.current = serverUpdatedAt;
-      toast.info(
-        isClean
-          ? 'Resume updated — refreshed to latest version.'
-          : 'Resume updated from another device — refreshed to latest version.',
-        { duration: 3000 }
-      );
-    }
-  }, [resumeFromDb, currentResumeId, user, setCurrentResumeId, navigate]);
+  // Hook 1: DB→Zustand hydration, ownership check, stale-resume detection
+  const { localLoadedAtRef } = useEditorHydration({
+    resumeFromDb,
+    currentResumeId,
+    user,
+    setCurrentResumeId,
+    navigate,
+    lastSavedResumeRef,
+    isSavingRef,
+  });
 
   // Safety timeout: if no resume after 8s, bail out (independent of storeHydrated)
   useEffect(() => {
@@ -281,11 +236,24 @@ export default function EditorPage() {
     }
   }, [searchParams, setSearchParams]);
 
-  // Track last saved version to detect changes
-  const lastSavedResumeRef = useRef<string>('');
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const lastScoreTimeRef = useRef<number>(0);
+
+  // Hook 2: debounced cloud save, conflict guard, offline queue, ATS re-score, lifecycle flush
+  const resumeRef = useRef(currentResume);
+  resumeRef.current = currentResume;
+  const { saveToCloud } = useEditorAutosave({
+    user,
+    currentResumeId,
+    resumeRef,
+    lastSavedResumeRef,
+    setIsSaving,
+    setLastSavedAt,
+    updateResume,
+    resumeFromDb,
+    localLoadedAtRef,
+    isSavingRef,
+    addPendingChange,
+  });
 
   // Background ATS scoring uses standalone function (no hook state to avoid re-render loops)
 
@@ -340,153 +308,15 @@ export default function EditorPage() {
     return () => clearTimeout(timer);
   }, [isMobile, currentResume]);
 
-  // Use ref to decouple saveToCloud from currentResume dependency
-  const resumeRef = useRef(currentResume);
-  resumeRef.current = currentResume;
 
-  // Auto-save for authenticated users (stable callback - no currentResume dep)
-  const saveToCloud = useCallback(async () => {
-    const resume = resumeRef.current;
-    if (!user || !currentResumeId || !resume) return;
-
-    const currentResumeJson = JSON.stringify(resume);
-    if (currentResumeJson === lastSavedResumeRef.current) return;
-
-    // Fix 3: Pre-save online conflict guard
-    // Compare the server's updated_at (from React Query cache) against the timestamp
-    // we recorded when this session first loaded the resume. If another device has
-    // saved since we loaded, block the write and show the conflict dialog instead.
-    const serverUpdatedAt = resumeFromDb?.updated_at;
-    const sessionLoadedAt = localLoadedAtRef.current;
-    if (serverUpdatedAt && sessionLoadedAt && Date.parse(serverUpdatedAt) > Date.parse(sessionLoadedAt)) {
-      // Another device saved a newer version — silently refresh baseline and proceed with save
-      localLoadedAtRef.current = serverUpdatedAt;
-    }
-
-    setIsSaving(true);
-    isSavingRef.current = true;
-    try {
-      const result = await updateResume.mutateAsync({
-        resumeId: currentResumeId,
-        updates: resume,
-      });
-      lastSavedResumeRef.current = currentResumeJson;
-      setLastSavedAt(new Date());
-      // Update baseline from the authoritative mutation response timestamp
-      if (result?.updated_at) {
-        localLoadedAtRef.current = result.updated_at;
-      } else if (resumeFromDb?.updated_at) {
-        localLoadedAtRef.current = resumeFromDb.updated_at;
-      }
-
-      // Throttled background ATS re-score (max once per 60s)
-      if (currentResumeId && resume && Date.now() - lastScoreTimeRef.current > 60_000) {
-        lastScoreTimeRef.current = Date.now();
-        const rid = currentResumeId;
-        const snap = resume;
-        // Use content hash as cache key so identical content always hits cache
-        const contentHash = btoa(unescape(encodeURIComponent(JSON.stringify(snap)))).slice(0, 64);
-        const scheduleScore = () => backgroundScore(rid, snap, contentHash);
-        if ('requestIdleCallback' in window) {
-          window.requestIdleCallback(scheduleScore);
-        } else {
-          setTimeout(scheduleScore, 200);
-        }
-      }
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : '';
-      const isNetworkError = !navigator.onLine ||
-        errorMessage.includes('Failed to fetch') ||
-        errorMessage.includes('NetworkError');
-      const isAuthError = errorMessage.includes('401') ||
-        errorMessage.toLowerCase().includes('unauthorized') ||
-        errorMessage.toLowerCase().includes('jwt expired') ||
-        errorMessage.toLowerCase().includes('invalid jwt');
-
-      if (isNetworkError && currentResumeId) {
-        addPendingChange(currentResumeId, resume);
-        // Don't show error toast - OfflineIndicator handles it
-      } else if (isAuthError) {
-        // Session expired mid-edit — data is safe, redirect is imminent
-        toast.warning('Session expired — your changes are saved locally. Please sign back in.', { duration: 5000 });
-      } else {
-        console.error('Auto-save failed:', error);
-        // Flaky network: technically online but request failed — reassure user
-        toast.warning('Auto-save failed — your changes are safe locally and will retry.', { duration: 4000 });
-      }
-    } finally {
-      isSavingRef.current = false;
-      setIsSaving(false);
-    }
-  }, [user, currentResumeId, updateResume, setIsSaving, setLastSavedAt, addPendingChange, resumeFromDb]);
-
-  // Track real local edit time for conflict resolution accuracy
-  const hydrationDoneRef = useRef(false);
-  useEffect(() => {
-    if (!currentResume) return;
-    if (!hydrationDoneRef.current) {
-      // Skip the first change which is hydration from DB
-      hydrationDoneRef.current = true;
-      return;
-    }
-    lastLocalEditAtRef.current = Date.now();
-  }, [currentResume]);
-
-  // Debounced auto-save effect
-  useEffect(() => {
-    if (!user || !currentResumeId || !currentResume) return;
-
-    // Clear existing timeout
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-
-    // Set new timeout for debounced save
-    saveTimeoutRef.current = setTimeout(() => {
-      saveToCloud();
-    }, 3000); // 3 second debounce
-
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, [currentResume, user, currentResumeId, saveToCloud]);
-
-  // Clean up save timeout on unmount (save-on-unmount removed to prevent setState infinite loop)
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Draft save on keyboard close
-  useEffect(() => {
-    const handleKbClose = () => saveToCloud();
-    window.addEventListener('keyboard-close', handleKbClose);
-    return () => window.removeEventListener('keyboard-close', handleKbClose);
-  }, [saveToCloud]);
-
-  // Flush cloud save immediately when app goes to background (mobile multitasking resilience)
-  useAppLifecycle({
-    onBackground: useCallback(() => {
-      // Cancel the pending 3s debounce so we don't double-save
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = null;
-      }
-      // Fire-and-forget immediate save
-      saveToCloud();
-    }, [saveToCloud]),
-  });
 
   // Network status for enhanced save indicator
   const { isOnline } = useNetworkStatus();
 
   // Undo/Redo system
   const { canUndo, canRedo, undoDescription, redoDescription, undo, redo } = useUndoRedo(currentResume);
+
+
 
   const handleUndo = useCallback(() => {
     const snapshot = undo();
@@ -611,135 +441,14 @@ export default function EditorPage() {
     return base;
   }, [currentResume]);
 
-  // Granular section scores — each memo only re-runs when its own slice changes,
-  // so typing in Summary does NOT recompute contactScore/experienceScore/etc.
-  const contactScore = useMemo(() => currentResume ? calcContactScore(currentResume.contactInfo) : 0, [currentResume?.contactInfo]);
-  const summaryScore = useMemo(() => currentResume ? calcSummaryScore(currentResume.summary) : 0, [currentResume?.summary]);
-  const experienceScore = useMemo(() => currentResume ? calcExperienceScore(currentResume.experience) : 0, [currentResume?.experience]);
-  const educationScore = useMemo(() => currentResume ? calcEducationScore(currentResume.education) : 0, [currentResume?.education]);
-  const skillsScore = useMemo(() => currentResume ? calcSkillsScore(currentResume.skills) : 0, [currentResume?.skills]);
-  const sectionScores = useMemo(() => ({
-    contact: contactScore, summary: summaryScore, experience: experienceScore, education: educationScore, skills: skillsScore,
-  }), [contactScore, summaryScore, experienceScore, educationScore, skillsScore]);
-
-  // Overall score for ATS badge (local, no API call)
-  const overallScore = useMemo(() => {
-    if (!currentResume) return 0;
-    return calcOverallScore(currentResume);
-  }, [currentResume]);
-
-  // Track score changes for celebration toasts
-  const prevScoreRef = useRef(overallScore);
-  useEffect(() => {
-    const prev = prevScoreRef.current;
-    prevScoreRef.current = overallScore;
-    if (overallScore - prev >= 5 && prev > 0) {
-      toast.success(`Score improved to ${overallScore}%!`, { duration: 2000 });
-    }
-  }, [overallScore]);
-
-  // Build a local health score object for the ATS breakdown widget
-  const localHealthScore = useMemo((): ResumeHealthScore | null => {
-    if (!currentResume) return null;
-    return {
-      overallScore,
-      categories: {
-        keywordOptimization: sectionScores.skills,
-        contentQuality: sectionScores.experience,
-        sectionStructure: Math.round((sectionScores.contact + sectionScores.education + sectionScores.skills + sectionScores.experience) / 4),
-        parsability: sectionScores.education,
-        contactCompleteness: sectionScores.contact,
-        lengthDensity: Math.round((sectionScores.experience + sectionScores.education) / 2),
-        templateFriendliness: 60,
-      },
-      topStrength: '',
-      topImprovement: overallScore < 70 ? 'Fill in more sections to improve your score' : '',
-      scoredAt: new Date().toISOString(),
-    };
-  }, [overallScore, sectionScores, currentResume]);
-
-  // Derive boolean completedSteps for StepperNav (includes optional sections)
-  const sectionStatus = useMemo(() => {
-    const status: Record<string, boolean> = {
-      contact: sectionScores.contact >= 100,
-      summary: sectionScores.summary >= 100,
-      experience: sectionScores.experience >= 100,
-      education: sectionScores.education >= 100,
-      skills: sectionScores.skills >= 100,
-    };
-    if (currentResume) {
-      const optionalIds = ['awards', 'projects', 'certifications', 'publications', 'volunteering', 'languages', 'hobbies', 'references'];
-      for (const id of optionalIds) {
-        const data = currentResume[id as keyof typeof currentResume];
-        if (Array.isArray(data) && data.length > 0) {
-          status[id] = true;
-        }
-      }
-    }
-    return status;
-  }, [sectionScores, currentResume]);
-
-  // Section completion celebrations
-  const prevCompletedRef = useRef<Record<string, boolean>>({});
-
-  const CELEBRATION_MESSAGES: Record<string, string> = useMemo(() => ({
-    contact: 'Excellent! Contact section complete 🎉',
-    summary: 'Summary nailed! 🎉',
-    experience: 'Work experience locked in! 🎉',
-    education: 'Education section complete! 🎉',
-    skills: 'Skills section complete! Your resume is looking great! 🎉',
-  }), []);
-
-  const NEXT_STEP_MESSAGES: Record<string, string> = useMemo(() => ({
-    contact: 'Next: Write your professional summary →',
-    summary: 'Next: Add your work experience →',
-    experience: 'Next: Add your education details →',
-    education: 'Next: List your key skills →',
-  }), []);
-
-  const [justCompletedStep, setJustCompletedStep] = useState<string | null>(null);
-  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const confettiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Cleanup timeouts on unmount
-  useEffect(() => {
-    return () => {
-      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
-      if (confettiTimeoutRef.current) clearTimeout(confettiTimeoutRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!currentResume) return;
-    const prev = prevCompletedRef.current;
-    const sectionIds = ['contact', 'summary', 'experience', 'education', 'skills'] as const;
-
-    for (const id of sectionIds) {
-      const nowComplete = sectionScores[id] >= 100;
-      if (nowComplete && prev[id] === false) {
-        // Celebration toast immediately
-        toast.success(CELEBRATION_MESSAGES[id], { duration: 3000 });
-
-        // Confetti animation on stepper icon
-        setJustCompletedStep(id);
-        confettiTimeoutRef.current = setTimeout(() => setJustCompletedStep(null), 1500);
-
-        // Delayed next-step toast
-        const nextMsg = NEXT_STEP_MESSAGES[id];
-        if (nextMsg) {
-          toastTimeoutRef.current = setTimeout(() => {
-            toast(nextMsg, { duration: 4000, icon: '→' });
-          }, 2000);
-        }
-      }
-      prev[id] = nowComplete;
-    }
-
-  }, [sectionScores, CELEBRATION_MESSAGES, NEXT_STEP_MESSAGES, currentResume, user]);
+  // Hook 3: section scores, completion status, celebration toasts, and confetti
+  const { sectionScores, overallScore, localHealthScore, sectionStatus, justCompletedStep } = useEditorSectionScores(currentResume);
 
   const handleImproveSection = useCallback(() => {
     setShowTailor(true);
   }, []);
+
+
 
   const handleBack = useCallback(() => {
     unsavedGuard.interceptNavigate(getBackRoute('/editor'));
