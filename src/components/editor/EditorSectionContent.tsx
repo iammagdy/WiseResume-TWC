@@ -88,16 +88,33 @@ export function EditorSectionContent({
 
   return (
     <>
+      {/* First-visit onboarding banner — visible on blank new resumes only */}
+      {showOnboardingBanner && (
+        <div className="flex items-start gap-3 px-4 py-3 mb-3 rounded-xl bg-primary/10 border border-primary/20 text-sm text-foreground/80" style={{ animation: 'spring-enter 0.35s ease-out' }}>
+          <span className="text-base leading-none mt-0.5">👋</span>
+          <p className="flex-1 leading-snug">
+            <span className="font-medium text-foreground">Welcome!</span> Fill in each section using the steps above — changes save automatically.
+          </p>
+          <button
+            onClick={handleDismissBanner}
+            aria-label="Dismiss hint"
+            className="shrink-0 p-1 rounded-md hover:bg-primary/10 active:scale-95 transition-transform touch-manipulation"
+          >
+            <X className="w-4 h-4 text-muted-foreground" />
+          </button>
+        </div>
+      )}
+
       {activeTab === 'contact' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-          <SectionCard icon={User} title="Contact Information" tip="Include a professional email and phone number" status={getSectionStatus(sectionScores.contact)} action={<SectionAIAction section="contact" />}>
+          <SectionCard icon={User} title="Contact Information" tip="Add your name, email, phone and LinkedIn — these appear at the top of your resume" status={getSectionStatus(sectionScores.contact)} action={<SectionAIAction section="contact" />}>
             <Suspense fallback={<ContactSectionSkeleton />}><ContactSection /></Suspense>
           </SectionCard>
         </div>
       )}
       {activeTab === 'summary' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-          <SectionCard icon={AlignLeft} title="Professional Summary" tip="Write 2-4 sentences highlighting your key strengths" status={getSectionStatus(sectionScores.summary)} action={<SectionAIAction section="summary" />}>
+          <SectionCard icon={AlignLeft} title="Professional Summary" tip="Write 2–4 sentences about your experience and what you're looking for" status={getSectionStatus(sectionScores.summary)} action={<SectionAIAction section="summary" />}>
             <Suspense fallback={<SummarySectionSkeleton />}><SummarySection /></Suspense>
             <ATSInlineSuggestions section="summary" suggestions={getATSSuggestions('summary')} isAnalyzing={isAnalyzingSection('summary')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['summary']} onApplyDeep={(improved) => handleApplyDeep('summary', improved)} onDiscardDeep={() => clearDeepResult('summary')} />
           </SectionCard>
@@ -105,7 +122,7 @@ export function EditorSectionContent({
       )}
       {activeTab === 'experience' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-          <SectionCard icon={Briefcase} title="Work Experience" tip="Include 2-3 key achievements with metrics" status={getSectionStatus(sectionScores.experience)} action={<SectionAIAction section="experience" />}>
+          <SectionCard icon={Briefcase} title="Work Experience" tip="Add your most recent job first — tap an entry to expand and edit it" status={getSectionStatus(sectionScores.experience)} action={<SectionAIAction section="experience" />}>
             <Suspense fallback={<ExperienceSectionSkeleton />}><ExperienceSection /></Suspense>
             <ATSInlineSuggestions section="experience" suggestions={getATSSuggestions('experience')} isAnalyzing={isAnalyzingSection('experience')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['experience']} onApplyDeep={(improved) => handleApplyDeep('experience', improved)} onDiscardDeep={() => clearDeepResult('experience')} />
           </SectionCard>
@@ -113,7 +130,7 @@ export function EditorSectionContent({
       )}
       {activeTab === 'education' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-          <SectionCard icon={GraduationCap} title="Education" tip="List your most relevant degrees and certifications" status={getSectionStatus(sectionScores.education)} action={<SectionAIAction section="education" />}>
+          <SectionCard icon={GraduationCap} title="Education" tip="List your highest degree first — GPA is optional" status={getSectionStatus(sectionScores.education)} action={<SectionAIAction section="education" />}>
             <Suspense fallback={<EducationSectionSkeleton />}><EducationSection /></Suspense>
             {jobDescription && <ATSInlineSuggestions section="education" suggestions={getATSSuggestions('education')} isAnalyzing={isAnalyzingSection('education')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['education']} onApplyDeep={(improved) => handleApplyDeep('education', improved)} onDiscardDeep={() => clearDeepResult('education')} />}
           </SectionCard>
