@@ -134,6 +134,12 @@ function DashboardPageContent() {
     return () => { emblaApi.off('select', onSelect); };
   }, [emblaApi]);
 
+  // Reset visible counts whenever filters, search or active tab change
+  useEffect(() => {
+    setVisibleMyCVs(PAGE_SIZE);
+    setVisibleTailored(PAGE_SIZE);
+  }, [deferredSearch, activeTab, categoryFilters, scoreFilters, sortOption]);
+
   // Reset loading state when dialog opens
   useEffect(() => {
     if (showCreateDialog) setIsCreating(false);
