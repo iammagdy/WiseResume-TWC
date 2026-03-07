@@ -50,23 +50,6 @@ Deno.serve(async (req) => {
 
     const clerkUser = await clerkRes.json();
 
-    // Check if already provisioned
-    const existingUuid = clerkUser.public_metadata?.supabaseUuid;
-    if (existingUuid) {
-      return new Response(
-        JSON.stringify({ supabaseUuid: existingUuid, alreadyProvisioned: true }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Generate deterministic UUID
-    const supabaseUuid = uuidv5(clerkUserId, CLERK_UUID_NAMESPACE);
-    console.log(`Provisioning Clerk ${clerkUserId} → Supabase UUID ${supabaseUuid}`);
-
-    const email = clerkUser.email_addresses?.[0]?.email_address;
-    const fullName = [clerkUser.first_name, clerkUser.last_name].filter(Boolean).join(" ") || undefined;
-
-    // Create shadow auth.users row
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -74,6 +57,70 @@ Deno.serve(async (req) => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
+    // Check if already provisioned in Clerk metadata
+    const existingUuid = clerkUser.public_metadata?.supabaseUuid as string | undefined;
+    if (existingUuid) {
+      // Verify the profile actually exists in the DB for this UUID
+      const { data: existingProfile } = await adminClient
+        .from("profiles")
+        .select("user_id")
+        .eq("user_id", existingUuid)
+        .maybeSingle();
+
+      if (existingProfile) {
+        // Profile exists — truly already provisioned
+        console.log(`User ${clerkUserId} already provisioned with uuid ${existingUuid}`);
+        return new Response(
+          JSON.stringify({ supabaseUuid: existingUuid, alreadyProvisioned: true }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Profile missing for existingUuid — re-provision using the same UUID
+      // (don't generate a new one, to stay consistent with what's in Clerk metadata)
+      console.log(`Profile missing for existingUuid ${existingUuid}, re-provisioning...`);
+      const email = clerkUser.email_addresses?.[0]?.email_address;
+      const fullName = [clerkUser.first_name, clerkUser.last_name].filter(Boolean).join(" ") || undefined;
+
+      // Ensure shadow auth user exists
+      const { error: createError } = await adminClient.auth.admin.createUser({
+        id: existingUuid,
+        email: email || `${clerkUserId}@clerk.placeholder`,
+        email_confirm: true,
+        user_metadata: { clerk_id: clerkUserId, full_name: fullName },
+      });
+
+      if (createError && !createError.message?.includes("already") && !createError.message?.includes("duplicate")) {
+        console.error("Failed to create shadow user:", createError.message);
+        return new Response(
+          JSON.stringify({ error: "Failed to create shadow user", detail: createError.message }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Create the missing profile row
+      const profileData: Record<string, string> = { user_id: existingUuid };
+      if (fullName) profileData.full_name = fullName;
+      if (email) profileData.contact_email = email;
+      await adminClient
+        .from("profiles")
+        .upsert(profileData, { onConflict: "user_id", ignoreDuplicates: false });
+
+      console.log(`Re-provisioned profile for ${clerkUserId} under existing uuid ${existingUuid}`);
+      return new Response(
+        JSON.stringify({ supabaseUuid: existingUuid, reprovisioned: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Generate deterministic UUID for new provisioning
+    const supabaseUuid = uuidv5(clerkUserId, CLERK_UUID_NAMESPACE);
+    console.log(`Provisioning Clerk ${clerkUserId} → Supabase UUID ${supabaseUuid}`);
+
+    const email = clerkUser.email_addresses?.[0]?.email_address;
+    const fullName = [clerkUser.first_name, clerkUser.last_name].filter(Boolean).join(" ") || undefined;
+
+    // Create shadow auth.users row
     const { error: createError } = await adminClient.auth.admin.createUser({
       id: supabaseUuid,
       email: email || `${clerkUserId}@clerk.placeholder`,
@@ -97,7 +144,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Upsert profile row (creates it if missing, updates if exists)
+    // Upsert profile row
     const profileData: Record<string, string> = { user_id: supabaseUuid };
     if (fullName) profileData.full_name = fullName;
     if (email) profileData.contact_email = email;
