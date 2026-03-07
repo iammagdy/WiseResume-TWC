@@ -217,7 +217,7 @@ export default function ClerkAuthPage() {
     'sign-in': 'Sign in to continue to WiseResume',
     'sign-up': 'Get started with WiseResume',
     'verify-email': `Enter the code sent to ${email}`,
-    'forgot-password': 'Enter your email and we'll send a reset code',
+    'forgot-password': "Enter your email and we\u2019ll send a reset code",
     'reset-password': `Enter the code sent to ${email} and choose a new password`,
   };
 
