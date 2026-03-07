@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { clerkUserId } = await req.json();
+    const { clerkUserId, forceReprovision } = await req.json();
 
     if (!clerkUserId || typeof clerkUserId !== "string") {
       return new Response(
