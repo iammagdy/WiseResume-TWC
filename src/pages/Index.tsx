@@ -499,8 +499,16 @@ const Index = () => {
                       <div className="relative w-9 h-9">
                         <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
                           <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
-                          <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--success))" strokeWidth="3"
-                            strokeLinecap="round" strokeDasharray={94.2} strokeDashoffset={94.2 * 0.12} />
+                          <motion.circle
+                            cx="18" cy="18" r="15" fill="none"
+                            stroke="hsl(var(--success))" strokeWidth="3"
+                            strokeLinecap="round"
+                            strokeDasharray={94.2}
+                            initial={{ strokeDashoffset: 94.2 }}
+                            whileInView={{ strokeDashoffset: prefersReducedMotion ? 94.2 * 0.12 : 94.2 * 0.12 }}
+                            viewport={{ once: true, margin: '-30px' }}
+                            transition={{ duration: 1.2, ease: 'easeOut', delay: 0.2 }}
+                          />
                         </svg>
                         <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-success">88</span>
                       </div>
@@ -508,27 +516,48 @@ const Index = () => {
                   </div>
                   {/* Category bars */}
                   {[
-                    { label: 'Keywords Found', value: 91, color: 'bg-success' },
-                    { label: 'Format & Structure', value: 85, color: 'bg-primary' },
-                    { label: 'Quantified Bullets', value: 78, color: 'bg-warning' },
-                    { label: 'Skills Match', value: 94, color: 'bg-success' },
-                  ].map((cat) => (
+                    { label: 'Keywords Found', value: 91, color: 'hsl(var(--success))' },
+                    { label: 'Format & Structure', value: 85, color: 'hsl(var(--primary))' },
+                    { label: 'Quantified Bullets', value: 78, color: 'hsl(var(--warning))' },
+                    { label: 'Skills Match', value: 94, color: 'hsl(var(--success))' },
+                  ].map((cat, i) => (
                     <div key={cat.label} className="space-y-1">
                       <div className="flex justify-between items-center">
                         <span className="text-[10px] text-muted-foreground">{cat.label}</span>
-                        <span className="text-[10px] font-semibold text-foreground">{cat.value}%</span>
+                        <motion.span
+                          className="text-[10px] font-semibold text-foreground"
+                          initial={{ opacity: 0 }}
+                          whileInView={{ opacity: 1 }}
+                          viewport={{ once: true }}
+                          transition={{ duration: 0.3, delay: 0.4 + i * 0.12 }}
+                        >
+                          {cat.value}%
+                        </motion.span>
                       </div>
                       <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div className={`h-full rounded-full ${cat.color}`} style={{ width: `${cat.value}%` }} />
+                        <motion.div
+                          className="h-full rounded-full"
+                          style={{ backgroundColor: cat.color }}
+                          initial={{ width: '0%' }}
+                          whileInView={{ width: `${cat.value}%` }}
+                          viewport={{ once: true, margin: '-30px' }}
+                          transition={{ duration: 0.8, ease: 'easeOut', delay: 0.3 + i * 0.12 }}
+                        />
                       </div>
                     </div>
                   ))}
                   {/* Tip */}
-                  <div className="rounded-lg bg-primary/8 border border-primary/20 px-2.5 py-1.5">
+                  <motion.div
+                    className="rounded-lg bg-primary/8 border border-primary/20 px-2.5 py-1.5"
+                    initial={{ opacity: 0, y: 6 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.4, delay: 0.85 }}
+                  >
                     <p className="text-[10px] text-foreground/80 leading-snug">
                       💡 Add <span className="font-semibold text-primary">3 missing keywords</span> to boost score to 95+
                     </p>
-                  </div>
+                  </motion.div>
                 </div>
                 <Button
                   variant="outline"
