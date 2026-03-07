@@ -11,12 +11,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import triggerHaptic from '@/lib/haptics';
 import { motion, useReducedMotion, AnimatePresence, type Easing } from 'framer-motion';
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useInView } from '@/hooks/useInView';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
 import { QuickTailorSheet } from '@/components/landing/QuickTailorSheet';
 import { InstallButton } from '@/components/pwa/InstallButton';
+import { GuestSaveBanner } from '@/components/layout/GuestSaveBanner';
 
 import logoImage from '@/assets/wise-ai-logo.webp';
 
@@ -36,8 +37,8 @@ const comparisons = [
 ];
 
 const getBonusChips = (authenticated: boolean) => [
-  { icon: LayoutGrid, label: '30 Templates', href: authenticated ? '/templates' : '/auth' },
-  { icon: Users, label: '4 AI Recruiters', href: authenticated ? '/ai-studio' : '/auth' },
+  { icon: LayoutGrid, label: '30 Templates', href: authenticated ? '/templates' : `/auth?redirect=${encodeURIComponent('/templates')}` },
+  { icon: Users, label: '4 AI Recruiters', href: authenticated ? '/ai-studio' : `/auth?redirect=${encodeURIComponent('/ai-studio')}` },
 ];
 
 // Theme colors for portfolio demo cycling (using CSS variable refs)
@@ -175,8 +176,9 @@ function PortfolioDemo() {
 
 const Index = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated, signOut } = useAuth();
-  const { profile } = useProfile(user?.id, user);
+  const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
+  // Only fire useProfile when auth is fully resolved (not during Clerk loading state)
+  const { profile } = useProfile(isAuthenticated ? user?.id : undefined, user);
   const prefersReducedMotion = useReducedMotion();
   const [scrolled, setScrolled] = useState(false);
   const progressRef = useRef<HTMLDivElement>(null);
@@ -316,10 +318,11 @@ const Index = () => {
           )}
         </div>
       </header>
+      <GuestSaveBanner />
 
       <main className="min-h-screen pb-12 max-w-4xl mx-auto w-full">
         {/* Hero */}
-        <section className="flex flex-col items-center text-center px-4 sm:px-6 pt-20 pb-8 min-h-[520px] sm:min-h-[560px]">
+        <section className="flex flex-col items-center text-center px-4 sm:px-6 pt-[calc(5rem+env(safe-area-inset-top))] pb-8 min-h-[520px] sm:min-h-[560px]">
           <motion.div className="relative mb-6" {...fade(0)}>
             <div
               className="absolute inset-0 rounded-3xl blur-2xl opacity-50 animate-glow-pulse"
@@ -381,7 +384,7 @@ const Index = () => {
                 if (isAuthenticated) {
                   setTailorOpen(true);
                 } else {
-                  navigate('/auth?redirect=/?tailor=1');
+                  navigate(`/auth?redirect=${encodeURIComponent('/?tailor=1')}`);
                 }
               }}
             >
@@ -480,7 +483,7 @@ const Index = () => {
                   variant="outline"
                   size="sm"
                   className="w-full max-w-[200px] gap-1.5 touch-manipulation active:scale-95 transition-transform"
-                  onClick={() => { triggerHaptic.light(); navigate(isAuthenticated ? '/dashboard' : '/auth'); }}
+                  onClick={() => { triggerHaptic.light(); navigate(isAuthenticated ? '/dashboard' : `/auth?redirect=${encodeURIComponent('/dashboard')}`); }}
                 >
                   Try the AI Editor <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
@@ -514,7 +517,7 @@ const Index = () => {
                   variant="outline"
                   size="sm"
                   className="w-full max-w-[200px] gap-1.5 touch-manipulation active:scale-95 transition-transform"
-                  onClick={() => { triggerHaptic.light(); navigate(isAuthenticated ? '/portfolio' : '/auth'); }}
+                  onClick={() => { triggerHaptic.light(); navigate(isAuthenticated ? '/portfolio' : `/auth?redirect=${encodeURIComponent('/portfolio')}`); }}
                 >
                   Build Your Portfolio <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
