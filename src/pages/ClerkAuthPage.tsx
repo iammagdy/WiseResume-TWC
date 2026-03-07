@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useSignIn, useSignUp, useClerk } from '@clerk/clerk-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, ArrowLeft, User } from 'lucide-react';
+import { Mail, ArrowLeft, User, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { OfflineBanner } from '@/components/layout/OfflineBanner';
@@ -13,7 +13,7 @@ import { PasswordInput } from '@/components/auth/PasswordInput';
 import { Button } from '@/components/ui/button';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 
-type Mode = 'sign-in' | 'sign-up' | 'verify-email';
+type Mode = 'sign-in' | 'sign-up' | 'verify-email' | 'forgot-password' | 'reset-password';
 
 export default function ClerkAuthPage() {
   const { signIn, isLoaded: signInLoaded } = useSignIn();
@@ -24,7 +24,11 @@ export default function ClerkAuthPage() {
   const { isAuthenticated, loading: authLoading } = useAuth();
 
   const redirectTo = searchParams.get('redirect') || '/dashboard';
-  const initialMode = searchParams.get('mode') === 'signup' ? 'sign-up' : 'sign-in';
+  const rawMode = searchParams.get('mode');
+  const initialMode: Mode =
+    rawMode === 'signup' ? 'sign-up'
+    : rawMode === 'forgot' ? 'forgot-password'
+    : 'sign-in';
 
   // Redirect if already fully authenticated
   useEffect(() => {
@@ -43,6 +47,12 @@ export default function ClerkAuthPage() {
   const [verificationCode, setVerificationCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+
+  // Forgot / reset password state
+  const [resetCode, setResetCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
 
   // Show session expired toast if redirected with reason
   useEffect(() => {
@@ -131,6 +141,61 @@ export default function ClerkAuthPage() {
     }
   }, [signUp, verificationCode, setActive, navigate]);
 
+  // A-2: Resend verification code
+  const handleResendCode = useCallback(async () => {
+    if (!signUp || resendLoading) return;
+    setResendLoading(true);
+    try {
+      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+      toast.success('Verification code resent — check your email');
+    } catch (err: any) {
+      toast.error(err?.errors?.[0]?.longMessage || 'Failed to resend code');
+    } finally {
+      setResendLoading(false);
+    }
+  }, [signUp, resendLoading]);
+
+  // A-1: Send password reset email
+  const handleForgotPassword = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!signIn || !email) return;
+    setIsLoading(true);
+    try {
+      await signIn.create({ strategy: 'reset_password_email_code', identifier: email });
+      setMode('reset-password');
+      toast.info('Reset code sent — check your email');
+    } catch (err: any) {
+      toast.error(err?.errors?.[0]?.longMessage || 'Failed to send reset email');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [signIn, email]);
+
+  // A-1: Verify reset code and set new password
+  const handleResetPassword = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!signIn || !resetCode || !newPassword) return;
+    setIsLoading(true);
+    try {
+      const result = await signIn.attemptFirstFactor({
+        strategy: 'reset_password_email_code',
+        code: resetCode,
+        password: newPassword,
+      });
+      if (result.status === 'complete' && result.createdSessionId) {
+        await setActive({ session: result.createdSessionId });
+        toast.success('Password updated — you are now signed in');
+        navigate(redirectTo, { replace: true });
+      } else {
+        toast.error('Could not reset password. Please try again.');
+      }
+    } catch (err: any) {
+      toast.error(err?.errors?.[0]?.longMessage || 'Invalid reset code');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [signIn, resetCode, newPassword, setActive, navigate]);
+
   const switchMode = () => {
     setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in');
     setPassword('');
@@ -138,6 +203,22 @@ export default function ClerkAuthPage() {
     setFirstName('');
     setLastName('');
     setShowPassword(false);
+  };
+
+  // Header copy per mode
+  const headingText: Record<Mode, string> = {
+    'sign-in': 'Welcome back',
+    'sign-up': 'Create your account',
+    'verify-email': 'Verify your email',
+    'forgot-password': 'Reset your password',
+    'reset-password': 'Set new password',
+  };
+  const subtitleText: Record<Mode, string> = {
+    'sign-in': 'Sign in to continue to WiseResume',
+    'sign-up': 'Get started with WiseResume',
+    'verify-email': `Enter the code sent to ${email}`,
+    'forgot-password': "Enter your email and we\u2019ll send a reset code",
+    'reset-password': `Enter the code sent to ${email} and choose a new password`,
   };
 
   if (!isReady || authLoading) {
@@ -192,7 +273,7 @@ export default function ClerkAuthPage() {
               style={{ background: 'linear-gradient(to bottom, hsl(355 85% 52% / 0.07) 0%, transparent 100%)' }}
             />
 
-            {/* Logo */}
+            {/* Logo + header */}
             <div className="flex flex-col items-center gap-3 relative">
               <div
                 className="rounded-2xl"
@@ -200,20 +281,14 @@ export default function ClerkAuthPage() {
               >
                 <AppIcon size={56} />
               </div>
-              <h1 className="text-2xl font-bold gradient-text">
-                {mode === 'verify-email' ? 'Verify your email' : mode === 'sign-in' ? 'Welcome back' : 'Create your account'}
-              </h1>
-              <p className="text-sm text-muted-foreground text-center">
-                {mode === 'verify-email'
-                  ? `Enter the code sent to ${email}`
-                  : mode === 'sign-in'
-                    ? 'Sign in to continue to WiseResume'
-                    : 'Get started with WiseResume'}
-              </p>
+              <h1 className="text-2xl font-bold gradient-text">{headingText[mode]}</h1>
+              <p className="text-sm text-muted-foreground text-center">{subtitleText[mode]}</p>
             </div>
 
             <AnimatePresence mode="wait">
-              {mode === 'verify-email' ? (
+
+              {/* ── verify-email ── */}
+              {mode === 'verify-email' && (
                 <motion.form
                   key="verify"
                   initial={{ opacity: 0, x: 20 }}
@@ -239,6 +314,17 @@ export default function ClerkAuthPage() {
                   >
                     {isLoading ? <MiniSpinner size={20} /> : 'Verify & Continue'}
                   </Button>
+                  {/* A-2: Resend code */}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full gap-2"
+                    onClick={handleResendCode}
+                    disabled={resendLoading}
+                  >
+                    {resendLoading ? <MiniSpinner size={16} /> : 'Resend code'}
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -249,7 +335,101 @@ export default function ClerkAuthPage() {
                     <ArrowLeft className="w-4 h-4" /> Back
                   </Button>
                 </motion.form>
-              ) : (
+              )}
+
+              {/* ── forgot-password ── */}
+              {mode === 'forgot-password' && (
+                <motion.form
+                  key="forgot-password"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  onSubmit={handleForgotPassword}
+                  className="space-y-4"
+                >
+                  <InputFormField
+                    id="reset-email"
+                    label="Email"
+                    type="email"
+                    icon={<Mail className="w-4 h-4" />}
+                    value={email}
+                    onChange={setEmail}
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    required
+                  />
+                  <Button
+                    type="submit"
+                    size="lg"
+                    className="w-full h-12 text-base font-semibold gradient-primary glow-primary"
+                    disabled={isLoading || !email}
+                  >
+                    {isLoading ? <MiniSpinner size={20} /> : 'Send reset code'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full gap-2"
+                    onClick={() => setMode('sign-in')}
+                  >
+                    <ArrowLeft className="w-4 h-4" /> Back to sign in
+                  </Button>
+                </motion.form>
+              )}
+
+              {/* ── reset-password ── */}
+              {mode === 'reset-password' && (
+                <motion.form
+                  key="reset-password"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  onSubmit={handleResetPassword}
+                  className="space-y-4"
+                >
+                  <InputFormField
+                    id="reset-code"
+                    label="Reset code"
+                    icon={<KeyRound className="w-4 h-4" />}
+                    value={resetCode}
+                    onChange={setResetCode}
+                    placeholder="Enter 6-digit code"
+                    autoComplete="one-time-code"
+                  />
+                  <PasswordInput
+                    id="new-password"
+                    label="New password"
+                    value={newPassword}
+                    onChange={setNewPassword}
+                    show={showNewPassword}
+                    onToggleShow={() => setShowNewPassword(!showNewPassword)}
+                    autoComplete="new-password"
+                    placeholder="Choose a new password"
+                    required
+                  />
+                  <Button
+                    type="submit"
+                    size="lg"
+                    className="w-full h-12 text-base font-semibold gradient-primary glow-primary"
+                    disabled={isLoading || !resetCode || !newPassword}
+                  >
+                    {isLoading ? <MiniSpinner size={20} /> : 'Set new password'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full gap-2"
+                    onClick={() => setMode('forgot-password')}
+                  >
+                    <ArrowLeft className="w-4 h-4" /> Back
+                  </Button>
+                </motion.form>
+              )}
+
+              {/* ── sign-in / sign-up ── */}
+              {(mode === 'sign-in' || mode === 'sign-up') && (
                 <motion.div
                   key={mode}
                   initial={{ opacity: 0, x: mode === 'sign-in' ? -20 : 20 }}
@@ -337,16 +517,30 @@ export default function ClerkAuthPage() {
                       autoComplete="email"
                       required
                     />
-                    <PasswordInput
-                      id="password"
-                      label="Password"
-                      value={password}
-                      onChange={setPassword}
-                      show={showPassword}
-                      onToggleShow={() => setShowPassword(!showPassword)}
-                      autoComplete={mode === 'sign-in' ? 'current-password' : 'new-password'}
-                      required
-                    />
+                    <div className="space-y-1">
+                      <PasswordInput
+                        id="password"
+                        label="Password"
+                        value={password}
+                        onChange={setPassword}
+                        show={showPassword}
+                        onToggleShow={() => setShowPassword(!showPassword)}
+                        autoComplete={mode === 'sign-in' ? 'current-password' : 'new-password'}
+                        required
+                      />
+                      {/* A-1: Forgot password link (sign-in only) */}
+                      {mode === 'sign-in' && (
+                        <div className="flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => setMode('forgot-password')}
+                            className="text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
+                          >
+                            Forgot password?
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <Button
                       type="submit"
                       size="lg"
@@ -370,6 +564,7 @@ export default function ClerkAuthPage() {
                   </p>
                 </motion.div>
               )}
+
             </AnimatePresence>
           </motion.div>
         </div>
