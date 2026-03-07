@@ -297,9 +297,10 @@ export default function ClerkAuthPage() {
   }
 
   return (
-    <MobileLayout>
+    <div className="relative isolate min-h-[100dvh] flex flex-col overflow-hidden">
       <AuthBackground />
-      <div className="flex flex-col items-center justify-center min-h-[70vh] px-6 py-8">
+      <OfflineBanner />
+      <div className="flex-1 flex items-center justify-center px-6 py-8">
         {/* Gradient border wrapper */}
         <div
           className="w-full max-w-sm p-[1px] rounded-2xl"
