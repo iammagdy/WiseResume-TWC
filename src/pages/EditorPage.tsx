@@ -730,7 +730,7 @@ export default function EditorPage() {
                 className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-4 space-y-0"
                 ref={scrollContainerRef}
               >
-                {renderEditorContent()}
+                <EditorSectionContent {...editorSectionProps} />
               </div>
             </div>
           </ResizablePanel>
