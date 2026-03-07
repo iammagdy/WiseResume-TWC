@@ -403,6 +403,8 @@ const Index = () => {
           </button>
 
           {isAuthenticated ? (
+            <div className="flex items-center gap-1">
+            <ThemeDropdown />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="touch-manipulation active:scale-95 transition-transform">
