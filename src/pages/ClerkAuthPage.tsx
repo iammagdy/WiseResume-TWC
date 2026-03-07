@@ -12,6 +12,7 @@ import { InputFormField } from '@/components/ui/form-field';
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import { Button } from '@/components/ui/button';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
 
 type Mode = 'sign-in' | 'sign-up' | 'verify-email' | 'forgot-password' | 'reset-password';
 
@@ -474,7 +475,7 @@ export default function ClerkAuthPage() {
                   <form onSubmit={mode === 'sign-in' ? handleEmailSignIn : handleEmailSignUp} className="space-y-4">
                     {mode === 'sign-up' && (
                       <>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <InputFormField
                             id="first-name"
                             label="First Name"
@@ -504,6 +505,10 @@ export default function ClerkAuthPage() {
                           autoComplete="username"
                           required
                         />
+                        {/* A-3: Portfolio URL helper text */}
+                        <p className="text-[11px] text-muted-foreground -mt-2 px-1">
+                          Your public portfolio: thewise.cloud/p/{username || 'username'}
+                        </p>
                       </>
                     )}
                     <InputFormField
@@ -529,7 +534,7 @@ export default function ClerkAuthPage() {
                         required
                       />
                       {/* A-1: Forgot password link (sign-in only) */}
-                      {mode === 'sign-in' && (
+                      {mode === 'sign-in' ? (
                         <div className="flex justify-end">
                           <button
                             type="button"
@@ -539,6 +544,9 @@ export default function ClerkAuthPage() {
                             Forgot password?
                           </button>
                         </div>
+                      ) : (
+                        /* A-4: Password strength meter (sign-up only) */
+                        <PasswordStrengthMeter password={password} />
                       )}
                     </div>
                     <Button

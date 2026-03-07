@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
-import { ChevronLeft, ChevronRight, Download, Plus, Trophy, Rocket, Award, BookOpen, Heart, Palette, Globe, Users, X, HandMetal } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, Plus, Trophy, Rocket, Award, BookOpen, Heart, Palette, Globe, Users, X } from 'lucide-react';
 import { User, AlignLeft, Briefcase, GraduationCap, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SectionCard } from '@/components/editor/SectionCard';
@@ -203,7 +203,7 @@ export function EditorSectionContent({
               navigate('/preview');
             }}
           >
-            <Download className="w-4 h-4 mr-1.5" />
+            <Eye className="w-4 h-4 mr-1.5" />
             Preview & Export
           </Button>
         ) : (

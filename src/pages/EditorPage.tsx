@@ -601,7 +601,7 @@ export default function EditorPage() {
               {!isOnline ? (
                 <>
                   <CloudOff className="w-3 h-3 text-warning" />
-                  <span className="text-warning hidden xs:inline">Offline</span>
+                  <span className="text-warning">Offline</span>
                 </>
               ) : isSaving ? (
                 <Cloud className="w-3 h-3 animate-pulse" />
@@ -694,7 +694,7 @@ export default function EditorPage() {
           <TabsList className="shrink-0 grid grid-cols-3 mx-4 mt-2 mb-1 h-9">
             <TabsTrigger value="editor" className="text-xs">Edit</TabsTrigger>
             <TabsTrigger value="preview" className="text-xs">Preview</TabsTrigger>
-            <TabsTrigger value="ats" className="text-xs">ATS</TabsTrigger>
+            <TabsTrigger value="ats" className="text-xs">ATS Score</TabsTrigger>
           </TabsList>
           <TabsContent value="editor" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
             <div
