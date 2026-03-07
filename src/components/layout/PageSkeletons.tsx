@@ -102,18 +102,30 @@ export function ShareSkeleton() {
 export function EditorSkeleton() {
   return (
     <div className="flex-1 flex flex-col animate-pulse min-h-[100dvh] bg-background">
-      {/* Progress Bar */}
-      <div className="px-4 py-3 border-b border-border">
-        <div className="h-2 w-full bg-muted rounded" />
+      {/* Sticky header — matches EditorHeader height */}
+      <header className="sticky top-0 z-30 flex items-center gap-2 px-4 h-14 border-b border-border bg-background/80">
+        <div className="w-9 h-9 rounded-xl bg-muted shrink-0" />
+        <div className="flex-1 h-5 rounded bg-muted max-w-[160px]" />
+        <div className="ml-auto flex items-center gap-2">
+          <div className="w-9 h-9 rounded-xl bg-muted" />
+          <div className="w-9 h-9 rounded-xl bg-muted" />
+          <div className="w-9 h-9 rounded-xl bg-muted" />
+        </div>
+      </header>
+
+      {/* Progress bar strip */}
+      <div className="px-4 py-3 border-b border-border flex items-center gap-3">
+        <div className="h-4 w-16 bg-muted rounded" />
+        <div className="flex-1 h-2.5 bg-muted rounded-full" />
       </div>
-      
-      {/* Tabs */}
+
+      {/* StepperNav tabs */}
       <div className="mt-3 px-4 flex gap-2 overflow-hidden">
         {[1, 2, 3, 4, 5].map(i => (
           <div key={i} className="h-10 w-20 bg-muted rounded flex-shrink-0" />
         ))}
       </div>
-      
+
       {/* Content */}
       <div className="flex-1 px-4 py-4 space-y-4">
         <div className="h-12 bg-muted rounded-xl" />
