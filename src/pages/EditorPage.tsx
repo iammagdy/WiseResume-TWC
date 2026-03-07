@@ -236,11 +236,24 @@ export default function EditorPage() {
     }
   }, [searchParams, setSearchParams]);
 
-  // Track last saved version to detect changes
-  const lastSavedResumeRef = useRef<string>('');
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const lastScoreTimeRef = useRef<number>(0);
+
+  // Hook 2: debounced cloud save, conflict guard, offline queue, ATS re-score, lifecycle flush
+  const resumeRef = useRef(currentResume);
+  resumeRef.current = currentResume;
+  const { saveToCloud } = useEditorAutosave({
+    user,
+    currentResumeId,
+    resumeRef,
+    lastSavedResumeRef,
+    setIsSaving,
+    setLastSavedAt,
+    updateResume,
+    resumeFromDb,
+    localLoadedAtRef,
+    isSavingRef,
+    addPendingChange,
+  });
 
   // Background ATS scoring uses standalone function (no hook state to avoid re-render loops)
 
