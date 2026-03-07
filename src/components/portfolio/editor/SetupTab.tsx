@@ -223,9 +223,9 @@ function GitHubSyncButton({ githubUrl }: { githubUrl: string }) {
         .replace(/\/.*$/, '')
         .trim();
 
-      const { SUPABASE_URL, SUPABASE_ANON_KEY } = await import('@/lib/supabaseConstants');
+      const { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY } = await import('@/lib/supabaseConstants');
       const response = await fetch(
-        `${SUPABASE_URL}/functions/v1/fetch-github-projects`,
+        `${EDGE_FUNCTIONS_URL}/functions/v1/fetch-github-projects`,
         {
           method: 'POST',
           headers: {
