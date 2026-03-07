@@ -5,7 +5,7 @@ import { dbToResumeData } from '@/hooks/useResumes';
 import { useResumeStore } from '@/store/resumeStore';
 import { logAudit } from '@/lib/auditLogger';
 import type { TemplateId } from '@/types/resume';
-import type { AuthContextType } from '@/contexts/AuthContext';
+import type { User } from '@supabase/supabase-js';
 
 interface DatabaseResumeLike {
   id: string;
