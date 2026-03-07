@@ -63,7 +63,7 @@ const LivePreviewSheet = lazy(() => import('@/components/editor/LivePreviewSheet
 const ATSParserPreview = lazy(() => import('@/components/editor/ATSParserPreview'));
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { ATSScoreBreakdown, getScoreColorClass } from '@/components/dashboard/ATSScoreBreakdown';
-import { useResumeScore, ResumeHealthScore, backgroundScore } from '@/hooks/useResumeScore';
+import { useResumeScore, ResumeHealthScore } from '@/hooks/useResumeScore';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { KeyboardToolbar } from '@/components/editor/KeyboardToolbar';
 import { OfflineIndicator } from '@/components/editor/OfflineIndicator';
