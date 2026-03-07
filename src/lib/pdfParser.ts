@@ -57,7 +57,7 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/parse-resume`, {
+    const response = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/parse-resume`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ text }),

@@ -65,11 +65,11 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       try {
         console.log('[Auth] supabaseUuid missing, provisioning...');
-        const res = await fetch(`${SUPABASE_URL}/functions/v1/provision-clerk-user`, {
+        const res = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/provision-clerk-user`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': SUPABASE_ANON_KEY,
+            'apikey': EDGE_FUNCTIONS_ANON_KEY,
           },
           body: JSON.stringify({ clerkUserId: clerkUser.id }),
           signal: controller.signal,

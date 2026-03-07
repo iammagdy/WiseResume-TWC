@@ -366,7 +366,7 @@ function PublicPortfolioContent() {
       };
       const ogTitle = profile.metaTitle || (profile.jobTitle ? `${name} — ${profile.jobTitle}` : `${name}'s Portfolio`);
       const ogDesc = profile.metaDescription || profile.portfolioBio || `${name}'s professional portfolio`;
-      const ogImageUrl = `${SUPABASE_URL}/functions/v1/og-image?username=${encodeURIComponent(profile.username)}`;
+      const ogImageUrl = `${EDGE_FUNCTIONS_URL}/functions/v1/og-image?username=${encodeURIComponent(profile.username)}`;
       setMeta('og:title', ogTitle);
       setMeta('og:description', ogDesc);
       setMeta('og:type', 'profile');

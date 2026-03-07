@@ -244,7 +244,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
         const token = await getClerkSupabaseToken();
         if (!token) throw new Error('No session – please sign in');
 
-        const { SUPABASE_URL: CLOUD_URL, SUPABASE_ANON_KEY: CLOUD_KEY } = await import('@/lib/supabaseConstants');
+        const { EDGE_FUNCTIONS_URL: CLOUD_URL, EDGE_FUNCTIONS_ANON_KEY: CLOUD_KEY } = await import('@/lib/supabaseConstants');
 
         const res = await fetch(`${CLOUD_URL}/functions/v1/enhance-section`, {
           method: 'POST',

@@ -57,7 +57,7 @@ export function TemplateAdvisorSheet({ open, onOpenChange, onApply }: TemplateAd
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
-            apikey: SUPABASE_ANON_KEY,
+            apikey: EDGE_FUNCTIONS_ANON_KEY,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ jobTitle, industry, skills: skills.slice(0, 15) }),

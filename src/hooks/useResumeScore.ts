@@ -55,7 +55,7 @@ async function invokeScoreResume(resume: ResumeData): Promise<{ data: any; laten
     throw Object.assign(new Error('Not authenticated. Please sign in again.'), { isAuth: true });
   }
 
-  const { SUPABASE_URL: supabaseUrl, SUPABASE_ANON_KEY: anonKey } = await import('@/lib/supabaseConstants');
+  const { EDGE_FUNCTIONS_URL: supabaseUrl, EDGE_FUNCTIONS_ANON_KEY: anonKey } = await import('@/lib/supabaseConstants');
 
   const res = await fetch(`${supabaseUrl}/functions/v1/score-resume`, {
     method: 'POST',

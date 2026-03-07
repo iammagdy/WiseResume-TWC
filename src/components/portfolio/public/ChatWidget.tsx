@@ -44,7 +44,7 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
     setLoading(true);
 
     try {
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/ask-portfolio`, {
+      const res = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/ask-portfolio`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

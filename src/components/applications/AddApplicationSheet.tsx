@@ -56,12 +56,12 @@ export function AddApplicationSheet({ open, onOpenChange, defaultValues }: AddAp
     try {
       const token = await getClerkSupabaseToken();
       const res = await fetch(
-        `${SUPABASE_URL}/functions/v1/parse-job-url`,
+        `${EDGE_FUNCTIONS_URL}/functions/v1/parse-job-url`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token || SUPABASE_PUBLISHABLE_KEY}`,
+            'Authorization': `Bearer ${token || EDGE_FUNCTIONS_ANON_KEY}`,
           },
           body: JSON.stringify({ url: trimmed }),
         }

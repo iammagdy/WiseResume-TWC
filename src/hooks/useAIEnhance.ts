@@ -7,7 +7,7 @@ import { useAIHealthStore } from '@/store/aiHealthStore';
 import { sanitizeAIContent } from '@/lib/ai/sanitizeContent';
 import { checkAIFallback } from '@/lib/aiFallbackToast';
 
-import { SUPABASE_URL as CLOUD_URL, SUPABASE_ANON_KEY as CLOUD_KEY } from '@/lib/supabaseConstants';
+import { EDGE_FUNCTIONS_URL as CLOUD_URL, EDGE_FUNCTIONS_ANON_KEY as CLOUD_KEY } from '@/lib/supabaseConstants';
 
 export type SectionType = 'summary' | 'experience' | 'education' | 'skills' | 'contact' | 'awards' | 'projects' | 'publications' | 'volunteering' | 'certifications' | 'languages';
 export type ActionType = 'generate' | 'improve' | 'ats_improve' | 'ats_optimize' | 'shorten' | 'expand' | 'add_metrics' | 'generate_bullets';

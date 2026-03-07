@@ -71,7 +71,7 @@ export function QuestionBankSheet({
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
-            apikey: SUPABASE_ANON_KEY,
+            apikey: EDGE_FUNCTIONS_ANON_KEY,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
