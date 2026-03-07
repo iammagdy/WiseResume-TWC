@@ -138,7 +138,7 @@ export function EditorSectionContent({
       )}
       {activeTab === 'skills' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-          <SectionCard icon={Wrench} title="Skills" tip="Add at least 5 relevant skills for ATS optimization" status={getSectionStatus(sectionScores.skills)} action={<SectionAIAction section="skills" />}>
+          <SectionCard icon={Wrench} title="Skills" tip="Add 6–10 skills matching the jobs you're applying to" status={getSectionStatus(sectionScores.skills)} action={<SectionAIAction section="skills" />}>
             <Suspense fallback={<SkillsSectionSkeleton />}><SkillsSection /></Suspense>
             {jobDescription && <ATSInlineSuggestions section="skills" suggestions={getATSSuggestions('skills')} isAnalyzing={isAnalyzingSection('skills')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['skills']} onApplyDeep={(improved) => handleApplyDeep('skills', improved)} onDiscardDeep={() => clearDeepResult('skills')} />}
           </SectionCard>
