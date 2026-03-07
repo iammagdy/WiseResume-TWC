@@ -608,7 +608,10 @@ export default function EditorPage() {
               ) : showSavedCheck ? (
                 <Check className="w-3 h-3 text-success" style={{ animation: 'save-check-pop 0.3s ease-out' }} />
               ) : hasUnsavedChanges ? (
-                <span className="w-1.5 h-1.5 rounded-full bg-warning inline-block" />
+                <>
+                  <span className="w-1.5 h-1.5 rounded-full bg-warning inline-block animate-pulse" />
+                  <span className="text-warning text-[11px]">Unsaved</span>
+                </>
               ) : (
                 <Cloud className="w-3 h-3 opacity-40" />
               )}
