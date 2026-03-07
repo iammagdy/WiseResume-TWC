@@ -99,8 +99,8 @@ export function TemplateSelector({ open, onOpenChange, onTemplateApplied }: Temp
                 selectedTemplate === template.id
                   ? 'border-primary bg-primary/10'
                   : isRecommended
-                    ? 'border-primary/30 bg-primary/5 hover:border-primary/50'
-                    : 'border-border hover:border-primary/50'
+                    ? 'border-glow bg-primary/5 hover:border-primary/50'
+                    : 'border-glow hover:border-primary/50'
               }`}
             >
               {/* Real template preview */}

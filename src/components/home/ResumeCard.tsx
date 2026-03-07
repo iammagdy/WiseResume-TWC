@@ -83,7 +83,7 @@ export function ResumeCard({
     <motion.div
       className={cn(
         'relative rounded-2xl glass-elevated overflow-hidden transition-all duration-300',
-        'border border-border/40 hover:border-primary/40',
+        'border-glow',
         'shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.15)]',
         'hover:shadow-[0_12px_40px_-8px_hsl(var(--primary)/0.25)]',
         className
@@ -92,15 +92,6 @@ export function ResumeCard({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.4, ease: 'easeOut' }}
     >
-      {/* Animated border glow */}
-      <div className="absolute inset-0 rounded-2xl opacity-0 hover:opacity-100 transition-opacity duration-500 pointer-events-none">
-        <div 
-          className="absolute inset-0 rounded-2xl"
-          style={{
-            background: 'linear-gradient(135deg, hsl(var(--primary)/0.2), hsl(var(--accent)/0.1), transparent)',
-          }}
-        />
-      </div>
 
       {/* Main clickable area */}
       <button
