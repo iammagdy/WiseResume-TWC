@@ -2,12 +2,11 @@ import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } fro
 import { logAudit } from '@/lib/auditLogger';
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
-import { Check, Cloud, CloudOff, Sparkles, Plus, ChevronDown, BarChart3, Scissors } from 'lucide-react';
+import { Check, Cloud, CloudOff, Sparkles, ChevronDown, BarChart3, Scissors } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 // Tooltip removed – Radix Popper causes infinite setRef loop on this page
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { StepperNav } from '@/components/editor/StepperNav';
-import { Button } from '@/components/ui/button';
 import { useResumeStore, useResumeStoreHydration } from '@/store/resumeStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -35,9 +34,7 @@ const ATSParserPreview = lazy(() => import('@/components/editor/ATSParserPreview
 import { useShallow } from 'zustand/react/shallow';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { ATSScoreBreakdown } from '@/components/dashboard/ATSScoreBreakdown';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { KeyboardToolbar } from '@/components/editor/KeyboardToolbar';
-import { OfflineIndicator } from '@/components/editor/OfflineIndicator';
 import { EditorSkeleton } from '@/components/layout/PageSkeletons';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { useOfflineSyncStore } from '@/store/offlineSyncStore';
@@ -45,7 +42,7 @@ import haptics from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { ActionsPanel, type ActionsPanelGroup } from '@/components/ActionsPanel';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Target, LayoutGrid, MessageSquare, Palette, BarChart3 as BarChart3Icon, Clock } from 'lucide-react';
+import { Target, LayoutGrid, MessageSquare, Palette } from 'lucide-react';
 import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
