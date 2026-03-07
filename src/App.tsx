@@ -196,6 +196,7 @@ const queryClient = new QueryClient({
    
       return (
         <>
+        <SkyWallpaper />
         <Routes>
           {/* Public routes - no auth required */}
           <Route path="/" element={<Index />} />
