@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSignIn, useSignUp, useClerk } from '@clerk/clerk-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -15,6 +15,139 @@ import { Separator } from '@/components/ui/separator';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 
 type Mode = 'sign-in' | 'sign-up' | 'verify-email';
+
+interface AuthStar {
+  id: number;
+  x: number;
+  y: number;
+  size: number;
+  opacity: number;
+  delay: number;
+  duration: number;
+}
+
+function generateAuthStars(count: number): AuthStar[] {
+  return Array.from({ length: count }, (_, i) => ({
+    id: i,
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+    size: Math.random() * 2 + 0.8,
+    opacity: Math.random() * 0.4 + 0.4,
+    delay: Math.random() * 4,
+    duration: 2.5 + Math.random() * 2,
+  }));
+}
+
+const prefersReducedMotion =
+  typeof window !== 'undefined' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** Animated background layer for the auth page */
+function AuthBackground() {
+  const starsRef = useRef(generateAuthStars(10));
+
+  return (
+    <>
+      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none" aria-hidden="true">
+        {/* Deep space base */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(160deg, hsl(240 30% 4%) 0%, hsl(270 35% 6%) 50%, hsl(240 30% 3%) 100%)',
+          }}
+        />
+
+        {/* Primary blob — top right (brand red) */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '-10%',
+            right: '-10%',
+            width: '360px',
+            height: '360px',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, hsl(355 85% 52% / 0.2) 0%, transparent 70%)',
+            animation: prefersReducedMotion ? 'none' : 'auth-float 9s ease-in-out infinite',
+          }}
+        />
+
+        {/* Cyan blob — bottom left */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '-8%',
+            left: '-8%',
+            width: '300px',
+            height: '300px',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, hsl(185 90% 45% / 0.15) 0%, transparent 70%)',
+            animation: prefersReducedMotion ? 'none' : 'auth-float 11s ease-in-out 2s infinite reverse',
+          }}
+        />
+
+        {/* Accent purple blob — mid-center */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '35%',
+            left: '20%',
+            width: '220px',
+            height: '220px',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, hsl(270 70% 55% / 0.12) 0%, transparent 70%)',
+            animation: prefersReducedMotion ? 'none' : 'auth-float 7s ease-in-out 1s infinite',
+          }}
+        />
+
+        {/* Pink blob — bottom right */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '15%',
+            right: '5%',
+            width: '180px',
+            height: '180px',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, hsl(330 80% 60% / 0.10) 0%, transparent 70%)',
+            animation: prefersReducedMotion ? 'none' : 'auth-float 8s ease-in-out 4s infinite reverse',
+          }}
+        />
+
+        {/* Twinkling stars */}
+        {starsRef.current.map((star) => (
+          <div
+            key={star.id}
+            style={{
+              position: 'absolute',
+              left: `${star.x}%`,
+              top: `${star.y}%`,
+              width: star.size,
+              height: star.size,
+              borderRadius: '50%',
+              backgroundColor: 'white',
+              opacity: star.opacity,
+              animation: prefersReducedMotion
+                ? 'none'
+                : `auth-twinkle ${star.duration}s ease-in-out ${star.delay}s infinite`,
+            }}
+          />
+        ))}
+      </div>
+
+      <style>{`
+        @keyframes auth-float {
+          0%, 100% { transform: translateY(0px) scale(1); }
+          50% { transform: translateY(-22px) scale(1.05); }
+        }
+        @keyframes auth-twinkle {
+          0%, 100% { opacity: 0.35; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.5); }
+        }
+      `}</style>
+    </>
+  );
+}
 
 export default function ClerkAuthPage() {
   const { signIn, isLoaded: signInLoaded } = useSignIn();
@@ -148,6 +281,7 @@ export default function ClerkAuthPage() {
   if (!isReady || authLoading) {
     return (
       <MobileLayout>
+        <AuthBackground />
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
           <MiniSpinner size={32} />
           {authLoading && <p className="text-sm text-muted-foreground">Setting up your account...</p>}
@@ -158,6 +292,7 @@ export default function ClerkAuthPage() {
 
   return (
     <MobileLayout>
+      <AuthBackground />
       <div className="flex flex-col items-center justify-center min-h-[70vh] px-6 py-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
