@@ -699,7 +699,7 @@ export default function EditorPage() {
               ref={scrollContainerRef}
             >
               <div className="flex flex-col" style={{ minHeight: '100%' }}>
-                {renderEditorContent()}
+                <EditorSectionContent {...editorSectionProps} />
               </div>
             </div>
           </TabsContent>
