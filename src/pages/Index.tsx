@@ -357,53 +357,12 @@ const Index = () => {
             The only resume app that <span className="text-foreground font-medium">coaches your interview</span>, <span className="text-foreground font-medium">scores your ATS match</span>, and <span className="text-foreground font-medium">builds your portfolio site</span> — all in one.
           </motion.p>
 
-          {/* Hero Resume Preview — compact product snapshot */}
+          {/* Hero — animated EditorDemo */}
           <motion.div
-            className="w-full max-w-sm mb-5"
+            className="w-full flex justify-center mb-5"
             {...fade(0.18)}
           >
-            <div className="rounded-2xl border border-border/40 bg-card/70 backdrop-blur-sm p-3.5 shadow-lg shadow-background/20">
-              {/* Header row: name + title + score ring */}
-              <div className="flex items-start justify-between gap-3 mb-2.5">
-                <div className="flex-1 space-y-1.5 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2.5 w-28 rounded-full bg-foreground/20" />
-                    <div className="h-2 w-16 rounded-full bg-muted-foreground/20" />
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="h-1.5 w-20 rounded-full bg-muted-foreground/15" />
-                    <div className="w-px h-2.5 bg-border/50" />
-                    <div className="h-1.5 w-16 rounded-full bg-muted-foreground/15" />
-                  </div>
-                </div>
-                {/* Score ring */}
-                <div className="relative flex-shrink-0" style={{ width: 40, height: 40 }}>
-                  <svg className="w-full h-full -rotate-90" viewBox="0 0 40 40">
-                    <circle cx="20" cy="20" r="16" stroke="hsl(var(--muted))" strokeWidth="3" fill="none" />
-                    <circle cx="20" cy="20" r="16" stroke="hsl(var(--success))" strokeWidth="3" fill="none"
-                      strokeLinecap="round" strokeDasharray={100.5} strokeDashoffset={100.5 * 0.08} />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-[9px] font-bold text-success">92</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* AI-enhanced bullet */}
-              <div className="rounded-lg bg-success/8 border border-success/20 px-2.5 py-1.5 mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-success flex-shrink-0" />
-                  <span className="text-[10px] text-foreground/80 leading-snug flex-1">Led cross-functional team of 8, shipping 3 major features ahead of schedule</span>
-                  <span className="text-[8px] font-semibold text-success bg-success/15 px-1.5 py-0.5 rounded-full flex-shrink-0">AI ✓</span>
-                </div>
-              </div>
-
-              {/* Skeleton lines */}
-              <div className="space-y-1.5">
-                <div className="h-1.5 w-full rounded-full bg-muted-foreground/10" />
-                <div className="h-1.5 w-4/5 rounded-full bg-muted-foreground/10" />
-              </div>
-            </div>
+            <EditorDemo />
           </motion.div>
 
           <motion.div className="w-full flex justify-center" {...fade(0.2)}>
@@ -513,7 +472,7 @@ const Index = () => {
           </motion.p>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-4xl mx-auto min-h-[600px] lg:min-h-[420px]">
-            {/* Card A — AI Resume Editor */}
+            {/* Card A — ATS Match Score mockup */}
             <motion.div
               initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
@@ -522,27 +481,62 @@ const Index = () => {
             >
               <Card className="p-5 border-t-2 border-border/30 border-t-primary/40 bg-card/50 backdrop-blur-sm h-full flex flex-col items-center gap-4 hover:shadow-lg hover:border-primary/20 transition-shadow duration-300">
                 <div className="text-center">
-                  <span
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-2 animate-pulse"
-                  >
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-2 animate-pulse">
                     <Sparkles className="w-3 h-3" />
-                    AI-Powered
+                    ATS Optimized
                   </span>
-                  <h3 className="text-lg font-bold text-foreground mb-1">
-                    AI-Enhanced Editor
-                  </h3>
+                  <h3 className="text-lg font-bold text-foreground mb-1">ATS Match Score</h3>
                   <p className="text-xs text-muted-foreground leading-relaxed max-w-[240px] mx-auto">
-                    Write, improve, and tailor your resume with AI — one tap turns weak bullets into standout achievements.
+                    See exactly how well your resume matches any job description — keyword by keyword.
                   </p>
                 </div>
-                <EditorDemo />
+                {/* ATS Score mockup */}
+                <div className="w-full max-w-[260px] rounded-2xl border border-border/40 bg-card/80 backdrop-blur-sm shadow-lg p-4 space-y-3">
+                  {/* Score header */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-foreground">ATS Health Score</span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="relative w-9 h-9">
+                        <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+                          <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
+                          <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--success))" strokeWidth="3"
+                            strokeLinecap="round" strokeDasharray={94.2} strokeDashoffset={94.2 * 0.12} />
+                        </svg>
+                        <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-success">88</span>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Category bars */}
+                  {[
+                    { label: 'Keywords Found', value: 91, color: 'bg-success' },
+                    { label: 'Format & Structure', value: 85, color: 'bg-primary' },
+                    { label: 'Quantified Bullets', value: 78, color: 'bg-warning' },
+                    { label: 'Skills Match', value: 94, color: 'bg-success' },
+                  ].map((cat) => (
+                    <div key={cat.label} className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] text-muted-foreground">{cat.label}</span>
+                        <span className="text-[10px] font-semibold text-foreground">{cat.value}%</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div className={`h-full rounded-full ${cat.color}`} style={{ width: `${cat.value}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                  {/* Tip */}
+                  <div className="rounded-lg bg-primary/8 border border-primary/20 px-2.5 py-1.5">
+                    <p className="text-[10px] text-foreground/80 leading-snug">
+                      💡 Add <span className="font-semibold text-primary">3 missing keywords</span> to boost score to 95+
+                    </p>
+                  </div>
+                </div>
                 <Button
                   variant="outline"
                   size="sm"
                   className="w-full max-w-[200px] gap-1.5 touch-manipulation active:scale-95 transition-transform"
                   onClick={() => { triggerHaptic.light(); navigate(isAuthenticated ? '/dashboard' : `/auth?redirect=${encodeURIComponent('/dashboard')}`); }}
                 >
-                  Try the AI Editor <ArrowRight className="w-3.5 h-3.5" />
+                  Check Your ATS Score <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
               </Card>
             </motion.div>
