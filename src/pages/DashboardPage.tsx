@@ -784,6 +784,21 @@ function DashboardPageContent() {
                 Retry
               </button>
             </div>
+          ) : resumesError && !resumes ? (
+            /* Server error while online — show actionable error state (D-2) */
+            <div className="flex flex-col items-center justify-center px-6 py-16 gap-4 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center">
+                <AlertCircle className="w-8 h-8 text-destructive" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-lg mb-1">Something went wrong</h3>
+                <p className="text-sm text-muted-foreground">We couldn't load your resumes.</p>
+              </div>
+              <Button variant="outline" onClick={() => refetch()} className="min-h-[44px] gap-2">
+                <RefreshCw className="w-4 h-4" />
+                Tap to retry
+              </Button>
+            </div>
           ) : !resumes || resumes.length === 0 ? (
             <>
               <EmptyState onCreateNew={handleCreateNew} onBrowseTemplates={() => setShowCreateDialog(true)} onStartOnboarding={() => setShowOnboarding(true)} />
