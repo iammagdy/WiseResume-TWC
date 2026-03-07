@@ -386,6 +386,12 @@ function DashboardPageContent() {
     return organizeResumeHierarchy(filteredResumes);
   }, [filteredResumes]);
 
+  // Reset visible counts whenever filters, search, or active tab change
+  useEffect(() => {
+    setVisibleMyCVs(PAGE_SIZE);
+    setVisibleTailored(PAGE_SIZE);
+  }, [deferredSearch, activeTab, categoryFilters, scoreFilters, sortOption]);
+
   const hasActiveFilters = sortOption !== 'updated' || categoryFilters.length > 0 || scoreFilters.length > 0;
 
   const handleCategoryToggle = useCallback((cat: CategoryFilter) => {
