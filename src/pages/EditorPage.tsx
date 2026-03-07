@@ -690,6 +690,12 @@ export default function EditorPage() {
           onValueChange={(v) => setMobileEditorTab(v as 'editor' | 'preview' | 'ats')}
           className="flex-1 flex flex-col min-h-0 overflow-hidden"
         >
+          {/* Mobile tab switcher — Edit / Preview / ATS */}
+          <TabsList className="shrink-0 grid grid-cols-3 mx-4 mt-2 mb-1 h-9">
+            <TabsTrigger value="editor" className="text-xs">Edit</TabsTrigger>
+            <TabsTrigger value="preview" className="text-xs">Preview</TabsTrigger>
+            <TabsTrigger value="ats" className="text-xs">ATS</TabsTrigger>
+          </TabsList>
           <TabsContent value="editor" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
             <div
               className="editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-3 pb-24 space-y-0"
