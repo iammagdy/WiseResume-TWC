@@ -383,7 +383,7 @@ const Index = () => {
                 if (isAuthenticated) {
                   setTailorOpen(true);
                 } else {
-                  navigate('/auth?redirect=/?tailor=1');
+                  navigate(`/auth?redirect=${encodeURIComponent('/?tailor=1')}`);
                 }
               }}
             >
