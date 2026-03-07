@@ -16,6 +16,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useInView } from '@/hooks/useInView';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
 import { QuickTailorSheet } from '@/components/landing/QuickTailorSheet';
+import { ThemeDropdown } from '@/components/settings/ThemeDropdown';
 import { InstallButton } from '@/components/pwa/InstallButton';
 
 import logoImage from '@/assets/wise-ai-logo.webp';
@@ -402,6 +403,8 @@ const Index = () => {
           </button>
 
           {isAuthenticated ? (
+            <div className="flex items-center gap-1">
+            <ThemeDropdown />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="touch-manipulation active:scale-95 transition-transform">
@@ -429,9 +432,11 @@ const Index = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            </div>
           ) : (
             /* Guest header: Log in (ghost) + Sign Up (solid) */
             <div className="flex items-center gap-1.5">
+              <ThemeDropdown />
               <Button
                 variant="ghost"
                 size="sm"
