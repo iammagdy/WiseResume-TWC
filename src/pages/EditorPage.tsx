@@ -441,13 +441,10 @@ export default function EditorPage() {
     return base;
   }, [currentResume]);
 
-  // Granular section scores — each memo only re-runs when its own slice changes,
-  // so typing in Summary does NOT recompute contactScore/experienceScore/etc.
-  const contactScore = useMemo(() => currentResume ? calcContactScore(currentResume.contactInfo) : 0, [currentResume?.contactInfo]);
-  const summaryScore = useMemo(() => currentResume ? calcSummaryScore(currentResume.summary) : 0, [currentResume?.summary]);
-  const experienceScore = useMemo(() => currentResume ? calcExperienceScore(currentResume.experience) : 0, [currentResume?.experience]);
-  const educationScore = useMemo(() => currentResume ? calcEducationScore(currentResume.education) : 0, [currentResume?.education]);
-  const skillsScore = useMemo(() => currentResume ? calcSkillsScore(currentResume.skills) : 0, [currentResume?.skills]);
+  // Hook 3: section scores, completion status, celebration toasts, and confetti
+  const { sectionScores, overallScore, localHealthScore, sectionStatus, justCompletedStep } = useEditorSectionScores(currentResume);
+
+  const handleImproveSection = useCallback(() => {
   const sectionScores = useMemo(() => ({
     contact: contactScore, summary: summaryScore, experience: experienceScore, education: educationScore, skills: skillsScore,
   }), [contactScore, summaryScore, experienceScore, educationScore, skillsScore]);
