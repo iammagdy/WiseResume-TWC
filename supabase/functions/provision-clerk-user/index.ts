@@ -97,13 +97,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Update profiles
-    if (fullName || email) {
-      const updates: Record<string, string> = {};
-      if (fullName) updates.full_name = fullName;
-      if (email) updates.contact_email = email;
-      await adminClient.from("profiles").update(updates).eq("user_id", supabaseUuid);
-    }
+    // Upsert profile row (creates it if missing, updates if exists)
+    const profileData: Record<string, string> = { user_id: supabaseUuid };
+    if (fullName) profileData.full_name = fullName;
+    if (email) profileData.contact_email = email;
+    await adminClient
+      .from("profiles")
+      .upsert(profileData, { onConflict: "user_id", ignoreDuplicates: false });
 
     // Write supabaseUuid to Clerk publicMetadata
     const patchRes = await fetch(`https://api.clerk.com/v1/users/${clerkUserId}`, {
