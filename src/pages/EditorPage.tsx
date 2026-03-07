@@ -445,7 +445,8 @@ export default function EditorPage() {
   const { sectionScores, overallScore, localHealthScore, sectionStatus, justCompletedStep } = useEditorSectionScores(currentResume);
 
   const handleImproveSection = useCallback(() => {
-  const sectionScores = useMemo(() => ({
+    setShowTailor(true);
+  }, []);
     contact: contactScore, summary: summaryScore, experience: experienceScore, education: educationScore, skills: skillsScore,
   }), [contactScore, summaryScore, experienceScore, educationScore, skillsScore]);
 
