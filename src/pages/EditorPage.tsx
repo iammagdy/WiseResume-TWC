@@ -1,46 +1,17 @@
-import { useState, useEffect, useCallback, useRef, useMemo, useDeferredValue, lazy, Suspense, CSSProperties } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import { logAudit } from '@/lib/auditLogger';
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
-import { formatDistanceToNow } from 'date-fns';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
-import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, Sparkles, MessageSquare, Lock, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock, Info, X, Plus, Trophy, Rocket, BookOpen, Heart, Palette, Users, Eye, Award, Globe, PanelLeftClose, PanelLeft, ChevronDown, BarChart3, Undo2, Redo2, Scissors, LayoutTemplate } from 'lucide-react';
+import { Check, Cloud, CloudOff, Sparkles, ChevronDown, BarChart3, Scissors } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 // Tooltip removed – Radix Popper causes infinite setRef loop on this page
-import { getSectionStatus } from '@/lib/resumeCompletionRules';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { StepperNav } from '@/components/editor/StepperNav';
-import { SectionCard } from '@/components/editor/SectionCard';
-import { Button } from '@/components/ui/button';
 import { useResumeStore, useResumeStoreHydration } from '@/store/resumeStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAuth } from '@/hooks/useAuth';
-import { useResumeMutations, useResume, dbToResumeData } from '@/hooks/useResumes';
+import { useResumeMutations, useResume } from '@/hooks/useResumes';
 import { toast } from 'sonner';
-// Lazy-loaded section components (only the active tab is loaded)
-const ContactSection = lazy(() => import('@/components/editor/ContactSection').then(m => ({ default: m.ContactSection })));
-const SummarySection = lazy(() => import('@/components/editor/SummarySection').then(m => ({ default: m.SummarySection })));
-const ExperienceSection = lazy(() => import('@/components/editor/ExperienceSection').then(m => ({ default: m.ExperienceSection })));
-const EducationSection = lazy(() => import('@/components/editor/EducationSection').then(m => ({ default: m.EducationSection })));
-const SkillsSection = lazy(() => import('@/components/editor/SkillsSection').then(m => ({ default: m.SkillsSection })));
-const AwardsSection = lazy(() => import('@/components/editor/AwardsSection').then(m => ({ default: m.AwardsSection })));
-const ProjectsSection = lazy(() => import('@/components/editor/ProjectsSection').then(m => ({ default: m.ProjectsSection })));
-const PublicationsSection = lazy(() => import('@/components/editor/PublicationsSection').then(m => ({ default: m.PublicationsSection })));
-const VolunteeringSection = lazy(() => import('@/components/editor/VolunteeringSection').then(m => ({ default: m.VolunteeringSection })));
-const HobbiesSection = lazy(() => import('@/components/editor/HobbiesSection').then(m => ({ default: m.HobbiesSection })));
-const ReferencesSection = lazy(() => import('@/components/editor/ReferencesSection').then(m => ({ default: m.ReferencesSection })));
-const CertificationsSection = lazy(() => import('@/components/editor/CertificationsSection').then(m => ({ default: m.CertificationsSection })));
-const LanguagesSection = lazy(() => import('@/components/editor/LanguagesSection').then(m => ({ default: m.LanguagesSection })));
-// AIAssistantBar moved to AI Studio tab
-import { SectionAIAction } from '@/components/editor/SectionAIAction';
-import { ATSInlineSuggestions } from '@/components/editor/ATSInlineSuggestions';
-import { AddSectionSheet } from '@/components/editor/AddSectionSheet';
-import { useATSSuggestions } from '@/hooks/useATSSuggestions';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { AIIntroTooltip } from '@/components/editor/AIIntroTooltip';
-import { ProgressBar } from '@/components/editor/ProgressBar';
-
-import { useShallow } from 'zustand/react/shallow';
 const ApplyPromptDialog = lazy(() => import('@/components/applications/ApplyPromptDialog').then(m => ({ default: m.ApplyPromptDialog })));
 const ATSScanSheet = lazy(() => import('@/components/editor/ATSScanSheet').then(m => ({ default: m.ATSScanSheet })));
 
@@ -59,24 +30,19 @@ const ContentLibrarySheet = lazy(() => import('@/components/editor/ContentLibrar
 const CustomizeSheet = lazy(() => import('@/components/editor/CustomizeSheet').then(m => ({ default: m.CustomizeSheet })));
 const ShareSheet = lazy(() => import('@/components/editor/ShareSheet').then(m => ({ default: m.ShareSheet })));
 const LivePreviewPanel = lazy(() => import('@/components/editor/LivePreviewPanel').then(m => ({ default: m.LivePreviewPanel })));
-const LivePreviewSheet = lazy(() => import('@/components/editor/LivePreviewSheet').then(m => ({ default: m.LivePreviewSheet })));
 const ATSParserPreview = lazy(() => import('@/components/editor/ATSParserPreview'));
+import { useShallow } from 'zustand/react/shallow';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
-import { ATSScoreBreakdown, getScoreColorClass } from '@/components/dashboard/ATSScoreBreakdown';
-import { useResumeScore, ResumeHealthScore } from '@/hooks/useResumeScore';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ATSScoreBreakdown } from '@/components/dashboard/ATSScoreBreakdown';
 import { KeyboardToolbar } from '@/components/editor/KeyboardToolbar';
-import { OfflineIndicator } from '@/components/editor/OfflineIndicator';
 import { EditorSkeleton } from '@/components/layout/PageSkeletons';
-import { ContactSectionSkeleton, SummarySectionSkeleton, ExperienceSectionSkeleton, EducationSectionSkeleton, SkillsSectionSkeleton, ListSectionSkeleton } from '@/components/editor/SectionSkeletons';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { useOfflineSyncStore } from '@/store/offlineSyncStore';
 import haptics from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { ActionsPanel, type ActionsPanelGroup } from '@/components/ActionsPanel';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Separator } from '@/components/ui/separator';
-import { Target, LayoutGrid } from 'lucide-react';
+import { Target, LayoutGrid, MessageSquare, Palette, Clock, Plus } from 'lucide-react';
 import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -87,6 +53,13 @@ import { useBackButton } from '@/hooks/useBackButton';
 import { useEditorHydration } from '@/hooks/useEditorHydration';
 import { useEditorAutosave } from '@/hooks/useEditorAutosave';
 import { useEditorSectionScores } from '@/hooks/useEditorSectionScores';
+import { useATSSuggestions } from '@/hooks/useATSSuggestions';
+import { AIIntroTooltip } from '@/components/editor/AIIntroTooltip';
+import { ProgressBar } from '@/components/editor/ProgressBar';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
+import { EditorHeader } from '@/components/editor/EditorHeader';
+import { EditorSectionContent } from '@/components/editor/EditorSectionContent';
+import { AddSectionSheet } from '@/components/editor/AddSectionSheet';
 export default function EditorPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -530,137 +503,22 @@ export default function EditorPage() {
     return [quickActions, aiFeatures];
   }, [user, currentResumeId, handleCustomize, handleTailor]);
 
-  // Extract editor content into a render function for reuse in both layouts
-  const renderEditorContent = useCallback(() => (
-    <>
-      {activeTab === 'contact' && (
-        <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-          <SectionCard icon={User} title="Contact Information" tip="Include a professional email and phone number" status={getSectionStatus(sectionScores.contact)} action={<SectionAIAction section="contact" />}>
-            <Suspense fallback={<ContactSectionSkeleton />}><ContactSection /></Suspense>
-          </SectionCard>
-        </div>
-      )}
-      {activeTab === 'summary' && (
-        <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-          <SectionCard icon={AlignLeft} title="Professional Summary" tip="Write 2-4 sentences highlighting your key strengths" status={getSectionStatus(sectionScores.summary)} action={<SectionAIAction section="summary" />}>
-            <Suspense fallback={<SummarySectionSkeleton />}><SummarySection /></Suspense>
-            <ATSInlineSuggestions section="summary" suggestions={getATSSuggestions('summary')} isAnalyzing={isAnalyzingSection('summary')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['summary']} onApplyDeep={(improved) => handleApplyDeep('summary', improved)} onDiscardDeep={() => clearDeepResult('summary')} />
-          </SectionCard>
-        </div>
-      )}
-      {activeTab === 'experience' && (
-        <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-          <SectionCard icon={Briefcase} title="Work Experience" tip="Include 2-3 key achievements with metrics" status={getSectionStatus(sectionScores.experience)} action={<SectionAIAction section="experience" />}>
-            <Suspense fallback={<ExperienceSectionSkeleton />}><ExperienceSection /></Suspense>
-            <ATSInlineSuggestions section="experience" suggestions={getATSSuggestions('experience')} isAnalyzing={isAnalyzingSection('experience')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['experience']} onApplyDeep={(improved) => handleApplyDeep('experience', improved)} onDiscardDeep={() => clearDeepResult('experience')} />
-          </SectionCard>
-        </div>
-      )}
-      {activeTab === 'education' && (
-        <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-          <SectionCard icon={GraduationCap} title="Education" tip="List your most relevant degrees and certifications" status={getSectionStatus(sectionScores.education)} action={<SectionAIAction section="education" />}>
-            <Suspense fallback={<EducationSectionSkeleton />}><EducationSection /></Suspense>
-            {jobDescription && <ATSInlineSuggestions section="education" suggestions={getATSSuggestions('education')} isAnalyzing={isAnalyzingSection('education')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['education']} onApplyDeep={(improved) => handleApplyDeep('education', improved)} onDiscardDeep={() => clearDeepResult('education')} />}
-          </SectionCard>
-        </div>
-      )}
-      {activeTab === 'skills' && (
-        <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-          <SectionCard icon={Wrench} title="Skills" tip="Add at least 5 relevant skills for ATS optimization" status={getSectionStatus(sectionScores.skills)} action={<SectionAIAction section="skills" />}>
-            <Suspense fallback={<SkillsSectionSkeleton />}><SkillsSection /></Suspense>
-            {jobDescription && <ATSInlineSuggestions section="skills" suggestions={getATSSuggestions('skills')} isAnalyzing={isAnalyzingSection('skills')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['skills']} onApplyDeep={(improved) => handleApplyDeep('skills', improved)} onDiscardDeep={() => clearDeepResult('skills')} />}
-          </SectionCard>
-        </div>
-      )}
-      {activeTab === 'more' && (
-        <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-          {!moreSubSection ? (
-            <SectionCard icon={Plus} title="More Sections" tip="Add optional sections to stand out">
-              <AddSectionSheet onSelectSection={(s) => setMoreSubSection(s)} />
-            </SectionCard>
-          ) : (
-            <div className="space-y-3">
-              <button onClick={() => setMoreSubSection(null)} className="text-sm text-primary flex items-center gap-1 active:scale-95 touch-manipulation min-h-[44px]">
-                <ChevronLeft className="w-4 h-4" /> All Sections
-              </button>
-              <Suspense fallback={<ListSectionSkeleton />}>
-                {(() => {
-                  const MORE_SECTION_COMPONENTS: Record<string, { icon: typeof Trophy; title: string; hasAI: boolean; Component: React.LazyExoticComponent<React.ComponentType> }> = {
-                    awards: { icon: Trophy, title: 'Awards & Achievements', hasAI: true, Component: AwardsSection },
-                    projects: { icon: Rocket, title: 'Projects', hasAI: true, Component: ProjectsSection },
-                    certifications: { icon: Award, title: 'Certifications', hasAI: true, Component: CertificationsSection },
-                    publications: { icon: BookOpen, title: 'Publications', hasAI: true, Component: PublicationsSection },
-                    volunteering: { icon: Heart, title: 'Volunteering', hasAI: true, Component: VolunteeringSection },
-                    languages: { icon: Globe, title: 'Languages', hasAI: true, Component: LanguagesSection },
-                    hobbies: { icon: Palette, title: 'Hobbies & Interests', hasAI: false, Component: HobbiesSection },
-                    references: { icon: Users, title: 'References', hasAI: false, Component: ReferencesSection },
-                  };
-                  const config = MORE_SECTION_COMPONENTS[moreSubSection!];
-                  if (!config) {
-                    setMoreSubSection(null);
-                    return null;
-                  }
-                  const { icon, title, hasAI, Component } = config;
-                  return (
-                    <SectionCard icon={icon} title={title} action={hasAI ? <SectionAIAction section={moreSubSection! as any} /> : undefined}>
-                      <Component />
-                    </SectionCard>
-                  );
-                })()}
-              </Suspense>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Spacer to push nav buttons to bottom of visible scroll area */}
-      <div className="flex-1" />
-
-      {/* Section Navigation — pinned to bottom */}
-      <div className="flex flex-row items-center gap-2 sm:gap-3 pt-3 pb-4 overflow-hidden">
-        <Button
-          variant="outline"
-          size="lg"
-          className="flex-1 min-w-0 min-h-[48px]"
-          onClick={() => {
-            haptics.light();
-            const currentIndex = steps.findIndex(s => s.id === activeTab);
-            if (currentIndex > 0) handleTabChange(steps[currentIndex - 1].id);
-          }}
-          disabled={activeTab === steps[0].id}
-        >
-          <ChevronLeft className="w-4 h-4 mr-1.5" />
-          Previous
-        </Button>
-        {activeTab === steps[steps.length - 1].id ? (
-          <Button
-            size="lg"
-            className="flex-1 min-w-0 min-h-[48px] text-sm gradient-primary shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.5)]"
-            onClick={() => {
-              haptics.success();
-              navigate('/preview');
-            }}
-          >
-            <Download className="w-4 h-4 mr-1.5" />
-            Preview & Export
-          </Button>
-        ) : (
-          <Button
-            size="lg"
-            className="flex-1 min-w-0 min-h-[48px]"
-            onClick={() => {
-              haptics.medium();
-              const currentIndex = steps.findIndex(s => s.id === activeTab);
-              if (currentIndex < steps.length - 1) handleTabChange(steps[currentIndex + 1].id);
-            }}
-          >
-            Next
-            <ChevronRight className="w-4 h-4 ml-1.5" />
-          </Button>
-        )}
-      </div>
-    </>
-  ), [activeTab, sectionScores, moreSubSection, steps, handleTabChange, navigate, jobDescription, getATSSuggestions, isAnalyzingSection, fetchDeepSuggestions, deepResults, handleApplyDeep, clearDeepResult]);
+  // EditorSectionContent props (assembled once, used in 3 layout slots below)
+  const editorSectionProps = {
+    activeTab,
+    sectionScores,
+    moreSubSection,
+    setMoreSubSection,
+    steps,
+    handleTabChange,
+    jobDescription,
+    getATSSuggestions,
+    isAnalyzingSection,
+    fetchDeepSuggestions,
+    deepResults,
+    handleApplyDeep,
+    clearDeepResult,
+  } as const;
 
 
 
@@ -708,141 +566,28 @@ export default function EditorPage() {
   return (
     <main className="fixed inset-0 z-40 flex flex-col overflow-hidden bg-background">
       {/* Header */}
-      <header className="editor-header shrink-0 sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe transition-all duration-200">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1 sm:gap-2 min-w-0 flex-1">
-            <button
-              onClick={handleBack}
-              className="p-2 -ml-2 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[40px] min-h-[40px] flex items-center justify-center"
-              aria-label="Go back"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <button
-              className="flex items-center gap-1 min-w-0 max-w-[40vw] sm:max-w-[55vw] cursor-pointer hover:text-primary/80 transition-colors active:scale-95 touch-manipulation"
-              title={resumeFromDb?.title || currentResume?.contactInfo?.fullName || 'Edit Resume'}
-              onClick={() => navigate('/dashboard')}
-              aria-label="Switch resume"
-            >
-              <span className="text-h3 truncate">
-                {resumeFromDb?.title || currentResume?.contactInfo?.fullName || 'Edit Resume'}
-              </span>
-              {/* ChevronDown removed — tapping title navigates to dashboard */}
-            </button>
-            <OfflineIndicator isSyncing={isSyncing} />
-            {/* Undo/Redo buttons */}
-            <div className="hidden sm:flex items-center gap-0.5">
-              <button
-                onClick={handleUndo}
-                disabled={!canUndo}
-                className={cn(
-                  'p-2 rounded-lg transition-all touch-manipulation active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center',
-                  canUndo ? 'hover:bg-muted text-foreground' : 'text-muted-foreground/30 cursor-not-allowed'
-                )}
-                aria-label={canUndo ? `Undo: ${undoDescription}` : 'Nothing to undo'}
-                title={canUndo ? `Undo: ${undoDescription}` : 'Nothing to undo'}
-              >
-                <Undo2 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={handleRedo}
-                disabled={!canRedo}
-                className={cn(
-                  'p-2 rounded-lg transition-all touch-manipulation active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center',
-                  canRedo ? 'hover:bg-muted text-foreground' : 'text-muted-foreground/30 cursor-not-allowed'
-                )}
-                aria-label={canRedo ? `Redo: ${redoDescription}` : 'Nothing to redo'}
-                title={canRedo ? `Redo: ${redoDescription}` : 'Nothing to redo'}
-              >
-                <Redo2 className="w-4 h-4" />
-              </button>
-            </div>
-            {user && currentResumeId && (
-              <button
-                onClick={() => setShowVersionHistory(true)}
-                className="keyboard-hide p-2 rounded-lg hover:bg-muted active:scale-95 transition-all touch-manipulation hidden sm:inline-flex min-w-[44px] min-h-[44px] items-center justify-center"
-                aria-label="Version history"
-              >
-                <Clock className="w-4 h-4 text-muted-foreground" />
-              </button>
-            )}
-          </div>
-          {/* Desktop buttons - hidden on mobile */}
-          <div className="hidden md:flex items-center gap-1.5">
-            {/* Template gallery shortcut */}
-            <button
-              onClick={() => { handleChangeTemplate(); haptics.light(); }}
-              className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 hover:bg-muted text-muted-foreground"
-              aria-label="Open template gallery"
-            >
-              <LayoutGrid className="w-5 h-5" />
-              <span className="text-[9px] font-medium leading-none">Template</span>
-            </button>
-            {/* Design shortcut */}
-            <button
-              onClick={() => { handleCustomize(); haptics.light(); }}
-              className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 hover:bg-muted text-muted-foreground"
-              aria-label="Open design customization"
-            >
-              <Palette className="w-5 h-5" />
-              <span className="text-[9px] font-medium leading-none">Design</span>
-            </button>
-            {/* Live Preview Toggle */}
-            <button
-              onClick={() => {
-                setShowPreview(v => {
-                  const next = !v;
-                  localStorage.setItem('wr-live-preview', String(next));
-                  return next;
-                });
-                haptics.light();
-              }}
-              className={cn(
-                'keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95',
-                showPreview ? 'bg-primary/15 text-primary' : 'hover:bg-muted text-muted-foreground'
-              )}
-              aria-label={showPreview ? 'Hide live preview' : 'Show live preview'}
-            >
-              {showPreview ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeft className="w-5 h-5" />}
-              <span className="text-[9px] font-medium leading-none">{showPreview ? 'Hide' : 'Live'}</span>
-            </button>
-            <button
-              onClick={() => setShowChat(true)}
-              className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 -mr-2 bg-primary/10 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_28px_-4px_hsl(var(--primary)/0.5)] hover:bg-primary/15 active:scale-95"
-              aria-label="Open Wise AI Chat"
-            >
-              <span className="relative">
-                <MessageSquare className="w-5 h-5 text-primary" />
-                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary" />
-              </span>
-              <span className="text-[9px] font-medium leading-none text-primary">Wise AI</span>
-            </button>
-          </div>
-          {/* Mobile-only: consolidated tools trigger (Sheet-based for portal rendering) */}
-          <div className="flex items-center gap-1 md:hidden">
-            <button
-              onClick={() => { haptics.light(); if (!templateBtnSeen) { localStorage.setItem('template_btn_seen', 'true'); setTemplateBtnSeen(true); } setShowTemplates(true); }}
-              className="relative rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-muted hover:bg-muted/80 touch-manipulation"
-              aria-label="Change template"
-            >
-              {!templateBtnSeen && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary animate-[ping_1.5s_ease-out_3]" />}
-              <LayoutGrid className={`w-5 h-5 ${templateBtnSeen ? 'text-muted-foreground' : 'text-primary'}`} />
-              <span className={`text-[9px] font-medium leading-none ${templateBtnSeen ? 'text-muted-foreground' : 'text-primary'}`}>Template</span>
-            </button>
-            <button
-              onClick={() => { haptics.light(); setShowChat(true); }}
-              className="rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-primary/10 hover:bg-primary/15 touch-manipulation"
-              aria-label="Open Wise AI Chat"
-            >
-              <span className="relative">
-                <MessageSquare className="w-5 h-5 text-primary" />
-                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary" />
-              </span>
-              <span className="text-[9px] font-medium leading-none text-primary">Chat</span>
-            </button>
-          </div>
-        </div>
-      </header>
+      <EditorHeader
+        resumeTitle={resumeFromDb?.title || currentResume?.contactInfo?.fullName}
+        isSyncing={isSyncing}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        undoDescription={undoDescription}
+        redoDescription={redoDescription}
+        isAuthenticated={!!user}
+        currentResumeId={currentResumeId}
+        showPreview={showPreview}
+        templateBtnSeen={templateBtnSeen}
+        onBack={handleBack}
+        onTitleClick={() => navigate('/dashboard')}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        onVersionHistory={() => setShowVersionHistory(true)}
+        onChangeTemplate={handleChangeTemplate}
+        onCustomize={handleCustomize}
+        onTogglePreview={() => setShowPreview(v => { const next = !v; localStorage.setItem('wr-live-preview', String(next)); return next; })}
+        onOpenChat={() => setShowChat(true)}
+        onTemplateBtnSeen={() => { if (!templateBtnSeen) { localStorage.setItem('template_btn_seen', 'true'); setTemplateBtnSeen(true); } setShowTemplates(true); }}
+      />
 
 
       {/* Progress Bar with Save Status — compact on mobile, full on desktop */}
@@ -951,7 +696,7 @@ export default function EditorPage() {
               ref={scrollContainerRef}
             >
               <div className="flex flex-col" style={{ minHeight: '100%' }}>
-                {renderEditorContent()}
+                <EditorSectionContent {...editorSectionProps} />
               </div>
             </div>
           </TabsContent>
@@ -982,7 +727,7 @@ export default function EditorPage() {
                 className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-4 space-y-0"
                 ref={scrollContainerRef}
               >
-                {renderEditorContent()}
+                <EditorSectionContent {...editorSectionProps} />
               </div>
             </div>
           </ResizablePanel>
@@ -1034,7 +779,7 @@ export default function EditorPage() {
               className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-8 pb-safe space-y-0"
               ref={scrollContainerRef}
             >
-              {renderEditorContent()}
+              <EditorSectionContent {...editorSectionProps} />
             </div>
           </div>
         </div>
