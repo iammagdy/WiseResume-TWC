@@ -357,13 +357,6 @@ const Index = () => {
             The only resume app that <span className="text-foreground font-medium">coaches your interview</span>, <span className="text-foreground font-medium">scores your ATS match</span>, and <span className="text-foreground font-medium">builds your portfolio site</span> — all in one.
           </motion.p>
 
-          {/* Hero — animated EditorDemo */}
-          <motion.div
-            className="w-full flex justify-center mb-5"
-            {...fade(0.18)}
-          >
-            <EditorDemo />
-          </motion.div>
 
           <motion.div className="w-full flex justify-center" {...fade(0.2)}>
             <motion.div
@@ -471,8 +464,8 @@ const Index = () => {
             From AI resume writing to a shareable personal website — all in one place
           </motion.p>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-4xl mx-auto min-h-[600px] lg:min-h-[420px]">
-            {/* Card A — ATS Match Score mockup */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-4xl mx-auto">
+            {/* Card A — AI Resume Editor (EditorDemo looping) */}
             <motion.div
               initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
@@ -483,89 +476,21 @@ const Index = () => {
                 <div className="text-center">
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-2 animate-pulse">
                     <Sparkles className="w-3 h-3" />
-                    ATS Optimized
+                    AI Resume Editor
                   </span>
-                  <h3 className="text-lg font-bold text-foreground mb-1">ATS Match Score</h3>
+                  <h3 className="text-lg font-bold text-foreground mb-1">AI-Powered Resume Writing</h3>
                   <p className="text-xs text-muted-foreground leading-relaxed max-w-[240px] mx-auto">
-                    See exactly how well your resume matches any job description — keyword by keyword.
+                    Watch AI turn weak bullets into quantified achievements — with a live ATS score that updates in real time.
                   </p>
                 </div>
-                {/* ATS Score mockup */}
-                <div className="w-full max-w-[260px] rounded-2xl border border-border/40 bg-card/80 backdrop-blur-sm shadow-lg p-4 space-y-3">
-                  {/* Score header */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-foreground">ATS Health Score</span>
-                    <div className="flex items-center gap-1.5">
-                      <div className="relative w-9 h-9">
-                        <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
-                          <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
-                          <motion.circle
-                            cx="18" cy="18" r="15" fill="none"
-                            stroke="hsl(var(--success))" strokeWidth="3"
-                            strokeLinecap="round"
-                            strokeDasharray={94.2}
-                            initial={{ strokeDashoffset: 94.2 }}
-                            whileInView={{ strokeDashoffset: prefersReducedMotion ? 94.2 * 0.12 : 94.2 * 0.12 }}
-                            viewport={{ once: true, margin: '-30px' }}
-                            transition={{ duration: 1.2, ease: 'easeOut', delay: 0.2 }}
-                          />
-                        </svg>
-                        <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-success">88</span>
-                      </div>
-                    </div>
-                  </div>
-                  {/* Category bars */}
-                  {[
-                    { label: 'Keywords Found', value: 91, color: 'hsl(var(--success))' },
-                    { label: 'Format & Structure', value: 85, color: 'hsl(var(--primary))' },
-                    { label: 'Quantified Bullets', value: 78, color: 'hsl(var(--warning))' },
-                    { label: 'Skills Match', value: 94, color: 'hsl(var(--success))' },
-                  ].map((cat, i) => (
-                    <div key={cat.label} className="space-y-1">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[10px] text-muted-foreground">{cat.label}</span>
-                        <motion.span
-                          className="text-[10px] font-semibold text-foreground"
-                          initial={{ opacity: 0 }}
-                          whileInView={{ opacity: 1 }}
-                          viewport={{ once: true }}
-                          transition={{ duration: 0.3, delay: 0.4 + i * 0.12 }}
-                        >
-                          {cat.value}%
-                        </motion.span>
-                      </div>
-                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                        <motion.div
-                          className="h-full rounded-full"
-                          style={{ backgroundColor: cat.color }}
-                          initial={{ width: '0%' }}
-                          whileInView={{ width: `${cat.value}%` }}
-                          viewport={{ once: true, margin: '-30px' }}
-                          transition={{ duration: 0.8, ease: 'easeOut', delay: 0.3 + i * 0.12 }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                  {/* Tip */}
-                  <motion.div
-                    className="rounded-lg bg-primary/8 border border-primary/20 px-2.5 py-1.5"
-                    initial={{ opacity: 0, y: 6 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.4, delay: 0.85 }}
-                  >
-                    <p className="text-[10px] text-foreground/80 leading-snug">
-                      💡 Add <span className="font-semibold text-primary">3 missing keywords</span> to boost score to 95+
-                    </p>
-                  </motion.div>
-                </div>
+                <EditorDemo />
                 <Button
                   variant="outline"
                   size="sm"
                   className="w-full max-w-[200px] gap-1.5 touch-manipulation active:scale-95 transition-transform"
                   onClick={() => { triggerHaptic.light(); navigate(isAuthenticated ? '/dashboard' : `/auth?redirect=${encodeURIComponent('/dashboard')}`); }}
                 >
-                  Check Your ATS Score <ArrowRight className="w-3.5 h-3.5" />
+                  Try AI Editor <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
               </Card>
             </motion.div>
