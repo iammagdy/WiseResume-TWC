@@ -697,7 +697,7 @@ function DashboardPageContent() {
                   <Input
                     placeholder={`Search in ${activeTab === 'my-cvs' ? 'My CVs' : 'Tailored'}...`}
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => handleSetSearchQuery(e.target.value)}
                     className="pl-10 rounded-full h-10 sm:h-11 text-base glass-input"
                   />
                 </div>
