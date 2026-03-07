@@ -9,7 +9,7 @@ import { useResumes } from '@/hooks/useResumes';
 import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
 import { supabase } from '@/integrations/supabase/safeClient';
 
-import { SUPABASE_URL } from '@/lib/supabaseConstants';
+import { EDGE_FUNCTIONS_URL } from '@/lib/supabaseConstants';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 
