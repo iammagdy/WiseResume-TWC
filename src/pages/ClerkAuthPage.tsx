@@ -144,6 +144,10 @@ function AuthBackground() {
           0%, 100% { opacity: 0.35; transform: scale(1); }
           50% { opacity: 1; transform: scale(1.5); }
         }
+        @keyframes pulse-icon {
+          0%, 100% { box-shadow: 0 0 0 2px hsl(355 85% 52% / 0.35), 0 0 20px hsl(355 85% 52% / 0.30); }
+          50% { box-shadow: 0 0 0 4px hsl(355 85% 52% / 0.55), 0 0 36px hsl(355 85% 52% / 0.50); }
+        }
       `}</style>
     </>
   );
@@ -294,17 +298,35 @@ export default function ClerkAuthPage() {
     <MobileLayout>
       <AuthBackground />
       <div className="flex flex-col items-center justify-center min-h-[70vh] px-6 py-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="w-full max-w-sm space-y-6 glass-elevated rounded-2xl border border-white/10 p-6 shadow-2xl"
-          style={{ boxShadow: '0 0 80px -20px hsl(355 85% 52% / 0.25), 0 25px 50px -12px rgba(0,0,0,0.6)' }}
+        {/* Gradient border wrapper */}
+        <div
+          className="w-full max-w-sm p-[1px] rounded-2xl"
+          style={{
+            background: 'linear-gradient(135deg, hsl(355 85% 52% / 0.55), hsl(270 70% 55% / 0.35), hsl(185 90% 45% / 0.28))',
+          }}
         >
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+          className="w-full space-y-6 glass-elevated rounded-[calc(1rem-1px)] p-6 relative overflow-hidden"
+          style={{ boxShadow: '0 0 60px -10px hsl(355 85% 52% / 0.35), 0 25px 50px -12px rgba(0,0,0,0.7)' }}
+        >
+          {/* Top light tint — card lit from above by brand red */}
+          <div
+            className="absolute inset-x-0 top-0 h-28 pointer-events-none"
+            style={{ background: 'linear-gradient(to bottom, hsl(355 85% 52% / 0.07) 0%, transparent 100%)' }}
+          />
+
           {/* Logo */}
-          <div className="flex flex-col items-center gap-3">
-            <AppIcon size={56} />
-            <h1 className="text-2xl font-bold text-foreground">
+          <div className="flex flex-col items-center gap-3 relative">
+            <div
+              className="rounded-2xl"
+              style={{ animation: 'pulse-icon 3s ease-in-out infinite', boxShadow: '0 0 0 2px hsl(355 85% 52% / 0.35), 0 0 20px hsl(355 85% 52% / 0.30)' }}
+            >
+              <AppIcon size={56} />
+            </div>
+            <h1 className="text-2xl font-bold gradient-text">
               {mode === 'verify-email' ? 'Verify your email' : mode === 'sign-in' ? 'Welcome back' : 'Create your account'}
             </h1>
             <p className="text-sm text-muted-foreground text-center">
@@ -361,19 +383,23 @@ export default function ClerkAuthPage() {
                 exit={{ opacity: 0, x: mode === 'sign-in' ? 20 : -20 }}
                 className="space-y-4"
               >
-                {/* Google OAuth */}
-                <Button
+                {/* Google OAuth — premium glass treatment */}
+                <button
                   type="button"
-                  variant="outline"
-                  size="lg"
-                  className="w-full h-12 text-base font-medium gap-3"
+                  className="w-full h-12 text-base font-medium gap-3 flex items-center justify-center rounded-xl transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
+                  style={{
+                    background: 'linear-gradient(135deg, hsl(240 20% 14% / 0.9), hsl(240 20% 10% / 0.7))',
+                    border: '1px solid hsl(0 0% 100% / 0.18)',
+                    boxShadow: '0 1px 0 hsl(0 0% 100% / 0.06) inset',
+                    color: 'hsl(var(--foreground))',
+                  }}
                   onClick={handleGoogleOAuth}
                   disabled={googleLoading || isLoading}
                 >
                   {googleLoading ? (
                     <MiniSpinner size={20} />
                   ) : (
-                    <svg className="w-5 h-5" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
                       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                       <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
                       <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
@@ -381,13 +407,13 @@ export default function ClerkAuthPage() {
                     </svg>
                   )}
                   Continue with Google
-                </Button>
+                </button>
 
-                {/* Divider */}
+                {/* Divider — warm gradient shimmer */}
                 <div className="flex items-center gap-4">
-                  <Separator className="flex-1" />
+                  <div className="flex-1 h-px" style={{ background: 'linear-gradient(to right, transparent, hsl(355 80% 50% / 0.35), transparent)' }} />
                   <span className="text-sm text-muted-foreground">or</span>
-                  <Separator className="flex-1" />
+                  <div className="flex-1 h-px" style={{ background: 'linear-gradient(to left, transparent, hsl(355 80% 50% / 0.35), transparent)' }} />
                 </div>
 
                 {/* Email/Password Form */}
@@ -463,7 +489,7 @@ export default function ClerkAuthPage() {
                   <button
                     type="button"
                     onClick={switchMode}
-                    className="font-semibold text-primary hover:underline"
+                    className="font-semibold gradient-text hover:opacity-80 transition-opacity"
                   >
                     {mode === 'sign-in' ? 'Sign Up' : 'Sign In'}
                   </button>
@@ -472,6 +498,7 @@ export default function ClerkAuthPage() {
             )}
           </AnimatePresence>
         </motion.div>
+        </div>{/* end gradient border wrapper */}
       </div>
     </MobileLayout>
   );
