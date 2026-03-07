@@ -3,6 +3,7 @@ import { useRef, useEffect } from 'react';
 
 import { BottomTabBar } from './BottomTabBar';
 import { DesktopNav } from './DesktopNav';
+import { GuestSaveBanner } from './GuestSaveBanner';
 import { OfflineBanner } from './OfflineBanner';
 import { ScrollProgressBar } from './ScrollProgressBar';
 
