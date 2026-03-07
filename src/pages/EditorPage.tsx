@@ -309,8 +309,7 @@ export default function EditorPage() {
   }, [isMobile, currentResume]);
 
   // Network status for enhanced save indicator
-
-  // Auto-save for authenticated users (stable callback - no currentResume dep)
+  const { isOnline } = useNetworkStatus();
   const saveToCloud = useCallback(async () => {
     const resume = resumeRef.current;
     if (!user || !currentResumeId || !resume) return;
