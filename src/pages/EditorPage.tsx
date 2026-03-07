@@ -601,7 +601,7 @@ export default function EditorPage() {
               {!isOnline ? (
                 <>
                   <CloudOff className="w-3 h-3 text-warning" />
-                  <span className="text-warning hidden xs:inline">Offline</span>
+                  <span className="text-warning">Offline</span>
                 </>
               ) : isSaving ? (
                 <Cloud className="w-3 h-3 animate-pulse" />
