@@ -16,6 +16,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useInView } from '@/hooks/useInView';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
 import { QuickTailorSheet } from '@/components/landing/QuickTailorSheet';
+import { ThemeDropdown } from '@/components/settings/ThemeDropdown';
 import { InstallButton } from '@/components/pwa/InstallButton';
 
 import logoImage from '@/assets/wise-ai-logo.webp';
