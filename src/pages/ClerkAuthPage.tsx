@@ -12,6 +12,7 @@ import { InputFormField } from '@/components/ui/form-field';
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import { Button } from '@/components/ui/button';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
 
 type Mode = 'sign-in' | 'sign-up' | 'verify-email' | 'forgot-password' | 'reset-password';
 
