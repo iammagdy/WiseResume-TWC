@@ -820,46 +820,52 @@ function DashboardPageContent() {
                         animate="visible"
                         variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
                       >
-                        {resumeHierarchy && (
-                          <>
-                            {resumeHierarchy.masterResumes.map((masterResume) => (
-                              <motion.div key={masterResume.id} variants={itemVariants}>
-                                <ResumeListCard
-                                  resume={masterResume}
-                                  onEdit={handleEdit}
-                                  onDuplicate={handleDuplicate}
-                                  onDelete={handleDelete}
-                                  onRename={handleRename}
-                                  onInterview={handleInterview}
-                                  showMasterBadge={!!resumeHierarchy.tailoredByParent[masterResume.id]?.length}
-                                  healthScore={healthScores[masterResume.id]}
-                                  isScoring={scoringId === masterResume.id}
-                                  selectionMode={selectionMode}
-                                  selected={selectedIds.has(masterResume.id)}
-                                  onToggleSelect={toggleSelection}
-                                />
-                              </motion.div>
-                            ))}
-                            {resumeHierarchy.orphanTailored.map((resume) => (
-                              <motion.div key={resume.id} variants={itemVariants}>
-                                <ResumeListCard
-                                  resume={resume}
-                                  onEdit={handleEdit}
-                                  onDuplicate={handleDuplicate}
-                                  onDelete={handleDelete}
-                                  onRename={handleRename}
-                                  onInterview={handleInterview}
-                                  showTailoredBadge
-                                  healthScore={healthScores[resume.id]}
-                                  isScoring={scoringId === resume.id}
-                                  selectionMode={selectionMode}
-                                  selected={selectedIds.has(resume.id)}
-                                  onToggleSelect={toggleSelection}
-                                />
-                              </motion.div>
-                            ))}
-                          </>
-                        )}
+                        {resumeHierarchy && (() => {
+                          const myCVsAll = [
+                            ...resumeHierarchy.masterResumes,
+                            ...resumeHierarchy.orphanTailored,
+                          ];
+                          const myCVsSlice = myCVsAll.slice(0, visibleMyCVs);
+                          const myCVsRemaining = myCVsAll.length - myCVsSlice.length;
+                          return (
+                            <>
+                              {myCVsSlice.map((resume) => {
+                                const isMaster = !resume.parent_resume_id;
+                                return (
+                                  <motion.div key={resume.id} variants={itemVariants}>
+                                    <ResumeListCard
+                                      resume={resume}
+                                      onEdit={handleEdit}
+                                      onDuplicate={handleDuplicate}
+                                      onDelete={handleDelete}
+                                      onRename={handleRename}
+                                      onInterview={handleInterview}
+                                      showMasterBadge={isMaster && !!resumeHierarchy.tailoredByParent[resume.id]?.length}
+                                      showTailoredBadge={!isMaster}
+                                      healthScore={healthScores[resume.id]}
+                                      isScoring={scoringId === resume.id}
+                                      selectionMode={selectionMode}
+                                      selected={selectedIds.has(resume.id)}
+                                      onToggleSelect={toggleSelection}
+                                    />
+                                  </motion.div>
+                                );
+                              })}
+                              {myCVsRemaining > 0 && (
+                                <div className="flex justify-center pt-2 pb-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="rounded-full text-xs text-muted-foreground hover:text-foreground touch-manipulation min-h-[44px] gap-1.5"
+                                    onClick={() => { haptics.light(); setVisibleMyCVs(v => v + PAGE_SIZE); }}
+                                  >
+                                    Load more ({myCVsRemaining})
+                                  </Button>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
                       </motion.div>
                     </div>
 
@@ -885,6 +891,8 @@ function DashboardPageContent() {
                             </div>
                           );
                         }
+                        const tailoredSlice = allTailored.slice(0, visibleTailored);
+                        const tailoredRemaining = allTailored.length - tailoredSlice.length;
                         return (
                           <motion.div
                             className="space-y-3"
@@ -892,7 +900,7 @@ function DashboardPageContent() {
                             animate="visible"
                             variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
                           >
-                            {allTailored.map((resume) => (
+                            {tailoredSlice.map((resume) => (
                               <motion.div key={resume.id} variants={itemVariants}>
                                 <div className="rounded-xl glass-elevated p-3 space-y-2">
                                   {(resume.target_job_title || resume.target_company) && (
@@ -931,6 +939,18 @@ function DashboardPageContent() {
                                 </div>
                               </motion.div>
                             ))}
+                            {tailoredRemaining > 0 && (
+                              <div className="flex justify-center pt-2 pb-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="rounded-full text-xs text-muted-foreground hover:text-foreground touch-manipulation min-h-[44px] gap-1.5"
+                                  onClick={() => { haptics.light(); setVisibleTailored(v => v + PAGE_SIZE); }}
+                                >
+                                  Load more ({tailoredRemaining})
+                                </Button>
+                              </div>
+                            )}
                           </motion.div>
                         );
                       })()}
