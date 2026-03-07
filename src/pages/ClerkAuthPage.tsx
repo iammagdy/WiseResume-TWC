@@ -104,7 +104,7 @@ export default function ClerkAuthPage() {
     setIsLoading(true);
     try {
       const result = await signUp.create({ emailAddress: email, password, username, firstName, lastName });
-      if (result.status === 'complete' && result.createdSessionId) {
+      if (result.status === 'complete') {
         await setActive({ session: result.createdSessionId });
         navigate(redirectTo, { replace: true });
       } else {
