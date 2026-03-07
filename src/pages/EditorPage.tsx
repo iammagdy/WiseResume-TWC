@@ -308,9 +308,7 @@ export default function EditorPage() {
     return () => clearTimeout(timer);
   }, [isMobile, currentResume]);
 
-  // Use ref to decouple saveToCloud from currentResume dependency
-  const resumeRef = useRef(currentResume);
-  resumeRef.current = currentResume;
+  // Network status for enhanced save indicator
 
   // Auto-save for authenticated users (stable callback - no currentResume dep)
   const saveToCloud = useCallback(async () => {
