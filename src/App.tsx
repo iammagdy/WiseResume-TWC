@@ -21,6 +21,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { RedirectJobRoute } from "@/components/layout/RedirectJobRoute";
 import { useAIKeyHydration } from "@/hooks/useAIKeyHydration";
+import { SkyWallpaper } from "@/components/ui/SkyWallpaper";
 
 const CommandPalette = lazyWithRetry(() => import("@/components/layout/CommandPalette"));
 
@@ -195,6 +196,7 @@ const queryClient = new QueryClient({
    
       return (
         <>
+        <SkyWallpaper />
         <Routes>
           {/* Public routes - no auth required */}
           <Route path="/" element={<Index />} />

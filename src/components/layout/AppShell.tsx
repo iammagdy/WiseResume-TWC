@@ -37,7 +37,7 @@ export function AppShell() {
   }, [location.pathname]);
 
   return (
-    <div className="h-[100dvh] overflow-hidden flex flex-col bg-background relative">
+    <div className="h-[100dvh] overflow-hidden flex flex-col bg-transparent relative">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:p-4 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:m-2"
