@@ -822,7 +822,7 @@ function DashboardPageContent() {
             </div>
           ) : (
             <div className="px-4 pb-4">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <Tabs value={activeTab} onValueChange={handleSetActiveTab} className="w-full">
                 <TabsList className="w-full mb-4">
                   <TabsTrigger value="my-cvs" className="flex-1 gap-1.5">
                     My CVs

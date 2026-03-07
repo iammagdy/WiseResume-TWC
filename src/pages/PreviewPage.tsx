@@ -532,8 +532,8 @@ export default function PreviewPage() {
             className="flex-1 h-10 sm:h-12 text-sm sm:text-base font-semibold gradient-primary touch-manipulation shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.5)]"
             onClick={() => setShowExportSheet(true)}
             disabled={isGenerating}>
-              <Download className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-              Export CV
+              <FileDown className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+              Export Options
             </Button>
             <Button
             size="default"
