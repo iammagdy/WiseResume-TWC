@@ -17,7 +17,7 @@ import { useInView } from '@/hooks/useInView';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
 import { QuickTailorSheet } from '@/components/landing/QuickTailorSheet';
 import { InstallButton } from '@/components/pwa/InstallButton';
-import { GuestSaveBanner } from '@/components/layout/GuestSaveBanner';
+
 
 import logoImage from '@/assets/wise-ai-logo.webp';
 
@@ -318,11 +318,11 @@ const Index = () => {
           )}
         </div>
       </header>
-      <GuestSaveBanner />
+
 
       <main className="min-h-screen pb-12 max-w-4xl mx-auto w-full">
         {/* Hero */}
-        <section className="flex flex-col items-center text-center px-4 sm:px-6 pt-[calc(5rem+env(safe-area-inset-top))] pb-8 min-h-[520px] sm:min-h-[560px]">
+        <section className="flex flex-col items-center text-center px-4 sm:px-6 pt-[calc(5rem+env(safe-area-inset-top))] pb-6">
           <motion.div className="relative mb-6" {...fade(0)}>
             <div
               className="absolute inset-0 rounded-3xl blur-2xl opacity-50 animate-glow-pulse"

@@ -3,6 +3,7 @@ import { useRef, useEffect } from 'react';
 
 import { BottomTabBar } from './BottomTabBar';
 import { DesktopNav } from './DesktopNav';
+import { GuestSaveBanner } from './GuestSaveBanner';
 import { OfflineBanner } from './OfflineBanner';
 import { ScrollProgressBar } from './ScrollProgressBar';
 
@@ -45,6 +46,7 @@ export function AppShell() {
       </a>
       <OfflineBanner />
       <SlowConnectionBanner />
+      {!isEditorRoute && <GuestSaveBanner />}
       {showBottomNav && !isEditorRoute && (
         <header className="lg:hidden h-10 flex items-center px-edge pt-safe glass-surface border-b border-border/30 shrink-0">
           <span className="text-sm font-bold text-primary">WiseResume</span>
