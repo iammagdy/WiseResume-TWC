@@ -351,11 +351,60 @@ const Index = () => {
           </motion.h1>
 
           <motion.p
-            className="text-base text-muted-foreground mb-4 max-w-sm leading-relaxed"
+            className="text-base text-muted-foreground mb-5 max-w-sm leading-relaxed"
             {...fade(0.15)}
           >
             The only resume app that <span className="text-foreground font-medium">coaches your interview</span>, <span className="text-foreground font-medium">scores your ATS match</span>, and <span className="text-foreground font-medium">builds your portfolio site</span> — all in one.
           </motion.p>
+
+          {/* Hero Resume Preview — compact product snapshot */}
+          <motion.div
+            className="w-full max-w-sm mb-5"
+            {...fade(0.18)}
+          >
+            <div className="rounded-2xl border border-border/40 bg-card/70 backdrop-blur-sm p-3.5 shadow-lg shadow-background/20">
+              {/* Header row: name + title + score ring */}
+              <div className="flex items-start justify-between gap-3 mb-2.5">
+                <div className="flex-1 space-y-1.5 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2.5 w-28 rounded-full bg-foreground/20" />
+                    <div className="h-2 w-16 rounded-full bg-muted-foreground/20" />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-1.5 w-20 rounded-full bg-muted-foreground/15" />
+                    <div className="w-px h-2.5 bg-border/50" />
+                    <div className="h-1.5 w-16 rounded-full bg-muted-foreground/15" />
+                  </div>
+                </div>
+                {/* Score ring */}
+                <div className="relative flex-shrink-0" style={{ width: 40, height: 40 }}>
+                  <svg className="w-full h-full -rotate-90" viewBox="0 0 40 40">
+                    <circle cx="20" cy="20" r="16" stroke="hsl(var(--muted))" strokeWidth="3" fill="none" />
+                    <circle cx="20" cy="20" r="16" stroke="hsl(var(--success))" strokeWidth="3" fill="none"
+                      strokeLinecap="round" strokeDasharray={100.5} strokeDashoffset={100.5 * 0.08} />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-[9px] font-bold text-success">92</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* AI-enhanced bullet */}
+              <div className="rounded-lg bg-success/8 border border-success/20 px-2.5 py-1.5 mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-success flex-shrink-0" />
+                  <span className="text-[10px] text-foreground/80 leading-snug flex-1">Led cross-functional team of 8, shipping 3 major features ahead of schedule</span>
+                  <span className="text-[8px] font-semibold text-success bg-success/15 px-1.5 py-0.5 rounded-full flex-shrink-0">AI ✓</span>
+                </div>
+              </div>
+
+              {/* Skeleton lines */}
+              <div className="space-y-1.5">
+                <div className="h-1.5 w-full rounded-full bg-muted-foreground/10" />
+                <div className="h-1.5 w-4/5 rounded-full bg-muted-foreground/10" />
+              </div>
+            </div>
+          </motion.div>
 
           <motion.div className="w-full flex justify-center" {...fade(0.2)}>
             <motion.div
@@ -373,12 +422,15 @@ const Index = () => {
             </motion.div>
           </motion.div>
 
-          {/* Quick Tailor CTA */}
-          <motion.div className="w-full flex justify-center mt-3" {...fade(0.25)}>
+          {/* Quick Tailor CTA — with time promise + cover letter marketing */}
+          <motion.div className="w-full flex flex-col items-center gap-1.5 mt-3" {...fade(0.25)}>
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary px-2.5 py-0.5 rounded-full bg-primary/10 border border-primary/20">
+              ⚡ Tailored resume + cover letter in 10 minutes
+            </span>
             <Button
               variant="outline"
               size="lg"
-              className="w-full max-w-sm gap-2 h-12 text-base font-medium"
+              className="w-full max-w-sm h-auto py-3 flex-col gap-0.5 border-primary/30 hover:border-primary/60 hover:bg-primary/5"
               onClick={() => {
                 triggerHaptic.medium();
                 if (isAuthenticated) {
@@ -388,8 +440,13 @@ const Index = () => {
                 }
               }}
             >
-              <Wand2 className="w-5 h-5" />
-              Tailor Resume to a Job
+              <span className="flex items-center gap-2 text-base font-semibold">
+                <Wand2 className="w-4 h-4" />
+                Tailor Resume to a Job
+              </span>
+              <span className="text-[11px] text-muted-foreground font-normal">
+                + generate a cover letter
+              </span>
             </Button>
           </motion.div>
 
