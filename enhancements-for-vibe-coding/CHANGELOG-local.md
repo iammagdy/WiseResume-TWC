@@ -7,6 +7,20 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-07
+- Issue ID: ISSUE-C (D-1, E-1, E-6, P-3, ST-1 — Mobile UX fixes)
+- Summary: Five Mobile UX issues fixed in one pass. **(D-1)** Wrapped `AIHealthBadge` in `hidden sm:flex` on the Dashboard header so it hides below the 640px breakpoint, reducing icon clutter on iPhone SE. **(E-1)** Added a right-edge `bg-gradient-to-l from-background to-transparent` overlay (absolute, pointer-events-none, w-8) to the StepperNav mobile pill bar inside a new `relative` wrapper — visually signals horizontal scrollability. **(E-6)** Added `animate-pulse` to the unsaved-changes orange dot and appended a sibling `<span className="text-warning text-[11px]">Unsaved</span>` label for better visibility; only the `hasUnsavedChanges` branch is changed. **(P-3)** Wrapped `NextStepBanner` on the Preview page in `hidden sm:block` so the resume preview is immediately visible on mobile without a banner pushing it down. **(ST-1)** Applied the same right-edge fade gradient pattern as E-1 to the Settings page section-chips bar, inside a new `relative` wrapper div with proper indentation fix.
+- Files touched:
+  - `src/pages/DashboardPage.tsx` (D-1: `hidden sm:flex` wrapper around `AIHealthBadge`)
+  - `src/components/editor/StepperNav.tsx` (E-1: relative wrapper + right-edge fade overlay on mobile pill bar)
+  - `src/pages/EditorPage.tsx` (E-6: animate-pulse on unsaved dot + "Unsaved" text label)
+  - `src/pages/PreviewPage.tsx` (P-3: `hidden sm:block` wrapper around NextStepBanner)
+  - `src/pages/SettingsPage.tsx` (ST-1: relative wrapper + right-edge fade overlay on chips bar)
+  - `enhancements-for-vibe-coding/CHANGELOG-local.md` (this entry)
+- Notes / Constraints: No behavior changes. No handlers, routing, save logic, or export flows modified. All MEMORY.md "Do Not Touch" files respected. Fade uses semantic `from-background` token (HSL-driven) so it adapts to light/dark mode automatically. `pointer-events-none` on overlay ensures chip/pill taps still register.
+
+---
+
+- Date: 2026-03-07
 - Issue ID: ISSUE-C (A-3, A-4, A-5, E-2, E-4, E-5 fixes)
 - Summary: Six Medium UX issues fixed in one pass. **(A-3)** Added live portfolio URL helper text below the username field on sign-up: `thewise.cloud/p/{username}`. **(A-4)** Wired the existing `PasswordStrengthMeter` component into the sign-up password field (sign-in form unchanged — still shows "Forgot password?" link). **(A-5)** Changed first/last name grid from `grid-cols-2` → `grid-cols-1 sm:grid-cols-2` so fields stack vertically on iPhone SE (375px). **(E-2)** Replaced `Download` icon with `Eye` icon on the "Preview & Export" button in the editor, matching its actual navigation-to-/preview behaviour. **(E-4)** Renamed the "ATS" mobile tab to "ATS Score" for clarity. **(E-5)** Removed `hidden xs:inline` from the "Offline" status label so it is always visible on 375px viewports.
 - Files touched:
