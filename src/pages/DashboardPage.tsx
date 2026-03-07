@@ -74,7 +74,7 @@ function DashboardPageContent() {
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createTailoredParentId, setCreateTailoredParentId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  // searchQuery state moved below with sessionStorage initializer
   const [sortOption, setSortOption] = useState<SortOption>('updated');
   const [categoryFilters, setCategoryFilters] = useState<CategoryFilter[]>([]);
   const [scoreFilters, setScoreFilters] = useState<ScoreFilter[]>([]);
