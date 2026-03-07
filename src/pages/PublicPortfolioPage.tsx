@@ -285,7 +285,7 @@ function PublicPortfolioContent() {
       sectionsViewed: [...sectionsViewedRef.current],
       timeSpentSeconds,
     });
-    const url = `${SUPABASE_URL}/functions/v1/track-portfolio-view`;
+    const url = `${EDGE_FUNCTIONS_URL}/functions/v1/track-portfolio-view`;
     if (navigator.sendBeacon) {
       navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
     } else {
