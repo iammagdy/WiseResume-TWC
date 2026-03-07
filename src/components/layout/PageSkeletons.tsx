@@ -19,14 +19,30 @@ export function DashboardSkeleton() {
         <div className="w-24 h-8 rounded bg-muted" />
         <div className="w-20 h-8 rounded bg-muted" />
       </header>
-      
-      {/* Title Bar */}
+
+      {/* DashboardStats hero card */}
       <div className="px-4 pt-4 pb-3">
-        <div className="w-32 h-7 rounded bg-muted mb-2" />
-        <div className="w-20 h-5 rounded bg-muted" />
+        <div className="rounded-2xl border border-border/40 bg-muted/20 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="w-36 h-6 rounded bg-muted" />
+            <div className="w-16 h-5 rounded-full bg-muted" />
+          </div>
+          <div className="w-48 h-4 rounded bg-muted" />
+          <div className="flex gap-2 pt-1">
+            <div className="h-7 w-24 rounded-full bg-muted" />
+            <div className="h-7 w-20 rounded-full bg-muted" />
+          </div>
+        </div>
       </div>
-      
-      {/* Cards */}
+
+      {/* QuickActionChips row */}
+      <div className="px-4 pb-4 flex gap-2">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="flex-1 h-11 rounded-full bg-muted" />
+        ))}
+      </div>
+
+      {/* Resume cards */}
       <div className="px-4 space-y-3">
         <div className="h-24 bg-muted rounded-xl" />
         <div className="h-24 bg-muted rounded-xl" />
@@ -86,18 +102,30 @@ export function ShareSkeleton() {
 export function EditorSkeleton() {
   return (
     <div className="flex-1 flex flex-col animate-pulse min-h-[100dvh] bg-background">
-      {/* Progress Bar */}
-      <div className="px-4 py-3 border-b border-border">
-        <div className="h-2 w-full bg-muted rounded" />
+      {/* Sticky header — matches EditorHeader height */}
+      <header className="sticky top-0 z-30 flex items-center gap-2 px-4 h-14 border-b border-border bg-background/80">
+        <div className="w-9 h-9 rounded-xl bg-muted shrink-0" />
+        <div className="flex-1 h-5 rounded bg-muted max-w-[160px]" />
+        <div className="ml-auto flex items-center gap-2">
+          <div className="w-9 h-9 rounded-xl bg-muted" />
+          <div className="w-9 h-9 rounded-xl bg-muted" />
+          <div className="w-9 h-9 rounded-xl bg-muted" />
+        </div>
+      </header>
+
+      {/* Progress bar strip */}
+      <div className="px-4 py-3 border-b border-border flex items-center gap-3">
+        <div className="h-4 w-16 bg-muted rounded" />
+        <div className="flex-1 h-2.5 bg-muted rounded-full" />
       </div>
-      
-      {/* Tabs */}
+
+      {/* StepperNav tabs */}
       <div className="mt-3 px-4 flex gap-2 overflow-hidden">
         {[1, 2, 3, 4, 5].map(i => (
           <div key={i} className="h-10 w-20 bg-muted rounded flex-shrink-0" />
         ))}
       </div>
-      
+
       {/* Content */}
       <div className="flex-1 px-4 py-4 space-y-4">
         <div className="h-12 bg-muted rounded-xl" />
@@ -140,16 +168,26 @@ export function SettingsSkeleton() {
 export function PreviewSkeleton() {
   return (
     <div className="flex-1 flex flex-col animate-pulse">
-      {/* Template Switcher */}
-      <div className="px-4 py-3 border-b border-border flex gap-2">
-        {[1, 2, 3, 4].map(i => (
-          <div key={i} className="h-8 w-20 bg-muted rounded-full flex-shrink-0" />
-        ))}
+      {/* Header bar — back button + title + action icons */}
+      <header className="flex items-center gap-2 px-4 h-14 border-b border-border bg-background/80 shrink-0">
+        <div className="w-9 h-9 rounded-xl bg-muted shrink-0" />
+        <div className="flex-1 h-5 rounded bg-muted max-w-[140px]" />
+        <div className="ml-auto flex items-center gap-2">
+          <div className="w-9 h-9 rounded-xl bg-muted" />
+          <div className="w-9 h-9 rounded-xl bg-muted" />
+        </div>
+      </header>
+
+      {/* Preview area — A4-shaped card */}
+      <div className="flex-1 p-4 flex flex-col items-center gap-4 overflow-hidden">
+        <div className="bg-muted rounded-lg w-full mx-auto shadow-sm" style={{ maxWidth: 480, aspectRatio: '210/297' }} />
       </div>
-      
-      {/* Preview Area */}
-      <div className="flex-1 p-4 bg-muted/30">
-        <div className="bg-card mx-auto shadow-lg" style={{ maxWidth: 612, height: 400 }} />
+
+      {/* Bottom action toolbar */}
+      <div className="shrink-0 px-4 pb-4 pt-2 flex gap-2">
+        <div className="flex-1 h-12 rounded-2xl bg-muted" />
+        <div className="w-12 h-12 rounded-2xl bg-muted" />
+        <div className="w-12 h-12 rounded-2xl bg-muted" />
       </div>
     </div>
   );
