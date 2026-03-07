@@ -13,7 +13,7 @@ import { ResignationChecklist } from '@/components/resignation/ResignationCheckl
 import { useAuth } from '@/hooks/useAuth';
 import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
 
-import { SUPABASE_URL } from '@/lib/supabaseConstants';
+import { EDGE_FUNCTIONS_URL } from '@/lib/supabaseConstants';
 import { haptics } from '@/lib/haptics';
 
 import { toast } from 'sonner';
