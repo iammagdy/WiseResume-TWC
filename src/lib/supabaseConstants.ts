@@ -1,21 +1,19 @@
 /**
  * ┌──────────────────────────────────────────────────────────┐
- * │  PROJECT REFERENCE                                       │
+ * │  SINGLE-PROJECT ARCHITECTURE                             │
  * │                                                          │
- * │  Main Database:  jnsfmkzgxsviuthaqlyy                   │
+ * │  Project:  jnsfmkzgxsviuthaqlyy                         │
  * │  URL: https://jnsfmkzgxsviuthaqlyy.supabase.co          │
- * │  Purpose: All tables, RLS policies, user data            │
+ * │  Purpose: Database, RLS, Edge Functions — everything     │
  * │                                                          │
- * │  Edge Functions: hjnnamwgztlhzkeuufln (Lovable Cloud)    │
- * │  URL: https://hjnnamwgztlhzkeuufln.supabase.co           │
- * │  Purpose: Edge function hosting only                     │
+ * │  Lovable Cloud (hjnnamwgztlhzkeuufln) is NOT used.      │
  * └──────────────────────────────────────────────────────────┘
  *
  * These are intentionally NOT read from environment variables because
  * Lovable Cloud auto-manages VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY
- * and points them at the Edge Functions project (hjnnamwgztlhzkeuufln).
+ * and points them at the Lovable Cloud project (hjnnamwgztlhzkeuufln).
  *
- * Our runtime database is jnsfmkzgxsviuthaqlyy — always.
+ * Our runtime project is jnsfmkzgxsviuthaqlyy — always.
  */
 export const SUPABASE_URL = 'https://jnsfmkzgxsviuthaqlyy.supabase.co';
 export const SUPABASE_ANON_KEY =
@@ -29,10 +27,8 @@ export const CLERK_PUBLISHABLE_KEY =
   'pk_test_YnJpZ2h0LWdob3N0LTM0LmNsZXJrLmFjY291bnRzLmRldiQ';
 
 /**
- * Edge functions are deployed to the Lovable Cloud project, not the
- * external database project.  All fetch() calls to /functions/v1/*
- * must use these constants.
+ * Edge functions now run on the SAME project as the database.
+ * No separate Lovable Cloud project needed.
  */
-export const EDGE_FUNCTIONS_URL = 'https://hjnnamwgztlhzkeuufln.supabase.co';
-export const EDGE_FUNCTIONS_ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhqbm5hbXdnenRsaHprZXV1ZmxuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNTE4MTcsImV4cCI6MjA4NTkyNzgxN30.cupd_dz6KHSJaBnUPQzJmQcYc38RTDVIMU5RP25xCso';
+export const EDGE_FUNCTIONS_URL = SUPABASE_URL;
+export const EDGE_FUNCTIONS_ANON_KEY = SUPABASE_ANON_KEY;

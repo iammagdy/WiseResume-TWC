@@ -3,8 +3,8 @@ import { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY } from '@/lib/supabaseConst
 import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
 
 /**
- * Authenticated edge function client pointing at the Lovable Cloud project
- * where edge functions are actually deployed.
+ * Authenticated edge function client pointing at jnsfmkzgxsviuthaqlyy
+ * (same project as the database — single-project architecture).
  */
 const edgeClient = createClient(EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
