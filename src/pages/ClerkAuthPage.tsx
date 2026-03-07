@@ -298,17 +298,35 @@ export default function ClerkAuthPage() {
     <MobileLayout>
       <AuthBackground />
       <div className="flex flex-col items-center justify-center min-h-[70vh] px-6 py-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="w-full max-w-sm space-y-6 glass-elevated rounded-2xl border border-white/10 p-6 shadow-2xl"
-          style={{ boxShadow: '0 0 80px -20px hsl(355 85% 52% / 0.25), 0 25px 50px -12px rgba(0,0,0,0.6)' }}
+        {/* Gradient border wrapper */}
+        <div
+          className="w-full max-w-sm p-[1px] rounded-2xl"
+          style={{
+            background: 'linear-gradient(135deg, hsl(355 85% 52% / 0.55), hsl(270 70% 55% / 0.35), hsl(185 90% 45% / 0.28))',
+          }}
         >
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+          className="w-full space-y-6 glass-elevated rounded-[calc(1rem-1px)] p-6 relative overflow-hidden"
+          style={{ boxShadow: '0 0 60px -10px hsl(355 85% 52% / 0.35), 0 25px 50px -12px rgba(0,0,0,0.7)' }}
+        >
+          {/* Top light tint — card lit from above by brand red */}
+          <div
+            className="absolute inset-x-0 top-0 h-28 pointer-events-none"
+            style={{ background: 'linear-gradient(to bottom, hsl(355 85% 52% / 0.07) 0%, transparent 100%)' }}
+          />
+
           {/* Logo */}
-          <div className="flex flex-col items-center gap-3">
-            <AppIcon size={56} />
-            <h1 className="text-2xl font-bold text-foreground">
+          <div className="flex flex-col items-center gap-3 relative">
+            <div
+              className="rounded-2xl"
+              style={{ animation: 'pulse-icon 3s ease-in-out infinite', boxShadow: '0 0 0 2px hsl(355 85% 52% / 0.35), 0 0 20px hsl(355 85% 52% / 0.30)' }}
+            >
+              <AppIcon size={56} />
+            </div>
+            <h1 className="text-2xl font-bold gradient-text">
               {mode === 'verify-email' ? 'Verify your email' : mode === 'sign-in' ? 'Welcome back' : 'Create your account'}
             </h1>
             <p className="text-sm text-muted-foreground text-center">
