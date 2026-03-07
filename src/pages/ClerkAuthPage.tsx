@@ -489,7 +489,7 @@ export default function ClerkAuthPage() {
                   <button
                     type="button"
                     onClick={switchMode}
-                    className="font-semibold text-primary hover:underline"
+                    className="font-semibold gradient-text hover:opacity-80 transition-opacity"
                   >
                     {mode === 'sign-in' ? 'Sign Up' : 'Sign In'}
                   </button>
@@ -498,6 +498,7 @@ export default function ClerkAuthPage() {
             )}
           </AnimatePresence>
         </motion.div>
+        </div>{/* end gradient border wrapper */}
       </div>
     </MobileLayout>
   );
