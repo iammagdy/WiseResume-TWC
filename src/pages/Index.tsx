@@ -176,8 +176,9 @@ function PortfolioDemo() {
 
 const Index = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated, signOut } = useAuth();
-  const { profile } = useProfile(user?.id, user);
+  const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
+  // Only fire useProfile when auth is fully resolved (not during Clerk loading state)
+  const { profile } = useProfile(isAuthenticated ? user?.id : undefined, user);
   const prefersReducedMotion = useReducedMotion();
   const [scrolled, setScrolled] = useState(false);
   const progressRef = useRef<HTMLDivElement>(null);
