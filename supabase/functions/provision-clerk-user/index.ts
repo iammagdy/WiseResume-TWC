@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
 
     // Check if already provisioned in Clerk metadata
     const existingUuid = clerkUser.public_metadata?.supabaseUuid as string | undefined;
-    if (existingUuid) {
+    if (existingUuid && !forceReprovision) {
       // Verify the profile actually exists in the DB for this UUID
       const { data: existingProfile } = await adminClient
         .from("profiles")
