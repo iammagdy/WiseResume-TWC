@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, ArrowLeft, User } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { MobileLayout } from '@/components/layout/MobileLayout';
+import { OfflineBanner } from '@/components/layout/OfflineBanner';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { useAuth } from '@/hooks/useAuth';
 import { InputFormField } from '@/components/ui/form-field';
@@ -48,8 +48,9 @@ function AuthBackground() {
 
   return (
     <>
-      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none" aria-hidden="true">
-        {/* Deep space base — richer directional gradient with warmth */}
+      {/* Contained within the isolate parent via absolute positioning */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+        {/* Deep space base */}
         <div
           className="absolute inset-0"
           style={{
@@ -58,7 +59,7 @@ function AuthBackground() {
           }}
         />
 
-        {/* Primary blob — top right (brand red) — boosted to 0.35 */}
+        {/* Primary blob — top right (brand red) */}
         <div
           style={{
             position: 'absolute',
@@ -72,7 +73,7 @@ function AuthBackground() {
           }}
         />
 
-        {/* Cyan blob — bottom left — boosted to 0.28 */}
+        {/* Cyan blob — bottom left */}
         <div
           style={{
             position: 'absolute',
@@ -86,7 +87,7 @@ function AuthBackground() {
           }}
         />
 
-        {/* Accent purple blob — mid-center — boosted to 0.22 */}
+        {/* Accent purple blob — mid-center */}
         <div
           style={{
             position: 'absolute',
@@ -100,7 +101,7 @@ function AuthBackground() {
           }}
         />
 
-        {/* Pink blob — bottom right — boosted to 0.18 */}
+        {/* Pink blob — bottom right */}
         <div
           style={{
             position: 'absolute',
@@ -284,20 +285,22 @@ export default function ClerkAuthPage() {
 
   if (!isReady || authLoading) {
     return (
-      <MobileLayout>
+      <div className="relative isolate min-h-[100dvh] flex flex-col overflow-hidden">
         <AuthBackground />
-        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <OfflineBanner />
+        <div className="flex-1 flex flex-col items-center justify-center gap-3">
           <MiniSpinner size={32} />
           {authLoading && <p className="text-sm text-muted-foreground">Setting up your account...</p>}
         </div>
-      </MobileLayout>
+      </div>
     );
   }
 
   return (
-    <MobileLayout>
+    <div className="relative isolate min-h-[100dvh] flex flex-col overflow-hidden">
       <AuthBackground />
-      <div className="flex flex-col items-center justify-center min-h-[70vh] px-6 py-8">
+      <OfflineBanner />
+      <div className="flex-1 flex items-center justify-center px-6 py-8">
         {/* Gradient border wrapper */}
         <div
           className="w-full max-w-sm p-[1px] rounded-2xl"
@@ -500,6 +503,6 @@ export default function ClerkAuthPage() {
         </motion.div>
         </div>{/* end gradient border wrapper */}
       </div>
-    </MobileLayout>
+    </div>
   );
 }
