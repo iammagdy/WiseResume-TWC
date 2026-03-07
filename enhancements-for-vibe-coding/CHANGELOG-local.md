@@ -7,6 +7,20 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-07
+- Issue ID: ISSUE-C (D-2, D-3, P-2, S-1, PE-1 — Medium UX fixes)
+- Summary: Five Medium UX issues fixed in one pass. **(D-2)** Added a server-error state branch (`resumesError && !resumes && navigator.onLine`) between the offline state and empty state on the Dashboard; shows an `AlertCircle` icon, "Something went wrong" message, and a "Tap to retry" `Button` with `RefreshCw` icon that calls `refetch()`. **(D-3)** Persisted `activeTab` and `searchQuery` in `sessionStorage` (keys `wr-dash-tab` / `wr-dash-search`) — both states now initialise from sessionStorage and are synced via `handleSetActiveTab` / `handleSetSearchQuery` helpers; replaced all 3 call sites in the Embla carousel handler, `Tabs onValueChange`, and search `Input onChange`. **(P-2)** Renamed "Export CV" button to "Export Options" and swapped its icon from `Download` to `FileDown` on the Preview page bottom bar; the quick-PDF outline button retains the `Download` icon. **(S-1)** Added a subtle "← Go to WiseResume" link below the Unlock button on the Share page password gate screen (muted text, `text-[11px]`, `hover:text-foreground` transition). **(PE-1)** Wrapped the disabled Save button in `SaveBar` inside a `TooltipProvider/Tooltip/TooltipTrigger` (`<span>` wrapper to capture hover on disabled element) with `TooltipContent` reading "Fix username errors before saving"; the enabled state is unchanged.
+- Files touched:
+  - `src/pages/DashboardPage.tsx` (D-2: server error state branch + `AlertCircle`/`RefreshCw` imports; D-3: sessionStorage init + helpers + 3 call sites updated)
+  - `src/pages/PreviewPage.tsx` (P-2: `FileDown` import + icon/label swap on Export button)
+  - `src/pages/SharePage.tsx` (S-1: "← Go to WiseResume" link on password gate)
+  - `src/components/portfolio/editor/SaveBar.tsx` (PE-1: Tooltip wrapper on disabled Save button)
+  - `enhancements-for-vibe-coding/CHANGELOG-local.md` (this entry)
+- Notes / Constraints: No behavior changes. No handlers, routing, save, export, or auth logic modified. `App.tsx`, `types.ts`, `client.ts` untouched. All MEMORY.md "Do Not Touch" constraints respected. SessionStorage keys use `wr-` prefix consistent with existing app convention.
+
+---
+
+
+- Date: 2026-03-07
 - Issue ID: ISSUE-C (D-1, E-1, E-6, P-3, ST-1 — Mobile UX fixes)
 - Summary: Five Mobile UX issues fixed in one pass. **(D-1)** Wrapped `AIHealthBadge` in `hidden sm:flex` on the Dashboard header so it hides below the 640px breakpoint, reducing icon clutter on iPhone SE. **(E-1)** Added a right-edge `bg-gradient-to-l from-background to-transparent` overlay (absolute, pointer-events-none, w-8) to the StepperNav mobile pill bar inside a new `relative` wrapper — visually signals horizontal scrollability. **(E-6)** Added `animate-pulse` to the unsaved-changes orange dot and appended a sibling `<span className="text-warning text-[11px]">Unsaved</span>` label for better visibility; only the `hasUnsavedChanges` branch is changed. **(P-3)** Wrapped `NextStepBanner` on the Preview page in `hidden sm:block` so the resume preview is immediately visible on mobile without a banner pushing it down. **(ST-1)** Applied the same right-edge fade gradient pattern as E-1 to the Settings page section-chips bar, inside a new `relative` wrapper div with proper indentation fix.
 - Files touched:
