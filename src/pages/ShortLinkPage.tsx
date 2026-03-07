@@ -3,6 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Link2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY } from '@/lib/supabaseConstants';
+
+/** Maximum milliseconds to wait for the resolve-short-link edge function. */
+const RESOLVE_TIMEOUT_MS = 7000;
 
 export default function ShortLinkPage() {
   const { linkId } = useParams<{ linkId: string }>();
@@ -16,10 +20,11 @@ export default function ShortLinkPage() {
     }
 
     let cancelled = false;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), RESOLVE_TIMEOUT_MS);
 
     (async () => {
       try {
-        const { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY } = await import('@/lib/supabaseConstants');
         const res = await fetch(
           `${EDGE_FUNCTIONS_URL}/functions/v1/resolve-short-link?id=${encodeURIComponent(linkId)}`,
           {
@@ -27,8 +32,11 @@ export default function ShortLinkPage() {
               apikey: EDGE_FUNCTIONS_ANON_KEY,
               Authorization: `Bearer ${EDGE_FUNCTIONS_ANON_KEY}`,
             },
+            signal: controller.signal,
           }
         );
+
+        clearTimeout(timeoutId);
 
         if (cancelled) return;
 
@@ -39,8 +47,10 @@ export default function ShortLinkPage() {
 
         const result = await res.json();
 
-        if (result?.target_url) {
-          // Universal redirect via target_url (relative path)
+        if (cancelled) return;
+
+        // Security: only navigate to relative paths to prevent open redirects.
+        if (result?.target_url && typeof result.target_url === 'string' && result.target_url.startsWith('/')) {
           navigate(result.target_url, { replace: true });
         } else if (result?.username) {
           // Legacy portfolio link fallback
@@ -48,12 +58,16 @@ export default function ShortLinkPage() {
         } else {
           setNotFound(true);
         }
-      } catch {
+      } catch (err: unknown) {
+        clearTimeout(timeoutId);
         if (!cancelled) setNotFound(true);
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
   }, [linkId, navigate]);
 
   if (notFound) {
