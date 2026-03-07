@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, ArrowLeft, User } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { MobileLayout } from '@/components/layout/MobileLayout';
+import { OfflineBanner } from '@/components/layout/OfflineBanner';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { useAuth } from '@/hooks/useAuth';
 import { InputFormField } from '@/components/ui/form-field';
