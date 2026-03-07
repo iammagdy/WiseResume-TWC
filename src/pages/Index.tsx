@@ -472,7 +472,7 @@ const Index = () => {
           </motion.p>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-4xl mx-auto min-h-[600px] lg:min-h-[420px]">
-            {/* Card A — AI Resume Editor */}
+            {/* Card A — ATS Match Score mockup */}
             <motion.div
               initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
@@ -481,27 +481,62 @@ const Index = () => {
             >
               <Card className="p-5 border-t-2 border-border/30 border-t-primary/40 bg-card/50 backdrop-blur-sm h-full flex flex-col items-center gap-4 hover:shadow-lg hover:border-primary/20 transition-shadow duration-300">
                 <div className="text-center">
-                  <span
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-2 animate-pulse"
-                  >
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-2 animate-pulse">
                     <Sparkles className="w-3 h-3" />
-                    AI-Powered
+                    ATS Optimized
                   </span>
-                  <h3 className="text-lg font-bold text-foreground mb-1">
-                    AI-Enhanced Editor
-                  </h3>
+                  <h3 className="text-lg font-bold text-foreground mb-1">ATS Match Score</h3>
                   <p className="text-xs text-muted-foreground leading-relaxed max-w-[240px] mx-auto">
-                    Write, improve, and tailor your resume with AI — one tap turns weak bullets into standout achievements.
+                    See exactly how well your resume matches any job description — keyword by keyword.
                   </p>
                 </div>
-                <EditorDemo />
+                {/* ATS Score mockup */}
+                <div className="w-full max-w-[260px] rounded-2xl border border-border/40 bg-card/80 backdrop-blur-sm shadow-lg p-4 space-y-3">
+                  {/* Score header */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-foreground">ATS Health Score</span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="relative w-9 h-9">
+                        <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+                          <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
+                          <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--success))" strokeWidth="3"
+                            strokeLinecap="round" strokeDasharray={94.2} strokeDashoffset={94.2 * 0.12} />
+                        </svg>
+                        <span className="absolute inset-0 flex items-center justify-center text-[8px] font-bold text-success">88</span>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Category bars */}
+                  {[
+                    { label: 'Keywords Found', value: 91, color: 'bg-success' },
+                    { label: 'Format & Structure', value: 85, color: 'bg-primary' },
+                    { label: 'Quantified Bullets', value: 78, color: 'bg-warning' },
+                    { label: 'Skills Match', value: 94, color: 'bg-success' },
+                  ].map((cat) => (
+                    <div key={cat.label} className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] text-muted-foreground">{cat.label}</span>
+                        <span className="text-[10px] font-semibold text-foreground">{cat.value}%</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div className={`h-full rounded-full ${cat.color}`} style={{ width: `${cat.value}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                  {/* Tip */}
+                  <div className="rounded-lg bg-primary/8 border border-primary/20 px-2.5 py-1.5">
+                    <p className="text-[10px] text-foreground/80 leading-snug">
+                      💡 Add <span className="font-semibold text-primary">3 missing keywords</span> to boost score to 95+
+                    </p>
+                  </div>
+                </div>
                 <Button
                   variant="outline"
                   size="sm"
                   className="w-full max-w-[200px] gap-1.5 touch-manipulation active:scale-95 transition-transform"
                   onClick={() => { triggerHaptic.light(); navigate(isAuthenticated ? '/dashboard' : `/auth?redirect=${encodeURIComponent('/dashboard')}`); }}
                 >
-                  Try the AI Editor <ArrowRight className="w-3.5 h-3.5" />
+                  Check Your ATS Score <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
               </Card>
             </motion.div>
