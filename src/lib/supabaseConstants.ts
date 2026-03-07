@@ -1,11 +1,21 @@
 /**
- * Hardcoded Supabase project constants.
+ * ┌──────────────────────────────────────────────────────────┐
+ * │  PROJECT REFERENCE                                       │
+ * │                                                          │
+ * │  Main Database:  jnsfmkzgxsviuthaqlyy                   │
+ * │  URL: https://jnsfmkzgxsviuthaqlyy.supabase.co          │
+ * │  Purpose: All tables, RLS policies, user data            │
+ * │                                                          │
+ * │  Edge Functions: hjnnamwgztlhzkeuufln (Lovable Cloud)    │
+ * │  URL: https://hjnnamwgztlhzkeuufln.supabase.co           │
+ * │  Purpose: Edge function hosting only                     │
+ * └──────────────────────────────────────────────────────────┘
  *
  * These are intentionally NOT read from environment variables because
  * Lovable Cloud auto-manages VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY
- * and points them at a different project (hjnnamwgztlhzkeuufln).
+ * and points them at the Edge Functions project (hjnnamwgztlhzkeuufln).
  *
- * Our runtime backend is jnsfmkzgxsviuthaqlyy — always.
+ * Our runtime database is jnsfmkzgxsviuthaqlyy — always.
  */
 export const SUPABASE_URL = 'https://jnsfmkzgxsviuthaqlyy.supabase.co';
 export const SUPABASE_ANON_KEY =

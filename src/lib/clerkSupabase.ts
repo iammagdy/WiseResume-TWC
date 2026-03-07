@@ -1,8 +1,8 @@
 /**
  * Clerk-to-Supabase token bridge.
  *
- * Provides helpers to get a Clerk-issued JWT (with `sub` = supabaseUuid)
- * and an authenticated Supabase client that uses that JWT.
+ * Provides helpers to get a Clerk-issued JWT with a custom claim
+ * `supabaseUuid` = the user's database UUID (sub remains the Clerk ID).
  */
 import { useMemo, useCallback } from 'react';
 import { useSession } from '@clerk/clerk-react';
