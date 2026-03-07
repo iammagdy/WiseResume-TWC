@@ -19,14 +19,30 @@ export function DashboardSkeleton() {
         <div className="w-24 h-8 rounded bg-muted" />
         <div className="w-20 h-8 rounded bg-muted" />
       </header>
-      
-      {/* Title Bar */}
+
+      {/* DashboardStats hero card */}
       <div className="px-4 pt-4 pb-3">
-        <div className="w-32 h-7 rounded bg-muted mb-2" />
-        <div className="w-20 h-5 rounded bg-muted" />
+        <div className="rounded-2xl border border-border/40 bg-muted/20 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="w-36 h-6 rounded bg-muted" />
+            <div className="w-16 h-5 rounded-full bg-muted" />
+          </div>
+          <div className="w-48 h-4 rounded bg-muted" />
+          <div className="flex gap-2 pt-1">
+            <div className="h-7 w-24 rounded-full bg-muted" />
+            <div className="h-7 w-20 rounded-full bg-muted" />
+          </div>
+        </div>
       </div>
-      
-      {/* Cards */}
+
+      {/* QuickActionChips row */}
+      <div className="px-4 pb-4 flex gap-2">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="flex-1 h-11 rounded-full bg-muted" />
+        ))}
+      </div>
+
+      {/* Resume cards */}
       <div className="px-4 space-y-3">
         <div className="h-24 bg-muted rounded-xl" />
         <div className="h-24 bg-muted rounded-xl" />
