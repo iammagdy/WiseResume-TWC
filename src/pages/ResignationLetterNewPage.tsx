@@ -15,7 +15,7 @@ import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useResignationLetterMutations } from '@/hooks/useResignationLetters';
 import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
 
-import { SUPABASE_URL } from '@/lib/supabaseConstants';
+import { EDGE_FUNCTIONS_URL } from '@/lib/supabaseConstants';
 import { haptics } from '@/lib/haptics';
 import { useBackNavigation } from '@/hooks/useBackNavigation';
 
