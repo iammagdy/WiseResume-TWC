@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo, useCallback, lazy, Suspense } fro
 import { TemplateSkeleton } from '@/components/layout/PageSkeletons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Download, Share2, Check, FileText, Mic, FolderDown, Palette } from 'lucide-react';
+import { Download, Share2, Check, FileText, Mic, FolderDown, Palette, FileDown } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
