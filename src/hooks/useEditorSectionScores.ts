@@ -17,6 +17,7 @@ interface SectionScores {
   experience: number;
   education: number;
   skills: number;
+  [key: string]: number;
 }
 
 interface EditorSectionScoresResult {
