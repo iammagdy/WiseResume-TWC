@@ -432,6 +432,7 @@ const Index = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            </div>
           ) : (
             /* Guest header: Log in (ghost) + Sign Up (solid) */
             <div className="flex items-center gap-1.5">
