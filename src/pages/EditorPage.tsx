@@ -7,7 +7,7 @@ import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, Sparkles, MessageSquare, Lock, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock, Info, X, Plus, Trophy, Rocket, BookOpen, Heart, Palette, Users, Eye, Award, Globe, PanelLeftClose, PanelLeft, ChevronDown, BarChart3, Undo2, Redo2, Scissors, LayoutTemplate } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 // Tooltip removed – Radix Popper causes infinite setRef loop on this page
-import { calcContactScore, calcSummaryScore, calcExperienceScore, calcEducationScore, calcSkillsScore, calcOverallScore, getSectionStatus, getNextIncompleteSection } from '@/lib/resumeCompletionRules';
+import { getSectionStatus } from '@/lib/resumeCompletionRules';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { StepperNav } from '@/components/editor/StepperNav';
 import { SectionCard } from '@/components/editor/SectionCard';
