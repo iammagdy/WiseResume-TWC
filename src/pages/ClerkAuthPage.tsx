@@ -503,6 +503,6 @@ export default function ClerkAuthPage() {
         </motion.div>
         </div>{/* end gradient border wrapper */}
       </div>
-    </MobileLayout>
+    </div>
   );
 }
