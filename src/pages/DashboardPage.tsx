@@ -91,7 +91,12 @@ function DashboardPageContent() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
-  const [activeTab, setActiveTab] = useState('my-cvs');
+  const [searchQuery, setSearchQuery] = useState(
+    () => sessionStorage.getItem('wr-dash-search') || ''
+  );
+  const [activeTab, setActiveTab] = useState(
+    () => sessionStorage.getItem('wr-dash-tab') || 'my-cvs'
+  );
   const [showTrustBanner, setShowTrustBanner] = useState(() => {
     const visitCount = parseInt(localStorage.getItem('wr-trust-banner-visits') || '0', 10);
     if (visitCount >= 3 || localStorage.getItem('wr-trust-banner-seen')) return false;
