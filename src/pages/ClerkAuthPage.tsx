@@ -285,13 +285,14 @@ export default function ClerkAuthPage() {
 
   if (!isReady || authLoading) {
     return (
-      <MobileLayout>
+      <div className="relative isolate min-h-[100dvh] flex flex-col overflow-hidden">
         <AuthBackground />
-        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <OfflineBanner />
+        <div className="flex-1 flex flex-col items-center justify-center gap-3">
           <MiniSpinner size={32} />
           {authLoading && <p className="text-sm text-muted-foreground">Setting up your account...</p>}
         </div>
-      </MobileLayout>
+      </div>
     );
   }
 
