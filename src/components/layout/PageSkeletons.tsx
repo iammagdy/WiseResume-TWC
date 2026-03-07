@@ -168,16 +168,26 @@ export function SettingsSkeleton() {
 export function PreviewSkeleton() {
   return (
     <div className="flex-1 flex flex-col animate-pulse">
-      {/* Template Switcher */}
-      <div className="px-4 py-3 border-b border-border flex gap-2">
-        {[1, 2, 3, 4].map(i => (
-          <div key={i} className="h-8 w-20 bg-muted rounded-full flex-shrink-0" />
-        ))}
+      {/* Header bar — back button + title + action icons */}
+      <header className="flex items-center gap-2 px-4 h-14 border-b border-border bg-background/80 shrink-0">
+        <div className="w-9 h-9 rounded-xl bg-muted shrink-0" />
+        <div className="flex-1 h-5 rounded bg-muted max-w-[140px]" />
+        <div className="ml-auto flex items-center gap-2">
+          <div className="w-9 h-9 rounded-xl bg-muted" />
+          <div className="w-9 h-9 rounded-xl bg-muted" />
+        </div>
+      </header>
+
+      {/* Preview area — A4-shaped card */}
+      <div className="flex-1 p-4 flex flex-col items-center gap-4 overflow-hidden">
+        <div className="bg-muted rounded-lg w-full mx-auto shadow-sm" style={{ maxWidth: 480, aspectRatio: '210/297' }} />
       </div>
-      
-      {/* Preview Area */}
-      <div className="flex-1 p-4 bg-muted/30">
-        <div className="bg-card mx-auto shadow-lg" style={{ maxWidth: 612, height: 400 }} />
+
+      {/* Bottom action toolbar */}
+      <div className="shrink-0 px-4 pb-4 pt-2 flex gap-2">
+        <div className="flex-1 h-12 rounded-2xl bg-muted" />
+        <div className="w-12 h-12 rounded-2xl bg-muted" />
+        <div className="w-12 h-12 rounded-2xl bg-muted" />
       </div>
     </div>
   );
