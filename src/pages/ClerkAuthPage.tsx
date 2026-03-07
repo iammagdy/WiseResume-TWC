@@ -48,8 +48,9 @@ function AuthBackground() {
 
   return (
     <>
-      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none" aria-hidden="true">
-        {/* Deep space base — richer directional gradient with warmth */}
+      {/* Contained within the isolate parent via absolute positioning */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+        {/* Deep space base */}
         <div
           className="absolute inset-0"
           style={{
@@ -58,7 +59,7 @@ function AuthBackground() {
           }}
         />
 
-        {/* Primary blob — top right (brand red) — boosted to 0.35 */}
+        {/* Primary blob — top right (brand red) */}
         <div
           style={{
             position: 'absolute',
@@ -72,7 +73,7 @@ function AuthBackground() {
           }}
         />
 
-        {/* Cyan blob — bottom left — boosted to 0.28 */}
+        {/* Cyan blob — bottom left */}
         <div
           style={{
             position: 'absolute',
@@ -86,7 +87,7 @@ function AuthBackground() {
           }}
         />
 
-        {/* Accent purple blob — mid-center — boosted to 0.22 */}
+        {/* Accent purple blob — mid-center */}
         <div
           style={{
             position: 'absolute',
@@ -100,7 +101,7 @@ function AuthBackground() {
           }}
         />
 
-        {/* Pink blob — bottom right — boosted to 0.18 */}
+        {/* Pink blob — bottom right */}
         <div
           style={{
             position: 'absolute',
