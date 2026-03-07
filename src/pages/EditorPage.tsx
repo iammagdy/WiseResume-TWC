@@ -84,7 +84,9 @@ import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 import { getBackRoute } from '@/lib/navigation';
 import { UnsavedChangesDialog } from '@/components/editor/UnsavedChangesDialog';
 import { useBackButton } from '@/hooks/useBackButton';
-import { useAppLifecycle } from '@/hooks/useAppLifecycle';
+import { useEditorHydration } from '@/hooks/useEditorHydration';
+import { useEditorAutosave } from '@/hooks/useEditorAutosave';
+import { useEditorSectionScores } from '@/hooks/useEditorSectionScores';
 export default function EditorPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
