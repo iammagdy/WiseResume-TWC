@@ -1,8 +1,28 @@
 [
   {
+    "version": "v2.4.0",
+    "date": "Mar 7, 2026",
+    "latest": true,
+    "summary": "The home screen now knows who you are — returning users get a personalised quick-launch hub, while new visitors see a clean, focused app-store-style landing page.",
+    "items": [
+      {
+        "title": "Personalised home for signed-in users",
+        "description": "When you open WiseResume while logged in, you now land on a personal hub with a 'Hey [Name] 👋' greeting and a quick-action grid — My Resumes, Tailor to Job, My Portfolio, and Interview Prep — instead of a marketing page. No more scrolling past features you already know."
+      },
+      {
+        "title": "Cleaner guest landing page",
+        "description": "Visitors who haven't signed up yet now see a streamlined, app-store-style landing with a prominent Sign Up button and a subtle Log In link — making the first step crystal clear."
+      },
+      {
+        "title": "Live AI editor demo in 'See It in Action'",
+        "description": "The animated AI Resume Editor demo now loops continuously in the 'See It in Action' section — watch it type, enhance, and score a bullet in real time — right alongside the Portfolio Builder demo."
+      }
+    ]
+  },
+  {
     "version": "v2.3.1",
     "date": "Feb 20, 2026",
-    "latest": true,
+    "latest": false,
     "summary": "A quick polish pass -- the splash screen now features a twinkling star-field and you can replay it any time from Settings.",
     "items": [
       {
