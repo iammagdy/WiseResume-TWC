@@ -21,7 +21,7 @@ const levelLabels: Record<string, string> = {
 
 export const ExampleCard = memo(function ExampleCard({ example, onView, onUseTemplate }: ExampleCardProps) {
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden border-glow">
       <CardContent className="p-4 flex flex-col gap-3">
         {/* Header row */}
         <div className="flex items-start justify-between gap-2">

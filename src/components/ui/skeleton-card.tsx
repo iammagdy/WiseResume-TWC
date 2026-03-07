@@ -13,7 +13,7 @@ export function SkeletonCard({ className, delay = 0 }: SkeletonCardProps) {
       animate={{ opacity: 1 }}
       transition={{ delay }}
       className={cn(
-        'glass rounded-xl border border-border p-4',
+        'glass rounded-xl border-glow p-4',
         className
       )}
     >

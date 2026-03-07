@@ -167,7 +167,7 @@ export const ResumeListCard = memo(function ResumeListCard({
   return (
     <div className={cn(
       "relative overflow-hidden rounded-2xl border-l-4 transition-colors duration-500",
-      "border-l-primary/20",
+      "border-l-primary/20 border-glow",
     )}>
       {/* Swipe action backgrounds */}
       <div className="absolute inset-0 flex">
