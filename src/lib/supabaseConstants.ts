@@ -24,7 +24,7 @@ export const SUPABASE_ANON_KEY =
  * regardless of Vite env-var injection.
  */
 export const CLERK_PUBLISHABLE_KEY =
-  'pk_test_YnJpZ2h0LWdob3N0LTM0LmNsZXJrLmFjY291bnRzLmRldiQ';
+  'pk_live_Y2xlcmsudGhld2lzZS5jbG91ZCQ';
 
 /**
  * Edge functions now run on the SAME project as the database.
