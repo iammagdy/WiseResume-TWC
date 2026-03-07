@@ -144,6 +144,9 @@ export default function EditorPage() {
 
   const { isSyncing } = useOfflineSync();
   const addPendingChange = useOfflineSyncStore(s => s.addPendingChange);
+  const pendingCountForResume = useOfflineSyncStore(
+    s => s.pendingChanges.filter(c => c.resumeId === currentResumeId).length
+  );
 
   const [showJobSheet, setShowJobSheet] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
