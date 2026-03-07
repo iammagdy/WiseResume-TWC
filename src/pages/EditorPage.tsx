@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } fro
 import { logAudit } from '@/lib/auditLogger';
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
-import { Check, Cloud, CloudOff, Sparkles, ChevronDown, BarChart3, Scissors } from 'lucide-react';
+import { Check, Cloud, CloudOff, Sparkles, ChevronDown, BarChart3, Scissors, Save, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 // Tooltip removed – Radix Popper causes infinite setRef loop on this page
 import { ErrorBoundary } from '@/components/ErrorBoundary';

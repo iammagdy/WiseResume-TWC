@@ -18,8 +18,10 @@ import {
   Plus,
   Eye,
   Download,
-  Share2
+  Share2,
+  CloudOff
 } from 'lucide-react';
+import { useOfflineSyncStore } from '@/store/offlineSyncStore';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';

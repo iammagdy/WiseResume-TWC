@@ -143,9 +143,12 @@ export function useEditorAutosave({
   useEffect(() => {
     if (!user || !currentResumeId || !resumeRef.current) return;
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    // Use a longer debounce for the very first save of a session so the Clerk JWT
+    // has time to warm up before we attempt the first network write.
+    const debounceMs = lastSavedResumeRef.current === '' ? 5000 : 3000;
     saveTimeoutRef.current = setTimeout(() => {
       saveToCloud();
-    }, 3000);
+    }, debounceMs);
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
