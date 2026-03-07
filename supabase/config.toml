@@ -122,3 +122,9 @@ verify_jwt = false
 
 [functions.clerk-webhook]
 verify_jwt = false
+
+[functions.provision-clerk-user]
+verify_jwt = false
+
+[functions.repair-user-uuid]
+verify_jwt = false
