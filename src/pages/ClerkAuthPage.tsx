@@ -300,6 +300,13 @@ export default function ClerkAuthPage() {
     <div className="relative isolate min-h-[100dvh] flex flex-col overflow-hidden">
       <AuthBackground />
       <OfflineBanner />
+      <button
+        onClick={() => navigate('/')}
+        className="absolute top-4 left-4 z-10 p-2 rounded-xl hover:bg-white/10 active:scale-95 transition-all touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center text-white/70 hover:text-white"
+        aria-label="Back to home"
+      >
+        <ArrowLeft className="w-5 h-5" />
+      </button>
       <div className="flex-1 flex items-center justify-center px-6 py-8">
         {/* Gradient border wrapper */}
         <div
