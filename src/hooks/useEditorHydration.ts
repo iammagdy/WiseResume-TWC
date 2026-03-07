@@ -14,7 +14,6 @@ interface DatabaseResumeLike {
   template_id?: string | null;
   title: string;
   parent_resume_id?: string | null;
-  [key: string]: unknown;
 }
 
 interface UseEditorHydrationOptions {
