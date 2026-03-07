@@ -55,6 +55,8 @@ export interface EditorSectionContentProps {
   clearDeepResult: (section: SectionId) => void;
 }
 
+const ONBOARDING_HINT_KEY = 'wr-onboarding-hint-seen';
+
 export function EditorSectionContent({
   activeTab,
   sectionScores,
@@ -71,6 +73,18 @@ export function EditorSectionContent({
   clearDeepResult,
 }: EditorSectionContentProps) {
   const navigate = useNavigate();
+
+  // First-visit onboarding banner — shown only on blank resumes, dismissed via localStorage
+  const [bannerDismissed, setBannerDismissed] = useState(
+    () => !!localStorage.getItem(ONBOARDING_HINT_KEY)
+  );
+  const showOnboardingBanner =
+    !bannerDismissed && activeTab === 'contact' && sectionScores.contact === 0;
+
+  const handleDismissBanner = () => {
+    localStorage.setItem(ONBOARDING_HINT_KEY, 'true');
+    setBannerDismissed(true);
+  };
 
   return (
     <>
