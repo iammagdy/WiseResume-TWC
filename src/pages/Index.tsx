@@ -318,6 +318,7 @@ const Index = () => {
           )}
         </div>
       </header>
+      <GuestSaveBanner />
 
       <main className="min-h-screen pb-12 max-w-4xl mx-auto w-full">
         {/* Hero */}
