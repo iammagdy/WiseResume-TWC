@@ -357,13 +357,6 @@ const Index = () => {
             The only resume app that <span className="text-foreground font-medium">coaches your interview</span>, <span className="text-foreground font-medium">scores your ATS match</span>, and <span className="text-foreground font-medium">builds your portfolio site</span> — all in one.
           </motion.p>
 
-          {/* Hero — animated EditorDemo */}
-          <motion.div
-            className="w-full flex justify-center mb-5"
-            {...fade(0.18)}
-          >
-            <EditorDemo />
-          </motion.div>
 
           <motion.div className="w-full flex justify-center" {...fade(0.2)}>
             <motion.div
