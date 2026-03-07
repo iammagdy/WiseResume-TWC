@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type { LucideIcon } from 'lucide-react';
 import { ChevronLeft, ChevronRight, Download, Plus, Trophy, Rocket, Award, BookOpen, Heart, Palette, Globe, Users } from 'lucide-react';
 import { User, AlignLeft, Briefcase, GraduationCap, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
