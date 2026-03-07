@@ -388,6 +388,11 @@ export const ExperienceSection = memo(function ExperienceSection() {
                               hasContent={!!exp.description?.trim()}
                             />
                           </div>
+                          {!exp.description?.trim() && (
+                            <p className="text-xs text-muted-foreground mb-2 leading-snug">
+                              Tip: Start each line with an action verb — e.g. &ldquo;Led&rdquo;, &ldquo;Built&rdquo;, &ldquo;Improved&rdquo; — and include a result or metric where possible.
+                            </p>
+                          )}
                           <Textarea
                             dir="auto"
                             value={exp.description}

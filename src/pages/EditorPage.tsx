@@ -56,7 +56,7 @@ import { useEditorSectionScores } from '@/hooks/useEditorSectionScores';
 import { useATSSuggestions } from '@/hooks/useATSSuggestions';
 import { AIIntroTooltip } from '@/components/editor/AIIntroTooltip';
 import { ProgressBar } from '@/components/editor/ProgressBar';
-import { Tabs, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { EditorHeader } from '@/components/editor/EditorHeader';
 import { EditorSectionContent } from '@/components/editor/EditorSectionContent';
 import { AddSectionSheet } from '@/components/editor/AddSectionSheet';
@@ -393,7 +393,7 @@ export default function EditorPage() {
     const base = [
       { id: 'contact', label: 'Contact' },
       { id: 'summary', label: 'Summary' },
-      { id: 'experience', label: 'Work' },
+      { id: 'experience', label: 'Experience' },
       { id: 'education', label: 'Education' },
       { id: 'skills', label: 'Skills' },
     ];
@@ -690,6 +690,12 @@ export default function EditorPage() {
           onValueChange={(v) => setMobileEditorTab(v as 'editor' | 'preview' | 'ats')}
           className="flex-1 flex flex-col min-h-0 overflow-hidden"
         >
+          {/* Mobile tab switcher — Edit / Preview / ATS */}
+          <TabsList className="shrink-0 grid grid-cols-3 mx-4 mt-2 mb-1 h-9">
+            <TabsTrigger value="editor" className="text-xs">Edit</TabsTrigger>
+            <TabsTrigger value="preview" className="text-xs">Preview</TabsTrigger>
+            <TabsTrigger value="ats" className="text-xs">ATS</TabsTrigger>
+          </TabsList>
           <TabsContent value="editor" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
             <div
               className="editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-3 pb-24 space-y-0"
