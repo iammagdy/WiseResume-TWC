@@ -140,67 +140,20 @@ export default function EditorPage() {
     };
   }, [currentResumeId]);
 
-  // Single hydration effect: sync DB data into Zustand store + ownership check
-  // Also detects stale resume (Fix 2): if server version is newer than local, auto-refresh or show conflict banner
-  const localLoadedAtRef = useRef<string | null>(null);
-  const lastLocalEditAtRef = useRef<number>(0);
-  const lastRefreshedServerTs = useRef<string | null>(null);
+  // Track last saved version to detect changes (declared here so both hooks share it)
+  const lastSavedResumeRef = useRef<string>('');
   const isSavingRef = useRef(false);
 
-  useEffect(() => {
-    if (!resumeFromDb || !currentResumeId) return;
-
-    // Ownership check
-    if (user && resumeFromDb.user_id !== user.id) {
-      setCurrentResumeId(null);
-      toast.error('Access denied.');
-      navigate('/dashboard', { replace: true });
-      return;
-    }
-
-    const localResume = useResumeStore.getState().currentResume;
-
-    // Initial hydration: store is empty → just load from DB
-    if (!localResume) {
-      useResumeStore.getState().setCurrentResume(dbToResumeData(resumeFromDb));
-      useResumeStore.getState().setSelectedTemplate(
-        (resumeFromDb.template_id || 'modern') as import('@/types/resume').TemplateId
-      );
-      localLoadedAtRef.current = resumeFromDb.updated_at ?? null;
-      lastSavedResumeRef.current = JSON.stringify(dbToResumeData(resumeFromDb));
-      logAudit('account', 'editor_session_started', {
-        resumeId: currentResumeId,
-        resumeTitle: resumeFromDb.title,
-      });
-      return;
-    }
-
-    // Stale-resume detection on subsequent React Query refetches
-    const serverUpdatedAt = resumeFromDb.updated_at;
-    const localLoadedAt = localLoadedAtRef.current;
-    if (
-      !isSavingRef.current &&
-      serverUpdatedAt &&
-      localLoadedAt &&
-      Date.parse(serverUpdatedAt) > Date.parse(localLoadedAt) &&
-      serverUpdatedAt !== lastRefreshedServerTs.current
-    ) {
-      const isClean = lastSavedResumeRef.current === JSON.stringify(localResume);
-      useResumeStore.getState().setCurrentResume(dbToResumeData(resumeFromDb));
-      useResumeStore.getState().setSelectedTemplate(
-        (resumeFromDb.template_id || 'modern') as import('@/types/resume').TemplateId
-      );
-      localLoadedAtRef.current = serverUpdatedAt;
-      lastSavedResumeRef.current = JSON.stringify(dbToResumeData(resumeFromDb));
-      lastRefreshedServerTs.current = serverUpdatedAt;
-      toast.info(
-        isClean
-          ? 'Resume updated — refreshed to latest version.'
-          : 'Resume updated from another device — refreshed to latest version.',
-        { duration: 3000 }
-      );
-    }
-  }, [resumeFromDb, currentResumeId, user, setCurrentResumeId, navigate]);
+  // Hook 1: DB→Zustand hydration, ownership check, stale-resume detection
+  const { localLoadedAtRef } = useEditorHydration({
+    resumeFromDb,
+    currentResumeId,
+    user,
+    setCurrentResumeId,
+    navigate,
+    lastSavedResumeRef,
+    isSavingRef,
+  });
 
   // Safety timeout: if no resume after 8s, bail out (independent of storeHydrated)
   useEffect(() => {
