@@ -321,7 +321,7 @@ const Index = () => {
 
       <main className="min-h-screen pb-12 max-w-4xl mx-auto w-full">
         {/* Hero */}
-        <section className="flex flex-col items-center text-center px-4 sm:px-6 pt-20 pb-8 min-h-[520px] sm:min-h-[560px]">
+        <section className="flex flex-col items-center text-center px-4 sm:px-6 pt-[calc(5rem+env(safe-area-inset-top))] pb-8 min-h-[520px] sm:min-h-[560px]">
           <motion.div className="relative mb-6" {...fade(0)}>
             <div
               className="absolute inset-0 rounded-3xl blur-2xl opacity-50 animate-glow-pulse"
