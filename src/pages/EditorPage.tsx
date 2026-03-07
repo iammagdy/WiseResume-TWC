@@ -393,7 +393,7 @@ export default function EditorPage() {
     const base = [
       { id: 'contact', label: 'Contact' },
       { id: 'summary', label: 'Summary' },
-      { id: 'experience', label: 'Work' },
+      { id: 'experience', label: 'Experience' },
       { id: 'education', label: 'Education' },
       { id: 'skills', label: 'Skills' },
     ];
