@@ -7,6 +7,16 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-07
+- Issue ID: ISSUE-C (A-1 + A-2 fixes)
+- Summary: Fixed the two Critical auth issues identified in the ISSUE-C audit. (1) **A-1 — Forgot password flow** — Extended `Mode` type with `'forgot-password'` and `'reset-password'`. Added a `handleForgotPassword` handler that calls `signIn.create({ strategy: 'reset_password_email_code' })` and a `handleResetPassword` handler that calls `signIn.attemptFirstFactor` then sets the session. Added two new animated screens inside `AnimatePresence`. Added a "Forgot password?" text-link below the password field on the sign-in form. `ResetPasswordPage` already redirects to `/auth?mode=forgot`; extended `initialMode` to map that to `'forgot-password'`. (2) **A-2 — Resend code** — Added a `handleResendCode` callback that calls `signUp.prepareEmailAddressVerification({ strategy: 'email_code' })` with `resendLoading` guard. Added a "Resend code" ghost button on the verify-email screen between "Verify & Continue" and "Back". Header copy (`headingText`/`subtitleText` records) extended to cover all five modes.
+- Files touched:
+  - `src/pages/ClerkAuthPage.tsx` (only file changed — extended Mode type, added 3 handlers, added 2 new screens, added "Forgot password?" link and "Resend code" button)
+  - `enhancements-for-vibe-coding/CHANGELOG-local.md` (this entry)
+- Notes / Constraints: No other files touched. `ResetPasswordPage.tsx`, `App.tsx`, `types.ts`, `client.ts` all untouched. Clerk integration uses only existing `useSignIn`/`useSignUp` hook methods. No new dependencies. No layout or styling redesign.
+
+---
+
+- Date: 2026-03-07
 - Issue ID: ISSUE-C
 - Summary: Completed a full UI/UX audit of the entire WiseResume application (landing page, auth, dashboard, editor, preview, share, portfolio editor, public portfolio, applications, AI studio, settings, interview, and profile pages). Found 2 Critical issues, 22 Medium issues, and 18 Low/polish issues. All findings documented with severity ratings, specific file/component references, and recommended fixes. No code changes were made. Full report written to `enhancements-for-vibe-coding/UI-UX-AUDIT.md`.
 - Files touched:
