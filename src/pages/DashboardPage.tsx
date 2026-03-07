@@ -103,6 +103,11 @@ function DashboardPageContent() {
   const [showTrash, setShowTrash] = useState(false);
   const { data: trashedResumes = [] } = useTrashedResumes();
 
+  // Pagination: render at most PAGE_SIZE items initially, reveal more on demand
+  const PAGE_SIZE = 10;
+  const [visibleMyCVs, setVisibleMyCVs] = useState(PAGE_SIZE);
+  const [visibleTailored, setVisibleTailored] = useState(PAGE_SIZE);
+
   // Track session count for progressive disclosure
   useEffect(() => { trackSession(); }, []);
 
