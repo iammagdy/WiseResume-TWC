@@ -313,7 +313,8 @@ export default function EditorPage() {
   // Network status for enhanced save indicator
   const { isOnline } = useNetworkStatus();
 
-    const currentResumeJson = JSON.stringify(resume);
+  // Undo/Redo system
+  const { canUndo, canRedo, undoDescription, redoDescription, undo, redo } = useUndoRedo(currentResume);
     if (currentResumeJson === lastSavedResumeRef.current) return;
 
     // Fix 3: Pre-save online conflict guard
