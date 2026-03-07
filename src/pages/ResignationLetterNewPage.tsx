@@ -115,7 +115,7 @@ export default function ResignationLetterNewPage() {
     try {
       const token = await getClerkSupabaseToken();
       const response = await fetch(
-        `${SUPABASE_URL}/functions/v1/generate-resignation-letter`,
+        `${EDGE_FUNCTIONS_URL}/functions/v1/generate-resignation-letter`,
         {
           method: 'POST',
           headers: {

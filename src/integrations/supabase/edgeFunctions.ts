@@ -1,11 +1,15 @@
-import { supabase } from './safeClient';
+import { createClient } from '@supabase/supabase-js';
+import { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY } from '@/lib/supabaseConstants';
 import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
 
 /**
- * Authenticated edge function client.
- * Reuses the safeClient instance to avoid extra GoTrueClient warnings.
- * Uses Clerk-issued Supabase JWT for authentication.
+ * Authenticated edge function client pointing at the Lovable Cloud project
+ * where edge functions are actually deployed.
  */
+const edgeClient = createClient(EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
+
 export const edgeFunctions = {
   functions: {
     invoke: async (fnName: string, options?: { body?: any; headers?: Record<string, string> }) => {
@@ -18,7 +22,7 @@ export const edgeFunctions = {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      return supabase.functions.invoke(fnName, {
+      return edgeClient.functions.invoke(fnName, {
         ...options,
         headers,
       });
