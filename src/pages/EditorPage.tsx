@@ -315,9 +315,8 @@ export default function EditorPage() {
 
   // Undo/Redo system
   const { canUndo, canRedo, undoDescription, redoDescription, undo, redo } = useUndoRedo(currentResume);
-    if (currentResumeJson === lastSavedResumeRef.current) return;
 
-    // Fix 3: Pre-save online conflict guard
+
     // Compare the server's updated_at (from React Query cache) against the timestamp
     // we recorded when this session first loaded the resume. If another device has
     // saved since we loaded, block the write and show the conflict dialog instead.
