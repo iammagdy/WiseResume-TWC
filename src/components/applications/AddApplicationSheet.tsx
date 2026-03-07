@@ -9,7 +9,7 @@ import { useJobApplicationMutations, ApplicationStatus } from '@/hooks/useJobApp
 import { useQuery } from '@tanstack/react-query';
 import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
 
-import { SUPABASE_URL, SUPABASE_ANON_KEY as SUPABASE_PUBLISHABLE_KEY } from '@/lib/supabaseConstants';
+import { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY } from '@/lib/supabaseConstants';
 import { useAuth } from '@/hooks/useAuth';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { toast } from 'sonner';
