@@ -505,6 +505,10 @@ export default function ClerkAuthPage() {
                           autoComplete="username"
                           required
                         />
+                        {/* A-3: Portfolio URL helper text */}
+                        <p className="text-[11px] text-muted-foreground -mt-2 px-1">
+                          Your public portfolio: thewise.cloud/p/{username || 'username'}
+                        </p>
                       </>
                     )}
                     <InputFormField
@@ -530,7 +534,7 @@ export default function ClerkAuthPage() {
                         required
                       />
                       {/* A-1: Forgot password link (sign-in only) */}
-                      {mode === 'sign-in' && (
+                      {mode === 'sign-in' ? (
                         <div className="flex justify-end">
                           <button
                             type="button"
@@ -540,6 +544,9 @@ export default function ClerkAuthPage() {
                             Forgot password?
                           </button>
                         </div>
+                      ) : (
+                        /* A-4: Password strength meter (sign-up only) */
+                        <PasswordStrengthMeter password={password} />
                       )}
                     </div>
                     <Button
