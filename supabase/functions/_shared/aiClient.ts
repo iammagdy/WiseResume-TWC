@@ -152,10 +152,7 @@ export async function getUserKeyAndUrlFromDB(userId: string, provider: string): 
   if (!ENCRYPTION_SECRET) return undefined;
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
+    const supabase = getServiceClient();
 
     const { data, error } = await supabase
       .from('user_api_keys')
