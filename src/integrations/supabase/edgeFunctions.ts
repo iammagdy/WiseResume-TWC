@@ -28,7 +28,7 @@ export const edgeFunctions = {
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        'apikey': SUPABASE_ANON_KEY,
+        'apikey': EDGE_FUNCTIONS_ANON_KEY,
         ...(options?.headers || {}),
       };
 
