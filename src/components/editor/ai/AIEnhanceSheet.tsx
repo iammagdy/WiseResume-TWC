@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { useResumeStore } from '@/store/resumeStore';
-import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
+import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { trackGeminiUsage } from '@/lib/aiProvider';
 import { useAICreditsMutations } from '@/hooks/useAICredits';
 import { toast } from 'sonner';
