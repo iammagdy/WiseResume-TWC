@@ -32,11 +32,11 @@ Deno.serve(async (req) => {
     );
   }
 
-  // Supabase automatically injects SUPABASE_JWT_SECRET into edge functions
-  const supabaseJwtSecret = Deno.env.get('SUPABASE_JWT_SECRET');
+  // The Supabase JWT secret stored as APP_JWT_SECRET
+  const supabaseJwtSecret = Deno.env.get('APP_JWT_SECRET');
   if (!supabaseJwtSecret) {
     return new Response(
-      JSON.stringify({ error: 'SUPABASE_JWT_SECRET not available in this runtime' }),
+      JSON.stringify({ error: 'APP_JWT_SECRET not configured' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Update existing template
+    // Update existing template — Clerk PATCH requires `name` to be included
     const patchResp = await fetch(
       `https://api.clerk.com/v1/jwt_templates/${supabaseTemplate.id}`,
       {
@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
           Authorization: `Bearer ${clerkSecretKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(patchBody),
+        body: JSON.stringify({ ...patchBody, name: CLERK_TEMPLATE_NAME }),
       }
     );
 
