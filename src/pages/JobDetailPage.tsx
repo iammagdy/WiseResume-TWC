@@ -12,7 +12,7 @@ import { useJobApplicationMutations } from '@/hooks/useJobApplications';
 import { useResumes } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { DetailSkeleton } from '@/components/layout/PageSkeletons';
+import { toast } from 'sonner';
 
 export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();

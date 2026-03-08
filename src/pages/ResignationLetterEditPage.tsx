@@ -17,7 +17,7 @@ import { EDGE_FUNCTIONS_URL } from '@/lib/supabaseConstants';
 import { haptics } from '@/lib/haptics';
 
 import { toast } from 'sonner';
-import { DetailSkeleton } from '@/components/layout/PageSkeletons';
+
 import {
   AlertDialog,
   AlertDialogAction,

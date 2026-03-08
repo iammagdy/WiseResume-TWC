@@ -16,7 +16,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { FollowUpEmailSheet } from '@/components/applications/FollowUpEmailSheet';
 import { HiredCelebrationModal } from '@/components/dashboard/HiredCelebrationModal';
 import { toast } from 'sonner';
-import { DetailSkeleton } from '@/components/layout/PageSkeletons';
+import { toast } from 'sonner';
 
 const STAGES: { key: ApplicationStatus; label: string }[] = [
   { key: 'saved', label: 'Saved' },

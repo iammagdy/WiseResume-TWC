@@ -24,7 +24,7 @@ import { SetupTab } from '@/components/portfolio/editor/SetupTab';
 import { DesignTab } from '@/components/portfolio/editor/DesignTab';
 import { MoreTab } from '@/components/portfolio/editor/MoreTab';
 import { SaveBar } from '@/components/portfolio/editor/SaveBar';
-import { PortfolioEditorSkeleton } from '@/components/layout/PageSkeletons';
+
 
 export default function PortfolioEditorPage() {
   const { user } = useAuth();

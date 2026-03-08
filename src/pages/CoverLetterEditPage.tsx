@@ -15,7 +15,7 @@ import { generateCoverLetter } from '@/lib/aiTailor';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 
-import { DetailSkeleton } from '@/components/layout/PageSkeletons';
+
 import {
   Sheet,
   SheetContent,
