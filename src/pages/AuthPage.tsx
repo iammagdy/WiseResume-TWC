@@ -14,7 +14,7 @@ import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
 import { supabase } from '@/integrations/supabase/safeClient';
 
-type Mode = 'sign-in' | 'sign-up' | 'forgot-password';
+type Mode = 'sign-in' | 'sign-up' | 'forgot-password' | 'reset-password';
 
 export default function AuthPage() {
   const navigate = useNavigate();
@@ -26,6 +26,7 @@ export default function AuthPage() {
   const initialMode: Mode =
     rawMode === 'signup' ? 'sign-up'
     : rawMode === 'forgot' ? 'forgot-password'
+    : rawMode === 'reset' ? 'reset-password'
     : 'sign-in';
 
   // Redirect if already authenticated
@@ -41,6 +42,9 @@ export default function AuthPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRecoveryVerified, setIsRecoveryVerified] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   // Show session expired toast if redirected with reason
   useEffect(() => {
@@ -48,6 +52,54 @@ export default function AuthPage() {
       toast.info('Your session has expired. Please sign in again.');
     }
   }, [searchParams]);
+
+  // Handle recovery token verification for reset-password mode
+  useEffect(() => {
+    if (mode !== 'reset-password') return;
+
+    const tokenHash = searchParams.get('token_hash');
+    const type = searchParams.get('type');
+
+    if (tokenHash && type === 'recovery') {
+      supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' })
+        .then(({ error }) => {
+          if (error) {
+            toast.error(error.message || 'Invalid or expired reset link');
+            setMode('forgot-password');
+          } else {
+            setIsRecoveryVerified(true);
+          }
+        });
+    }
+
+    // Also listen for PASSWORD_RECOVERY event as fallback
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsRecoveryVerified(true);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [mode, searchParams]);
+
+  const handleResetPassword = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword) return;
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        toast.error(error.message || 'Failed to reset password');
+      } else {
+        toast.success('Password updated successfully!');
+        navigate('/dashboard', { replace: true });
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to reset password');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [newPassword, navigate]);
 
   const handleEmailSignIn = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,12 +154,12 @@ export default function AuthPage() {
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${window.location.origin}/auth?mode=reset`,
       });
       if (error) {
         toast.error(error.message || 'Failed to send reset email');
       } else {
-        toast.success('Check your email for a password reset link');
+        toast.success('If an account exists with that email, you\'ll receive a reset link shortly');
         setMode('sign-in');
       }
     } catch (err: any) {
@@ -128,11 +180,13 @@ export default function AuthPage() {
     'sign-in': 'Welcome back',
     'sign-up': 'Create your account',
     'forgot-password': 'Reset your password',
+    'reset-password': 'Set new password',
   };
   const subtitleText: Record<Mode, string> = {
     'sign-in': 'Sign in to continue to WiseResume',
     'sign-up': 'Get started with WiseResume',
     'forgot-password': "Enter your email and we\u2019ll send a reset link",
+    'reset-password': 'Choose a new password for your account',
   };
 
   if (authLoading) {
@@ -238,6 +292,47 @@ export default function AuthPage() {
                     <ArrowLeft className="w-4 h-4" /> Back to sign in
                   </Button>
                 </motion.form>
+              )}
+
+              {/* ── reset-password ── */}
+              {mode === 'reset-password' && (
+                <motion.div
+                  key="reset-password"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-4"
+                >
+                  {!isRecoveryVerified ? (
+                    <div className="flex flex-col items-center gap-3 py-4">
+                      <MiniSpinner size={24} />
+                      <p className="text-sm text-muted-foreground">Verifying reset link...</p>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleResetPassword} className="space-y-4">
+                      <PasswordInput
+                        id="new-password"
+                        label="New password"
+                        value={newPassword}
+                        onChange={setNewPassword}
+                        show={showNewPassword}
+                        onToggleShow={() => setShowNewPassword(!showNewPassword)}
+                        autoComplete="new-password"
+                        placeholder="Choose a new password"
+                        required
+                      />
+                      <PasswordStrengthMeter password={newPassword} />
+                      <Button
+                        type="submit"
+                        size="lg"
+                        className="w-full h-12 text-base font-semibold gradient-primary glow-primary"
+                        disabled={isLoading || !newPassword}
+                      >
+                        {isLoading ? <MiniSpinner size={20} /> : 'Set new password'}
+                      </Button>
+                    </form>
+                  )}
+                </motion.div>
               )}
 
               {/* ── sign-in / sign-up ── */}
