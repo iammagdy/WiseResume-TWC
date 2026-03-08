@@ -4,7 +4,6 @@ import * as React from 'npm:react@18.3.1'
 
 import {
   Body,
-  Button,
   Container,
   Head,
   Heading,
@@ -33,31 +32,49 @@ export const SignupEmail = ({
     <Head />
     <Preview>Welcome to WiseResume — verify your email to get started</Preview>
     <Body style={main}>
-      <Container style={container}>
-        <Section style={logoSection}>
-          <Img src={logoUrl} width="48" height="48" alt="WiseResume" style={logoImg} />
+      <Container style={wrapper}>
+        {/* Dark header band */}
+        <Section style={header}>
+          <Img src={logoUrl} width="40" height="40" alt="WiseResume" style={headerLogo} />
+          <Text style={headerText}>WiseResume</Text>
         </Section>
 
-        <Heading style={h1}>Welcome to WiseResume</Heading>
-        <Text style={text}>
-          Thanks for signing up! Verify your email address (
-          <Link href={`mailto:${recipient}`} style={link}>{recipient}</Link>
-          ) to start building your career story.
-        </Text>
+        {/* Red accent divider */}
+        <Section style={accentDivider} />
 
-        <Section style={buttonSection}>
-          <Button style={button} href={confirmationUrl}>
-            Verify Email
-          </Button>
+        {/* Content card */}
+        <Section style={card}>
+          <Text style={emoji}>✨</Text>
+          <Heading style={h1}>Welcome aboard</Heading>
+          <Text style={bodyText}>
+            You're one step away from building your career story. Verify your email address to get started.
+          </Text>
+
+          <Section style={buttonWrapper}>
+            <table cellPadding="0" cellSpacing="0" role="presentation" style={{ margin: '0 auto' }}>
+              <tr>
+                <td style={buttonOuter}>
+                  <a href={confirmationUrl} style={buttonInner}>
+                    Get Started →
+                  </a>
+                </td>
+              </tr>
+            </table>
+          </Section>
+
+          <Text style={meta}>
+            Verifying for <span style={metaHighlight}>{recipient}</span>
+          </Text>
         </Section>
 
-        <Text style={footer}>
-          If you didn't create an account on{' '}
-          <Link href={siteUrl} style={footerLink}>WiseResume</Link>,
-          you can safely ignore this email.
-        </Text>
-
-        <Text style={brand}>WiseResume — Build your career story</Text>
+        {/* Footer band */}
+        <Section style={footer}>
+          <Text style={footerText}>
+            Didn't sign up for <Link href={siteUrl} style={footerLink}>WiseResume</Link>? Just ignore this email.
+          </Text>
+          <Text style={footerBrand}>WiseResume — Build your career story</Text>
+          <Text style={footerDomain}>thewise.cloud</Text>
+        </Section>
       </Container>
     </Body>
   </Html>
@@ -71,26 +88,101 @@ const main = {
   backgroundColor: '#ffffff',
   fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 }
-const container = { padding: '40px 24px', maxWidth: '480px', margin: '0 auto' }
-const logoSection = { textAlign: 'center' as const, marginBottom: '24px' }
-const logoImg = { borderRadius: '12px', display: 'inline-block' }
-const h1 = { fontSize: '24px', fontWeight: 'bold' as const, color: '#1a1a2e', margin: '0 0 16px', textAlign: 'center' as const }
-const text = { fontSize: '15px', color: '#6b7280', lineHeight: '1.6', margin: '0 0 28px', textAlign: 'center' as const }
-const link = { color: '#1a1a2e', textDecoration: 'underline' }
-const buttonSection = { textAlign: 'center' as const, marginBottom: '32px' }
-const button = {
+const wrapper = { maxWidth: '520px', margin: '0 auto', padding: '0' }
+const header = {
+  backgroundColor: '#1a1a2e',
+  padding: '28px 32px',
+  textAlign: 'center' as const,
+  borderRadius: '16px 16px 0 0',
+}
+const headerLogo = { borderRadius: '10px', display: 'inline-block', verticalAlign: 'middle' }
+const headerText = {
+  color: '#ffffff',
+  fontSize: '18px',
+  fontWeight: '700' as const,
+  letterSpacing: '-0.3px',
+  display: 'inline-block',
+  verticalAlign: 'middle',
+  margin: '0 0 0 12px',
+}
+const accentDivider = {
+  height: '3px',
+  background: 'linear-gradient(90deg, #e63946, #d62839, #e63946)',
+  backgroundColor: '#e63946',
+  margin: '0',
+}
+const card = {
+  backgroundColor: '#f8f9fa',
+  padding: '40px 32px 32px',
+}
+const emoji = {
+  fontSize: '32px',
+  textAlign: 'center' as const,
+  margin: '0 0 16px',
+  lineHeight: '1',
+}
+const h1 = {
+  fontSize: '28px',
+  fontWeight: '800' as const,
+  color: '#1a1a2e',
+  margin: '0 0 12px',
+  textAlign: 'center' as const,
+  letterSpacing: '-0.5px',
+}
+const bodyText = {
+  fontSize: '15px',
+  color: '#4b5563',
+  lineHeight: '1.7',
+  margin: '0 0 32px',
+  textAlign: 'center' as const,
+}
+const buttonWrapper = { textAlign: 'center' as const, marginBottom: '24px' }
+const buttonOuter = {
+  backgroundColor: '#c1121f',
+  borderRadius: '14px',
+  padding: '2px',
+}
+const buttonInner = {
   backgroundColor: '#e63946',
   color: '#ffffff',
   fontSize: '15px',
-  fontWeight: '600' as const,
+  fontWeight: '700' as const,
   borderRadius: '12px',
-  padding: '14px 32px',
-  textDecoration: 'none',
-  display: 'inline-block',
+  padding: '16px 40px',
+  textDecoration: 'none' as const,
+  display: 'block' as const,
+  textAlign: 'center' as const,
+  letterSpacing: '0.3px',
 }
-const footer = { fontSize: '13px', color: '#9ca3af', margin: '0 0 16px', textAlign: 'center' as const, lineHeight: '1.5' }
-const footerLink = { color: '#9ca3af', textDecoration: 'underline' }
-const brand = {
-  fontSize: '12px', color: '#d1d5db', textAlign: 'center' as const,
-  margin: '24px 0 0', borderTop: '1px solid #f3f4f6', paddingTop: '16px',
+const meta = {
+  fontSize: '13px',
+  color: '#9ca3af',
+  textAlign: 'center' as const,
+  margin: '0',
+}
+const metaHighlight = { color: '#6b7280', fontWeight: '600' as const }
+const footer = {
+  backgroundColor: '#1a1a2e',
+  padding: '24px 32px',
+  textAlign: 'center' as const,
+  borderRadius: '0 0 16px 16px',
+}
+const footerText = {
+  fontSize: '12px',
+  color: '#9ca3af',
+  margin: '0 0 12px',
+  lineHeight: '1.5',
+}
+const footerLink = { color: '#e63946', textDecoration: 'none' }
+const footerBrand = {
+  fontSize: '11px',
+  color: '#6b7280',
+  margin: '0 0 4px',
+  letterSpacing: '0.5px',
+  textTransform: 'uppercase' as const,
+}
+const footerDomain = {
+  fontSize: '11px',
+  color: '#4b5563',
+  margin: '0',
 }

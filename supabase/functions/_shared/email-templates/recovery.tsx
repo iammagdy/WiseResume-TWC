@@ -4,7 +4,6 @@ import * as React from 'npm:react@18.3.1'
 
 import {
   Body,
-  Button,
   Container,
   Head,
   Heading,
@@ -28,27 +27,41 @@ export const RecoveryEmail = ({
     <Head />
     <Preview>Reset your WiseResume password</Preview>
     <Body style={main}>
-      <Container style={container}>
-        <Section style={logoSection}>
-          <Img src={logoUrl} width="48" height="48" alt="WiseResume" style={logoImg} />
+      <Container style={wrapper}>
+        <Section style={header}>
+          <Img src={logoUrl} width="40" height="40" alt="WiseResume" style={headerLogo} />
+          <Text style={headerText}>WiseResume</Text>
+        </Section>
+        <Section style={accentDivider} />
+
+        <Section style={card}>
+          <Text style={emoji}>🛡️</Text>
+          <Heading style={h1}>Reset your password</Heading>
+          <Text style={bodyText}>
+            We received a request to reset your password. Click below to choose a new one — this link will expire shortly.
+          </Text>
+
+          <Section style={buttonWrapper}>
+            <table cellPadding="0" cellSpacing="0" role="presentation" style={{ margin: '0 auto' }}>
+              <tr>
+                <td style={buttonOuter}>
+                  <a href={confirmationUrl} style={buttonInner}>
+                    Reset Password →
+                  </a>
+                </td>
+              </tr>
+            </table>
+          </Section>
+
+          <Text style={meta}>
+            If you didn't request this, your password won't change. Just ignore this email.
+          </Text>
         </Section>
 
-        <Heading style={h1}>Reset your password</Heading>
-        <Text style={text}>
-          We received a request to reset your WiseResume password. Click the button below to choose a new one.
-        </Text>
-
-        <Section style={buttonSection}>
-          <Button style={button} href={confirmationUrl}>
-            Reset Password
-          </Button>
+        <Section style={footer}>
+          <Text style={footerBrand}>WiseResume — Build your career story</Text>
+          <Text style={footerDomain}>thewise.cloud</Text>
         </Section>
-
-        <Text style={footer}>
-          If you didn't request this, you can safely ignore this email. Your password won't be changed.
-        </Text>
-
-        <Text style={brand}>WiseResume — Build your career story</Text>
       </Container>
     </Body>
   </Html>
@@ -62,24 +75,54 @@ const main = {
   backgroundColor: '#ffffff',
   fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 }
-const container = { padding: '40px 24px', maxWidth: '480px', margin: '0 auto' }
-const logoSection = { textAlign: 'center' as const, marginBottom: '24px' }
-const logoImg = { borderRadius: '12px', display: 'inline-block' }
-const h1 = { fontSize: '24px', fontWeight: 'bold' as const, color: '#1a1a2e', margin: '0 0 16px', textAlign: 'center' as const }
-const text = { fontSize: '15px', color: '#6b7280', lineHeight: '1.6', margin: '0 0 28px', textAlign: 'center' as const }
-const buttonSection = { textAlign: 'center' as const, marginBottom: '32px' }
-const button = {
-  backgroundColor: '#e63946',
+const wrapper = { maxWidth: '520px', margin: '0 auto', padding: '0' }
+const header = {
+  backgroundColor: '#1a1a2e',
+  padding: '28px 32px',
+  textAlign: 'center' as const,
+  borderRadius: '16px 16px 0 0',
+}
+const headerLogo = { borderRadius: '10px', display: 'inline-block', verticalAlign: 'middle' }
+const headerText = {
   color: '#ffffff',
-  fontSize: '15px',
-  fontWeight: '600' as const,
-  borderRadius: '12px',
-  padding: '14px 32px',
-  textDecoration: 'none',
+  fontSize: '18px',
+  fontWeight: '700' as const,
+  letterSpacing: '-0.3px',
   display: 'inline-block',
+  verticalAlign: 'middle',
+  margin: '0 0 0 12px',
 }
-const footer = { fontSize: '13px', color: '#9ca3af', margin: '0 0 16px', textAlign: 'center' as const, lineHeight: '1.5' }
-const brand = {
-  fontSize: '12px', color: '#d1d5db', textAlign: 'center' as const,
-  margin: '24px 0 0', borderTop: '1px solid #f3f4f6', paddingTop: '16px',
+const accentDivider = {
+  height: '3px',
+  background: 'linear-gradient(90deg, #e63946, #d62839, #e63946)',
+  backgroundColor: '#e63946',
+  margin: '0',
 }
+const card = { backgroundColor: '#f8f9fa', padding: '40px 32px 32px' }
+const emoji = { fontSize: '32px', textAlign: 'center' as const, margin: '0 0 16px', lineHeight: '1' }
+const h1 = {
+  fontSize: '28px', fontWeight: '800' as const, color: '#1a1a2e',
+  margin: '0 0 12px', textAlign: 'center' as const, letterSpacing: '-0.5px',
+}
+const bodyText = {
+  fontSize: '15px', color: '#4b5563', lineHeight: '1.7',
+  margin: '0 0 32px', textAlign: 'center' as const,
+}
+const buttonWrapper = { textAlign: 'center' as const, marginBottom: '24px' }
+const buttonOuter = { backgroundColor: '#c1121f', borderRadius: '14px', padding: '2px' }
+const buttonInner = {
+  backgroundColor: '#e63946', color: '#ffffff', fontSize: '15px',
+  fontWeight: '700' as const, borderRadius: '12px', padding: '16px 40px',
+  textDecoration: 'none' as const, display: 'block' as const, textAlign: 'center' as const,
+  letterSpacing: '0.3px',
+}
+const meta = { fontSize: '13px', color: '#9ca3af', textAlign: 'center' as const, margin: '0', lineHeight: '1.5' }
+const footer = {
+  backgroundColor: '#1a1a2e', padding: '24px 32px',
+  textAlign: 'center' as const, borderRadius: '0 0 16px 16px',
+}
+const footerBrand = {
+  fontSize: '11px', color: '#6b7280', margin: '0 0 4px',
+  letterSpacing: '0.5px', textTransform: 'uppercase' as const,
+}
+const footerDomain = { fontSize: '11px', color: '#4b5563', margin: '0' }
