@@ -96,6 +96,7 @@ export const ResumeListCard = memo(function ResumeListCard({
   const duplicateOpacity = useTransform(x, [20, SWIPE_THRESHOLD], [0, 1]);
 
   const hasTargetJob = resume.target_job_title || resume.target_company;
+  const isPending = useOfflineSyncStore(s => s.pendingChanges.some(c => c.resumeId === resume.id));
   const matchScore = resume.job_match_score;
   const resumeForProgress = useMemo(() => dbToResumeData(resume), [resume.id, resume.updated_at]);
 
