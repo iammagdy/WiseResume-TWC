@@ -1216,7 +1216,6 @@ export type Database = {
         Returns: boolean
       }
       cleanup_stale_data: { Args: never; Returns: undefined }
-      custom_access_token_hook: { Args: { event: Json }; Returns: Json }
       get_clerk_user_id: { Args: never; Returns: string }
       get_portfolio_active_status: {
         Args: { p_username: string }
@@ -1263,6 +1262,7 @@ export type Database = {
         Returns: undefined
       }
       resolve_short_link: { Args: { p_link_id: string }; Returns: Json }
+      safe_uid: { Args: never; Returns: string }
       verify_share_password: {
         Args: { hashed_password: string; raw_password: string }
         Returns: boolean
