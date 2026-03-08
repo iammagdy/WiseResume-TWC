@@ -122,7 +122,7 @@ Provide analysis in this exact JSON format:
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.3,
-      userId: user.id,
+      userId,
     });
 
     if (!aiResponse.content) {
