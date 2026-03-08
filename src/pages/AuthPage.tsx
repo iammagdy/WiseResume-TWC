@@ -103,12 +103,12 @@ export default function AuthPage() {
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${window.location.origin}/auth?mode=reset`,
       });
       if (error) {
         toast.error(error.message || 'Failed to send reset email');
       } else {
-        toast.success('Check your email for a password reset link');
+        toast.success('If an account exists with that email, you\'ll receive a reset link shortly');
         setMode('sign-in');
       }
     } catch (err: any) {
