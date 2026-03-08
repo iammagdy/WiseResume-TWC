@@ -266,6 +266,8 @@ export function useProfile(userId: string | undefined, user?: User | null) {
   const updateMutation = useMutation({
     mutationFn: async (updates: Partial<Profile>) => {
       if (!userId) throw new Error('No user ID');
+      // Guard: never write a non-UUID as user_id — would violate FK / throw 22P02
+      if (!UUID_REGEX.test(userId)) throw new Error(`Invalid user ID: ${userId}`);
 
       // Only send the fields that are explicitly in `updates` — prevents data races
       // on concurrent saves and avoids overwriting stale fallback values.
