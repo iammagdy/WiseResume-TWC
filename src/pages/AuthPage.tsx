@@ -294,6 +294,47 @@ export default function AuthPage() {
                 </motion.form>
               )}
 
+              {/* ── reset-password ── */}
+              {mode === 'reset-password' && (
+                <motion.div
+                  key="reset-password"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-4"
+                >
+                  {!isRecoveryVerified ? (
+                    <div className="flex flex-col items-center gap-3 py-4">
+                      <MiniSpinner size={24} />
+                      <p className="text-sm text-muted-foreground">Verifying reset link...</p>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleResetPassword} className="space-y-4">
+                      <PasswordInput
+                        id="new-password"
+                        label="New password"
+                        value={newPassword}
+                        onChange={setNewPassword}
+                        show={showNewPassword}
+                        onToggleShow={() => setShowNewPassword(!showNewPassword)}
+                        autoComplete="new-password"
+                        placeholder="Choose a new password"
+                        required
+                      />
+                      <PasswordStrengthMeter password={newPassword} />
+                      <Button
+                        type="submit"
+                        size="lg"
+                        className="w-full h-12 text-base font-semibold gradient-primary glow-primary"
+                        disabled={isLoading || !newPassword}
+                      >
+                        {isLoading ? <MiniSpinner size={20} /> : 'Set new password'}
+                      </Button>
+                    </form>
+                  )}
+                </motion.div>
+              )}
+
               {/* ── sign-in / sign-up ── */}
               {(mode === 'sign-in' || mode === 'sign-up') && (
                 <motion.div
