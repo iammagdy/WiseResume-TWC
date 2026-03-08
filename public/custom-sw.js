@@ -35,7 +35,9 @@ const navigationHandler = new NetworkFirst({
     new CacheableResponsePlugin({ statuses: [0, 200] }),
   ],
 });
-registerRoute(new NavigationRoute(navigationHandler));
+registerRoute(new NavigationRoute(navigationHandler, {
+  denylist: [/^\/~oauth/],
+}));
 
 // Runtime caching for Google Fonts
 registerRoute(
