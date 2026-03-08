@@ -5,7 +5,7 @@ import App from "./App.tsx";
 import "./index.css";
 import { reportWebVitals } from "./lib/reportWebVitals";
 
-console.log('🚀 WiseResume App Starting...');
+console.log('🚀 WiseResume App Starting...', Date.now());
 console.log('Environment:', {
   mode: import.meta.env.MODE,
   supabaseUrl: import.meta.env.VITE_SUPABASE_URL ? 'configured' : 'missing',
