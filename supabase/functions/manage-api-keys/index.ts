@@ -32,7 +32,7 @@ async function encrypt(plaintext: string): Promise<string> {
   return btoa(String.fromCharCode(...combined));
 }
 
-/** Decode JWT payload without verifying signature (Clerk-signed tokens) */
+/** Decode JWT payload without verifying signature */
 function decodeJwtPayload(token: string): Record<string, unknown> {
   const parts = token.split('.');
   if (parts.length !== 3) throw new Error('Invalid token');
