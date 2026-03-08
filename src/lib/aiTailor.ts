@@ -111,7 +111,7 @@ export async function tailorResumeWithProgress(
   const { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY: SUPABASE_KEY } = await import('@/lib/supabaseConstants');
 
   const invokeOnce = async () => {
-    const token = await getClerkSupabaseToken();
+    const token = await getSupabaseToken();
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
