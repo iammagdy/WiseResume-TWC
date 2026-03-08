@@ -811,10 +811,14 @@ export default function EditorPage() {
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
             <div
-              className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-8 pb-safe space-y-0"
+              className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-4 space-y-0"
               ref={scrollContainerRef}
             >
               <EditorSectionContent {...editorSectionProps} />
+            </div>
+            {/* Pinned nav — always visible */}
+            <div className="shrink-0 px-4 border-t border-border bg-background">
+              <SectionNavButtons steps={steps} activeTab={activeTab} handleTabChange={handleTabChange} navigate={navigate} />
             </div>
           </div>
         </div>
