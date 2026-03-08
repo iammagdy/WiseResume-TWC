@@ -205,7 +205,7 @@ export default function SettingsPage() {
   }, [signOut, navigate]);
 
   const handleChangePassword = useCallback(async () => {
-    // With Clerk, password management is handled via Clerk's UI
+    // Password reset via Supabase Auth email flow
     toast.info('Password changes are managed through your account settings.');
   }, []);
 

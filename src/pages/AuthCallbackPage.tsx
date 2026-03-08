@@ -4,8 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
 
 /**
- * Auth callback page — with Clerk, OAuth callbacks are handled by Clerk's
- * own redirect flow. This page simply waits for auth to resolve and redirects.
+ * Auth callback page — waits for Supabase auth to resolve and redirects.
  */
 export default function AuthCallbackPage() {
   const navigate = useNavigate();
