@@ -111,7 +111,7 @@ Write a ${validTone} cover letter with a professional header containing actual c
         { role: "user", content: userPrompt },
       ],
       temperature: 0.7,
-      userId: user.id,
+      userId,
     });
 
     const coverLetter = aiResponse.content;
