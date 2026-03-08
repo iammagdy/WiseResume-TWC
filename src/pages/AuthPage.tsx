@@ -129,11 +129,13 @@ export default function AuthPage() {
     'sign-in': 'Welcome back',
     'sign-up': 'Create your account',
     'forgot-password': 'Reset your password',
+    'reset-password': 'Set new password',
   };
   const subtitleText: Record<Mode, string> = {
     'sign-in': 'Sign in to continue to WiseResume',
     'sign-up': 'Get started with WiseResume',
     'forgot-password': "Enter your email and we\u2019ll send a reset link",
+    'reset-password': 'Choose a new password for your account',
   };
 
   if (authLoading) {
