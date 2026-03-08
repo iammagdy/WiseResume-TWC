@@ -500,7 +500,7 @@ const Index = () => {
                         Turn your resume into a beautiful personal site with themes, projects, and a shareable link.
                       </p>
                     </div>
-                    <LazyPortfolioDemo />
+                    <Suspense fallback={<DemoFallback />}><LazyPortfolioDemo /></Suspense>
                     <Button
                       variant="outline"
                       size="sm"
