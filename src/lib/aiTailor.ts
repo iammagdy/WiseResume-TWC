@@ -1,6 +1,6 @@
 import { ResumeData, TailorProgress, EnhancedTailorStep, EnhancedTailorProgress, SuperTailorResult } from '@/types/resume';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
-import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
+import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { trackGeminiUsage } from './aiProvider';
 import { extractErrorMessage } from './errorToast';
 import { checkAIFallback } from './aiFallbackToast';
