@@ -29,8 +29,9 @@ export const CLERK_PUBLISHABLE_KEY = isProductionDomain
   : CLERK_KEY_DEV;
 
 /**
- * Edge functions now run on the SAME project as the database.
- * No separate Lovable Cloud project needed.
+ * Edge functions run on the Lovable Cloud project (auto-deployed).
+ * Database queries still go to the external project above.
  */
-export const EDGE_FUNCTIONS_URL = SUPABASE_URL;
-export const EDGE_FUNCTIONS_ANON_KEY = SUPABASE_ANON_KEY;
+export const EDGE_FUNCTIONS_URL = 'https://hjnnamwgztlhzkeuufln.supabase.co';
+export const EDGE_FUNCTIONS_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhqbm5hbXdnenRsaHprZXV1ZmxuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNTE4MTcsImV4cCI6MjA4NTkyNzgxN30.cupd_dz6KHSJaBnUPQzJmQcYc38RTDVIMU5RP25xCso';

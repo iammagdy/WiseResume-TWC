@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabaseConstants';
+import { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY } from '@/lib/supabaseConstants';
 import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
 
 /**
@@ -28,7 +28,7 @@ export const edgeFunctions = {
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        'apikey': SUPABASE_ANON_KEY,
+        'apikey': EDGE_FUNCTIONS_ANON_KEY,
         ...(options?.headers || {}),
       };
 
@@ -37,11 +37,11 @@ export const edgeFunctions = {
       } else {
         // Fallback: at minimum send the anon key as bearer so the function
         // receives SOME authorization header and can return a proper error
-        headers['Authorization'] = `Bearer ${SUPABASE_ANON_KEY}`;
+        headers['Authorization'] = `Bearer ${EDGE_FUNCTIONS_ANON_KEY}`;
         console.warn(`[edgeFunctions] No Clerk token available for ${fnName} — using anon fallback`);
       }
 
-      const url = `${SUPABASE_URL}/functions/v1/${fnName}`;
+      const url = `${EDGE_FUNCTIONS_URL}/functions/v1/${fnName}`;
 
       try {
         const response = await fetch(url, {

@@ -134,3 +134,9 @@ verify_jwt = false
 
 [functions.migrate-user-data]
 verify_jwt = false
+
+[functions.patch-clerk-jwt-template]
+verify_jwt = false
+
+[functions.debug-jwt]
+verify_jwt = false
