@@ -41,7 +41,7 @@ export const edgeFunctions = {
         console.warn(`[edgeFunctions] No Clerk token available for ${fnName} — using anon fallback`);
       }
 
-      const url = `${SUPABASE_URL}/functions/v1/${fnName}`;
+      const url = `${EDGE_FUNCTIONS_URL}/functions/v1/${fnName}`;
 
       try {
         const response = await fetch(url, {
