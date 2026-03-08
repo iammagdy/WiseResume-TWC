@@ -628,7 +628,7 @@ const Index = () => {
                         Turn your resume into a beautiful personal site with themes, projects, and a shareable link.
                       </p>
                     </div>
-                    <PortfolioDemo />
+                    <LazyPortfolioDemo />
                     <Button
                       variant="outline"
                       size="sm"
