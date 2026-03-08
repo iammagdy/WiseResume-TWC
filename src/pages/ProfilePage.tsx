@@ -42,9 +42,7 @@ export default function ProfilePage() {
 
   const isLoading = !loadingTimedOut && (authLoading || (!profile && profileLoading));
 
-  if (isLoading) {
-    return <ProfilePageSkeleton />;
-  }
+  if (isLoading) return null;
   if (!user) return null;
 
   const completion = calculateProfileCompletion(profile);
