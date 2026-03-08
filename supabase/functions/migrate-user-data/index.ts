@@ -43,6 +43,23 @@ Deno.serve(async (req) => {
 
     const results: Record<string, number> = {};
 
+    // Step 0: Ensure shadow auth.users row exists for toUuid
+    const { error: createUserErr } = await admin.auth.admin.createUser({
+      id: toUuid,
+      email: "magdy.saber@outlook.com",
+      email_confirm: true,
+      user_metadata: { migrated: true },
+    });
+    // Ignore "User already registered" / "already been registered" — it's fine
+    if (createUserErr && !createUserErr.message?.toLowerCase().includes("already")) {
+      console.error("createUser error:", createUserErr);
+      // non-fatal — proceed anyway; row may already exist
+    } else if (!createUserErr) {
+      console.log(`Shadow auth.users row created for ${toUuid}`);
+    } else {
+      console.log(`Shadow auth.users row already exists for ${toUuid} — continuing`);
+    }
+
     // 1. Delete orphaned profile at toUuid (empty row from prior provision)
     const { data: toProfile } = await admin
       .from("profiles")
