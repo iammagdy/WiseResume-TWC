@@ -4,6 +4,7 @@
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getServiceClient } from './dbClient.ts';
 
 export interface AIMessage {
   role: 'system' | 'user' | 'assistant';
