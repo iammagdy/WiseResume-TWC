@@ -311,7 +311,7 @@ Deno.serve(async (req: Request) => {
       tools: TOOLS as any[],
       temperature: 0.7,
       maxTokens: 2000,
-      userId: user.id,
+      userId,
     });
 
     const toolCall = aiResponse.toolCalls?.[0];
