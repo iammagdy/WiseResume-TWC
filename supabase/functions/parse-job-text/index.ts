@@ -67,7 +67,7 @@ If you can't find certain fields, use null or empty arrays. Always extract title
           { role: 'user', content: userPrompt },
         ],
         temperature: 0.2,
-        userId: user.id,
+        userId,
       });
       aiContent = aiResponse.content || '';
       aiProviderUsed = aiResponse.providerUsed;
