@@ -9,6 +9,23 @@ const corsHeaders = {
 
 const CLERK_UUID_NAMESPACE = "6ba7b810-9dad-11d1-80b4-00c04fd430c8";
 
+async function patchClerkMetadata(clerkUserId: string, supabaseUuid: string, clerkSecretKey: string) {
+  const patchRes = await fetch(`https://api.clerk.com/v1/users/${clerkUserId}`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${clerkSecretKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ public_metadata: { supabaseUuid } }),
+  });
+  if (!patchRes.ok) {
+    const errText = await patchRes.text();
+    console.error(`Failed to update Clerk metadata: ${patchRes.status} ${errText}`);
+    return false;
+  }
+  return true;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -57,6 +74,9 @@ Deno.serve(async (req) => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
+    const email = clerkUser.email_addresses?.[0]?.email_address as string | undefined;
+    const fullName = [clerkUser.first_name, clerkUser.last_name].filter(Boolean).join(" ") || undefined;
+
     // Check if already provisioned in Clerk metadata
     const existingUuid = clerkUser.public_metadata?.supabaseUuid as string | undefined;
     if (existingUuid) {
@@ -76,13 +96,12 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Profile missing for existingUuid — check if there's another profile for this user by email
+      // Profile missing for existingUuid — search for an existing profile
       console.log(`Profile missing for existingUuid ${existingUuid}, searching for existing profile...`);
-      const email = clerkUser.email_addresses?.[0]?.email_address;
-      const fullName = [clerkUser.first_name, clerkUser.last_name].filter(Boolean).join(" ") || undefined;
 
-      // Search for an existing profile by email (catches UUID migrations / legacy data)
-      let correctUuid = existingUuid;
+      let correctUuid: string | null = null;
+
+      // Step 1: Search profiles by contact_email
       if (email) {
         const { data: profileByEmail } = await adminClient
           .from("profiles")
@@ -91,37 +110,55 @@ Deno.serve(async (req) => {
           .maybeSingle();
 
         if (profileByEmail && profileByEmail.user_id !== existingUuid) {
-          // Found existing data under a different UUID — update Clerk metadata to point there
           correctUuid = profileByEmail.user_id;
-          console.log(`Found existing profile for email ${email} under ${correctUuid}, updating Clerk metadata...`);
-
-          const CLERK_SECRET_KEY = Deno.env.get("CLERK_SECRET_KEY");
-          if (CLERK_SECRET_KEY) {
-            const patchRes = await fetch(`https://api.clerk.com/v1/users/${clerkUserId}`, {
-              method: "PATCH",
-              headers: {
-                Authorization: `Bearer ${CLERK_SECRET_KEY}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ public_metadata: { supabaseUuid: correctUuid } }),
-            });
-            if (!patchRes.ok) {
-              const errText = await patchRes.text();
-              console.error(`Failed to update Clerk metadata: ${patchRes.status} ${errText}`);
-            }
-          }
-
-          return new Response(
-            JSON.stringify({ supabaseUuid: correctUuid, repaired: true }),
-            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
+          console.log(`Found profile by contact_email under ${correctUuid}`);
         }
       }
 
+      // Step 2: Fallback — search auth.users by email (handles profiles with NULL contact_email)
+      if (!correctUuid && email) {
+        console.log(`Searching auth.users by email ${email}...`);
+        const { data: authUsersData } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
+        const matchingAuthUser = authUsersData?.users?.find((u: { email?: string; id: string }) => u.email === email);
+
+        if (matchingAuthUser && matchingAuthUser.id !== existingUuid) {
+          // Verify this auth user has a profile
+          const { data: profileForAuthUser } = await adminClient
+            .from("profiles")
+            .select("user_id")
+            .eq("user_id", matchingAuthUser.id)
+            .maybeSingle();
+
+          if (profileForAuthUser) {
+            correctUuid = matchingAuthUser.id;
+            console.log(`Found existing profile via auth.users email lookup: ${correctUuid}`);
+          }
+        }
+      }
+
+      if (correctUuid) {
+        // Update Clerk metadata to point to correct UUID
+        await patchClerkMetadata(clerkUserId, correctUuid, CLERK_SECRET_KEY);
+
+        // Also update the profile's contact_email so future lookups work
+        if (email) {
+          await adminClient
+            .from("profiles")
+            .update({ contact_email: email })
+            .eq("user_id", correctUuid)
+            .is("contact_email", null);
+        }
+
+        return new Response(
+          JSON.stringify({ supabaseUuid: correctUuid, repaired: true }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       // No existing profile found — create a new one for existingUuid
-      // Ensure shadow auth user exists
+      console.log(`No existing profile found, creating new profile for ${existingUuid}`);
       const { error: createError } = await adminClient.auth.admin.createUser({
-        id: correctUuid,
+        id: existingUuid,
         email: email || `${clerkUserId}@clerk.placeholder`,
         email_confirm: true,
         user_metadata: { clerk_id: clerkUserId, full_name: fullName },
@@ -135,17 +172,16 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Create the missing profile row
-      const profileData: Record<string, string> = { user_id: correctUuid };
+      const profileData: Record<string, string> = { user_id: existingUuid };
       if (fullName) profileData.full_name = fullName;
       if (email) profileData.contact_email = email;
       await adminClient
         .from("profiles")
         .upsert(profileData, { onConflict: "user_id", ignoreDuplicates: false });
 
-      console.log(`Re-provisioned profile for ${clerkUserId} under uuid ${correctUuid}`);
+      console.log(`Re-provisioned profile for ${clerkUserId} under uuid ${existingUuid}`);
       return new Response(
-        JSON.stringify({ supabaseUuid: correctUuid, reprovisioned: true }),
+        JSON.stringify({ supabaseUuid: existingUuid, reprovisioned: true }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -154,12 +190,34 @@ Deno.serve(async (req) => {
     const supabaseUuid = uuidv5(clerkUserId, CLERK_UUID_NAMESPACE);
     console.log(`Provisioning Clerk ${clerkUserId} → Supabase UUID ${supabaseUuid}`);
 
-    const email = clerkUser.email_addresses?.[0]?.email_address;
-    const fullName = [clerkUser.first_name, clerkUser.last_name].filter(Boolean).join(" ") || undefined;
+    // Check if a profile already exists under this deterministic UUID or by email
+    let finalUuid = supabaseUuid;
+
+    if (email) {
+      // Check auth.users for this email first
+      const { data: authUsersData } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
+      const matchingAuthUser = authUsersData?.users?.find((u: { email?: string; id: string }) => u.email === email);
+      if (matchingAuthUser && matchingAuthUser.id !== supabaseUuid) {
+        const { data: profileForAuthUser } = await adminClient
+          .from("profiles")
+          .select("user_id")
+          .eq("user_id", matchingAuthUser.id)
+          .maybeSingle();
+        if (profileForAuthUser) {
+          finalUuid = matchingAuthUser.id;
+          console.log(`Found existing profile via email during new provision, using ${finalUuid}`);
+          await patchClerkMetadata(clerkUserId, finalUuid, CLERK_SECRET_KEY);
+          return new Response(
+            JSON.stringify({ supabaseUuid: finalUuid, repaired: true }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+    }
 
     // Create shadow auth.users row
     const { error: createError } = await adminClient.auth.admin.createUser({
-      id: supabaseUuid,
+      id: finalUuid,
       email: email || `${clerkUserId}@clerk.placeholder`,
       email_confirm: true,
       user_metadata: { clerk_id: clerkUserId, full_name: fullName },
@@ -171,7 +229,7 @@ Deno.serve(async (req) => {
         createError.message?.includes("duplicate") ||
         createError.message?.includes("already exists")
       ) {
-        console.log(`Shadow user ${supabaseUuid} already exists`);
+        console.log(`Shadow user ${finalUuid} already exists`);
       } else {
         console.error("Failed to create shadow user:", createError.message);
         return new Response(
@@ -182,7 +240,7 @@ Deno.serve(async (req) => {
     }
 
     // Upsert profile row
-    const profileData: Record<string, string> = { user_id: supabaseUuid };
+    const profileData: Record<string, string> = { user_id: finalUuid };
     if (fullName) profileData.full_name = fullName;
     if (email) profileData.contact_email = email;
     await adminClient
@@ -190,28 +248,18 @@ Deno.serve(async (req) => {
       .upsert(profileData, { onConflict: "user_id", ignoreDuplicates: false });
 
     // Write supabaseUuid to Clerk publicMetadata
-    const patchRes = await fetch(`https://api.clerk.com/v1/users/${clerkUserId}`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${CLERK_SECRET_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ public_metadata: { supabaseUuid } }),
-    });
-
-    if (!patchRes.ok) {
-      const errText = await patchRes.text();
-      console.error(`Failed to update Clerk metadata: ${patchRes.status} ${errText}`);
+    const patched = await patchClerkMetadata(clerkUserId, finalUuid, CLERK_SECRET_KEY);
+    if (!patched) {
       return new Response(
         JSON.stringify({ error: "Failed to update Clerk metadata" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`Provisioned ${clerkUserId}: supabaseUuid=${supabaseUuid}`);
+    console.log(`Provisioned ${clerkUserId}: supabaseUuid=${finalUuid}`);
 
     return new Response(
-      JSON.stringify({ supabaseUuid }),
+      JSON.stringify({ supabaseUuid: finalUuid }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {

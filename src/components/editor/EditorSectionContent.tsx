@@ -175,52 +175,63 @@ export function EditorSectionContent({
         </div>
       )}
 
-      {/* Spacer to push nav buttons to bottom of visible scroll area */}
-      <div className="flex-1" />
+    </>
+  );
+}
 
-      {/* Section Navigation — pinned to bottom */}
-      <div className="flex flex-row items-center gap-2 sm:gap-3 pt-3 pb-4 overflow-hidden">
+export function SectionNavButtons({
+  steps,
+  activeTab,
+  handleTabChange,
+  navigate,
+}: {
+  steps: { id: string; label: string }[];
+  activeTab: string;
+  handleTabChange: (tab: string) => void;
+  navigate: ReturnType<typeof useNavigate>;
+}) {
+  return (
+    <div className="flex flex-row items-center gap-2 sm:gap-3 py-3 overflow-hidden">
+      <Button
+        variant="outline"
+        size="lg"
+        className="flex-1 min-w-0 min-h-[48px]"
+        onClick={() => {
+          haptics.light();
+          const currentIndex = steps.findIndex(s => s.id === activeTab);
+          if (currentIndex > 0) handleTabChange(steps[currentIndex - 1].id);
+        }}
+        disabled={activeTab === steps[0].id}
+      >
+        <ChevronLeft className="w-4 h-4 mr-1.5" />
+        Previous
+      </Button>
+      {activeTab === steps[steps.length - 1].id ? (
         <Button
-          variant="outline"
+          size="lg"
+          className="flex-1 min-w-0 min-h-[48px] text-sm gradient-primary shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.5)]"
+          onClick={() => {
+            haptics.success();
+            navigate('/preview');
+          }}
+        >
+          <Eye className="w-4 h-4 mr-1.5" />
+          Preview & Export
+        </Button>
+      ) : (
+        <Button
           size="lg"
           className="flex-1 min-w-0 min-h-[48px]"
           onClick={() => {
-            haptics.light();
+            haptics.medium();
             const currentIndex = steps.findIndex(s => s.id === activeTab);
-            if (currentIndex > 0) handleTabChange(steps[currentIndex - 1].id);
+            if (currentIndex < steps.length - 1) handleTabChange(steps[currentIndex + 1].id);
           }}
-          disabled={activeTab === steps[0].id}
         >
-          <ChevronLeft className="w-4 h-4 mr-1.5" />
-          Previous
+          Next
+          <ChevronRight className="w-4 h-4 ml-1.5" />
         </Button>
-        {activeTab === steps[steps.length - 1].id ? (
-          <Button
-            size="lg"
-            className="flex-1 min-w-0 min-h-[48px] text-sm gradient-primary shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.5)]"
-            onClick={() => {
-              haptics.success();
-              navigate('/preview');
-            }}
-          >
-            <Eye className="w-4 h-4 mr-1.5" />
-            Preview & Export
-          </Button>
-        ) : (
-          <Button
-            size="lg"
-            className="flex-1 min-w-0 min-h-[48px]"
-            onClick={() => {
-              haptics.medium();
-              const currentIndex = steps.findIndex(s => s.id === activeTab);
-              if (currentIndex < steps.length - 1) handleTabChange(steps[currentIndex + 1].id);
-            }}
-          >
-            Next
-            <ChevronRight className="w-4 h-4 ml-1.5" />
-          </Button>
-        )}
-      </div>
-    </>
+      )}
+    </div>
   );
 }
