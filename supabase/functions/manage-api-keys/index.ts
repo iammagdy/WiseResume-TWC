@@ -55,9 +55,6 @@ Deno.serve(async (req) => {
 
     const token = authHeader.replace('Bearer ', '');
 
-    // Pure client-side JWT decode — no signature verification needed.
-    // Clerk tokens can't be verified by Supabase's auth secret; PostgREST
-    // verifies the token independently when the DB query runs.
     let claims: Record<string, unknown>;
     try {
       claims = decodeJwtPayload(token);
