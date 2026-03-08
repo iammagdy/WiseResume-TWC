@@ -598,7 +598,7 @@ const Index = () => {
                         Watch AI turn weak bullets into quantified achievements — with a live ATS score.
                       </p>
                     </div>
-                    <EditorDemo />
+                    <LazyEditorDemo />
                     <Button
                       variant="outline"
                       size="sm"
