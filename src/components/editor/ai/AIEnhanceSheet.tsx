@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { useResumeStore } from '@/store/resumeStore';
-import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
+import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { trackGeminiUsage } from '@/lib/aiProvider';
 import { useAICreditsMutations } from '@/hooks/useAICredits';
 import { toast } from 'sonner';
@@ -241,7 +241,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
       const content = getSectionContent(currentResume as unknown as Record<string, unknown>, sectionInfo.id);
 
       try {
-        const token = await getClerkSupabaseToken();
+        const token = await getSupabaseToken();
         if (!token) throw new Error('No session – please sign in');
 
         const { EDGE_FUNCTIONS_URL: CLOUD_URL, EDGE_FUNCTIONS_ANON_KEY: CLOUD_KEY } = await import('@/lib/supabaseConstants');

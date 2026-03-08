@@ -1,5 +1,4 @@
 import { Suspense, useEffect, useState } from "react";
-import { ClerkProvider } from "@clerk/clerk-react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -60,8 +59,7 @@ const UploadPage = lazyWithRetry(() => import("./pages/UploadPage"));
 const EditorPage = lazyWithRetry(() => import("./pages/EditorPage"));
 const PreviewPage = lazyWithRetry(() => import("./pages/PreviewPage"));
 
-const ClerkAuthPage = lazyWithRetry(() => import("./pages/ClerkAuthPage"));
-const SSOCallbackPage = lazyWithRetry(() => import("./pages/SSOCallbackPage"));
+const AuthPage = lazyWithRetry(() => import("./pages/AuthPage"));
 const DashboardPage = lazyWithRetry(() => import("./pages/DashboardPage"));
 const SettingsPage = lazyWithRetry(() => import("./pages/SettingsPage"));
 const InterviewPage = lazyWithRetry(() => import("./pages/InterviewPage"));
@@ -108,22 +106,20 @@ const QrScanPage = lazyWithRetry(() => import("./pages/QrScanPage"));
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000,      // 5 minutes - data stays fresh
-      gcTime: 10 * 60 * 1000,        // 10 minutes - cache retention
-      refetchOnWindowFocus: false,   // Reduce background refetches
-      retry: 1,                      // Faster failure
+      staleTime: 5 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      retry: 1,
     },
   },
 });
 
- // Inner component to use hooks that require Router context
  function AppRoutes() {
   useBackButton();
   useStatusBarThemeSync();
   useDeepLinking();
   useAIKeyHydration();
 
-  // Remove body overflow:hidden set in index.html for splash screen
   useEffect(() => {
     document.body.style.overflow = '';
   }, []);
@@ -131,15 +127,12 @@ const queryClient = new QueryClient({
   const { shakeToReportEnabled } = useSettingsStore();
   useShakeDetect(shakeToReportEnabled);
 
-  // Global app lifecycle — flushes pending saves when app goes to background
-  // on both PWA (visibilitychange) and Capacitor native (appStateChange)
   useAppLifecycle({
     onBackground: () => {
       window.dispatchEvent(new CustomEvent('app:save-draft'));
     },
   });
 
-   // Centralized theme sync — single source of truth from Zustand store
    const theme = useSettingsStore((s) => s.theme);
    useEffect(() => {
      const root = document.documentElement;
@@ -161,12 +154,10 @@ const queryClient = new QueryClient({
     const { isLocked, isAvailable, biometryType, isAuthenticating, authenticate } = useBiometricLock(biometricLockEnabled, biometricLockTimeout);
     const location = useLocation();
 
-    // Detect public standalone routes that should skip app chrome (splash, dialogs, install prompt)
     const isPublicStandalone = location.pathname.startsWith('/p/')
       || location.pathname.startsWith('/share/')
       || location.pathname.startsWith('/l/');
 
-    // Global unhandled rejection handler to prevent black screens from async errors
     useEffect(() => {
       const handleRejection = (event: PromiseRejectionEvent) => {
         console.error("Unhandled rejection:", event.reason);
@@ -178,12 +169,10 @@ const queryClient = new QueryClient({
       return () => window.removeEventListener("unhandledrejection", handleRejection);
     }, []);
     
-     // Show animated splash on first launch (skip for public standalone pages)
      if (!hasSeenSplash && !isPublicStandalone) {
        return <AnimatedSplash onComplete={() => setHasSeenSplash(true)} />;
      }
 
-    // Show lock screen if biometric lock is enabled and app is locked
     if (biometricLockEnabled && isLocked && isAvailable) {
      return (
        <BiometricLockScreen
@@ -198,19 +187,18 @@ const queryClient = new QueryClient({
         <>
         <SkyWallpaper />
         <Routes>
-          {/* Public routes - no auth required */}
+          {/* Public routes */}
           <Route path="/" element={<Index />} />
            <Route element={<AppShell />}>
-              <Route path="/auth" element={<Suspense fallback={<AuthSkeleton />}><ClerkAuthPage /></Suspense>} />
-              <Route path="/sign-in" element={<Suspense fallback={<AuthSkeleton />}><ClerkAuthPage /></Suspense>} />
-              <Route path="/sign-in/sso-callback" element={<Suspense fallback={<PageLoadingSpinner />}><SSOCallbackPage /></Suspense>} />
+              <Route path="/auth" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />
+              <Route path="/sign-in" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />
               <Route path="/auth/callback" element={<Suspense fallback={<PageLoadingSpinner />}><AuthCallbackPage /></Suspense>} />
               <Route path="/privacy" element={<Suspense fallback={<PageLoadingSpinner />}><PrivacyPage /></Suspense>} />
                <Route path="/terms" element={<Suspense fallback={<PageLoadingSpinner />}><TermsPage /></Suspense>} />
                <Route path="/reset-password" element={<Suspense fallback={<PageLoadingSpinner />}><ResetPasswordPage /></Suspense>} />
            </Route>
 
-          {/* All protected routes - require authentication */}
+          {/* Protected routes */}
            <Route element={<ProtectedRoute />}>
              <Route element={<AppShell />}>
                <Route path="/dashboard" element={<Suspense fallback={<DashboardSkeleton />}><DashboardPage /></Suspense>} />
@@ -259,7 +247,7 @@ const queryClient = new QueryClient({
         <Route path="/p/:username" element={<Suspense fallback={<DetailSkeleton />}><PublicPortfolioPage /></Suspense>} />
         <Route path="/l/:linkId" element={<Suspense fallback={<DetailSkeleton />}><ShortLinkPage /></Suspense>} />
 
-        {/* Internal tooling — requires auth */}
+        {/* Internal tooling */}
         <Route element={<ProtectedRoute />}>
           <Route path="/store-screenshots" element={<Suspense fallback={<PageLoadingSpinner />}><StoreScreenshotsPage /></Suspense>} />
           <Route path="/screenshots-gallery" element={<Suspense fallback={<PageLoadingSpinner />}><ScreenshotsGalleryPage /></Suspense>} />
@@ -272,7 +260,6 @@ const queryClient = new QueryClient({
     );
  }
 
-/** Defers non-critical global dialogs until 2s after mount */
 function DeferredProviders() {
   const [ready, setReady] = useState(false);
   const location = useLocation();
@@ -289,7 +276,6 @@ function DeferredProviders() {
   );
 }
 
-/** Wraps InstallPrompt to skip on public standalone routes */
 function AppInstallPrompt() {
   const location = useLocation();
   const isPublicStandalone = location.pathname.startsWith('/p/')
@@ -299,88 +285,22 @@ function AppInstallPrompt() {
   return <InstallPrompt />;
 }
  
-import { CLERK_PUBLISHABLE_KEY } from '@/lib/supabaseConstants';
-import React from 'react';
-
-/**
- * Error boundary specifically for Clerk initialization failures.
- * Catches errors like "Something went wrong initializing Clerk" and
- * 401 "Browser unauthenticated" loops in development instances.
- */
-class ClerkInitBoundary extends React.Component<
-  { children: React.ReactNode },
-  { hasError: boolean; error: Error | null }
-> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="flex items-center justify-center min-h-screen bg-background text-foreground p-6">
-          <div className="text-center max-w-md space-y-4">
-            <div className="text-5xl">🔒</div>
-            <h1 className="text-xl font-bold text-foreground">Authentication Unavailable</h1>
-            <p className="text-sm text-muted-foreground">
-              The authentication service failed to initialize. This usually happens when the app domain
-              isn't registered in the Clerk Dashboard.
-            </p>
-            <p className="text-xs text-muted-foreground/70 bg-muted rounded-lg p-3 text-left">
-              {this.state.error?.message || 'Unknown error'}
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-6 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity"
-            >
-              Retry
-            </button>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
 const App = () => {
-  if (!CLERK_PUBLISHABLE_KEY) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background text-foreground p-6">
-        <div className="text-center max-w-md space-y-4">
-          <h1 className="text-2xl font-bold text-destructive">Configuration Error</h1>
-          <p className="text-muted-foreground">
-            Missing Clerk publishable key. Please check the application configuration.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <ClerkInitBoundary>
-      <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
-        <QueryClientProvider client={queryClient}>
-          <TooltipProvider>
-              <ErrorBoundary>
-                <Toaster />
-                <BrowserRouter>
-                  <AuthProvider>
-                    <AppRoutes />
-                    <DeferredProviders />
-                    <AppInstallPrompt />
-                  </AuthProvider>
-                </BrowserRouter>
-              </ErrorBoundary>
-          </TooltipProvider>
-        </QueryClientProvider>
-      </ClerkProvider>
-    </ClerkInitBoundary>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+          <ErrorBoundary>
+            <Toaster />
+            <BrowserRouter>
+              <AuthProvider>
+                <AppRoutes />
+                <DeferredProviders />
+                <AppInstallPrompt />
+              </AuthProvider>
+            </BrowserRouter>
+          </ErrorBoundary>
+      </TooltipProvider>
+    </QueryClientProvider>
   );
 };
 

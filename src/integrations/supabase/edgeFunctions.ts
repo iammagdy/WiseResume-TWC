@@ -1,30 +1,23 @@
 import { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY } from '@/lib/supabaseConstants';
-import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
+import { supabase } from '@/integrations/supabase/safeClient';
 
 /**
- * Authenticated edge function client pointing at jnsfmkzgxsviuthaqlyy.
- *
- * Uses a raw fetch so we have full control over the Authorization header.
- * Supabase's built-in client.functions.invoke() overrides auth headers
- * with its own session token, which breaks Clerk-based auth.
+ * Authenticated edge function client.
+ * Uses the Supabase Auth session token for Authorization.
  */
-
-async function getTokenWithRetry(retries = 5, delayMs = 500): Promise<string | null> {
-  for (let i = 0; i < retries; i++) {
-    const token = await getClerkSupabaseToken();
-    if (token) return token;
-    if (i < retries - 1) await new Promise(r => setTimeout(r, delayMs));
-  }
-  return null;
-}
-
 export const edgeFunctions = {
   functions: {
     invoke: async (
       fnName: string,
       options?: { body?: unknown; headers?: Record<string, string>; method?: string }
     ) => {
-      const token = await getTokenWithRetry();
+      let token: string | null = null;
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        token = session?.access_token ?? null;
+      } catch {
+        // No session
+      }
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -35,10 +28,8 @@ export const edgeFunctions = {
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       } else {
-        // Fallback: at minimum send the anon key as bearer so the function
-        // receives SOME authorization header and can return a proper error
         headers['Authorization'] = `Bearer ${EDGE_FUNCTIONS_ANON_KEY}`;
-        console.warn(`[edgeFunctions] No Clerk token available for ${fnName} — using anon fallback`);
+        console.warn(`[edgeFunctions] No auth token available for ${fnName} — using anon fallback`);
       }
 
       const url = `${EDGE_FUNCTIONS_URL}/functions/v1/${fnName}`;

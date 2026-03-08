@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
-import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
+import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { cn } from '@/lib/utils';
 
 interface Question {
@@ -61,7 +61,7 @@ export function QuestionBankSheet({
     setLoading(true);
     haptics.light();
     try {
-      const token = await getClerkSupabaseToken();
+      const token = await getSupabaseToken();
       if (!token) throw new Error('Not authenticated');
 
       const { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY } = await import('@/lib/supabaseConstants');

@@ -5,7 +5,6 @@
 import { useEffect, useRef } from 'react';
 import { useSettingsStore } from '@/store/settingsStore';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
-import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -16,30 +15,11 @@ export function useAIKeyHydration() {
   const { user, isAuthenticated } = useAuth();
 
   useEffect(() => {
-    // Wait until the user is fully authenticated with a valid supabaseUuid
     if (!isAuthenticated || !user?.id || !UUID_REGEX.test(user.id)) return;
     if (hydrated.current) return;
 
     const hydrate = async () => {
-      const token = await getClerkSupabaseToken();
-      if (!token) return;
-
-      // Extract supabaseUuid from the Clerk supabase-template JWT
-      let supabaseUuid: string | null = null;
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-        // Prefer the explicit supabaseUuid claim; fall back to sub only if it's a valid UUID
-        const candidate = (payload?.supabaseUuid as string) || (payload?.sub as string);
-        if (candidate && UUID_REGEX.test(candidate)) {
-          supabaseUuid = candidate;
-        }
-      } catch {
-        return;
-      }
-
-      // Also use user.id (which is already the supabaseUuid from mappedUser)
-      const userId = supabaseUuid || user.id;
-      if (!userId || !UUID_REGEX.test(userId)) return;
+      const userId = user.id;
 
       try {
         // Hydrate keys from manage-api-keys
@@ -71,7 +51,7 @@ export function useAIKeyHydration() {
           }
         }
 
-        // Hydrate AI provider preference using the validated UUID
+        // Hydrate AI provider preference
         const { data: prefs } = await supabase
           .from('user_preferences')
           .select('ai_provider')

@@ -13,7 +13,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useResignationLetterMutations } from '@/hooks/useResignationLetters';
-import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
+import { getSupabaseToken } from '@/lib/supabaseAuth';
 
 import { EDGE_FUNCTIONS_URL } from '@/lib/supabaseConstants';
 import { haptics } from '@/lib/haptics';
@@ -113,7 +113,7 @@ export default function ResignationLetterNewPage() {
     setGenerating(true);
     haptics.light();
     try {
-      const token = await getClerkSupabaseToken();
+      const token = await getSupabaseToken();
       const response = await fetch(
         `${EDGE_FUNCTIONS_URL}/functions/v1/generate-resignation-letter`,
         {

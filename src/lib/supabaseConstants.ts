@@ -5,28 +5,11 @@
  * │  Project:  jnsfmkzgxsviuthaqlyy                         │
  * │  URL: https://jnsfmkzgxsviuthaqlyy.supabase.co          │
  * │  Purpose: Database, RLS, Edge Functions — everything     │
- * │                                                          │
- * │  Clerk JWT template is configured with THIS project's    │
- * │  JWT secret — must always point here.                    │
  * └──────────────────────────────────────────────────────────┘
  */
 export const SUPABASE_URL = 'https://jnsfmkzgxsviuthaqlyy.supabase.co';
 export const SUPABASE_ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impuc2Zta3pneHN2aXV0aGFxbHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4ODM4MzQsImV4cCI6MjA4NzQ1OTgzNH0.gzgKuVPKUU3I6TFk9A5C2EPdd8Opz1SYafymiT62lV0';
-
-/**
- * Clerk publishable key — environment-aware.
- * Production (thewise.cloud) uses the live key; all other origins use the dev key.
- */
-const CLERK_KEY_PRODUCTION = 'pk_live_Y2xlcmsudGhld2lzZS5jbG91ZCQ';
-const CLERK_KEY_DEV = 'pk_test_YnJpZ2h0LWdob3N0LTM0LmNsZXJrLmFjY291bnRzLmRldiQ';
-
-const isProductionDomain =
-  typeof window !== 'undefined' && window.location.hostname.endsWith('thewise.cloud');
-
-export const CLERK_PUBLISHABLE_KEY = isProductionDomain
-  ? CLERK_KEY_PRODUCTION
-  : CLERK_KEY_DEV;
 
 /**
  * Edge functions run on the Lovable Cloud project (auto-deployed).

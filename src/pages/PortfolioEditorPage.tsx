@@ -6,7 +6,7 @@ import { BackButton } from '@/components/ui/BackButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useResumes } from '@/hooks/useResumes';
-import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
+import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { supabase } from '@/integrations/supabase/safeClient';
 
 import { EDGE_FUNCTIONS_URL } from '@/lib/supabaseConstants';
@@ -193,7 +193,7 @@ export default function PortfolioEditorPage() {
 
   const callPortfolioAI = async (action: string, extraBody?: Record<string, unknown>) => {
     const selectedResume = resumes.find(r => r.id === selectedResumeId) || resumes[0];
-    const token = await getClerkSupabaseToken();
+    const token = await getSupabaseToken();
     const res = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/generate-portfolio-bio`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },

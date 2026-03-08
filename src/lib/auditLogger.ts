@@ -1,4 +1,3 @@
-import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
 import { supabase } from '@/integrations/supabase/safeClient';
 
 type AuditCategory = 'migration' | 'account' | 'api_key' | 'auth';
@@ -14,11 +13,9 @@ export function logAudit(
 ): void {
   (async () => {
     try {
-      const token = await getClerkSupabaseToken();
-      if (!token) return;
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const userId = payload?.sub;
-      if (!userId) return;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) return;
+      const userId = session.user.id;
 
       await (supabase.from('audit_logs' as never) as any).insert({
         user_id: userId,
