@@ -87,31 +87,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // === AUTHENTICATION ===
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const { userId, client } = await requireAuth(req);
 
-    const token = authHeader.replace('Bearer ', '');
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const rateCheck = await checkRateLimit(user.id, { maxRequests: 10, windowSeconds: 60, actionType: 'recruiter_sim' });
+    const rateCheck = await checkRateLimit(userId, { maxRequests: 10, windowSeconds: 60, actionType: 'recruiter_sim' });
     if (!rateCheck.allowed) {
       return new Response(
         JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
