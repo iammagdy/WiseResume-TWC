@@ -90,6 +90,7 @@ const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 const ResetPasswordPage = lazyWithRetry(() => import("./pages/ResetPasswordPage"));
 const ShortLinkPage = lazyWithRetry(() => import("./pages/ShortLinkPage"));
 const AuthCallbackPage = lazyWithRetry(() => import("./pages/AuthCallbackPage"));
+const EmailConfirmationPage = lazyWithRetry(() => import("./pages/EmailConfirmationPage"));
 const PrivacyPage = lazyWithRetry(() => import("./pages/PrivacyPage"));
 const TermsPage = lazyWithRetry(() => import("./pages/TermsPage"));
 const HelpPage = lazyWithRetry(() => import("./pages/HelpPage"));
