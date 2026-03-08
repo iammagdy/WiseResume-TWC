@@ -25,7 +25,7 @@ serve(async (req) => {
     const { userId, client } = await requireAuth(req);
     console.log('Authenticated user:', userId);
 
-    const rateCheck = await checkRateLimit(user.id, { maxRequests: 10, windowSeconds: 60, actionType: 'analyze' });
+    const rateCheck = await checkRateLimit(userId, { maxRequests: 10, windowSeconds: 60, actionType: 'analyze' });
     if (!rateCheck.allowed) {
       return new Response(
         JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
