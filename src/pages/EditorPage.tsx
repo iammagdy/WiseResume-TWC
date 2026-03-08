@@ -725,12 +725,14 @@ export default function EditorPage() {
           </TabsList>
           <TabsContent value="editor" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
             <div
-              className="editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-3 pb-24 space-y-0"
+              className="editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-3 pb-4 space-y-0"
               ref={scrollContainerRef}
             >
-              <div className="flex flex-col" style={{ minHeight: '100%' }}>
-                <EditorSectionContent {...editorSectionProps} />
-              </div>
+              <EditorSectionContent {...editorSectionProps} />
+            </div>
+            {/* Pinned nav — always visible above bottom tab bar */}
+            <div className="shrink-0 px-4 border-t border-border bg-background">
+              <SectionNavButtons steps={steps} activeTab={activeTab} handleTabChange={handleTabChange} navigate={navigate} />
             </div>
           </TabsContent>
           <TabsContent value="preview" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
