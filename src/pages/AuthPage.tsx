@@ -14,7 +14,7 @@ import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
 import { supabase } from '@/integrations/supabase/safeClient';
 
-type Mode = 'sign-in' | 'sign-up' | 'forgot-password';
+type Mode = 'sign-in' | 'sign-up' | 'forgot-password' | 'reset-password';
 
 export default function AuthPage() {
   const navigate = useNavigate();
