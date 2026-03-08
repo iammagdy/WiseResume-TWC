@@ -9,8 +9,6 @@ export interface AuthResult {
 
 /**
  * Decodes a JWT payload without verifying the signature.
- * Clerk-signed tokens cannot be verified by Supabase's auth secret,
- * so we extract claims client-side. PostgREST verifies the token at the DB layer.
  */
 export function decodeJwtPayload(token: string): Record<string, unknown> {
   const parts = token.split('.');
@@ -23,7 +21,7 @@ export function decodeJwtPayload(token: string): Record<string, unknown> {
 /**
  * Validates the Authorization header and returns the authenticated user's ID
  * and a service-role Supabase client that targets the EXTERNAL database project.
- * Throws an object with { status, message } on failure.
+ * With pure Supabase Auth, the `sub` claim IS the user UUID directly.
  */
 export async function requireAuth(req: Request): Promise<AuthResult> {
   const authHeader = req.headers.get('Authorization');
@@ -40,13 +38,12 @@ export async function requireAuth(req: Request): Promise<AuthResult> {
     throw { status: 401, message: 'Unauthorized' };
   }
 
-  // Use supabaseUuid custom claim from Clerk JWT, fall back to sub
-  const userId = (claims['supabaseUuid'] as string) || (claims['sub'] as string);
+  // With Supabase Auth, sub is the user UUID directly
+  const userId = claims['sub'] as string;
   if (!userId) {
     throw { status: 401, message: 'Unauthorized' };
   }
 
-  // Return a service-role client pointing at the external DB
   const client = getServiceClient();
 
   return { userId, client };
