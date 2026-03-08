@@ -253,7 +253,7 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
     setAnalyzingSections(prev => new Set(prev).add(section));
     try {
       const currentContent = getSectionContent(resume, section);
-      const token = await getClerkSupabaseToken();
+      const token = await getSupabaseToken();
       if (!token) throw new Error('Please sign in to use AI features');
 
       const res = await fetch(`${CLOUD_URL}/functions/v1/enhance-section`, {

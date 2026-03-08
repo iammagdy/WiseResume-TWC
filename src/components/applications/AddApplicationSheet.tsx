@@ -54,7 +54,7 @@ export function AddApplicationSheet({ open, onOpenChange, defaultValues }: AddAp
 
     setIsParsingUrl(true);
     try {
-      const token = await getClerkSupabaseToken();
+      const token = await getSupabaseToken();
       const res = await fetch(
         `${EDGE_FUNCTIONS_URL}/functions/v1/parse-job-url`,
         {

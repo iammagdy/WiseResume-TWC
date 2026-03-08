@@ -215,7 +215,7 @@ function GitHubSyncButton({ githubUrl }: { githubUrl: string }) {
     setSyncing(true);
     haptics.light();
     try {
-      const token = await getClerkSupabaseToken();
+      const token = await getSupabaseToken();
       if (!token) throw new Error('Not authenticated');
 
       const username = githubUrl
