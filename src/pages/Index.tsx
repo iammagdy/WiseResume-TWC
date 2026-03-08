@@ -675,7 +675,7 @@ const Index = () => {
                   onClick={handleCTA}
                 >
                   <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
-                  Get Started Free
+                  Start Building Now
                 </Button>
               </div>
             </section>
