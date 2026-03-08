@@ -7,6 +7,17 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-08
+- Issue ID: SKELETON-DEDUP (Remove double-skeleton loading states)
+- Summary: Eliminated duplicate skeleton loading states across 9 pages where the Suspense fallback in App.tsx already showed the correct skeleton, but the page component showed an identical skeleton again during data fetching — causing a jarring reset. All internal skeleton returns replaced with `return null`. Merged `CoverLettersSkeleton` and `ResignationLettersSkeleton` into shared `ListPageSkeleton`. Fixed `SkeletonCard` mixed animation inconsistency. Removed DashboardPage custom inline skeleton.
+- Files touched:
+  - `src/pages/EditorPage.tsx`, `src/pages/SettingsPage.tsx`, `src/pages/PortfolioEditorPage.tsx`, `src/pages/SharePage.tsx`, `src/pages/JobDetailPage.tsx`, `src/pages/ApplicationTrackerPage.tsx`, `src/pages/CoverLetterEditPage.tsx`, `src/pages/ResignationLetterEditPage.tsx`, `src/pages/DashboardPage.tsx`
+  - `src/components/layout/PageSkeletons.tsx`, `src/components/ui/skeleton-card.tsx`
+  - `enhancements-for-vibe-coding/CHANGELOG-local.md`
+- Notes / Constraints: No behavior changes. Suspense fallback skeletons persist until real content renders.
+
+---
+
+- Date: 2026-03-08
 - Issue ID: AUTH-MIGRATION (Remove Clerk, switch to pure Supabase Auth)
 - Summary: Complete removal of Clerk authentication and migration to pure Supabase Auth using project `jnsfmkzgxsviuthaqlyy`. All auth flows now use `supabase.auth.signInWithPassword()`, `signUp()`, `resetPasswordForEmail()`, and `updateUser()`. AuthContext rewritten to use `onAuthStateChange` + `getSession()`. Edge functions simplified to extract `sub` claim directly (no more `supabaseUuid` mapping). DB functions `get_clerk_user_id()` and `safe_uid()` simplified to return `auth.uid()`, keeping all RLS policies functional. Two packages removed (`@clerk/clerk-react`, `@lovable.dev/cloud-auth-js`).
 - Files touched:
