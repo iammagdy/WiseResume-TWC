@@ -39,10 +39,7 @@ function generateSlug(length = 5): string {
 /** Create a universal short URL for any app path */
 export async function createShortUrl(targetPath: string, label?: string): Promise<string | null> {
   try {
-    const token = await getClerkSupabaseToken();
-    if (!token) return null;
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    const userId = payload?.sub;
+    const userId = await getAuthUserId();
     if (!userId) return null;
 
     for (let attempt = 0; attempt < 3; attempt++) {

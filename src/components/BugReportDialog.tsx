@@ -131,12 +131,11 @@ export function BugReportDialog() {
     let userEmail = 'anonymous';
     let sessionId: string | undefined;
     try {
-      const token = await getClerkSupabaseToken();
-      if (token) {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        userId = payload?.sub;
-        userEmail = payload?.email || 'anonymous';
-        sessionId = token.slice(-8);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        userId = session.user.id;
+        userEmail = session.user.email || 'anonymous';
+        sessionId = session.access_token?.slice(-8);
       }
     } catch { /* proceed without auth */ }
 

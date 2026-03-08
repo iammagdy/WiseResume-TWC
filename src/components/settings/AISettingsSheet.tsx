@@ -240,20 +240,15 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       setTestResult(null);
       
       try {
-        const { getClerkSupabaseToken } = await import('@/lib/clerkSupabase');
-        const token = await getClerkSupabaseToken();
-        if (token) {
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          const userId = payload?.sub;
-          if (userId) {
-            const { error } = await supabase
-              .from('user_preferences')
-              .update({ ai_provider: value })
-              .eq('user_id', userId);
-            if (error) {
-              console.error('Failed to sync AI provider preference:', error);
-              toast.error('Failed to save AI engine preference');
-            }
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user?.id) {
+          const { error } = await supabase
+            .from('user_preferences')
+            .update({ ai_provider: value })
+            .eq('user_id', session.user.id);
+          if (error) {
+            console.error('Failed to sync AI provider preference:', error);
+            toast.error('Failed to save AI engine preference');
           }
         }
       } catch (err) {

@@ -193,7 +193,7 @@ export default function PortfolioEditorPage() {
 
   const callPortfolioAI = async (action: string, extraBody?: Record<string, unknown>) => {
     const selectedResume = resumes.find(r => r.id === selectedResumeId) || resumes[0];
-    const token = await getClerkSupabaseToken();
+    const token = await getSupabaseToken();
     const res = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/generate-portfolio-bio`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
