@@ -366,6 +366,15 @@ const Index = () => {
     navigate('/auth');
   };
 
+  // Show loading state while auth resolves to prevent guest→auth flash
+  if (authLoading) {
+    return (
+      <SpaceBackground>
+        <PageLoadingSpinner />
+      </SpaceBackground>
+    );
+  }
+
   return (
     <SpaceBackground>
       {/* Scroll progress bar */}
