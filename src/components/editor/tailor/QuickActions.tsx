@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Plus, ArrowUpDown, Hash } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
-import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
+import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { useAIAction } from '@/hooks/useAIAction';
 import { showErrorToast } from '@/lib/errorToast';
 import { toast } from 'sonner';
