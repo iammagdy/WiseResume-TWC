@@ -1,8 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
+import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 
 const MAX_MESSAGE_SIZE = 10 * 1024;
 const MAX_HISTORY_SIZE = 200 * 1024;
