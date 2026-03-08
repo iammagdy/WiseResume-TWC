@@ -7,6 +7,15 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-08
+- Issue ID: OAUTH-CUSTOM-DOMAIN (Google OAuth 404 on custom domains)
+- Summary: Fixed Google OAuth returning 404 on custom domains (thewise.cloud) by routing OAuth through wiseresume.lovable.app where the /~oauth endpoint is handled, then redirecting back to the custom domain with session tokens via URL hash fragment. AuthCallbackPage now handles cross-domain token exchange via supabase.auth.setSession().
+- Files touched:
+  - `src/pages/AuthPage.tsx` — custom domain detection, redirect_uri routing, post-auth redirect-back logic
+  - `src/pages/AuthCallbackPage.tsx` — cross-domain token exchange from URL hash
+  - `enhancements-for-vibe-coding/CHANGELOG-local.md`
+- Notes: Tokens in URL hash are the same pattern Supabase uses for email confirmations (hash fragments are not sent to servers). sessionStorage stores return origin during the OAuth flow.
+
+- Date: 2026-03-08
 - Issue ID: SKELETON-DEDUP (Remove double-skeleton loading states)
 - Summary: Eliminated duplicate skeleton loading states across 9 pages where the Suspense fallback in App.tsx already showed the correct skeleton, but the page component showed an identical skeleton again during data fetching — causing a jarring reset. All internal skeleton returns replaced with `return null`. Merged `CoverLettersSkeleton` and `ResignationLettersSkeleton` into shared `ListPageSkeleton`. Fixed `SkeletonCard` mixed animation inconsistency. Removed DashboardPage custom inline skeleton.
 - Files touched:
