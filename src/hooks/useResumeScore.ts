@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
+import { getSupabaseToken } from '@/lib/supabaseAuth';
 
 import { ResumeData } from '@/types/resume';
 import { toast } from 'sonner';
