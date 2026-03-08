@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Update existing template
+    // Update existing template — Clerk PATCH requires `name` to be included
     const patchResp = await fetch(
       `https://api.clerk.com/v1/jwt_templates/${supabaseTemplate.id}`,
       {
@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
           Authorization: `Bearer ${clerkSecretKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(patchBody),
+        body: JSON.stringify({ ...patchBody, name: CLERK_TEMPLATE_NAME }),
       }
     );
 
