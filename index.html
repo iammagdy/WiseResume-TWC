@@ -66,6 +66,13 @@
     href="/icons/icon-512x512.png" />
 
   <script>
+    // SPA redirect: restore deep-link path saved by 404.html
+    (function () {
+      var r = sessionStorage.getItem('spa-redirect');
+      if (r) { sessionStorage.removeItem('spa-redirect'); history.replaceState(null, '', r); }
+    })();
+  </script>
+  <script>
     (function () {
       var t = 'dark';
       try {
