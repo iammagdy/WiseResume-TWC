@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { useResignationLetter, useResignationLetterMutations } from '@/hooks/useResignationLetters';
 import { ResignationChecklist } from '@/components/resignation/ResignationChecklist';
 import { useAuth } from '@/hooks/useAuth';
-import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
+import { getSupabaseToken } from '@/lib/supabaseAuth';
 
 import { EDGE_FUNCTIONS_URL } from '@/lib/supabaseConstants';
 import { haptics } from '@/lib/haptics';
