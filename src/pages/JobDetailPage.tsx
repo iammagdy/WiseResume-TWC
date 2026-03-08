@@ -25,7 +25,8 @@ export default function JobDetailPage() {
   const [showApply, setShowApply] = useState(false);
 
   // Auth guard handled by ProtectedRoute
-  if (isLoading) return <DetailSkeleton />;
+  // Suspense fallback already shows DetailSkeleton; avoid double skeleton
+  if (isLoading) return null;
   if (!job) return (
     <div className="flex-1 flex flex-col items-center justify-center p-6">
       <Briefcase className="w-12 h-12 text-muted-foreground/30 mb-3" />

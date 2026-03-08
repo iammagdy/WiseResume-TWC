@@ -185,7 +185,8 @@ export default function ResignationLetterEditPage() {
   }, [id, deleteLetter, navigate]);
 
   // Auth guard handled by ProtectedRoute
-  if (isLoading || authLoading) return <DetailSkeleton />;
+  // Suspense fallback already shows DetailSkeleton; avoid double skeleton
+  if (isLoading || authLoading) return null;
   if (!letter) {
     return (
       <div className="flex-1 flex items-center justify-center p-4">

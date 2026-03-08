@@ -260,9 +260,8 @@ export default function SettingsPage() {
 
   const displayName = profile?.fullName || user?.email || 'User';
 
-  if (loading) {
-    return <SettingsSkeleton />;
-  }
+  // Suspense fallback already shows SettingsSkeleton; avoid double skeleton
+  if (loading) return null;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">

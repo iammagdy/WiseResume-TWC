@@ -55,7 +55,8 @@ export default function ApplicationTrackerPage() {
   }, [app?.status, app?.id]);
 
   // Auth guard handled by ProtectedRoute
-  if (isLoading) return <DetailSkeleton />;
+  // Suspense fallback already shows DetailSkeleton; avoid double skeleton
+  if (isLoading) return null;
   if (!app) return (
     <div className="flex-1 flex items-center justify-center p-6">
       <p className="text-muted-foreground">Application not found</p>

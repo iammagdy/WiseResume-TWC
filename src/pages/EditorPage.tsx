@@ -564,9 +564,9 @@ export default function EditorPage() {
   // Show skeleton while DB fetch is in flight — but as soon as resumeFromDb arrives,
   // the hydration effect will fire and populate currentResume in the same micro-task tick.
   // This reduces perceived wait by one full render cycle vs waiting for the effect.
-  if (!currentResume && isValidating) return <EditorSkeleton />;
-  if (!currentResume && !resumeFromDb) return <EditorSkeleton />;
-  if (!currentResume) return <EditorSkeleton />;
+  if (!currentResume && isValidating) return null;
+  if (!currentResume && !resumeFromDb) return null;
+  if (!currentResume) return null;
   // === Past this point, currentResume is guaranteed non-null ===
 
   return (

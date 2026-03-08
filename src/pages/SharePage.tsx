@@ -42,7 +42,8 @@ export default function SharePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, data, viewCounted]);
 
-  if (isLoading) return <ShareSkeleton />;
+  // Suspense fallback already shows ShareSkeleton; avoid double skeleton
+  if (isLoading) return null;
 
   if (error || !data) {
     return (

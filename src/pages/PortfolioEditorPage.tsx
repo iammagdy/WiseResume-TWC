@@ -174,7 +174,8 @@ export default function PortfolioEditorPage() {
 
 
   if (!user) return null;
-  if (loading) return <PortfolioEditorSkeleton />;
+  // Suspense fallback already shows PortfolioEditorSkeleton; avoid double skeleton
+  if (loading) return null;
 
   const validateUsername = (value: string) => {
     if (!value) { setUsernameError(''); return; }
