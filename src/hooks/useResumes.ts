@@ -119,11 +119,11 @@ export function useResumes<TData = DatabaseResume[]>(options?: { select?: (data:
       const { data, error } = await supabase
         .from('resumes')
         .select('*')
-        .is('deleted_at', null)
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
-      return (data || []).map(parseDbResume);
+      // Filter out soft-deleted resumes in JS to avoid PostgREST schema cache issues
+      return (data || []).map(parseDbResume).filter(r => !r.deleted_at);
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000,
