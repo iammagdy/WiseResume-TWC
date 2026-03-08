@@ -128,3 +128,6 @@ verify_jwt = false
 
 [functions.repair-user-uuid]
 verify_jwt = false
+
+[functions.repair-clerk-uuid]
+verify_jwt = false
