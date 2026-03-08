@@ -7,6 +7,23 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-08
+- Issue ID: BRANDED-AUTH-EMAILS
+- Summary: Scaffolded and branded all 6 auth email templates (signup, recovery, magic-link, invite, email-change, reauthentication) for custom sender domain notify.thewise.cloud. Applied WiseResume brand: vibrant red (#e63946) CTA buttons, logo from storage, centered layout, professional copy with "Build your career story" footer. Uploaded wise-ai-logo.png to avatars/email-assets/ storage. Deployed auth-email-hook edge function. Also created EmailConfirmationPage shown after signup instead of a toast.
+- Files touched:
+  - `supabase/functions/_shared/email-templates/signup.tsx` — branded signup template
+  - `supabase/functions/_shared/email-templates/recovery.tsx` — branded recovery template
+  - `supabase/functions/_shared/email-templates/magic-link.tsx` — branded magic link template
+  - `supabase/functions/_shared/email-templates/invite.tsx` — branded invite template
+  - `supabase/functions/_shared/email-templates/email-change.tsx` — branded email change template
+  - `supabase/functions/_shared/email-templates/reauthentication.tsx` — branded reauth template
+  - `supabase/functions/auth-email-hook/index.ts` — edge function (scaffolded)
+  - `src/pages/EmailConfirmationPage.tsx` — post-signup confirmation page
+  - `src/pages/AuthPage.tsx` — navigate to confirmation page on signup
+  - `src/App.tsx` — added /auth/confirm-email route
+  - `enhancements-for-vibe-coding/CHANGELOG-local.md`
+- Notes: Custom emails activate automatically once DNS for notify.thewise.cloud is verified. Until then, default emails continue.
+
+- Date: 2026-03-08
 - Issue ID: OAUTH-CUSTOM-DOMAIN (Google OAuth 404 on custom domains)
 - Summary: Fixed Google OAuth returning 404 on custom domains (thewise.cloud) by routing OAuth through wiseresume.lovable.app where the /~oauth endpoint is handled, then redirecting back to the custom domain with session tokens via URL hash fragment. AuthCallbackPage now handles cross-domain token exchange via supabase.auth.setSession().
 - Files touched:
