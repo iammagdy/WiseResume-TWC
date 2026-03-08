@@ -1,142 +1,99 @@
 project_id = "hjnnamwgztlhzkeuufln"
 
-[functions.analyze-resume]
-verify_jwt = false
-
-[functions.enhance-section]
-verify_jwt = false
-
-[functions.explain-gap]
-verify_jwt = false
-
-[functions.interview-chat]
-verify_jwt = false
-
-[functions.parse-linkedin]
-verify_jwt = false
-
-[functions.parse-job-url]
-verify_jwt = false
-
-[functions.parse-resume]
-verify_jwt = false
-
-[functions.tailor-resume]
-verify_jwt = false
-
-[functions.generate-cover-letter]
-verify_jwt = false
-
-[functions.elevenlabs-scribe-token]
-verify_jwt = false
-
-[functions.generate-headshot]
-verify_jwt = false
-
-[functions.recruiter-simulation]
-verify_jwt = false
-
-[functions.detect-and-humanize]
-verify_jwt = false
-
-[functions.optimize-for-linkedin]
-verify_jwt = false
-
-[functions.one-page-optimizer]
-verify_jwt = false
-
-[functions.agentic-chat]
-verify_jwt = false
-
-[functions.career-path-advisor]
-verify_jwt = false
-
-[functions.score-resume]
-verify_jwt = false
-
-[functions.send-push-notification]
-verify_jwt = false
-
-[functions.career-assessment]
-verify_jwt = false
-
-[functions.generate-resignation-letter]
-verify_jwt = false
-
-[functions.fill-gap]
-verify_jwt = false
-
-[functions.ai-health]
-verify_jwt = false
-
-[functions.manage-api-keys]
-verify_jwt = false
-
-[functions.generate-portfolio-bio]
-verify_jwt = false
-
-[functions.track-portfolio-view]
-verify_jwt = false
-
-[functions.send-feature-request]
-verify_jwt = false
-
-[functions.validate-api-key]
-verify_jwt = false
-
-[functions.ask-portfolio]
-verify_jwt = false
-
-[functions.og-image]
-verify_jwt = false
-
-[functions.portfolio-meta]
-verify_jwt = false
-
-[functions.resolve-short-link]
-verify_jwt = false
-
-[functions.send-bug-report]
-verify_jwt = false
-
-[functions.send-resume-reminder]
-verify_jwt = false
-
-[functions.weekly-digest]
-verify_jwt = false
-
-[functions.company-briefing]
-verify_jwt = false
-
-[functions.generate-store-screenshots]
-verify_jwt = false
-
-[functions.suggest-template]
-verify_jwt = false
-
-[functions.fetch-github-projects]
-verify_jwt = false
-
-[functions.generate-question-bank]
-verify_jwt = false
-
-[functions.clerk-webhook]
-verify_jwt = false
-
-[functions.provision-clerk-user]
-verify_jwt = false
-
-[functions.repair-user-uuid]
-verify_jwt = false
-
-[functions.repair-clerk-uuid]
-verify_jwt = false
-
-[functions.migrate-user-data]
-verify_jwt = false
-
-[functions.patch-clerk-jwt-template]
-verify_jwt = false
-
-[functions.debug-jwt]
-verify_jwt = false
+[functions]
+  [functions.agentic-chat]
+    verify_jwt = false
+  [functions.ai-health]
+    verify_jwt = false
+  [functions.analyze-resume]
+    verify_jwt = false
+  [functions.ask-portfolio]
+    verify_jwt = false
+  [functions.auth-email-hook]
+    verify_jwt = false
+  [functions.career-assessment]
+    verify_jwt = false
+  [functions.career-path-advisor]
+    verify_jwt = false
+  [functions.clerk-webhook]
+    verify_jwt = false
+  [functions.company-briefing]
+    verify_jwt = false
+  [functions.debug-jwt]
+    verify_jwt = false
+  [functions.detect-and-humanize]
+    verify_jwt = false
+  [functions.elevenlabs-scribe-token]
+    verify_jwt = false
+  [functions.enhance-section]
+    verify_jwt = false
+  [functions.explain-gap]
+    verify_jwt = false
+  [functions.fetch-github-projects]
+    verify_jwt = false
+  [functions.fill-gap]
+    verify_jwt = false
+  [functions.generate-cover-letter]
+    verify_jwt = false
+  [functions.generate-headshot]
+    verify_jwt = false
+  [functions.generate-portfolio-bio]
+    verify_jwt = false
+  [functions.generate-question-bank]
+    verify_jwt = false
+  [functions.generate-resignation-letter]
+    verify_jwt = false
+  [functions.generate-store-screenshots]
+    verify_jwt = false
+  [functions.interview-chat]
+    verify_jwt = false
+  [functions.manage-api-keys]
+    verify_jwt = false
+  [functions.migrate-user-data]
+    verify_jwt = false
+  [functions.og-image]
+    verify_jwt = false
+  [functions.one-page-optimizer]
+    verify_jwt = false
+  [functions.optimize-for-linkedin]
+    verify_jwt = false
+  [functions.parse-job-url]
+    verify_jwt = false
+  [functions.parse-linkedin]
+    verify_jwt = false
+  [functions.parse-resume]
+    verify_jwt = false
+  [functions.patch-clerk-jwt-template]
+    verify_jwt = false
+  [functions.portfolio-meta]
+    verify_jwt = false
+  [functions.provision-clerk-user]
+    verify_jwt = false
+  [functions.recruiter-simulation]
+    verify_jwt = false
+  [functions.repair-clerk-uuid]
+    verify_jwt = false
+  [functions.repair-user-uuid]
+    verify_jwt = false
+  [functions.resolve-short-link]
+    verify_jwt = false
+  [functions.score-resume]
+    verify_jwt = false
+  [functions.send-bug-report]
+    verify_jwt = false
+  [functions.send-feature-request]
+    verify_jwt = false
+  [functions.send-push-notification]
+    verify_jwt = false
+  [functions.send-resume-reminder]
+    verify_jwt = false
+  [functions.suggest-template]
+    verify_jwt = false
+  [functions.tailor-resume]
+    verify_jwt = false
+  [functions.track-portfolio-view]
+    verify_jwt = false
+  [functions.validate-api-key]
+    verify_jwt = false
+  [functions.weekly-digest]
+    verify_jwt = false
