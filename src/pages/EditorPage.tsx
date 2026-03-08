@@ -59,7 +59,7 @@ import { AIIntroTooltip } from '@/components/editor/AIIntroTooltip';
 import { ProgressBar } from '@/components/editor/ProgressBar';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { EditorHeader } from '@/components/editor/EditorHeader';
-import { EditorSectionContent } from '@/components/editor/EditorSectionContent';
+import { EditorSectionContent, SectionNavButtons } from '@/components/editor/EditorSectionContent';
 import { AddSectionSheet } from '@/components/editor/AddSectionSheet';
 export default function EditorPage() {
   const navigate = useNavigate();
