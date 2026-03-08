@@ -40,7 +40,6 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   const { user: clerkUser, isLoaded: isUserLoaded } = useUser();
   const { session: clerkSession, isLoaded: isSessionLoaded } = useClerkSession();
   const { signOut: clerkSignOut } = useClerk();
-  const supabase = useClerkSupabaseClient();
 
   const [splashHidden, setSplashHidden] = useState(false);
   const [provisioning, setProvisioning] = useState(false);
