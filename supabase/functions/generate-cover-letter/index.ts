@@ -117,7 +117,7 @@ Write a ${validTone} cover letter with a professional header containing actual c
     const coverLetter = aiResponse.content;
     if (!coverLetter) throw new Error("No content in AI response");
 
-    await recordUsage(user.id, 'cover_letter', { provider: aiResponse.providerUsed || 'unknown' });
+    await recordUsage(userId, 'cover_letter', { provider: aiResponse.providerUsed || 'unknown' });
 
     return new Response(
       JSON.stringify({ coverLetter, _providerUsed: aiResponse.providerUsed || 'unknown' }),
