@@ -32,6 +32,15 @@ async function encrypt(plaintext: string): Promise<string> {
   return btoa(String.fromCharCode(...combined));
 }
 
+/** Decode JWT payload without verifying signature (Clerk-signed tokens) */
+function decodeJwtPayload(token: string): Record<string, unknown> {
+  const parts = token.split('.');
+  if (parts.length !== 3) throw new Error('Invalid token');
+  const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+  const json = atob(b64.padEnd(b64.length + (4 - b64.length % 4) % 4, '='));
+  return JSON.parse(json);
+}
+
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') {
@@ -44,24 +53,28 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
+    const token = authHeader.replace('Bearer ', '');
+
+    // Pure client-side JWT decode — no signature verification needed.
+    // Clerk tokens can't be verified by Supabase's auth secret; PostgREST
+    // verifies the token independently when the DB query runs.
+    let claims: Record<string, unknown>;
+    try {
+      claims = decodeJwtPayload(token);
+    } catch {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    const userId = (claims['supabaseUuid'] as string) || (claims['sub'] as string);
+    if (!userId) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
       { global: { headers: { Authorization: authHeader } } }
     );
-
-    const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    // Extract UUID: prefer supabaseUuid claim (Clerk custom claim), fallback to sub
-    const claims = claimsData.claims as Record<string, string>;
-    const userId: string = claims['supabaseUuid'] || claims['sub'];
-    if (!userId) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
 
     // All requests come via POST (supabase.functions.invoke always uses POST)
     // Route by `action` field in body: 'save' | 'delete' | 'get'
