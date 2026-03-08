@@ -21,6 +21,14 @@ import { InstallButton } from '@/components/pwa/InstallButton';
 
 import logoImage from '@/assets/wise-ai-logo.webp';
 
+// Lazy-load heavy demo components — only mounted when scrolled into view
+const LazyEditorDemo = lazy(() => import('@/components/landing/EditorDemo').then(m => ({ default: m.EditorDemo })));
+const LazyPortfolioDemo = lazy(() => import('@/components/landing/PortfolioDemo').then(m => ({ default: m.PortfolioDemo })));
+
+const DemoFallback = () => (
+  <div className="w-[260px] h-[280px] rounded-[28px] border-2 border-border/40 bg-card/80 animate-pulse" />
+);
+
 const features = [
   { icon: Sparkles, title: 'Weak bullet? Fixed in 1 tap', desc: 'AI rewrites vague bullets into quantified achievements that recruiters remember', iconColor: 'text-primary', gradient: 'from-primary/20 to-primary/5' },
   { icon: Target, title: 'Know your score before they do', desc: 'Real-time ATS match percentage against any job posting — then fix it instantly', iconColor: 'text-emerald-500', gradient: 'from-emerald-500/20 to-emerald-500/5' },
