@@ -32,7 +32,7 @@ async function encrypt(plaintext: string): Promise<string> {
   return btoa(String.fromCharCode(...combined));
 }
 
-/** Decode JWT payload without verifying signature (Clerk-signed tokens) */
+/** Decode JWT payload without verifying signature */
 function decodeJwtPayload(token: string): Record<string, unknown> {
   const parts = token.split('.');
   if (parts.length !== 3) throw new Error('Invalid token');
@@ -55,9 +55,6 @@ Deno.serve(async (req) => {
 
     const token = authHeader.replace('Bearer ', '');
 
-    // Pure client-side JWT decode — no signature verification needed.
-    // Clerk tokens can't be verified by Supabase's auth secret; PostgREST
-    // verifies the token independently when the DB query runs.
     let claims: Record<string, unknown>;
     try {
       claims = decodeJwtPayload(token);
@@ -65,13 +62,12 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const userId = (claims['supabaseUuid'] as string) || (claims['sub'] as string);
+    const userId = claims['sub'] as string;
     if (!userId) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Use service role to bypass PostgREST JWT verification (Clerk JWTs can't be verified by PostgREST).
-    // Auth is already handled above via manual JWT decode.
+    // Use service role client for DB operations.
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_ANON_KEY')!,

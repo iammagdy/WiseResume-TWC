@@ -42,8 +42,8 @@
 | Route | Screen Name | Description |
 |-------|-------------|-------------|
 | `/` | Landing / Home | Marketing landing page with feature overview and CTAs |
-| `/auth` | Auth | Sign in and sign up via Clerk |
-| `/sign-in` | Sign In | Dedicated Clerk-hosted sign-in page |
+| `/auth` | Auth | Sign in and sign up |
+| `/sign-in` | Sign In | Dedicated sign-in page |
 | `/reset-password` | Reset Password | Password reset flow |
 | `/share/:token` | Shared Resume View | Public read-only resume view via tokenized share link |
 | `/p/:username` | Public Portfolio | Public-facing portfolio page synced from user's resume |
@@ -185,8 +185,6 @@ ResumeData {
 - `validate-api-key` — Validate a user-provided API key against the provider
 
 **System**
-- `clerk-webhook` — Clerk auth event handler (user created/deleted)
-- `provision-clerk-user` — Bootstrap DB records for a new Clerk user
 - `send-bug-report` — Email bug report to admin
 - `send-feature-request` — Email feature request to admin
 - `send-push-notification` — Send Web Push notification to a user's subscribed devices
