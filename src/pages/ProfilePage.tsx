@@ -21,7 +21,7 @@ import { haptics } from '@/lib/haptics';
 import { getPortfolioUrl } from '@/lib/portfolioUrl';
 import { openExternal } from '@/lib/openExternal';
 import { formatDistanceToNow } from 'date-fns';
-import { ProfilePageSkeleton } from '@/components/layout/PageSkeletons';
+
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -42,9 +42,7 @@ export default function ProfilePage() {
 
   const isLoading = !loadingTimedOut && (authLoading || (!profile && profileLoading));
 
-  if (isLoading) {
-    return <ProfilePageSkeleton />;
-  }
+  if (isLoading) return null;
   if (!user) return null;
 
   const completion = calculateProfileCompletion(profile);
