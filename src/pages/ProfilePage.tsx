@@ -21,7 +21,7 @@ import { haptics } from '@/lib/haptics';
 import { getPortfolioUrl } from '@/lib/portfolioUrl';
 import { openExternal } from '@/lib/openExternal';
 import { formatDistanceToNow } from 'date-fns';
-import { ProfilePageSkeleton } from '@/components/layout/PageSkeletons';
+
 
 export default function ProfilePage() {
   const navigate = useNavigate();
