@@ -17,6 +17,10 @@ import { lovable } from '@/integrations/lovable/index';
 
 type Mode = 'sign-in' | 'sign-up' | 'forgot-password' | 'reset-password';
 
+const LOVABLE_ORIGIN = 'https://wiseresume.lovable.app';
+const isCustomDomain = !window.location.hostname.endsWith('.lovable.app')
+  && window.location.hostname !== 'localhost';
+
 export default function AuthPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
