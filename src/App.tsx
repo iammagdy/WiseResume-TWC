@@ -90,6 +90,7 @@ const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 const ResetPasswordPage = lazyWithRetry(() => import("./pages/ResetPasswordPage"));
 const ShortLinkPage = lazyWithRetry(() => import("./pages/ShortLinkPage"));
 const AuthCallbackPage = lazyWithRetry(() => import("./pages/AuthCallbackPage"));
+const EmailConfirmationPage = lazyWithRetry(() => import("./pages/EmailConfirmationPage"));
 const PrivacyPage = lazyWithRetry(() => import("./pages/PrivacyPage"));
 const TermsPage = lazyWithRetry(() => import("./pages/TermsPage"));
 const HelpPage = lazyWithRetry(() => import("./pages/HelpPage"));
@@ -190,8 +191,9 @@ const queryClient = new QueryClient({
           {/* Public routes */}
           <Route path="/" element={<Index />} />
            <Route element={<AppShell />}>
-              <Route path="/auth" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />
-              <Route path="/sign-in" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />
+               <Route path="/auth" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />
+               <Route path="/sign-in" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />
+               <Route path="/auth/confirm-email" element={<Suspense fallback={<PageLoadingSpinner />}><EmailConfirmationPage /></Suspense>} />
               <Route path="/auth/callback" element={<Suspense fallback={<PageLoadingSpinner />}><AuthCallbackPage /></Suspense>} />
               <Route path="/privacy" element={<Suspense fallback={<PageLoadingSpinner />}><PrivacyPage /></Suspense>} />
                <Route path="/terms" element={<Suspense fallback={<PageLoadingSpinner />}><TermsPage /></Suspense>} />

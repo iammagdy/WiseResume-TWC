@@ -158,8 +158,7 @@ export default function AuthPage() {
         toast.error('An account with this email already exists. Please sign in.');
         setMode('sign-in');
       } else {
-        toast.success('Check your email for a confirmation link');
-        setMode('sign-in');
+        navigate('/auth/confirm-email', { state: { email }, replace: true });
       }
     } catch (err: any) {
       toast.error(err?.message || 'Sign-up failed');
