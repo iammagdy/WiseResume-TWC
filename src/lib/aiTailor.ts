@@ -239,7 +239,7 @@ export interface ParsedJobData {
 
 export async function parseJobUrl(url: string): Promise<ParsedJobData> {
   const { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY: SUPABASE_KEY } = await import('@/lib/supabaseConstants');
-  const token = await getClerkSupabaseToken();
+  const token = await getSupabaseToken();
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY };
   if (token) headers['Authorization'] = `Bearer ${token}`;

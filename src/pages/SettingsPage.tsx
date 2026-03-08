@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, calculateProfileCompletion } from '@/hooks/useProfile';
 import { useSettingsStore } from '@/store/settingsStore';
-import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
+import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { useResumeStore } from '@/store/resumeStore';
 import { useResumes } from '@/hooks/useResumes';
 import { haptics } from '@/lib/haptics';

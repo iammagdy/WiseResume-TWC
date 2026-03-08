@@ -46,9 +46,9 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
   try {
     if (import.meta.env.DEV) console.log('Calling AI to parse resume text...');
     
-    // Get Clerk-issued Supabase JWT
-    const { getClerkSupabaseToken } = await import('@/lib/clerkSupabase');
-    const token = await getClerkSupabaseToken();
+    // Get Supabase Auth JWT
+    const { getSupabaseToken } = await import('@/lib/supabaseAuth');
+    const token = await getSupabaseToken();
     
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',

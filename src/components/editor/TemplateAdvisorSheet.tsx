@@ -39,7 +39,7 @@ export function TemplateAdvisorSheet({ open, onOpenChange, onApply }: TemplateAd
     setLoading(true);
     haptics.light();
     try {
-      const token = await getClerkSupabaseToken();
+      const token = await getSupabaseToken();
       if (!token) throw new Error('Not authenticated');
 
       const skills = currentResume.skills?.map(s =>

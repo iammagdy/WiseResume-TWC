@@ -67,7 +67,7 @@ Return JSON: { "recommendedOrder": ["section1", "section2", ...], "reasoning": "
       }
 
       const result = await executeAI(async () => {
-        const token = await getClerkSupabaseToken();
+        const token = await getSupabaseToken();
         if (!token) throw new Error('Not authenticated');
 
         const res = await fetch(`${CLOUD_URL}/functions/v1/enhance-section`, {

@@ -59,7 +59,7 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
       const data = await executeAI(async () => {
         const _start = Date.now();
 
-        const token = await getClerkSupabaseToken();
+        const token = await getSupabaseToken();
         if (!token) throw new Error('401 Unauthorized – no session');
 
         const res = await fetch(`${CLOUD_URL}/functions/v1/enhance-section`, {

@@ -3,7 +3,7 @@ import {
   Sparkles, Loader2, CheckCircle2, XCircle, Link2, Zap, Github, RefreshCw, Linkedin,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
+import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { haptics } from '@/lib/haptics';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';

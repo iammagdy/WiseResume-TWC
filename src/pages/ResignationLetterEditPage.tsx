@@ -130,7 +130,7 @@ export default function ResignationLetterEditPage() {
     if (!letter) return;
     setRegenerating(true);
     try {
-      const token = await getClerkSupabaseToken();
+      const token = await getSupabaseToken();
       const response = await fetch(
         `${EDGE_FUNCTIONS_URL}/functions/v1/generate-resignation-letter`,
         {
