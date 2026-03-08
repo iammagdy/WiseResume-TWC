@@ -7,16 +7,39 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { useAuth } from '@/hooks/useAuth';
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function useAIKeyHydration() {
   const hydrated = useRef(false);
+  const { user, isAuthenticated } = useAuth();
 
   useEffect(() => {
+    // Wait until the user is fully authenticated with a valid supabaseUuid
+    if (!isAuthenticated || !user?.id || !UUID_REGEX.test(user.id)) return;
     if (hydrated.current) return;
 
     const hydrate = async () => {
       const token = await getClerkSupabaseToken();
       if (!token) return;
+
+      // Extract supabaseUuid from the Clerk supabase-template JWT
+      let supabaseUuid: string | null = null;
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+        // Prefer the explicit supabaseUuid claim; fall back to sub only if it's a valid UUID
+        const candidate = (payload?.supabaseUuid as string) || (payload?.sub as string);
+        if (candidate && UUID_REGEX.test(candidate)) {
+          supabaseUuid = candidate;
+        }
+      } catch {
+        return;
+      }
+
+      // Also use user.id (which is already the supabaseUuid from mappedUser)
+      const userId = supabaseUuid || user.id;
+      if (!userId || !UUID_REGEX.test(userId)) return;
 
       try {
         // Hydrate keys from manage-api-keys
@@ -40,35 +63,24 @@ export function useAIKeyHydration() {
               store.setOllamaModel(key.model || '');
               store.setOllamaKeyValidated(true);
             }
-
             if (key.provider === 'gemini') {
-              store.setGeminiKeyTier(key.key_tier as any);
+              store.setGeminiKeyTier(key.key_tier as 'free' | 'paid' | 'unknown');
               store.setGeminiKeyValidated(true);
-              if (key.model) {
-                store.setGeminiModel(key.model);
-              }
+              if (key.model) store.setGeminiModel(key.model);
             }
           }
         }
 
-        // Hydrate the user's actual provider preference from user_preferences
-        // Decode the JWT to get the user ID (sub claim)
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const userId = payload?.sub;
-        if (!userId) return;
+        // Hydrate AI provider preference using the validated UUID
         const { data: prefs } = await supabase
           .from('user_preferences')
           .select('ai_provider')
           .eq('user_id', userId)
           .maybeSingle();
 
-        // Only override local state if DB has a non-null value
-        // This ensures the DB is the source of truth once synced
         if (prefs?.ai_provider && prefs.ai_provider !== 'wiseresume') {
-          store.setAIProvider(prefs.ai_provider as any);
+          store.setAIProvider(prefs.ai_provider as 'gemini' | 'ollama' | 'wiseresume');
         } else if (prefs?.ai_provider === 'wiseresume') {
-          // DB explicitly says wiseresume — only override if local isn't already set to something else
-          // (prevents overwriting a selection that failed to sync)
           const currentLocal = store.aiProvider;
           if (currentLocal === 'wiseresume') {
             store.setAIProvider('wiseresume');
@@ -82,5 +94,5 @@ export function useAIKeyHydration() {
     };
 
     hydrate();
-  }, []);
+  }, [isAuthenticated, user?.id]);
 }
