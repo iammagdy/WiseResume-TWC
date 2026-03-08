@@ -2,7 +2,7 @@ import { downloadFile } from '@/lib/downloadUtils';
 import { toast } from 'sonner';
 import type { ResumeData } from '@/types/resume';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
+import { getAuthUserId } from '@/lib/supabaseAuth';
 import { PORTFOLIO_DOMAIN } from '@/lib/portfolioUrl';
 
 export async function shareAsPDF(blob: Blob, fileName: string): Promise<boolean> {
