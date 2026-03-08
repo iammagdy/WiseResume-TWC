@@ -36,7 +36,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { ATSScoreBreakdown } from '@/components/dashboard/ATSScoreBreakdown';
 import { KeyboardToolbar } from '@/components/editor/KeyboardToolbar';
-import { EditorSkeleton } from '@/components/layout/PageSkeletons';
+
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { useOfflineSyncStore } from '@/store/offlineSyncStore';
 import haptics from '@/lib/haptics';

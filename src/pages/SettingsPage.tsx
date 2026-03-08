@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react';
 import { getAppUrl } from '@/lib/portfolioUrl';
-import { SettingsSkeleton } from '@/components/layout/PageSkeletons';
+
 import { useNavigate } from 'react-router-dom';
 import {
   LogOut, Info, ChevronRight, Download, Bell, Sparkles, Shield, Palette,
