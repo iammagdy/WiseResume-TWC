@@ -123,7 +123,7 @@ FACTUAL CONSTRAINTS:
 
     const result = JSON.parse(toolCall.function.arguments);
 
-    await recordUsage(user.id, 'fill_gap', { provider: aiResponse.providerUsed || 'unknown' });
+    await recordUsage(userId, 'fill_gap', { provider: aiResponse.providerUsed || 'unknown' });
 
     return new Response(JSON.stringify({ ...result, _providerUsed: aiResponse.providerUsed || 'unknown' }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
