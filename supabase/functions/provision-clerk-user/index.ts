@@ -80,20 +80,28 @@ Deno.serve(async (req) => {
     // Check if already provisioned in Clerk metadata
     const existingUuid = clerkUser.public_metadata?.supabaseUuid as string | undefined;
     if (existingUuid) {
-      // Verify the profile actually exists in the DB for this UUID
+      // Verify the profile exists AND has real data (not an orphaned empty row)
       const { data: existingProfile } = await adminClient
         .from("profiles")
-        .select("user_id")
+        .select("user_id, full_name, job_title")
         .eq("user_id", existingUuid)
         .maybeSingle();
 
       if (existingProfile) {
-        // Profile exists — truly already provisioned
-        console.log(`User ${clerkUserId} already provisioned with uuid ${existingUuid}`);
-        return new Response(
-          JSON.stringify({ supabaseUuid: existingUuid, alreadyProvisioned: true }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        // Check if it's an orphaned empty profile (no name, no job title)
+        const isOrphaned = !existingProfile.full_name && !existingProfile.job_title;
+
+        if (!isOrphaned) {
+          // Profile exists with real data — truly already provisioned
+          console.log(`User ${clerkUserId} already provisioned with uuid ${existingUuid}`);
+          return new Response(
+            JSON.stringify({ supabaseUuid: existingUuid, alreadyProvisioned: true }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Orphaned empty profile found — fall through to email-based repair
+        console.log(`Orphaned empty profile detected for ${existingUuid}, searching for real profile...`);
       }
 
       // Profile missing for existingUuid — search for an existing profile

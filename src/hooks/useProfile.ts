@@ -306,10 +306,12 @@ export function useProfile(userId: string | undefined, user?: User | null) {
       return updates;
     },
     onSuccess: (updates) => {
-      // Optimistically update the cache — no toast here to avoid double toast
+      // Optimistically update the cache
       queryClient.setQueryData(['profile', userId], (old: Profile | null) =>
         old ? { ...old, ...updates } : updates as Profile
       );
+      // Force a fresh fetch from DB so the profile page always reflects latest data
+      queryClient.invalidateQueries({ queryKey: ['profile', userId] });
     },
     onError: () => {
       // Let callers handle error display

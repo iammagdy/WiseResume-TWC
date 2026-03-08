@@ -98,6 +98,8 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
       } catch (e) {
         if ((e as Error).name === 'AbortError') {
           console.error('[Auth] Provisioning timed out');
+          // Reset so we retry on next render cycle
+          provisionAttempted.current = false;
         } else {
           console.error('[Auth] Provisioning error:', e);
         }
