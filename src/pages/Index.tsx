@@ -326,10 +326,11 @@ const Index = () => {
     const onScroll = () => {
       setScrolled(window.scrollY > 120);
       if (progressRef.current) {
+        const parent = progressRef.current.parentElement;
         const max = document.documentElement.scrollHeight - window.innerHeight;
         const pct = max > 0 ? (window.scrollY / max) * 100 : 0;
         progressRef.current.style.width = `${pct}%`;
-        progressRef.current.parentElement!.style.display = pct > 0 ? '' : 'none';
+        if (parent) parent.style.display = pct > 0 ? '' : 'none';
       }
     };
     window.addEventListener('scroll', onScroll, { passive: true });
