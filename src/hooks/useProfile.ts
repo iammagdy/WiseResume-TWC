@@ -134,11 +134,18 @@ export function getNextMissingField(profile: Partial<Profile> | null): { field: 
   return checks.find(c => !c.value) || null;
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 async function fetchProfile(userId: string, user?: User | null): Promise<Profile> {
+  // Guard: never send a non-UUID to Postgres — it would throw 22P02
+  if (!UUID_REGEX.test(userId)) {
+    console.warn('[useProfile] Non-UUID userId blocked:', userId);
+    throw new Error('Invalid user ID format');
+  }
+
   const { data, error } = await supabase
     .from('profiles')
     .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed, username, portfolio_bio, portfolio_enabled, portfolio_resume_id, github_url, website_url, twitter_url, contact_email, portfolio_theme, phone_number, portfolio_sections, portfolio_meta_title, portfolio_meta_description, views, portfolio_style, portfolio_layout, portfolio_accent_color, portfolio_font, open_to_work, availability_headline, portfolio_extras, portfolio_sync_mode, login_streak, last_login_date, digest_enabled, hired_at, updated_at')
-    .eq('user_id', userId)
     .maybeSingle();
 
   if (error) {
