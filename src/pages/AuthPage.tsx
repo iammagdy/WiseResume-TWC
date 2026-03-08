@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { lovable } from '@/integrations/lovable/index';
 
 type Mode = 'sign-in' | 'sign-up' | 'forgot-password' | 'reset-password';
 
