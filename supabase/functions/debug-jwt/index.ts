@@ -26,6 +26,7 @@ Deno.serve(async (req: Request) => {
     supabaseUuid: claims['supabaseUuid'],
     iss: claims['iss'],
     exp: claims['exp'],
+    tokenLength: token.length,
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
