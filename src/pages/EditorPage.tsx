@@ -555,9 +555,11 @@ export default function EditorPage() {
   }, []);
 
   // === GUARDS (all inline, no effects — deterministic) ===
-  if (authLoading) return <EditorSkeleton />;
+  // Suspense fallback already shows EditorSkeleton during chunk load;
+  // return null here to avoid a jarring skeleton→skeleton reset.
+  if (authLoading) return null;
   // Auth guard handled by ProtectedRoute
-  if (!storeHydrated) return <EditorSkeleton />;
+  if (!storeHydrated) return null;
   if (!currentResumeId && !currentResume) return <Navigate to="/dashboard" replace />;
   // Show skeleton while DB fetch is in flight — but as soon as resumeFromDb arrives,
   // the hydration effect will fire and populate currentResume in the same micro-task tick.
