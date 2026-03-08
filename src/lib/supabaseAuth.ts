@@ -1,7 +1,7 @@
 /**
- * Supabase Auth helpers — replaces the old Clerk token bridge.
+ * Supabase Auth helpers.
  *
- * Provides a single function to get the current session access token,
+ * Provides functions to get the current session access token and user ID,
  * used by edge function callers and utility files.
  */
 import { supabase } from '@/integrations/supabase/safeClient';

@@ -67,8 +67,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Use service role to bypass PostgREST JWT verification (Clerk JWTs can't be verified by PostgREST).
-    // Auth is already handled above via manual JWT decode.
+    // Use service role client for DB operations.
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_ANON_KEY')!,
