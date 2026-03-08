@@ -406,12 +406,13 @@ export function TemplatesPageSkeleton() {
   );
 }
 
-export function CoverLettersSkeleton() {
+// Shared skeleton for list pages (cover letters, resignation letters, etc.)
+export function ListPageSkeleton({ titleWidth = 'w-32' }: { titleWidth?: string }) {
   return (
     <div className="flex-1 flex flex-col animate-pulse">
       <div className="sticky top-0 z-10 px-4 py-3 border-b border-border flex items-center gap-3">
         <div className="w-10 h-10 bg-muted rounded-xl" />
-        <div className="h-6 w-32 bg-muted rounded flex-1" />
+        <div className={`h-6 ${titleWidth} bg-muted rounded flex-1`} />
         <div className="w-10 h-10 bg-muted rounded-xl" />
       </div>
       <div className="px-4 pt-3">
@@ -426,24 +427,13 @@ export function CoverLettersSkeleton() {
   );
 }
 
+// Backward-compat aliases
+export function CoverLettersSkeleton() {
+  return <ListPageSkeleton titleWidth="w-32" />;
+}
+
 export function ResignationLettersSkeleton() {
-  return (
-    <div className="flex-1 flex flex-col animate-pulse">
-      <div className="sticky top-0 z-10 px-4 py-3 border-b border-border flex items-center gap-3">
-        <div className="w-10 h-10 bg-muted rounded-xl" />
-        <div className="h-6 w-40 bg-muted rounded flex-1" />
-        <div className="w-10 h-10 bg-muted rounded-xl" />
-      </div>
-      <div className="px-4 pt-3">
-        <div className="h-11 bg-muted rounded-xl" />
-      </div>
-      <div className="px-4 pt-3 space-y-3">
-        {[1, 2, 3].map(i => (
-          <div key={i} className="h-24 bg-muted rounded-2xl" />
-        ))}
-      </div>
-    </div>
-  );
+  return <ListPageSkeleton titleWidth="w-40" />;
 }
 
 export function NotificationsSkeleton() {
