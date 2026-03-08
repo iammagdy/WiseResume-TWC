@@ -58,6 +58,17 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isLoaded || !clerkUser || provisionAttempted.current || provisioning) return;
 
+    // If supabaseUuid is already set, the user is provisioned — skip entirely.
+    // The get_clerk_user_id() DB function now reads the JWT claim directly,
+    // so no DB verification call is needed. This prevents the infinite loop
+    // when CLERK_SECRET_KEY points to the wrong Clerk environment (returning 403).
+    if (supabaseUuid) {
+      console.log('[Auth] supabaseUuid already present — skipping provision check');
+      provisionAttempted.current = true;
+      return;
+    }
+
+    // Only run provisioning for genuinely new users (no supabaseUuid yet).
     provisionAttempted.current = true;
     setProvisioning(true);
 
@@ -66,10 +77,7 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
 
     (async () => {
       try {
-        // If UUID is already set, pass forceReprovision so the edge function
-        // verifies the profile exists and re-provisions/repairs if not.
-        const forceReprovision = !!supabaseUuid;
-        console.log(`[Auth] ${forceReprovision ? 'Verifying provisioning' : 'Provisioning new user'}...`);
+        console.log('[Auth] Provisioning new user...');
 
         const res = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/provision-clerk-user`, {
           method: 'POST',
@@ -77,31 +85,36 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
             'Content-Type': 'application/json',
             'apikey': EDGE_FUNCTIONS_ANON_KEY,
           },
-          body: JSON.stringify({ clerkUserId: clerkUser.id, forceReprovision }),
+          body: JSON.stringify({ clerkUserId: clerkUser.id, forceReprovision: false }),
           signal: controller.signal,
         });
 
+        if (!res.ok) {
+          // Non-retryable error (e.g. 403 wrong Clerk env, 404, 500).
+          // Log and give up — do NOT reset provisionAttempted so we don't loop.
+          const body = await res.json().catch(() => ({}));
+          console.error('[Auth] Provisioning returned', res.status, body);
+          return;
+        }
+
         const data = await res.json();
-        if (res.ok && data.supabaseUuid) {
-          if (data.alreadyProvisioned && forceReprovision) {
-            // UUID matches DB — all good, no reload needed
-            console.log('[Auth] Provisioning verified OK');
-          } else {
-            console.log('[Auth] Provisioned/repaired, reloading user metadata...');
-            await clerkUser.reload();
-            await new Promise(r => setTimeout(r, 500));
-            setProvisionVersion(v => v + 1);
-          }
+        if (data.supabaseUuid) {
+          console.log('[Auth] Provisioned, reloading user metadata...');
+          await clerkUser.reload();
+          await new Promise(r => setTimeout(r, 500));
+          setProvisionVersion(v => v + 1);
         } else {
-          console.error('[Auth] Provisioning failed:', data);
+          console.error('[Auth] Provisioning response missing supabaseUuid:', data);
         }
       } catch (e) {
-        if ((e as Error).name === 'AbortError') {
+        const err = e as Error;
+        if (err.name === 'AbortError') {
           console.error('[Auth] Provisioning timed out');
-          // Reset so we retry on next render cycle
+          // Only retry on timeout for new users (supabaseUuid is null here)
           provisionAttempted.current = false;
         } else {
-          console.error('[Auth] Provisioning error:', e);
+          // Network error — don't retry, log and move on
+          console.error('[Auth] Provisioning network error:', err.message);
         }
       } finally {
         clearTimeout(timeout);
