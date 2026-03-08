@@ -4,6 +4,7 @@
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getServiceClient } from './dbClient.ts';
 
 export interface AIMessage {
   role: 'system' | 'user' | 'assistant';
@@ -127,10 +128,7 @@ export async function getUserKeyFromDB(userId: string, provider = 'gemini'): Pro
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
+    const supabase = getServiceClient();
 
     const { data, error } = await supabase
       .from('user_api_keys')
@@ -154,10 +152,7 @@ export async function getUserKeyAndUrlFromDB(userId: string, provider: string): 
   if (!ENCRYPTION_SECRET) return undefined;
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
+    const supabase = getServiceClient();
 
     const { data, error } = await supabase
       .from('user_api_keys')
@@ -181,10 +176,7 @@ export async function getUserKeyAndUrlFromDB(userId: string, provider: string): 
  */
 async function getUserPreferredProvider(userId: string): Promise<string | null> {
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
+    const supabase = getServiceClient();
 
     const { data, error } = await supabase
       .from('user_preferences')

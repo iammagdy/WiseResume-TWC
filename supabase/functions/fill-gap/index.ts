@@ -1,8 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
+import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 
 interface FillGapRequest {
   gap: { startDate: string; endDate: string; months: number };
@@ -29,30 +29,9 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(
-        JSON.stringify({ error: "Missing authorization header" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const { userId, client } = await requireAuth(req);
 
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const rateCheck = await checkRateLimit(user.id, { maxRequests: 20, windowSeconds: 60, actionType: 'fill_gap' });
+    const rateCheck = await checkRateLimit(userId, { maxRequests: 20, windowSeconds: 60, actionType: 'fill_gap' });
     if (!rateCheck.allowed) {
       return new Response(
         JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
@@ -131,7 +110,7 @@ FACTUAL CONSTRAINTS:
         },
       ],
       toolChoice: { type: "function", function: { name: "suggest_gap_fill" } },
-      userId: user.id,
+      userId,
     });
 
     const toolCall = aiResponse.toolCalls?.[0];
@@ -144,7 +123,7 @@ FACTUAL CONSTRAINTS:
 
     const result = JSON.parse(toolCall.function.arguments);
 
-    await recordUsage(user.id, 'fill_gap', { provider: aiResponse.providerUsed || 'unknown' });
+    await recordUsage(userId, 'fill_gap', { provider: aiResponse.providerUsed || 'unknown' });
 
     return new Response(JSON.stringify({ ...result, _providerUsed: aiResponse.providerUsed || 'unknown' }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

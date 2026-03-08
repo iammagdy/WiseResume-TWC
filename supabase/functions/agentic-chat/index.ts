@@ -1,8 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
+import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 
 const MAX_MESSAGE_SIZE = 10 * 1024;
 const MAX_HISTORY_SIZE = 200 * 1024;
@@ -248,31 +248,9 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Missing authorization header" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const { userId, client } = await requireAuth(req);
 
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
-
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const rateCheck = await checkRateLimit(user.id, { maxRequests: 30, windowSeconds: 60, actionType: 'chat' });
+    const rateCheck = await checkRateLimit(userId, { maxRequests: 30, windowSeconds: 60, actionType: 'chat' });
     if (!rateCheck.allowed) {
       return new Response(
         JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
@@ -333,7 +311,7 @@ Deno.serve(async (req: Request) => {
       tools: TOOLS as any[],
       temperature: 0.7,
       maxTokens: 2000,
-      userId: user.id,
+      userId,
     });
 
     const toolCall = aiResponse.toolCalls?.[0];
@@ -392,7 +370,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    await recordUsage(user.id, 'chat', { provider: aiResponse.providerUsed || 'unknown' });
+    await recordUsage(userId, 'chat', { provider: aiResponse.providerUsed || 'unknown' });
 
     const result: TextResult = {
       type: "text",

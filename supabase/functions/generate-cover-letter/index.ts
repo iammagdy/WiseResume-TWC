@@ -1,8 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAIWithRetry, isAIError, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
+import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 
 const safeSkillsString = (skills: any[] | undefined): string =>
   (skills || []).map((s: any) => (typeof s === 'string' ? s : s?.name || '')).filter(Boolean).join(', ');
@@ -19,30 +19,9 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(
-        JSON.stringify({ error: 'Missing authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const { userId, client } = await requireAuth(req);
 
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const rateCheck = await checkRateLimit(user.id, { maxRequests: 10, windowSeconds: 60, actionType: 'cover_letter' });
+    const rateCheck = await checkRateLimit(userId, { maxRequests: 10, windowSeconds: 60, actionType: 'cover_letter' });
     if (!rateCheck.allowed) {
       return new Response(
         JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
@@ -132,13 +111,13 @@ Write a ${validTone} cover letter with a professional header containing actual c
         { role: "user", content: userPrompt },
       ],
       temperature: 0.7,
-      userId: user.id,
+      userId,
     });
 
     const coverLetter = aiResponse.content;
     if (!coverLetter) throw new Error("No content in AI response");
 
-    await recordUsage(user.id, 'cover_letter', { provider: aiResponse.providerUsed || 'unknown' });
+    await recordUsage(userId, 'cover_letter', { provider: aiResponse.providerUsed || 'unknown' });
 
     return new Response(
       JSON.stringify({ coverLetter, _providerUsed: aiResponse.providerUsed || 'unknown' }),

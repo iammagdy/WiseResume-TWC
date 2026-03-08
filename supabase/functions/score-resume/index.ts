@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { requireAuth, decodeJwtPayload } from "../_shared/authMiddleware.ts";
 import {
   scoreContactCompleteness,
   scoreSectionStructure,
@@ -25,50 +25,7 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(
-        JSON.stringify({ error: 'Missing authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const token = authHeader.replace('Bearer ', '');
-    let userId: string;
-
-    // Try to get user from this project's auth first
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
-    if (user) {
-      userId = user.id;
-    } else {
-      // Cross-project token: extract sub from JWT payload as identity
-      try {
-        const payloadB64 = token.split('.')[1];
-        // JWT uses base64url: replace - with +, _ with /, then pad
-        const b64 = payloadB64.replace(/-/g, '+').replace(/_/g, '/');
-        const padded = b64 + '='.repeat((4 - b64.length % 4) % 4);
-        const payload = JSON.parse(atob(padded));
-        if (payload.sub) {
-          userId = payload.sub;
-        } else {
-          return new Response(
-            JSON.stringify({ error: 'Unauthorized' }),
-            { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-      } catch {
-        return new Response(
-          JSON.stringify({ error: 'Unauthorized' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    }
+    const { userId } = await requireAuth(req);
 
     const rateCheck = await checkRateLimit(userId, { maxRequests: 60, windowSeconds: 60, actionType: 'score' });
     if (!rateCheck.allowed) {

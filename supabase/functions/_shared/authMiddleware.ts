@@ -1,9 +1,10 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders } from './cors.ts';
+import { getServiceClient } from './dbClient.ts';
+import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 export interface AuthResult {
   userId: string;
-  client: ReturnType<typeof createClient>;
+  client: SupabaseClient;
 }
 
 /**
@@ -21,20 +22,14 @@ export function decodeJwtPayload(token: string): Record<string, unknown> {
 
 /**
  * Validates the Authorization header and returns the authenticated user's ID
- * and a scoped Supabase client. Throws an object with { status, message }
- * on failure so callers can catch and return the appropriate HTTP response.
+ * and a service-role Supabase client that targets the EXTERNAL database project.
+ * Throws an object with { status, message } on failure.
  */
 export async function requireAuth(req: Request): Promise<AuthResult> {
   const authHeader = req.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
     throw { status: 401, message: 'Missing authorization header' };
   }
-
-  const client = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_ANON_KEY')!,
-    { global: { headers: { Authorization: authHeader } } }
-  );
 
   const token = authHeader.replace('Bearer ', '');
 
@@ -50,6 +45,9 @@ export async function requireAuth(req: Request): Promise<AuthResult> {
   if (!userId) {
     throw { status: 401, message: 'Unauthorized' };
   }
+
+  // Return a service-role client pointing at the external DB
+  const client = getServiceClient();
 
   return { userId, client };
 }

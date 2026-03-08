@@ -3,7 +3,7 @@
  * Checks ai_usage_logs for recent requests by the same user.
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getServiceClient } from './dbClient.ts';
 
 export interface RateLimitConfig {
   /** Max requests allowed in the window */
@@ -30,10 +30,7 @@ export async function checkRateLimit(
 ): Promise<{ allowed: boolean; remaining: number; retryAfterSeconds?: number }> {
   const { maxRequests, windowSeconds, actionType } = { ...DEFAULT_CONFIG, ...config };
 
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  );
+  const supabase = getServiceClient();
 
   const windowStart = new Date(Date.now() - windowSeconds * 1000).toISOString();
 
@@ -68,10 +65,7 @@ export async function recordUsage(
   actionType: string,
   metadata?: Record<string, unknown>
 ): Promise<void> {
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  );
+  const supabase = getServiceClient();
 
   const { error } = await supabase
     .from('ai_usage_logs')
