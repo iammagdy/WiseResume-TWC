@@ -22,8 +22,14 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       const headers = new Headers(init?.headers);
 
       // Inject Clerk JWT if available (makes RLS auth.uid() work)
+      // Retry up to 5 times to handle Clerk session initialization race conditions
       try {
-        const token = await getClerkSupabaseToken();
+        let token: string | null = null;
+        for (let i = 0; i < 5; i++) {
+          token = await getClerkSupabaseToken();
+          if (token) break;
+          if (i < 4) await new Promise(r => setTimeout(r, 500));
+        }
         if (token) {
           headers.set('Authorization', `Bearer ${token}`);
         }

@@ -461,11 +461,11 @@ export function useTrashedResumes() {
       const { data, error } = await supabase
         .from('resumes')
         .select('*')
-        .not('deleted_at', 'is', null)
-        .order('deleted_at', { ascending: false });
+        .order('updated_at', { ascending: false });
 
       if (error) throw error;
-      return (data || []).map(parseDbResume);
+      // Filter in JS to avoid PostgREST schema cache issues with deleted_at column
+      return (data || []).map(parseDbResume).filter(r => !!r.deleted_at);
     },
     enabled: !!user,
     staleTime: 30 * 1000,

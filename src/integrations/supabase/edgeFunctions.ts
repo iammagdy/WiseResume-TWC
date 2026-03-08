@@ -9,7 +9,7 @@ import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
  * with its own session token, which breaks Clerk-based auth.
  */
 
-async function getTokenWithRetry(retries = 3, delayMs = 300): Promise<string | null> {
+async function getTokenWithRetry(retries = 5, delayMs = 500): Promise<string | null> {
   for (let i = 0; i < retries; i++) {
     const token = await getClerkSupabaseToken();
     if (token) return token;
