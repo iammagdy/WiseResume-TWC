@@ -329,6 +329,12 @@ export const ResumeListCard = memo(function ResumeListCard({
                   <Clock className="w-3 h-3" />
                   Edited {formatDistanceToNow(new Date(resume.updated_at), { addSuffix: true })}
                 </span>
+                {isPending && (
+                  <span className="flex items-center gap-1 text-[10px] text-warning font-medium">
+                    <CloudOff className="w-3 h-3" />
+                    Pending
+                  </span>
+                )}
               </div>
             </div>
           </div>
