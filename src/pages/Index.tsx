@@ -36,8 +36,7 @@ const features = [
   { icon: Mic, title: 'Practice speaking, not just writing', desc: 'Real voice interview coaching with an AI that listens, responds, and scores you live', iconColor: 'text-orange-500', gradient: 'from-orange-500/20 to-orange-500/5' },
 ];
 
-
-
+interface AuthenticatedHeroProps {
   firstName?: string;
   navigate: ReturnType<typeof useNavigate>;
   onTailorOpen: () => void;
