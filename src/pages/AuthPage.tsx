@@ -72,7 +72,7 @@ export default function AuthPage() {
     if (!email || !password || !fullName) return;
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -82,6 +82,9 @@ export default function AuthPage() {
       });
       if (error) {
         toast.error(error.message || 'Sign-up failed');
+      } else if (data.user?.identities?.length === 0) {
+        toast.error('An account with this email already exists. Please sign in.');
+        setMode('sign-in');
       } else {
         toast.success('Check your email for a confirmation link');
         setMode('sign-in');

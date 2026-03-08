@@ -19,21 +19,32 @@ export default function ResetPasswordPage() {
   const [isRecovery, setIsRecovery] = useState(false);
 
   useEffect(() => {
-    // Check for recovery event from the auth state change
+    // Listen for PASSWORD_RECOVERY event as fallback
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         setIsRecovery(true);
       }
     });
 
-    // Also check URL hash for type=recovery
-    const hash = window.location.hash;
-    if (hash.includes('type=recovery')) {
-      setIsRecovery(true);
+    // PKCE flow: extract token_hash from query params and exchange it
+    const params = new URLSearchParams(window.location.search);
+    const tokenHash = params.get('token_hash');
+    const type = params.get('type');
+
+    if (tokenHash && type === 'recovery') {
+      supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' })
+        .then(({ error }) => {
+          if (error) {
+            toast.error(error.message || 'Invalid or expired reset link');
+            navigate('/auth?mode=forgot');
+          } else {
+            setIsRecovery(true);
+          }
+        });
     }
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [navigate]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
