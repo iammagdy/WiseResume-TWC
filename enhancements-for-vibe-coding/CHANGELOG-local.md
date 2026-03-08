@@ -7,6 +7,19 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-08
+- Issue ID: EMAIL-TEMPLATE-POLISH
+- Summary: Redesigned all 6 auth email templates with a futuristic premium look — dark header/footer bands (#1a1a2e), red accent divider (#e63946), light gray card content area (#f8f9fa), gradient CTA buttons with shadow trick, emoji accents per template type, dark code block for OTP, refined typography (28px/800 headings, -0.5px letter-spacing). Redeployed auth-email-hook.
+- Files touched:
+  - `supabase/functions/_shared/email-templates/signup.tsx`
+  - `supabase/functions/_shared/email-templates/recovery.tsx`
+  - `supabase/functions/_shared/email-templates/magic-link.tsx`
+  - `supabase/functions/_shared/email-templates/invite.tsx`
+  - `supabase/functions/_shared/email-templates/email-change.tsx`
+  - `supabase/functions/_shared/email-templates/reauthentication.tsx`
+  - `enhancements-for-vibe-coding/CHANGELOG-local.md`
+- Notes: Purely visual change, no auth flow impact.
+
+- Date: 2026-03-08
 - Issue ID: BRANDED-AUTH-EMAILS
 - Summary: Scaffolded and branded all 6 auth email templates (signup, recovery, magic-link, invite, email-change, reauthentication) for custom sender domain notify.thewise.cloud. Applied WiseResume brand: vibrant red (#e63946) CTA buttons, logo from storage, centered layout, professional copy with "Build your career story" footer. Uploaded wise-ai-logo.png to avatars/email-assets/ storage. Deployed auth-email-hook edge function. Also created EmailConfirmationPage shown after signup instead of a toast.
 - Files touched:
