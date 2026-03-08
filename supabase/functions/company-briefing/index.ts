@@ -1,7 +1,7 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { callAIWithRetry, sanitizeInputText, toUserError } from '../_shared/aiClient.ts';
 import { checkRateLimit, recordUsage } from '../_shared/rateLimiter.ts';
+import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 
 const SYSTEM_PROMPT = `You are an expert career research analyst. Given a job description and optionally a candidate's resume data, generate a comprehensive company research briefing.
 
