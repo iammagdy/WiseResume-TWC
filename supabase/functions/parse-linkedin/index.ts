@@ -114,7 +114,7 @@ Extract: Summary/About, Experience, Education, Skills. For dates, use "Jan 2020"
         },
       ],
       toolChoice: { type: "function", function: { name: "extract_linkedin_data" } },
-      userId: user.id,
+      userId,
     });
 
     const toolCall = aiResponse.toolCalls?.[0];
