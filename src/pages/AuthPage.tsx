@@ -53,6 +53,54 @@ export default function AuthPage() {
     }
   }, [searchParams]);
 
+  // Handle recovery token verification for reset-password mode
+  useEffect(() => {
+    if (mode !== 'reset-password') return;
+
+    const tokenHash = searchParams.get('token_hash');
+    const type = searchParams.get('type');
+
+    if (tokenHash && type === 'recovery') {
+      supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' })
+        .then(({ error }) => {
+          if (error) {
+            toast.error(error.message || 'Invalid or expired reset link');
+            setMode('forgot-password');
+          } else {
+            setIsRecoveryVerified(true);
+          }
+        });
+    }
+
+    // Also listen for PASSWORD_RECOVERY event as fallback
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsRecoveryVerified(true);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [mode, searchParams]);
+
+  const handleResetPassword = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword) return;
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        toast.error(error.message || 'Failed to reset password');
+      } else {
+        toast.success('Password updated successfully!');
+        navigate('/dashboard', { replace: true });
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to reset password');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [newPassword, navigate]);
+
   const handleEmailSignIn = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
