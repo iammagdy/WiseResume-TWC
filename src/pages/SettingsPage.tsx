@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react';
 import { getAppUrl } from '@/lib/portfolioUrl';
-import { SettingsSkeleton } from '@/components/layout/PageSkeletons';
+
 import { useNavigate } from 'react-router-dom';
 import {
   LogOut, Info, ChevronRight, Download, Bell, Sparkles, Shield, Palette,
@@ -260,9 +260,8 @@ export default function SettingsPage() {
 
   const displayName = profile?.fullName || user?.email || 'User';
 
-  if (loading) {
-    return <SettingsSkeleton />;
-  }
+  // Suspense fallback already shows SettingsSkeleton; avoid double skeleton
+  if (loading) return null;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">

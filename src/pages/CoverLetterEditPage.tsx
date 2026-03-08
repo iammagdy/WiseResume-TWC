@@ -15,7 +15,7 @@ import { generateCoverLetter } from '@/lib/aiTailor';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 
-import { DetailSkeleton } from '@/components/layout/PageSkeletons';
+
 import {
   Sheet,
   SheetContent,
@@ -129,7 +129,8 @@ export default function CoverLetterEditPage() {
 
   // Auth guard handled by ProtectedRoute
 
-  if (isLoading || authLoading) return <DetailSkeleton />;
+  // Suspense fallback already shows DetailSkeleton; avoid double skeleton
+  if (isLoading || authLoading) return null;
   if (!letter) {
     return (
       <div className="flex-1 flex items-center justify-center p-4">

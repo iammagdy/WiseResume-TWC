@@ -492,23 +492,8 @@ function DashboardPageContent() {
     );
   }
 
-  if (authLoading) {
-    return (
-      <div className="flex-1 flex flex-col">
-        <header className="pt-safe pt-4 pb-3 px-4 flex items-center justify-between border-b border-border">
-          <div className="w-24 h-8 rounded bg-muted animate-pulse" />
-          <div className="w-20 h-8 rounded bg-muted animate-pulse" />
-        </header>
-        <div className="px-4 pt-4 pb-3">
-          <div className="w-32 h-7 rounded bg-muted animate-pulse mb-2" />
-          <div className="w-20 h-5 rounded bg-muted animate-pulse" />
-        </div>
-        <div className="px-4">
-          <SkeletonCardList count={3} />
-        </div>
-      </div>
-    );
-  }
+  // Suspense fallback already shows DashboardSkeleton; avoid double skeleton
+  if (authLoading) return null;
 
   return (
     <div className="flex flex-col">

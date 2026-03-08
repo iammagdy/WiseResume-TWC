@@ -36,7 +36,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { ATSScoreBreakdown } from '@/components/dashboard/ATSScoreBreakdown';
 import { KeyboardToolbar } from '@/components/editor/KeyboardToolbar';
-import { EditorSkeleton } from '@/components/layout/PageSkeletons';
+
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { useOfflineSyncStore } from '@/store/offlineSyncStore';
 import haptics from '@/lib/haptics';
@@ -555,16 +555,18 @@ export default function EditorPage() {
   }, []);
 
   // === GUARDS (all inline, no effects — deterministic) ===
-  if (authLoading) return <EditorSkeleton />;
+  // Suspense fallback already shows EditorSkeleton during chunk load;
+  // return null here to avoid a jarring skeleton→skeleton reset.
+  if (authLoading) return null;
   // Auth guard handled by ProtectedRoute
-  if (!storeHydrated) return <EditorSkeleton />;
+  if (!storeHydrated) return null;
   if (!currentResumeId && !currentResume) return <Navigate to="/dashboard" replace />;
   // Show skeleton while DB fetch is in flight — but as soon as resumeFromDb arrives,
   // the hydration effect will fire and populate currentResume in the same micro-task tick.
   // This reduces perceived wait by one full render cycle vs waiting for the effect.
-  if (!currentResume && isValidating) return <EditorSkeleton />;
-  if (!currentResume && !resumeFromDb) return <EditorSkeleton />;
-  if (!currentResume) return <EditorSkeleton />;
+  if (!currentResume && isValidating) return null;
+  if (!currentResume && !resumeFromDb) return null;
+  if (!currentResume) return null;
   // === Past this point, currentResume is guaranteed non-null ===
 
   return (
