@@ -26,6 +26,7 @@ export default function AuthPage() {
   const initialMode: Mode =
     rawMode === 'signup' ? 'sign-up'
     : rawMode === 'forgot' ? 'forgot-password'
+    : rawMode === 'reset' ? 'reset-password'
     : 'sign-in';
 
   // Redirect if already authenticated
