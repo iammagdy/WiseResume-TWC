@@ -262,6 +262,7 @@ function AuthenticatedHero({ firstName, navigate, onTailorOpen }: AuthenticatedH
         {quickActions.map((action) => (
           <button
             key={action.label}
+            aria-label={action.label}
             onClick={() => {
               triggerHaptic.medium();
               if (action.action === 'tailor') {
@@ -270,7 +271,7 @@ function AuthenticatedHero({ firstName, navigate, onTailorOpen }: AuthenticatedH
                 navigate(action.href);
               }
             }}
-            className="flex flex-col items-start p-3.5 rounded-2xl border border-border/30 bg-card/60 backdrop-blur-sm text-left active:scale-[0.97] transition-all touch-manipulation hover:border-primary/30 hover:bg-card/80"
+            className="flex flex-col items-start p-3.5 rounded-2xl border border-border/30 bg-card/60 backdrop-blur-sm text-left active:scale-[0.97] transition-all touch-manipulation hover:border-primary/30 hover:bg-card/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${action.gradient} flex items-center justify-center mb-2`}>
               <action.icon className={`w-4.5 h-4.5 ${action.iconColor}`} />
