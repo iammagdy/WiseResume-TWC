@@ -1,16 +1,17 @@
 import { getCorsHeaders } from '../_shared/cors.ts';
 
 /**
- * One-time setup function that patches the Clerk "supabase" JWT template
- * to include `supabaseUuid` from the user's public_metadata.
+ * One-time setup function that:
+ * 1. Reads the Supabase JWT secret (auto-injected by Supabase runtime)
+ * 2. Patches the Clerk "supabase" JWT template to use that secret as the signing key
+ * 3. Ensures the template includes supabaseUuid from public_metadata
  *
- * This is required so that PostgREST can read the UUID from request.jwt.claims
- * and RLS policies (safe_uid / get_clerk_user_id) work correctly.
+ * This ensures PostgREST can verify Clerk tokens, populating request.jwt.claims
+ * so that safe_uid() and get_clerk_user_id() work correctly in RLS policies.
  */
 
 const CLERK_TEMPLATE_NAME = 'supabase';
 
-// The required claims the supabase template must include
 const REQUIRED_CLAIMS = {
   supabaseUuid: '{{user.public_metadata.supabaseUuid}}',
   role: 'authenticated',
@@ -31,8 +32,17 @@ Deno.serve(async (req) => {
     );
   }
 
+  // Supabase automatically injects SUPABASE_JWT_SECRET into edge functions
+  const supabaseJwtSecret = Deno.env.get('SUPABASE_JWT_SECRET');
+  if (!supabaseJwtSecret) {
+    return new Response(
+      JSON.stringify({ error: 'SUPABASE_JWT_SECRET not available in this runtime' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
   try {
-    // 1. List all JWT templates
+    // 1. List JWT templates
     const listResp = await fetch('https://api.clerk.com/v1/jwt_templates', {
       headers: {
         Authorization: `Bearer ${clerkSecretKey}`,
@@ -43,7 +53,7 @@ Deno.serve(async (req) => {
     if (!listResp.ok) {
       const err = await listResp.text();
       return new Response(
-        JSON.stringify({ error: `Clerk API error listing templates: ${err}` }),
+        JSON.stringify({ error: `Clerk API list error: ${err}` }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -53,29 +63,30 @@ Deno.serve(async (req) => {
       (t: { name: string }) => t.name === CLERK_TEMPLATE_NAME
     );
 
+    const existingClaims = supabaseTemplate?.claims || {};
+    const mergedClaims = { ...existingClaims, ...REQUIRED_CLAIMS };
+
+    const patchBody: Record<string, unknown> = {
+      claims: mergedClaims,
+      // Set the Supabase JWT secret as the signing key so PostgREST can verify the token
+      signing_key: supabaseJwtSecret,
+      signing_algorithm: 'HS256',
+    };
+
     if (!supabaseTemplate) {
-      // Template doesn't exist — create it
+      // Create the template
+      patchBody.name = CLERK_TEMPLATE_NAME;
+      patchBody.lifetime = 60;
+      patchBody.allowed_clock_skew = 5;
+
       const createResp = await fetch('https://api.clerk.com/v1/jwt_templates', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${clerkSecretKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          name: CLERK_TEMPLATE_NAME,
-          claims: REQUIRED_CLAIMS,
-          lifetime: 60,
-          allowed_clock_skew: 5,
-        }),
+        body: JSON.stringify(patchBody),
       });
-
-      if (!createResp.ok) {
-        const err = await createResp.text();
-        return new Response(
-          JSON.stringify({ error: `Failed to create template: ${err}` }),
-          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
 
       const created = await createResp.json();
       return new Response(
@@ -84,22 +95,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 2. Template exists — merge existing claims with required ones
-    const existingClaims = supabaseTemplate.claims || {};
-    const mergedClaims = { ...existingClaims, ...REQUIRED_CLAIMS };
-
-    // Check if already patched
-    const alreadyPatched =
-      existingClaims.supabaseUuid === REQUIRED_CLAIMS.supabaseUuid;
-
-    if (alreadyPatched) {
-      return new Response(
-        JSON.stringify({ action: 'already_patched', template: supabaseTemplate }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // 3. PATCH the template
+    // Update existing template
     const patchResp = await fetch(
       `https://api.clerk.com/v1/jwt_templates/${supabaseTemplate.id}`,
       {
@@ -108,9 +104,7 @@ Deno.serve(async (req) => {
           Authorization: `Bearer ${clerkSecretKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          claims: mergedClaims,
-        }),
+        body: JSON.stringify(patchBody),
       }
     );
 
