@@ -37,7 +37,7 @@ export const edgeFunctions = {
       } else {
         // Fallback: at minimum send the anon key as bearer so the function
         // receives SOME authorization header and can return a proper error
-        headers['Authorization'] = `Bearer ${SUPABASE_ANON_KEY}`;
+        headers['Authorization'] = `Bearer ${EDGE_FUNCTIONS_ANON_KEY}`;
         console.warn(`[edgeFunctions] No Clerk token available for ${fnName} — using anon fallback`);
       }
 
