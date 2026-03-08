@@ -18,8 +18,10 @@ import {
   Plus,
   Eye,
   Download,
-  Share2
+  Share2,
+  CloudOff
 } from 'lucide-react';
+import { useOfflineSyncStore } from '@/store/offlineSyncStore';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -94,6 +96,7 @@ export const ResumeListCard = memo(function ResumeListCard({
   const duplicateOpacity = useTransform(x, [20, SWIPE_THRESHOLD], [0, 1]);
 
   const hasTargetJob = resume.target_job_title || resume.target_company;
+  const isPending = useOfflineSyncStore(s => s.pendingChanges.some(c => c.resumeId === resume.id));
   const matchScore = resume.job_match_score;
   const resumeForProgress = useMemo(() => dbToResumeData(resume), [resume.id, resume.updated_at]);
 
@@ -326,6 +329,12 @@ export const ResumeListCard = memo(function ResumeListCard({
                   <Clock className="w-3 h-3" />
                   Edited {formatDistanceToNow(new Date(resume.updated_at), { addSuffix: true })}
                 </span>
+                {isPending && (
+                  <span className="flex items-center gap-1 text-[10px] text-warning font-medium">
+                    <CloudOff className="w-3 h-3" />
+                    Pending
+                  </span>
+                )}
               </div>
             </div>
           </div>
