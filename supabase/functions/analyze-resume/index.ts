@@ -140,7 +140,7 @@ Provide analysis in this exact JSON format:
       );
     }
 
-    await recordUsage(user.id, 'analyze', { provider: aiResponse.providerUsed || 'unknown' });
+    await recordUsage(userId, 'analyze', { provider: aiResponse.providerUsed || 'unknown' });
 
     return new Response(
       JSON.stringify({ ...analysisResult as Record<string, unknown>, _providerUsed: aiResponse.providerUsed || 'unknown' }),
