@@ -6,7 +6,7 @@ import { BackButton } from '@/components/ui/BackButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useResumes } from '@/hooks/useResumes';
-import { getClerkSupabaseToken } from '@/lib/clerkSupabase';
+import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { supabase } from '@/integrations/supabase/safeClient';
 
 import { EDGE_FUNCTIONS_URL } from '@/lib/supabaseConstants';
