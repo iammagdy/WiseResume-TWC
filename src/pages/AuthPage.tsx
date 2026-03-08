@@ -36,9 +36,24 @@ export default function AuthPage() {
 
   // Redirect if already authenticated
   useEffect(() => {
-    if (isAuthenticated && !authLoading) {
-      navigate(redirectTo, { replace: true });
+    if (!isAuthenticated || authLoading) return;
+
+    // Cross-domain OAuth: redirect back to custom domain with session tokens
+    const returnOrigin = sessionStorage.getItem('oauth-return-origin');
+    if (returnOrigin && window.location.origin !== returnOrigin) {
+      sessionStorage.removeItem('oauth-return-origin');
+      supabase.auth.getSession().then(({ data }) => {
+        if (data.session) {
+          const { access_token, refresh_token } = data.session;
+          window.location.href = `${returnOrigin}/auth/callback#access_token=${encodeURIComponent(access_token)}&refresh_token=${encodeURIComponent(refresh_token)}`;
+        } else {
+          navigate(redirectTo, { replace: true });
+        }
+      });
+      return;
     }
+
+    navigate(redirectTo, { replace: true });
   }, [isAuthenticated, authLoading, navigate, redirectTo]);
 
   const [mode, setMode] = useState<Mode>(initialMode);
