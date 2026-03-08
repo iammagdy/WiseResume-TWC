@@ -110,7 +110,7 @@ FACTUAL CONSTRAINTS:
         },
       ],
       toolChoice: { type: "function", function: { name: "suggest_gap_fill" } },
-      userId: user.id,
+      userId,
     });
 
     const toolCall = aiResponse.toolCalls?.[0];
