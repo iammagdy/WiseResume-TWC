@@ -513,7 +513,7 @@ function DashboardPageContent() {
   return (
     <div className="flex flex-col">
       {/* Header */}
-      <header className="pt-safe pt-3 pb-2 px-4 flex items-center justify-between glass-header">
+      <header className="sticky top-0 z-20 pt-safe pt-3 pb-2 px-4 flex items-center justify-between glass-header">
         <button onClick={() => navigate('/')} aria-label="Back to home" className="touch-manipulation">
           <AppLogo size="sm" showTagline={false} hideText />
         </button>

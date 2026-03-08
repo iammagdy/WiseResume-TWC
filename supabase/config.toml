@@ -131,3 +131,6 @@ verify_jwt = false
 
 [functions.repair-clerk-uuid]
 verify_jwt = false
+
+[functions.migrate-user-data]
+verify_jwt = false
