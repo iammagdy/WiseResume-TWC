@@ -51,11 +51,17 @@ Deno.serve(async (req) => {
     );
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    if (authError || !user) {
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-    const userId = user.id;
+
+    // Extract UUID: prefer supabaseUuid claim (Clerk custom claim), fallback to sub
+    const claims = claimsData.claims as Record<string, string>;
+    const userId: string = claims['supabaseUuid'] || claims['sub'];
+    if (!userId) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     // All requests come via POST (supabase.functions.invoke always uses POST)
     // Route by `action` field in body: 'save' | 'delete' | 'get'
