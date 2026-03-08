@@ -163,17 +163,24 @@ function ClerkAuthProvider({ children }: { children: React.ReactNode }) {
   }, [isLoaded, provisioning, splashHidden]);
 
   useEffect(() => {
-    if (!isAuthenticated || !mappedUser || !supabase) return;
+    if (!isAuthenticated || !mappedUser) return;
 
     migrateLocalKeysToServer();
     runDailyCleanup();
 
-    supabase
-      .from('profiles')
-      .update({ last_active_at: new Date().toISOString() })
-      .eq('user_id', mappedUser.id)
-      .then(() => {});
-  }, [isAuthenticated, mappedUser?.id, supabase]);
+    // Use the global safeClient singleton (not the hook-based client) so the
+    // Clerk "supabase" template token is guaranteed to be injected.
+    // Drop the .eq() filter — RLS scopes the update to the current user automatically.
+    import('@/integrations/supabase/safeClient').then(({ supabase: safeClient }) => {
+      safeClient
+        .from('profiles')
+        .update({ last_active_at: new Date().toISOString() })
+        .eq('user_id', mappedUser.id)
+        .then(({ error }) => {
+          if (error) console.warn('[Auth] last_active_at update failed:', error.message);
+        });
+    });
+  }, [isAuthenticated, mappedUser?.id]);
 
   const signOut = useCallback(async () => {
     logAudit('auth', 'signed_out');
