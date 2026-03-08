@@ -176,10 +176,7 @@ export async function getUserKeyAndUrlFromDB(userId: string, provider: string): 
  */
 async function getUserPreferredProvider(userId: string): Promise<string | null> {
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
+    const supabase = getServiceClient();
 
     const { data, error } = await supabase
       .from('user_preferences')
