@@ -49,7 +49,6 @@ export default defineConfig(({ mode }) => ({
         globPatterns: ["**/*.{js,css,html,ico,svg,woff2}"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         dontCacheBustURLsMatching: /~oauth/,
-        navigateFallbackDenylist: [/^\/~oauth/],
       },
     }),
   ].filter(Boolean),
