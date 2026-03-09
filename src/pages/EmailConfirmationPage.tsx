@@ -4,6 +4,7 @@ import { Mail, ArrowLeft, AlertTriangle, CheckCircle2, Link as LinkIcon } from '
 import { Button } from '@/components/ui/button';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { toast } from 'sonner';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
@@ -64,9 +65,11 @@ function OtpInput({ value, onChange, disabled }: { value: string; onChange: (v: 
 export default function EmailConfirmationPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const state = location.state as { email?: string; verifyMethod?: string };
+  const state = location.state as { email?: string; verifyMethod?: string; password?: string; fullName?: string };
   const email = state?.email || '';
   const verifyMethod = state?.verifyMethod || 'link';
+  const signupPassword = state?.password || '';
+  const signupFullName = state?.fullName || '';
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
   const [otp, setOtp] = useState('');
@@ -110,25 +113,41 @@ export default function EmailConfirmationPage() {
     if (!email || resending) return;
     setResending(true);
     try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email,
-        options: { emailRedirectTo: window.location.origin },
-      });
-      if (error) {
-        toast.error(error.message || 'Failed to resend email');
+      if (verifyMethod === 'otp') {
+        // Call the custom edge function to re-send OTP
+        const { data, error } = await edgeFunctions.functions.invoke('send-signup-otp', {
+          body: { email, password: signupPassword, fullName: signupFullName },
+        });
+        if (error || (data && typeof data === 'object' && 'error' in (data as Record<string, unknown>))) {
+          const msg = (data as any)?.error || (error as any)?.message || 'Failed to resend code';
+          toast.error(msg);
+        } else {
+          setResent(true);
+          setOtp('');
+          toast.success('New code sent to your email');
+          setTimeout(() => setResent(false), 30000);
+        }
       } else {
-        setResent(true);
-        setOtp('');
-        toast.success(verifyMethod === 'otp' ? 'New code sent to your email' : 'New verification link sent');
-        setTimeout(() => setResent(false), 30000);
+        const { error } = await supabase.auth.resend({
+          type: 'signup',
+          email,
+          options: { emailRedirectTo: window.location.origin },
+        });
+        if (error) {
+          toast.error(error.message || 'Failed to resend email');
+        } else {
+          setResent(true);
+          setOtp('');
+          toast.success('New verification link sent');
+          setTimeout(() => setResent(false), 30000);
+        }
       }
     } catch {
       toast.error('Failed to resend email');
     } finally {
       setResending(false);
     }
-  }, [email, resending, verifyMethod]);
+  }, [email, resending, verifyMethod, signupPassword, signupFullName]);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
