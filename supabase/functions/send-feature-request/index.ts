@@ -175,7 +175,7 @@ Deno.serve(async (req) => {
           method: "POST",
           headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            from: `Feature Requested by ${resolvedEmail} <bugs@magdysaber.com>`,
+            from: `WiseResume Feature Request <contact@thewise.cloud>`,
             to: [DEVELOPER_EMAIL],
             reply_to: resolvedEmail,
             subject: `[Feature Requested] ${feature_title.slice(0, 80)}`,

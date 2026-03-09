@@ -240,7 +240,7 @@ Deno.serve(async (req) => {
           method: "POST",
           headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            from: `Bug Reported by ${resolvedEmail} <bugs@magdysaber.com>`,
+            from: `WiseResume Bug Report <contact@thewise.cloud>`,
             to: [DEVELOPER_EMAIL],
             reply_to: resolvedEmail,
             subject: `[Bug Reported] ${screenDisplay} — ${error_message.slice(0, 50)}`,
