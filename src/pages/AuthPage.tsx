@@ -12,6 +12,8 @@ import { PasswordInput } from '@/components/auth/PasswordInput';
 import { Button } from '@/components/ui/button';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
+import { SlideCaptcha } from '@/components/auth/SlideCaptcha';
+import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { lovable } from '@/integrations/lovable/index';
