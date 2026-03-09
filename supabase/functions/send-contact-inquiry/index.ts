@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
 <!-- Header -->
 <tr><td style="background-color:#1a1a2e;padding:32px 40px;border-radius:12px 12px 0 0" align="center">
   <img src="${LOGO_URL}" alt="WiseResume" width="48" height="48" style="display:block;margin:0 auto 12px;border-radius:12px">
-  <h1 style="margin:0;font-size:20px;font-weight:700;color:#ffffff">📩 Contact Inquiry</h1>
+  <h1 style="margin:0;font-size:20px;font-weight:700;color:#ffffff">📩 Contact Inquiry${department ? ` — ${department}` : ""}</h1>
   <p style="margin:8px 0 0;font-size:14px;color:rgba(255,255,255,0.7)">from <strong style="color:#ffffff">${resolvedEmail}</strong></p>
 </td></tr>
 
