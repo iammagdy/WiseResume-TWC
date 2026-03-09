@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import {
@@ -15,6 +16,10 @@ import {
   LogIn,
   MessageSquarePlus,
   FileText,
+  Briefcase,
+  Mail,
+  Globe,
+  BarChart3,
 } from 'lucide-react';
 import {
   Sheet,
@@ -40,6 +45,21 @@ import { useResumeStore } from '@/store/resumeStore';
 interface AgenticChatSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+const CONTEXT_FILTERS = [
+  { id: 'resumes', label: 'Resumes', icon: FileText, routes: ['/editor', '/preview', '/dashboard', '/resume', '/templates'] },
+  { id: 'cover-letters', label: 'Cover Letters', icon: Mail, routes: ['/cover-letter', '/cover-letters'] },
+  { id: 'applications', label: 'Applications', icon: Briefcase, routes: ['/applications', '/application', '/job'] },
+  { id: 'portfolio', label: 'Portfolio', icon: Globe, routes: ['/portfolio'] },
+  { id: 'activity', label: 'Activity', icon: BarChart3, routes: ['/interview', '/career', '/ai-studio'] },
+] as const;
+
+function detectContextFromRoute(pathname: string): string {
+  for (const filter of CONTEXT_FILTERS) {
+    if (filter.routes.some(r => pathname.startsWith(r))) return filter.id;
+  }
+  return 'resumes';
 }
 
 const SUGGESTIONS = [
