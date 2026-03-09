@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: LINKEDIN-SMART-IMPORT
+- Summary: Redesigned LinkedIn import flow. Removed "Import via URL" method (blocked by LinkedIn/popup blockers). Replaced "Paste Profile Text" with "Smart Import" — a guided paste experience with visual step cards showing users exactly what to copy from LinkedIn (About, Experience, Education, Skills). Single paste area + AI analysis unchanged. PDF upload unchanged.
+- Files: src/components/settings/LinkedInImportSheet.tsx, enhancements-for-vibe-coding/CHANGELOG-local.md
+- Notes: Removed openExternal, Link2, url-guide state, linkedinUrl state, handleUrlGuide. Added GUIDE_STEPS visual cards, Wand2 icon, AI badge on Smart Import card. No backend changes.
+
+- Date: 2026-03-09
 - Issue ID: BACKUP-RESTORE-WHITELIST-FIX
 - Summary: Switched account backup import from strip-list to whitelist column approach. Each table now has an explicit list of valid columns; unknown/stale columns (including FK refs like parent_resume_id, resume_id, cover_letter_id) are silently dropped. Profile update and preferences also use whitelist filtering. Import is now resilient to schema version mismatches.
 - Files: src/lib/accountBackup.ts, enhancements-for-vibe-coding/CHANGELOG-local.md
