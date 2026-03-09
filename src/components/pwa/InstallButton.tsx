@@ -24,7 +24,10 @@ export function InstallButton({ className }: InstallButtonProps) {
   const [isInstalled, setIsInstalled] = useState(false);
   const [showIosSheet, setShowIosSheet] = useState(false);
 
-  const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const ua = navigator.userAgent;
+  const isIos = /iPad|iPhone|iPod/.test(ua);
+  const isChromium = /Chrome/.test(ua) && !/Edg/.test(ua) === false || /Chrome/.test(ua);
+  const isAndroid = /Android/.test(ua);
   const [showGenericSheet, setShowGenericSheet] = useState(false);
 
   useEffect(() => {
@@ -122,13 +125,13 @@ export function InstallButton({ className }: InstallButtonProps) {
           </div>
         </SheetContent>
       </Sheet>
-      {/* Generic desktop/unsupported sheet */}
+      {/* Generic / Chromium instruction sheet */}
       <Sheet open={showGenericSheet} onOpenChange={setShowGenericSheet}>
         <SheetContent side="bottom" className="rounded-t-3xl pb-10">
           <SheetHeader className="text-center">
             <SheetTitle>Install WiseResume</SheetTitle>
             <SheetDescription>
-              Open this page on your phone's browser to install the app
+              Add WiseResume to your home screen for quick access
             </SheetDescription>
           </SheetHeader>
 
@@ -138,9 +141,11 @@ export function InstallButton({ className }: InstallButtonProps) {
                 <Smartphone className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="font-medium text-sm">1. Open on your phone</p>
+                <p className="font-medium text-sm">1. Open the browser menu</p>
                 <p className="text-xs text-muted-foreground">
-                  Visit this website in Chrome (Android) or Safari (iPhone)
+                  {isAndroid
+                    ? 'Tap the ⋮ menu at the top-right of your browser'
+                    : 'Tap your browser\'s menu or share button'}
                 </p>
               </div>
             </div>
@@ -150,9 +155,11 @@ export function InstallButton({ className }: InstallButtonProps) {
                 <Plus className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="font-medium text-sm">2. Install to home screen</p>
+                <p className="font-medium text-sm">2. Tap "Add to Home Screen"</p>
                 <p className="text-xs text-muted-foreground">
-                  Tap "Install" or "Add to Home Screen" from the browser menu
+                  {isAndroid
+                    ? 'You may also see it as "Install app" or "Add to Home Screen"'
+                    : 'Look for "Add to Home Screen" or "Install" in the menu'}
                 </p>
               </div>
             </div>

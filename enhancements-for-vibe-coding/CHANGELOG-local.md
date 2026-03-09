@@ -7,6 +7,13 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: PWA-ALT-BROWSER
+- Summary: Fixed Install button showing "use Chrome or Safari" on alternative Chromium browsers (Comet, Brave, etc). Now shows universal browser-menu instructions for adding to home screen.
+- Files touched: src/components/pwa/InstallButton.tsx
+- Notes: UI text only, no functional changes
+
+
+- Date: 2026-03-09
 - Issue ID: HERO-CTA-SHIMMER
 - Summary: Added shimmer sweep animation + frosted glass background to Dashboard and Tailor CTA buttons for visibility in both light/dark modes. Added border-glow-pulse animation to Tailor button.
 - Files touched: src/index.css, src/pages/Index.tsx
