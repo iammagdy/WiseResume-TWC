@@ -366,6 +366,8 @@ export function ThemeStorePicker({ selectedThemeId, onSelectTheme, userAccent, u
             selected={selectedThemeId === theme.id}
             userAccent={userAccent}
             onSelect={() => { haptics.light(); onSelectTheme(theme.id); }}
+            userName={userName}
+            userAvatarUrl={userAvatarUrl}
           />
         ))}
       </div>
