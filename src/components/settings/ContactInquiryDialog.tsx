@@ -6,8 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { MessageSquare, Send, CheckCircle2 } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
-
-const SESSION_CACHE_KEY = 'sb-auth-session-cache';
+import { supabase } from '@/integrations/supabase/safeClient';
 
 let cachedAppVersion: string | null = null;
 async function getAppVersion(): Promise<string> {
