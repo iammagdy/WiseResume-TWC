@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Eye, Link2, Plus, Copy, Trash2, Globe2, Clock, Layers,
@@ -413,6 +414,7 @@ interface VisitorsPanelProps {
 }
 
 export function VisitorsPanel({ username, userId, portfolioEnabled }: VisitorsPanelProps) {
+  const queryClient = useQueryClient();
   const [newLinkLabel, setNewLinkLabel] = useState('');
   const [showCreateLink, setShowCreateLink] = useState(false);
   const [expandedVisitId, setExpandedVisitId] = useState<string | null>(null);
@@ -539,7 +541,7 @@ export function VisitorsPanel({ username, userId, portfolioEnabled }: VisitorsPa
               className="h-7 w-7 p-0"
               onClick={() => {
                 haptics.light();
-                window.location.reload();
+                queryClient.invalidateQueries({ queryKey: ['portfolio-analytics', username] });
               }}
               title="Refresh"
             >
