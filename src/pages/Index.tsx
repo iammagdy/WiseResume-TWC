@@ -126,7 +126,7 @@ const Index = () => {
       {/* Sticky Mini Header */}
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          scrolled ? 'glass-header border-b border-border/20 shadow-lg shadow-background/20' : 'bg-transparent'
+          scrolled ? 'glass-header' : 'bg-transparent'
         }`}
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
@@ -173,7 +173,7 @@ const Index = () => {
             </DropdownMenu>
             </div>
           ) : (
-            /* Guest header: Log in (ghost) + Sign Up (solid) */
+            /* Guest header: Log in (ghost) + Sign Up (glass pill) */
             <div className="flex items-center gap-1.5">
               <ThemeDropdown />
               <Button
@@ -184,14 +184,13 @@ const Index = () => {
               >
                 Log in
               </Button>
-              <Button
-                size="sm"
-                className="gap-1.5 h-8 px-3 text-xs font-semibold bg-primary text-primary-foreground hover:opacity-90 active:scale-95 transition-all touch-manipulation"
+              <button
+                className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 hover:border-primary/60 active:scale-95 transition-all touch-manipulation backdrop-blur-sm"
                 onClick={() => { triggerHaptic.medium(); navigate('/auth?mode=signup'); }}
               >
                 <UserPlus className="w-3.5 h-3.5" />
                 Sign Up
-              </Button>
+              </button>
             </div>
           )}
         </div>
