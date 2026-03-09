@@ -1,9 +1,9 @@
 const DOMAIN_MAP: Record<string, string> = {
-  'wiseresume.magdysaber.com': 'https://wiseresume.magdysaber.com',
+  'resume.thewise.cloud': 'https://resume.thewise.cloud',
   'thewise.cloud': 'https://thewise.cloud',
 };
 
-const FALLBACK_DOMAIN = 'https://thewise.cloud';
+const FALLBACK_DOMAIN = 'https://resume.thewise.cloud';
 
 function resolveDomain(): string {
   if (typeof window === 'undefined') return FALLBACK_DOMAIN;

@@ -4,7 +4,7 @@ const ALLOWED_ORIGINS = [
   'http://localhost',           // Capacitor Android (legacy)
   'https://localhost',          // Capacitor Android v5+
   'capacitor://localhost',      // Capacitor iOS
-  'https://wiseresume.magdysaber.com',
+  'https://resume.thewise.cloud',
   'https://wiseresume.lovable.app',
   'https://thewise.cloud',
 ];

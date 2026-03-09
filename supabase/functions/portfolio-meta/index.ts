@@ -53,10 +53,10 @@ Deno.serve(async (req: Request) => {
 
     // Resolve app URL dynamically from request origin/referer
     const KNOWN_DOMAINS = [
+      'https://resume.thewise.cloud',
       'https://thewise.cloud',
-      'https://wiseresume.magdysaber.com',
     ];
-    const DEFAULT_URL = 'https://thewise.cloud';
+    const DEFAULT_URL = 'https://resume.thewise.cloud';
     const origin = req.headers.get('origin') || '';
     const referer = req.headers.get('referer') || '';
     const APP_URL = KNOWN_DOMAINS.find((d) => origin.startsWith(d) || referer.startsWith(d)) || DEFAULT_URL;
