@@ -17,6 +17,8 @@ export interface DesignTabProps {
   onPortfolioLayoutChange: (val: PortfolioLayout) => void;
   selectedTheme: string;
   onSelectedThemeChange: (val: string) => void;
+  userName?: string;
+  userAvatarUrl?: string;
 }
 
 export function DesignTab(props: DesignTabProps) {
