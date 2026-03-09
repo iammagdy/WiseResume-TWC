@@ -26,8 +26,6 @@ export interface SetupTabProps {
   // Content visibility
   sections: PortfolioSections;
   onToggleSectionVisibility: (key: keyof PortfolioSections) => void;
-  syncMode: 'auto' | 'locked';
-  onSyncModeChange: (val: 'auto' | 'locked') => void;
   openSections: Set<string>;
   toggleSection: (id: string) => void;
   // Availability
