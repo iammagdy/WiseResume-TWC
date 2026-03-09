@@ -74,6 +74,24 @@ export function useAgenticChat(contextFilter?: string) {
             haptics.success();
             return { name: functionName, result: { success: true, applied: { addedSkills: newSkills } } };
           }
+          case 'add_project': {
+            const newProject = {
+              id: uuidv4(),
+              name: (args.name as string) || '',
+              description: (args.description as string) || '',
+              url: (args.url as string) || '',
+              githubUrl: (args.githubUrl as string) || '',
+              technologies: (args.technologies as string[]) || [],
+              role: (args.role as string) || '',
+              startDate: '',
+              endDate: '',
+            };
+            updateResume({
+              projects: [...(currentResume.projects || []), newProject],
+            });
+            haptics.success();
+            return { name: functionName, result: { success: true, applied: { name: newProject.name } } };
+          }
           case 'update_contact': {
             const contactUpdates: Record<string, string> = {};
             for (const [key, value] of Object.entries(args)) {

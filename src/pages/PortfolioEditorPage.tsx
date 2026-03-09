@@ -21,6 +21,7 @@ import { type PortfolioSections, DEFAULT_SECTIONS } from '@/components/portfolio
 import { LivePreviewCard } from '@/components/portfolio/editor/LivePreviewCard';
 import { StatusBar } from '@/components/portfolio/editor/StatusBar';
 import { SetupTab } from '@/components/portfolio/editor/SetupTab';
+import { ContentTab } from '@/components/portfolio/editor/ContentTab';
 import { DesignTab } from '@/components/portfolio/editor/DesignTab';
 import { MoreTab } from '@/components/portfolio/editor/MoreTab';
 import { SaveBar } from '@/components/portfolio/editor/SaveBar';
@@ -78,14 +79,14 @@ export default function PortfolioEditorPage() {
   const [services, setServices] = useState<Array<{id:string;title:string;description:string;category:string}>>([]);
   const [testimonials, setTestimonials] = useState<Array<{id:string;quote:string;authorName:string;authorTitle:string}>>([]);
   const [highlights, setHighlights] = useState<Array<{id:string;value:string;label:string}>>([]);
-  const [activeTab, setActiveTab] = useState<'setup' | 'design' | 'more'>('setup');
+  const [activeTab, setActiveTab] = useState<'setup' | 'content' | 'design' | 'more'>('setup');
 
-  const tabIndexMap = { setup: 0, design: 1, more: 2 } as const;
+  const tabIndexMap = { setup: 0, content: 1, design: 2, more: 3 } as const;
   const directionRef = useRef(0);
   const prevTabRef = useRef(activeTab);
   const reducedMotion = useMemo(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches, []);
 
-  const handleTabChange = useCallback((tab: 'setup' | 'design' | 'more') => {
+  const handleTabChange = useCallback((tab: 'setup' | 'content' | 'design' | 'more') => {
     directionRef.current = tabIndexMap[tab] > tabIndexMap[prevTabRef.current] ? 1 : -1;
     prevTabRef.current = tab;
     haptics.light();
@@ -406,6 +407,7 @@ export default function PortfolioEditorPage() {
         <div className="flex gap-1.5 p-1 rounded-xl glass-surface border border-border/30">
           {([
             { id: 'setup', label: 'Setup' },
+            { id: 'content', label: 'Content' },
             { id: 'design', label: 'Design' },
             { id: 'more', label: 'More' },
           ] as const).map(tab => (
@@ -446,12 +448,25 @@ export default function PortfolioEditorPage() {
                 onBioChange={setBio}
                 onGenerateBio={handleGenerateBio}
                 generatingBio={generatingBio}
-                linkedinUrl={linkedinUrl}
-                onLinkedinUrlChange={setLinkedinUrl}
-                githubUrl={githubUrl}
-                onGithubUrlChange={setGithubUrl}
-                contactEmail={contactEmail}
-                onContactEmailChange={setContactEmail}
+              />
+            )}
+
+            {activeTab === 'content' && (
+              <ContentTab
+                sections={sections}
+                onToggleSectionVisibility={toggleSectionVisibility}
+                syncMode={syncMode}
+                onSyncModeChange={setSyncMode}
+                openSections={openSections}
+                toggleSection={toggleSection}
+                caseStudies={caseStudies}
+                onCaseStudiesChange={setCaseStudies}
+                services={services}
+                onServicesChange={setServices}
+                testimonials={testimonials}
+                onTestimonialsChange={setTestimonials}
+                highlights={highlights}
+                onHighlightsChange={setHighlights}
                 openToWork={openToWork}
                 onOpenToWorkChange={setOpenToWork}
                 availabilityHeadline={availabilityHeadline}
@@ -478,20 +493,6 @@ export default function PortfolioEditorPage() {
 
             {activeTab === 'more' && (
               <MoreTab
-                sections={sections}
-                onToggleSectionVisibility={toggleSectionVisibility}
-                syncMode={syncMode}
-                onSyncModeChange={setSyncMode}
-                openSections={openSections}
-                toggleSection={toggleSection}
-                caseStudies={caseStudies}
-                onCaseStudiesChange={setCaseStudies}
-                services={services}
-                onServicesChange={setServices}
-                testimonials={testimonials}
-                onTestimonialsChange={setTestimonials}
-                highlights={highlights}
-                onHighlightsChange={setHighlights}
                 metaTitle={metaTitle}
                 onMetaTitleChange={setMetaTitle}
                 metaDescription={metaDescription}
@@ -506,10 +507,18 @@ export default function PortfolioEditorPage() {
                 views={profile?.views || 0}
                 onOpenCareerCard={() => setShowCareerCard(true)}
                 hasLivePortfolio={portfolioEnabled && !!username}
+                linkedinUrl={linkedinUrl}
+                onLinkedinUrlChange={setLinkedinUrl}
+                githubUrl={githubUrl}
+                onGithubUrlChange={setGithubUrl}
+                contactEmail={contactEmail}
+                onContactEmailChange={setContactEmail}
                 twitterUrl={twitterUrl}
                 onTwitterUrlChange={setTwitterUrl}
                 websiteUrl={websiteUrl}
                 onWebsiteUrlChange={setWebsiteUrl}
+                openSections={openSections}
+                toggleSection={toggleSection}
               />
             )}
           </motion.div>
