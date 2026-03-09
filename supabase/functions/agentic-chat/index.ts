@@ -270,8 +270,9 @@ The user may have multiple resumes — their list is provided. When they ask gen
 4. **update_skills**: When user wants to completely replace their skills
 5. **add_skills**: When user wants to add specific new skills
 6. **update_contact**: When user wants to change contact information
-7. **suggest_edits**: For SUBJECTIVE changes like "make it more leadership-focused", "improve it". Show proposals for user confirmation. ALWAYS prefer this for any change that is destructive or hard to reverse.
-8. **proofread_and_fix**: When user asks to check for errors, typos, grammar, or spelling
+7. **add_project**: When user wants to add a new project or portfolio piece
+8. **suggest_edits**: For SUBJECTIVE changes like "make it more leadership-focused", "improve it". Show proposals for user confirmation. ALWAYS prefer this for any change that is destructive or hard to reverse.
+9. **proofread_and_fix**: When user asks to check for errors, typos, grammar, or spelling
 
 ## Smart Confirmations
 - For any action that modifies the user's data, prefer using suggest_edits to show a confirm/decline flow

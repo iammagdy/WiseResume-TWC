@@ -493,20 +493,6 @@ export default function PortfolioEditorPage() {
 
             {activeTab === 'more' && (
               <MoreTab
-                sections={sections}
-                onToggleSectionVisibility={toggleSectionVisibility}
-                syncMode={syncMode}
-                onSyncModeChange={setSyncMode}
-                openSections={openSections}
-                toggleSection={toggleSection}
-                caseStudies={caseStudies}
-                onCaseStudiesChange={setCaseStudies}
-                services={services}
-                onServicesChange={setServices}
-                testimonials={testimonials}
-                onTestimonialsChange={setTestimonials}
-                highlights={highlights}
-                onHighlightsChange={setHighlights}
                 metaTitle={metaTitle}
                 onMetaTitleChange={setMetaTitle}
                 metaDescription={metaDescription}
@@ -521,10 +507,18 @@ export default function PortfolioEditorPage() {
                 views={profile?.views || 0}
                 onOpenCareerCard={() => setShowCareerCard(true)}
                 hasLivePortfolio={portfolioEnabled && !!username}
+                linkedinUrl={linkedinUrl}
+                onLinkedinUrlChange={setLinkedinUrl}
+                githubUrl={githubUrl}
+                onGithubUrlChange={setGithubUrl}
+                contactEmail={contactEmail}
+                onContactEmailChange={setContactEmail}
                 twitterUrl={twitterUrl}
                 onTwitterUrlChange={setTwitterUrl}
                 websiteUrl={websiteUrl}
                 onWebsiteUrlChange={setWebsiteUrl}
+                openSections={openSections}
+                toggleSection={toggleSection}
               />
             )}
           </motion.div>
