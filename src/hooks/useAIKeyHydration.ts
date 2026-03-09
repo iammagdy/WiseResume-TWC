@@ -7,6 +7,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from '@/hooks/useAuth';
+import { useAIHealthStore } from '@/store/aiHealthStore';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
