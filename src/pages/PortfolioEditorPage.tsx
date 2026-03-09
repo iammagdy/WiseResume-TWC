@@ -124,6 +124,7 @@ export default function PortfolioEditorPage() {
       setServices((extras.services as Array<{id:string;title:string;description:string;category:string}>) || []);
       setTestimonials((extras.testimonials as Array<{id:string;quote:string;authorName:string;authorTitle:string}>) || []);
       setHighlights((extras.highlights as Array<{id:string;value:string;label:string}>) || []);
+      setPortfolioSummary((extras.portfolioSummary as string) || '');
     }
   }, [profile]);
 
