@@ -118,7 +118,7 @@ export default function PrivacyPage() {
 
         <section className="space-y-2">
           <h3 className="text-foreground font-semibold">10. Children's Privacy</h3>
-          <p>WiseResume is not directed at individuals under the age of 16. We do not knowingly collect personal data from children. If we become aware that we have inadvertently collected data from a child under 16, we will promptly delete it. If you believe a child has provided us with personal data, please contact us at <span className="text-primary">privacy@wiseresume.app</span>.</p>
+          <p>WiseResume is not directed at individuals under the age of 16. We do not knowingly collect personal data from children. If we become aware that we have inadvertently collected data from a child under 16, we will promptly delete it. If you believe a child has provided us with personal data, please contact us at <span className="text-primary">privacy@thewise.cloud</span>.</p>
         </section>
 
         <section className="space-y-2">
