@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import {
@@ -15,6 +16,10 @@ import {
   LogIn,
   MessageSquarePlus,
   FileText,
+  Briefcase,
+  Mail,
+  Globe,
+  BarChart3,
 } from 'lucide-react';
 import {
   Sheet,
@@ -40,6 +45,21 @@ import { useResumeStore } from '@/store/resumeStore';
 interface AgenticChatSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+const CONTEXT_FILTERS = [
+  { id: 'resumes', label: 'Resumes', icon: FileText, routes: ['/editor', '/preview', '/dashboard', '/resume', '/templates'] },
+  { id: 'cover-letters', label: 'Cover Letters', icon: Mail, routes: ['/cover-letter', '/cover-letters'] },
+  { id: 'applications', label: 'Applications', icon: Briefcase, routes: ['/applications', '/application', '/job'] },
+  { id: 'portfolio', label: 'Portfolio', icon: Globe, routes: ['/portfolio'] },
+  { id: 'activity', label: 'Activity', icon: BarChart3, routes: ['/interview', '/career', '/ai-studio'] },
+] as const;
+
+function detectContextFromRoute(pathname: string): string {
+  for (const filter of CONTEXT_FILTERS) {
+    if (filter.routes.some(r => pathname.startsWith(r))) return filter.id;
+  }
+  return 'resumes';
 }
 
 const SUGGESTIONS = [
@@ -219,19 +239,26 @@ function GuestShowcase({ onClose, onSignIn }: { onClose: () => void; onSignIn: (
 export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { data: allResumes = [] } = useResumes();
   const { currentResume, setCurrentResume, setCurrentResumeId } = useResumeStore();
+  const [activeContext, setActiveContext] = useState(() => detectContextFromRoute(location.pathname));
   const {
     messages,
     isThinking,
     sendMessage,
     clearChat,
     updateSuggestionStatus,
-  } = useAgenticChat();
+  } = useAgenticChat(activeContext);
   const [input, setInput] = useState('');
   const [resumePickerOpen, setResumePickerOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-detect context when route changes
+  useEffect(() => {
+    setActiveContext(detectContextFromRoute(location.pathname));
+  }, [location.pathname]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -304,8 +331,30 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
         </SheetHeader>
 
         {isAuthenticated && (
-          <div className="px-4 pt-1">
+          <div className="px-4 pt-1 space-y-2">
             <AITrustBadge />
+            {/* Context filter chips */}
+            <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+              {CONTEXT_FILTERS.map((filter) => {
+                const Icon = filter.icon;
+                const isActive = activeContext === filter.id;
+                return (
+                  <button
+                    key={filter.id}
+                    onClick={() => { setActiveContext(filter.id); haptics.selection(); }}
+                    className={cn(
+                      'flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors shrink-0 touch-manipulation',
+                      isActive
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted/60 text-muted-foreground hover:bg-muted'
+                    )}
+                  >
+                    <Icon className="w-3 h-3" />
+                    {filter.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 

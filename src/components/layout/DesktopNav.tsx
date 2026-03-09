@@ -1,11 +1,14 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Globe, Home, BarChart3, Sparkles } from 'lucide-react';
+import { FileText, Globe, Home, BarChart3, Sparkles, MessageCircle } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useChangelogBadge } from '@/hooks/useChangelogBadge';
 import { toast } from 'sonner';
+import { lazy, Suspense, useState } from 'react';
+
+const AgenticChatSheet = lazy(() => import('@/components/editor/AgenticChatSheet').then(m => ({ default: m.AgenticChatSheet })));
 
 interface TabItem {
   path: string;
@@ -57,6 +60,7 @@ export function DesktopNav() {
   const setCurrentResume = useResumeStore((s) => s.setCurrentResume);
   const { data: resumes } = useResumes({ select: (data) => data.slice(0, 1) });
   const { hasNew, markSeen } = useChangelogBadge();
+  const [wiseAIOpen, setWiseAIOpen] = useState(false);
 
   const isActive = (tab: TabItem) => {
     if (tab.matchPaths) {
@@ -120,6 +124,24 @@ export function DesktopNav() {
           );
         })}
       </div>
+
+      {/* Ask Wise AI — desktop */}
+      <div className="ml-auto">
+        <button
+          onClick={() => { haptics.selection(); setWiseAIOpen(true); }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-colors active:scale-95"
+          aria-label="Ask Wise AI"
+        >
+          <MessageCircle className="w-4 h-4" />
+          Ask
+        </button>
+      </div>
+
+      {wiseAIOpen && (
+        <Suspense fallback={null}>
+          <AgenticChatSheet open={wiseAIOpen} onOpenChange={setWiseAIOpen} />
+        </Suspense>
+      )}
     </nav>
   );
 }

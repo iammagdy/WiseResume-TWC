@@ -18,6 +18,7 @@ interface ChatRequest {
   conversationHistory: ChatMessage[];
   currentResume: unknown;
   resumeList?: Array<{ id: string; title: string }>;
+  contextFilter?: string;
   functionResponse?: {
     name: string;
     result: Record<string, unknown>;
@@ -158,7 +159,7 @@ const TOOLS = [
     type: "function",
     function: {
       name: "suggest_edits",
-      description: "For subjective or risky changes, propose edits for user approval instead of directly applying. Use when the request is vague (e.g., 'make it better', 'more leadership-focused') or when multiple sections would change.",
+      description: "For subjective or risky changes, propose edits for user approval instead of directly applying. Use when the request is vague (e.g., 'make it better', 'more leadership-focused') or when multiple sections would change. ALWAYS use this for destructive or irreversible actions — never auto-apply without confirmation.",
       parameters: {
         type: "object",
         properties: {
@@ -211,13 +212,30 @@ const TOOLS = [
   },
 ];
 
-const SYSTEM_PROMPT = `You are Wise AI, an expert resume assistant integrated into the WiseResume editor. You help users improve their resumes through natural conversation.
+const CONTEXT_PROMPTS: Record<string, string> = {
+  'resumes': `\n\n## Active Context: Resumes
+The user is asking about their resumes. Focus on resume content, formatting, ATS optimization, tailoring, and writing. You can edit the currently loaded resume using your tools. Reference specific resume titles from their list when relevant.`,
+  
+  'cover-letters': `\n\n## Active Context: Cover Letters
+The user is asking about cover letters. Help them write, improve, or strategize cover letters. Discuss tone, structure, company-specific customization. You cannot directly edit cover letters with tools, but you can give detailed advice and draft content they can copy.`,
+  
+  'applications': `\n\n## Active Context: Job Applications
+The user is asking about job applications and tracking. Help them with application strategy, follow-up timing, status management, and job search tips. Discuss how to track applications effectively and when to follow up.`,
+  
+  'portfolio': `\n\n## Active Context: Portfolio
+The user is asking about their online portfolio. Help them understand portfolio features, how to customize it, optimize for visitors, choose themes, and present their work professionally. Explain how the portfolio connects to their resume data.`,
+  
+  'activity': `\n\n## Active Context: Activity & Career
+The user is asking about their career activity, interview practice, or AI tools. Help with interview preparation, career path planning, skill development advice, and using the AI-powered career tools available in the app.`,
+};
+
+const SYSTEM_PROMPT = `You are Wise AI, an expert career assistant integrated into WiseResume. You help users with all aspects of their career journey — resumes, cover letters, applications, portfolios, and career planning.
 
 You have access to tools that can DIRECTLY modify the user's resume. When the user asks you to make changes, USE the tools - don't just describe what to do.
 
 ## Personality
 - Friendly, encouraging, but honest and wise
-- Give specific, actionable advice based on the user's actual resume data
+- Give specific, actionable advice based on the user's actual data
 - When the user asks you to DO something (add, change, write), use the appropriate tool
 - When the user asks for ADVICE (should I, what do you think), provide guidance first
 - When the user asks about "my resumes" or which resume to work on, reference their actual resume list by name
@@ -229,21 +247,27 @@ The user may have multiple resumes — their list is provided. When they ask gen
 ## Tool Usage Rules
 1. **update_summary**: When user wants to change/write/improve their summary
 2. **add_experience**: When user wants to add a NEW job or project
-3. **update_experience**: When user wants to MODIFY an EXISTING job (e.g., "update my Google job", "change my current role description")
+3. **update_experience**: When user wants to MODIFY an EXISTING job
 4. **update_skills**: When user wants to completely replace their skills
 5. **add_skills**: When user wants to add specific new skills
 6. **update_contact**: When user wants to change contact information
-7. **suggest_edits**: For SUBJECTIVE changes like "make it more leadership-focused", "improve it", "make it better". Show proposals instead of auto-applying.
-8. **proofread_and_fix**: When user asks to check for errors, typos, grammar, or spelling. Return structured fixes.
+7. **suggest_edits**: For SUBJECTIVE changes like "make it more leadership-focused", "improve it". Show proposals for user confirmation. ALWAYS prefer this for any change that is destructive or hard to reverse.
+8. **proofread_and_fix**: When user asks to check for errors, typos, grammar, or spelling
+
+## Smart Confirmations
+- For any action that modifies the user's data, prefer using suggest_edits to show a confirm/decline flow
+- Only auto-apply when the user gives a very specific, unambiguous instruction (e.g., "change my email to X")
+- For vague or broad requests, ALWAYS use suggest_edits
 
 ## Critical Rules
 - For vague requests like "improve my resume" or "make it more X", use suggest_edits to propose changes for approval
-- For specific requests like "change my title to X" or "add React to my skills", apply directly
+- For specific requests like "change my title to X", apply directly
 - When proofreading, set autoApply: false to let the user review fixes
 - Always explain what you did after making a change (2-4 sentences max)
 - Use **bold** and *italics* for emphasis in your responses
-- When analyzing resumes, be specific: mention actual content, strengths, and weaknesses from the data provided
-- Never give generic advice — always reference the user's actual data`;
+- When analyzing resumes, be specific: mention actual content, strengths, and weaknesses
+- Never give generic advice — always reference the user's actual data
+- When discussing features outside of resume editing (cover letters, portfolio, applications), give helpful guidance even though you can't directly modify those sections`;
 
 Deno.serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req.headers.get("origin"));
@@ -263,7 +287,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { message, conversationHistory, currentResume, resumeList, functionResponse } = (await req.json()) as ChatRequest;
+    const { message, conversationHistory, currentResume, resumeList, contextFilter, functionResponse } = (await req.json()) as ChatRequest;
 
     if (!message || typeof message !== "string") {
       return new Response(
@@ -294,9 +318,13 @@ Deno.serve(async (req: Request) => {
       ? `\n\nUser's Resume List (${resumeList.length} total):\n${resumeList.map((r, i) => `${i + 1}. "${r.title}" (id: ${r.id})`).join('\n')}`
       : "";
 
+    const contextPrompt = contextFilter && CONTEXT_PROMPTS[contextFilter]
+      ? CONTEXT_PROMPTS[contextFilter]
+      : "";
+
     // Build messages array
     const messages: any[] = [
-      { role: "system", content: SYSTEM_PROMPT + resumeContext + resumeListContext },
+      { role: "system", content: SYSTEM_PROMPT + contextPrompt + resumeContext + resumeListContext },
       ...(conversationHistory || []).slice(-10).map(m => ({
         role: m.role,
         content: m.content,

@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: UNIVERSAL-WISE-AI-DELETE-FIX
+- Summary: Four major changes: (1) Resume delete fix — created DB RPC functions (soft_delete_resume, soft_delete_resumes, restore_resume) to bypass PostgREST schema cache issue; updated useResumes.ts to use RPC calls. (2) Universal Wise AI — added global "Ask" floating button on mobile (AppShell.tsx) and "Ask" pill button in desktop nav (DesktopNav.tsx), making Wise AI accessible from any page. (3) Context-aware filters — added category chips (Resumes, Cover Letters, Applications, Portfolio, Activity) in AgenticChatSheet with auto-detection from current route; context passed to edge function for scoped AI responses. (4) Smart action confirmations — updated system prompt to prefer suggest_edits confirm/decline flow for any data-modifying action.
+- Files: src/hooks/useResumes.ts, src/components/layout/AppShell.tsx, src/components/layout/DesktopNav.tsx, src/components/editor/AgenticChatSheet.tsx, src/hooks/useAgenticChat.ts, src/lib/agenticChat.ts, supabase/functions/agentic-chat/index.ts, enhancements-for-vibe-coding/CHANGELOG-local.md
+- Notes: New DB migration with 3 RPC functions. Edge function redeployed. Context filters auto-detect from route.
+
+- Date: 2026-03-09
 - Issue ID: ANALYTICS-DELETE-AISTUDIO-CHAT
 - Summary: Four improvements: (1) Analytics page — fixed desktop layout with max-w-4xl, 4-col stats grid on lg, side-by-side charts, added smarter insights (best ATS score, avg completeness, interview rate, worst resume nudge). (2) Resume delete fix — added .eq('user_id', user.id) and .select() to deleteResume and deleteMultipleResumes mutations for robustness. (3) AI Studio — "Change" button now opens resume picker popup instead of navigating to dashboard. (4) Wise AI Chat — AI responses now render clickable resume cards when resume titles are mentioned, allowing users to tap to switch context.
 - Files: src/pages/AnalyticsPage.tsx, src/hooks/useResumes.ts, src/pages/AIStudioPage.tsx, src/components/editor/AgenticChatSheet.tsx, enhancements-for-vibe-coding/CHANGELOG-local.md
