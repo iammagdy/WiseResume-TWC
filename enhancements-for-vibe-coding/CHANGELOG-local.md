@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: AUTH-CARD-GLASS-SCROLL
+- Summary: Reduced auth card opacity (0.25→0.12) and gradient border intensity for a softer glass effect. Softened box-shadow glow. Changed root container from overflow-hidden to overflow-y-auto so tall sign-up forms scroll. Increased vertical padding (py-8→py-12).
+- Files touched: src/pages/AuthPage.tsx, enhancements-for-vibe-coding/CHANGELOG-local.md
+- Notes: CSS-only changes. No auth or business logic modified.
+
+- Date: 2026-03-09
 - Issue ID: CAPTCHA-HOOKS-FIX
 - Summary: Fixed SlideCaptcha crash ("Rendered fewer hooks than expected") by moving useTransform call above the early return. Fixed ErrorBoundary "Report Issue" button by adding an inline self-contained bug report dialog that works independently of BugReportDialog (which gets unmounted on error).
 - Files touched: src/components/auth/SlideCaptcha.tsx, src/components/ErrorBoundary.tsx, enhancements-for-vibe-coding/CHANGELOG-local.md
