@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const DEVELOPER_EMAIL = "contact@thewise.cloud";
-const LOGO_URL = "https://jnsfmkzgxsviuthaqlyy.supabase.co/storage/v1/object/public/screenshots/icon-512.png";
+const LOGO_URL = "https://jnsfmkzgxsviuthaqlyy.supabase.co/storage/v1/object/public/avatars/email-assets/wise-ai-logo.png";
 
 function parsePlatform(ua: string): string {
   if (!ua) return "Unknown";
