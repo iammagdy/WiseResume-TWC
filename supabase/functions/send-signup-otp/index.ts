@@ -2,7 +2,7 @@
  * send-signup-otp
  * ─────────────────────────────────────────────
  * Creates a new user via admin.generateLink, generates a 6-digit OTP,
- * stores it in signup_otps table, then sends a branded email via Resend.
+ * stores it in signup_otps table (Lovable Cloud DB), then sends a branded email via Resend.
  *
  * Body: { email: string, password: string, fullName: string }
  * Returns: { success: true } or { error: string }
@@ -27,6 +27,22 @@ function generateOtp(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+/** Auth client — points to the EXTERNAL Supabase project */
+function getAuthClient() {
+  return createClient(
+    Deno.env.get('EXT_SUPABASE_URL') || Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('EXT_SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  );
+}
+
+/** DB client — points to Lovable Cloud (where signup_otps table lives) */
+function getDbClient() {
+  return createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  );
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -42,16 +58,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabaseAdmin = createClient(
-      Deno.env.get('EXT_SUPABASE_URL') || Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('EXT_SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
+    const supabaseAuth = getAuthClient();
+    const supabaseDb = getDbClient();
 
     // Generate signup link — creates user and returns action_link
     let linkData: any;
     let linkError: any;
 
-    const result = await supabaseAdmin.auth.admin.generateLink({
+    const result = await supabaseAuth.auth.admin.generateLink({
       type: 'signup',
       email,
       password,
@@ -65,7 +79,7 @@ Deno.serve(async (req) => {
     // If user already exists (unconfirmed), try magiclink to regenerate a token
     if (linkError && (linkError.message?.includes('already been registered') || linkError.message?.includes('already exists'))) {
       console.log('[send-signup-otp] User exists, trying magiclink fallback');
-      const fallback = await supabaseAdmin.auth.admin.generateLink({
+      const fallback = await supabaseAuth.auth.admin.generateLink({
         type: 'magiclink',
         email,
       });
@@ -93,8 +107,8 @@ Deno.serve(async (req) => {
     const otpCode = generateOtp();
 
     // Delete any previous unused OTPs for this email, then insert new one
-    await supabaseAdmin.from('signup_otps').delete().eq('email', email).eq('used', false);
-    const { error: insertError } = await supabaseAdmin.from('signup_otps').insert({
+    await supabaseDb.from('signup_otps').delete().eq('email', email).eq('used', false);
+    const { error: insertError } = await supabaseDb.from('signup_otps').insert({
       email,
       otp_code: otpCode,
       action_link: actionLink,

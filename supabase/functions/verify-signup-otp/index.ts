@@ -1,11 +1,12 @@
 /**
  * verify-signup-otp
  * ─────────────────────────────────────────────
- * Verifies a 6-digit OTP code from signup_otps table,
- * confirms the user's email, and returns a session.
+ * Verifies a 6-digit OTP code from signup_otps table (Lovable Cloud DB),
+ * confirms the user's email on the external Supabase project,
+ * and returns a hashed_token for client-side session creation.
  *
  * Body: { email: string, otp: string }
- * Returns: { success: true, session: { access_token, refresh_token } } or { error: string }
+ * Returns: { success: true, token_hash, action_link } or { error: string }
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -15,6 +16,22 @@ const corsHeaders = {
   'Access-Control-Allow-Headers':
     'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
+
+/** Auth client — points to the EXTERNAL Supabase project */
+function getAuthClient() {
+  return createClient(
+    Deno.env.get('EXT_SUPABASE_URL') || Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('EXT_SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  );
+}
+
+/** DB client — points to Lovable Cloud (where signup_otps table lives) */
+function getDbClient() {
+  return createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  );
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -31,13 +48,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabaseAdmin = createClient(
-      Deno.env.get('EXT_SUPABASE_URL') || Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('EXT_SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
+    const supabaseAuth = getAuthClient();
+    const supabaseDb = getDbClient();
 
-    // Look up valid OTP
-    const { data: otpRows, error: lookupError } = await supabaseAdmin
+    // Look up valid OTP in Lovable Cloud DB
+    const { data: otpRows, error: lookupError } = await supabaseDb
       .from('signup_otps')
       .select('*')
       .eq('email', email)
@@ -65,28 +80,10 @@ Deno.serve(async (req) => {
     const otpRecord = otpRows[0];
 
     // Mark OTP as used
-    await supabaseAdmin.from('signup_otps').update({ used: true }).eq('id', otpRecord.id);
+    await supabaseDb.from('signup_otps').update({ used: true }).eq('id', otpRecord.id);
 
-    // Find the user by email
-    const { data: userList, error: listError } = await supabaseAdmin.auth.admin.listUsers({
-      page: 1,
-      perPage: 1,
-    });
-
-    // Search for user by email across all users
-    // listUsers doesn't support email filter directly, use a different approach
-    const { data: userData, error: getUserError } = await supabaseAdmin
-      .rpc('', {}) // Can't use RPC, use admin API instead
-      .then(() => null)
-      .catch(() => null) as any;
-
-    // Use generateLink with magiclink to get a valid session for the user
-    // First, confirm the user's email
-    // We need to find the user ID first
-    let userId: string | null = null;
-
-    // Try to get user by generating a magiclink (which also gives us user info)
-    const { data: magicData, error: magicError } = await supabaseAdmin.auth.admin.generateLink({
+    // Get user info via magiclink generation on the external auth project
+    const { data: magicData, error: magicError } = await supabaseAuth.auth.admin.generateLink({
       type: 'magiclink',
       email,
     });
@@ -99,7 +96,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    userId = magicData?.user?.id;
+    const userId = magicData?.user?.id;
 
     if (!userId) {
       console.error('[verify-signup-otp] No user ID found');
@@ -110,7 +107,7 @@ Deno.serve(async (req) => {
     }
 
     // Confirm the user's email
-    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+    const { error: updateError } = await supabaseAuth.auth.admin.updateUserById(userId, {
       email_confirm: true,
     });
 
@@ -122,22 +119,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Generate a new magiclink to create a valid session token
-    const { data: sessionLink, error: sessionError } = await supabaseAdmin.auth.admin.generateLink({
+    // Generate a new magiclink to create a session token for the client
+    const { data: sessionLink, error: sessionError } = await supabaseAuth.auth.admin.generateLink({
       type: 'magiclink',
       email,
     });
 
     if (sessionError) {
       console.error('[verify-signup-otp] Session link error:', sessionError);
-      // User is confirmed but we can't auto-sign-in — they can sign in manually
       return new Response(JSON.stringify({ success: true, requiresSignIn: true }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Extract the token_hash from the action_link to verify OTP on the client
     const actionLink = sessionLink?.properties?.action_link;
     const hashedToken = sessionLink?.properties?.hashed_token;
 
@@ -145,7 +140,6 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      // Return the hashed token so the client can use verifyOtp to get a session
       token_hash: hashedToken,
       action_link: actionLink,
     }), {
