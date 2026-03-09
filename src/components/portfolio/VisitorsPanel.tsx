@@ -584,7 +584,7 @@ export function VisitorsPanel({ username, userId, portfolioEnabled }: VisitorsPa
                 </div>
                 <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                   <ChevronRight className="w-3 h-3" />
-                  Creates a short link like <span className="font-mono text-foreground">wiseresume.app/l/xK9mR</span>
+                  Creates a short link like <span className="font-mono text-foreground">resume.thewise.cloud/l/xK9mR</span>
                 </p>
               </div>
             </motion.div>
