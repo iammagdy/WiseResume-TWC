@@ -373,63 +373,158 @@ export default function AuthPage() {
                   exit={{ opacity: 0, x: mode === 'sign-in' ? 20 : -20 }}
                   className="space-y-4"
                 >
-                  <form onSubmit={mode === 'sign-in' ? handleEmailSignIn : handleEmailSignUp} className="space-y-4">
-                    {mode === 'sign-up' && (
-                      <InputFormField
-                        id="full-name"
-                        label="Full Name"
-                        icon={<User className="w-4 h-4" />}
-                        value={fullName}
-                        onChange={setFullName}
-                        placeholder="John Doe"
-                        autoComplete="name"
-                        required
-                      />
-                    )}
-                    <InputFormField
-                      id="email"
-                      label="Email"
-                      type="email"
-                      icon={<Mail className="w-4 h-4" />}
-                      value={email}
-                      onChange={setEmail}
-                      placeholder="you@example.com"
-                      autoComplete="email"
-                      required
-                    />
-                    <div className="space-y-1">
-                      <PasswordInput
-                        id="password"
-                        label="Password"
-                        value={password}
-                        onChange={setPassword}
-                        show={showPassword}
-                        onToggleShow={() => setShowPassword(!showPassword)}
-                        autoComplete={mode === 'sign-in' ? 'current-password' : 'new-password'}
-                        required
-                      />
-                      {mode === 'sign-in' ? (
-                        <div className="flex justify-end">
-                          <button
-                            type="button"
-                            onClick={() => setMode('forgot-password')}
-                            className="text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
-                          >
-                            Forgot password?
-                          </button>
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    if (mode === 'sign-up' && signUpStep === 'form') {
+                      setSignUpStep('method');
+                      return;
+                    }
+                    if (mode === 'sign-in') {
+                      handleEmailSignIn(e);
+                    } else {
+                      handleEmailSignUp(e);
+                    }
+                  }} className="space-y-4">
+                    {mode === 'sign-up' && signUpStep === 'method' ? (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <h3 className="text-sm font-medium">How would you like to verify your account?</h3>
+                          <div className="space-y-2">
+                            <label className="flex items-center gap-3 p-3 rounded-xl border cursor-pointer hover:bg-muted/50 transition-colors">
+                              <input 
+                                type="radio" 
+                                name="verifyMethod" 
+                                value="otp" 
+                                checked={verifyMethod === 'otp'} 
+                                onChange={(e) => setVerifyMethod(e.target.value as VerifyMethod)}
+                                className="w-4 h-4 text-primary"
+                              />
+                              <div className="flex flex-col">
+                                <span className="text-sm font-medium">6-digit Code (Recommended)</span>
+                                <span className="text-xs text-muted-foreground">Receive a code in your email</span>
+                              </div>
+                            </label>
+                            <label className="flex items-center gap-3 p-3 rounded-xl border cursor-pointer hover:bg-muted/50 transition-colors">
+                              <input 
+                                type="radio" 
+                                name="verifyMethod" 
+                                value="link" 
+                                checked={verifyMethod === 'link'} 
+                                onChange={(e) => setVerifyMethod(e.target.value as VerifyMethod)}
+                                className="w-4 h-4 text-primary"
+                              />
+                              <div className="flex flex-col">
+                                <span className="text-sm font-medium">Magic Link</span>
+                                <span className="text-xs text-muted-foreground">Click a secure link in your email</span>
+                              </div>
+                            </label>
+                          </div>
                         </div>
-                      ) : (
-                        <PasswordStrengthMeter password={password} />
-                      )}
-                    </div>
-                    <Button
-                      type="submit"
-                      size="lg"
-                      className="w-full h-12 text-base font-semibold gradient-primary glow-primary"
-                      disabled={isLoading || !email || !password || (mode === 'sign-up' && !fullName)}
-                    >
-                      {isLoading ? <MiniSpinner size={20} /> : mode === 'sign-in' ? 'Sign In' : 'Create Account'}
-                    </Button>
+                        <div className="flex gap-3">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => setSignUpStep('form')}
+                            disabled={isLoading}
+                          >
+                            Back
+                          </Button>
+                          <Button
+                            type="submit"
+                            className="flex-[2] h-10 font-semibold gradient-primary glow-primary"
+                            disabled={isLoading}
+                          >
+                            {isLoading ? <MiniSpinner size={20} /> : 'Create Account'}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {mode === 'sign-up' && (
+                          <InputFormField
+                            id="full-name"
+                            label="Full Name"
+                            icon={<User className="w-4 h-4" />}
+                            value={fullName}
+                            onChange={setFullName}
+                            placeholder="John Doe"
+                            autoComplete="name"
+                            required
+                          />
+                        )}
+                        <InputFormField
+                          id="email"
+                          label="Email"
+                          type="email"
+                          icon={<Mail className="w-4 h-4" />}
+                          value={email}
+                          onChange={setEmail}
+                          placeholder="you@example.com"
+                          autoComplete="email"
+                          required
+                        />
+                        <div className="space-y-4">
+                          <div className="space-y-1">
+                            <PasswordInput
+                              id="password"
+                              label="Password"
+                              value={password}
+                              onChange={setPassword}
+                              show={showPassword}
+                              onToggleShow={() => setShowPassword(!showPassword)}
+                              autoComplete={mode === 'sign-in' ? 'current-password' : 'new-password'}
+                              required
+                            />
+                            {mode === 'sign-in' && (
+                              <div className="flex justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() => setMode('forgot-password')}
+                                  className="text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
+                                >
+                                  Forgot password?
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {mode === 'sign-up' && (
+                            <div className="space-y-1">
+                              <PasswordInput
+                                id="confirm-password"
+                                label="Confirm Password"
+                                value={confirmPassword}
+                                onChange={setConfirmPassword}
+                                show={showConfirmPassword}
+                                onToggleShow={() => setShowConfirmPassword(!showConfirmPassword)}
+                                autoComplete="new-password"
+                                required
+                              />
+                              {password && confirmPassword && password !== confirmPassword && (
+                                <p className="text-xs text-destructive">Passwords do not match</p>
+                              )}
+                              <div className="pt-2">
+                                <PasswordStrengthMeter password={password} />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <Button
+                          type="submit"
+                          size="lg"
+                          className="w-full h-12 text-base font-semibold gradient-primary glow-primary"
+                          disabled={
+                            isLoading || 
+                            !email || 
+                            !password || 
+                            (mode === 'sign-up' && (!fullName || !confirmPassword || password !== confirmPassword))
+                          }
+                        >
+                          {isLoading ? <MiniSpinner size={20} /> : mode === 'sign-in' ? 'Sign In' : 'Continue'}
+                        </Button>
+                      </>
+                    )}
                   </form>
 
                   <div className="relative flex items-center gap-3 py-1">
