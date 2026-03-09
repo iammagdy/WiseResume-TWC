@@ -7,6 +7,16 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: DOMAIN-SWAP
+- Summary: Replaced deprecated `wiseresume.magdysaber.com` with `resume.thewise.cloud` across all domain references; updated fallback/default URLs
+- Files touched: `src/lib/portfolioUrl.ts`, `supabase/functions/portfolio-meta/index.ts`, `supabase/functions/_shared/cors.ts`
+- Notes: Old domain removed entirely. `resume.thewise.cloud` is now primary/fallback.
+
+---
+
+##
+
+- Date: 2026-03-09
 - Issue ID: SAVEBAR-OVERLAP-FIX
 - Summary: Changed SaveBar from fixed positioning to static flex footer to prevent it from overlapping content (e.g. Availability section). Reduced scroll container bottom padding from pb-36 to pb-6.
 - Files touched: src/components/portfolio/editor/SaveBar.tsx, src/pages/PortfolioEditorPage.tsx
