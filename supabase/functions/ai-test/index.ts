@@ -32,17 +32,6 @@ serve(async (req) => {
 
     if (preferredProvider === 'gemini') {
       userGeminiKey = await getUserKeyFromDB(userId, 'gemini');
-      const { data: keyData } = await supabaseAdmin
-        .from('user_api_keys')
-        .select('model')
-        .eq('user_id', userId)
-        .eq('provider', 'gemini')
-        .maybeSingle();
-      if (keyData?.model) {
-        testModel = keyData.model.startsWith('google/') || keyData.model.startsWith('gemini-')
-          ? (keyData.model.startsWith('gemini-') ? `google/${keyData.model}` : keyData.model)
-          : `google/${keyData.model}`;
-      }
     } else if (preferredProvider === 'ollama') {
       ollamaConfig = await getUserKeyAndUrlFromDB(userId, 'ollama');
     }
