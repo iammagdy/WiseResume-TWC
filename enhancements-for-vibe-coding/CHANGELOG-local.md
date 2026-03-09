@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: EMAIL-SENDER-UPDATE
+- Summary: Changed email sender from `noreply@thewise.cloud` to `notifications@thewise.cloud` in all three feedback edge functions to improve deliverability (Resend penalizes "noreply" addresses).
+- Files touched: supabase/functions/send-bug-report/index.ts, supabase/functions/send-feature-request/index.ts, supabase/functions/send-contact-inquiry/index.ts, enhancements-for-vibe-coding/CHANGELOG-local.md
+- Notes: Final config: from=`notifications@thewise.cloud`, to=`contact@thewise.cloud`, reply_to=user's email. No DNS or Resend domain changes.
+
+- Date: 2026-03-09
 - Issue ID: EMAIL-DELIVERY-FIX
 - Summary: Fixed "sent but not delivered" emails from Resend by separating from/to addresses. Changed `from` field in all three feedback edge functions from `contact@thewise.cloud` to `noreply@thewise.cloud` with user's email in display name (e.g., `user@gmail.com via WiseResume <noreply@thewise.cloud>`). This prevents self-delivery blocking and shows user identity in inbox.
 - Files touched: supabase/functions/send-bug-report/index.ts, supabase/functions/send-feature-request/index.ts, supabase/functions/send-contact-inquiry/index.ts, enhancements-for-vibe-coding/CHANGELOG-local.md
