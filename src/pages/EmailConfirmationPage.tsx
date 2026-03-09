@@ -146,8 +146,8 @@ export default function EmailConfirmationPage() {
             animate={{ scale: 1, opacity: 1 }}
             className="space-y-4"
           >
-            <div className="w-16 h-16 mx-auto rounded-2xl bg-emerald-500/10 flex items-center justify-center">
-              <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-accent/20 flex items-center justify-center">
+              <CheckCircle2 className="w-8 h-8 text-primary" />
             </div>
             <h1 className="text-2xl font-bold text-foreground">You're all set!</h1>
             <p className="text-muted-foreground">Redirecting to your dashboard…</p>
