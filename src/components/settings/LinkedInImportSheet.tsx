@@ -66,7 +66,7 @@ interface LinkedInImportSheetProps {
   linkedinUsername?: string;
 }
 
-type ParseState = 'method-select' | 'idle' | 'parsing' | 'preview' | 'importing' | 'done';
+type ParseState = 'method-select' | 'idle' | 'url-guide' | 'parsing' | 'preview' | 'importing' | 'done';
 
 const PARSING_STEPS = [
   { id: 1, label: 'Reading profile data...', icon: FileText },
