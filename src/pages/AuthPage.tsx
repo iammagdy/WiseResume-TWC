@@ -294,8 +294,8 @@ export default function AuthPage() {
               background: 'hsl(var(--card) / 0.40)',
               backdropFilter: 'blur(28px)',
               WebkitBackdropFilter: 'blur(28px)',
-              border: '1px solid hsl(0 0% 100% / 0.15)',
-              boxShadow: 'inset 0 1px 0 0 hsl(0 0% 100% / 0.1), 0 20px 40px -12px rgba(0,0,0,0.5)',
+              border: '1px solid hsl(var(--foreground) / 0.1)',
+              boxShadow: 'inset 0 1px 0 0 hsl(var(--foreground) / 0.06), 0 20px 40px -12px rgba(0,0,0,0.35)',
             }}
           >
             <div

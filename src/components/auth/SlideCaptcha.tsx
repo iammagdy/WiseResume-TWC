@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { Check, ShieldCheck } from 'lucide-react';
+import { useIsDark } from '@/hooks/useIsDark';
 
 interface SlideCaptchaProps {
   onVerified: () => void;
@@ -11,6 +12,7 @@ export function SlideCaptcha({ onVerified, verified }: SlideCaptchaProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const x = useMotionValue(0);
+  const isDark = useIsDark();
 
   const HANDLE_SIZE = 44;
   const getMaxX = () => (trackRef.current?.clientWidth ?? 280) - HANDLE_SIZE;
@@ -29,6 +31,12 @@ export function SlideCaptcha({ onVerified, verified }: SlideCaptchaProps) {
     }
   }, [x, onVerified]);
 
+  // Theme-aware colors
+  const trackBg = isDark ? 'hsl(0 0% 100% / 0.06)' : 'hsl(0 0% 0% / 0.06)';
+  const trackBorder = isDark ? 'hsl(0 0% 100% / 0.1)' : 'hsl(0 0% 0% / 0.1)';
+  const verifiedBg = isDark ? 'hsl(142 70% 45% / 0.15)' : 'hsl(142 70% 45% / 0.12)';
+  const verifiedBorder = isDark ? 'hsl(142 70% 45% / 0.3)' : 'hsl(142 70% 45% / 0.35)';
+
   if (verified) {
     return (
       <motion.div
@@ -36,8 +44,8 @@ export function SlideCaptcha({ onVerified, verified }: SlideCaptchaProps) {
         animate={{ scale: 1, opacity: 1 }}
         className="flex items-center justify-center gap-2 h-[44px] rounded-xl"
         style={{
-          background: 'hsl(142 70% 45% / 0.15)',
-          border: '1px solid hsl(142 70% 45% / 0.3)',
+          background: verifiedBg,
+          border: `1px solid ${verifiedBorder}`,
         }}
       >
         <motion.div
@@ -45,9 +53,9 @@ export function SlideCaptcha({ onVerified, verified }: SlideCaptchaProps) {
           animate={{ scale: 1 }}
           transition={{ type: 'spring', stiffness: 500, damping: 15, delay: 0.1 }}
         >
-          <ShieldCheck className="w-5 h-5 text-green-400" />
+          <ShieldCheck className="w-5 h-5 text-green-600 dark:text-green-400" />
         </motion.div>
-        <span className="text-sm font-medium text-green-400">Verified</span>
+        <span className="text-sm font-medium text-green-600 dark:text-green-400">Verified</span>
       </motion.div>
     );
   }
@@ -59,8 +67,8 @@ export function SlideCaptcha({ onVerified, verified }: SlideCaptchaProps) {
         ref={trackRef}
         className="relative h-[44px] rounded-xl overflow-hidden select-none touch-none"
         style={{
-          background: 'hsl(0 0% 100% / 0.06)',
-          border: '1px solid hsl(0 0% 100% / 0.1)',
+          background: trackBg,
+          border: `1px solid ${trackBorder}`,
         }}
       >
         {/* Progress fill */}
