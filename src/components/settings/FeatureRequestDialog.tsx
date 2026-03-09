@@ -7,7 +7,7 @@ import { Lightbulb, Send, CheckCircle2 } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 
-const SESSION_CACHE_KEY = 'sb-auth-session-cache';
+import { supabase } from '@/integrations/supabase/safeClient';
 
 let cachedAppVersion: string | null = null;
 async function getAppVersion(): Promise<string> {
@@ -21,20 +21,6 @@ async function getAppVersion(): Promise<string> {
     cachedAppVersion = 'unknown';
   }
   return cachedAppVersion;
-}
-
-function getAuthFromCache() {
-  try {
-    const cached = localStorage.getItem(SESSION_CACHE_KEY);
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      return {
-        userId: parsed.user?.id as string | undefined,
-        userEmail: parsed.user?.email as string | undefined,
-      };
-    }
-  } catch { /* ignore */ }
-  return { userId: undefined, userEmail: undefined };
 }
 
 interface FeatureRequestDialogProps {
