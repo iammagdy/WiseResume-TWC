@@ -22,19 +22,19 @@ import { InstallButton } from '@/components/pwa/InstallButton';
 import logoImage from '@/assets/wise-ai-logo.webp';
 
 // Lazy-load heavy demo components — only mounted when scrolled into view
-const LazyEditorDemo = lazy(() => import('@/components/landing/EditorDemo').then((m) => ({ default: m.EditorDemo })));
-const LazyPortfolioDemo = lazy(() => import('@/components/landing/PortfolioDemo').then((m) => ({ default: m.PortfolioDemo })));
+const LazyEditorDemo = lazy(() => import('@/components/landing/EditorDemo').then(m => ({ default: m.EditorDemo })));
+const LazyPortfolioDemo = lazy(() => import('@/components/landing/PortfolioDemo').then(m => ({ default: m.PortfolioDemo })));
 
-const DemoFallback = () =>
-<div className="w-[260px] h-[280px] rounded-[28px] border-2 border-border/40 bg-card/80 animate-pulse" />;
-
+const DemoFallback = () => (
+  <div className="w-[260px] h-[280px] rounded-[28px] border-2 border-border/40 bg-card/80 animate-pulse" />
+);
 
 const features = [
-{ icon: Sparkles, title: 'Weak bullet? Fixed in 1 tap', desc: 'AI rewrites vague bullets into quantified achievements that recruiters remember', iconColor: 'text-primary', gradient: 'from-primary/20 to-primary/5' },
-{ icon: Target, title: 'Know your score before they do', desc: 'Real-time ATS match percentage against any job posting — then fix it instantly', iconColor: 'text-emerald-500', gradient: 'from-emerald-500/20 to-emerald-500/5' },
-{ icon: Wand2, title: 'New job, new resume — instantly', desc: 'Paste a job description and AI rewrites your entire resume to match in 30 seconds', iconColor: 'text-blue-500', gradient: 'from-blue-500/20 to-blue-500/5' },
-{ icon: Mic, title: 'Practice speaking, not just writing', desc: 'Real voice interview coaching with an AI that listens, responds, and scores you live', iconColor: 'text-orange-500', gradient: 'from-orange-500/20 to-orange-500/5' }];
-
+  { icon: Sparkles, title: 'Weak bullet? Fixed in 1 tap', desc: 'AI rewrites vague bullets into quantified achievements that recruiters remember', iconColor: 'text-primary', gradient: 'from-primary/20 to-primary/5' },
+  { icon: Target, title: 'Know your score before they do', desc: 'Real-time ATS match percentage against any job posting — then fix it instantly', iconColor: 'text-emerald-500', gradient: 'from-emerald-500/20 to-emerald-500/5' },
+  { icon: Wand2, title: 'New job, new resume — instantly', desc: 'Paste a job description and AI rewrites your entire resume to match in 30 seconds', iconColor: 'text-blue-500', gradient: 'from-blue-500/20 to-blue-500/5' },
+  { icon: Mic, title: 'Practice speaking, not just writing', desc: 'Real voice interview coaching with an AI that listens, responds, and scores you live', iconColor: 'text-orange-500', gradient: 'from-orange-500/20 to-orange-500/5' },
+];
 
 
 const Index = () => {
@@ -59,8 +59,8 @@ const Index = () => {
     sessionStorage.setItem('backend-warmed', '1');
     fetch(SUPABASE_URL + '/rest/v1/', {
       method: 'HEAD',
-      headers: { apikey: SUPABASE_PUBLISHABLE_KEY }
-    }).catch(() => {});
+      headers: { apikey: SUPABASE_PUBLISHABLE_KEY },
+    }).catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -69,7 +69,7 @@ const Index = () => {
       if (progressRef.current) {
         const parent = progressRef.current.parentElement;
         const max = document.documentElement.scrollHeight - window.innerHeight;
-        const pct = max > 0 ? window.scrollY / max * 100 : 0;
+        const pct = max > 0 ? (window.scrollY / max) * 100 : 0;
         progressRef.current.style.width = `${pct}%`;
         if (parent) parent.style.display = pct > 0 ? '' : 'none';
       }
@@ -94,13 +94,13 @@ const Index = () => {
   };
 
   const fade = (delay: number) =>
-  prefersReducedMotion ?
-  {} :
-  {
-    initial: { opacity: 0, y: 20 } as const,
-    animate: { opacity: 1, y: 0 } as const,
-    transition: { delay, duration: 0.6, ease: 'easeOut' as Easing }
-  };
+    prefersReducedMotion
+      ? {}
+      : {
+          initial: { opacity: 0, y: 20 } as const,
+          animate: { opacity: 1, y: 0 } as const,
+          transition: { delay, duration: 0.6, ease: 'easeOut' as Easing },
+        };
 
   const handleCTA = () => {
     triggerHaptic.medium();
@@ -112,8 +112,8 @@ const Index = () => {
     return (
       <SpaceBackground>
         <PageLoadingSpinner />
-      </SpaceBackground>);
-
+      </SpaceBackground>
+    );
   }
 
   return (
@@ -126,23 +126,23 @@ const Index = () => {
       {/* Sticky Mini Header */}
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled ? 'glass-header' : 'bg-transparent'}`
-        }
-        style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-        
+          scrolled ? 'glass-header' : 'bg-transparent'
+        }`}
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}
+      >
         <div className="flex items-center justify-between px-4 sm:px-6 h-12">
           <button
-            onClick={() => {triggerHaptic.light();window.scrollTo({ top: 0, behavior: 'smooth' });}}
-            className="flex items-center gap-2 touch-manipulation">
-            
+            onClick={() => { triggerHaptic.light(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+            className="flex items-center gap-2 touch-manipulation"
+          >
             <img src={logoImage} alt="WiseResume" loading="lazy" className="w-7 h-7 object-contain rounded-lg" />
             <span className={`font-display font-bold text-sm text-foreground transition-opacity duration-300 ${scrolled ? 'opacity-100' : 'opacity-0'}`}>
               WiseResume
             </span>
           </button>
 
-          {isAuthenticated ?
-          <div className="flex items-center gap-1">
+          {isAuthenticated ? (
+            <div className="flex items-center gap-1">
             <ThemeDropdown />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -156,43 +156,43 @@ const Index = () => {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem onClick={() => {triggerHaptic.light();navigate('/dashboard');}}>
+                <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate('/dashboard'); }}>
                   <LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => {triggerHaptic.light();navigate('/settings');}}>
+                <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate('/settings'); }}>
                   <Settings className="w-4 h-4 mr-2" /> Settings
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
-                  onClick={async () => {triggerHaptic.medium();await signOut();navigate('/');}}>
-                  
+                  onClick={async () => { triggerHaptic.medium(); await signOut(); navigate('/'); }}
+                >
                   <LogOut className="w-4 h-4 mr-2" /> Sign Out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            </div> : (
-
-          /* Guest header: Log in (ghost) + Sign Up (glass pill) */
-          <div className="flex items-center gap-1.5">
+            </div>
+          ) : (
+            /* Guest header: Log in (ghost) + Sign Up (glass pill) */
+            <div className="flex items-center gap-1.5">
               <ThemeDropdown />
               <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-foreground text-xs px-2.5 h-8 active:scale-95 transition-all"
-              onClick={() => {triggerHaptic.light();navigate('/auth?mode=login');}}>
-              
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground text-xs px-2.5 h-8 active:scale-95 transition-all"
+                onClick={() => { triggerHaptic.light(); navigate('/auth?mode=login'); }}
+              >
                 Log in
               </Button>
               <button
-              className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 hover:border-primary/60 active:scale-95 transition-all touch-manipulation backdrop-blur-sm"
-              onClick={() => {triggerHaptic.medium();navigate('/auth?mode=signup');}}>
-              
+                className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 hover:border-primary/60 active:scale-95 transition-all touch-manipulation backdrop-blur-sm"
+                onClick={() => { triggerHaptic.medium(); navigate('/auth?mode=signup'); }}
+              >
                 <UserPlus className="w-3.5 h-3.5" />
                 Sign Up
               </button>
-            </div>)
-          }
+            </div>
+          )}
         </div>
       </header>
 
@@ -207,29 +207,29 @@ const Index = () => {
                 width: 140,
                 height: 140,
                 top: -10,
-                left: -10
+                left: -10,
               }}
-              aria-hidden="true" />
-            
+              aria-hidden="true"
+            />
             <img
               src={logoImage}
               alt="Wise AI Logo"
               className="relative z-10 w-[120px] h-[120px] object-contain rounded-3xl"
-              loading="eager" />
-            
+              loading="eager"
+            />
           </motion.div>
 
           <motion.h1
             className="text-fluid-2xl font-bold text-foreground leading-tight mb-3"
-            {...fade(0.1)}>
-            
+            {...fade(0.1)}
+          >
             Build Your Dream Resume
           </motion.h1>
 
           <motion.p
             className="text-base text-muted-foreground mb-6 max-w-sm leading-relaxed"
-            {...fade(0.15)}>
-            
+            {...fade(0.15)}
+          >
             The only resume app that{' '}
             <span className="text-foreground font-medium">coaches your interview</span>,{' '}
             <span className="text-foreground font-medium">scores your ATS match</span>, and{' '}
@@ -238,54 +238,54 @@ const Index = () => {
 
           {/* Primary CTA */}
           <motion.div className="w-full flex flex-col items-center gap-3" {...fade(0.2)}>
-            {isAuthenticated ?
-            <div className="flex flex-col gap-3 w-full max-w-md">
+            {isAuthenticated ? (
+              <div className="flex flex-col gap-3 w-full max-w-md">
                 <Button
-                size="lg"
-                className="h-14 text-base font-semibold bg-secondary hover:bg-secondary/90 dark:border-border dark:text-foreground dark:hover:bg-muted/50 transition-all active:scale-[0.98] rounded-full shadow-xl border-stone-50 border-2 border-solid bg-[#363030]/[0.32]"
-                onClick={() => {triggerHaptic.light();navigate('/dashboard');}}>
-                
+                  size="lg"
+                  className="h-14 text-base font-semibold bg-secondary hover:bg-secondary/90 dark:bg-transparent dark:border dark:border-border dark:text-foreground dark:hover:bg-muted/50 transition-all active:scale-[0.98] shadow-sm dark:shadow-none"
+                  onClick={() => { triggerHaptic.light(); navigate('/dashboard'); }}
+                >
                   Dashboard
                 </Button>
                 <div className="flex flex-col items-center gap-2">
                   <button
-                  className="w-full h-14 text-base font-semibold rounded-xl border-glow bg-transparent text-foreground backdrop-blur-sm flex items-center justify-center gap-2 hover:bg-primary/10 active:scale-[0.98] transition-all touch-manipulation"
-                  onClick={() => {triggerHaptic.light();setTailorOpen(true);}}>
-                  
+                    className="w-full h-14 text-base font-semibold rounded-xl border-glow bg-transparent text-foreground backdrop-blur-sm flex items-center justify-center gap-2 hover:bg-primary/10 active:scale-[0.98] transition-all touch-manipulation"
+                    onClick={() => { triggerHaptic.light(); setTailorOpen(true); }}
+                  >
                     <Sparkles className="w-4 h-4 text-primary" />
                     Tailor your resume in 10 minutes
                   </button>
                   <p className="text-xs text-muted-foreground">Paste a job link → get a perfectly matched resume</p>
                 </div>
-              </div> :
-
-            <motion.div
-              className="w-full max-w-sm"
-              whileHover={prefersReducedMotion ? undefined : { scale: 1.02 }}
-              whileTap={prefersReducedMotion ? undefined : { scale: 0.98 }}>
-              
+              </div>
+            ) : (
+              <motion.div
+                className="w-full max-w-sm"
+                whileHover={prefersReducedMotion ? undefined : { scale: 1.02 }}
+                whileTap={prefersReducedMotion ? undefined : { scale: 0.98 }}
+              >
                 <button
-                className="w-full h-14 text-lg font-semibold rounded-xl border border-primary/40 bg-transparent text-foreground hover:bg-primary/10 hover:border-primary/70 active:scale-[0.98] transition-all touch-manipulation backdrop-blur-sm shadow-[0_0_32px_-8px_hsl(var(--primary)/0.4)] hover:shadow-[0_0_48px_-8px_hsl(var(--primary)/0.6)]"
-                onClick={handleCTA}>
-                
+                  className="w-full h-14 text-lg font-semibold rounded-xl border border-primary/40 bg-transparent text-foreground hover:bg-primary/10 hover:border-primary/70 active:scale-[0.98] transition-all touch-manipulation backdrop-blur-sm shadow-[0_0_32px_-8px_hsl(var(--primary)/0.4)] hover:shadow-[0_0_48px_-8px_hsl(var(--primary)/0.6)]"
+                  onClick={handleCTA}
+                >
                   Get Started Free
                 </button>
               </motion.div>
-            }
+            )}
           </motion.div>
 
           <motion.div className="mt-5 flex items-center gap-3 sm:gap-4 text-xs text-muted-foreground flex-wrap justify-center" {...fade(0.25)}>
             {[
-            { label: 'Free to start', icon: '✓' },
-            { label: 'No credit card', icon: '✓' },
-            { label: 'AI-powered', icon: '✓' }].
-            map((item, i) =>
-            <span key={item.label} className="flex items-center gap-1.5">
+              { label: 'Free to start', icon: '✓' },
+              { label: 'No credit card', icon: '✓' },
+              { label: 'AI-powered', icon: '✓' },
+            ].map((item, i) => (
+              <span key={item.label} className="flex items-center gap-1.5">
                 {i > 0 && <span className="w-px h-3 bg-border mr-1.5 sm:mr-2 hidden xs:inline-block" />}
                 <span className="w-4 h-4 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[10px] font-bold flex-shrink-0">{item.icon}</span>
                 {item.label}
               </span>
-            )}
+            ))}
           </motion.div>
         </section>
 
@@ -296,8 +296,8 @@ const Index = () => {
             initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-50px' }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}>
-            
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+          >
             See It in Action
           </motion.h2>
           <motion.p
@@ -305,8 +305,8 @@ const Index = () => {
             initial={prefersReducedMotion ? false : { opacity: 0, y: 14 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-50px' }}
-            transition={{ duration: 0.5, delay: 0.1, ease: 'easeOut' }}>
-            
+            transition={{ duration: 0.5, delay: 0.1, ease: 'easeOut' }}
+          >
             From AI resume writing to a shareable personal website
           </motion.p>
 
@@ -316,8 +316,8 @@ const Index = () => {
               initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true, margin: '-20px' }}
-              transition={{ duration: 0.5, delay: 0.1, ease: 'easeOut' }}>
-              
+              transition={{ duration: 0.5, delay: 0.1, ease: 'easeOut' }}
+            >
               <Card className="p-5 border-t-2 border-border/30 border-t-primary/40 bg-card/50 backdrop-blur-sm h-full flex flex-col items-center gap-4">
                 <div className="text-center">
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-2">
@@ -338,8 +338,8 @@ const Index = () => {
               initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true, margin: '-20px' }}
-              transition={{ duration: 0.5, delay: 0.15, ease: 'easeOut' }}>
-              
+              transition={{ duration: 0.5, delay: 0.15, ease: 'easeOut' }}
+            >
               <Card className="p-5 border-t-2 border-border/30 border-t-emerald-500/40 bg-card/50 backdrop-blur-sm h-full flex flex-col items-center gap-4">
                 <div className="text-center">
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-xs font-semibold mb-2">
@@ -362,15 +362,15 @@ const Index = () => {
           <h2 className="text-2xl font-bold text-foreground text-center mb-2">Why WiseResume?</h2>
           <p className="text-sm text-muted-foreground text-center mb-6">Everything you need to land the job</p>
           <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 max-w-4xl mx-auto overflow-hidden">
-            {features.map((f) =>
-            <Card key={f.title} className="p-4 border-border/30 bg-card/50 h-full">
+            {features.map((f) => (
+              <Card key={f.title} className="p-4 border-border/30 bg-card/50 h-full">
                 <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${f.gradient} flex items-center justify-center mb-3`}>
                   <f.icon className={`w-5 h-5 ${f.iconColor}`} />
                 </div>
                 <h3 className="font-semibold text-sm mb-1">{f.title}</h3>
                 <p className="text-xs text-muted-foreground leading-relaxed">{f.desc}</p>
               </Card>
-            )}
+            ))}
           </div>
         </section>
 
@@ -392,8 +392,8 @@ const Index = () => {
       </main>
 
       <QuickTailorSheet open={tailorOpen} onOpenChange={setTailorOpen} />
-    </SpaceBackground>);
-
+    </SpaceBackground>
+  );
 };
 
 export default Index;
