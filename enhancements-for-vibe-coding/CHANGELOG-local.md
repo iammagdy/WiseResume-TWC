@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: LIGHT-MODE-UI-FIX
+- Summary: Fixed light mode visibility issues in auth components. Extracted useIsDark hook from SkyWallpaper for reuse. Updated SlideCaptcha track/border to use theme-aware colors (black tints in light mode, white tints in dark). Fixed verified text to use text-green-600 dark:text-green-400. Updated AuthPage back button and card inner styles to use CSS variables (--foreground) for proper theme adaptation.
+- Files touched: src/hooks/useIsDark.ts (new), src/components/auth/SlideCaptcha.tsx, src/pages/AuthPage.tsx, enhancements-for-vibe-coding/CHANGELOG-local.md
+- Notes: No auth or business logic modified. Light mode UI now properly visible.
+
+- Date: 2026-03-09
 - Issue ID: AUTH-CARD-GLASS-ENHANCE
 - Summary: Reduced auth card background opacity from 0.12 → 0.06 for a stronger glassmorphic effect in dark mode. The cosmic space background now shows through more clearly while text remains legible thanks to the preserved 28px backdrop blur.
 - Files touched: src/pages/AuthPage.tsx, enhancements-for-vibe-coding/CHANGELOG-local.md
