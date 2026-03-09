@@ -7,6 +7,15 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: ONBOARDING-PHASE-2
+- Summary: Implemented Phase 2 of the onboarding flow rewrite. Updated `SignupEmail` template to include a 6-digit OTP code block alongside the magic link. Fully rewrote `EmailConfirmationPage.tsx` to include a polished 6-digit OTP input UI with auto-submit, paste support, and real-time validation via `supabase.auth.verifyOtp`.
+- Files touched:
+  - `src/pages/EmailConfirmationPage.tsx`
+  - `supabase/functions/_shared/email-templates/signup.tsx`
+  - `enhancements-for-vibe-coding/CHANGELOG-local.md`
+- Notes: Requires testing the email delivery to ensure the 6-digit code is properly generated and verifiable.
+
+- Date: 2026-03-09
 - Issue ID: LANDING-PAGE-AUTH-CLEANUP
 - Summary: Removed redundant auth entry points from the landing page. Removed the "Try AI Editor" button from Demo Card A, the "Build Your Portfolio" button from Demo Card B, and the duplicate "Start Building Now" bottom CTA section.
 - Files touched:
