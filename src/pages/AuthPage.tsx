@@ -291,7 +291,7 @@ export default function AuthPage() {
             transition={{ type: 'spring', stiffness: 300, damping: 25 }}
             className="w-full space-y-6 rounded-[calc(1rem-1px)] p-6 relative overflow-hidden"
             style={{
-              background: 'hsl(var(--card) / 0.12)',
+              background: 'hsl(var(--card) / 0.06)',
               backdropFilter: 'blur(28px)',
               WebkitBackdropFilter: 'blur(28px)',
               border: '1px solid hsl(0 0% 100% / 0.10)',

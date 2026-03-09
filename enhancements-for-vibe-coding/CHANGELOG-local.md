@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: AUTH-CARD-GLASS-ENHANCE
+- Summary: Reduced auth card background opacity from 0.12 → 0.06 for a stronger glassmorphic effect in dark mode. The cosmic space background now shows through more clearly while text remains legible thanks to the preserved 28px backdrop blur.
+- Files touched: src/pages/AuthPage.tsx, enhancements-for-vibe-coding/CHANGELOG-local.md
+- Notes: CSS-only change. No auth or business logic modified.
+
+- Date: 2026-03-09
 - Issue ID: LANDING-GLASS-THEME
 - Summary: Redesigned "Get Started Free" hero CTA and "Sign Up" header button to glassmorphic style (transparent bg, primary-tinted border, soft glow) matching the cosmic glass app theme. Reduced .glass-header opacity from 0.85→0.55 and increased blur to 28px — propagates to DesktopNav, BottomTabBar, and all page headers app-wide. Removed heavy shadow-lg from scrolled landing header.
 - Files touched: src/pages/Index.tsx, src/index.css, enhancements-for-vibe-coding/CHANGELOG-local.md
