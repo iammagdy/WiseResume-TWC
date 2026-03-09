@@ -8,6 +8,7 @@ import { AppIcon } from '@/components/brand/AppIcon';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { Input } from '@/components/ui/input';
+import { useQueryClient } from '@tanstack/react-query';
 
 const ONBOARDING_KEY = 'wr-onboarding-completed';
 const TOTAL_STEPS = 5;
@@ -24,6 +25,7 @@ const ROLE_OPTIONS = [
 export default function OnboardingPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
@@ -65,6 +67,8 @@ export default function OnboardingPage() {
           .from('profiles')
           .update(updates)
           .eq('user_id', user.id);
+        // Invalidate profile cache so dashboard/profile show fresh data
+        queryClient.invalidateQueries({ queryKey: ['profile'] });
       } catch (err) {
         console.error('Failed to update onboarding status', err);
       }
