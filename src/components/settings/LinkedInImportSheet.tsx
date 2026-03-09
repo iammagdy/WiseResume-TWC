@@ -15,8 +15,11 @@ import {
   ChevronRight,
   AlertCircle,
   Upload,
-  ClipboardPaste
+  ClipboardPaste,
+  Link2,
+  ArrowRight
 } from 'lucide-react';
+import { parseResumePDF, parseResumePDFWithOCR } from '@/lib/pdfParser';
 import {
   Sheet,
   SheetContent,
@@ -29,10 +32,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
-
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 
 interface LinkedInData {
   summary: string | null;
@@ -63,7 +66,7 @@ interface LinkedInImportSheetProps {
   linkedinUsername?: string;
 }
 
-type ParseState = 'method-select' | 'idle' | 'parsing' | 'preview' | 'importing' | 'done';
+type ParseState = 'method-select' | 'idle' | 'url-guide' | 'parsing' | 'preview' | 'importing' | 'done';
 
 const PARSING_STEPS = [
   { id: 1, label: 'Reading profile data...', icon: FileText },
@@ -91,6 +94,7 @@ export function LinkedInImportSheet({
   const [error, setError] = useState<string | null>(null);
   const [uploadingPdf, setUploadingPdf] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [linkedinUrl, setLinkedinUrl] = useState('');
 
   const handleParse = async () => {
     if (!profileText.trim()) {
@@ -158,44 +162,42 @@ export function LinkedInImportSheet({
     }, 800);
 
     try {
-      // Convert file to base64
-      const arrayBuffer = await file.arrayBuffer();
-      const base64 = btoa(
-        new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-      );
-
-      const { data, error: fnError } = await edgeFunctions.functions.invoke('parse-resume', {
-        body: {
-          fileData: base64,
-          fileName: file.name,
-          mimeType: 'application/pdf',
-        },
-      });
+      // Use the existing client-side PDF extraction pipeline
+      const parseResult = await parseResumePDF(file);
+      
+      let resumeData = parseResult.data;
+      
+      // If OCR is needed, try OCR extraction
+      if (parseResult.needsOCR) {
+        resumeData = await parseResumePDFWithOCR(file);
+      }
+      
+      if (!resumeData) {
+        throw new Error('Could not extract content from this PDF');
+      }
 
       clearInterval(stepInterval);
 
-      if (fnError) throw fnError;
-      if (data?.error) throw new Error(data.error);
-
-      // Map parse-resume output to LinkedInData format
+      // Map ResumeData output to LinkedInData format
       const linkedInData: LinkedInData = {
-        summary: data.summary || null,
-        experience: (data.experience || []).map((exp: Record<string, string | boolean | string[]>) => ({
-          title: exp.position || exp.title || '',
+        summary: resumeData.summary || null,
+        experience: (resumeData.experience || []).map((exp) => ({
+          title: exp.position || '',
           company: exp.company || '',
+          location: '',
           startDate: exp.startDate || '',
           endDate: exp.endDate || '',
-          description: exp.description || (Array.isArray(exp.achievements) ? exp.achievements.join('. ') : ''),
+          description: exp.description || (exp.achievements?.join('. ') ?? ''),
           current: exp.current || false,
         })),
-        education: (data.education || []).map((edu: Record<string, string>) => ({
+        education: (resumeData.education || []).map((edu) => ({
           institution: edu.institution || '',
           degree: edu.degree || '',
           field: edu.field || '',
           startYear: edu.startDate || '',
           endYear: edu.endDate || '',
         })),
-        skills: data.skills || [],
+        skills: resumeData.skills || [],
       };
 
       setParsedData(linkedInData);
@@ -211,6 +213,18 @@ export function LinkedInImportSheet({
     } finally {
       setUploadingPdf(false);
     }
+  };
+
+  const handleUrlGuide = () => {
+    const url = linkedinUrl.trim();
+    if (!url) return;
+    
+    // Open the LinkedIn profile in a new tab
+    openExternal(url);
+    
+    // Switch to paste state with the textarea auto-focused
+    setParseState('idle');
+    haptics.light();
   };
 
   const handleImport = () => {
@@ -245,6 +259,7 @@ export function LinkedInImportSheet({
     setParseState('method-select');
     setParsedData(null);
     setProfileText('');
+    setLinkedinUrl('');
     setError(null);
   };
 
@@ -327,6 +342,19 @@ export function LinkedInImportSheet({
                   </div>
                 </button>
 
+                <button
+                  onClick={() => setParseState('url-guide')}
+                  className="w-full p-4 rounded-xl border-2 border-border hover:border-primary/50 transition-all text-left flex items-start gap-4 touch-manipulation active:scale-[0.98] min-h-[72px]"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <Link2 className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Import via URL</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Paste your LinkedIn profile link — we'll guide you through it</p>
+                  </div>
+                </button>
+
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -342,6 +370,46 @@ export function LinkedInImportSheet({
                 <div className="bg-muted/50 rounded-xl p-3 text-xs text-muted-foreground">
                   <p className="font-medium text-foreground mb-1">💡 Tip: Export LinkedIn PDF</p>
                   <p>Open LinkedIn → Your profile → "More" button → "Save to PDF"</p>
+                </div>
+              </motion.div>
+            )}
+
+            {/* URL Guide State */}
+            {parseState === 'url-guide' && (
+              <motion.div
+                key="url-guide"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="py-6 space-y-5"
+              >
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Your LinkedIn profile URL</label>
+                  <input
+                    type="url"
+                    placeholder="https://linkedin.com/in/your-name"
+                    value={linkedinUrl}
+                    onChange={(e) => setLinkedinUrl(e.target.value)}
+                    className="flex w-full rounded-xl glass-input px-3 py-2.5 text-[16px] ring-offset-background placeholder:text-muted-foreground/60 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 transition-all"
+                  />
+                </div>
+
+                <div className="bg-muted/50 rounded-xl p-4 space-y-3">
+                  <h3 className="font-medium text-sm">Here's how it works</h3>
+                  <ol className="space-y-2.5 text-sm text-muted-foreground">
+                    <li className="flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
+                      <span>We'll <strong>open your profile</strong> in a new tab</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
+                      <span><strong>Select all</strong> on the page (Ctrl/Cmd+A) and <strong>Copy</strong> (Ctrl/Cmd+C)</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
+                      <span>Come back here and <strong>paste</strong> the content — AI will do the rest</span>
+                    </li>
+                  </ol>
                 </div>
               </motion.div>
             )}
@@ -597,6 +665,20 @@ export function LinkedInImportSheet({
         <div className="flex gap-3 p-6 border-t border-border bg-background">
           {parseState === 'method-select' && (
             <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">Cancel</Button>
+          )}
+
+          {parseState === 'url-guide' && (
+            <>
+              <Button variant="outline" onClick={handleReset} className="flex-1">Back</Button>
+              <Button 
+                onClick={handleUrlGuide} 
+                disabled={!linkedinUrl.trim() || !/linkedin\.com/i.test(linkedinUrl)} 
+                className="flex-1 gap-2"
+              >
+                Open & Copy
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </>
           )}
 
           {parseState === 'idle' && (
