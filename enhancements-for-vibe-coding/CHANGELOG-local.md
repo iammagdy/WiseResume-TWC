@@ -7,6 +7,13 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: LINKEDIN-PDF-FIX + LINKEDIN-URL-GUIDE
+- Summary: Fixed LinkedIn PDF import (was sending raw base64 to edge function that only accepts text; now uses client-side parseResumePDF pipeline with OCR fallback). Added guided "Import via URL" flow that opens the profile in a new tab and guides the user to copy-paste content.
+- Files: src/components/settings/LinkedInImportSheet.tsx, enhancements-for-vibe-coding/CHANGELOG-local.md
+- Notes: No new edge functions or external services needed. PDF fix reuses the proven upload pipeline.
+
+
+- Date: 2026-03-09
 - Issue ID: ONBOARDING-DATA-REFLECT-FIX
 - Summary: Onboarding data (name, DOB, phone, referral, career level) was not reflected after completion because the React Query profile cache was never invalidated. Added `queryClient.invalidateQueries({ queryKey: ['profile'] })` after the DB update.
 - Files: src/pages/OnboardingPage.tsx, enhancements-for-vibe-coding/CHANGELOG-local.md

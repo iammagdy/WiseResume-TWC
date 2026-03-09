@@ -35,7 +35,7 @@ import { Badge } from '@/components/ui/badge';
 
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
-
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 
 interface LinkedInData {
   summary: string | null;
