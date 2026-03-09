@@ -79,6 +79,7 @@ export default function PortfolioEditorPage() {
   const [services, setServices] = useState<Array<{id:string;title:string;description:string;category:string}>>([]);
   const [testimonials, setTestimonials] = useState<Array<{id:string;quote:string;authorName:string;authorTitle:string}>>([]);
   const [highlights, setHighlights] = useState<Array<{id:string;value:string;label:string}>>([]);
+  const [portfolioSummary, setPortfolioSummary] = useState('');
   const [activeTab, setActiveTab] = useState<'setup' | 'content' | 'design' | 'more'>('setup');
 
   const tabIndexMap = { setup: 0, content: 1, design: 2, more: 3 } as const;
