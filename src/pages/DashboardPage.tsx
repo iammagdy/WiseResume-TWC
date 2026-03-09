@@ -32,7 +32,6 @@ import { useChangelogBadge } from '@/hooks/useChangelogBadge';
 
 // Lazy-loaded dialogs
 const CreateResumeDialog = lazy(() => import('@/components/dashboard/CreateResumeDialog').then(m => ({ default: m.CreateResumeDialog })));
-const OnboardingCarousel = lazy(() => import('@/components/onboarding/OnboardingCarousel').then(m => ({ default: m.OnboardingCarousel })));
 const LinkedInImportSheet = lazy(() => import('@/components/settings/LinkedInImportSheet').then(m => ({ default: m.LinkedInImportSheet })));
 const AnalyzeJobSheet = lazy(() => import('@/components/dashboard/AnalyzeJobSheet').then(m => ({ default: m.AnalyzeJobSheet })));
 
@@ -81,7 +80,6 @@ function DashboardPageContent() {
   const [deleteResumeId, setDeleteResumeId] = useState<string | null>(null);
   const [duplicateResumeId, setDuplicateResumeId] = useState<string | null>(null);
   const [deletedResume, setDeletedResume] = useState<{ id: string; title: string } | null>(null);
-  const [showOnboarding, setShowOnboarding] = useState(false);
   const [showLinkedInImport, setShowLinkedInImport] = useState(false);
   const [showAnalyzeJob, setShowAnalyzeJob] = useState(false);
 
@@ -170,25 +168,30 @@ function DashboardPageContent() {
     setShowCreateDialog(true);
   }, []);
 
-  // Check onboarding status for authenticated users — runs in background, does NOT block rendering
+  // Check onboarding status for authenticated users
   useEffect(() => {
     if (!user) return;
     const run = async () => {
       try {
+        if (localStorage.getItem('wr-onboarding-completed') === 'true') return;
+
         const { data } = await supabase
           .from('profiles')
           .select('onboarding_completed')
           .eq('user_id', user.id)
           .single();
+          
         if (data && !data.onboarding_completed) {
-          setShowOnboarding(true);
+          navigate('/onboarding', { replace: true });
+        } else if (data?.onboarding_completed) {
+          localStorage.setItem('wr-onboarding-completed', 'true');
         }
       } catch (err) {
         console.error('Failed to check onboarding:', err);
       }
     };
     run();
-  }, [user]);
+  }, [user, navigate]);
 
   // Keyboard shortcuts for empty state
   useEffect(() => {
@@ -239,38 +242,16 @@ function DashboardPageContent() {
 
   const [onboardingTemplateId, setOnboardingTemplateId] = useState<string | null>(null);
 
-  const handleOnboardingComplete = async () => {
-    if (user) {
-      await supabase
-        .from('profiles')
-        .update({ onboarding_completed: true })
-        .eq('user_id', user.id);
-    }
-    // Sync both onboarding systems
-    localStorage.setItem('wr-onboarding-completed', 'true');
-    haptics.success();
-    setShowOnboarding(false);
-
-    // Consume onboarding template selection
+  // Consume onboarding template selection if present
+  useEffect(() => {
     const savedTemplate = localStorage.getItem('wr-onboarding-template');
-    localStorage.removeItem('wr-onboarding-goal');
-    localStorage.removeItem('wr-onboarding-template');
     if (savedTemplate) {
+      localStorage.removeItem('wr-onboarding-goal');
+      localStorage.removeItem('wr-onboarding-template');
       setOnboardingTemplateId(savedTemplate);
-      // Small delay to let the onboarding exit animation finish
-      setTimeout(() => setShowCreateDialog(true), 400);
-    }
-  };
-
-  const handleOnboardingChoice = (choice: 'scratch' | 'upload' | 'template') => {
-    if (choice === 'scratch') {
-      navigate('/editor');
-    } else if (choice === 'upload') {
-      navigate('/upload');
-    } else if (choice === 'template') {
       setShowCreateDialog(true);
     }
-  };
+  }, []);
 
   const handleRefresh = async () => {
     await refetch();
@@ -469,28 +450,6 @@ function DashboardPageContent() {
   };
 
   // Auth guard handled by ProtectedRoute
-
-  // Show onboarding for first-time users
-  if (showOnboarding) {
-    return (
-      <AnimatePresence>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[60]"
-        >
-          <Suspense fallback={null}>
-            <OnboardingCarousel
-              onComplete={handleOnboardingComplete}
-              onSkip={handleOnboardingComplete}
-              onChoice={handleOnboardingChoice}
-            />
-          </Suspense>
-        </motion.div>
-      </AnimatePresence>
-    );
-  }
 
   // Suspense fallback already shows DashboardSkeleton; avoid double skeleton
   if (authLoading) return null;
@@ -786,7 +745,7 @@ function DashboardPageContent() {
             </div>
           ) : !resumes || resumes.length === 0 ? (
             <>
-              <EmptyState onCreateNew={handleCreateNew} onBrowseTemplates={() => setShowCreateDialog(true)} onStartOnboarding={() => setShowOnboarding(true)} />
+              <EmptyState onCreateNew={handleCreateNew} onBrowseTemplates={() => setShowCreateDialog(true)} onStartOnboarding={() => navigate('/onboarding')} />
             </>
           ) : !hasResumes ? (
             <div className="flex items-center justify-center px-4 py-16">
