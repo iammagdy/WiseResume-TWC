@@ -77,6 +77,7 @@ function SectionHeader({ icon: Icon, label, badge }: { icon: React.ElementType; 
 
 export default function SettingsPage() {
   const navigate = useNavigate();
+  const isDark = useIsDark();
   const { user, loading, signOut } = useAuth();
   const { profile, updateProfile } = useProfile(user?.id, user);
   const { data: resumes = [] } = useResumes();
