@@ -40,7 +40,7 @@ export default function ProfilePage() {
     return () => clearTimeout(timer);
   }, []);
 
-  const isLoading = !loadingTimedOut && (authLoading || (!profile && profileLoading));
+  const isLoading = !loadingTimedOut && (authLoading || !profile && profileLoading);
 
   if (isLoading) return null;
   if (!user) return null;
@@ -49,13 +49,13 @@ export default function ProfilePage() {
 
   const getInitials = () => {
     if (profile?.fullName) {
-      return profile.fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+      return profile.fullName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
     }
     return user.email?.charAt(0).toUpperCase() || 'U';
   };
 
   const handleEditResume = (id: string) => {
-    const resume = resumes.find(r => r.id === id);
+    const resume = resumes.find((r) => r.id === id);
     if (resume) {
       setCurrentResume(dbToResumeData(resume));
       setCurrentResumeId(id);
@@ -120,22 +120,22 @@ export default function ProfilePage() {
           </Avatar>
            <div>
             <h2 className="text-2xl font-bold text-foreground">{profile?.fullName || 'Your Name'}</h2>
-            {profile?.jobTitle && (
-              <p className="text-sm font-medium text-muted-foreground">{profile.jobTitle}</p>
-            )}
+            {profile?.jobTitle &&
+            <p className="text-sm font-medium text-muted-foreground">{profile.jobTitle}</p>
+            }
             <p className="text-xs text-muted-foreground mt-0.5">{user.email}</p>
-            {profile?.location && (
-              <div className="flex items-center justify-center gap-1 mt-1">
+            {profile?.location &&
+            <div className="flex items-center justify-center gap-1 mt-1">
                 <MapPin className="w-3 h-3 text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">{profile.location}</span>
               </div>
-            )}
-            {profile?.updatedAt && (
-              <p className="text-[10px] text-muted-foreground/60 mt-1 flex items-center justify-center gap-1">
+            }
+            {profile?.updatedAt &&
+            <p className="text-[10px] text-muted-foreground/60 mt-1 flex items-center justify-center gap-1">
                 <Clock className="w-2.5 h-2.5" />
                 Updated {formatDistanceToNow(new Date(profile.updatedAt), { addSuffix: true })}
               </p>
-            )}
+            }
           </div>
         </div>
 
@@ -149,7 +149,7 @@ export default function ProfilePage() {
           <p className="text-xs text-muted-foreground">
             {nextTip ? `💡 ${nextTip.hint}` : 'Your profile is complete! 🎉'}
           </p>
-          <Button variant="secondary" size="sm" className="w-full" onClick={() => setEditOpen(true)}>
+          <Button variant="secondary" size="sm" className="w-full text-slate-50" onClick={() => setEditOpen(true)}>
             <Edit2 className="w-4 h-4 mr-2" /> Edit Profile
           </Button>
         </div>
@@ -165,7 +165,7 @@ export default function ProfilePage() {
           <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={() => setEditOpen(true)}>
             <Edit2 className="w-4 h-4 mr-2" /> Edit
           </Button>
-          <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={() => { haptics.light(); setBackupOpen(true); }}>
+          <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={() => {haptics.light();setBackupOpen(true);}}>
             <HardDrive className="w-4 h-4 mr-2" /> Backup
           </Button>
         </div>
@@ -184,47 +184,47 @@ export default function ProfilePage() {
                     {profile?.portfolioEnabled ? '🟢 Live' : 'Draft'}
                   </Badge>
                 </div>
-                {profile?.username ? (
-                  <p className="text-xs text-muted-foreground truncate">WiseResume/{profile.username}</p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">Create your personal portfolio site</p>
-                )}
+                {profile?.username ?
+                <p className="text-xs text-muted-foreground truncate">WiseResume/{profile.username}</p> :
+
+                <p className="text-xs text-muted-foreground">Create your personal portfolio site</p>
+                }
               </div>
             </div>
           </div>
-          {profile?.views != null && profile.views > 0 && (
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
+          {profile?.views != null && profile.views > 0 &&
+          <p className="text-xs text-muted-foreground flex items-center gap-1">
               👁 <span className="font-semibold text-foreground">{profile.views}</span> total views
             </p>
-          )}
+          }
           <div className="grid grid-cols-3 gap-2">
-            {profile?.username && profile?.portfolioEnabled && (
-              <a
-                href={getPortfolioUrl(profile.username)}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => haptics.light()}
-                className="inline-flex items-center justify-center h-9 rounded-xl text-xs active:scale-95 touch-manipulation border border-input bg-background hover:bg-accent hover:text-accent-foreground px-3"
-              >
+            {profile?.username && profile?.portfolioEnabled &&
+            <a
+              href={getPortfolioUrl(profile.username)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => haptics.light()}
+              className="inline-flex items-center justify-center h-9 rounded-xl text-xs active:scale-95 touch-manipulation border border-input bg-background hover:bg-accent hover:text-accent-foreground px-3">
+              
                 <ExternalLink className="w-3.5 h-3.5 mr-1" /> Preview
               </a>
-            )}
-            {profile?.username && profile?.portfolioEnabled && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 rounded-xl text-xs active:scale-95 touch-manipulation"
-                onClick={handleShareProfile}
-              >
+            }
+            {profile?.username && profile?.portfolioEnabled &&
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 rounded-xl text-xs active:scale-95 touch-manipulation"
+              onClick={handleShareProfile}>
+              
                 <Share2 className="w-3.5 h-3.5 mr-1" /> Share
               </Button>
-            )}
+            }
             <Button
               variant={profile?.username ? 'outline' : 'default'}
               size="sm"
               className={`h-9 rounded-xl text-xs active:scale-95 touch-manipulation ${!(profile?.username && profile?.portfolioEnabled) ? 'col-span-3' : ''}`}
-              onClick={() => { haptics.light(); navigate('/portfolio'); }}
-            >
+              onClick={() => {haptics.light();navigate('/portfolio');}}>
+              
               <Edit2 className="w-3.5 h-3.5 mr-1" />
               {profile?.username ? 'Edit' : 'Set Up Portfolio'}
             </Button>
@@ -249,22 +249,22 @@ export default function ProfilePage() {
         <CareerMilestonesRow />
 
         {/* Resume Portfolio */}
-        {resumes.length > 0 && (
-          <div className="space-y-3">
+        {resumes.length > 0 &&
+        <div className="space-y-3">
             <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">My Resumes</h3>
             <div className="space-y-3">
-              {resumes.map(resume => (
-                <ResumeListCard
-                  key={resume.id}
-                  resume={resume}
-                  onEdit={handleEditResume}
-                  onDuplicate={(id) => duplicateResume.mutate(id)}
-                  onDelete={(id) => deleteResume.mutate(id)}
-                />
-              ))}
+              {resumes.map((resume) =>
+            <ResumeListCard
+              key={resume.id}
+              resume={resume}
+              onEdit={handleEditResume}
+              onDuplicate={(id) => duplicateResume.mutate(id)}
+              onDelete={(id) => deleteResume.mutate(id)} />
+
+            )}
             </div>
           </div>
-        )}
+        }
       </div>
 
       <EditProfileSheet
@@ -273,16 +273,16 @@ export default function ProfilePage() {
         profile={profile}
         userId={user.id}
         userEmail={user.email}
-        onSave={updateProfile}
-      />
+        onSave={updateProfile} />
+      
 
       <AccountBackupSheet
         open={backupOpen}
         onOpenChange={setBackupOpen}
         userId={user.id}
         userEmail={user.email}
-        fullName={profile?.fullName}
-      />
-    </div>
-  );
+        fullName={profile?.fullName} />
+      
+    </div>);
+
 }
