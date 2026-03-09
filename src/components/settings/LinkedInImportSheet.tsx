@@ -162,44 +162,42 @@ export function LinkedInImportSheet({
     }, 800);
 
     try {
-      // Convert file to base64
-      const arrayBuffer = await file.arrayBuffer();
-      const base64 = btoa(
-        new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-      );
-
-      const { data, error: fnError } = await edgeFunctions.functions.invoke('parse-resume', {
-        body: {
-          fileData: base64,
-          fileName: file.name,
-          mimeType: 'application/pdf',
-        },
-      });
+      // Use the existing client-side PDF extraction pipeline
+      const parseResult = await parseResumePDF(file);
+      
+      let resumeData = parseResult.data;
+      
+      // If OCR is needed, try OCR extraction
+      if (parseResult.needsOCR) {
+        resumeData = await parseResumePDFWithOCR(file);
+      }
+      
+      if (!resumeData) {
+        throw new Error('Could not extract content from this PDF');
+      }
 
       clearInterval(stepInterval);
 
-      if (fnError) throw fnError;
-      if (data?.error) throw new Error(data.error);
-
-      // Map parse-resume output to LinkedInData format
+      // Map ResumeData output to LinkedInData format
       const linkedInData: LinkedInData = {
-        summary: data.summary || null,
-        experience: (data.experience || []).map((exp: Record<string, string | boolean | string[]>) => ({
-          title: exp.position || exp.title || '',
+        summary: resumeData.summary || null,
+        experience: (resumeData.experience || []).map((exp) => ({
+          title: exp.position || '',
           company: exp.company || '',
+          location: '',
           startDate: exp.startDate || '',
           endDate: exp.endDate || '',
-          description: exp.description || (Array.isArray(exp.achievements) ? exp.achievements.join('. ') : ''),
+          description: exp.description || (exp.achievements?.join('. ') ?? ''),
           current: exp.current || false,
         })),
-        education: (data.education || []).map((edu: Record<string, string>) => ({
+        education: (resumeData.education || []).map((edu) => ({
           institution: edu.institution || '',
           degree: edu.degree || '',
           field: edu.field || '',
           startYear: edu.startDate || '',
           endYear: edu.endDate || '',
         })),
-        skills: data.skills || [],
+        skills: resumeData.skills || [],
       };
 
       setParsedData(linkedInData);
@@ -215,6 +213,18 @@ export function LinkedInImportSheet({
     } finally {
       setUploadingPdf(false);
     }
+  };
+
+  const handleUrlGuide = () => {
+    const url = linkedinUrl.trim();
+    if (!url) return;
+    
+    // Open the LinkedIn profile in a new tab
+    openExternal(url);
+    
+    // Switch to paste state with the textarea auto-focused
+    setParseState('idle');
+    haptics.light();
   };
 
   const handleImport = () => {
