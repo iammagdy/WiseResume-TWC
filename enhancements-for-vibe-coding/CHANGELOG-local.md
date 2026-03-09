@@ -6,6 +6,10 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-09
 
+### COMPANY-BRIEFING-SCROLLBAR-PDF-LOADING
+- **Summary**: (1) Replaced ScrollArea with native overflow-y-auto div for visible scrollbar. (2) Rewrote PDF export using pdf-lib with professional layout: white background, WiseResume logo, branded header, structured sections, diagonal watermark, footer with copyright/URL/user email/page numbers. (3) Added smart loading progress bar with animated steps and rotating status messages.
+- **Files**: `src/components/interview/CompanyBriefingSheet.tsx`, `src/lib/companyBriefingPdf.ts` (new)
+
 ### FIX-RESUME-DELETE-DELETEALL-PORTFOLIO-TABS
 - **Summary**: Three fixes: (1) Resume soft-delete — added `.select('id')` to `.update()` mutations to force PostgREST schema cache refresh. (2) Delete All Data — fixed `share_comments` deletion via `share_id` subquery, used `localStorage.clear()` and `window.location.replace('/')`. (3) Portfolio Editor — moved Content & Visibility and Availability from Content tab to Setup tab.
 - **Files**: `src/hooks/useResumes.ts`, `src/lib/dataExport.ts`, `src/pages/SettingsPage.tsx`, `src/components/portfolio/editor/ContentTab.tsx`, `src/components/portfolio/editor/SetupTab.tsx`, `src/pages/PortfolioEditorPage.tsx`

@@ -1,17 +1,17 @@
-import { useEffect, useState, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Building2, Newspaper, Heart, Users, MessageSquareQuote, HelpCircle,
   Copy, X, Sparkles, Download, Search, FileText, Cpu, Star,
   Swords, ShoppingBag, ArrowRight,
 } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerClose } from '@/components/ui/drawer';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -20,6 +20,7 @@ import { AITrustBadge } from '@/components/ui/AITrustBadge';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import type { CompanyBriefing } from '@/types/companyBriefing';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CompanyBriefingSheetProps {
   open: boolean;
@@ -38,7 +39,6 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
   const [companyName, setCompanyName] = useState('');
   const [inputMode, setInputMode] = useState<'company' | 'jd'>('company');
   const hasProvidedJD = jobDescription.trim().length > 0;
-  const briefingRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (open && !briefing && !isLoading && hasProvidedJD) {
@@ -72,23 +72,13 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
   };
 
   const handleDownloadPDF = async () => {
-    if (!briefing || !briefingRef.current) return;
+    if (!briefing) return;
     haptics.light();
     toast.info('Generating PDF…');
     try {
-      const { captureWithRetry } = await import('@/lib/html2canvasRetry');
-      const { PDFDocument, rgb } = await import('pdf-lib');
-      const canvas = await captureWithRetry(briefingRef.current, { scale: 2, useCORS: true });
-      const imgBytes = await fetch(canvas.toDataURL('image/png')).then(r => r.arrayBuffer());
-      const pdfDoc = await PDFDocument.create();
-      const pngImage = await pdfDoc.embedPng(imgBytes);
-      const pageWidth = 595;
-      const scale = pageWidth / pngImage.width;
-      const pageHeight = pngImage.height * scale;
-      const page = pdfDoc.addPage([pageWidth, pageHeight]);
-      page.drawImage(pngImage, { x: 0, y: 0, width: pageWidth, height: pageHeight });
-      const pdfBytes = await pdfDoc.save();
-      const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
+      const { generateCompanyBriefingPDF } = await import('@/lib/companyBriefingPdf');
+      const user = (await supabase.auth.getUser()).data.user;
+      const blob = await generateCompanyBriefingPDF(briefing, user?.email || '');
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -102,6 +92,7 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
   };
 
   const canGenerate = inputMode === 'company' ? companyName.trim().length > 0 : localJD.trim().length > 0;
+  const loadingTarget = inputMode === 'company' ? companyName.trim() : undefined;
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -131,7 +122,8 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
           </div>
         </DrawerHeader>
 
-        <ScrollArea className="flex-1 px-4 pb-6 max-h-[75vh]">
+        {/* Scrollable content with visible scrollbar */}
+        <div className="flex-1 overflow-y-auto px-4 pb-6 max-h-[75vh] scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
           <AITrustBadge className="mb-3" />
 
           {/* Input Phase */}
@@ -177,7 +169,7 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
             </div>
           )}
 
-          {isLoading && <BriefingSkeleton />}
+          {isLoading && <BriefingLoadingProgress companyName={loadingTarget} />}
           {error && (
             <div className="text-center py-8 text-muted-foreground">
               <p className="text-sm">{error}</p>
@@ -192,27 +184,93 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
               </Button>
             </div>
           )}
-          {briefing && (
-            <div ref={briefingRef}>
-              <BriefingContent briefing={briefing} />
-            </div>
-          )}
-        </ScrollArea>
+          {briefing && <BriefingContent briefing={briefing} />}
+        </div>
       </DrawerContent>
     </Drawer>
   );
 }
 
-/* ─── Skeleton ─── */
-function BriefingSkeleton() {
+/* ─── Loading Progress ─── */
+const LOADING_STEPS = [
+  'Connecting to AI…',
+  'Researching company…',
+  'Analyzing culture & values…',
+  'Gathering key insights…',
+  'Building your briefing…',
+  'Polishing report…',
+];
+
+function BriefingLoadingProgress({ companyName }: { companyName?: string }) {
+  const [progress, setProgress] = useState(0);
+  const [stepIdx, setStepIdx] = useState(0);
+
+  useEffect(() => {
+    // Animate progress from 0 to ~90 over ~15s
+    const interval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 90) return 90;
+        // Fast at start, slows down
+        const increment = prev < 30 ? 4 : prev < 60 ? 2.5 : 1;
+        return Math.min(prev + increment, 90);
+      });
+    }, 400);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setStepIdx(prev => (prev + 1) % LOADING_STEPS.length);
+    }, 2500);
+    return () => clearInterval(interval);
+  }, []);
+
+  const currentStep = LOADING_STEPS[stepIdx];
+  const displayStep = companyName
+    ? currentStep.replace('company', companyName)
+    : currentStep;
+
   return (
-    <div className="space-y-4">
-      {Array.from({ length: 6 }).map((_, i) => (
+    <div className="space-y-5">
+      {/* Progress section */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="p-4 rounded-2xl border border-border/40 bg-card/60 space-y-3"
+      >
+        <div className="flex items-center gap-2">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+          >
+            <Sparkles className="w-4 h-4 text-primary" />
+          </motion.div>
+          <AnimatePresence mode="wait">
+            <motion.span
+              key={stepIdx}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.25 }}
+              className="text-sm font-medium text-foreground"
+            >
+              {displayStep}
+            </motion.span>
+          </AnimatePresence>
+        </div>
+        <Progress value={progress} className="h-2" />
+        <p className="text-xs text-muted-foreground text-center">
+          This usually takes 10–15 seconds
+        </p>
+      </motion.div>
+
+      {/* Skeleton cards */}
+      {Array.from({ length: 4 }).map((_, i) => (
         <motion.div
           key={i}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: i * 0.08 }}
+          transition={{ delay: 0.3 + i * 0.08 }}
           className="p-4 rounded-2xl border border-border/40 bg-card/60 space-y-3"
         >
           <div className="flex items-center gap-2">
@@ -277,7 +335,6 @@ function BriefingContent({ briefing }: { briefing: CompanyBriefing }) {
     },
   ];
 
-  // Products/Services
   if (briefing.productsOrServices?.length) {
     sections.push({
       icon: ShoppingBag,
@@ -286,16 +343,13 @@ function BriefingContent({ briefing }: { briefing: CompanyBriefing }) {
       content: (
         <div className="flex flex-wrap gap-1.5">
           {briefing.productsOrServices.map((p, i) => (
-            <span key={i} className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-accent/60 text-accent-foreground">
-              {p}
-            </span>
+            <span key={i} className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-accent/60 text-accent-foreground">{p}</span>
           ))}
         </div>
       ),
     });
   }
 
-  // Tech Stack
   if (briefing.techStack?.length) {
     sections.push({
       icon: Cpu,
@@ -304,16 +358,13 @@ function BriefingContent({ briefing }: { briefing: CompanyBriefing }) {
       content: (
         <div className="flex flex-wrap gap-1.5">
           {briefing.techStack.map((t, i) => (
-            <span key={i} className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
-              {t}
-            </span>
+            <span key={i} className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">{t}</span>
           ))}
         </div>
       ),
     });
   }
 
-  // Competitors
   if (briefing.competitors?.length) {
     sections.push({
       icon: Swords,
@@ -322,16 +373,13 @@ function BriefingContent({ briefing }: { briefing: CompanyBriefing }) {
       content: (
         <div className="flex flex-wrap gap-1.5">
           {briefing.competitors.map((c, i) => (
-            <span key={i} className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
-              {c}
-            </span>
+            <span key={i} className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">{c}</span>
           ))}
         </div>
       ),
     });
   }
 
-  // Culture
   sections.push({
     icon: Heart,
     title: 'Culture Signals',
@@ -348,7 +396,6 @@ function BriefingContent({ briefing }: { briefing: CompanyBriefing }) {
     ),
   });
 
-  // Glassdoor
   if (briefing.glassdoorInsights) {
     const gi = briefing.glassdoorInsights;
     sections.push({
@@ -386,7 +433,6 @@ function BriefingContent({ briefing }: { briefing: CompanyBriefing }) {
     });
   }
 
-  // Key People
   sections.push({
     icon: Users,
     title: 'Key People',
@@ -403,7 +449,6 @@ function BriefingContent({ briefing }: { briefing: CompanyBriefing }) {
     ),
   });
 
-  // Talking Points (highlighted)
   sections.push({
     icon: MessageSquareQuote,
     title: 'Talking Points',
@@ -421,7 +466,6 @@ function BriefingContent({ briefing }: { briefing: CompanyBriefing }) {
     ),
   });
 
-  // Questions
   sections.push({
     icon: HelpCircle,
     title: 'Questions to Ask',
