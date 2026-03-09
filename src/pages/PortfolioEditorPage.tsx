@@ -21,6 +21,7 @@ import { type PortfolioSections, DEFAULT_SECTIONS } from '@/components/portfolio
 import { LivePreviewCard } from '@/components/portfolio/editor/LivePreviewCard';
 import { StatusBar } from '@/components/portfolio/editor/StatusBar';
 import { SetupTab } from '@/components/portfolio/editor/SetupTab';
+import { ContentTab } from '@/components/portfolio/editor/ContentTab';
 import { DesignTab } from '@/components/portfolio/editor/DesignTab';
 import { MoreTab } from '@/components/portfolio/editor/MoreTab';
 import { SaveBar } from '@/components/portfolio/editor/SaveBar';
