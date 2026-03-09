@@ -7,6 +7,17 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: ONBOARDING-PHASE-3
+- Summary: Implemented Phase 3 of the onboarding flow rewrite. Retired the modal-based `OnboardingCarousel` and moved onboarding to a dedicated `OnboardingPage.tsx` route. Added automatic redirection to `/onboarding` upon successful sign-up and updated `DashboardPage.tsx` to handle background onboarding checks cleanly without modal rendering.
+- Files touched:
+  - `src/pages/EmailConfirmationPage.tsx`
+  - `src/pages/OnboardingPage.tsx`
+  - `src/pages/DashboardPage.tsx`
+  - `src/components/onboarding/OnboardingCarousel.tsx` (Deleted)
+  - `src/components/onboarding/OnboardingStep.tsx` (Deleted)
+- Notes: Test the full sign-up to onboarding to dashboard flow. Ensure `profiles.onboarding_completed` successfully syncs via Supabase on complete/skip.
+
+
 - Issue ID: ONBOARDING-PHASE-2
 - Summary: Implemented Phase 2 of the onboarding flow rewrite. Updated `SignupEmail` template to include a 6-digit OTP code block alongside the magic link. Fully rewrote `EmailConfirmationPage.tsx` to include a polished 6-digit OTP input UI with auto-submit, paste support, and real-time validation via `supabase.auth.verifyOtp`.
 - Files touched:
