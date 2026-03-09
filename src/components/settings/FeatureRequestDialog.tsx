@@ -37,14 +37,23 @@ export function FeatureRequestDialog({ open, onOpenChange }: FeatureRequestDialo
     if (!featureTitle.trim() || !featureDescription.trim()) return;
     setStatus('sending');
 
-    const auth = getAuthFromCache();
+    let userId: string | undefined;
+    let userEmail = 'anonymous';
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        userId = session.user.id;
+        userEmail = session.user.email || 'anonymous';
+      }
+    } catch { /* proceed without auth */ }
+
     const appVersion = await getAppVersion();
 
     const payload = {
       feature_title: featureTitle.trim(),
       feature_description: featureDescription.trim(),
-      user_id: auth.userId || null,
-      user_email: auth.userEmail || 'anonymous',
+      user_id: userId || null,
+      user_email: userEmail,
       user_agent: navigator.userAgent,
       app_version: appVersion,
       route: window.location.pathname,
