@@ -132,7 +132,7 @@ export async function getUserKeyFromDB(userId: string, provider = 'gemini'): Pro
 
     const { data, error } = await supabase
       .from('user_api_keys')
-      .select('encrypted_key, base_url')
+      .select('encrypted_key')
       .eq('user_id', userId)
       .eq('provider', provider)
       .maybeSingle();
