@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: PROFILE-DASH-CHAT-UX
+- Summary: Six improvements: (1) Profile page — added "Complete Your Profile" banner when profile < 100% with link to /onboarding. (2) Dashboard delete dialog — changed text from "permanently delete" to "moved to trash for 30 days", button now says "Move to Trash". (3) Dashboard — removed ResumeFilters component (sort/category/score chips). (4) Wise AI Chat — replaced Trash2 icon with MessageSquarePlus "New Chat" icon. (5) Wise AI Chat — fixed scrolling with h-0 flex-1 pattern, added resume picker (FileText button) in input area with popover listing all resumes, and "Chatting about" badge. (6) Wise AI Chat — now passes resume list to edge function so AI references actual resume titles instead of giving generic responses; updated system prompt for smarter, data-aware answers.
+- Files: src/pages/ProfilePage.tsx, src/pages/DashboardPage.tsx, src/components/editor/AgenticChatSheet.tsx, src/hooks/useAgenticChat.ts, src/lib/agenticChat.ts, supabase/functions/agentic-chat/index.ts, enhancements-for-vibe-coding/CHANGELOG-local.md
+- Notes: Edge function redeployed. ResumeFilters component file kept but no longer rendered.
+
+- Date: 2026-03-09
 - Issue ID: PROFILE-NAV-IMPORT-SHARE
 - Summary: Four improvements: (1) Fixed desktop nav highlighting — /profile no longer lights up "Home" tab. (2) Redesigned Smart Import into step-by-step wizard: one section at a time (About → Experience → Education → Skills), paste → Analyze → see result → Next, with skip and progress bar. (3) Profile page: removed redundant top Share/Copy buttons, replaced with Import from LinkedIn button, added LinkedIn import sheet. (4) Portfolio Share button made functional with draft detection — warns if portfolio is inactive, offers "Go Live & Share" or "Share Anyway".
 - Files: src/components/layout/DesktopNav.tsx, src/components/settings/LinkedInImportSheet.tsx, src/pages/ProfilePage.tsx, enhancements-for-vibe-coding/CHANGELOG-local.md
