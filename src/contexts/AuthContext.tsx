@@ -91,6 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.error('Sign-out failed:', e);
     }
+    useSettingsStore.getState().resetSettings();
   }, []);
 
   const isAuthenticated = !!user && !!session;

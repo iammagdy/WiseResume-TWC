@@ -22,6 +22,15 @@ export function useAIKeyHydration() {
       const userId = user.id;
 
       try {
+        // Reset AI state to defaults before hydrating from server
+        const store = useSettingsStore.getState();
+        store.setGeminiKeyValidated(false);
+        store.setGeminiKeyTier('unknown');
+        store.setOllamaKeyValidated(false);
+        store.setOllamaBaseUrl('');
+        store.setOllamaModel('');
+        store.setAIProvider('wiseresume');
+
         // Hydrate keys from manage-api-keys
         const { data, error } = await edgeFunctions.functions.invoke('manage-api-keys', {
           body: { action: 'get' },
