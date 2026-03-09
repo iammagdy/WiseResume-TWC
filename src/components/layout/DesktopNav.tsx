@@ -1,12 +1,12 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Globe, Home, BarChart3, Sparkles, MessageCircle } from 'lucide-react';
+import { FileText, Globe, Home, BarChart3, Sparkles, MessageCircle, Settings } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useChangelogBadge } from '@/hooks/useChangelogBadge';
 import { toast } from 'sonner';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useState, useRef, useEffect } from 'react';
 
 const AgenticChatSheet = lazy(() => import('@/components/editor/AgenticChatSheet').then(m => ({ default: m.AgenticChatSheet })));
 
@@ -23,7 +23,7 @@ const tabs: TabItem[] = [
     path: '/dashboard',
     icon: Home,
     label: 'Home',
-    matchPaths: ['/dashboard', '/settings', '/notifications', '/templates', '/examples', '/guides', '/resume', '/onboarding'],
+    matchPaths: ['/dashboard', '/notifications', '/templates', '/examples', '/guides', '/resume', '/onboarding'],
   },
   {
     path: '/editor',
@@ -61,6 +61,15 @@ export function DesktopNav() {
   const { data: resumes } = useResumes({ select: (data) => data.slice(0, 1) });
   const { hasNew, markSeen } = useChangelogBadge();
   const [wiseAIOpen, setWiseAIOpen] = useState(false);
+  const previousPathRef = useRef('/dashboard');
+  const isOnSettings = location.pathname.startsWith('/settings');
+
+  // Track previous non-settings path
+  useEffect(() => {
+    if (!isOnSettings) {
+      previousPathRef.current = location.pathname;
+    }
+  }, [location.pathname, isOnSettings]);
 
   const isActive = (tab: TabItem) => {
     if (tab.matchPaths) {
@@ -124,6 +133,22 @@ export function DesktopNav() {
           );
         })}
       </div>
+
+      {/* Settings tab — only visible on /settings */}
+      {isOnSettings && (
+        <button
+          onClick={() => { haptics.selection(); }}
+          aria-label="Settings"
+          className={cn(
+            'relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200',
+            'touch-manipulation active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+            'bg-primary/10 text-primary'
+          )}
+        >
+          <Settings className="w-4 h-4" aria-hidden="true" />
+          Settings
+        </button>
+      )}
 
       {/* Ask Wise AI — desktop */}
       <div className="ml-auto">

@@ -7,6 +7,13 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: FIX-6-ISSUES-DELETE-NAV-AI
+- Summary: Six fixes: (1) Resume delete — switched from .update({ deleted_at }) to RPC calls (soft_delete_resume, soft_delete_resumes, restore_resume) to bypass PostgREST schema cache issues. (2) Delete All Data — now signs user out after deletion to prevent session re-creating profile. (3) Desktop nav — removed /settings from Home matchPaths so Settings no longer highlights Home. (4) Settings tab — added conditional Settings tab in desktop nav that only appears on /settings page, tracks previous path for back navigation. (5) AI "Last used" — useAIKeyHydration now seeds lastProviderUsed from ai_usage_logs on app init. (6) AI provider revert — provider selection no longer persists to DB until key is validated; reverts on sheet close if uncommitted.
+- Files: src/hooks/useResumes.ts, src/pages/SettingsPage.tsx, src/components/layout/DesktopNav.tsx, src/hooks/useAIKeyHydration.ts, src/components/settings/AISettingsSheet.tsx, enhancements-for-vibe-coding/CHANGELOG-local.md
+- Notes: No backend/migration changes needed — RPCs already exist in DB.
+
+
+- Date: 2026-03-09
 - Issue ID: PORTFOLIO-EDITOR-REORG-AI-PROJECT
 - Summary: Two changes: (1) Added add_project tool to Wise AI — edge function now has an add_project tool definition, and useAgenticChat handles it by pushing a new project to currentResume.projects. Prevents wasted credits on no-op project adds. (2) Reorganized portfolio editor from 3 tabs (Setup/Design/More) to 4 tabs (Setup/Content/Design/More). Setup is now focused (username + resume + bio only). New Content tab holds visibility toggles, availability, case studies, services, testimonials, highlights. More tab holds social links, SEO, analytics, career card.
 - Files: supabase/functions/agentic-chat/index.ts, src/hooks/useAgenticChat.ts, src/components/portfolio/editor/ContentTab.tsx (new), src/components/portfolio/editor/SetupTab.tsx, src/components/portfolio/editor/MoreTab.tsx, src/pages/PortfolioEditorPage.tsx

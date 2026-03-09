@@ -211,10 +211,13 @@ export default function SettingsPage() {
     toast.info('Password changes are managed through your account settings.');
   }, []);
 
-  const handleDataDeleted = useCallback(() => {
+  const handleDataDeleted = useCallback(async () => {
+    try {
+      await signOut();
+    } catch {}
     navigate('/');
     toast.success('All data deleted');
-  }, [navigate]);
+  }, [signOut, navigate]);
 
   const handleShareApp = useCallback(async () => {
     const shareData = {

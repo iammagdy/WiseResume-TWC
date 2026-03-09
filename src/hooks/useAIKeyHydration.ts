@@ -7,6 +7,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from '@/hooks/useAuth';
+import { useAIHealthStore } from '@/store/aiHealthStore';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -73,6 +74,26 @@ export function useAIKeyHydration() {
           if (currentLocal === 'wiseresume') {
             store.setAIProvider('wiseresume');
           }
+        }
+
+        // Seed "last used" provider from most recent AI usage log
+        try {
+          const { data: recentLog } = await supabase
+            .from('ai_usage_logs')
+            .select('metadata')
+            .neq('action_type', 'score')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (recentLog?.metadata) {
+            const lastProvider = (recentLog.metadata as any)?.provider;
+            if (lastProvider && lastProvider !== 'deterministic') {
+              useAIHealthStore.getState().recordProvider(lastProvider);
+            }
+          }
+        } catch {
+          // Non-critical
         }
 
         hydrated.current = true;
