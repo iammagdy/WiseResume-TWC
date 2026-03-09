@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: AI-TEST-PROVIDER-IDENTITY
+- Summary: Made ai-test edge function return deterministic, provider-specific greetings ("Hello! I'm Wise Resume AI" / "Hello! I'm Gemini AI" / "Hello! I'm Ollama AI") instead of letting the AI hallucinate its own name. Prevents fake provider names in Recent AI Requests log.
+- Files touched: supabase/functions/ai-test/index.ts
+- Notes: Cosmetic change only — no routing or auth logic modified.
+
+- Date: 2026-03-09
 - Issue ID: AI-SETTINGS-LEAK-FIX
 - Summary: Fixed AI provider settings (Gemini/Ollama validated flags, provider choice) leaking between users via localStorage. Added reset on sign-out and reset-before-hydrate on login.
 - Files touched: src/hooks/useAIKeyHydration.ts, src/contexts/AuthContext.tsx
