@@ -414,6 +414,7 @@ interface VisitorsPanelProps {
 }
 
 export function VisitorsPanel({ username, userId, portfolioEnabled }: VisitorsPanelProps) {
+  const queryClient = useQueryClient();
   const [newLinkLabel, setNewLinkLabel] = useState('');
   const [showCreateLink, setShowCreateLink] = useState(false);
   const [expandedVisitId, setExpandedVisitId] = useState<string | null>(null);
