@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: BACKUP-RESTORE-FIX
+- Summary: Fixed account backup import failures. Stripped stale cross-reference columns (parent_resume_id, portfolio_resume_id, resume_id, cover_letter_id, job_id) during import to prevent FK constraint errors. Added error checking on profile update. Awaited query invalidation before closing sheet.
+- Files: src/lib/accountBackup.ts, src/components/profile/AccountBackupSheet.tsx, enhancements-for-vibe-coding/CHANGELOG-local.md
+- Notes: Export unchanged. Cross-references are stripped since IDs change on import. Data content is fully preserved.
+
+- Date: 2026-03-09
 - Issue ID: LINKEDIN-PDF-FIX + LINKEDIN-URL-GUIDE
 - Summary: Fixed LinkedIn PDF import (was sending raw base64 to edge function that only accepts text; now uses client-side parseResumePDF pipeline with OCR fallback). Added guided "Import via URL" flow that opens the profile in a new tab and guides the user to copy-paste content.
 - Files: src/components/settings/LinkedInImportSheet.tsx, enhancements-for-vibe-coding/CHANGELOG-local.md
