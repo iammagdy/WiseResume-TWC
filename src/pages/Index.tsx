@@ -235,7 +235,7 @@ const Index = () => {
 
   const handleCTA = () => {
     triggerHaptic.medium();
-    navigate('/auth');
+    navigate('/auth?mode=signup');
   };
 
   // Show loading state while auth resolves to prevent guest→auth flash
