@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 const DEVELOPER_EMAIL = "contact@thewise.cloud";
+const LOGO_URL = "https://jnsfmkzgxsviuthaqlyy.supabase.co/storage/v1/object/public/screenshots/icon-512.png";
 
 function parsePlatform(ua: string): string {
   if (!ua) return "Unknown";
@@ -20,9 +21,14 @@ function parsePlatform(ua: string): string {
   return "Unknown";
 }
 
-function truncateUserId(id: string): string {
-  if (!id || id.length <= 12) return id || "N/A";
-  return `${id.slice(0, 8)}…${id.slice(-4)}`;
+function parseBrowser(ua: string): string {
+  if (!ua) return "Unknown";
+  if (ua.includes("Edg/")) return "Edge";
+  if (ua.includes("OPR/") || ua.includes("Opera")) return "Opera";
+  if (ua.includes("Chrome/") && !ua.includes("Edg/")) return "Chrome";
+  if (ua.includes("Safari/") && !ua.includes("Chrome")) return "Safari";
+  if (ua.includes("Firefox/")) return "Firefox";
+  return "Other";
 }
 
 Deno.serve(async (req) => {
@@ -39,6 +45,7 @@ Deno.serve(async (req) => {
       component_stack,
       route,
       selected_screen,
+      error_category,
       user_id,
       user_email,
       session_id,
@@ -64,7 +71,6 @@ Deno.serve(async (req) => {
     let resolvedUserId = user_id;
     let resolvedEmail = user_email || "anonymous";
 
-    // Decode JWT manually — token is from external project, can't use getUser()
     const authHeader = req.headers.get("Authorization");
     if (authHeader?.startsWith("Bearer ")) {
       const token = authHeader.replace("Bearer ", "");
@@ -84,8 +90,10 @@ Deno.serve(async (req) => {
 
     if (!resolvedUserId) {
       resolvedUserId = crypto.randomUUID();
-      console.log('Creating anonymous bug report with generated UUID:', resolvedUserId);
     }
+
+    const screenDisplay = selected_screen || "Not specified";
+    const categoryDisplay = error_category || "general";
 
     const { error: dbError } = await supabaseAdmin
       .from("bug_reports")
@@ -102,6 +110,8 @@ Deno.serve(async (req) => {
         app_version: app_version || "1.0.0",
         active_feature: active_feature || null,
         recent_errors: recent_errors || null,
+        screen: screenDisplay,
+        error_category: categoryDisplay,
       });
 
     if (dbError) {
@@ -113,135 +123,113 @@ Deno.serve(async (req) => {
     }
 
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-    console.log('📧 Email configuration:', {
-      hasResendKey: !!RESEND_API_KEY,
-      recipient: DEVELOPER_EMAIL,
-      sender: resolvedEmail
-    });
-    
     if (RESEND_API_KEY) {
       try {
-        const timestamp = new Date().toISOString();
-        const formattedTime = new Date(timestamp).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
-        const versionDisplay = app_version || "unknown";
+        const formattedTime = new Date().toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
         const platform = parsePlatform(user_agent || "");
-        const userIdDisplay = truncateUserId(resolvedUserId);
-        const sessionIdDisplay = session_id || "N/A";
-        const screenDisplay = selected_screen || "Not specified";
+        const browser = parseBrowser(user_agent || "");
         const featureDisplay = active_feature || null;
         const recentErrorsDisplay = Array.isArray(recent_errors) ? recent_errors : [];
-        const emailHtml = `
-          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
-            <!-- Header -->
-            <div style="background:linear-gradient(135deg,#dc2626,#b91c1c);padding:24px 28px;color:#ffffff">
-              <h1 style="margin:0;font-size:20px;font-weight:700">🐛 Bug Report</h1>
-              <p style="margin:6px 0 0;font-size:14px;opacity:0.9">from <strong>${resolvedEmail}</strong></p>
-            </div>
 
-            <!-- Metadata -->
-            <div style="display:flex;gap:0;border-bottom:1px solid #f3f4f6">
-              <div style="flex:1;padding:14px 28px;border-right:1px solid #f3f4f6">
-                <p style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;font-weight:600">Route</p>
-                <p style="margin:4px 0 0;font-size:14px;color:#111827;font-weight:500">${route || "N/A"}</p>
-              </div>
-              <div style="flex:1;padding:14px 28px;border-right:1px solid #f3f4f6">
-                <p style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;font-weight:600">Version</p>
-                <p style="margin:4px 0 0;font-size:14px;color:#111827;font-weight:500">${versionDisplay}</p>
-              </div>
-              <div style="flex:1;padding:14px 28px">
-                <p style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;font-weight:600">Time</p>
-                <p style="margin:4px 0 0;font-size:14px;color:#111827;font-weight:500">${formattedTime}</p>
-              </div>
-            </div>
+        const emailHtml = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head><body style="margin:0;padding:0;background-color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#ffffff"><tr><td align="center" style="padding:40px 20px">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%">
 
-            <!-- Reported Screen -->
-            <div style="padding:16px 28px;border-bottom:1px solid #f3f4f6;background:#fafafa">
-              <p style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;font-weight:600">Reported Screen</p>
-              <p style="margin:4px 0 0;font-size:15px;color:#111827;font-weight:600">${screenDisplay}</p>
-            </div>
+<!-- Header -->
+<tr><td style="background-color:#1a1a2e;padding:32px 40px;border-radius:12px 12px 0 0" align="center">
+  <img src="${LOGO_URL}" alt="WiseResume" width="48" height="48" style="display:block;margin:0 auto 12px;border-radius:12px">
+  <h1 style="margin:0;font-size:20px;font-weight:700;color:#ffffff">🐛 Bug Report</h1>
+  <p style="margin:8px 0 0;font-size:14px;color:rgba(255,255,255,0.7)">from <strong style="color:#ffffff">${resolvedEmail}</strong></p>
+</td></tr>
 
-            ${featureDisplay ? `
-            <!-- Active Feature -->
-            <div style="padding:16px 28px;border-bottom:1px solid #f3f4f6;background:#fffbeb">
-              <p style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;font-weight:600">Active Feature / Tool</p>
-              <p style="margin:4px 0 0;font-size:15px;color:#92400e;font-weight:600">🔧 ${featureDisplay}</p>
-            </div>` : ""}
+<!-- Red accent -->
+<tr><td style="background-color:#e63946;height:4px;font-size:0;line-height:0">&nbsp;</td></tr>
 
-            ${recentErrorsDisplay.length > 0 ? `
-            <!-- Recent Errors -->
-            <div style="padding:16px 28px;border-bottom:1px solid #f3f4f6">
-              <p style="margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;font-weight:600">Recent Errors (last 60s)</p>
-              ${recentErrorsDisplay.slice(0, 5).map((e: { message?: string; timestamp?: number }) => `
-              <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:8px 12px;margin-bottom:6px">
-                <p style="margin:0;font-size:12px;color:#991b1b;font-family:ui-monospace,SFMono-Regular,monospace;word-break:break-all">${(e.message || '').slice(0, 200)}</p>
-              </div>`).join("")}
-            </div>` : ""}
+<!-- Screen & Category -->
+<tr><td style="background-color:#f8f9fa;padding:20px 40px">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      <td width="50%" style="padding-right:12px">
+        <p style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;font-weight:600">Screen</p>
+        <p style="margin:4px 0 0;font-size:15px;color:#1a1a2e;font-weight:600">${screenDisplay}</p>
+      </td>
+      <td width="50%">
+        <p style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;font-weight:600">Category</p>
+        <p style="margin:4px 0 0;font-size:15px;color:#e63946;font-weight:600">${categoryDisplay}</p>
+      </td>
+    </tr>
+  </table>
+</td></tr>
 
-            <!-- Error Message -->
-            <div style="padding:20px 28px">
-              <p style="margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;font-weight:600">Error Message</p>
-              <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:14px 16px">
-                <p style="margin:0;font-size:14px;color:#991b1b;font-family:ui-monospace,SFMono-Regular,monospace;word-break:break-all;line-height:1.5">${error_message.slice(0, 500)}</p>
-              </div>
-            </div>
+${featureDisplay ? `
+<!-- Active Feature -->
+<tr><td style="background-color:#fffbeb;padding:12px 40px;border-bottom:1px solid #fde68a">
+  <p style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;font-weight:600">Active Feature</p>
+  <p style="margin:4px 0 0;font-size:14px;color:#92400e;font-weight:600">🔧 ${featureDisplay}</p>
+</td></tr>` : ""}
 
-            ${additional_context ? `
-            <!-- User Context -->
-            <div style="padding:0 28px 20px">
-              <p style="margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;font-weight:600">User's Note</p>
-              <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px 16px">
-                <p style="margin:0;font-size:14px;color:#166534;line-height:1.5">${additional_context}</p>
-              </div>
-            </div>` : ""}
+<!-- Error Message -->
+<tr><td style="padding:24px 40px;background-color:#ffffff">
+  <p style="margin:0 0 10px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;font-weight:600">Error Message</p>
+  <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:14px 16px">
+    <p style="margin:0;font-size:13px;color:#991b1b;font-family:ui-monospace,SFMono-Regular,monospace;word-break:break-all;line-height:1.5">${error_message.slice(0, 500)}</p>
+  </div>
+</td></tr>
 
-            <!-- System Information -->
-            <div style="padding:0 28px 20px">
-              <p style="margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;font-weight:600">System Information</p>
-              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
-                <table style="width:100%;border-collapse:collapse;font-size:13px">
-                  <tr style="border-bottom:1px solid #e2e8f0">
-                    <td style="padding:10px 14px;color:#64748b;font-weight:600;width:120px">User ID</td>
-                    <td style="padding:10px 14px;color:#1e293b;font-family:ui-monospace,SFMono-Regular,monospace;font-size:12px">${userIdDisplay}</td>
-                  </tr>
-                  <tr style="border-bottom:1px solid #e2e8f0">
-                    <td style="padding:10px 14px;color:#64748b;font-weight:600">Session ID</td>
-                    <td style="padding:10px 14px;color:#1e293b;font-family:ui-monospace,SFMono-Regular,monospace;font-size:12px">${sessionIdDisplay}</td>
-                  </tr>
-                  <tr style="border-bottom:1px solid #e2e8f0">
-                    <td style="padding:10px 14px;color:#64748b;font-weight:600">Platform</td>
-                    <td style="padding:10px 14px;color:#1e293b">${platform}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding:10px 14px;color:#64748b;font-weight:600;vertical-align:top">User Agent</td>
-                    <td style="padding:10px 14px;color:#94a3b8;font-family:ui-monospace,SFMono-Regular,monospace;font-size:11px;line-height:1.4;word-break:break-all">${(user_agent || "N/A").slice(0, 300)}</td>
-                  </tr>
-                </table>
-              </div>
-            </div>
+${recentErrorsDisplay.length > 0 ? `
+<!-- Recent Errors -->
+<tr><td style="padding:0 40px 20px;background-color:#ffffff">
+  <p style="margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;font-weight:600">Recent Errors (last 60s)</p>
+  ${recentErrorsDisplay.slice(0, 3).map((e: { message?: string }) => `
+  <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:8px 12px;margin-bottom:6px">
+    <p style="margin:0;font-size:12px;color:#991b1b;font-family:ui-monospace,SFMono-Regular,monospace;word-break:break-all">${(e.message || '').slice(0, 150)}</p>
+  </div>`).join("")}
+</td></tr>` : ""}
 
-            ${error_stack ? `
-            <!-- Stack Trace -->
-            <div style="padding:0 28px 20px">
-              <details>
-                <summary style="cursor:pointer;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;font-weight:600;margin-bottom:8px">Stack Trace</summary>
-                <pre style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;overflow-x:auto;font-size:12px;line-height:1.6;color:#374151;margin:0">${error_stack.slice(0, 3000)}</pre>
-              </details>
-            </div>` : ""}
+${additional_context ? `
+<!-- User Note -->
+<tr><td style="padding:0 40px 24px;background-color:#ffffff">
+  <p style="margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;font-weight:600">User's Note</p>
+  <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px 16px">
+    <p style="margin:0;font-size:14px;color:#166534;line-height:1.5">${additional_context}</p>
+  </div>
+</td></tr>` : ""}
 
-            ${component_stack ? `
-            <!-- Component Stack -->
-            <div style="padding:0 28px 20px">
-              <details>
-                <summary style="cursor:pointer;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;font-weight:600;margin-bottom:8px">Component Stack</summary>
-                <pre style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;overflow-x:auto;font-size:12px;line-height:1.6;color:#374151;margin:0">${component_stack.slice(0, 3000)}</pre>
-              </details>
-            </div>` : ""}
+<!-- Metadata Table -->
+<tr><td style="padding:0 40px 24px;background-color:#ffffff">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9fa;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;font-size:13px">
+    <tr style="border-bottom:1px solid #e5e7eb">
+      <td style="padding:10px 14px;color:#6b7280;font-weight:600;width:100px">Route</td>
+      <td style="padding:10px 14px;color:#1a1a2e;font-family:ui-monospace,SFMono-Regular,monospace;font-size:12px">${route || "N/A"}</td>
+    </tr>
+    <tr style="border-bottom:1px solid #e5e7eb">
+      <td style="padding:10px 14px;color:#6b7280;font-weight:600">Version</td>
+      <td style="padding:10px 14px;color:#1a1a2e">${app_version || "unknown"}</td>
+    </tr>
+    <tr style="border-bottom:1px solid #e5e7eb">
+      <td style="padding:10px 14px;color:#6b7280;font-weight:600">Platform</td>
+      <td style="padding:10px 14px;color:#1a1a2e">${platform} · ${browser}</td>
+    </tr>
+    <tr>
+      <td style="padding:10px 14px;color:#6b7280;font-weight:600">Time</td>
+      <td style="padding:10px 14px;color:#1a1a2e">${formattedTime}</td>
+    </tr>
+  </table>
+</td></tr>
 
-            <!-- Footer -->
-            <div style="background:#f9fafb;padding:16px 28px;border-top:1px solid #e5e7eb;text-align:center">
-              <p style="margin:0;font-size:12px;color:#9ca3af">WiseResume Bug Report System • Reply to reach the user</p>
-            </div>
-          </div>`;
+${error_stack ? `
+<!-- Stack Trace -->
+<tr><td style="padding:0 40px 24px;background-color:#ffffff">
+  <p style="margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;font-weight:600">Stack Trace</p>
+  <pre style="background:#f8f9fa;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;overflow-x:auto;font-size:11px;line-height:1.5;color:#374151;margin:0;white-space:pre-wrap;word-break:break-all">${error_stack.slice(0, 2000)}</pre>
+</td></tr>` : ""}
+
+<!-- Footer -->
+<tr><td style="background-color:#1a1a2e;padding:24px 40px;border-radius:0 0 12px 12px" align="center">
+  <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.5)">WiseResume Bug Report · Reply to reach the user</p>
+</td></tr>
+
+</table></td></tr></table></body></html>`;
 
         const emailRes = await fetch("https://api.resend.com/emails", {
           method: "POST",
@@ -250,21 +238,17 @@ Deno.serve(async (req) => {
             from: `${resolvedEmail} via WiseResume <notifications@thewise.cloud>`,
             to: [DEVELOPER_EMAIL],
             reply_to: resolvedEmail,
-            subject: `[Bug Reported] ${screenDisplay} — ${error_message.slice(0, 50)}`,
+            subject: `[Bug] ${screenDisplay} · ${categoryDisplay} — ${error_message.slice(0, 50)}`,
             html: emailHtml,
           }),
         });
         const emailBody = await emailRes.text();
         if (!emailRes.ok) {
           console.error("Resend email failed:", emailRes.status, emailBody);
-        } else {
-          console.log("Bug report email sent:", emailBody);
         }
       } catch (emailErr) {
         console.error("Email send error:", emailErr);
       }
-    } else {
-      console.warn("RESEND_API_KEY not set, skipping email");
     }
 
     return new Response(

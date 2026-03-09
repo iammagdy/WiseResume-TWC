@@ -39,10 +39,23 @@ const SCREEN_MAP: { prefix: string; label: string }[] = [
   { prefix: '/templates', label: 'Templates' },
   { prefix: '/examples', label: 'Examples' },
   { prefix: '/guides', label: 'Guides' },
+  { prefix: '/guide', label: 'Guide' },
   { prefix: '/resignation-letters', label: 'Resignation Letters' },
   { prefix: '/profile', label: 'Profile' },
   { prefix: '/notifications', label: 'Notifications' },
   { prefix: '/dashboard', label: 'Dashboard' },
+  { prefix: '/terms', label: 'Terms of Service' },
+  { prefix: '/privacy', label: 'Privacy Policy' },
+  { prefix: '/help', label: 'Help Center' },
+  { prefix: '/portfolio', label: 'Portfolio Editor' },
+  { prefix: '/p/', label: 'Public Portfolio' },
+  { prefix: '/qr', label: 'QR Code' },
+  { prefix: '/share', label: 'Shared Resume' },
+  { prefix: '/subscription', label: 'Subscription' },
+  { prefix: '/analytics', label: 'Analytics' },
+  { prefix: '/achievements', label: 'Achievements' },
+  { prefix: '/referral', label: 'Referral' },
+  { prefix: '/onboarding', label: 'Onboarding' },
 ];
 
 export function detectScreen(pathname: string): string {
