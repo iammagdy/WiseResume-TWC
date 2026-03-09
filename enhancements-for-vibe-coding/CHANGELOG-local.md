@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: PORTFOLIO-EDITOR-REORG-AI-PROJECT
+- Summary: Two changes: (1) Added add_project tool to Wise AI — edge function now has an add_project tool definition, and useAgenticChat handles it by pushing a new project to currentResume.projects. Prevents wasted credits on no-op project adds. (2) Reorganized portfolio editor from 3 tabs (Setup/Design/More) to 4 tabs (Setup/Content/Design/More). Setup is now focused (username + resume + bio only). New Content tab holds visibility toggles, availability, case studies, services, testimonials, highlights. More tab holds social links, SEO, analytics, career card.
+- Files: supabase/functions/agentic-chat/index.ts, src/hooks/useAgenticChat.ts, src/components/portfolio/editor/ContentTab.tsx (new), src/components/portfolio/editor/SetupTab.tsx, src/components/portfolio/editor/MoreTab.tsx, src/pages/PortfolioEditorPage.tsx
+- Notes: Edge function needs redeployment to external project. Social links moved from SetupTab to MoreTab. Availability moved from SetupTab to ContentTab.
+
+- Date: 2026-03-09
 - Issue ID: UNIVERSAL-WISE-AI-DELETE-FIX
 - Summary: Four major changes: (1) Resume delete fix — created DB RPC functions (soft_delete_resume, soft_delete_resumes, restore_resume) to bypass PostgREST schema cache issue; updated useResumes.ts to use RPC calls. (2) Universal Wise AI — added global "Ask" floating button on mobile (AppShell.tsx) and "Ask" pill button in desktop nav (DesktopNav.tsx), making Wise AI accessible from any page. (3) Context-aware filters — added category chips (Resumes, Cover Letters, Applications, Portfolio, Activity) in AgenticChatSheet with auto-detection from current route; context passed to edge function for scoped AI responses. (4) Smart action confirmations — updated system prompt to prefer suggest_edits confirm/decline flow for any data-modifying action.
 - Files: src/hooks/useResumes.ts, src/components/layout/AppShell.tsx, src/components/layout/DesktopNav.tsx, src/components/editor/AgenticChatSheet.tsx, src/hooks/useAgenticChat.ts, src/lib/agenticChat.ts, supabase/functions/agentic-chat/index.ts, enhancements-for-vibe-coding/CHANGELOG-local.md
