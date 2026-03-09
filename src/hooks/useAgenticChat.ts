@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useResumeStore } from '@/store/resumeStore';
+import { useResumes } from '@/hooks/useResumes';
 import { sendChatMessage, sendFunctionFeedback, ChatMessage, SuggestionProposal, FunctionResult } from '@/lib/agenticChat';
 import { haptics } from '@/lib/haptics';
 import { useAICreditsMutations } from './useAICredits';
