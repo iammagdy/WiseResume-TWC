@@ -667,6 +667,20 @@ export function LinkedInImportSheet({
             <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">Cancel</Button>
           )}
 
+          {parseState === 'url-guide' && (
+            <>
+              <Button variant="outline" onClick={handleReset} className="flex-1">Back</Button>
+              <Button 
+                onClick={handleUrlGuide} 
+                disabled={!linkedinUrl.trim() || !/linkedin\.com/i.test(linkedinUrl)} 
+                className="flex-1 gap-2"
+              >
+                Open & Copy
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </>
+          )}
+
           {parseState === 'idle' && (
             <>
               <Button variant="outline" onClick={handleReset} className="flex-1">Back</Button>
