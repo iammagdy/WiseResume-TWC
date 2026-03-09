@@ -259,7 +259,7 @@ export default function AuthPage() {
       initial={{ opacity: 0, scale: 0.98 }} 
       animate={{ opacity: 1, scale: 1 }} 
       transition={{ duration: 0.4, ease: "easeOut" }}
-      className="relative isolate min-h-[100dvh] flex flex-col overflow-hidden"
+      className="relative isolate min-h-[100dvh] flex flex-col overflow-y-auto"
     >
       <OfflineBanner />
 
