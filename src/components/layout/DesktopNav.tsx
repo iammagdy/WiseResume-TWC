@@ -20,7 +20,7 @@ const tabs: TabItem[] = [
     path: '/dashboard',
     icon: Home,
     label: 'Home',
-    matchPaths: ['/dashboard', '/settings', '/profile', '/notifications', '/templates', '/examples', '/guides', '/resume', '/onboarding'],
+    matchPaths: ['/dashboard', '/settings', '/notifications', '/templates', '/examples', '/guides', '/resume', '/onboarding'],
   },
   {
     path: '/editor',

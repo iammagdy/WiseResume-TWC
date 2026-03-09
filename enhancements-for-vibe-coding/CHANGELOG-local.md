@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: PROFILE-NAV-IMPORT-SHARE
+- Summary: Four improvements: (1) Fixed desktop nav highlighting — /profile no longer lights up "Home" tab. (2) Redesigned Smart Import into step-by-step wizard: one section at a time (About → Experience → Education → Skills), paste → Analyze → see result → Next, with skip and progress bar. (3) Profile page: removed redundant top Share/Copy buttons, replaced with Import from LinkedIn button, added LinkedIn import sheet. (4) Portfolio Share button made functional with draft detection — warns if portfolio is inactive, offers "Go Live & Share" or "Share Anyway".
+- Files: src/components/layout/DesktopNav.tsx, src/components/settings/LinkedInImportSheet.tsx, src/pages/ProfilePage.tsx, enhancements-for-vibe-coding/CHANGELOG-local.md
+- Notes: No backend changes. Edge function untouched. BottomTabBar already correct (no /profile in matchPaths).
+
+- Date: 2026-03-09
 - Issue ID: LINKEDIN-SMART-IMPORT
 - Summary: Redesigned LinkedIn import flow. Removed "Import via URL" method (blocked by LinkedIn/popup blockers). Replaced "Paste Profile Text" with "Smart Import" — a guided paste experience with visual step cards showing users exactly what to copy from LinkedIn (About, Experience, Education, Skills). Single paste area + AI analysis unchanged. PDF upload unchanged.
 - Files: src/components/settings/LinkedInImportSheet.tsx, enhancements-for-vibe-coding/CHANGELOG-local.md

@@ -13,9 +13,9 @@ import {
   ChevronRight,
   AlertCircle,
   Upload,
-  ClipboardPaste,
   User,
-  Wand2
+  Wand2,
+  SkipForward
 } from 'lucide-react';
 import { parseResumePDF, parseResumePDFWithOCR } from '@/lib/pdfParser';
 import {
@@ -64,7 +64,7 @@ interface LinkedInImportSheetProps {
   linkedinUsername?: string;
 }
 
-type ParseState = 'method-select' | 'idle' | 'parsing' | 'preview' | 'importing' | 'done';
+type ParseState = 'method-select' | 'wizard' | 'step-analyzing' | 'step-result' | 'parsing' | 'preview' | 'importing' | 'done';
 
 const PARSING_STEPS = [
   { id: 1, label: 'Reading profile data...', icon: FileText },
@@ -77,26 +77,34 @@ const GUIDE_STEPS = [
   {
     icon: User,
     title: 'About / Summary',
+    sectionKey: 'summary' as const,
     description: 'Copy your "About" section from the top of your profile',
     tip: 'Look for the About section below your profile photo',
+    placeholder: 'Paste your LinkedIn About/Summary section here...',
   },
   {
     icon: Briefcase,
     title: 'Experience',
+    sectionKey: 'experience' as const,
     description: 'Copy all your job titles, companies, dates, and descriptions',
     tip: 'Scroll to the Experience section and select everything',
+    placeholder: 'Paste your work experience here — job titles, companies, dates, descriptions...',
   },
   {
     icon: GraduationCap,
     title: 'Education',
+    sectionKey: 'education' as const,
     description: 'Copy your degrees, schools, and graduation years',
     tip: 'Find the Education section below Experience',
+    placeholder: 'Paste your education details here — schools, degrees, years...',
   },
   {
     icon: Lightbulb,
     title: 'Skills',
+    sectionKey: 'skills' as const,
     description: 'Copy your listed skills — or just type them out',
     tip: 'Look for the Skills section or "Show all skills"',
+    placeholder: 'Paste or type your skills here — comma separated or one per line...',
   },
 ];
 
@@ -105,10 +113,12 @@ export function LinkedInImportSheet({
   onOpenChange, 
   onImport,
 }: LinkedInImportSheetProps) {
-  const [profileText, setProfileText] = useState('');
   const [parseState, setParseState] = useState<ParseState>('method-select');
+  const [activeGuideStep, setActiveGuideStep] = useState(0);
+  const [stepText, setStepText] = useState('');
   const [currentStep, setCurrentStep] = useState(0);
-  const [parsedData, setParsedData] = useState<LinkedInData | null>(null);
+  const [accumulatedData, setAccumulatedData] = useState<Partial<LinkedInData>>({});
+  const [stepResult, setStepResult] = useState<Partial<LinkedInData> | null>(null);
   const [selectedSections, setSelectedSections] = useState({
     summary: true,
     experience: true,
@@ -119,53 +129,73 @@ export function LinkedInImportSheet({
   const [uploadingPdf, setUploadingPdf] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleParse = async () => {
-    if (!profileText.trim()) {
-      toast.error('Please paste your LinkedIn profile content');
+  const handleStepAnalyze = async () => {
+    if (!stepText.trim()) {
+      toast.error('Please paste some content first');
       return;
     }
 
-    const trimmedText = profileText.trim();
-    const isJustUrl = /^https?:\/\/(www\.)?linkedin\.com/i.test(trimmedText) && 
-                      trimmedText.split('\n').length <= 3 && 
-                      trimmedText.length < 500;
-    
-    if (isJustUrl) {
-      setError("It looks like you pasted a LinkedIn URL. Please copy and paste the actual text content from your profile page.");
-      toast.error('Please paste your profile content, not the URL');
-      return;
-    }
-
-    setParseState('parsing');
+    setParseState('step-analyzing');
     setError(null);
-    setCurrentStep(0);
     haptics.light();
-
-    const stepInterval = setInterval(() => {
-      setCurrentStep(prev => prev < PARSING_STEPS.length - 1 ? prev + 1 : prev);
-    }, 800);
 
     try {
       const { data, error: fnError } = await edgeFunctions.functions.invoke('parse-linkedin', {
-        body: { profileText: profileText.trim() },
+        body: { profileText: stepText.trim() },
       });
-
-      clearInterval(stepInterval);
 
       if (fnError) throw fnError;
       if (data?.error) throw new Error(data.error);
 
-      setParsedData(data);
-      setParseState('preview');
+      setStepResult(data);
+      setParseState('step-result');
       haptics.success();
     } catch (err) {
-      clearInterval(stepInterval);
       console.error('LinkedIn parse error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to parse profile');
-      setParseState('idle');
+      setError(err instanceof Error ? err.message : 'Failed to analyze');
+      setParseState('wizard');
       haptics.error();
-      toast.error('Failed to parse LinkedIn profile');
+      toast.error('Failed to analyze content');
     }
+  };
+
+  const handleStepNext = () => {
+    // Merge step result into accumulated data
+    if (stepResult) {
+      setAccumulatedData(prev => ({
+        ...prev,
+        ...(stepResult.summary ? { summary: stepResult.summary } : {}),
+        ...(stepResult.experience?.length ? { experience: [...(prev.experience || []), ...stepResult.experience] } : {}),
+        ...(stepResult.education?.length ? { education: [...(prev.education || []), ...stepResult.education] } : {}),
+        ...(stepResult.skills?.length ? { skills: [...new Set([...(prev.skills || []), ...stepResult.skills])] } : {}),
+      }));
+    }
+
+    setStepText('');
+    setStepResult(null);
+    setError(null);
+
+    if (activeGuideStep < GUIDE_STEPS.length - 1) {
+      setActiveGuideStep(prev => prev + 1);
+      setParseState('wizard');
+    } else {
+      // Last step done — show final preview
+      setParseState('preview');
+    }
+    haptics.light();
+  };
+
+  const handleSkipStep = () => {
+    setStepText('');
+    setStepResult(null);
+    setError(null);
+
+    if (activeGuideStep < GUIDE_STEPS.length - 1) {
+      setActiveGuideStep(prev => prev + 1);
+    } else {
+      setParseState('preview');
+    }
+    haptics.light();
   };
 
   const handlePdfUpload = async (file: File) => {
@@ -186,13 +216,10 @@ export function LinkedInImportSheet({
 
     try {
       const parseResult = await parseResumePDF(file);
-      
       let resumeData = parseResult.data;
-      
       if (parseResult.needsOCR) {
         resumeData = await parseResumePDFWithOCR(file);
       }
-      
       if (!resumeData) {
         throw new Error('Could not extract content from this PDF');
       }
@@ -220,7 +247,7 @@ export function LinkedInImportSheet({
         skills: resumeData.skills || [],
       };
 
-      setParsedData(linkedInData);
+      setAccumulatedData(linkedInData);
       setParseState('preview');
       haptics.success();
     } catch (err) {
@@ -236,16 +263,20 @@ export function LinkedInImportSheet({
   };
 
   const handleImport = () => {
-    if (!parsedData) return;
+    const data = accumulatedData;
+    if (!data || Object.keys(data).length === 0) {
+      toast.error('No data to import');
+      return;
+    }
 
     setParseState('importing');
     haptics.light();
 
     const importData: Partial<LinkedInData> = {};
-    if (selectedSections.summary && parsedData.summary) importData.summary = parsedData.summary;
-    if (selectedSections.experience && parsedData.experience?.length) importData.experience = parsedData.experience;
-    if (selectedSections.education && parsedData.education?.length) importData.education = parsedData.education;
-    if (selectedSections.skills && parsedData.skills?.length) importData.skills = parsedData.skills;
+    if (selectedSections.summary && data.summary) importData.summary = data.summary;
+    if (selectedSections.experience && data.experience?.length) importData.experience = data.experience;
+    if (selectedSections.education && data.education?.length) importData.education = data.education;
+    if (selectedSections.skills && data.skills?.length) importData.skills = data.skills;
 
     setTimeout(() => {
       onImport(importData);
@@ -255,19 +286,19 @@ export function LinkedInImportSheet({
       
       setTimeout(() => {
         onOpenChange(false);
-        setProfileText('');
-        setParsedData(null);
-        setParseState('method-select');
-        setSelectedSections({ summary: true, experience: true, education: true, skills: true });
+        handleFullReset();
       }, 1500);
     }, 500);
   };
 
-  const handleReset = () => {
+  const handleFullReset = () => {
     setParseState('method-select');
-    setParsedData(null);
-    setProfileText('');
+    setAccumulatedData({});
+    setStepText('');
+    setStepResult(null);
+    setActiveGuideStep(0);
     setError(null);
+    setSelectedSections({ summary: true, experience: true, education: true, skills: true });
   };
 
   const toggleSection = (section: keyof typeof selectedSections) => {
@@ -276,22 +307,19 @@ export function LinkedInImportSheet({
 
   const countSelected = () => {
     let count = 0;
-    if (selectedSections.summary && parsedData?.summary) count++;
-    if (selectedSections.experience && parsedData?.experience?.length) count++;
-    if (selectedSections.education && parsedData?.education?.length) count++;
-    if (selectedSections.skills && parsedData?.skills?.length) count++;
+    if (selectedSections.summary && accumulatedData?.summary) count++;
+    if (selectedSections.experience && accumulatedData?.experience?.length) count++;
+    if (selectedSections.education && accumulatedData?.education?.length) count++;
+    if (selectedSections.skills && accumulatedData?.skills?.length) count++;
     return count;
   };
+
+  const currentGuide = GUIDE_STEPS[activeGuideStep];
 
   return (
     <Sheet open={open} onOpenChange={(o) => {
       onOpenChange(o);
-      if (!o) {
-        setParseState('method-select');
-        setProfileText('');
-        setParsedData(null);
-        setError(null);
-      }
+      if (!o) handleFullReset();
     }}>
       <SheetContent side="bottom" className="h-[90vh] p-0">
         <SheetHeader className="shrink-0">
@@ -325,7 +353,7 @@ export function LinkedInImportSheet({
                 
                 {/* Smart Import card */}
                 <button
-                  onClick={() => setParseState('idle')}
+                  onClick={() => { setParseState('wizard'); setActiveGuideStep(0); }}
                   className="w-full p-4 rounded-xl border-2 border-primary/30 bg-primary/5 hover:border-primary/60 transition-all text-left flex items-start gap-4 touch-manipulation active:scale-[0.98] min-h-[72px]"
                 >
                   <div className="w-12 h-12 rounded-xl bg-primary/15 flex items-center justify-center flex-shrink-0">
@@ -336,7 +364,7 @@ export function LinkedInImportSheet({
                       <h3 className="font-semibold text-foreground">Smart Import</h3>
                       <Badge variant="secondary" className="text-[10px] px-1.5 py-0">AI</Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">Paste your profile content — AI organizes it for you</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Step-by-step guided paste — AI organizes each section</p>
                   </div>
                 </button>
 
@@ -373,59 +401,59 @@ export function LinkedInImportSheet({
               </motion.div>
             )}
 
-            {/* Smart Import — Guided Paste State */}
-            {parseState === 'idle' && (
+            {/* Wizard — Step-by-step guided paste */}
+            {parseState === 'wizard' && (
               <motion.div
-                key="idle"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
+                key={`wizard-${activeGuideStep}`}
+                initial={{ opacity: 0, x: 30 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -30 }}
                 className="py-6 space-y-5"
               >
-                {/* Visual guide steps */}
+                {/* Progress bar */}
                 <div className="space-y-2">
-                  <h3 className="text-sm font-medium text-foreground">What to copy from LinkedIn</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    {GUIDE_STEPS.map((step, index) => {
-                      const Icon = step.icon;
-                      return (
-                        <motion.div
-                          key={step.title}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: index * 0.08 }}
-                          className="p-3 rounded-xl bg-muted/50 border border-border/50 space-y-1.5"
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                              <Icon className="w-3.5 h-3.5 text-primary" />
-                            </div>
-                            <span className="text-xs font-semibold text-foreground leading-tight">{step.title}</span>
-                          </div>
-                          <p className="text-[11px] text-muted-foreground leading-snug">{step.tip}</p>
-                        </motion.div>
-                      );
-                    })}
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Step {activeGuideStep + 1} of {GUIDE_STEPS.length}</span>
+                    <span>{Math.round(((activeGuideStep) / GUIDE_STEPS.length) * 100)}% complete</span>
+                  </div>
+                  <div className="flex gap-1.5">
+                    {GUIDE_STEPS.map((_, i) => (
+                      <div
+                        key={i}
+                        className={`h-1.5 flex-1 rounded-full transition-colors ${
+                          i < activeGuideStep ? 'bg-primary' : i === activeGuideStep ? 'bg-primary/50' : 'bg-muted'
+                        }`}
+                      />
+                    ))}
                   </div>
                 </div>
 
-                {/* Info callout */}
-                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-primary/5 border border-primary/20">
-                  <Sparkles className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-muted-foreground">
-                    <span className="font-medium text-foreground">Paste everything at once</span> — messy text is fine. AI will detect and organize each section automatically.
-                  </p>
+                {/* Current step card */}
+                <div className="p-4 rounded-xl border-2 border-primary/30 bg-primary/5 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center flex-shrink-0">
+                      <currentGuide.icon className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-foreground">{currentGuide.title}</h3>
+                      <p className="text-xs text-muted-foreground">{currentGuide.description}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/50 text-xs text-muted-foreground">
+                    <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0 mt-0.5" />
+                    <span>{currentGuide.tip}</span>
+                  </div>
                 </div>
 
-                {/* Paste area */}
+                {/* Paste area for current step */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium">Paste your profile content</label>
+                    <label className="text-sm font-medium text-foreground">Paste content</label>
                     <button 
                       onClick={async () => {
                         try {
                           const text = await navigator.clipboard.readText();
-                          setProfileText(text);
+                          setStepText(text);
                           haptics.light();
                         } catch {
                           toast.error('Could not read clipboard');
@@ -438,14 +466,14 @@ export function LinkedInImportSheet({
                     </button>
                   </div>
                   <Textarea
-                    placeholder="Paste your LinkedIn profile content here — about, experience, education, skills…"
-                    value={profileText}
-                    onChange={(e) => setProfileText(e.target.value)}
-                    className="min-h-[180px] resize-none"
+                    placeholder={currentGuide.placeholder}
+                    value={stepText}
+                    onChange={(e) => setStepText(e.target.value)}
+                    className="min-h-[140px] resize-none"
                   />
-                  {profileText && (
+                  {stepText && (
                     <p className="text-xs text-muted-foreground">
-                      {profileText.length.toLocaleString()} characters
+                      {stepText.length.toLocaleString()} characters
                     </p>
                   )}
                 </div>
@@ -459,7 +487,124 @@ export function LinkedInImportSheet({
               </motion.div>
             )}
 
-            {/* Parsing State */}
+            {/* Step Analyzing */}
+            {parseState === 'step-analyzing' && (
+              <motion.div
+                key="step-analyzing"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="py-16 flex flex-col items-center justify-center space-y-6"
+              >
+                <motion.div
+                  animate={{ rotate: [0, 360] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                  className="w-16 h-16 rounded-full bg-gradient-to-br from-primary via-primary/80 to-primary/60 flex items-center justify-center shadow-lg shadow-primary/30"
+                >
+                  <Sparkles className="w-8 h-8 text-primary-foreground" />
+                </motion.div>
+                <div className="text-center space-y-1">
+                  <h3 className="text-lg font-semibold text-foreground">Analyzing {currentGuide.title}</h3>
+                  <p className="text-sm text-muted-foreground">AI is organizing your content...</p>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Step Result */}
+            {parseState === 'step-result' && stepResult && (
+              <motion.div
+                key="step-result"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="py-6 space-y-4"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-success/20 flex items-center justify-center">
+                    <Check className="w-4 h-4 text-success" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-foreground">{currentGuide.title} analyzed!</h3>
+                    <p className="text-sm text-muted-foreground">Here's what AI found</p>
+                  </div>
+                </div>
+
+                {/* Show parsed result for this step */}
+                {stepResult.summary && (
+                  <div className="p-4 rounded-xl border border-primary bg-primary/5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <FileText className="w-4 h-4 text-primary" />
+                      <span className="font-medium text-sm text-foreground">Summary</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground line-clamp-4">{stepResult.summary}</p>
+                  </div>
+                )}
+
+                {stepResult.experience && stepResult.experience.length > 0 && (
+                  <div className="p-4 rounded-xl border border-primary bg-primary/5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Briefcase className="w-4 h-4 text-primary" />
+                      <span className="font-medium text-sm text-foreground">Experience</span>
+                      <Badge variant="secondary" className="text-xs">{stepResult.experience.length} positions</Badge>
+                    </div>
+                    <div className="space-y-1">
+                      {stepResult.experience.slice(0, 3).map((exp, i) => (
+                        <div key={i} className="text-sm text-muted-foreground">
+                          <span className="font-medium text-foreground">{exp.title}</span> at {exp.company}
+                        </div>
+                      ))}
+                      {stepResult.experience.length > 3 && (
+                        <p className="text-xs text-muted-foreground">+{stepResult.experience.length - 3} more</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {stepResult.education && stepResult.education.length > 0 && (
+                  <div className="p-4 rounded-xl border border-primary bg-primary/5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <GraduationCap className="w-4 h-4 text-primary" />
+                      <span className="font-medium text-sm text-foreground">Education</span>
+                      <Badge variant="secondary" className="text-xs">{stepResult.education.length} entries</Badge>
+                    </div>
+                    <div className="space-y-1">
+                      {stepResult.education.map((edu, i) => (
+                        <div key={i} className="text-sm text-muted-foreground">
+                          <span className="font-medium text-foreground">{edu.degree}</span> at {edu.institution}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {stepResult.skills && stepResult.skills.length > 0 && (
+                  <div className="p-4 rounded-xl border border-primary bg-primary/5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Lightbulb className="w-4 h-4 text-primary" />
+                      <span className="font-medium text-sm text-foreground">Skills</span>
+                      <Badge variant="secondary" className="text-xs">{stepResult.skills.length} skills</Badge>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {stepResult.skills.slice(0, 10).map((skill, i) => (
+                        <Badge key={i} variant="outline" className="text-xs">{skill}</Badge>
+                      ))}
+                      {stepResult.skills.length > 10 && (
+                        <Badge variant="outline" className="text-xs text-muted-foreground">+{stepResult.skills.length - 10} more</Badge>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Empty result */}
+                {!stepResult.summary && !stepResult.experience?.length && !stepResult.education?.length && !stepResult.skills?.length && (
+                  <div className="p-4 rounded-xl bg-muted/50 text-center">
+                    <p className="text-sm text-muted-foreground">No data found for this section. You can skip or try again.</p>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {/* PDF Parsing State */}
             {parseState === 'parsing' && (
               <motion.div
                 key="parsing"
@@ -477,7 +622,7 @@ export function LinkedInImportSheet({
                 </motion.div>
 
                 <div className="text-center space-y-2">
-                  <h3 className="text-lg font-semibold">AI is analyzing your profile</h3>
+                  <h3 className="text-lg font-semibold text-foreground">AI is analyzing your profile</h3>
                   <p className="text-sm text-muted-foreground">This usually takes a few seconds...</p>
                 </div>
 
@@ -520,8 +665,8 @@ export function LinkedInImportSheet({
               </motion.div>
             )}
 
-            {/* Preview State */}
-            {parseState === 'preview' && parsedData && (
+            {/* Final Preview State */}
+            {parseState === 'preview' && (
               <motion.div
                 key="preview"
                 initial={{ opacity: 0, y: 20 }}
@@ -534,52 +679,52 @@ export function LinkedInImportSheet({
                     <Check className="w-4 h-4 text-success" />
                   </div>
                   <div>
-                    <h3 className="font-medium">Profile parsed successfully!</h3>
+                    <h3 className="font-medium text-foreground">Ready to import!</h3>
                     <p className="text-sm text-muted-foreground">Select what to import</p>
                   </div>
                 </div>
 
-                {parsedData.summary && (
+                {accumulatedData.summary && (
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
                     className={`p-4 rounded-xl border transition-colors ${selectedSections.summary ? 'border-primary bg-primary/5' : 'border-border'}`}>
                     <div className="flex items-start gap-3">
                       <Checkbox checked={selectedSections.summary} onCheckedChange={() => toggleSection('summary')} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2"><FileText className="w-4 h-4 text-primary" /><span className="font-medium text-sm">Summary</span></div>
-                        <p className="text-sm text-muted-foreground line-clamp-3">{parsedData.summary}</p>
+                        <p className="text-sm text-muted-foreground line-clamp-3">{accumulatedData.summary}</p>
                       </div>
                     </div>
                   </motion.div>
                 )}
 
-                {parsedData.experience?.length > 0 && (
+                {accumulatedData.experience && accumulatedData.experience.length > 0 && (
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
                     className={`p-4 rounded-xl border transition-colors ${selectedSections.experience ? 'border-primary bg-primary/5' : 'border-border'}`}>
                     <div className="flex items-start gap-3">
                       <Checkbox checked={selectedSections.experience} onCheckedChange={() => toggleSection('experience')} />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2"><Briefcase className="w-4 h-4 text-primary" /><span className="font-medium text-sm">Experience</span><Badge variant="secondary" className="text-xs">{parsedData.experience.length} positions</Badge></div>
+                        <div className="flex items-center gap-2 mb-2"><Briefcase className="w-4 h-4 text-primary" /><span className="font-medium text-sm">Experience</span><Badge variant="secondary" className="text-xs">{accumulatedData.experience.length} positions</Badge></div>
                         <div className="space-y-1">
-                          {parsedData.experience.slice(0, 3).map((exp, i) => (
-                            <div key={i} className="text-sm text-muted-foreground"><span className="font-medium text-foreground">{exp.title}</span><span> at {exp.company}</span></div>
+                          {accumulatedData.experience.slice(0, 3).map((exp, i) => (
+                            <div key={i} className="text-sm text-muted-foreground"><span className="font-medium text-foreground">{exp.title}</span> at {exp.company}</div>
                           ))}
-                          {parsedData.experience.length > 3 && <p className="text-xs text-muted-foreground">+{parsedData.experience.length - 3} more</p>}
+                          {accumulatedData.experience.length > 3 && <p className="text-xs text-muted-foreground">+{accumulatedData.experience.length - 3} more</p>}
                         </div>
                       </div>
                     </div>
                   </motion.div>
                 )}
 
-                {parsedData.education?.length > 0 && (
+                {accumulatedData.education && accumulatedData.education.length > 0 && (
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
                     className={`p-4 rounded-xl border transition-colors ${selectedSections.education ? 'border-primary bg-primary/5' : 'border-border'}`}>
                     <div className="flex items-start gap-3">
                       <Checkbox checked={selectedSections.education} onCheckedChange={() => toggleSection('education')} />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2"><GraduationCap className="w-4 h-4 text-primary" /><span className="font-medium text-sm">Education</span><Badge variant="secondary" className="text-xs">{parsedData.education.length} entries</Badge></div>
+                        <div className="flex items-center gap-2 mb-2"><GraduationCap className="w-4 h-4 text-primary" /><span className="font-medium text-sm">Education</span><Badge variant="secondary" className="text-xs">{accumulatedData.education.length} entries</Badge></div>
                         <div className="space-y-1">
-                          {parsedData.education.slice(0, 2).map((edu, i) => (
-                            <div key={i} className="text-sm text-muted-foreground"><span className="font-medium text-foreground">{edu.degree}</span><span> at {edu.institution}</span></div>
+                          {accumulatedData.education.slice(0, 2).map((edu, i) => (
+                            <div key={i} className="text-sm text-muted-foreground"><span className="font-medium text-foreground">{edu.degree}</span> at {edu.institution}</div>
                           ))}
                         </div>
                       </div>
@@ -587,20 +732,30 @@ export function LinkedInImportSheet({
                   </motion.div>
                 )}
 
-                {parsedData.skills?.length > 0 && (
+                {accumulatedData.skills && accumulatedData.skills.length > 0 && (
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
                     className={`p-4 rounded-xl border transition-colors ${selectedSections.skills ? 'border-primary bg-primary/5' : 'border-border'}`}>
                     <div className="flex items-start gap-3">
                       <Checkbox checked={selectedSections.skills} onCheckedChange={() => toggleSection('skills')} />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2"><Lightbulb className="w-4 h-4 text-primary" /><span className="font-medium text-sm">Skills</span><Badge variant="secondary" className="text-xs">{parsedData.skills.length} skills</Badge></div>
+                        <div className="flex items-center gap-2 mb-2"><Lightbulb className="w-4 h-4 text-primary" /><span className="font-medium text-sm">Skills</span><Badge variant="secondary" className="text-xs">{accumulatedData.skills.length} skills</Badge></div>
                         <div className="flex flex-wrap gap-1.5">
-                          {parsedData.skills.slice(0, 8).map((skill, i) => <Badge key={i} variant="outline" className="text-xs">{skill}</Badge>)}
-                          {parsedData.skills.length > 8 && <Badge variant="outline" className="text-xs text-muted-foreground">+{parsedData.skills.length - 8} more</Badge>}
+                          {accumulatedData.skills.slice(0, 8).map((skill, i) => <Badge key={i} variant="outline" className="text-xs">{skill}</Badge>)}
+                          {accumulatedData.skills.length > 8 && <Badge variant="outline" className="text-xs text-muted-foreground">+{accumulatedData.skills.length - 8} more</Badge>}
                         </div>
                       </div>
                     </div>
                   </motion.div>
+                )}
+
+                {/* Empty state */}
+                {!accumulatedData.summary && !accumulatedData.experience?.length && !accumulatedData.education?.length && !accumulatedData.skills?.length && (
+                  <div className="p-6 rounded-xl bg-muted/50 text-center space-y-2">
+                    <p className="text-sm text-muted-foreground">No data was collected. Try going through the steps again.</p>
+                    <Button variant="outline" size="sm" onClick={() => { setActiveGuideStep(0); setParseState('wizard'); }}>
+                      Start Over
+                    </Button>
+                  </div>
                 )}
               </motion.div>
             )}
@@ -622,7 +777,7 @@ export function LinkedInImportSheet({
                   <Check className="w-10 h-10 text-success" />
                 </motion.div>
                 <div className="text-center">
-                  <h3 className="text-lg font-semibold">{parseState === 'importing' ? 'Importing...' : 'Import Complete!'}</h3>
+                  <h3 className="text-lg font-semibold text-foreground">{parseState === 'importing' ? 'Importing...' : 'Import Complete!'}</h3>
                   <p className="text-sm text-muted-foreground">{parseState === 'done' && 'Your LinkedIn data has been added'}</p>
                 </div>
               </motion.div>
@@ -636,19 +791,44 @@ export function LinkedInImportSheet({
             <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">Cancel</Button>
           )}
 
-          {parseState === 'idle' && (
+          {parseState === 'wizard' && (
             <>
-              <Button variant="outline" onClick={handleReset} className="flex-1">Back</Button>
-              <Button onClick={handleParse} disabled={!profileText.trim()} className="flex-1 gap-2">
+              <Button variant="outline" onClick={() => activeGuideStep === 0 ? handleFullReset() : (() => { setActiveGuideStep(prev => prev - 1); setStepText(''); setError(null); })()} className="flex-1">
+                {activeGuideStep === 0 ? 'Back' : 'Previous'}
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={handleSkipStep}
+                className="gap-1 text-muted-foreground"
+              >
+                <SkipForward className="w-3.5 h-3.5" />
+                Skip
+              </Button>
+              <Button onClick={handleStepAnalyze} disabled={!stepText.trim()} className="flex-1 gap-2">
                 <Sparkles className="w-4 h-4" />
-                Analyze & Import
+                Analyze
+              </Button>
+            </>
+          )}
+
+          {parseState === 'step-result' && (
+            <>
+              <Button variant="outline" onClick={() => { setParseState('wizard'); setStepResult(null); }} className="flex-1">
+                Re-paste
+              </Button>
+              <Button onClick={handleStepNext} className="flex-1 gap-2">
+                {activeGuideStep < GUIDE_STEPS.length - 1 ? (
+                  <>Next <ChevronRight className="w-4 h-4" /></>
+                ) : (
+                  <>Review & Import <ChevronRight className="w-4 h-4" /></>
+                )}
               </Button>
             </>
           )}
 
           {parseState === 'preview' && (
             <>
-              <Button variant="outline" onClick={handleReset} className="flex-1">Start Over</Button>
+              <Button variant="outline" onClick={handleFullReset} className="flex-1">Start Over</Button>
               <Button onClick={handleImport} disabled={countSelected() === 0} className="flex-1 gap-2">
                 Import {countSelected()} section{countSelected() !== 1 ? 's' : ''}
                 <ChevronRight className="w-4 h-4" />
