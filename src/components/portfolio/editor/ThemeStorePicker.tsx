@@ -320,7 +320,7 @@ export function ThemeStorePicker({ selectedThemeId, onSelectTheme, userAccent }:
 
   const filteredThemes = activeCategory === 'all'
     ? PORTFOLIO_THEMES
-    : PORTFOLIO_THEMES.filter(t => t.category === activeCategory || t.category === 'all');
+    : PORTFOLIO_THEMES.filter(t => t.category === activeCategory);
 
   return (
     <div className="space-y-3">

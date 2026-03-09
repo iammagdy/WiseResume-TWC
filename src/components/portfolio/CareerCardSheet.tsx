@@ -528,7 +528,7 @@ export function CareerCardSheet({
         <div className="flex-1 min-h-0 overflow-y-auto space-y-5 pt-2 pb-4 max-w-3xl mx-auto w-full">
 
           {/* Live preview */}
-          <div ref={previewWrapperRef} className="pf-card-flip-container w-full max-w-2xl mx-auto rounded-2xl border border-border/40 relative overflow-hidden"
+          <div ref={previewWrapperRef} className="pf-card-flip-container w-full mx-auto rounded-2xl border border-border/40 relative overflow-hidden"
             style={{ aspectRatio: '1200/630' }}
             onMouseMove={(e) => handlePointerMove(e.clientX, e.clientY)}
             onMouseLeave={handlePointerLeave}

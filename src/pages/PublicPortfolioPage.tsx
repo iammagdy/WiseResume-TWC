@@ -1059,10 +1059,10 @@ function PublicPortfolioContent() {
           </button>
           <div>
             <a
-              href={window.location.origin}
+              href="https://resume.thewise.cloud/"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs transition-opacity hover:opacity-80"
+              className="inline-flex items-center gap-1.5 text-xs transition-opacity hover:opacity-80 underline decoration-1 underline-offset-2 cursor-pointer"
               style={{ color: 'var(--pf-muted, #9ca3af)' }}
             >
               Built with <span className="font-bold" style={{ color: accentColor }}>WiseResume</span> · Create your free portfolio →

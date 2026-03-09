@@ -62,7 +62,7 @@ export function SetupTab(props: SetupTabProps) {
       {/* Username */}
       <div className="space-y-1">
         <label className="text-xs font-medium text-foreground">Username</label>
-        <p className="text-[11px] text-muted-foreground">WiseResume/</p>
+        <p className="text-[11px] text-muted-foreground font-mono">resume.thewise.cloud/p/{username || 'your-name'}</p>
         <Input
           value={username}
           onChange={(e) => onUsernameChange(e.target.value)}

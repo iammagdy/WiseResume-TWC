@@ -529,9 +529,23 @@ export function VisitorsPanel({ username, userId, portfolioEnabled }: VisitorsPa
         <div className="flex items-center gap-2 mb-3">
           <TrendingUp className="w-4 h-4 text-primary" />
           <h4 className="text-sm font-semibold text-foreground">Recent Visitors</h4>
-          {visits.length > 0 && (
-            <span className="text-[10px] text-muted-foreground ml-auto">tap to expand</span>
-          )}
+          <div className="ml-auto flex items-center gap-2">
+            {visits.length > 0 && (
+              <span className="text-[10px] text-muted-foreground">tap to expand</span>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0"
+              onClick={() => {
+                haptics.light();
+                window.location.reload();
+              }}
+              title="Refresh"
+            >
+              <Activity className="w-3.5 h-3.5" />
+            </Button>
+          </div>
         </div>
 
         {analyticsLoading ? (

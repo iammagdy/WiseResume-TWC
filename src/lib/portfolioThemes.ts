@@ -156,7 +156,7 @@ export function getThemeById(id: string): PortfolioThemeConfig | undefined {
 
 export function getThemesByCategory(category: ThemeCategory): PortfolioThemeConfig[] {
   if (category === 'all') return PORTFOLIO_THEMES;
-  return PORTFOLIO_THEMES.filter(t => t.category === category || t.category === 'all');
+  return PORTFOLIO_THEMES.filter(t => t.category === category);
 }
 
 /** Build CSS variables for public portfolio from a theme config */
