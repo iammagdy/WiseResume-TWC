@@ -290,6 +290,10 @@ Deno.serve(async (req: Request) => {
       ? `\n\nCurrent Resume:\n${JSON.stringify(currentResume, null, 2).slice(0, 4000)}`
       : "\n\nNo resume loaded yet.";
 
+    const resumeListContext = resumeList && resumeList.length > 0
+      ? `\n\nUser's Resume List (${resumeList.length} total):\n${resumeList.map((r, i) => `${i + 1}. "${r.title}" (id: ${r.id})`).join('\n')}`
+      : "";
+
     // Build messages array
     const messages: any[] = [
       { role: "system", content: SYSTEM_PROMPT + resumeContext },
