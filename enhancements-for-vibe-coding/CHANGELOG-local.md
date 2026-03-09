@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: PORTFOLIO-EMPTY-RESUME-FIX
+- Summary: Updated get_public_portfolio DB function to return profile data with an empty resume skeleton instead of NULL when a user has no resumes. Fixes "Not Found" on portfolio pages for new users who enabled their portfolio before creating a resume.
+- Files touched: Database migration (get_public_portfolio function)
+- Notes: Low risk — only affects users with zero resumes. Existing portfolios unaffected.
+
+- Date: 2026-03-09
 - Issue ID: OAUTH-IMPLICIT-FLOW
 - Summary: Switched Supabase client from PKCE to implicit OAuth flow (flowType: 'implicit', detectSessionInUrl: false) to fix "Unable to exchange external code" error caused by origin mismatch between Lovable preview and external Supabase project.
 - Files touched: src/integrations/supabase/safeClient.ts
