@@ -64,7 +64,9 @@ function OtpInput({ value, onChange, disabled }: { value: string; onChange: (v: 
 export default function EmailConfirmationPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const email = (location.state as { email?: string })?.email || '';
+  const state = location.state as { email?: string; verifyMethod?: string };
+  const email = state?.email || '';
+  const verifyMethod = state?.verifyMethod || 'otp';
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
   const [otp, setOtp] = useState('');
