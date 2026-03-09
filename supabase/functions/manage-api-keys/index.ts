@@ -121,14 +121,6 @@ Deno.serve(async (req) => {
         encrypted_key: encryptedKey,
         key_tier: keyTier || 'unknown',
       };
-      
-      if (baseUrl !== undefined) {
-        upsertData.base_url = baseUrl || null;
-      }
-      
-      if (model !== undefined) {
-        upsertData.model = model || null;
-      }
 
       const { error } = await supabase
         .from('user_api_keys')
