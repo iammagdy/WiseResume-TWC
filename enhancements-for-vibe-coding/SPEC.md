@@ -5,95 +5,127 @@
 
 ## 1. Current Features
 
-- Create resume from blank, from file upload, by duplicating, or from an AI-tailored copy
-- Edit all resume sections: Contact Info, Summary, Experience, Education, Skills, Certifications, Awards, Projects, Publications, Volunteering, Hobbies, References, Languages
-- 30+ resume templates (modern, classic, minimal, developer, executive, banking, legal, marketing, etc.)
+### Resume Management
+- Create resume from blank, file upload, duplicate, or AI-tailored copy
+- Edit all sections: Contact Info, Summary, Experience, Education, Skills, Certifications, Awards, Projects, Publications, Volunteering, Hobbies, References, Languages
+- 30+ templates (modern, classic, minimal, developer, executive, banking, legal, marketing, etc.)
 - Live side-by-side preview with zoom control in the editor
-- Export formats: PDF, ATS-optimized PDF, DOCX, plain text, JSON, image snapshot
-- AI Tailor: match resume to a job description or job URL (light / moderate / aggressive intensity)
-- AI section enhancement: rewrite or improve individual sections (summary, bullets, skills)
-- ATS scoring: deterministic + AI scoring with per-category breakdown and trend chart
-- Resume upload parsing: PDF (with optional OCR), Word (.docx), image (OCR via Tesseract), JSON, HTML
-- AI detect-and-humanize: detect AI-written text and optionally rewrite it
-- Cover letter generator: AI-generated, multiple tones and template styles, saved to DB
-- Resignation letter generator: AI-generated, with notice period, recipient, checklist
-- AI interview simulator: live chat-based mock interview with scoring and feedback
-- Job application tracker: Kanban-style status tracking linked to resumes and cover letters
-- Public portfolio page: shareable at `/p/:username`, synced from a chosen resume
-- Resume sharing: tokenized share link with optional password, expiry, view count, and reviewer comments
-- QR code generator per resume (with styling), batch QR export, QR scanner
-- Career assessment and career path advisor (AI-driven)
-- AI Studio: agentic chat, bring-your-own-key (BYOK) support for Gemini and Ollama
+- Export: PDF, ATS-optimized PDF, DOCX, plain text, JSON, image snapshot
+- Soft-delete/trash system: resumes move to trash (30-day retention), can be restored or permanently deleted
 - Resume version history: auto-versioned snapshots with restore
-- Notifications: in-app notification center + push notification support (Web Push)
-- Achievements and gamification: login streaks, milestones, badges
-- Subscription and referral pages (billing/upgrade flow)
-- Onboarding wizard: first-run flow for new users
-- Biometric lock: Face ID / fingerprint via Capacitor on supported devices
-- Offline sync: editor changes queue when offline and sync on reconnect
+- Master CV (primary resume) designation
+
+### AI Tools
+- **AI Tailor**: match resume to a job description or job URL (light / moderate / aggressive intensity)
+- **AI Section Enhancement**: rewrite or improve individual sections (summary, bullets, skills)
+- **ATS Scoring**: deterministic + AI scoring with per-category breakdown and trend chart
+- **AI Detect & Humanize**: detect AI-written text and optionally rewrite it
+- **Cover Letter Generator**: AI-generated, multiple tones and template styles, saved to DB
+- **Resignation Letter Generator**: AI-generated, with notice period, recipient, checklist
+- **AI Interview Simulator**: live chat-based mock interview with scoring and feedback
+- **Career Assessment**: AI-driven career path advisor with quiz and milestones
+- **AI Studio**: agentic chat with BYOK support (Gemini, Ollama) — provider reverts on close if key not validated
+- **Wise AI**: universal floating chat button (mobile) + desktop nav pill, context-aware category filters (Resumes, Cover Letters, Applications, Portfolio, Activity), clickable resume cards in responses, `add_project` tool support
+
+### Resume Upload & Parsing
+- PDF (with optional OCR), Word (.docx), image (OCR via Tesseract), JSON, HTML
+- LinkedIn Smart Import: guided paste wizard (About → Experience → Education → Skills)
+- LinkedIn PDF import with client-side OCR fallback
+
+### Sharing & Portfolio
+- Resume sharing: tokenized share link with optional password, expiry, view count, reviewer comments
+- QR code generator per resume (with styling), batch QR export, QR scanner
+- Public portfolio page at `/p/:username`, synced from chosen resume
+- Portfolio editor: 4-tab layout (Setup / Content / Design / More)
+  - Setup: username, resume selection, bio
+  - Content: section visibility, availability, case studies, services, testimonials, highlights
+  - Design: theme, layout, accent color, font, style
+  - More: social links, SEO, analytics, career card
+- Branded short links (`/l/:linkId`) with click tracking
+- Portfolio analytics: visitor stats, country breakdown, time spent
+
+### Job Tracking
+- Job application tracker: Kanban-style status tracking linked to resumes and cover letters
+- Saved job listings with detail view
+
+### Account & Settings
+- Supabase Auth (email/password, Google OAuth with implicit flow)
+- OTP signup: 6-digit numeric code via email with 10-min expiry
+- Onboarding wizard on dedicated `/onboarding` page route
+- Delete All Data: thorough deletion of all user tables + profile + localStorage, with sign-out
+- Backup export/import: JSON format with whitelist column approach
+- Profile page with completion tracking
 - Dark / light / system theme
+- Desktop nav: conditional Settings tab (appears on `/settings`, disappears on leave, returns to previous page)
+- Biometric lock (Face ID / fingerprint via Capacitor)
+- Offline sync: editor changes queue when offline and sync on reconnect
 - PWA installable + Capacitor-wrapped for native Android
+- Notifications: in-app center + Web Push support
+- Achievements/gamification: login streaks, milestones, badges
+- Subscription and referral pages
 
 ---
 
 ## 2. Current Screens / Pages
 
 ### Public Routes
-| Route | Screen Name | Description |
-|-------|-------------|-------------|
-| `/` | Landing / Home | Marketing landing page with feature overview and CTAs |
-| `/auth` | Auth | Sign in and sign up |
-| `/sign-in` | Sign In | Dedicated sign-in page |
-| `/reset-password` | Reset Password | Password reset flow |
-| `/share/:token` | Shared Resume View | Public read-only resume view via tokenized share link |
-| `/p/:username` | Public Portfolio | Public-facing portfolio page synced from user's resume |
-| `/l/:linkId` | Short Link Redirect | Branded short URL redirect to portfolio or resume |
-| `/privacy` | Privacy Policy | Legal privacy page |
-| `/terms` | Terms of Service | Legal terms page |
+| Route | Description |
+|-------|-------------|
+| `/` | Landing page with feature overview and CTAs |
+| `/auth` | Sign in / sign up with OTP or link confirmation |
+| `/auth/confirm-email` | OTP/link email confirmation page |
+| `/auth/callback` | OAuth callback handler |
+| `/sign-in` | Dedicated sign-in page |
+| `/reset-password` | Password reset flow |
+| `/share/:token` | Public read-only resume view via tokenized share link |
+| `/p/:username` | Public portfolio page |
+| `/l/:linkId` | Short link redirect |
+| `/privacy` | Privacy policy |
+| `/terms` | Terms of service |
 
-### Protected Routes (require sign-in)
-| Route | Screen Name | Description |
-|-------|-------------|-------------|
-| `/dashboard` | Dashboard | Lists all user resumes with search, filter, quick actions, and stats |
-| `/editor` | Resume Editor | Tabbed editor with live preview, autosave, undo/redo, ATS score bar |
-| `/preview` | Resume Preview | Full-page preview with export (PDF, DOCX, etc.) |
-| `/upload` | Upload Resume | File upload and parsing flow to import an existing resume |
-| `/resume/:id` | Resume Detail | Single resume stats, ATS health, AI tools entry points, share/duplicate/delete |
-| `/templates` | Templates Gallery | Browse and select from 30+ resume templates |
-| `/cover-letters` | Cover Letters List | List of saved cover letters with preview and actions |
-| `/cover-letter/new` | New Cover Letter | AI cover letter generator form |
-| `/cover-letter/edit/:id` | Edit Cover Letter | Edit a saved cover letter |
-| `/resignation-letters` | Resignation Letters List | List of saved resignation letters |
-| `/resignation-letter/new` | New Resignation Letter | AI resignation letter generator form |
-| `/resignation-letter/edit/:id` | Edit Resignation Letter | Edit a saved resignation letter |
-| `/interview` | AI Interview | Chat-based mock interview simulator with scoring |
-| `/applications` | Job Applications | Kanban/list tracker for job applications |
-| `/application/:id` | Application Detail | Detail view for a single job application |
-| `/job/:id` | Job Detail | Detail view for a saved job listing |
-| `/career` | Career Advisor | AI-driven career assessment and path recommendations |
-| `/portfolio` | Portfolio Editor | Configure public portfolio: theme, sections, bio, links |
-| `/analytics` | Portfolio Analytics | Visitor stats for the user's public portfolio page |
-| `/ai-studio` | AI Studio | Agentic AI chat with BYOK support |
-| `/guides` | Guides | Resume writing guides index |
-| `/guides/:slug` | Guide Detail | Individual resume writing guide article |
-| `/examples` | Examples Gallery | Curated resume examples by industry/role |
-| `/notifications` | Notifications | In-app notification center |
-| `/qr-code` | QR Code Generator | Styled QR code generator for a resume |
-| `/qr-batch` | Batch QR Export | Bulk QR code generation and download |
-| `/qr-scan` | QR Scanner | Camera-based QR code scanner |
-| `/subscription` | Subscription | Billing and plan upgrade page |
-| `/referral` | Referral | Referral program page |
-| `/achievements` | Achievements | Gamification — streaks, badges, milestones |
-| `/profile` | User Profile | Edit user profile info (name, photo, social links, industry) |
-| `/settings` | Settings | App settings: theme, notifications, biometric, AI provider, API keys |
-| `/help` | Help Center | In-app help and support links |
-| `/onboarding` | Onboarding | First-run wizard guiding new users through setup |
+### Protected Routes
+| Route | Description |
+|-------|-------------|
+| `/dashboard` | Resume list with search, quick actions, stats, trash sheet |
+| `/editor` | Tabbed resume editor with live preview, autosave, ATS bar |
+| `/preview` | Full-page preview with multi-format export |
+| `/upload` | File upload and parsing flow |
+| `/resume/:id` | Resume detail: stats, ATS health, AI tools, share/duplicate/delete |
+| `/templates` | Template gallery (30+ templates) |
+| `/cover-letters` | Cover letters list |
+| `/cover-letter/new` | AI cover letter generator |
+| `/cover-letter/edit/:id` | Edit cover letter |
+| `/resignation-letters` | Resignation letters list |
+| `/resignation-letter/new` | AI resignation letter generator |
+| `/resignation-letter/edit/:id` | Edit resignation letter |
+| `/interview` | AI mock interview simulator |
+| `/applications` | Job application tracker |
+| `/application/:id` | Application detail |
+| `/job/:id` | Job detail |
+| `/career` | Career advisor |
+| `/portfolio` | Portfolio editor (4-tab: Setup/Content/Design/More) |
+| `/analytics` | Portfolio analytics |
+| `/ai-studio` | AI Studio with BYOK |
+| `/guides` | Resume writing guides |
+| `/guides/:slug` | Individual guide article |
+| `/examples` | Resume examples gallery |
+| `/notifications` | Notification center |
+| `/qr-code` | QR code generator |
+| `/qr-batch` | Batch QR export |
+| `/qr-scan` | QR scanner |
+| `/subscription` | Billing/plan page |
+| `/referral` | Referral program |
+| `/achievements` | Gamification page |
+| `/profile` | User profile editor |
+| `/settings` | App settings |
+| `/help` | Help center |
+| `/onboarding` | First-run wizard |
 
 ---
 
-## 3. Current API / Data Model
+## 3. Data Model
 
-### Core Resume Shape (`ResumeData` in `src/types/resume.ts`)
+### Core Resume Shape (`ResumeData`)
 ```
 ResumeData {
   id?, contactInfo, summary, experience[], education[], skills[],
@@ -107,168 +139,139 @@ ResumeData {
 
 | Table | Purpose |
 |-------|---------|
-| `resumes` | Central entity. Stores all resume content as JSONB columns. One row per resume version. |
-| `profiles` | User public profile, portfolio config, social links, username, GitHub cache, login streak |
+| `resumes` | Central entity with JSONB columns, soft-delete via `deleted_at` |
+| `profiles` | User profile, portfolio config, social links, username, login streak |
 | `cover_letters` | AI-generated cover letters linked to a resume |
-| `resignation_letters` | AI-generated resignation letters with notice period and checklist |
-| `interview_sessions` | AI mock interview sessions — messages JSON, scores, job context |
-| `tailor_history` | Snapshot of each AI tailor run: before/after scores, applied sections |
-| `resume_versions` | Version snapshots of resume JSON for history/restore |
-| `resume_shares` | Tokenized share links with optional password, expiry, view count |
-| `share_comments` | Reviewer comments attached to a shared resume |
+| `resignation_letters` | AI-generated resignation letters with checklist |
+| `interview_sessions` | AI mock interview sessions with messages, scores |
+| `tailor_history` | Each AI tailor run: before/after scores, applied sections |
+| `resume_versions` | Version snapshots for history/restore |
+| `resume_shares` | Tokenized share links with optional password, expiry |
+| `share_comments` | Reviewer comments on shared resumes |
 | `jobs` | User-saved job listings |
-| `job_applications` | Job application tracker: status, linked resume, cover letter, deadlines |
-| `notifications` | In-app notifications (system, AI, reminder types) |
-| `portfolio_visits` | Analytics rows per public portfolio page visit |
-| `short_links` | Branded short URLs pointing to portfolio or resume |
-| `ai_credits` | Daily AI usage tracking per user (limit + usage) |
-| `ai_usage_logs` | Per-action AI audit log (action_type, section, resume_id) |
-| `user_api_keys` | Encrypted BYOK API keys (Gemini, ElevenLabs, Ollama) |
-| `user_preferences` | Per-user settings: default template, PDF defaults, biometric, AI provider |
-| `career_assessments` | Career quiz results and milestone tracking |
-| `bug_reports` | User-submitted error reports |
-| `feature_requests` | User-submitted feature request submissions |
-| `push_subscriptions` | Web Push subscription endpoints per device |
-| `audit_logs` | General audit trail for user actions |
-| `store_screenshots` | App store screenshot assets (read-only to users) |
+| `job_applications` | Application tracker with status, linked resume/cover letter |
+| `notifications` | In-app notifications |
+| `portfolio_visits` | Analytics per portfolio page visit |
+| `short_links` | Branded short URLs (uses `owner_user_id` not `user_id`) |
+| `ai_credits` | Daily AI usage tracking per user |
+| `ai_usage_logs` | Per-action AI audit log |
+| `user_api_keys` | Encrypted BYOK API keys |
+| `user_preferences` | Per-user settings: template, PDF defaults, biometric, AI provider |
+| `career_assessments` | Career quiz results and milestones |
+| `bug_reports` | User-submitted error reports (with `screen`, `error_category`) |
+| `feature_requests` | User-submitted feature requests |
+| `contact_inquiries` | User contact submissions with department |
+| `push_subscriptions` | Web Push subscription endpoints |
+| `audit_logs` | General audit trail |
+| `signup_otps` | 6-digit OTP codes for signup (10-min expiry) |
+| `store_screenshots` | App store screenshot assets (read-only) |
 
-### Edge Functions (45 total)
+### Edge Functions (48 total)
 
-**Core AI**
-- `tailor-resume` — AI job-tailoring: rewrites summary, skills, experience bullets to match a JD
-- `score-resume` — Deterministic ATS scoring with category breakdown and feedback
-- `analyze-resume` — Deep resume analysis (gaps, strengths, improvements)
-- `enhance-section` — AI rewrite of a single resume section
-- `parse-resume` — Extract structured ResumeData from raw text/PDF content
+**Core AI**: `tailor-resume`, `score-resume`, `analyze-resume`, `enhance-section`, `parse-resume`
 
-**Writing**
-- `generate-cover-letter` — AI cover letter generation (tone, style, job context)
-- `generate-resignation-letter` — AI resignation letter with notice period and checklist
-- `generate-question-bank` — Generate interview questions based on resume + JD
-- `detect-and-humanize` — Detect AI-written text; optionally rewrite to sound human
+**Writing**: `generate-cover-letter`, `generate-resignation-letter`, `generate-question-bank`, `detect-and-humanize`
 
-**Parsing**
-- `parse-job-url` — Scrape and parse a job posting from a URL
-- `parse-job-text` — Extract structured job data from pasted text
-- `parse-linkedin` — Parse LinkedIn profile data into resume format
+**Parsing**: `parse-job-url`, `parse-job-text`, `parse-linkedin`
 
-**Interview**
-- `interview-chat` — Streaming AI interviewer chat (general, behavioral, technical)
-- `recruiter-simulation` — Simulate a recruiter screening call
-- `company-briefing` — Generate company intel and culture notes for interview prep
+**Interview**: `interview-chat`, `recruiter-simulation`, `company-briefing`
 
-**Portfolio**
-- `generate-portfolio-bio` — AI-generated professional bio for portfolio page
-- `ask-portfolio` — AI chatbot that answers questions about a user's portfolio
-- `portfolio-meta` — Generate SEO meta title/description for portfolio
-- `track-portfolio-view` — Record a portfolio page visit (analytics)
-- `fetch-github-projects` — Sync public GitHub repos into portfolio projects
-- `og-image` — Generate Open Graph social preview image for portfolio
+**Portfolio**: `generate-portfolio-bio`, `ask-portfolio`, `portfolio-meta`, `track-portfolio-view`, `fetch-github-projects`, `og-image`
 
-**Career**
-- `career-assessment` — Evaluate resume against career goals and suggest paths
-- `career-path-advisor` — AI career path recommendations
+**Career**: `career-assessment`, `career-path-advisor`
 
-**Export / Optimization**
-- `one-page-optimizer` — Condense resume content to fit one page
-- `optimize-for-linkedin` — Reformat resume data for LinkedIn import
+**Export/Optimization**: `one-page-optimizer`, `optimize-for-linkedin`
 
-**Gap Analysis**
-- `explain-gap` — Explain employment gaps in a positive framing
-- `fill-gap` — Suggest content to fill identified resume gaps
+**Gap Analysis**: `explain-gap`, `fill-gap`
 
-**AI Utility**
-- `agentic-chat` — General-purpose AI chat for the AI Studio
-- `ai-health` — Health check for AI provider availability
-- `ai-test` — Internal AI model test harness
-- `manage-api-keys` — CRUD for encrypted user API keys
-- `validate-api-key` — Validate a user-provided API key against the provider
+**AI Utility**: `agentic-chat`, `ai-health`, `ai-test`, `manage-api-keys`, `validate-api-key`
 
-**System**
-- `send-bug-report` — Email bug report to admin
-- `send-feature-request` — Email feature request to admin
-- `send-push-notification` — Send Web Push notification to a user's subscribed devices
-- `send-resume-reminder` — Scheduled reminder to update resume
-- `weekly-digest` — Weekly email digest of activity/tips
-- `resolve-short-link` — Resolve a short link ID to its target URL
-- `generate-headshot` — AI headshot generation from uploaded photo
-- `generate-store-screenshots` — Generate app store marketing screenshots
-- `suggest-template` — AI template suggestion based on job/industry/skills
-- `elevenlabs-scribe-token` — Generate a single-use ElevenLabs speech token
+**Auth**: `auth-email-hook`, `send-signup-otp`, `verify-signup-otp`
+
+**System**: `send-bug-report`, `send-feature-request`, `send-contact-inquiry`, `send-push-notification`, `send-resume-reminder`, `weekly-digest`, `resolve-short-link`, `generate-headshot`, `generate-store-screenshots`, `suggest-template`, `elevenlabs-scribe-token`, `migrate-user-data`
+
+### Database Functions (RPCs)
+- `soft_delete_resume(p_resume_id)` — soft-delete a resume (set `deleted_at`)
+- `soft_delete_resumes(p_resume_ids)` — bulk soft-delete
+- `restore_resume(p_resume_id)` — restore from trash (clear `deleted_at`)
+- `get_shared_resume(share_token, password_attempt?)` — fetch shared resume with password validation
+- `get_public_portfolio(p_username)` — fetch portfolio data (returns empty resume skeleton if none exist)
+- `check_username_available(p_username, p_user_id)` — check portfolio username availability
+- `increment_ai_usage(p_user_id)` — increment daily AI usage counter
+- `record_portfolio_visit(...)` — record analytics visit
+- `resolve_short_link(p_link_id)` — resolve branded short URL
+- `handle_new_user()` — trigger: auto-create profile on signup
+- `handle_new_profile_preferences()` — trigger: auto-create user_preferences
+- `cleanup_stale_data()` — purge old logs, notifications, versions
 
 ---
 
 ## 4. Key User Flows
 
-### Flow 1: Create a New Resume from Blank
-1. User opens Dashboard and taps **+ New Resume**
-2. `CreateResumeDialog` prompts for a title and optional template selection
-3. A new `resumes` row is inserted with default empty JSON fields
-4. User is navigated to `/editor?id=<resumeId>`
-5. User fills sections tab by tab; autosave debounces writes to DB every 3s
-6. ATS score is computed in the background and displayed in the progress bar
+### Create Resume from Blank
+1. Dashboard → **+ New Resume** → title + template selection
+2. New `resumes` row inserted → navigate to `/editor?id=<id>`
+3. Fill sections tab by tab; autosave debounces writes every 3s
+4. ATS score computed in background
 
-### Flow 2: Upload and Parse an Existing Resume
-1. User navigates to `/upload` or taps the upload option in the Dashboard
-2. User drops a PDF, Word, image, or JSON file onto the upload zone
-3. If PDF: app checks if text-layer exists; if not, prompts OCR confirmation
-4. `parse-resume` edge function extracts structured `ResumeData` from the file
-5. `ImportReviewSheet` shows the parsed sections; user selects which to keep
-6. Confirmed data is saved as a new `resumes` row; user is sent to `/editor`
+### Upload and Parse Resume
+1. `/upload` → drop PDF/Word/image/JSON → OCR prompt if needed
+2. `parse-resume` edge function extracts `ResumeData`
+3. Import review sheet → select sections → save as new resume
 
-### Flow 3: AI Tailor Resume to a Job Description
-1. From Dashboard or Resume Detail, user taps **Tailor**
-2. User pastes a job description or a job URL (parsed via `parse-job-url`)
-3. User picks tailor intensity (light / moderate / aggressive)
-4. `tailor-resume` edge function rewrites summary, skills, and experience bullets
-5. Results shown in a diff-style preview; user selects which sections to apply
-6. Applied changes are merged into the resume; a `tailor_history` row is saved; ATS score is re-computed
+### AI Tailor to Job Description
+1. Dashboard or Resume Detail → **Tailor** → paste JD or job URL
+2. Pick intensity → `tailor-resume` rewrites sections
+3. Diff-style preview → select sections to apply → merge + save `tailor_history`
 
-### Flow 4: Preview and Export
-1. From the editor or Resume Detail, user taps **Preview** or **Download**
-2. `/preview` renders the resume using the chosen template at A4/Letter size
-3. User selects export format: PDF, ATS PDF, DOCX, plain text, image, JSON
-4. For PDF: `html2canvas` captures the DOM; `pdf-lib` assembles the file
-5. For DOCX: the `docx` library builds the document from resume data
-6. File is downloaded to the user's device
+### Delete Resume (Soft Delete)
+1. Dashboard → three-dot menu → Delete → confirmation dialog
+2. Direct `.update({ deleted_at: timestamp })` on `resumes` table
+3. Resume appears in Trash sheet → can restore or permanently delete
+4. Empty Trash deletes all trashed resumes permanently
 
-### Flow 5: Share Resume via Link
-1. From Resume Detail or Preview, user taps **Share**
-2. App calls `resume_shares` insert to create a token; optional password and expiry are set
-3. A shareable URL (`/share/:token`) is copied to clipboard
-4. Recipient opens the URL; if password-protected, they enter it first
-5. `get_shared_resume` RPC validates token and returns resume data
-6. Recipient can leave section comments (stored in `share_comments`)
+### Delete All Data
+1. Settings → Delete All Data → type "DELETE" → confirm
+2. Deletes all user tables in order (dependents first, then resumes, then profile)
+3. Clears all localStorage keys → signs user out
+4. `handle_new_user` trigger recreates empty profile on next login
 
 ---
 
-## 5. Known Issues / Technical Debt
+## 5. Architecture Notes
 
-- `AppShell` uses `bg-transparent` — card/panel components must set their own backgrounds explicitly or they will be invisible over `SkyWallpaper`
-- Resume content (experience bullets, skills) is stored as JSONB blobs — no full-text search or column-level indexing; search on Dashboard is client-side only
-- Several Suspense fallback skeletons are generic and do not match the final layout of the page they guard — causes layout shift on slow loads
-- `useResumeStore` persists to `localStorage` — OS or browser can silently evict this on low-storage mobile devices without user warning
-- `EditorPage` is ~1,400 lines handling autosave, undo/redo, AI scoring, section routing, and rendering — should be decomposed into focused sub-components/hooks
-- `SkyWallpaper` GPU animation runs on all routes including public standalone pages (`/share`, `/p/:username`) — should be disabled or reduced on those routes
-- No pagination or virtual list on the Dashboard resume list — may degrade for users with 20+ resumes
-- Legacy resume JSON shapes from earlier schema versions may surface `undefined` fields in older resumes not yet migrated to the current `ResumeData` shape
-- `tailor_history` table has no UPDATE RLS policy — completed tailor runs cannot be edited or flagged as applied after the fact
-- `ai_credits` table has no UPDATE RLS policy — credit deduction is handled only via `increment_ai_usage` RPC; direct client updates are not possible (intentional but worth noting)
-- No server-side validation on resume section content length before saving — very long inputs could cause edge function token overflows
-- `enhancements-for-vibe-coding/SPEC.md` (this file) must be manually kept in sync as features ship
+- **Auth**: Supabase Auth (email/password + Google OAuth, implicit flow) on external project `jnsfmkzgxsviuthaqlyy`
+- **Edge Functions**: deployed on Lovable Cloud (`hjnnamwgztlhzkeuufln`), connect to external DB via `EXT_SUPABASE_URL` + `EXT_SUPABASE_SERVICE_ROLE_KEY`
+- **GitHub CI**: `.github/workflows/deploy-edge-functions.yml` uses `supabase/setup-cli@v1` to deploy all functions
+- **RPC functions** (`soft_delete_resume`, etc.) exist on external DB but app currently uses direct `.update()` calls with `as any` cast to bypass stale TypeScript types
+- **AI provider**: defaults to WiseResume AI (Lovable AI gateway); BYOK Gemini/Ollama supported; provider selection reverts if key not validated on sheet close
+
+---
+
+## 6. Known Issues / Technical Debt
+
+- `AppShell` uses `bg-transparent` — components must set their own backgrounds
+- Resume JSONB blobs have no full-text search; Dashboard search is client-side only
+- Several Suspense skeletons don't match final layout — causes layout shift
+- `useResumeStore` persists to localStorage — can be evicted on low-storage devices
+- `EditorPage` is ~1,400 lines — should be decomposed into sub-components/hooks
+- `SkyWallpaper` GPU animation runs on all routes including public pages
+- No pagination/virtual list on Dashboard resume list — may degrade with 20+ resumes
+- Legacy resume JSON shapes may surface `undefined` fields in older resumes
+- `tailor_history` and `ai_credits` have no UPDATE RLS policy (intentional)
+- No server-side validation on resume content length — potential token overflow
+- `feature_requests` and `contact_inquiries` have no DELETE RLS policy — cannot be removed by users
+- `bug_reports` has no DELETE or UPDATE RLS policy
+- `portfolio_visits` has no DELETE RLS policy — visits cannot be purged by users
+- This spec must be manually kept in sync as features ship
 
 ---
 
 ## Issue Ticket Template
 
-- Issue ID: ISSUE-XXX  
-
-- Problem:  
-
-- Scope (pages/files/components):  
-
-- Do Not Break (required behaviors):  
-
-- Proposed Small Change:  
-
-- Notes / Edge Cases:  
+- Issue ID: ISSUE-XXX
+- Problem:
+- Scope (pages/files/components):
+- Do Not Break (required behaviors):
+- Proposed Small Change:
+- Notes / Edge Cases:
