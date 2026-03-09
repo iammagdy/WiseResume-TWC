@@ -215,9 +215,9 @@ export default function SettingsPage() {
     try {
       await signOut();
     } catch {}
-    navigate('/');
     toast.success('All data deleted');
-  }, [signOut, navigate]);
+    window.location.replace('/');
+  }, [signOut]);
 
   const handleShareApp = useCallback(async () => {
     const shareData = {

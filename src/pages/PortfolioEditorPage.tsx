@@ -448,15 +448,23 @@ export default function PortfolioEditorPage() {
                 onBioChange={setBio}
                 onGenerateBio={handleGenerateBio}
                 generatingBio={generatingBio}
+                sections={sections}
+                onToggleSectionVisibility={toggleSectionVisibility}
+                syncMode={syncMode}
+                onSyncModeChange={setSyncMode}
+                openSections={openSections}
+                toggleSection={toggleSection}
+                openToWork={openToWork}
+                onOpenToWorkChange={setOpenToWork}
+                availabilityHeadline={availabilityHeadline}
+                onAvailabilityHeadlineChange={setAvailabilityHeadline}
+                onGenerateAvailability={handleGenerateAvailability}
+                generatingAvailability={generatingAvailability}
               />
             )}
 
             {activeTab === 'content' && (
               <ContentTab
-                sections={sections}
-                onToggleSectionVisibility={toggleSectionVisibility}
-                syncMode={syncMode}
-                onSyncModeChange={setSyncMode}
                 openSections={openSections}
                 toggleSection={toggleSection}
                 caseStudies={caseStudies}
@@ -467,12 +475,6 @@ export default function PortfolioEditorPage() {
                 onTestimonialsChange={setTestimonials}
                 highlights={highlights}
                 onHighlightsChange={setHighlights}
-                openToWork={openToWork}
-                onOpenToWorkChange={setOpenToWork}
-                availabilityHeadline={availabilityHeadline}
-                onAvailabilityHeadlineChange={setAvailabilityHeadline}
-                onGenerateAvailability={handleGenerateAvailability}
-                generatingAvailability={generatingAvailability}
               />
             )}
 
