@@ -278,7 +278,7 @@ export default function AuthPage() {
         <ArrowLeft className="w-5 h-5" />
       </button>
 
-      <div className="flex-1 flex items-center justify-center px-6 py-8">
+      <div className="flex-1 flex items-center justify-center px-6 py-12">
         <div
           className="w-full max-w-sm p-[1px] rounded-2xl"
           style={{
