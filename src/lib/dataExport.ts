@@ -200,8 +200,19 @@ export async function importResumes(file: File, userId: string): Promise<number>
 }
 
 export async function deleteAllUserData(userId: string): Promise<void> {
-  // Delete user-level tables that are NOT cascade-handled by resumes FK.
-  // Order: independent tables first, then resumes (cascades versions/shares/comments), then profiles.
+  // Delete dependent tables first (don't rely on cascade)
+  const dependentTables = [
+    'share_comments',   // depends on resume_shares
+    'resume_shares',    // depends on resumes
+    'resume_versions',  // depends on resumes
+  ] as const;
+
+  for (const table of dependentTables) {
+    const { error } = await supabase.from(table).delete().eq('user_id', userId);
+    if (error) console.error(`Failed to delete from ${table}:`, error);
+  }
+
+  // Delete user-level tables
   const userTables = [
     'tailor_history',
     'cover_letters',
@@ -218,33 +229,40 @@ export async function deleteAllUserData(userId: string): Promise<void> {
     'resignation_letters',
     'user_preferences',
     'audit_logs',
+    'contact_inquiries',
+    'feature_requests',
   ] as const;
 
   for (const table of userTables) {
     const { error } = await supabase.from(table).delete().eq('user_id', userId);
-    if (error) {
-      console.error(`Failed to delete from ${table}:`, error);
-      // Continue deleting other tables even if one fails
-    }
+    if (error) console.error(`Failed to delete from ${table}:`, error);
   }
 
-  // Delete resumes — cascades to resume_versions, resume_shares, share_comments
+  // Delete short_links (uses owner_user_id instead of user_id)
+  const { error: shortLinksError } = await supabase
+    .from('short_links')
+    .delete()
+    .eq('owner_user_id', userId);
+  if (shortLinksError) console.error('Failed to delete from short_links:', shortLinksError);
+
+  // Delete resumes
   const { error: resumesError } = await supabase
     .from('resumes')
     .delete()
     .eq('user_id', userId);
-
-  if (resumesError) throw resumesError;
+  if (resumesError) console.error('Failed to delete resumes:', resumesError);
 
   // Delete profile last
   const { error: profileError } = await supabase
     .from('profiles')
     .delete()
     .eq('user_id', userId);
+  if (profileError) console.error('Failed to delete profile:', profileError);
 
-  if (profileError) throw profileError;
-
-  // Clear local storage
+  // Clear all local storage
   localStorage.removeItem('wiseresume-settings');
   localStorage.removeItem('resume-store');
+  localStorage.removeItem('resume-storage');
+  localStorage.removeItem('wr-ats-score-history');
+  localStorage.removeItem('wr-offline-sync');
 }
