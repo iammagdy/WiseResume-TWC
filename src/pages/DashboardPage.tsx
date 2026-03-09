@@ -717,19 +717,7 @@ function DashboardPageContent() {
             </div>
           )}
 
-          {/* Filter/Sort bar */}
-          {resumes && resumes.length >= 2 && (
-            <ResumeFilters
-              sort={sortOption}
-              onSortChange={setSortOption}
-              categoryFilters={categoryFilters}
-              onCategoryToggle={handleCategoryToggle}
-              scoreFilters={scoreFilters}
-              onScoreToggle={handleScoreToggle}
-              onClearAll={handleClearFilters}
-              hasActiveFilters={hasActiveFilters}
-            />
-          )}
+          {/* Filter/Sort bar removed — simplified UI */}
 
           {/* Content */}
           {isLoading ? (

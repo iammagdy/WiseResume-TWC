@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit2, Share2, FileText, Briefcase, Globe, ExternalLink, MapPin, Clock, HardDrive, Linkedin } from 'lucide-react';
+import { Edit2, Share2, FileText, Briefcase, Globe, ExternalLink, MapPin, Clock, HardDrive, Linkedin, Sparkles } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
