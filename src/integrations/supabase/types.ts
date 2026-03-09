@@ -560,6 +560,7 @@ export type Database = {
           career_level: string | null
           contact_email: string | null
           created_at: string | null
+          date_of_birth: string | null
           digest_enabled: boolean | null
           full_name: string | null
           github_last_synced: string | null
@@ -591,6 +592,7 @@ export type Database = {
           portfolio_sync_mode: string | null
           portfolio_theme: string | null
           profile_completed: boolean | null
+          referral_source: string | null
           twitter_url: string | null
           updated_at: string | null
           user_id: string
@@ -604,6 +606,7 @@ export type Database = {
           career_level?: string | null
           contact_email?: string | null
           created_at?: string | null
+          date_of_birth?: string | null
           digest_enabled?: boolean | null
           full_name?: string | null
           github_last_synced?: string | null
@@ -635,6 +638,7 @@ export type Database = {
           portfolio_sync_mode?: string | null
           portfolio_theme?: string | null
           profile_completed?: boolean | null
+          referral_source?: string | null
           twitter_url?: string | null
           updated_at?: string | null
           user_id: string
@@ -648,6 +652,7 @@ export type Database = {
           career_level?: string | null
           contact_email?: string | null
           created_at?: string | null
+          date_of_birth?: string | null
           digest_enabled?: boolean | null
           full_name?: string | null
           github_last_synced?: string | null
@@ -679,6 +684,7 @@ export type Database = {
           portfolio_sync_mode?: string | null
           portfolio_theme?: string | null
           profile_completed?: boolean | null
+          referral_source?: string | null
           twitter_url?: string | null
           updated_at?: string | null
           user_id?: string
