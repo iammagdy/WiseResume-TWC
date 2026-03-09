@@ -340,6 +340,14 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
           setGeminiKeyValidated(true);
           setGeminiModel(modelToSave);
           setGeminiConnectedAt(new Date().toISOString());
+          setAIProvider('gemini');
+          // Persist provider preference now that key is validated
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user?.id) {
+              await supabase.from('user_preferences').update({ ai_provider: 'gemini' }).eq('user_id', session.user.id);
+            }
+          } catch {}
           logAudit('api_key', 'key_saved', { provider: 'gemini', tier: validationResult.tier, model: modelToSave });
           resetFallbackToast();
           haptics.success();
