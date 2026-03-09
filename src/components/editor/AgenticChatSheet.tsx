@@ -369,6 +369,30 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
                           <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:mb-2 [&>p:last-child]:mb-0">
                             <ReactMarkdown>{msg.content}</ReactMarkdown>
                           </div>
+                          {/* Clickable resume cards when AI mentions resume titles */}
+                          {msg.role === 'assistant' && allResumes.length > 0 && (() => {
+                            const mentioned = allResumes.filter(r => msg.content.includes(r.title));
+                            if (mentioned.length === 0) return null;
+                            return (
+                              <div className="mt-2 flex flex-wrap gap-1.5">
+                                {mentioned.map(r => (
+                                  <button
+                                    key={r.id}
+                                    onClick={() => handleSelectResume(r)}
+                                    className={cn(
+                                      'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs border transition-all touch-manipulation active:scale-95',
+                                      currentResume?.id === r.id
+                                        ? 'bg-primary/10 border-primary/30 text-primary font-medium'
+                                        : 'bg-card border-border/50 hover:border-primary/20 hover:bg-primary/5'
+                                    )}
+                                  >
+                                    <FileText className="w-3 h-3 shrink-0" />
+                                    <span className="truncate max-w-[140px]">{r.title}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            );
+                          })()}
                           {msg.suggestion && msg.suggestion.length > 0 && (
                             <div className="mt-3 space-y-2">
                               {msg.suggestion.map((proposal, idx) => (
