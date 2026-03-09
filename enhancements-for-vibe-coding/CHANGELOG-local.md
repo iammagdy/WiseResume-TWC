@@ -7,6 +7,13 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: AI-SETTINGS-LEAK-FIX
+- Summary: Fixed AI provider settings (Gemini/Ollama validated flags, provider choice) leaking between users via localStorage. Added reset on sign-out and reset-before-hydrate on login.
+- Files touched: src/hooks/useAIKeyHydration.ts, src/contexts/AuthContext.tsx
+- Notes: Low risk — resetSettings() restores defaults; hydration re-applies server values on next login.
+
+
+- Date: 2026-03-09
 - Issue ID: AI-TEST-401-FIX
 - Summary: Fixed 401 in ai-test edge function. Replaced getClaims() with requireAuth() middleware for cross-project JWT compatibility.
 - Files touched: supabase/functions/ai-test/index.ts

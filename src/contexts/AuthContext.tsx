@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { migrateLocalKeysToServer } from '@/lib/migrateLocalKeys';
+import { useSettingsStore } from '@/store/settingsStore';
 import { logAudit } from '@/lib/auditLogger';
 import { runDailyCleanup } from '@/lib/dbCleanup';
 
@@ -90,6 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.error('Sign-out failed:', e);
     }
+    useSettingsStore.getState().resetSettings();
   }, []);
 
   const isAuthenticated = !!user && !!session;
