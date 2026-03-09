@@ -6,6 +6,12 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-09
 
+### COMPANY-BRIEFING-ENHANCEMENT
+- **Summary**: Enhanced Company Briefing tool with dual input modes (Search by Company Name + Paste Job Description), deep research via `gemini-2.5-pro` for company-name searches, expanded output (competitors, products/services, tech stack, Glassdoor-style workplace insights), PDF download, copy-to-clipboard, and Smart Tailor CTA linking to resume tailoring.
+- **Files**: `supabase/functions/company-briefing/index.ts`, `src/types/companyBriefing.ts`, `src/hooks/useCompanyBriefing.ts`, `src/components/interview/CompanyBriefingSheet.tsx`
+
+---
+
 ### FIX-4-ISSUES-CI-DELETE-DOCS
 - **Summary**: Four fixes: (1) GitHub CI — replaced broken `npm install -g supabase` with `supabase/setup-cli@v1` and deploy-all. (2) Resume delete — replaced RPC calls (`soft_delete_resume`, `soft_delete_resumes`, `restore_resume`) with direct `.update()` using `as any` cast since RPCs only exist on Lovable Cloud, not external DB. (3) Delete All Data — added missing tables (`short_links`, `contact_inquiries`, `feature_requests`), explicit dependent deletes (`share_comments`, `resume_shares`, `resume_versions`), more localStorage cleanup. (4) Reorganized CHANGELOG-local.md and updated SPEC.md.
 - **Files**: `.github/workflows/deploy-edge-functions.yml`, `src/hooks/useResumes.ts`, `src/lib/dataExport.ts`, `enhancements-for-vibe-coding/CHANGELOG-local.md`, `enhancements-for-vibe-coding/SPEC.md`
