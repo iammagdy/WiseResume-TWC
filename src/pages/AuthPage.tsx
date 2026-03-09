@@ -266,12 +266,11 @@ export default function AuthPage() {
       {/* Back button */}
       <button
         onClick={() => navigate('/')}
-        className="absolute top-4 left-4 z-20 p-2 rounded-xl active:scale-95 transition-all touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
+        className="absolute top-4 left-4 z-20 p-2 rounded-xl active:scale-95 transition-all touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center text-foreground/85 dark:text-white/85"
         style={{
-          background: 'hsl(0 0% 100% / 0.15)',
+          background: 'hsl(var(--foreground) / 0.08)',
           backdropFilter: 'blur(8px)',
-          border: '1px solid hsl(0 0% 100% / 0.25)',
-          color: 'hsl(0 0% 100% / 0.85)',
+          border: '1px solid hsl(var(--foreground) / 0.12)',
         }}
         aria-label="Back to home"
       >
