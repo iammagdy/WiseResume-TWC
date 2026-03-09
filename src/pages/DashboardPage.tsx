@@ -745,7 +745,7 @@ function DashboardPageContent() {
             </div>
           ) : !resumes || resumes.length === 0 ? (
             <>
-              <EmptyState onCreateNew={handleCreateNew} onBrowseTemplates={() => setShowCreateDialog(true)} onStartOnboarding={() => setShowOnboarding(true)} />
+              <EmptyState onCreateNew={handleCreateNew} onBrowseTemplates={() => setShowCreateDialog(true)} onStartOnboarding={() => navigate('/onboarding')} />
             </>
           ) : !hasResumes ? (
             <div className="flex items-center justify-center px-4 py-16">
