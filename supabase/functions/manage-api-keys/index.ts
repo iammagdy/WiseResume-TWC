@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
     if (req.method === 'GET') {
       const { data, error } = await supabase
         .from('user_api_keys')
-        .select('provider, key_tier, base_url, model, created_at, updated_at')
+        .select('provider, key_tier, created_at, updated_at')
         .eq('user_id', userId);
 
       if (error) throw error;
