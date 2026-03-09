@@ -231,7 +231,12 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="relative isolate min-h-[100dvh] flex flex-col overflow-hidden">
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.98 }} 
+      animate={{ opacity: 1, scale: 1 }} 
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className="relative isolate min-h-[100dvh] flex flex-col overflow-hidden"
+    >
       <OfflineBanner />
 
       {/* Back button */}
