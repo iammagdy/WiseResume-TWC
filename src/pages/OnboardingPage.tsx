@@ -101,7 +101,12 @@ export default function OnboardingPage() {
     || (step === 3 && role !== null);
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background">
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.98 }} 
+      animate={{ opacity: 1, scale: 1 }} 
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className="flex flex-col min-h-[100dvh] bg-background"
+    >
       {/* Header */}
       <div className="shrink-0 px-4 pt-safe">
         <div className="flex items-center justify-between h-14">
@@ -150,7 +155,7 @@ export default function OnboardingPage() {
             {step === 1 && (
               <>
                 <h2 className="text-xl font-bold text-foreground mb-2">About You</h2>
-                <p className="text-muted-foreground mb-6">Tell us a bit about yourself</p>
+                <p className="text-muted-foreground mb-6">Tell us a bit about yourself. This will also help us fulfill your portfolio data.</p>
                 <div className="w-full space-y-4 text-left">
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium">Full Name</label>
@@ -267,6 +272,6 @@ export default function OnboardingPage() {
           {!isSubmitting && step < TOTAL_STEPS - 1 && <ArrowRight className="w-4 h-4 ml-2" />}
         </Button>
       </div>
-    </div>
+    </motion.div>
   );
 }

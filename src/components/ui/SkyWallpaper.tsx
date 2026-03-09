@@ -260,13 +260,12 @@ export function SkyWallpaper() {
   // Stars generated once
   const stars = useMemo(() => generateStars(38), []);
 
-  // Skip on public standalone routes and lightweight auth/preview pages
+  // Skip on public standalone routes and lightweight preview pages
   const isPublicStandalone =
     location.pathname.startsWith('/p/') ||
     location.pathname.startsWith('/share/') ||
     location.pathname.startsWith('/l/') ||
-    location.pathname.startsWith('/preview') ||
-    location.pathname.startsWith('/auth');
+    location.pathname.startsWith('/preview');
 
   useEffect(() => {
     if (isPublicStandalone || prefersReducedMotion) return;
