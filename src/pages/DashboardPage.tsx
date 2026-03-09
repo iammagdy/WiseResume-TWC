@@ -183,7 +183,9 @@ function DashboardPageContent() {
           .single();
           
         if (data && !data.onboarding_completed) {
-          navigate('/onboarding', { replace: true });
+          if (!sessionStorage.getItem('wr-dismissed-profile-banner')) {
+            setShowProfileBanner(true);
+          }
         } else if (data?.onboarding_completed) {
           localStorage.setItem('wr-onboarding-completed', 'true');
         }
@@ -192,7 +194,7 @@ function DashboardPageContent() {
       }
     };
     run();
-  }, [user, navigate]);
+  }, [user]);
 
   // Keyboard shortcuts for empty state
   useEffect(() => {
