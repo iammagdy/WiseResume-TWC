@@ -36,7 +36,6 @@ export function useAIKeyHydration() {
           body: { action: 'get' },
         });
 
-        const store = useSettingsStore.getState();
 
         if (!error && data?.keys) {
           const keys = data.keys as Array<{
