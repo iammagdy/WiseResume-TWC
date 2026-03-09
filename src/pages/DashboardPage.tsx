@@ -990,10 +990,9 @@ function DashboardPageContent() {
       <AlertDialog open={!!deleteResumeId} onOpenChange={() => setDeleteResumeId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Resume?</AlertDialogTitle>
+            <AlertDialogTitle>Move to Trash?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete this resume and all its content.
-              This action cannot be undone.
+              This resume will be moved to trash and auto-deleted after 30 days. You can restore it anytime from the trash.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1002,7 +1001,7 @@ function DashboardPageContent() {
               onClick={confirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete
+              Move to Trash
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
