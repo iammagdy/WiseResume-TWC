@@ -96,13 +96,21 @@ function HeroPreview({ theme, accent }: { theme: PortfolioThemeConfig; accent: s
   return (
     <div className="flex flex-col items-center gap-1">
       <div className="relative">
-        <div
-          className="w-7 h-7 rounded-full"
-          style={{
-            background: `linear-gradient(135deg, ${accent}66, ${accent})`,
-            boxShadow: isNeon ? `0 0 10px ${accent}66` : theme.id === 'bold-dark' ? `0 0 12px ${accent}44` : 'none',
-          }}
-        />
+        {userName && userAvatarUrl ? (
+          <img src={userAvatarUrl} alt="" className="w-7 h-7 rounded-full object-cover" style={{ boxShadow: isNeon ? `0 0 10px ${accent}66` : 'none' }} />
+        ) : userName ? (
+          <div className="w-7 h-7 rounded-full flex items-center justify-center text-[7px] font-black text-white" style={{ background: `linear-gradient(135deg, ${accent}66, ${accent})`, boxShadow: isNeon ? `0 0 10px ${accent}66` : 'none' }}>
+            {userName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+          </div>
+        ) : (
+          <div
+            className="w-7 h-7 rounded-full"
+            style={{
+              background: `linear-gradient(135deg, ${accent}66, ${accent})`,
+              boxShadow: isNeon ? `0 0 10px ${accent}66` : theme.id === 'bold-dark' ? `0 0 12px ${accent}44` : 'none',
+            }}
+          />
+        )}
         {isNeon && (
           <div
             className="absolute inset-0 rounded-full animate-pulse"
@@ -110,14 +118,16 @@ function HeroPreview({ theme, accent }: { theme: PortfolioThemeConfig; accent: s
           />
         )}
       </div>
-      <div
-        className="rounded-full w-3/5"
-        style={{
-          height: `${headingH}px`,
-          background: theme.preview.text,
-          opacity: 0.85,
-        }}
-      />
+      {userName ? (
+        <div className="text-[7px] font-bold truncate max-w-[80%] text-center" style={{ color: theme.preview.text, opacity: 0.85 }}>
+          {userName}
+        </div>
+      ) : (
+        <div
+          className="rounded-full w-3/5"
+          style={{ height: `${headingH}px`, background: theme.preview.text, opacity: 0.85 }}
+        />
+      )}
       <div
         className="rounded-full w-2/5"
         style={{
