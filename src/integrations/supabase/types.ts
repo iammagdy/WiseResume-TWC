@@ -116,11 +116,13 @@ export type Database = {
           app_version: string | null
           component_stack: string | null
           created_at: string | null
+          error_category: string | null
           error_message: string
           error_stack: string | null
           id: string
           recent_errors: Json | null
           route: string | null
+          screen: string | null
           session_id: string | null
           status: string | null
           user_agent: string | null
@@ -133,11 +135,13 @@ export type Database = {
           app_version?: string | null
           component_stack?: string | null
           created_at?: string | null
+          error_category?: string | null
           error_message: string
           error_stack?: string | null
           id?: string
           recent_errors?: Json | null
           route?: string | null
+          screen?: string | null
           session_id?: string | null
           status?: string | null
           user_agent?: string | null
@@ -150,11 +154,13 @@ export type Database = {
           app_version?: string | null
           component_stack?: string | null
           created_at?: string | null
+          error_category?: string | null
           error_message?: string
           error_stack?: string | null
           id?: string
           recent_errors?: Json | null
           route?: string | null
+          screen?: string | null
           session_id?: string | null
           status?: string | null
           user_agent?: string | null
