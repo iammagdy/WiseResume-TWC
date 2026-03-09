@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Check, Mail } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/safeClient';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
@@ -35,9 +36,17 @@ export function SignInPromptDialog({
     navigate('/auth?mode=signup');
   };
 
-  const handleGoogle = () => {
+  const handleGoogle = async () => {
     onOpenChange(false);
-    navigate('/auth');
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin + '/auth/callback',
+      },
+    });
+    if (error) {
+      console.error('Google sign-in failed:', error.message);
+    }
   };
 
   const handleContinueAsGuest = () => {

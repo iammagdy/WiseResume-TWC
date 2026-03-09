@@ -7,6 +7,14 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: GOOGLE-AUTH-FIX
+- Summary: Switched Google OAuth from Lovable Cloud managed auth to direct supabase.auth.signInWithOAuth on external project (jnsfmkzgxsviuthaqlyy). Removed lovable OAuth import from AuthPage. Updated SignInPromptDialog Google button to call supabase directly.
+- Files touched: src/pages/AuthPage.tsx, src/components/auth/SignInPromptDialog.tsx
+- Notes: Google sign-in requires configuring Google provider on the external Supabase dashboard first.
+
+
+
+- Date: 2026-03-09
 - Issue ID: PWA-ALT-BROWSER
 - Summary: Fixed Install button showing "use Chrome or Safari" on alternative Chromium browsers (Comet, Brave, etc). Now shows universal browser-menu instructions for adding to home screen.
 - Files touched: src/components/pwa/InstallButton.tsx

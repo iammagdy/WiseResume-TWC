@@ -16,7 +16,7 @@ import { SlideCaptcha } from '@/components/auth/SlideCaptcha';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
-import { lovable } from '@/integrations/lovable/index';
+// lovable OAuth removed — using direct supabase.auth.signInWithOAuth
 
 type Mode = 'sign-in' | 'sign-up' | 'forgot-password' | 'reset-password';
 type SignUpStep = 'form' | 'method';
@@ -606,10 +606,13 @@ export default function AuthPage() {
                         if (isCustomDomain) {
                           sessionStorage.setItem('oauth-return-origin', window.location.origin);
                         }
-                        const result = await lovable.auth.signInWithOAuth("google", {
-                          redirect_uri: isCustomDomain ? LOVABLE_ORIGIN : window.location.origin,
+                        const { error } = await supabase.auth.signInWithOAuth({
+                          provider: 'google',
+                          options: {
+                            redirectTo: window.location.origin + '/auth/callback',
+                          },
                         });
-                        if (result?.error) {
+                        if (error) {
                           sessionStorage.removeItem('oauth-return-origin');
                           toast.error('Google sign-in failed. Please try again.');
                         }
