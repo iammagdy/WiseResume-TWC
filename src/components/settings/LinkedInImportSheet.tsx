@@ -259,6 +259,7 @@ export function LinkedInImportSheet({
     setParseState('method-select');
     setParsedData(null);
     setProfileText('');
+    setLinkedinUrl('');
     setError(null);
   };
 
