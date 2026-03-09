@@ -199,6 +199,10 @@ export default function AuthPage() {
     setPassword('');
     setFullName('');
     setShowPassword(false);
+    setConfirmPassword('');
+    setShowConfirmPassword(false);
+    setSignUpStep('form');
+    setVerifyMethod('otp');
   };
 
   const headingText: Record<Mode, string> = {
