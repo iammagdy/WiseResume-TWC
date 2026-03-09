@@ -38,7 +38,7 @@ export const ActionCard = memo(function ActionCard({
         className={cn(
           'w-12 h-12 rounded-xl flex items-center justify-center mb-3 transition-all duration-300',
           variant === 'default' && 'icon-glow',
-          variant === 'primary' && 'bg-white/20',
+          variant === 'primary' && 'bg-foreground/15',
           variant === 'secondary' && 'icon-glow'
         )}
       >
@@ -46,7 +46,7 @@ export const ActionCard = memo(function ActionCard({
           className={cn(
             'w-6 h-6',
             variant === 'default' && 'text-primary',
-            variant === 'primary' && 'text-white',
+            variant === 'primary' && 'text-foreground',
             variant === 'secondary' && 'text-primary'
           )}
         />
