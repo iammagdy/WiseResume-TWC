@@ -22,10 +22,6 @@ type Mode = 'sign-in' | 'sign-up' | 'forgot-password' | 'reset-password';
 type SignUpStep = 'form' | 'method';
 type VerifyMethod = 'otp' | 'link';
 
-const LOVABLE_ORIGIN = 'https://wiseresume.lovable.app';
-const isCustomDomain = !window.location.hostname.endsWith('.lovable.app')
-  && window.location.hostname !== 'localhost';
-
 export default function AuthPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -43,20 +39,7 @@ export default function AuthPage() {
   useEffect(() => {
     if (!isAuthenticated || authLoading) return;
 
-    // Cross-domain OAuth: redirect back to custom domain with session tokens
-    const returnOrigin = sessionStorage.getItem('oauth-return-origin');
-    if (returnOrigin && window.location.origin !== returnOrigin) {
-      sessionStorage.removeItem('oauth-return-origin');
-      supabase.auth.getSession().then(({ data }) => {
-        if (data.session) {
-          const { access_token, refresh_token } = data.session;
-          window.location.href = `${returnOrigin}/auth/callback#access_token=${encodeURIComponent(access_token)}&refresh_token=${encodeURIComponent(refresh_token)}`;
-        } else {
-          navigate(redirectTo, { replace: true });
-        }
-      });
-      return;
-    }
+
 
     navigate(redirectTo, { replace: true });
   }, [isAuthenticated, authLoading, navigate, redirectTo]);
@@ -603,9 +586,6 @@ export default function AuthPage() {
                     onClick={async () => {
                       setIsLoading(true);
                       try {
-                        if (isCustomDomain) {
-                          sessionStorage.setItem('oauth-return-origin', window.location.origin);
-                        }
                         const { error } = await supabase.auth.signInWithOAuth({
                           provider: 'google',
                           options: {
@@ -613,11 +593,9 @@ export default function AuthPage() {
                           },
                         });
                         if (error) {
-                          sessionStorage.removeItem('oauth-return-origin');
                           toast.error('Google sign-in failed. Please try again.');
                         }
                       } catch {
-                        sessionStorage.removeItem('oauth-return-origin');
                         toast.error('Google sign-in failed. Please try again.');
                       } finally {
                         setIsLoading(false);

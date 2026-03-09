@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: REMOVE-CROSS-DOMAIN-OAUTH
+- Summary: Removed leftover cross-domain OAuth logic (LOVABLE_ORIGIN, isCustomDomain, oauth-return-origin sessionStorage) from AuthPage. Google OAuth now calls supabase.auth.signInWithOAuth directly without any cross-domain relay.
+- Files touched: src/pages/AuthPage.tsx
+- Notes: If Google still redirects to /~oauth, it means @lovable.dev/cloud-auth-js is monkey-patching globally or a stale service worker is cached — user should hard-refresh and unregister SW.
+
+- Date: 2026-03-09
 - Issue ID: GOOGLE-AUTH-CALLBACK-FIX
 - Summary: Added error detection in AuthCallbackPage — if Supabase redirects with ?error= query params (e.g. redirect URL not whitelisted), a toast is shown instead of silently landing on the home page. Also added toast on setSession failure.
 - Files touched: src/pages/AuthCallbackPage.tsx
