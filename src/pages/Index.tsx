@@ -47,6 +47,14 @@ const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [tailorOpen, setTailorOpen] = useState(false);
 
+  // Safety net: if OAuth redirected here with tokens in the hash, forward to /auth/callback
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.includes('access_token=') && hash.includes('refresh_token=')) {
+      navigate('/auth/callback' + hash, { replace: true });
+    }
+  }, [navigate]);
+
   useEffect(() => {
     if (searchParams.get('tailor') === '1' && isAuthenticated) {
       setTailorOpen(true);

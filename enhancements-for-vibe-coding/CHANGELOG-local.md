@@ -7,6 +7,13 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: OAUTH-LANDING-SAFETY-NET
+- Summary: Added useEffect in Index.tsx to detect OAuth hash tokens (#access_token=...&refresh_token=...) and forward to /auth/callback. Acts as safety net when Supabase redirects to site URL instead of /auth/callback due to missing redirect URL allowlist entries.
+- Files touched: src/pages/Index.tsx
+- Notes: User must also add preview/production URLs to Supabase Redirect URLs allowlist.
+
+
+- Date: 2026-03-09
 - Issue ID: REMOVE-LOVABLE-CLOUD-AUTH
 - Summary: Deleted src/integrations/lovable/index.ts and removed @lovable.dev/cloud-auth-js package. This package was globally intercepting OAuth calls and routing them through Lovable Cloud's /~oauth proxy instead of the external Supabase project (jnsfmkzgxsviuthaqlyy).
 - Files touched: src/integrations/lovable/index.ts (deleted), package.json
