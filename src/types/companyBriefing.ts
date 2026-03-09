@@ -5,6 +5,9 @@ export interface CompanySnapshot {
   hq: string;
   founded: string;
   mission: string;
+  website?: string;
+  stockTicker?: string;
+  revenue?: string;
 }
 
 export interface RecentHighlight {
@@ -33,6 +36,12 @@ export interface QuestionToAsk {
   why: string;
 }
 
+export interface GlassdoorInsight {
+  rating: string;
+  prosThemes: string[];
+  consThemes: string[];
+}
+
 export interface CompanyBriefing {
   companySnapshot: CompanySnapshot;
   recentHighlights: RecentHighlight[];
@@ -40,4 +49,8 @@ export interface CompanyBriefing {
   keyPeople: KeyPerson[];
   talkingPoints: TalkingPoint[];
   questionsToAsk: QuestionToAsk[];
+  competitors?: string[];
+  productsOrServices?: string[];
+  techStack?: string[];
+  glassdoorInsights?: GlassdoorInsight;
 }
