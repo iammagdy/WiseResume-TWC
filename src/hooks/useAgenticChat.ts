@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useResumeStore } from '@/store/resumeStore';
+import { useResumes } from '@/hooks/useResumes';
 import { sendChatMessage, sendFunctionFeedback, ChatMessage, SuggestionProposal, FunctionResult } from '@/lib/agenticChat';
 import { haptics } from '@/lib/haptics';
 import { useAICreditsMutations } from './useAICredits';
@@ -10,6 +11,7 @@ export function useAgenticChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isThinking, setIsThinking] = useState(false);
   const { currentResume, updateResume } = useResumeStore();
+  const { data: allResumes = [] } = useResumes();
   const { incrementUsage, checkCredits } = useAICreditsMutations();
 
   const executeFunctionCall = useCallback(
@@ -193,7 +195,8 @@ export function useAgenticChat() {
       setIsThinking(true);
 
       try {
-        const response = await sendChatMessage(text.trim(), messages, currentResume);
+        const resumeList = allResumes.map(r => ({ id: r.id, title: r.title }));
+        const response = await sendChatMessage(text.trim(), messages, currentResume, { resumeList });
 
         // Deduct credit on success
         incrementUsage.mutate();

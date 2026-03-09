@@ -4,7 +4,7 @@ import { LazyMotion, domAnimation, m as motion, AnimatePresence } from 'framer-m
 import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import useEmblaCarousel from 'embla-carousel-react';
-import { ResumeFilters, SortOption, CategoryFilter, ScoreFilter } from '@/components/dashboard/ResumeFilters';
+import { SortOption, CategoryFilter, ScoreFilter } from '@/components/dashboard/ResumeFilters';
 import { templates } from '@/lib/templateData';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -717,19 +717,7 @@ function DashboardPageContent() {
             </div>
           )}
 
-          {/* Filter/Sort bar */}
-          {resumes && resumes.length >= 2 && (
-            <ResumeFilters
-              sort={sortOption}
-              onSortChange={setSortOption}
-              categoryFilters={categoryFilters}
-              onCategoryToggle={handleCategoryToggle}
-              scoreFilters={scoreFilters}
-              onScoreToggle={handleScoreToggle}
-              onClearAll={handleClearFilters}
-              hasActiveFilters={hasActiveFilters}
-            />
-          )}
+          {/* Filter/Sort bar removed — simplified UI */}
 
           {/* Content */}
           {isLoading ? (
@@ -990,10 +978,9 @@ function DashboardPageContent() {
       <AlertDialog open={!!deleteResumeId} onOpenChange={() => setDeleteResumeId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Resume?</AlertDialogTitle>
+            <AlertDialogTitle>Move to Trash?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete this resume and all its content.
-              This action cannot be undone.
+              This resume will be moved to trash and auto-deleted after 30 days. You can restore it anytime from the trash.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1002,7 +989,7 @@ function DashboardPageContent() {
               onClick={confirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete
+              Move to Trash
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1012,10 +999,9 @@ function DashboardPageContent() {
       <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {selectedIds.size} Resume{selectedIds.size > 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogTitle>Move {selectedIds.size} Resume{selectedIds.size > 1 ? 's' : ''} to Trash?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the selected resumes and all their content.
-              This action cannot be undone.
+              These resumes will be moved to trash and auto-deleted after 30 days. You can restore them anytime from the trash.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1024,7 +1010,7 @@ function DashboardPageContent() {
               onClick={confirmBulkDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete {selectedIds.size}
+              Move to Trash
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit2, Share2, FileText, Briefcase, Globe, ExternalLink, MapPin, Clock, HardDrive, Linkedin } from 'lucide-react';
+import { Edit2, Share2, FileText, Briefcase, Globe, ExternalLink, MapPin, Clock, HardDrive, Linkedin, Sparkles } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -129,6 +129,21 @@ export default function ProfilePage() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+        {/* Incomplete Profile Banner */}
+        {completion < 100 && (
+          <div className="flex items-center gap-3 p-3 rounded-xl border border-primary/20 bg-primary/5">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Sparkles className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground">Profile {completion}% complete</p>
+              <p className="text-xs text-muted-foreground">Finish setup for better AI suggestions</p>
+            </div>
+            <Button variant="default" size="sm" className="shrink-0 h-8" onClick={() => navigate('/onboarding')}>
+              Complete
+            </Button>
+          </div>
+        )}
         {/* Avatar & Name */}
         <div className="flex flex-col items-center text-center gap-3">
           <Avatar className="h-24 w-24 border-2 border-primary/30 shadow-lg">

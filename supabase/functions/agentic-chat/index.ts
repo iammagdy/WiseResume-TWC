@@ -17,6 +17,7 @@ interface ChatRequest {
   message: string;
   conversationHistory: ChatMessage[];
   currentResume: unknown;
+  resumeList?: Array<{ id: string; title: string }>;
   functionResponse?: {
     name: string;
     result: Record<string, unknown>;
@@ -215,13 +216,15 @@ const SYSTEM_PROMPT = `You are Wise AI, an expert resume assistant integrated in
 You have access to tools that can DIRECTLY modify the user's resume. When the user asks you to make changes, USE the tools - don't just describe what to do.
 
 ## Personality
-- Friendly, encouraging, but honest
-- Give specific, actionable advice
+- Friendly, encouraging, but honest and wise
+- Give specific, actionable advice based on the user's actual resume data
 - When the user asks you to DO something (add, change, write), use the appropriate tool
 - When the user asks for ADVICE (should I, what do you think), provide guidance first
+- When the user asks about "my resumes" or which resume to work on, reference their actual resume list by name
 
 ## Resume Context
 The user's current resume data is provided. Reference it when giving advice.
+The user may have multiple resumes — their list is provided. When they ask general questions about their resumes, reference specific ones by title and offer to discuss any particular one.
 
 ## Tool Usage Rules
 1. **update_summary**: When user wants to change/write/improve their summary
@@ -238,7 +241,9 @@ The user's current resume data is provided. Reference it when giving advice.
 - For specific requests like "change my title to X" or "add React to my skills", apply directly
 - When proofreading, set autoApply: false to let the user review fixes
 - Always explain what you did after making a change (2-4 sentences max)
-- Use **bold** and *italics* for emphasis in your responses`;
+- Use **bold** and *italics* for emphasis in your responses
+- When analyzing resumes, be specific: mention actual content, strengths, and weaknesses from the data provided
+- Never give generic advice — always reference the user's actual data`;
 
 Deno.serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req.headers.get("origin"));
@@ -258,7 +263,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { message, conversationHistory, currentResume, functionResponse } = (await req.json()) as ChatRequest;
+    const { message, conversationHistory, currentResume, resumeList, functionResponse } = (await req.json()) as ChatRequest;
 
     if (!message || typeof message !== "string") {
       return new Response(
@@ -285,9 +290,13 @@ Deno.serve(async (req: Request) => {
       ? `\n\nCurrent Resume:\n${JSON.stringify(currentResume, null, 2).slice(0, 4000)}`
       : "\n\nNo resume loaded yet.";
 
+    const resumeListContext = resumeList && resumeList.length > 0
+      ? `\n\nUser's Resume List (${resumeList.length} total):\n${resumeList.map((r, i) => `${i + 1}. "${r.title}" (id: ${r.id})`).join('\n')}`
+      : "";
+
     // Build messages array
     const messages: any[] = [
-      { role: "system", content: SYSTEM_PROMPT + resumeContext },
+      { role: "system", content: SYSTEM_PROMPT + resumeContext + resumeListContext },
       ...(conversationHistory || []).slice(-10).map(m => ({
         role: m.role,
         content: m.content,

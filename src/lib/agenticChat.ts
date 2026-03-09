@@ -59,6 +59,7 @@ export async function sendChatMessage(
   currentResume: ResumeData | null,
   options?: {
     functionResponse?: FunctionResult;
+    resumeList?: Array<{ id: string; title: string }>;
   }
 ): Promise<ChatResponse> {
   const rateCheck = checkAIRateLimit('chat');
@@ -77,6 +78,7 @@ export async function sendChatMessage(
       conversationHistory: historyForApi,
       currentResume,
       functionResponse: options?.functionResponse,
+      resumeList: options?.resumeList,
     },
   });
 
