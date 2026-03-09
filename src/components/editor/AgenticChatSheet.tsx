@@ -3,19 +3,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import {
   Send,
-  
   User,
   Sparkles,
   Wrench,
-  Trash2,
   Lightbulb,
-  
   Check,
   X,
   MessageSquare,
   GitCompareArrows,
   Shield,
   LogIn,
+  MessageSquarePlus,
+  FileText,
 } from 'lucide-react';
 import {
   Sheet,
@@ -24,6 +23,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 import { cn } from '@/lib/utils';
 import { useAgenticChat } from '@/hooks/useAgenticChat';
@@ -34,6 +34,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { AITrustBadge } from '@/components/ui/AITrustBadge';
+import { useResumes, dbToResumeData } from '@/hooks/useResumes';
+import { useResumeStore } from '@/store/resumeStore';
 
 interface AgenticChatSheetProps {
   open: boolean;
