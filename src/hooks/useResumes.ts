@@ -294,7 +294,8 @@ export function useResumeMutations() {
         .from('resumes')
         .update({ deleted_at: new Date().toISOString() } as any)
         .in('id', resumeIds)
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .select('id');
 
       if (error) throw error;
     },
