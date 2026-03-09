@@ -32,7 +32,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 
