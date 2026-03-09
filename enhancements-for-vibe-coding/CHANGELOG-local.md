@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: HERO-CTA-RESTYLE
+- Summary: Redesigned authenticated hero CTA buttons — stacked vertically, Dashboard button uses outline style in dark mode, Tailor button uses glass + border-glow with Sparkles icon and explainer subtitle.
+- Files touched: src/pages/Index.tsx
+- Notes: Purely visual change, no functional impact.
+
+- Date: 2026-03-09
 - Issue ID: DEPT-CONTACT-FAQ
 - Summary: Replaced all raw email addresses on Terms & Privacy pages with clickable department hyperlinks that scroll to contact section and auto-open dialog with department pre-selected. Added department dropdown (9 departments) to ContactInquiryDialog. Fixed LOGO_URL in all 3 notification edge functions to use correct avatars bucket PNG. Added z-[100] to ContactInquiryDialog and FeatureRequestDialog for proper centering. Expanded FAQ from 8 to 21 items. Replaced broken mailto link on Help page with Contact Support dialog. Updated HelpSheet to navigate to /help instead of showing "Coming Soon".
 - Files touched: src/components/settings/ContactInquiryDialog.tsx, src/components/settings/FeatureRequestDialog.tsx, src/pages/TermsPage.tsx, src/pages/PrivacyPage.tsx, src/pages/HelpPage.tsx, src/components/settings/HelpSheet.tsx, supabase/functions/send-bug-report/index.ts, supabase/functions/send-feature-request/index.ts, supabase/functions/send-contact-inquiry/index.ts

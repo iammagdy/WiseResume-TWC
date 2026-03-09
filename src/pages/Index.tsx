@@ -239,21 +239,24 @@ const Index = () => {
           {/* Primary CTA */}
           <motion.div className="w-full flex flex-col items-center gap-3" {...fade(0.2)}>
             {isAuthenticated ? (
-              <div className="flex flex-col sm:flex-row gap-3 w-full max-w-md">
+              <div className="flex flex-col gap-3 w-full max-w-md">
                 <Button
                   size="lg"
-                  className="flex-1 h-14 text-base font-semibold bg-secondary hover:bg-secondary/90 transition-all active:scale-[0.98] shadow-sm"
+                  className="h-14 text-base font-semibold bg-secondary hover:bg-secondary/90 dark:bg-transparent dark:border dark:border-border dark:text-foreground dark:hover:bg-muted/50 transition-all active:scale-[0.98] shadow-sm dark:shadow-none"
                   onClick={() => { triggerHaptic.light(); navigate('/dashboard'); }}
                 >
                   Dashboard
                 </Button>
-                <Button
-                  size="lg"
-                  className="flex-1 h-14 text-base font-semibold bg-gradient-to-r from-primary to-accent hover:opacity-90 shadow-[0_0_24px_-4px_hsl(var(--primary)/0.5)] transition-all active:scale-[0.98]"
-                  onClick={() => { triggerHaptic.light(); setTailorOpen(true); }}
-                >
-                  Tailor your resume in 10 minutes
-                </Button>
+                <div className="flex flex-col items-center gap-2">
+                  <button
+                    className="w-full h-14 text-base font-semibold rounded-xl border-glow bg-transparent text-foreground backdrop-blur-sm flex items-center justify-center gap-2 hover:bg-primary/10 active:scale-[0.98] transition-all touch-manipulation"
+                    onClick={() => { triggerHaptic.light(); setTailorOpen(true); }}
+                  >
+                    <Sparkles className="w-4 h-4 text-primary" />
+                    Tailor your resume in 10 minutes
+                  </button>
+                  <p className="text-xs text-muted-foreground">Paste a job link → get a perfectly matched resume</p>
+                </div>
               </div>
             ) : (
               <motion.div
