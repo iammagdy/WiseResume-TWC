@@ -25,6 +25,7 @@ const ROLE_OPTIONS = [
 export default function OnboardingPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
