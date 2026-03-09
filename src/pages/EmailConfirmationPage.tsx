@@ -8,6 +8,7 @@ import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { toast } from 'sonner';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { useIsDark } from '@/hooks/useIsDark';
 
 const OTP_LENGTH = 6;
 
