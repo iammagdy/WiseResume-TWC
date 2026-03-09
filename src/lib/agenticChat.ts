@@ -80,6 +80,7 @@ export async function sendChatMessage(
       currentResume,
       functionResponse: options?.functionResponse,
       resumeList: options?.resumeList,
+      contextFilter: options?.contextFilter,
     },
   });
 

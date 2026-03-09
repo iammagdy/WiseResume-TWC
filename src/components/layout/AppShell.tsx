@@ -94,7 +94,25 @@ export function AppShell() {
         </div>
       </main>
       {showBottomNav && <BottomTabBar className="lg:hidden" />}
-      
+
+      {/* Global floating Ask Wise AI button — mobile only, hidden on editor (has its own) */}
+      {showBottomNav && !isEditorRoute && (
+        <button
+          onClick={() => setWiseAIOpen(true)}
+          className="fixed bottom-24 right-4 z-40 lg:hidden flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 active:scale-95 transition-transform touch-manipulation"
+          aria-label="Ask Wise AI"
+        >
+          <Sparkles className="w-4 h-4" />
+          <span className="text-sm font-medium">Ask</span>
+        </button>
+      )}
+
+      {/* Global Wise AI Chat Sheet */}
+      {wiseAIOpen && (
+        <Suspense fallback={null}>
+          <AgenticChatSheet open={wiseAIOpen} onOpenChange={setWiseAIOpen} />
+        </Suspense>
+      )}
     </div>
   );
 }

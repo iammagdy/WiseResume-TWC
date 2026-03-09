@@ -196,7 +196,7 @@ export function useAgenticChat(contextFilter?: string) {
 
       try {
         const resumeList = allResumes.map(r => ({ id: r.id, title: r.title }));
-        const response = await sendChatMessage(text.trim(), messages, currentResume, { resumeList });
+        const response = await sendChatMessage(text.trim(), messages, currentResume, { resumeList, contextFilter });
 
         // Deduct credit on success
         incrementUsage.mutate();

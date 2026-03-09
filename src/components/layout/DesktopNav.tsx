@@ -124,6 +124,24 @@ export function DesktopNav() {
           );
         })}
       </div>
+
+      {/* Ask Wise AI — desktop */}
+      <div className="ml-auto">
+        <button
+          onClick={() => { haptics.selection(); setWiseAIOpen(true); }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-colors active:scale-95"
+          aria-label="Ask Wise AI"
+        >
+          <MessageCircle className="w-4 h-4" />
+          Ask
+        </button>
+      </div>
+
+      {wiseAIOpen && (
+        <Suspense fallback={null}>
+          <AgenticChatSheet open={wiseAIOpen} onOpenChange={setWiseAIOpen} />
+        </Suspense>
+      )}
     </nav>
   );
 }
