@@ -101,7 +101,12 @@ export default function OnboardingPage() {
     || (step === 3 && role !== null);
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-background">
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.98 }} 
+      animate={{ opacity: 1, scale: 1 }} 
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className="flex flex-col min-h-[100dvh] bg-background"
+    >
       {/* Header */}
       <div className="shrink-0 px-4 pt-safe">
         <div className="flex items-center justify-between h-14">
