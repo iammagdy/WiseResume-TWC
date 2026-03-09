@@ -7,6 +7,13 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: DIALOG-EMAIL-REVAMP
+- Summary: Fixed dialog positioning (popups opening off-center on Terms/Privacy/Help pages), revamped all 3 notification email templates to match auth email branding (dark header/footer, red accent, logo, table-based layout), expanded SCREEN_MAP with 14 new routes, added `screen` and `error_category` columns to `bug_reports` table for searchability, removed raw user-agent noise from emails.
+- Files touched: src/components/BugReportDialog.tsx, src/lib/bugReport.ts, supabase/functions/send-bug-report/index.ts, supabase/functions/send-feature-request/index.ts, supabase/functions/send-contact-inquiry/index.ts, enhancements-for-vibe-coding/CHANGELOG-local.md
+- Notes: DB migration added nullable `screen` and `error_category` columns. Email templates now use table-based layout for email client compatibility. Dialog centering uses standard Radix positioning instead of manual hacks.
+
+
+- Date: 2026-03-09
 - Issue ID: EDGE-FN-AUTH-401
 - Summary: Fixed 401 in send-feature-request/bug-report/contact-inquiry. Replaced getUser() with manual JWT decode. Fixed client dialogs to use supabase.auth.getSession().
 - Files: send-feature-request, send-bug-report, send-contact-inquiry edge functions, FeatureRequestDialog.tsx, ContactInquiryDialog.tsx

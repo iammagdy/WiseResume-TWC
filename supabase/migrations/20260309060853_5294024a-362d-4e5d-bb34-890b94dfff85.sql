@@ -1,0 +1,1 @@
+ALTER TABLE public.bug_reports ADD COLUMN IF NOT EXISTS screen text, ADD COLUMN IF NOT EXISTS error_category text;
