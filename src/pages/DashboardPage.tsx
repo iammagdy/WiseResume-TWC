@@ -4,7 +4,7 @@ import { LazyMotion, domAnimation, m as motion, AnimatePresence } from 'framer-m
 import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import useEmblaCarousel from 'embla-carousel-react';
-import { ResumeFilters, SortOption, CategoryFilter, ScoreFilter } from '@/components/dashboard/ResumeFilters';
+import { SortOption, CategoryFilter, ScoreFilter } from '@/components/dashboard/ResumeFilters';
 import { templates } from '@/lib/templateData';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';

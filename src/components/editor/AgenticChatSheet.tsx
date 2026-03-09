@@ -219,6 +219,8 @@ function GuestShowcase({ onClose, onSignIn }: { onClose: () => void; onSignIn: (
 export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const { data: allResumes = [] } = useResumes();
+  const { currentResume, setCurrentResume, setCurrentResumeId } = useResumeStore();
   const {
     messages,
     isThinking,
@@ -227,6 +229,7 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
     updateSuggestionStatus,
   } = useAgenticChat();
   const [input, setInput] = useState('');
+  const [resumePickerOpen, setResumePickerOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -266,6 +269,13 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
     navigate('/auth');
   };
 
+  const handleSelectResume = (resume: typeof allResumes[0]) => {
+    setCurrentResume(dbToResumeData(resume));
+    setCurrentResumeId(resume.id);
+    setResumePickerOpen(false);
+    haptics.light();
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[85vh] flex flex-col p-0">
@@ -285,8 +295,9 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
                 size="icon"
                 onClick={clearChat}
                 className="text-muted-foreground"
+                aria-label="New Chat"
               >
-                <Trash2 className="w-4 h-4" />
+                <MessageSquarePlus className="w-4 h-4" />
               </Button>
             )}
           </div>
@@ -302,7 +313,7 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
           <GuestShowcase onClose={() => onOpenChange(false)} onSignIn={handleSignIn} />
         ) : (
           <>
-            <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 min-h-0">
+            <div ref={scrollRef} className="flex-1 h-0 overflow-y-auto px-4 py-4">
               {messages.length === 0 ? (
               <div className="flex flex-col items-center h-full text-center pt-6">
                   <p className="text-sm text-muted-foreground max-w-[260px] mb-8">
@@ -402,7 +413,46 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
             </div>
 
             <div className="shrink-0 border-t border-border p-3 space-y-2 pb-safe">
+              {/* Active resume badge */}
+              {currentResume && (
+                <p className="text-[11px] text-muted-foreground px-1 truncate">
+                  Chatting about: <span className="font-medium text-foreground">{currentResume.contactInfo?.fullName || currentResume.title || 'Untitled'}</span>
+                </p>
+              )}
               <div className="flex items-center gap-2">
+                {/* Resume picker */}
+                <Popover open={resumePickerOpen} onOpenChange={setResumePickerOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="w-11 h-11 rounded-full shrink-0"
+                      aria-label="Select resume"
+                    >
+                      <FileText className="w-4 h-4 text-muted-foreground" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" side="top" className="w-64 p-1 max-h-60 overflow-y-auto">
+                    <p className="px-3 py-1.5 text-xs text-muted-foreground font-medium">Select a resume</p>
+                    {allResumes.length === 0 ? (
+                      <p className="px-3 py-2 text-sm text-muted-foreground">No resumes yet</p>
+                    ) : (
+                      allResumes.map((r) => (
+                        <button
+                          key={r.id}
+                          className={cn(
+                            'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors touch-manipulation text-left',
+                            currentResume?.id === r.id ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted/50'
+                          )}
+                          onClick={() => handleSelectResume(r)}
+                        >
+                          <FileText className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">{r.title}</span>
+                        </button>
+                      ))
+                    )}
+                  </PopoverContent>
+                </Popover>
                 <input
                   ref={inputRef}
                   type="text"
