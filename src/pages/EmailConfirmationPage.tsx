@@ -65,9 +65,11 @@ function OtpInput({ value, onChange, disabled }: { value: string; onChange: (v: 
 export default function EmailConfirmationPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const state = location.state as { email?: string; verifyMethod?: string };
+  const state = location.state as { email?: string; verifyMethod?: string; password?: string; fullName?: string };
   const email = state?.email || '';
   const verifyMethod = state?.verifyMethod || 'link';
+  const signupPassword = state?.password || '';
+  const signupFullName = state?.fullName || '';
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
   const [otp, setOtp] = useState('');
