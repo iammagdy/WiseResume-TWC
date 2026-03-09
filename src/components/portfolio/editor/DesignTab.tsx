@@ -42,6 +42,8 @@ export function DesignTab(props: DesignTabProps) {
           selectedThemeId={portfolioStyle}
           onSelectTheme={(id) => onPortfolioStyleChange(id as PortfolioStyle)}
           userAccent={portfolioAccentColor}
+          userName={userName}
+          userAvatarUrl={userAvatarUrl}
         />
         {currentTheme && (
           <p className="text-[11px] text-muted-foreground">{currentTheme.description}</p>
