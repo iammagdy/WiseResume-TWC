@@ -242,14 +242,15 @@ const Index = () => {
               <div className="flex flex-col gap-3 w-full max-w-md">
                 <Button
                   size="lg"
-                  className="h-14 text-base font-semibold bg-secondary hover:bg-secondary/90 dark:bg-transparent dark:border dark:border-border dark:text-foreground dark:hover:bg-muted/50 transition-all active:scale-[0.98] shadow-sm dark:shadow-none"
+                  className="h-14 text-base font-semibold btn-shimmer rounded-xl text-foreground hover:border-primary/40 active:scale-[0.98] transition-all shadow-sm"
+                  variant="ghost"
                   onClick={() => { triggerHaptic.light(); navigate('/dashboard'); }}
                 >
                   Dashboard
                 </Button>
                 <div className="flex flex-col items-center gap-2">
                   <button
-                    className="w-full h-14 text-base font-semibold rounded-xl border-glow bg-transparent text-foreground backdrop-blur-sm flex items-center justify-center gap-2 hover:bg-primary/10 active:scale-[0.98] transition-all touch-manipulation"
+                    className="w-full h-14 text-base font-semibold rounded-xl border-glow border-glow-pulse btn-shimmer text-foreground flex items-center justify-center gap-2 hover:border-primary/40 active:scale-[0.98] transition-all touch-manipulation"
                     onClick={() => { triggerHaptic.light(); setTailorOpen(true); }}
                   >
                     <Sparkles className="w-4 h-4 text-primary" />

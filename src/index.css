@@ -513,6 +513,49 @@ button,
     opacity: 1;
   }
 
+  /* Shimmer sweep for CTA buttons */
+  .btn-shimmer {
+    position: relative;
+    overflow: hidden;
+    background: hsl(var(--muted) / 0.35);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid hsl(var(--border) / 0.6);
+  }
+
+  .btn-shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      105deg,
+      transparent 30%,
+      hsl(var(--foreground) / 0.06) 45%,
+      hsl(var(--foreground) / 0.12) 50%,
+      hsl(var(--foreground) / 0.06) 55%,
+      transparent 70%
+    );
+    background-size: 250% 100%;
+    animation: btn-shimmer-sweep 4s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  @keyframes btn-shimmer-sweep {
+    0%, 100% { background-position: 200% 0; }
+    50% { background-position: -100% 0; }
+  }
+
+  /* Border glow pulse for tailor CTA */
+  .border-glow-pulse::before {
+    animation: border-glow-pulse 3s ease-in-out infinite !important;
+    opacity: 0.45 !important;
+  }
+
+  @keyframes border-glow-pulse {
+    0%, 100% { opacity: 0.45; }
+    50% { opacity: 0.85; }
+  }
+
   /* Glow focus ring */
   .glow-ring-focus:focus-visible {
     outline: none;
