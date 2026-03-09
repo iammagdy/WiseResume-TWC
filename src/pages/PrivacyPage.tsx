@@ -130,8 +130,8 @@ export default function PrivacyPage() {
           <h3 className="text-foreground font-semibold">12. Contact Us</h3>
           <p>If you have questions, concerns, or requests regarding this Privacy Policy or your personal data, please contact us:</p>
           <ul className="list-disc pl-5 space-y-1">
-            <li>Email: <span className="text-primary">privacy@wiseresume.app</span></li>
-            <li>Data Protection Inquiries: <span className="text-primary">dpo@wiseresume.app</span></li>
+            <li>Email: <span className="text-primary">privacy@thewise.cloud</span></li>
+            <li>Data Protection Inquiries: <span className="text-primary">dpo@thewise.cloud</span></li>
           </ul>
           <p>We aim to respond to all inquiries within 30 days.</p>
         </section>
