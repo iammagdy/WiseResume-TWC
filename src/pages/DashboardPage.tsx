@@ -242,38 +242,16 @@ function DashboardPageContent() {
 
   const [onboardingTemplateId, setOnboardingTemplateId] = useState<string | null>(null);
 
-  const handleOnboardingComplete = async () => {
-    if (user) {
-      await supabase
-        .from('profiles')
-        .update({ onboarding_completed: true })
-        .eq('user_id', user.id);
-    }
-    // Sync both onboarding systems
-    localStorage.setItem('wr-onboarding-completed', 'true');
-    haptics.success();
-    setShowOnboarding(false);
-
-    // Consume onboarding template selection
+  // Consume onboarding template selection if present
+  useEffect(() => {
     const savedTemplate = localStorage.getItem('wr-onboarding-template');
-    localStorage.removeItem('wr-onboarding-goal');
-    localStorage.removeItem('wr-onboarding-template');
     if (savedTemplate) {
+      localStorage.removeItem('wr-onboarding-goal');
+      localStorage.removeItem('wr-onboarding-template');
       setOnboardingTemplateId(savedTemplate);
-      // Small delay to let the onboarding exit animation finish
-      setTimeout(() => setShowCreateDialog(true), 400);
-    }
-  };
-
-  const handleOnboardingChoice = (choice: 'scratch' | 'upload' | 'template') => {
-    if (choice === 'scratch') {
-      navigate('/editor');
-    } else if (choice === 'upload') {
-      navigate('/upload');
-    } else if (choice === 'template') {
       setShowCreateDialog(true);
     }
-  };
+  }, []);
 
   const handleRefresh = async () => {
     await refetch();
