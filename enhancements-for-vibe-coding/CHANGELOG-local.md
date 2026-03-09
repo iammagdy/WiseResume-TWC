@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: EMAIL-DOMAIN-CONTACT
+- Summary: Replaced all @wiseresume.app emails with @thewise.cloud across TermsPage and PrivacyPage. Added Contact Us dialog (ContactInquiryDialog) to TermsPage section 14 with SLA messaging. Created send-contact-inquiry edge function and contact_inquiries DB table with RLS.
+- Files touched: src/pages/TermsPage.tsx, src/pages/PrivacyPage.tsx, src/components/settings/ContactInquiryDialog.tsx (new), supabase/functions/send-contact-inquiry/index.ts (new), DB migration (contact_inquiries table)
+- Notes: Dialog follows same pattern as FeatureRequestDialog. Edge function sends Resend email to developer.
+
+- Date: 2026-03-09
 - Issue ID: BYOK-ROUTING-FIX
 - Summary: Fixed Gemini BYOK key retrieval failing silently due to schema mismatch. `getUserKeyFromDB` and `getUserKeyAndUrlFromDB` in `aiClient.ts` queried `base_url`/`model` columns that don't exist in the external DB, causing SELECT to fail and all requests to fall back to WiseResume AI gateway. Removed those columns from SELECT queries. Also removed `model` column query from `ai-test/index.ts`.
 - Files touched: supabase/functions/_shared/aiClient.ts, supabase/functions/ai-test/index.ts
