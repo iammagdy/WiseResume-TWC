@@ -94,6 +94,7 @@ export function LinkedInImportSheet({
   const [error, setError] = useState<string | null>(null);
   const [uploadingPdf, setUploadingPdf] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [linkedinUrl, setLinkedinUrl] = useState('');
 
   const handleParse = async () => {
     if (!profileText.trim()) {
