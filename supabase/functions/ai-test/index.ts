@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { callAI, getUserKeyFromDB, getUserKeyAndUrlFromDB } from "../_shared/aiClient.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders } from '../_shared/cors.ts';
+import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
@@ -12,38 +13,11 @@ serve(async (req) => {
   const startTime = Date.now();
 
   try {
-    // Auth via getClaims
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    // Auth via manual JWT decode (cross-project compatible)
+    const { userId, client: supabaseAdmin } = await requireAuth(req);
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    const token = authHeader.replace('Bearer ', '');
-    const { data, error: authError } = await supabase.auth.getClaims(token);
-    if (authError || !data?.claims) {
-      return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-    const userId = data.claims.sub as string;
-
-    // Single admin client for all admin operations
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
-
-    // Get user's preferred provider
-    const { data: prefs } = await supabase
+    // Get user's preferred provider (use service-role client for cross-project DB)
+    const { data: prefs } = await supabaseAdmin
       .from('user_preferences')
       .select('ai_provider')
       .eq('user_id', userId)
@@ -115,6 +89,10 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
+    // If it's an auth error from requireAuth, return it properly
+    if (typeof err === 'object' && err !== null && 'status' in err) {
+      return authErrorResponse(err, req.headers.get('origin'));
+    }
     const latencyMs = Date.now() - startTime;
     return new Response(JSON.stringify({
       success: false,
