@@ -67,6 +67,8 @@ export default function OnboardingPage() {
           .from('profiles')
           .update(updates)
           .eq('user_id', user.id);
+        // Invalidate profile cache so dashboard/profile show fresh data
+        queryClient.invalidateQueries({ queryKey: ['profile'] });
       } catch (err) {
         console.error('Failed to update onboarding status', err);
       }
