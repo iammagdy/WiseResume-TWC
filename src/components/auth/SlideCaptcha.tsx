@@ -16,6 +16,7 @@ export function SlideCaptcha({ onVerified, verified }: SlideCaptchaProps) {
   const getMaxX = () => (trackRef.current?.clientWidth ?? 280) - HANDLE_SIZE;
 
   const progressOpacity = useTransform(x, [0, getMaxX() * 0.5, getMaxX()], [0.6, 0.3, 0]);
+  const progressWidth = useTransform(x, (v) => v + HANDLE_SIZE);
 
   const handleDragEnd = useCallback(() => {
     setDragging(false);
