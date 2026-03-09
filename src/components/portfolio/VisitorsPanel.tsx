@@ -113,7 +113,7 @@ function getEngagementTier(seconds: number | null, sectionCount: number): Engage
 }
 
 // ── Short link base URL ───────────────────────────────────────────────────────
-const BASE_URL = 'wiseresume.ai';
+const BASE_URL = 'resume.thewise.cloud';
 function shortUrl(id: string) { return `${BASE_URL}/l/${id}`; }
 function fullShortUrl(id: string) { return `https://${BASE_URL}/l/${id}`; }
 
