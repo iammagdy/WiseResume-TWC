@@ -282,7 +282,7 @@ export default function AuthPage() {
         <div
           className="w-full max-w-sm p-[1px] rounded-2xl"
           style={{
-            background: 'linear-gradient(135deg, hsl(355 85% 52% / 0.7), hsl(270 70% 55% / 0.5), hsl(185 90% 45% / 0.4))',
+            background: 'linear-gradient(135deg, hsl(355 85% 52% / 0.45), hsl(270 70% 55% / 0.3), hsl(185 90% 45% / 0.25))',
           }}
         >
           <motion.div
