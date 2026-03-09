@@ -471,14 +471,6 @@ const Index = () => {
                       </p>
                     </div>
                     <Suspense fallback={<DemoFallback />}><LazyEditorDemo /></Suspense>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full max-w-[200px] gap-1.5 touch-manipulation active:scale-95 transition-transform"
-                      onClick={() => { triggerHaptic.light(); navigate(`/auth?redirect=${encodeURIComponent('/dashboard')}`); }}
-                    >
-                      Try AI Editor <ArrowRight className="w-3.5 h-3.5" />
-                    </Button>
                   </Card>
                 </motion.div>
 
