@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: HERO-CTA-SHIMMER
+- Summary: Added shimmer sweep animation + frosted glass background to Dashboard and Tailor CTA buttons for visibility in both light/dark modes. Added border-glow-pulse animation to Tailor button.
+- Files touched: src/index.css, src/pages/Index.tsx
+- Notes: CSS-only, no functional changes.
+
+- Date: 2026-03-09
 - Issue ID: HERO-CTA-RESTYLE
 - Summary: Redesigned authenticated hero CTA buttons — stacked vertically, Dashboard button uses outline style in dark mode, Tailor button uses glass + border-glow with Sparkles icon and explainer subtitle.
 - Files touched: src/pages/Index.tsx
