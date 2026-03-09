@@ -239,19 +239,26 @@ function GuestShowcase({ onClose, onSignIn }: { onClose: () => void; onSignIn: (
 export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { data: allResumes = [] } = useResumes();
   const { currentResume, setCurrentResume, setCurrentResumeId } = useResumeStore();
+  const [activeContext, setActiveContext] = useState(() => detectContextFromRoute(location.pathname));
   const {
     messages,
     isThinking,
     sendMessage,
     clearChat,
     updateSuggestionStatus,
-  } = useAgenticChat();
+  } = useAgenticChat(activeContext);
   const [input, setInput] = useState('');
   const [resumePickerOpen, setResumePickerOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-detect context when route changes
+  useEffect(() => {
+    setActiveContext(detectContextFromRoute(location.pathname));
+  }, [location.pathname]);
 
   useEffect(() => {
     if (scrollRef.current) {
