@@ -35,9 +35,17 @@ export function SignInPromptDialog({
     navigate('/auth?mode=signup');
   };
 
-  const handleGoogle = () => {
+  const handleGoogle = async () => {
     onOpenChange(false);
-    navigate('/auth');
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin + '/auth/callback',
+      },
+    });
+    if (error) {
+      console.error('Google sign-in failed:', error.message);
+    }
   };
 
   const handleContinueAsGuest = () => {
