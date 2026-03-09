@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, ArrowLeft, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Mail, ArrowLeft, AlertTriangle, CheckCircle2, Link as LinkIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/safeClient';
@@ -66,16 +66,16 @@ export default function EmailConfirmationPage() {
   const navigate = useNavigate();
   const state = location.state as { email?: string; verifyMethod?: string };
   const email = state?.email || '';
-  const verifyMethod = state?.verifyMethod || 'otp';
+  const verifyMethod = state?.verifyMethod || 'link';
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
   const [otp, setOtp] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState(false);
 
-  // Auto-submit when all 6 digits entered
+  // Auto-submit when all 6 digits entered (OTP mode only)
   useEffect(() => {
-    if (otp.length === OTP_LENGTH && !verifying && !verified) {
+    if (verifyMethod === 'otp' && otp.length === OTP_LENGTH && !verifying && !verified) {
       handleVerifyOtp();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -120,7 +120,7 @@ export default function EmailConfirmationPage() {
       } else {
         setResent(true);
         setOtp('');
-        toast.success('New code sent to your email');
+        toast.success(verifyMethod === 'otp' ? 'New code sent to your email' : 'New verification link sent');
         setTimeout(() => setResent(false), 30000);
       }
     } catch {
@@ -128,99 +128,127 @@ export default function EmailConfirmationPage() {
     } finally {
       setResending(false);
     }
-  }, [email, resending]);
+  }, [email, resending, verifyMethod]);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="w-full max-w-md text-center space-y-6"
+      {/* Glass card with gradient border — matches AuthPage */}
+      <div
+        className="w-full max-w-md p-[1px] rounded-2xl"
+        style={{
+          background: 'linear-gradient(135deg, hsl(355 85% 52% / 0.7), hsl(270 70% 55% / 0.5), hsl(185 90% 45% / 0.4))',
+        }}
       >
-        <div className="flex justify-center">
-          <AppIcon size={56} />
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="w-full text-center space-y-6 rounded-[calc(1rem-1px)] p-6 relative overflow-hidden"
+          style={{
+            background: 'hsl(var(--card) / 0.25)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
+            border: '1px solid hsl(0 0% 100% / 0.12)',
+            boxShadow: '0 0 60px -10px hsl(355 85% 52% / 0.25), 0 25px 50px -12px rgba(0,0,0,0.5)',
+          }}
+        >
+          <div className="flex justify-center">
+            <AppIcon size={56} />
+          </div>
 
-        {verified ? (
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="space-y-4"
-          >
-            <div className="w-16 h-16 mx-auto rounded-2xl bg-accent/20 flex items-center justify-center">
-              <CheckCircle2 className="w-8 h-8 text-primary" />
-            </div>
-            <h1 className="text-2xl font-bold text-foreground">You're all set!</h1>
-            <p className="text-muted-foreground">Redirecting to your dashboard…</p>
-          </motion.div>
-        ) : (
-          <>
-            <div className="w-16 h-16 mx-auto rounded-2xl bg-primary/10 flex items-center justify-center">
-              <Mail className="w-8 h-8 text-primary" />
-            </div>
+          {verified ? (
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="space-y-4"
+            >
+              <div className="w-16 h-16 mx-auto rounded-2xl bg-accent/20 flex items-center justify-center">
+                <CheckCircle2 className="w-8 h-8 text-primary" />
+              </div>
+              <h1 className="text-2xl font-bold text-foreground">You're all set!</h1>
+              <p className="text-muted-foreground">Redirecting to your dashboard…</p>
+            </motion.div>
+          ) : (
+            <>
+              <div className="w-16 h-16 mx-auto rounded-2xl bg-primary/10 flex items-center justify-center">
+                {verifyMethod === 'otp' ? (
+                  <Mail className="w-8 h-8 text-primary" />
+                ) : (
+                  <LinkIcon className="w-8 h-8 text-primary" />
+                )}
+              </div>
 
-            <div className="space-y-2">
-              <h1 className="text-2xl font-bold text-foreground">Check your email</h1>
-              <p className="text-muted-foreground">
-                We sent a 6-digit code to{' '}
-                {email ? <span className="font-medium text-foreground">{email}</span> : 'your email'}
-              </p>
-            </div>
-
-            {verifyMethod === 'otp' ? (
-              <>
-                {/* OTP Input */}
-                <div className="space-y-4 py-2">
-                  <OtpInput value={otp} onChange={setOtp} disabled={verifying} />
-                  {verifying && (
-                    <div className="flex items-center justify-center gap-2">
-                      <MiniSpinner size={16} />
-                      <span className="text-sm text-muted-foreground">Verifying…</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex items-start gap-3 p-4 rounded-xl bg-warning/10 border border-warning/20 text-left">
-                  <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
-                  <p className="text-sm text-muted-foreground">
-                    Didn't find it? Check your <span className="font-medium text-foreground">spam</span> or{' '}
-                    <span className="font-medium text-foreground">junk</span> folder. You can also click the link in the email instead.
-                  </p>
-                </div>
-              </>
-            ) : (
-              <div className="py-4">
+              <div className="space-y-2">
+                <h1 className="text-2xl font-bold text-foreground">Check your email</h1>
                 <p className="text-muted-foreground">
-                  We've sent a magic link to your email. Click the link to instantly verify your account and sign in.
+                  {verifyMethod === 'otp'
+                    ? <>We sent a 6-digit code to{' '}<span className="font-medium text-foreground">{email || 'your email'}</span></>
+                    : <>We sent a verification link to{' '}<span className="font-medium text-foreground">{email || 'your email'}</span></>
+                  }
                 </p>
               </div>
-            )}
 
-            <div className="space-y-3 pt-2">
-              {email && (
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleResend}
-                  disabled={resending || resent}
-                >
-                  {resending ? 'Sending…' : resent ? 'Code resent ✓' : 'Resend code'}
-                </Button>
+              {verifyMethod === 'otp' ? (
+                <>
+                  {/* OTP Input */}
+                  <div className="space-y-4 py-2">
+                    <OtpInput value={otp} onChange={setOtp} disabled={verifying} />
+                    {verifying && (
+                      <div className="flex items-center justify-center gap-2">
+                        <MiniSpinner size={16} />
+                        <span className="text-sm text-muted-foreground">Verifying…</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-start gap-3 p-4 rounded-xl bg-warning/10 border border-warning/20 text-left">
+                    <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+                    <p className="text-sm text-muted-foreground">
+                      Didn't find it? Check your <span className="font-medium text-foreground">spam</span> or{' '}
+                      <span className="font-medium text-foreground">junk</span> folder.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <div className="py-4 space-y-4">
+                  <p className="text-muted-foreground">
+                    Click the link in your email to verify your account and sign in. The link will expire in 24 hours.
+                  </p>
+                  <div className="flex items-start gap-3 p-4 rounded-xl bg-warning/10 border border-warning/20 text-left">
+                    <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+                    <p className="text-sm text-muted-foreground">
+                      Didn't find it? Check your <span className="font-medium text-foreground">spam</span> or{' '}
+                      <span className="font-medium text-foreground">junk</span> folder.
+                    </p>
+                  </div>
+                </div>
               )}
 
-              <Button
-                variant="ghost"
-                className="w-full gap-2"
-                onClick={() => navigate('/auth', { replace: true })}
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back to sign in
-              </Button>
-            </div>
-          </>
-        )}
-      </motion.div>
+              <div className="space-y-3 pt-2">
+                {email && (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleResend}
+                    disabled={resending || resent}
+                  >
+                    {resending ? 'Sending…' : resent ? 'Email resent ✓' : verifyMethod === 'otp' ? 'Resend code' : 'Resend link'}
+                  </Button>
+                )}
+
+                <Button
+                  variant="ghost"
+                  className="w-full gap-2"
+                  onClick={() => navigate('/auth', { replace: true })}
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Back to sign in
+                </Button>
+              </div>
+            </>
+          )}
+        </motion.div>
+      </div>
     </div>
   );
 }
