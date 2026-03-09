@@ -289,7 +289,7 @@ function ThemeStoreCard({
           />
         )}
 
-        <HeroPreview theme={theme} accent={accent} />
+        <HeroPreview theme={theme} accent={accent} userName={userName} userAvatarUrl={userAvatarUrl} />
         <CardsPreview theme={theme} accent={accent} />
         <SkillPillsPreview theme={theme} accent={accent} />
 
