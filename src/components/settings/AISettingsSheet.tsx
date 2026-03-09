@@ -436,6 +436,13 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
           setOllamaKeyValidated(true);
           setOllamaConnectedAt(new Date().toISOString());
           setAIProvider('ollama');
+          // Persist provider preference now that key is validated
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user?.id) {
+              await supabase.from('user_preferences').update({ ai_provider: 'ollama' }).eq('user_id', session.user.id);
+            }
+          } catch {}
           logAudit('api_key', 'key_saved', { provider: 'ollama', model: ollamaModelInput.trim() });
           resetFallbackToast();
           haptics.success();
