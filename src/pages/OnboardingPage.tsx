@@ -8,6 +8,7 @@ import { AppIcon } from '@/components/brand/AppIcon';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { Input } from '@/components/ui/input';
+import { useQueryClient } from '@tanstack/react-query';
 
 const ONBOARDING_KEY = 'wr-onboarding-completed';
 const TOTAL_STEPS = 5;
