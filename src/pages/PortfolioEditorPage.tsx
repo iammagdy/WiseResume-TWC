@@ -79,14 +79,14 @@ export default function PortfolioEditorPage() {
   const [services, setServices] = useState<Array<{id:string;title:string;description:string;category:string}>>([]);
   const [testimonials, setTestimonials] = useState<Array<{id:string;quote:string;authorName:string;authorTitle:string}>>([]);
   const [highlights, setHighlights] = useState<Array<{id:string;value:string;label:string}>>([]);
-  const [activeTab, setActiveTab] = useState<'setup' | 'design' | 'more'>('setup');
+  const [activeTab, setActiveTab] = useState<'setup' | 'content' | 'design' | 'more'>('setup');
 
-  const tabIndexMap = { setup: 0, design: 1, more: 2 } as const;
+  const tabIndexMap = { setup: 0, content: 1, design: 2, more: 3 } as const;
   const directionRef = useRef(0);
   const prevTabRef = useRef(activeTab);
   const reducedMotion = useMemo(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches, []);
 
-  const handleTabChange = useCallback((tab: 'setup' | 'design' | 'more') => {
+  const handleTabChange = useCallback((tab: 'setup' | 'content' | 'design' | 'more') => {
     directionRef.current = tabIndexMap[tab] > tabIndexMap[prevTabRef.current] ? 1 : -1;
     prevTabRef.current = tab;
     haptics.light();
