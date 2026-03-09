@@ -586,9 +586,6 @@ export default function AuthPage() {
                     onClick={async () => {
                       setIsLoading(true);
                       try {
-                        if (isCustomDomain) {
-                          sessionStorage.setItem('oauth-return-origin', window.location.origin);
-                        }
                         const { error } = await supabase.auth.signInWithOAuth({
                           provider: 'google',
                           options: {
@@ -596,11 +593,9 @@ export default function AuthPage() {
                           },
                         });
                         if (error) {
-                          sessionStorage.removeItem('oauth-return-origin');
                           toast.error('Google sign-in failed. Please try again.');
                         }
                       } catch {
-                        sessionStorage.removeItem('oauth-return-origin');
                         toast.error('Google sign-in failed. Please try again.');
                       } finally {
                         setIsLoading(false);
