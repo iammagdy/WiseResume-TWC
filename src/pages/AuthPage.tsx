@@ -543,6 +543,32 @@ export default function AuthPage() {
                             </div>
                           )}
                         </div>
+
+                        {mode === 'sign-up' && (
+                          <>
+                            {/* Terms & Privacy checkbox */}
+                            <label className="flex items-start gap-2.5 cursor-pointer group">
+                              <Checkbox
+                                checked={acceptedTerms}
+                                onCheckedChange={(v) => setAcceptedTerms(v === true)}
+                                className="mt-0.5 border-muted-foreground/40 data-[state=checked]:border-primary"
+                              />
+                              <span className="text-xs text-muted-foreground leading-relaxed">
+                                I agree to the{' '}
+                                <a href="/terms" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">Terms of Service</a>
+                                {' '}and{' '}
+                                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">Privacy Policy</a>
+                              </span>
+                            </label>
+
+                            {/* Slide captcha */}
+                            <SlideCaptcha
+                              verified={captchaVerified}
+                              onVerified={() => setCaptchaVerified(true)}
+                            />
+                          </>
+                        )}
+
                         <Button
                           type="submit"
                           size="lg"
@@ -551,7 +577,7 @@ export default function AuthPage() {
                             isLoading || 
                             !email || 
                             !password || 
-                            (mode === 'sign-up' && (!fullName || !confirmPassword || password !== confirmPassword))
+                            (mode === 'sign-up' && (!fullName || !confirmPassword || password !== confirmPassword || !acceptedTerms || !captchaVerified))
                           }
                         >
                           {isLoading ? <MiniSpinner size={20} /> : mode === 'sign-in' ? 'Sign In' : 'Continue'}
