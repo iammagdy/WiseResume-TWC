@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: LEGAL-PAGES-POLISH
+- Summary: Fixed black background on Terms/Privacy pages by removing bg-background class. Rewrote all legal content to be concise and professional. Added Contact Us dialog + button to Privacy page section 12 for parity with Terms page.
+- Files touched: src/pages/TermsPage.tsx, src/pages/PrivacyPage.tsx
+- Notes: Content rewritten to remove robotic template language. Background now shows sky wallpaper consistently.
+
+- Date: 2026-03-09
 - Issue ID: EMAIL-DOMAIN-CONTACT
 - Summary: Replaced all @wiseresume.app emails with @thewise.cloud across TermsPage and PrivacyPage. Added Contact Us dialog (ContactInquiryDialog) to TermsPage section 14 with SLA messaging. Created send-contact-inquiry edge function and contact_inquiries DB table with RLS.
 - Files touched: src/pages/TermsPage.tsx, src/pages/PrivacyPage.tsx, src/components/settings/ContactInquiryDialog.tsx (new), supabase/functions/send-contact-inquiry/index.ts (new), DB migration (contact_inquiries table)

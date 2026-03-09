@@ -1,10 +1,14 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ContactInquiryDialog } from '@/components/settings/ContactInquiryDialog';
 
 export default function PrivacyPage() {
+  const [contactOpen, setContactOpen] = useState(false);
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <header className="sticky top-0 z-40 glass-header border-b border-border/20 px-4 h-12 flex items-center gap-3">
         <Link to="/">
           <Button variant="ghost" size="icon" className="w-9 h-9">
@@ -17,125 +21,127 @@ export default function PrivacyPage() {
       <main className="max-w-2xl mx-auto px-4 py-8 space-y-8 text-sm text-muted-foreground leading-relaxed pb-safe">
         <div className="flex items-center gap-2 text-foreground">
           <ShieldCheck className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-bold">WiseResume Privacy Policy</h2>
+          <h2 className="text-lg font-bold">Privacy Policy</h2>
         </div>
-        <p className="text-xs">Effective Date: February 20, 2026 · Last Updated: February 20, 2026</p>
+        <p className="text-xs">Effective Date: February 20, 2026 · Last Updated: March 9, 2026</p>
         <p>
-          WiseResume ("we," "us," or "our") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, store, and protect your personal information when you use WiseResume (the "Service"). By using the Service, you agree to the practices described herein.
+          Your privacy matters to us. This policy explains what data WiseResume collects, how we use it, and how we keep it safe. By using WiseResume, you agree to these practices.
         </p>
 
         <section className="space-y-2">
-          <h3 className="text-foreground font-semibold">1. Information We Collect</h3>
-          <p><strong className="text-foreground">Account Data:</strong> When you register, we collect your email address, display name, and authentication credentials. If you sign in via Google or Apple, we receive your name and email from the identity provider — we never receive or store your social account password.</p>
-          <p><strong className="text-foreground">Resume & Career Content:</strong> Any resumes, cover letters, portfolio content, career assessments, and related data you create within the Service is stored to power your experience.</p>
-          <p><strong className="text-foreground">Usage Data:</strong> We collect anonymized, aggregated analytics such as feature usage frequency, session duration, and navigation patterns to improve the Service. This data cannot be traced back to individual users.</p>
-          <p><strong className="text-foreground">Device Information:</strong> We may collect device type, operating system, browser version, and screen resolution for compatibility and debugging purposes.</p>
+          <h3 className="text-foreground font-semibold">1. What We Collect</h3>
+          <p><strong className="text-foreground">Account Info:</strong> Your email, display name, and login credentials. If you sign in with Google or Apple, we receive your name and email from them — never your password.</p>
+          <p><strong className="text-foreground">Your Content:</strong> Resumes, cover letters, portfolios, career assessments, and any other documents you create.</p>
+          <p><strong className="text-foreground">Usage Data:</strong> Anonymized, aggregated analytics like feature usage and session length. This data can't be traced back to you.</p>
+          <p><strong className="text-foreground">Device Info:</strong> Device type, OS, browser, and screen size — used for compatibility and debugging.</p>
         </section>
 
         <section className="space-y-2">
-          <h3 className="text-foreground font-semibold">2. How We Use Your Data</h3>
-          <p>We use your personal data exclusively to:</p>
+          <h3 className="text-foreground font-semibold">2. How We Use It</h3>
+          <p>We use your data to:</p>
           <ul className="list-disc pl-5 space-y-1">
-            <li>Provide, maintain, and improve WiseResume features (resume building, AI writing assistance, interview coaching, job matching, and portfolio generation).</li>
-            <li>Authenticate your identity and secure your account.</li>
-            <li>Send essential service communications (e.g., password resets, security alerts).</li>
-            <li>Generate aggregated, anonymized insights to improve product quality — never to profile individuals.</li>
+            <li>Power your experience — resume building, AI writing, interview prep, job matching, and portfolios.</li>
+            <li>Keep your account secure.</li>
+            <li>Send essential messages like password resets and security alerts.</li>
+            <li>Improve the product using anonymized, aggregated insights.</li>
           </ul>
         </section>
 
         <section className="space-y-2">
-          <h3 className="text-foreground font-semibold">3. AI Data Processing</h3>
-          <p>WiseResume uses artificial intelligence to provide writing suggestions, content optimization, interview coaching, and job-matching features. Our AI data handling follows strict principles:</p>
+          <h3 className="text-foreground font-semibold">3. AI & Your Data</h3>
+          <p>When you use AI features, here's exactly what happens:</p>
           <ul className="list-disc pl-5 space-y-1">
-            <li><strong className="text-foreground">Per-Session Processing:</strong> Your content is sent to AI models only when you actively request AI assistance. Data is processed in real-time and is not retained by AI providers after the response is generated.</li>
-            <li><strong className="text-foreground">No Model Training:</strong> Your resume content, personal data, and career information are <strong className="text-foreground">never</strong> used to train, fine-tune, or improve any AI models — ours or third-party.</li>
-            <li><strong className="text-foreground">No Third-Party AI Sharing:</strong> We do not share, sell, or license your data to AI companies, data brokers, or any third parties for machine learning purposes.</li>
-            <li><strong className="text-foreground">User Responsibility:</strong> AI-generated suggestions are tools to assist you. You are solely responsible for reviewing, editing, and approving all AI outputs before use.</li>
+            <li><strong className="text-foreground">On-demand only:</strong> Your content is sent to AI models only when you request help. Nothing is retained after the response.</li>
+            <li><strong className="text-foreground">No training:</strong> Your data is never used to train or improve any AI model — ours or anyone else's.</li>
+            <li><strong className="text-foreground">No selling:</strong> We don't share your data with AI companies, data brokers, or third parties.</li>
+            <li><strong className="text-foreground">Your call:</strong> AI suggestions are just that — suggestions. You decide what to keep.</li>
           </ul>
         </section>
 
         <section className="space-y-2">
-          <h3 className="text-foreground font-semibold">4. Data Storage & Security</h3>
-          <p>We implement industry-leading security measures to protect your data:</p>
+          <h3 className="text-foreground font-semibold">4. Security</h3>
+          <p>We take security seriously:</p>
           <ul className="list-disc pl-5 space-y-1">
-            <li><strong className="text-foreground">Encryption at Rest:</strong> All stored data is encrypted using AES-256 encryption.</li>
-            <li><strong className="text-foreground">Encryption in Transit:</strong> All data transmitted between your device and our servers is protected using TLS 1.3.</li>
-            <li><strong className="text-foreground">Access Control:</strong> Your data is accessible only to you through authenticated sessions. Our engineering team accesses production data only when necessary for critical debugging, under strict audit trails.</li>
-            <li><strong className="text-foreground">Infrastructure:</strong> Our backend infrastructure is hosted on enterprise-grade cloud providers with SOC 2 Type II compliance, automatic backups, and 24/7 monitoring.</li>
+            <li><strong className="text-foreground">Encrypted storage:</strong> All data at rest is encrypted with AES-256.</li>
+            <li><strong className="text-foreground">Encrypted transit:</strong> All connections use TLS 1.3.</li>
+            <li><strong className="text-foreground">Access control:</strong> Only you can access your data through authenticated sessions. Our team accesses production data only for critical debugging, under audit trails.</li>
+            <li><strong className="text-foreground">Infrastructure:</strong> Hosted on SOC 2 Type II compliant cloud providers with automatic backups and 24/7 monitoring.</li>
           </ul>
         </section>
 
         <section className="space-y-2">
-          <h3 className="text-foreground font-semibold">5. Data Sharing & Third Parties</h3>
-          <p>We do <strong className="text-foreground">not</strong> sell, rent, trade, or license your personal data to any third party. We share data only with:</p>
+          <h3 className="text-foreground font-semibold">5. Sharing</h3>
+          <p>We <strong className="text-foreground">don't</strong> sell, rent, or trade your data. We only share it with:</p>
           <ul className="list-disc pl-5 space-y-1">
-            <li><strong className="text-foreground">Essential Service Providers:</strong> Hosting infrastructure, authentication services, and AI processing providers — all bound by strict data processing agreements (DPAs) that prohibit use of your data beyond providing the Service.</li>
-            <li><strong className="text-foreground">Legal Obligations:</strong> We may disclose data if required by law, court order, or governmental regulation, and only to the minimum extent necessary.</li>
+            <li><strong className="text-foreground">Service providers:</strong> Hosting, authentication, and AI processing — all under strict agreements that limit how they can use your data.</li>
+            <li><strong className="text-foreground">Legal requirements:</strong> Only when required by law, and only the minimum necessary.</li>
           </ul>
-          <p>Your resumes and career documents are <strong className="text-foreground">private by default</strong>. They are visible only to you unless you explicitly share them via a link.</p>
+          <p>Your documents are <strong className="text-foreground">private by default</strong>. They're only visible to you unless you share them via a link.</p>
         </section>
 
         <section className="space-y-2">
-          <h3 className="text-foreground font-semibold">6. Your Rights (GDPR, CCPA & Global Privacy Laws)</h3>
-          <p>Regardless of your location, we provide the following rights to all users:</p>
+          <h3 className="text-foreground font-semibold">6. Your Rights</h3>
+          <p>No matter where you are, you can:</p>
           <ul className="list-disc pl-5 space-y-1">
-            <li><strong className="text-foreground">Right to Access:</strong> Request a copy of all personal data we hold about you.</li>
-            <li><strong className="text-foreground">Right to Rectification:</strong> Correct inaccurate or incomplete personal data at any time through your account settings.</li>
-            <li><strong className="text-foreground">Right to Deletion:</strong> Permanently delete your account and all associated data via Settings → Delete All Data. Deletion is irreversible.</li>
-            <li><strong className="text-foreground">Right to Data Portability:</strong> Export your data in standard formats (JSON, PDF) from Settings at any time.</li>
-            <li><strong className="text-foreground">Right to Restrict Processing:</strong> Request that we limit how we process your data.</li>
-            <li><strong className="text-foreground">Right to Withdraw Consent:</strong> Withdraw consent for optional data processing at any time without affecting the lawfulness of prior processing.</li>
-            <li><strong className="text-foreground">Right to Object:</strong> Object to processing based on legitimate interests.</li>
+            <li><strong className="text-foreground">Access</strong> your data — request a copy anytime.</li>
+            <li><strong className="text-foreground">Correct</strong> your info through account settings.</li>
+            <li><strong className="text-foreground">Delete</strong> everything via Settings → Delete All Data. This is permanent.</li>
+            <li><strong className="text-foreground">Export</strong> your data in JSON or PDF from Settings.</li>
+            <li><strong className="text-foreground">Restrict</strong> or <strong className="text-foreground">object to</strong> how we process your data.</li>
+            <li><strong className="text-foreground">Withdraw consent</strong> for optional processing at any time.</li>
           </ul>
-          <p>To exercise any of these rights, use the in-app settings or contact us at <span className="text-primary">privacy@thewise.cloud</span>. We will respond within 30 days, as required by applicable law.</p>
-          <p><strong className="text-foreground">CCPA-Specific:</strong> California residents have the right to know what personal information we collect, request its deletion, and opt out of any sale of personal information. We do not sell personal information.</p>
+          <p>To exercise any right, use the in-app settings or email <span className="text-primary">privacy@thewise.cloud</span>. We respond within 30 days.</p>
+          <p><strong className="text-foreground">California residents:</strong> You have the right to know what we collect, request deletion, and opt out of data sales. We don't sell your data.</p>
         </section>
 
         <section className="space-y-2">
-          <h3 className="text-foreground font-semibold">7. Cookies & Tracking</h3>
-          <p>WiseResume uses only <strong className="text-foreground">essential cookies</strong> required for:</p>
-          <ul className="list-disc pl-5 space-y-1">
-            <li>Authentication and session management.</li>
-            <li>Remembering your preferences (theme, language).</li>
-          </ul>
-          <p>We do <strong className="text-foreground">not</strong> use advertising cookies, tracking pixels, fingerprinting, or any third-party analytics that identify individual users. We do not participate in cross-site tracking.</p>
+          <h3 className="text-foreground font-semibold">7. Cookies</h3>
+          <p>We only use <strong className="text-foreground">essential cookies</strong> for authentication and saving your preferences (like theme). No ads, no tracking pixels, no cross-site tracking.</p>
         </section>
 
         <section className="space-y-2">
           <h3 className="text-foreground font-semibold">8. Data Retention</h3>
           <ul className="list-disc pl-5 space-y-1">
-            <li><strong className="text-foreground">Active Accounts:</strong> Your data is retained for as long as your account remains active.</li>
-            <li><strong className="text-foreground">Account Deletion:</strong> When you delete your account, all associated data (resumes, cover letters, assessments, preferences, and analytics) is permanently purged from our systems within 30 days.</li>
-            <li><strong className="text-foreground">Backups:</strong> We do not retain backups of deleted user data. Once deleted, your data cannot be recovered.</li>
-            <li><strong className="text-foreground">Inactive Accounts:</strong> Accounts inactive for more than 24 months may be flagged for review. We will notify you via email before any action is taken.</li>
+            <li><strong className="text-foreground">Active accounts:</strong> Your data stays as long as your account is active.</li>
+            <li><strong className="text-foreground">Deleted accounts:</strong> All data is permanently removed within 30 days. No backups are kept.</li>
+            <li><strong className="text-foreground">Inactive accounts:</strong> Accounts unused for 24+ months may be flagged. We'll email you before taking any action.</li>
           </ul>
         </section>
 
         <section className="space-y-2">
-          <h3 className="text-foreground font-semibold">9. International Data Transfers</h3>
-          <p>WiseResume's infrastructure may process data in multiple regions. When personal data is transferred across borders, we ensure adequate safeguards are in place, including Standard Contractual Clauses (SCCs) approved by the European Commission, and compliance with applicable data protection frameworks.</p>
+          <h3 className="text-foreground font-semibold">9. International Transfers</h3>
+          <p>Our infrastructure may process data across regions. When transferring data internationally, we use Standard Contractual Clauses (SCCs) and comply with applicable data protection frameworks.</p>
         </section>
 
         <section className="space-y-2">
-          <h3 className="text-foreground font-semibold">10. Children's Privacy</h3>
-          <p>WiseResume is not directed at individuals under the age of 16. We do not knowingly collect personal data from children. If we become aware that we have inadvertently collected data from a child under 16, we will promptly delete it. If you believe a child has provided us with personal data, please contact us at <span className="text-primary">privacy@thewise.cloud</span>.</p>
+          <h3 className="text-foreground font-semibold">10. Children</h3>
+          <p>WiseResume is not for anyone under 16. If we discover we've collected data from a child, we'll delete it immediately. If you believe a child has used our service, please contact <span className="text-primary">privacy@thewise.cloud</span>.</p>
         </section>
 
         <section className="space-y-2">
-          <h3 className="text-foreground font-semibold">11. Changes to This Policy</h3>
-          <p>We may update this Privacy Policy from time to time. For material changes, we will notify you via in-app notification or email at least 30 days before the changes take effect. Continued use of the Service after the effective date constitutes your acceptance of the updated policy.</p>
+          <h3 className="text-foreground font-semibold">11. Policy Updates</h3>
+          <p>We may update this policy from time to time. For significant changes, we'll notify you at least 30 days in advance. Continued use after the update means you accept it.</p>
         </section>
 
         <section className="space-y-2">
           <h3 className="text-foreground font-semibold">12. Contact Us</h3>
-          <p>If you have questions, concerns, or requests regarding this Privacy Policy or your personal data, please contact us:</p>
+          <p>Questions about your data or this policy? Reach out:</p>
           <ul className="list-disc pl-5 space-y-1">
-            <li>Email: <span className="text-primary">privacy@thewise.cloud</span></li>
-            <li>Data Protection Inquiries: <span className="text-primary">dpo@thewise.cloud</span></li>
+            <li>Privacy: <span className="text-primary">privacy@thewise.cloud</span></li>
+            <li>Data Protection: <span className="text-primary">dpo@thewise.cloud</span></li>
           </ul>
-          <p>We aim to respond to all inquiries within 30 days.</p>
+          <p className="pt-2">Or send us a message directly:</p>
+          <Button
+            onClick={() => setContactOpen(true)}
+            variant="outline"
+            className="mt-1"
+          >
+            Contact Us
+          </Button>
         </section>
       </main>
+
+      <ContactInquiryDialog open={contactOpen} onOpenChange={setContactOpen} />
     </div>
   );
 }
