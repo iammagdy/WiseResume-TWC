@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Check, Mail } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/safeClient';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 

@@ -16,7 +16,7 @@ import { SlideCaptcha } from '@/components/auth/SlideCaptcha';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
-import { lovable } from '@/integrations/lovable/index';
+// lovable OAuth removed — using direct supabase.auth.signInWithOAuth
 
 type Mode = 'sign-in' | 'sign-up' | 'forgot-password' | 'reset-password';
 type SignUpStep = 'form' | 'method';
