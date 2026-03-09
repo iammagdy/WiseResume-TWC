@@ -280,22 +280,23 @@ export default function AuthPage() {
 
       <div className="flex-1 flex items-center justify-center px-6 py-12">
         <div
-          className="w-full max-w-sm p-[1px] rounded-2xl"
+          className="w-full max-w-sm p-[2px] rounded-2xl animate-glow-pulse"
           style={{
-            background: 'linear-gradient(135deg, hsl(355 85% 52% / 0.45), hsl(270 70% 55% / 0.3), hsl(185 90% 45% / 0.25))',
+            background: 'linear-gradient(135deg, hsl(355 85% 52% / 0.9), hsl(270 70% 55% / 0.7), hsl(185 90% 45% / 0.6), hsl(355 85% 52% / 0.9))',
+            boxShadow: '0 0 30px hsl(355 85% 52% / 0.4), 0 0 60px hsl(270 70% 55% / 0.2)',
           }}
         >
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-            className="w-full space-y-6 rounded-[calc(1rem-1px)] p-6 relative overflow-hidden"
+            className="w-full space-y-6 rounded-[calc(1rem-2px)] p-6 relative overflow-hidden"
             style={{
-              background: 'hsl(var(--card) / 0.06)',
+              background: 'hsl(var(--card) / 0.40)',
               backdropFilter: 'blur(28px)',
               WebkitBackdropFilter: 'blur(28px)',
-              border: '1px solid hsl(0 0% 100% / 0.10)',
-              boxShadow: '0 0 40px -12px hsl(355 85% 52% / 0.2), 0 20px 40px -12px rgba(0,0,0,0.5)',
+              border: '1px solid hsl(0 0% 100% / 0.15)',
+              boxShadow: 'inset 0 1px 0 0 hsl(0 0% 100% / 0.1), 0 20px 40px -12px rgba(0,0,0,0.5)',
             }}
           >
             <div
