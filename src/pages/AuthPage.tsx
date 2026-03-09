@@ -16,6 +16,8 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { lovable } from '@/integrations/lovable/index';
 
 type Mode = 'sign-in' | 'sign-up' | 'forgot-password' | 'reset-password';
+type SignUpStep = 'form' | 'method';
+type VerifyMethod = 'otp' | 'link';
 
 const LOVABLE_ORIGIN = 'https://wiseresume.lovable.app';
 const isCustomDomain = !window.location.hostname.endsWith('.lovable.app')
