@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: OAUTH-IMPLICIT-FLOW
+- Summary: Switched Supabase client from PKCE to implicit OAuth flow (flowType: 'implicit', detectSessionInUrl: false) to fix "Unable to exchange external code" error caused by origin mismatch between Lovable preview and external Supabase project.
+- Files touched: src/integrations/supabase/safeClient.ts
+- Notes: AuthCallbackPage already handles hash-based tokens. No other code changes needed.
+
+- Date: 2026-03-09
 - Issue ID: OAUTH-LANDING-SAFETY-NET
 - Summary: Added useEffect in Index.tsx to detect OAuth hash tokens (#access_token=...&refresh_token=...) and forward to /auth/callback. Acts as safety net when Supabase redirects to site URL instead of /auth/callback due to missing redirect URL allowlist entries.
 - Files touched: src/pages/Index.tsx
