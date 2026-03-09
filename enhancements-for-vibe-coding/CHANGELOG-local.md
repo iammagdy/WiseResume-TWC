@@ -7,6 +7,17 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: OTP-EDGE-FUNCTION + AUTH-CARD-STYLING
+- Summary: Fixed OTP signup flow by creating a new `send-signup-otp` edge function that uses `admin.generateLink` to get the OTP token and sends a branded email via Resend. Split the AuthPage signup handler: OTP mode calls the edge function, link mode uses standard `supabase.auth.signUp()`. Updated both AuthPage and EmailConfirmationPage card styling to use transparent glass background (`hsl(var(--card) / 0.25)` with 24px blur), stronger gradient border (0.7/0.5/0.4 opacity), and subtle white border for clear outline against the sky wallpaper. EmailConfirmationPage now properly supports dual mode: OTP shows 6-digit input, link shows "check your email for a link" message.
+- Files touched:
+  - `supabase/functions/send-signup-otp/index.ts` (New)
+  - `supabase/config.toml`
+  - `src/pages/AuthPage.tsx`
+  - `src/pages/EmailConfirmationPage.tsx`
+  - `enhancements-for-vibe-coding/CHANGELOG-local.md`
+- Notes: Requires `EXT_SUPABASE_SERVICE_ROLE_KEY` and `RESEND_API_KEY` secrets (already configured). The `admin.generateLink` returns the OTP via `hashed_token`. Test both OTP and link signup flows end-to-end.
+
+- Date: 2026-03-09
 - Issue ID: PORTFOLIO-DOMAIN-FIX
 - Summary: Fixed broken portfolio links by updating all hardcoded domain references from wiseresume.lovable.app to thewise.cloud. Updated FALLBACK_DOMAIN, edge functions (portfolio-meta, og-image), and editor display URL. Also increased public portfolio cache times (staleTime 5→10min, gcTime 10→30min) for performance.
 - Files touched:
