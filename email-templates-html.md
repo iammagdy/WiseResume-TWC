@@ -5,7 +5,7 @@
 
 ---
 
-## 1. Confirm Signup
+## 1. Confirm Signup (OTP Mode)
 
 **Subject:** `Welcome to WiseResume — verify your email`
 
