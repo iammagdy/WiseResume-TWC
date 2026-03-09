@@ -331,8 +331,30 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
         </SheetHeader>
 
         {isAuthenticated && (
-          <div className="px-4 pt-1">
+          <div className="px-4 pt-1 space-y-2">
             <AITrustBadge />
+            {/* Context filter chips */}
+            <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+              {CONTEXT_FILTERS.map((filter) => {
+                const Icon = filter.icon;
+                const isActive = activeContext === filter.id;
+                return (
+                  <button
+                    key={filter.id}
+                    onClick={() => { setActiveContext(filter.id); haptics.selection(); }}
+                    className={cn(
+                      'flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors shrink-0 touch-manipulation',
+                      isActive
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted/60 text-muted-foreground hover:bg-muted'
+                    )}
+                  >
+                    <Icon className="w-3 h-3" />
+                    {filter.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
