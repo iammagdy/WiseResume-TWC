@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: ANALYTICS-DELETE-AISTUDIO-CHAT
+- Summary: Four improvements: (1) Analytics page — fixed desktop layout with max-w-4xl, 4-col stats grid on lg, side-by-side charts, added smarter insights (best ATS score, avg completeness, interview rate, worst resume nudge). (2) Resume delete fix — added .eq('user_id', user.id) and .select() to deleteResume and deleteMultipleResumes mutations for robustness. (3) AI Studio — "Change" button now opens resume picker popup instead of navigating to dashboard. (4) Wise AI Chat — AI responses now render clickable resume cards when resume titles are mentioned, allowing users to tap to switch context.
+- Files: src/pages/AnalyticsPage.tsx, src/hooks/useResumes.ts, src/pages/AIStudioPage.tsx, src/components/editor/AgenticChatSheet.tsx, enhancements-for-vibe-coding/CHANGELOG-local.md
+- Notes: No backend changes. Delete fix addresses "Failed to delete resume" error by explicitly matching user_id.
+
+- Date: 2026-03-09
 - Issue ID: PROFILE-DASH-CHAT-UX
 - Summary: Six improvements: (1) Profile page — added "Complete Your Profile" banner when profile < 100% with link to /onboarding. (2) Dashboard delete dialog — changed text from "permanently delete" to "moved to trash for 30 days", button now says "Move to Trash". (3) Dashboard — removed ResumeFilters component (sort/category/score chips). (4) Wise AI Chat — replaced Trash2 icon with MessageSquarePlus "New Chat" icon. (5) Wise AI Chat — fixed scrolling with h-0 flex-1 pattern, added resume picker (FileText button) in input area with popover listing all resumes, and "Chatting about" badge. (6) Wise AI Chat — now passes resume list to edge function so AI references actual resume titles instead of giving generic responses; updated system prompt for smarter, data-aware answers.
 - Files: src/pages/ProfilePage.tsx, src/pages/DashboardPage.tsx, src/components/editor/AgenticChatSheet.tsx, src/hooks/useAgenticChat.ts, src/lib/agenticChat.ts, supabase/functions/agentic-chat/index.ts, enhancements-for-vibe-coding/CHANGELOG-local.md

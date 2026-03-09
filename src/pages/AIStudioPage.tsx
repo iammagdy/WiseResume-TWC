@@ -331,13 +331,27 @@ export default function AIStudioPage() {
             <span className="text-[15px] sm:text-sm flex-1 break-words leading-snug" title={resumeData.title}>
               Working on: <span className="font-medium">{resumeData.title}</span>
             </span>
-            <Button variant="ghost" size="sm" className="shrink-0 min-h-[44px] text-xs text-primary" onClick={() => navigate('/dashboard')}>
+            <Button variant="ghost" size="sm" className="shrink-0 min-h-[44px] text-xs text-primary" onClick={() => {
+              if (allResumes && allResumes.length > 0) {
+                pendingActionRef.current = null;
+                setShowResumePicker(true);
+              } else {
+                navigate('/dashboard');
+              }
+            }}>
               Change
             </Button>
           </div>
         ) : (
           <div className="flex gap-2">
-            <Button variant="outline" className="flex-1 justify-start gap-2" onClick={() => navigate('/dashboard')}>
+            <Button variant="outline" className="flex-1 justify-start gap-2" onClick={() => {
+              if (allResumes && allResumes.length > 0) {
+                pendingActionRef.current = null;
+                setShowResumePicker(true);
+              } else {
+                navigate('/dashboard');
+              }
+            }}>
               <FileSearch className="w-4 h-4" />
               Select a resume
             </Button>
