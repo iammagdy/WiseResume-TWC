@@ -57,22 +57,29 @@ Deno.serve(async (req) => {
     }
 
     const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("EXT_SUPABASE_URL") || Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("EXT_SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
     let resolvedUserId = user_id;
     let resolvedEmail = user_email || "anonymous";
 
+    // Decode JWT manually — token is from external project, can't use getUser()
     const authHeader = req.headers.get("Authorization");
     if (authHeader?.startsWith("Bearer ")) {
       const token = authHeader.replace("Bearer ", "");
-      const { data } = await supabaseAdmin.auth.getUser(token);
-      if (data?.user) {
-        // Always prefer token identity over payload values
-        resolvedUserId = data.user.id;
-        resolvedEmail = data.user.email || resolvedEmail;
-      }
+      try {
+        const parts = token.split(".");
+        if (parts.length === 3) {
+          const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+          const json = atob(b64.padEnd(b64.length + (4 - b64.length % 4) % 4, "="));
+          const claims = JSON.parse(json);
+          if (claims.sub) {
+            resolvedUserId = claims.sub;
+            resolvedEmail = claims.email || resolvedEmail;
+          }
+        }
+      } catch { /* ignore decode errors */ }
     }
 
     if (!resolvedUserId) {

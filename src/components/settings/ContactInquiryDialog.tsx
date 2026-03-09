@@ -6,8 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { MessageSquare, Send, CheckCircle2 } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
-
-const SESSION_CACHE_KEY = 'sb-auth-session-cache';
+import { supabase } from '@/integrations/supabase/safeClient';
 
 let cachedAppVersion: string | null = null;
 async function getAppVersion(): Promise<string> {
@@ -23,19 +22,6 @@ async function getAppVersion(): Promise<string> {
   return cachedAppVersion;
 }
 
-function getAuthFromCache() {
-  try {
-    const cached = localStorage.getItem(SESSION_CACHE_KEY);
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      return {
-        userId: parsed.user?.id as string | undefined,
-        userEmail: parsed.user?.email as string | undefined,
-      };
-    }
-  } catch { /* ignore */ }
-  return { userId: undefined, userEmail: undefined };
-}
 
 interface ContactInquiryDialogProps {
   open: boolean;
@@ -51,14 +37,23 @@ export function ContactInquiryDialog({ open, onOpenChange }: ContactInquiryDialo
     if (!subject.trim() || !message.trim()) return;
     setStatus('sending');
 
-    const auth = getAuthFromCache();
+    let userId: string | undefined;
+    let userEmail = 'anonymous';
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        userId = session.user.id;
+        userEmail = session.user.email || 'anonymous';
+      }
+    } catch { /* proceed without auth */ }
+
     const appVersion = await getAppVersion();
 
     const payload = {
       subject: subject.trim(),
       message: message.trim(),
-      user_id: auth.userId || null,
-      user_email: auth.userEmail || 'anonymous',
+      user_id: userId || null,
+      user_email: userEmail,
       user_agent: navigator.userAgent,
       app_version: appVersion,
       route: window.location.pathname,

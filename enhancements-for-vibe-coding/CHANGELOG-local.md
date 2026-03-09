@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: EDGE-FN-AUTH-401
+- Summary: Fixed 401 in send-feature-request/bug-report/contact-inquiry. Replaced getUser() with manual JWT decode. Fixed client dialogs to use supabase.auth.getSession().
+- Files: send-feature-request, send-bug-report, send-contact-inquiry edge functions, FeatureRequestDialog.tsx, ContactInquiryDialog.tsx
+
+
+- Date: 2026-03-09
 - Issue ID: EMAIL-SENDER-UPDATE
 - Summary: Changed email sender from `noreply@thewise.cloud` to `notifications@thewise.cloud` in all three feedback edge functions to improve deliverability (Resend penalizes "noreply" addresses).
 - Files touched: supabase/functions/send-bug-report/index.ts, supabase/functions/send-feature-request/index.ts, supabase/functions/send-contact-inquiry/index.ts, enhancements-for-vibe-coding/CHANGELOG-local.md
