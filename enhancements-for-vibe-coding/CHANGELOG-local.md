@@ -4,6 +4,11 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-09
 
+### PORTFOLIO-AUDIT-FIX — Issue 2 Refresh Button
+- **Summary**: Replaced `window.location.reload()` with `queryClient.invalidateQueries` for targeted analytics refresh without full page reload.
+- **Files**: `src/components/portfolio/VisitorsPanel.tsx`
+
+
 ### PORTFOLIO-TOOL-BUG-FIX-ROUND
 - **Summary**: Comprehensive portfolio tool bug fix round addressing 9 issues: (1) Footer link now explicit href + visual underline. (2) Visitors panel: fixed domain to resume.thewise.cloud, added refresh button, richer draft placeholder with mock cards. (3) Short link domain fixed. (4) Career card preview removed max-w-2xl for full-width scaling. (5) Theme filter: assigned proper categories to base themes, strict filtering. (6) Content tab restructured: Match CV/Custom toggle, separate portfolioSummary field in portfolioExtras, renamed Case Studies→Projects, reordered sections. (7) Chat widget: z-[60], pointer-events:auto, BYOK owner key via getUserKeyFromDB, chatDisabled self-hide. (8) Username field: replaced "WiseResume/" with live URL preview. (9) LivePreviewCard: shows bio snippet, Open to Work badge, view count. Design thumbnails inject user name/avatar.
 - **Files**: `src/pages/PublicPortfolioPage.tsx`, `src/components/portfolio/VisitorsPanel.tsx`, `src/lib/portfolioThemes.ts`, `src/components/portfolio/editor/ThemeStorePicker.tsx`, `src/components/portfolio/editor/ContentTab.tsx`, `src/pages/PortfolioEditorPage.tsx`, `src/components/portfolio/editor/SetupTab.tsx`, `src/components/portfolio/editor/DesignTab.tsx`, `src/components/portfolio/editor/LivePreviewCard.tsx`, `src/components/portfolio/public/ChatWidget.tsx`, `src/components/portfolio/CareerCardSheet.tsx`, `supabase/functions/ask-portfolio/index.ts`
