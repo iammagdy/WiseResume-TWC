@@ -262,7 +262,7 @@ const Index = () => {
                 whileTap={prefersReducedMotion ? undefined : { scale: 0.98 }}
               >
                 <button
-                  className="w-full h-14 text-lg font-semibold rounded-xl border border-primary/40 bg-primary/10 text-foreground hover:bg-primary/20 hover:border-primary/70 active:scale-[0.98] transition-all touch-manipulation backdrop-blur-sm shadow-[0_0_32px_-8px_hsl(var(--primary)/0.4)] hover:shadow-[0_0_48px_-8px_hsl(var(--primary)/0.6)]"
+                  className="w-full h-14 text-lg font-semibold rounded-xl border border-primary/40 bg-transparent text-foreground hover:bg-primary/10 hover:border-primary/70 active:scale-[0.98] transition-all touch-manipulation backdrop-blur-sm shadow-[0_0_32px_-8px_hsl(var(--primary)/0.4)] hover:shadow-[0_0_48px_-8px_hsl(var(--primary)/0.6)]"
                   onClick={handleCTA}
                 >
                   Get Started Free
