@@ -448,12 +448,25 @@ export default function PortfolioEditorPage() {
                 onBioChange={setBio}
                 onGenerateBio={handleGenerateBio}
                 generatingBio={generatingBio}
-                linkedinUrl={linkedinUrl}
-                onLinkedinUrlChange={setLinkedinUrl}
-                githubUrl={githubUrl}
-                onGithubUrlChange={setGithubUrl}
-                contactEmail={contactEmail}
-                onContactEmailChange={setContactEmail}
+              />
+            )}
+
+            {activeTab === 'content' && (
+              <ContentTab
+                sections={sections}
+                onToggleSectionVisibility={toggleSectionVisibility}
+                syncMode={syncMode}
+                onSyncModeChange={setSyncMode}
+                openSections={openSections}
+                toggleSection={toggleSection}
+                caseStudies={caseStudies}
+                onCaseStudiesChange={setCaseStudies}
+                services={services}
+                onServicesChange={setServices}
+                testimonials={testimonials}
+                onTestimonialsChange={setTestimonials}
+                highlights={highlights}
+                onHighlightsChange={setHighlights}
                 openToWork={openToWork}
                 onOpenToWorkChange={setOpenToWork}
                 availabilityHeadline={availabilityHeadline}
