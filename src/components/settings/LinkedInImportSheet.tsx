@@ -15,8 +15,11 @@ import {
   ChevronRight,
   AlertCircle,
   Upload,
-  ClipboardPaste
+  ClipboardPaste,
+  Link2,
+  ArrowRight
 } from 'lucide-react';
+import { parseResumePDF, parseResumePDFWithOCR } from '@/lib/pdfParser';
 import {
   Sheet,
   SheetContent,
