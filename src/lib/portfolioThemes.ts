@@ -54,7 +54,7 @@ export const PORTFOLIO_THEMES: PortfolioThemeConfig[] = [
     id: 'bold-dark',
     name: 'Bold Dark',
     description: 'High contrast with glow cards.',
-    category: 'all',
+    category: 'developer',
     isNew: false,
     colors: { bg: '#0a0a0f', fg: '#f8f8ff', card: 'rgba(255,255,255,0.03)', border: 'rgba(255,255,255,0.06)', muted: '#9ca3af', accentDefault: '#e84545' },
     typography: { headingFont: 'Inter, system-ui, sans-serif', bodyFont: 'Inter, system-ui, sans-serif', headingWeight: 800 },
