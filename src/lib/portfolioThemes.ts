@@ -66,7 +66,7 @@ export const PORTFOLIO_THEMES: PortfolioThemeConfig[] = [
     id: 'glass-pro',
     name: 'Glass Pro',
     description: 'Frosted glass. Modern & polished.',
-    category: 'all',
+    category: 'creative',
     isNew: false,
     colors: { bg: '#0d1117', fg: '#f0f4ff', card: 'rgba(255,255,255,0.08)', border: 'rgba(255,255,255,0.1)', muted: '#9ca3af', accentDefault: '#e84545' },
     typography: { headingFont: 'Inter, system-ui, sans-serif', bodyFont: 'Inter, system-ui, sans-serif', headingWeight: 800 },
