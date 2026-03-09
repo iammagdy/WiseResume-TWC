@@ -51,6 +51,45 @@ const TABLES_ORDER = [
   'shortLinks',
 ] as const;
 
+/** Whitelist of valid columns per table (excludes id, created_at, updated_at, user_id/owner_user_id — those are handled separately). */
+const TABLE_COLUMNS: Record<string, string[]> = {
+  profiles: [
+    'full_name', 'avatar_url', 'career_level', 'contact_email', 'date_of_birth',
+    'digest_enabled', 'github_url', 'github_last_synced', 'github_projects_cache',
+    'hired_at', 'industry', 'job_title', 'last_active_at', 'last_login_date',
+    'linkedin_url', 'location', 'login_streak', 'onboarding_completed', 'open_to_work',
+    'phone_number', 'portfolio_accent_color', 'portfolio_bio', 'portfolio_enabled',
+    'portfolio_extras', 'portfolio_font', 'portfolio_layout', 'portfolio_meta_description',
+    'portfolio_meta_title', 'portfolio_sections', 'portfolio_style', 'portfolio_sync_mode',
+    'portfolio_theme', 'profile_completed', 'referral_source', 'twitter_url', 'username',
+    'views', 'website_url', 'availability_headline',
+  ],
+  resumes: [
+    'awards', 'certifications', 'contact_info', 'customization', 'deleted_at',
+    'education', 'experience', 'hobbies', 'is_primary', 'job_match_score', 'job_url',
+    'projects', 'publications', 'references', 'skills', 'summary', 'target_company',
+    'target_job_title', 'template_id', 'title', 'volunteering',
+  ],
+  cover_letters: ['company', 'content', 'job_title', 'template_style', 'title', 'tone'],
+  job_applications: ['applied_at', 'company', 'deadline', 'job_title', 'notes', 'remind_at', 'status', 'url'],
+  jobs: ['company', 'company_logo', 'description', 'is_saved', 'job_type', 'location', 'posted_date', 'requirements', 'salary_range', 'source_url', 'title'],
+  interview_sessions: ['duration_seconds', 'improvements', 'interview_type', 'job_description', 'job_title', 'messages', 'overall_score', 'strengths'],
+  career_assessments: ['completed_milestones', 'quiz_answers', 'result'],
+  resignation_letters: ['additions', 'checklist_progress', 'company', 'content', 'last_working_day', 'notice_period', 'position', 'reason', 'recipient_name', 'template_style', 'title', 'tone'],
+  tailor_history: ['applied_sections', 'company', 'job_description', 'job_title', 'score_after', 'score_before', 'tailor_result'],
+  short_links: ['click_count', 'label', 'portfolio_username', 'target_url'],
+  user_preferences: ['ai_provider', 'biometric_enabled', 'biometric_timeout', 'default_template', 'onboarding_flags', 'pdf_defaults'],
+};
+
+/** Pick only whitelisted keys from a row */
+function pickColumns(row: Record<string, unknown>, whitelist: string[]): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const col of whitelist) {
+    if (col in row) result[col] = row[col];
+  }
+  return result;
+}
+
 async function fetchAll(table: string, userId: string): Promise<Record<string, unknown>[]> {
   const { data, error } = await supabase
     .from(table as any)
@@ -163,27 +202,23 @@ export async function importFullAccount(
     report();
   };
 
-  // Helper to upsert rows with new user_id
+  // Helper to upsert rows with new user_id — whitelist approach
   async function upsertRows(
     stepIdx: number,
     table: string,
     rows: Record<string, unknown>[],
-    opts?: { ownerCol?: string; stripCols?: string[] }
+    opts?: { ownerCol?: string }
   ) {
     const col = opts?.ownerCol || 'user_id';
-    const extraStrip = opts?.stripCols || [];
+    const whitelist = TABLE_COLUMNS[table];
     if (!rows.length) { setStep(stepIdx, 'done'); success++; return; }
+    if (!whitelist) { setStep(stepIdx, 'error', `No whitelist for table ${table}`); failed++; return; }
     setStep(stepIdx, 'importing');
     try {
       const mapped = rows.map(r => {
-        const clone = { ...r };
-        // Strip metadata fields to let DB set defaults
-        delete clone.id;
-        delete clone.created_at;
-        delete clone.updated_at;
-        for (const c of extraStrip) delete clone[c];
-        clone[col] = userId;
-        return clone;
+        const clean = pickColumns(r, whitelist);
+        clean[col] = userId;
+        return clean;
       });
       const { error } = await supabase.from(table as any).insert(mapped as any);
       if (error) throw error;
@@ -197,32 +232,36 @@ export async function importFullAccount(
 
   report();
 
-  // 0: Profile — merge into existing
+  // 0: Profile — merge into existing (whitelist filtering)
   setStep(0, 'importing');
   try {
     if (data.profile) {
-      const { id, user_id, created_at, updated_at, portfolio_resume_id, ...profileFields } = data.profile as any;
-      const { error } = await supabase.from('profiles').update(profileFields).eq('user_id', userId);
-      if (error) throw error;
+      const profileWhitelist = TABLE_COLUMNS['profiles'];
+      const profileFields = pickColumns(data.profile as Record<string, unknown>, profileWhitelist);
+      if (Object.keys(profileFields).length > 0) {
+        const { error } = await supabase.from('profiles').update(profileFields).eq('user_id', userId);
+        if (error) throw error;
+      }
     }
     setStep(0, 'done'); success++;
   } catch (e: any) { setStep(0, 'error', e.message); failed++; }
 
-  // 1-8: Data tables — strip stale cross-reference columns that point to old IDs
-  await upsertRows(1, 'resumes', data.resumes, { stripCols: ['parent_resume_id'] });
-  await upsertRows(2, 'cover_letters', data.coverLetters, { stripCols: ['resume_id'] });
-  await upsertRows(3, 'job_applications', data.jobApplications, { stripCols: ['resume_id', 'cover_letter_id', 'job_id'] });
+  // 1-8: Data tables — whitelist approach, no stale FK refs pass through
+  await upsertRows(1, 'resumes', data.resumes);
+  await upsertRows(2, 'cover_letters', data.coverLetters);
+  await upsertRows(3, 'job_applications', data.jobApplications);
   await upsertRows(4, 'jobs', data.jobs);
-  await upsertRows(5, 'interview_sessions', data.interviewSessions, { stripCols: ['resume_id'] });
-  await upsertRows(6, 'career_assessments', data.careerAssessments, { stripCols: ['resume_id'] });
+  await upsertRows(5, 'interview_sessions', data.interviewSessions);
+  await upsertRows(6, 'career_assessments', data.careerAssessments);
   await upsertRows(7, 'resignation_letters', data.resignationLetters);
-  await upsertRows(8, 'tailor_history', data.tailorHistory, { stripCols: ['resume_id'] });
+  await upsertRows(8, 'tailor_history', data.tailorHistory);
 
-  // 9: Preferences
+  // 9: Preferences (whitelist filtering)
   setStep(9, 'importing');
   try {
     if (data.preferences) {
-      const { id, user_id, ...prefFields } = data.preferences as any;
+      const prefWhitelist = TABLE_COLUMNS['user_preferences'];
+      const prefFields = pickColumns(data.preferences as Record<string, unknown>, prefWhitelist);
       await supabase.from('user_preferences').upsert({ ...prefFields, user_id: userId }, { onConflict: 'user_id' } as any);
     }
     setStep(9, 'done'); success++;

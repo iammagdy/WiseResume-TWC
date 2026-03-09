@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: BACKUP-RESTORE-WHITELIST-FIX
+- Summary: Switched account backup import from strip-list to whitelist column approach. Each table now has an explicit list of valid columns; unknown/stale columns (including FK refs like parent_resume_id, resume_id, cover_letter_id) are silently dropped. Profile update and preferences also use whitelist filtering. Import is now resilient to schema version mismatches.
+- Files: src/lib/accountBackup.ts, enhancements-for-vibe-coding/CHANGELOG-local.md
+- Notes: Export unchanged. Stale FK references no longer need explicit stripping since they're not in the whitelist.
+
+- Date: 2026-03-09
 - Issue ID: BACKUP-RESTORE-FIX
 - Summary: Fixed account backup import failures. Stripped stale cross-reference columns (parent_resume_id, portfolio_resume_id, resume_id, cover_letter_id, job_id) during import to prevent FK constraint errors. Added error checking on profile update. Awaited query invalidation before closing sheet.
 - Files: src/lib/accountBackup.ts, src/components/profile/AccountBackupSheet.tsx, enhancements-for-vibe-coding/CHANGELOG-local.md
