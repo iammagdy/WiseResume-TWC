@@ -158,6 +158,25 @@ const TOOLS = [
   {
     type: "function",
     function: {
+      name: "add_project",
+      description: "Adds a new project to the user's resume/portfolio. Use when the user asks to add a project, side project, or portfolio piece.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Project name" },
+          description: { type: "string", description: "Brief description of the project" },
+          url: { type: "string", description: "Live URL of the project" },
+          githubUrl: { type: "string", description: "GitHub repository URL" },
+          technologies: { type: "array", items: { type: "string" }, description: "Technologies used" },
+          role: { type: "string", description: "User's role in the project" },
+        },
+        required: ["name", "description"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "suggest_edits",
       description: "For subjective or risky changes, propose edits for user approval instead of directly applying. Use when the request is vague (e.g., 'make it better', 'more leadership-focused') or when multiple sections would change. ALWAYS use this for destructive or irreversible actions — never auto-apply without confirmation.",
       parameters: {
