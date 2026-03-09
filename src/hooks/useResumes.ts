@@ -267,9 +267,11 @@ export function useResumeMutations() {
     mutationFn: async (resumeId: string) => {
       if (!user) throw new Error('Not authenticated');
 
-      const { error } = await supabase.rpc('soft_delete_resume', {
-        p_resume_id: resumeId,
-      });
+      const { error } = await supabase
+        .from('resumes')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', resumeId)
+        .eq('user_id', user.id);
 
       if (error) throw error;
     },
