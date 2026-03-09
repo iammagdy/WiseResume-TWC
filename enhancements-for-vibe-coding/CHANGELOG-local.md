@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: LIGHT-MODE-VISIBILITY-FIXES
+- Summary: Fixed hardcoded white-based colors causing visibility issues in light mode across Auth, main app pages, Settings, and portfolio components. Made EmailConfirmationPage card border, StickyHeader background, ActionCard primary variant, and Settings changelog button theme-aware using useIsDark hook and semantic design tokens.
+- Files touched: src/hooks/useIsDark.ts (imported reusable), src/pages/EmailConfirmationPage.tsx, src/components/portfolio/public/StickyHeader.tsx, src/components/home/ActionCard.tsx, src/pages/SettingsPage.tsx, enhancements-for-vibe-coding/CHANGELOG-local.md
+- Notes: All priority UI areas (auth flow, main app, settings, portfolio) now properly adapt to both light and dark modes. Replaced portfolio-theme-based isLight with global useIsDark() for consistency.
+
+- Date: 2026-03-09
 - Issue ID: LIGHT-MODE-UI-FIX
 - Summary: Fixed light mode visibility issues in auth components. Extracted useIsDark hook from SkyWallpaper for reuse. Updated SlideCaptcha track/border to use theme-aware colors (black tints in light mode, white tints in dark). Fixed verified text to use text-green-600 dark:text-green-400. Updated AuthPage back button and card inner styles to use CSS variables (--foreground) for proper theme adaptation.
 - Files touched: src/hooks/useIsDark.ts (new), src/components/auth/SlideCaptcha.tsx, src/pages/AuthPage.tsx, enhancements-for-vibe-coding/CHANGELOG-local.md

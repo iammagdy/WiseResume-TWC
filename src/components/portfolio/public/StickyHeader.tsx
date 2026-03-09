@@ -1,6 +1,5 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-
-const LIGHT_THEMES = ['classic-clean', 'executive-suite', 'creative-spotlight', 'freelancer-starter'];
+import { useIsDark } from '@/hooks/useIsDark';
 
 interface StickyHeaderProps {
   name: string | null;
@@ -13,7 +12,7 @@ interface StickyHeaderProps {
 }
 
 export function StickyHeader({ name, avatarUrl, initials, contactEmail, accentColor, visible, pStyle = 'minimal' }: StickyHeaderProps) {
-  const isLight = LIGHT_THEMES.includes(pStyle);
+  const isDark = useIsDark();
 
   return (
     <div
@@ -22,8 +21,8 @@ export function StickyHeader({ name, avatarUrl, initials, contactEmail, accentCo
       style={{
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
-        background: isLight ? 'rgba(255,255,255,0.92)' : 'rgba(10,10,20,0.85)',
-        borderBottom: isLight ? '1px solid rgba(0,0,0,0.08)' : '1px solid rgba(255,255,255,0.06)',
+        background: isDark ? 'rgba(10,10,20,0.85)' : 'rgba(255,255,255,0.92)',
+        borderBottom: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.08)',
       }}
     >
       <div className="flex items-center gap-2.5">
@@ -31,7 +30,7 @@ export function StickyHeader({ name, avatarUrl, initials, contactEmail, accentCo
           <AvatarImage src={avatarUrl || undefined} />
           <AvatarFallback className="text-xs font-bold" style={{ background: accentColor, color: '#fff' }}>{initials}</AvatarFallback>
         </Avatar>
-        <span className="font-semibold text-sm" style={{ color: isLight ? '#111827' : 'var(--pf-fg, #f5f5ff)', fontFamily: 'var(--pf-heading-font)' }}>
+        <span className="font-semibold text-sm" style={{ color: isDark ? 'var(--pf-fg, #f5f5ff)' : '#111827', fontFamily: 'var(--pf-heading-font)' }}>
           {name || 'Portfolio'}
         </span>
       </div>

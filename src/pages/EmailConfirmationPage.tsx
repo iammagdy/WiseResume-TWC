@@ -8,6 +8,7 @@ import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { toast } from 'sonner';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { useIsDark } from '@/hooks/useIsDark';
 
 const OTP_LENGTH = 6;
 
@@ -65,6 +66,7 @@ function OtpInput({ value, onChange, disabled }: { value: string; onChange: (v: 
 export default function EmailConfirmationPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const isDark = useIsDark();
   const state = location.state as { email?: string; verifyMethod?: string; password?: string; fullName?: string };
   const email = state?.email || '';
   const verifyMethod = state?.verifyMethod || 'link';
@@ -193,7 +195,7 @@ export default function EmailConfirmationPage() {
             background: 'hsl(var(--card) / 0.25)',
             backdropFilter: 'blur(24px)',
             WebkitBackdropFilter: 'blur(24px)',
-            border: '1px solid hsl(0 0% 100% / 0.12)',
+            border: isDark ? '1px solid hsl(0 0% 100% / 0.12)' : '1px solid hsl(0 0% 0% / 0.12)',
             boxShadow: '0 0 60px -10px hsl(355 85% 52% / 0.25), 0 25px 50px -12px rgba(0,0,0,0.5)',
           }}
         >
