@@ -202,27 +202,23 @@ export async function importFullAccount(
     report();
   };
 
-  // Helper to upsert rows with new user_id
+  // Helper to upsert rows with new user_id — whitelist approach
   async function upsertRows(
     stepIdx: number,
     table: string,
     rows: Record<string, unknown>[],
-    opts?: { ownerCol?: string; stripCols?: string[] }
+    opts?: { ownerCol?: string }
   ) {
     const col = opts?.ownerCol || 'user_id';
-    const extraStrip = opts?.stripCols || [];
+    const whitelist = TABLE_COLUMNS[table];
     if (!rows.length) { setStep(stepIdx, 'done'); success++; return; }
+    if (!whitelist) { setStep(stepIdx, 'error', `No whitelist for table ${table}`); failed++; return; }
     setStep(stepIdx, 'importing');
     try {
       const mapped = rows.map(r => {
-        const clone = { ...r };
-        // Strip metadata fields to let DB set defaults
-        delete clone.id;
-        delete clone.created_at;
-        delete clone.updated_at;
-        for (const c of extraStrip) delete clone[c];
-        clone[col] = userId;
-        return clone;
+        const clean = pickColumns(r, whitelist);
+        clean[col] = userId;
+        return clean;
       });
       const { error } = await supabase.from(table as any).insert(mapped as any);
       if (error) throw error;
