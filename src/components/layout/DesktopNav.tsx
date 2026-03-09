@@ -1,12 +1,12 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Globe, Home, BarChart3, Sparkles, MessageCircle } from 'lucide-react';
+import { FileText, Globe, Home, BarChart3, Sparkles, MessageCircle, Settings } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useChangelogBadge } from '@/hooks/useChangelogBadge';
 import { toast } from 'sonner';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useState, useRef, useEffect } from 'react';
 
 const AgenticChatSheet = lazy(() => import('@/components/editor/AgenticChatSheet').then(m => ({ default: m.AgenticChatSheet })));
 
@@ -23,7 +23,7 @@ const tabs: TabItem[] = [
     path: '/dashboard',
     icon: Home,
     label: 'Home',
-    matchPaths: ['/dashboard', '/settings', '/notifications', '/templates', '/examples', '/guides', '/resume', '/onboarding'],
+    matchPaths: ['/dashboard', '/notifications', '/templates', '/examples', '/guides', '/resume', '/onboarding'],
   },
   {
     path: '/editor',
