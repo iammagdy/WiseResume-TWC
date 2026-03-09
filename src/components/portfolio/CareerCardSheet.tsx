@@ -515,7 +515,7 @@ export function CareerCardSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="max-h-[94vh] flex flex-col">
+      <SheetContent side="bottom" className="max-h-[94vh] flex flex-col px-3 sm:px-6">
         <SheetHeader className="shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-primary" /> Career Card
@@ -525,7 +525,7 @@ export function CareerCardSheet({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-5 pt-2 pb-4 max-w-3xl mx-auto w-full">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-5 pt-2 pb-4 w-full px-2 sm:px-4">
 
           {/* Live preview */}
           <div ref={previewWrapperRef} className="pf-card-flip-container w-full mx-auto rounded-2xl border border-border/40 relative overflow-hidden"
