@@ -223,6 +223,8 @@ export default function AuthPage() {
     setShowConfirmPassword(false);
     setSignUpStep('form');
     setVerifyMethod('otp');
+    setAcceptedTerms(false);
+    setCaptchaVerified(false);
   };
 
   const headingText: Record<Mode, string> = {
