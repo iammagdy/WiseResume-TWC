@@ -156,9 +156,12 @@ export default function AuthPage() {
         const { data, error } = await edgeFunctions.functions.invoke('send-signup-otp', {
           body: { email, password, fullName },
         });
-        if (error) {
-          toast.error((error as any).message || 'Sign-up failed');
-          if ((error as any).status === 409) setMode('sign-in');
+        if (error || (data && typeof data === 'object' && 'error' in (data as Record<string, unknown>))) {
+          const msg = (data as any)?.error || (error as any)?.message || 'Sign-up failed';
+          toast.error(msg);
+          if ((error as any)?.status === 409 || msg.includes('already exists')) setMode('sign-in');
+          setIsLoading(false);
+          return;
         } else {
           navigate('/auth/confirm-email', { state: { email, verifyMethod: 'otp' }, replace: true });
         }
