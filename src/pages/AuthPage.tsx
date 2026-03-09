@@ -151,21 +151,35 @@ export default function AuthPage() {
     if (!email || !password || !fullName) return;
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { full_name: fullName },
-          emailRedirectTo: `${window.location.origin}?verify_method=${verifyMethod}`,
-        },
-      });
-      if (error) {
-        toast.error(error.message || 'Sign-up failed');
-      } else if (data.user?.identities?.length === 0) {
-        toast.error('An account with this email already exists. Please sign in.');
-        setMode('sign-in');
+      if (verifyMethod === 'otp') {
+        // OTP mode: call custom edge function that creates user + sends OTP email
+        const { data, error } = await edgeFunctions.functions.invoke('send-signup-otp', {
+          body: { email, password, fullName },
+        });
+        if (error) {
+          toast.error((error as any).message || 'Sign-up failed');
+          if ((error as any).status === 409) setMode('sign-in');
+        } else {
+          navigate('/auth/confirm-email', { state: { email, verifyMethod: 'otp' }, replace: true });
+        }
       } else {
-        navigate('/auth/confirm-email', { state: { email, verifyMethod }, replace: true });
+        // Link mode: standard Supabase signUp (triggers Lovable webhook → confirmation link)
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { full_name: fullName },
+            emailRedirectTo: `${window.location.origin}`,
+          },
+        });
+        if (error) {
+          toast.error(error.message || 'Sign-up failed');
+        } else if (data.user?.identities?.length === 0) {
+          toast.error('An account with this email already exists. Please sign in.');
+          setMode('sign-in');
+        } else {
+          navigate('/auth/confirm-email', { state: { email, verifyMethod: 'link' }, replace: true });
+        }
       }
     } catch (err: any) {
       toast.error(err?.message || 'Sign-up failed');
