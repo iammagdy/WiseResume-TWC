@@ -1,8 +1,12 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ContactInquiryDialog } from '@/components/settings/ContactInquiryDialog';
 
 export default function TermsPage() {
+  const [contactOpen, setContactOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 glass-header border-b border-border/20 px-4 h-12 flex items-center gap-3">
@@ -31,7 +35,7 @@ export default function TermsPage() {
 
         <section className="space-y-2">
           <h3 className="text-foreground font-semibold">2. Account Registration</h3>
-          <p>You agree to provide accurate, current, and complete information when creating your account. You are solely responsible for maintaining the confidentiality of your credentials and for all activity under your account. You must notify us immediately at <span className="text-primary">support@wiseresume.app</span> if you suspect unauthorized access.</p>
+          <p>You agree to provide accurate, current, and complete information when creating your account. You are solely responsible for maintaining the confidentiality of your credentials and for all activity under your account. You must notify us immediately at <span className="text-primary">support@thewise.cloud</span> if you suspect unauthorized access.</p>
         </section>
 
         <section className="space-y-2">
@@ -76,7 +80,7 @@ export default function TermsPage() {
           <ul className="list-disc pl-5 space-y-1">
             <li>Billing occurs on a recurring basis (monthly or annually) as selected at checkout.</li>
             <li>You may cancel your subscription at any time. Access to premium features continues until the end of the current billing period.</li>
-            <li>Refunds are provided in accordance with applicable consumer protection laws. Contact <span className="text-primary">support@wiseresume.app</span> for refund requests.</li>
+            <li>Refunds are provided in accordance with applicable consumer protection laws. Contact <span className="text-primary">support@thewise.cloud</span> for refund requests.</li>
             <li>We reserve the right to modify pricing with at least 30 days' notice. Existing subscribers will be notified before any price change takes effect.</li>
           </ul>
         </section>
@@ -128,13 +132,23 @@ export default function TermsPage() {
 
         <section className="space-y-2">
           <h3 className="text-foreground font-semibold">14. Contact Us</h3>
-          <p>For questions or concerns about these Terms, please contact us:</p>
+          <p>For questions or concerns about these Terms, you can reach us directly:</p>
           <ul className="list-disc pl-5 space-y-1">
-            <li>General Support: <span className="text-primary">support@wiseresume.app</span></li>
-            <li>Legal Inquiries: <span className="text-primary">legal@wiseresume.app</span></li>
+            <li>General Support: <span className="text-primary">support@thewise.cloud</span></li>
+            <li>Legal Inquiries: <span className="text-primary">legal@thewise.cloud</span></li>
           </ul>
+          <p className="pt-2">Or send us a message directly:</p>
+          <Button
+            onClick={() => setContactOpen(true)}
+            variant="outline"
+            className="mt-1"
+          >
+            Contact Us
+          </Button>
         </section>
       </main>
+
+      <ContactInquiryDialog open={contactOpen} onOpenChange={setContactOpen} />
     </div>
   );
 }

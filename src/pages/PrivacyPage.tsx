@@ -87,7 +87,7 @@ export default function PrivacyPage() {
             <li><strong className="text-foreground">Right to Withdraw Consent:</strong> Withdraw consent for optional data processing at any time without affecting the lawfulness of prior processing.</li>
             <li><strong className="text-foreground">Right to Object:</strong> Object to processing based on legitimate interests.</li>
           </ul>
-          <p>To exercise any of these rights, use the in-app settings or contact us at <span className="text-primary">privacy@wiseresume.app</span>. We will respond within 30 days, as required by applicable law.</p>
+          <p>To exercise any of these rights, use the in-app settings or contact us at <span className="text-primary">privacy@thewise.cloud</span>. We will respond within 30 days, as required by applicable law.</p>
           <p><strong className="text-foreground">CCPA-Specific:</strong> California residents have the right to know what personal information we collect, request its deletion, and opt out of any sale of personal information. We do not sell personal information.</p>
         </section>
 
@@ -118,7 +118,7 @@ export default function PrivacyPage() {
 
         <section className="space-y-2">
           <h3 className="text-foreground font-semibold">10. Children's Privacy</h3>
-          <p>WiseResume is not directed at individuals under the age of 16. We do not knowingly collect personal data from children. If we become aware that we have inadvertently collected data from a child under 16, we will promptly delete it. If you believe a child has provided us with personal data, please contact us at <span className="text-primary">privacy@wiseresume.app</span>.</p>
+          <p>WiseResume is not directed at individuals under the age of 16. We do not knowingly collect personal data from children. If we become aware that we have inadvertently collected data from a child under 16, we will promptly delete it. If you believe a child has provided us with personal data, please contact us at <span className="text-primary">privacy@thewise.cloud</span>.</p>
         </section>
 
         <section className="space-y-2">
@@ -130,8 +130,8 @@ export default function PrivacyPage() {
           <h3 className="text-foreground font-semibold">12. Contact Us</h3>
           <p>If you have questions, concerns, or requests regarding this Privacy Policy or your personal data, please contact us:</p>
           <ul className="list-disc pl-5 space-y-1">
-            <li>Email: <span className="text-primary">privacy@wiseresume.app</span></li>
-            <li>Data Protection Inquiries: <span className="text-primary">dpo@wiseresume.app</span></li>
+            <li>Email: <span className="text-primary">privacy@thewise.cloud</span></li>
+            <li>Data Protection Inquiries: <span className="text-primary">dpo@thewise.cloud</span></li>
           </ul>
           <p>We aim to respond to all inquiries within 30 days.</p>
         </section>

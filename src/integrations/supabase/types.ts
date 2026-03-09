@@ -204,6 +204,45 @@ export type Database = {
           },
         ]
       }
+      contact_inquiries: {
+        Row: {
+          app_version: string | null
+          created_at: string | null
+          id: string
+          message: string
+          route: string | null
+          status: string | null
+          subject: string
+          user_agent: string | null
+          user_email: string
+          user_id: string
+        }
+        Insert: {
+          app_version?: string | null
+          created_at?: string | null
+          id?: string
+          message: string
+          route?: string | null
+          status?: string | null
+          subject: string
+          user_agent?: string | null
+          user_email: string
+          user_id: string
+        }
+        Update: {
+          app_version?: string | null
+          created_at?: string | null
+          id?: string
+          message?: string
+          route?: string | null
+          status?: string | null
+          subject?: string
+          user_agent?: string | null
+          user_email?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       cover_letters: {
         Row: {
           company: string | null
