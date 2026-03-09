@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { subject, message, user_id, user_email, user_agent, app_version, route } = body;
+    const { subject, message, department, user_id, user_email, user_agent, app_version, route } = body;
 
     if (!subject || !message) {
       return new Response(
