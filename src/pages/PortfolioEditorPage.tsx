@@ -500,6 +500,8 @@ export default function PortfolioEditorPage() {
                 onPortfolioLayoutChange={setPortfolioLayout}
                 selectedTheme={selectedTheme}
                 onSelectedThemeChange={setSelectedTheme}
+                userName={profile?.fullName || undefined}
+                userAvatarUrl={profile?.avatarUrl || undefined}
               />
             )}
 
