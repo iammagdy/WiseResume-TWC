@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, ArrowLeft, User, KeyRound } from 'lucide-react';
+import { Mail, ArrowLeft, User, KeyRound, Check } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { OfflineBanner } from '@/components/layout/OfflineBanner';
@@ -12,6 +12,8 @@ import { PasswordInput } from '@/components/auth/PasswordInput';
 import { Button } from '@/components/ui/button';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
+import { SlideCaptcha } from '@/components/auth/SlideCaptcha';
+import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { lovable } from '@/integrations/lovable/index';
@@ -72,6 +74,8 @@ export default function AuthPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [signUpStep, setSignUpStep] = useState<SignUpStep>('form');
   const [verifyMethod, setVerifyMethod] = useState<VerifyMethod>('otp');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [captchaVerified, setCaptchaVerified] = useState(false);
 
   // Show session expired toast if redirected with reason
   useEffect(() => {
@@ -221,6 +225,8 @@ export default function AuthPage() {
     setShowConfirmPassword(false);
     setSignUpStep('form');
     setVerifyMethod('otp');
+    setAcceptedTerms(false);
+    setCaptchaVerified(false);
   };
 
   const headingText: Record<Mode, string> = {
@@ -539,6 +545,32 @@ export default function AuthPage() {
                             </div>
                           )}
                         </div>
+
+                        {mode === 'sign-up' && (
+                          <>
+                            {/* Terms & Privacy checkbox */}
+                            <label className="flex items-start gap-2.5 cursor-pointer group">
+                              <Checkbox
+                                checked={acceptedTerms}
+                                onCheckedChange={(v) => setAcceptedTerms(v === true)}
+                                className="mt-0.5 border-muted-foreground/40 data-[state=checked]:border-primary"
+                              />
+                              <span className="text-xs text-muted-foreground leading-relaxed">
+                                I agree to the{' '}
+                                <a href="/terms" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">Terms of Service</a>
+                                {' '}and{' '}
+                                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">Privacy Policy</a>
+                              </span>
+                            </label>
+
+                            {/* Slide captcha */}
+                            <SlideCaptcha
+                              verified={captchaVerified}
+                              onVerified={() => setCaptchaVerified(true)}
+                            />
+                          </>
+                        )}
+
                         <Button
                           type="submit"
                           size="lg"
@@ -547,7 +579,7 @@ export default function AuthPage() {
                             isLoading || 
                             !email || 
                             !password || 
-                            (mode === 'sign-up' && (!fullName || !confirmPassword || password !== confirmPassword))
+                            (mode === 'sign-up' && (!fullName || !confirmPassword || password !== confirmPassword || !acceptedTerms || !captchaVerified))
                           }
                         >
                           {isLoading ? <MiniSpinner size={20} /> : mode === 'sign-in' ? 'Sign In' : 'Continue'}
