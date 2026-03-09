@@ -615,6 +615,28 @@ function DashboardPageContent() {
             </div>
           )}
 
+          {/* Missing Profile Data Banner */}
+          {showProfileBanner && (
+            <div className="px-4 pt-3">
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-primary/20 bg-primary/5">
+                <User className="w-5 h-5 text-primary shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground">Complete your profile to get the most out of WiseResume.</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => navigate('/onboarding')} className="shrink-0 h-8">
+                  Complete
+                </Button>
+                <button
+                  onClick={() => { setShowProfileBanner(false); sessionStorage.setItem('wr-dismissed-profile-banner', 'true'); }}
+                  className="shrink-0 active:scale-95 min-w-[32px] min-h-[32px] flex items-center justify-center"
+                  aria-label="Dismiss"
+                >
+                  <X className="w-4 h-4 text-muted-foreground/70" />
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* What's Next Card */}
           <WhatsNextCard />
 

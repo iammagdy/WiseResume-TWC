@@ -168,24 +168,34 @@ export default function EmailConfirmationPage() {
               </p>
             </div>
 
-            {/* OTP Input */}
-            <div className="space-y-4 py-2">
-              <OtpInput value={otp} onChange={setOtp} disabled={verifying} />
-              {verifying && (
-                <div className="flex items-center justify-center gap-2">
-                  <MiniSpinner size={16} />
-                  <span className="text-sm text-muted-foreground">Verifying…</span>
+            {verifyMethod === 'otp' ? (
+              <>
+                {/* OTP Input */}
+                <div className="space-y-4 py-2">
+                  <OtpInput value={otp} onChange={setOtp} disabled={verifying} />
+                  {verifying && (
+                    <div className="flex items-center justify-center gap-2">
+                      <MiniSpinner size={16} />
+                      <span className="text-sm text-muted-foreground">Verifying…</span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            <div className="flex items-start gap-3 p-4 rounded-xl bg-warning/10 border border-warning/20 text-left">
-              <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
-              <p className="text-sm text-muted-foreground">
-                Didn't find it? Check your <span className="font-medium text-foreground">spam</span> or{' '}
-                <span className="font-medium text-foreground">junk</span> folder. You can also click the link in the email instead.
-              </p>
-            </div>
+                <div className="flex items-start gap-3 p-4 rounded-xl bg-warning/10 border border-warning/20 text-left">
+                  <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+                  <p className="text-sm text-muted-foreground">
+                    Didn't find it? Check your <span className="font-medium text-foreground">spam</span> or{' '}
+                    <span className="font-medium text-foreground">junk</span> folder. You can also click the link in the email instead.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="py-4">
+                <p className="text-muted-foreground">
+                  We've sent a magic link to your email. Click the link to instantly verify your account and sign in.
+                </p>
+              </div>
+            )}
 
             <div className="space-y-3 pt-2">
               {email && (

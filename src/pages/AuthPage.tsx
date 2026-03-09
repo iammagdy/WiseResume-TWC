@@ -164,14 +164,14 @@ export default function AuthPage() {
         toast.error('An account with this email already exists. Please sign in.');
         setMode('sign-in');
       } else {
-        navigate('/auth/confirm-email', { state: { email }, replace: true });
+        navigate('/auth/confirm-email', { state: { email, verifyMethod }, replace: true });
       }
     } catch (err: any) {
       toast.error(err?.message || 'Sign-up failed');
     } finally {
       setIsLoading(false);
     }
-  }, [email, password, fullName]);
+  }, [email, password, fullName, verifyMethod, navigate]);
 
   const handleForgotPassword = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();

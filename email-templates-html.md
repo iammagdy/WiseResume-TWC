@@ -128,7 +128,7 @@
 
 ---
 
-## 3. Magic Link
+## 3. Magic Link (Also used for Link Mode Signup)
 
 **Subject:** `Your WiseResume login link`
 
