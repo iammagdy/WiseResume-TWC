@@ -66,6 +66,7 @@ function OtpInput({ value, onChange, disabled }: { value: string; onChange: (v: 
 export default function EmailConfirmationPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const isDark = useIsDark();
   const state = location.state as { email?: string; verifyMethod?: string; password?: string; fullName?: string };
   const email = state?.email || '';
   const verifyMethod = state?.verifyMethod || 'link';
