@@ -1343,7 +1343,10 @@ export type Database = {
         Returns: undefined
       }
       resolve_short_link: { Args: { p_link_id: string }; Returns: Json }
+      restore_resume: { Args: { p_resume_id: string }; Returns: undefined }
       safe_uid: { Args: never; Returns: string }
+      soft_delete_resume: { Args: { p_resume_id: string }; Returns: undefined }
+      soft_delete_resumes: { Args: { p_resume_ids: string[] }; Returns: number }
       verify_share_password: {
         Args: { hashed_password: string; raw_password: string }
         Returns: boolean
