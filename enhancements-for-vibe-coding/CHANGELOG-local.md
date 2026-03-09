@@ -7,6 +7,17 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: OTP-6-DIGIT-FIX
+- Summary: Replaced hashed_token (long hex) with real 6-digit numeric OTP. Created `signup_otps` table to store codes with 10-min expiry. Updated `send-signup-otp` to generate/store 6-digit code and send it via Resend. Created new `verify-signup-otp` edge function that validates the code, confirms the user, and returns a session token. Updated `EmailConfirmationPage` to call `verify-signup-otp` instead of `supabase.auth.verifyOtp`.
+- Files touched:
+  - DB migration: `signup_otps` table
+  - `supabase/functions/send-signup-otp/index.ts`
+  - `supabase/functions/verify-signup-otp/index.ts` (new)
+  - `supabase/config.toml` (add verify-signup-otp)
+  - `src/pages/EmailConfirmationPage.tsx`
+- Notes: OTP stored in plaintext — acceptable for short-lived 10-min codes. RLS enabled with no policies (service-role only).
+
+- Date: 2026-03-09
 - Issue ID: OTP-RESEND-FIX
 - Summary: Fixed OTP resend sending verification links instead of OTP codes. Pass `password` and `fullName` through router state from AuthPage to EmailConfirmationPage. Updated `handleResend` in OTP mode to call `send-signup-otp` edge function instead of `supabase.auth.resend()`. Updated edge function to handle existing unconfirmed users by falling back to `magiclink` type when `signup` returns "already registered".
 - Files touched:

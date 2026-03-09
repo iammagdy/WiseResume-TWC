@@ -1,8 +1,8 @@
 /**
  * send-signup-otp
  * ─────────────────────────────────────────────
- * Creates a new user via admin.generateLink (which returns the OTP token
- * without sending an email), then sends a branded OTP email via Resend.
+ * Creates a new user via admin.generateLink, generates a 6-digit OTP,
+ * stores it in signup_otps table (Lovable Cloud DB), then sends a branded email via Resend.
  *
  * Body: { email: string, password: string, fullName: string }
  * Returns: { success: true } or { error: string }
@@ -23,6 +23,26 @@ const SITE_NAME = 'WiseResume';
 const SITE_URL = 'https://thewise.cloud';
 const SENDER_EMAIL = 'WiseResume <notify@thewise.cloud>';
 
+function generateOtp(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+/** Auth client — points to the EXTERNAL Supabase project */
+function getAuthClient() {
+  return createClient(
+    Deno.env.get('EXT_SUPABASE_URL') || Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('EXT_SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  );
+}
+
+/** DB client — points to Lovable Cloud (where signup_otps table lives) */
+function getDbClient() {
+  return createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  );
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -38,18 +58,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Create service-role client pointing to the external DB project
-    const supabaseAdmin = createClient(
-      Deno.env.get('EXT_SUPABASE_URL') || Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('EXT_SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
+    const supabaseAuth = getAuthClient();
+    const supabaseDb = getDbClient();
 
-    // Generate signup link — this creates the user and returns an OTP token
-    // but does NOT send an email (we handle that ourselves)
+    // Generate signup link — creates user and returns action_link
     let linkData: any;
     let linkError: any;
 
-    const result = await supabaseAdmin.auth.admin.generateLink({
+    const result = await supabaseAuth.auth.admin.generateLink({
       type: 'signup',
       email,
       password,
@@ -60,10 +76,10 @@ Deno.serve(async (req) => {
     linkData = result.data;
     linkError = result.error;
 
-    // If user already exists (registered but possibly unconfirmed), try magiclink to regenerate a token
+    // If user already exists (unconfirmed), try magiclink to regenerate a token
     if (linkError && (linkError.message?.includes('already been registered') || linkError.message?.includes('already exists'))) {
-      console.log('[send-signup-otp] User exists, trying magiclink to regenerate token');
-      const fallback = await supabaseAdmin.auth.admin.generateLink({
+      console.log('[send-signup-otp] User exists, trying magiclink fallback');
+      const fallback = await supabaseAuth.auth.admin.generateLink({
         type: 'magiclink',
         email,
       });
@@ -85,26 +101,35 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Extract the OTP token from the hashed_token property
-    const token = linkData?.properties?.hashed_token;
-    const confirmationUrl = linkData?.properties?.action_link || `${SITE_URL}/auth/confirm-email`;
+    const actionLink = linkData?.properties?.action_link || `${SITE_URL}/auth/confirm-email`;
 
-    if (!token) {
-      console.error('[send-signup-otp] No token in generateLink response:', JSON.stringify(linkData?.properties));
+    // Generate a 6-digit OTP
+    const otpCode = generateOtp();
+
+    // Delete any previous unused OTPs for this email, then insert new one
+    await supabaseDb.from('signup_otps').delete().eq('email', email).eq('used', false);
+    const { error: insertError } = await supabaseDb.from('signup_otps').insert({
+      email,
+      otp_code: otpCode,
+      action_link: actionLink,
+    });
+
+    if (insertError) {
+      console.error('[send-signup-otp] Failed to store OTP:', insertError);
       return new Response(JSON.stringify({ error: 'Failed to generate verification code' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Render the branded signup email with the OTP token
+    // Render the branded signup email with the 6-digit OTP
     const html = await renderAsync(
       SignupEmail({
         siteName: SITE_NAME,
         siteUrl: SITE_URL,
         recipient: email,
-        confirmationUrl,
-        token,
+        confirmationUrl: actionLink,
+        token: otpCode,
       })
     );
 
@@ -118,7 +143,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         from: SENDER_EMAIL,
         to: [email],
-        subject: `${token} is your WiseResume verification code`,
+        subject: `${otpCode} is your WiseResume verification code`,
         html,
       }),
     });
@@ -133,7 +158,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log('[send-signup-otp] OTP email sent to', email);
+    console.log('[send-signup-otp] 6-digit OTP email sent to', email);
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
