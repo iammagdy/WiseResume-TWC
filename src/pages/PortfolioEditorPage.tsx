@@ -403,6 +403,9 @@ export default function PortfolioEditorPage() {
           portfolioStyle={portfolioStyle}
           accentColor={portfolioAccentColor}
           portfolioFont={portfolioFont}
+          bio={bio}
+          openToWork={openToWork}
+          views={profile?.views || 0}
         />
 
         {/* Tab Row */}
