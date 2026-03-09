@@ -17,6 +17,7 @@ interface ChatRequest {
   message: string;
   conversationHistory: ChatMessage[];
   currentResume: unknown;
+  resumeList?: Array<{ id: string; title: string }>;
   functionResponse?: {
     name: string;
     result: Record<string, unknown>;
