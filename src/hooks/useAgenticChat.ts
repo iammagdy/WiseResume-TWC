@@ -7,7 +7,7 @@ import { haptics } from '@/lib/haptics';
 import { useAICreditsMutations } from './useAICredits';
 import { toast } from 'sonner';
 
-export function useAgenticChat() {
+export function useAgenticChat(contextFilter?: string) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isThinking, setIsThinking] = useState(false);
   const { currentResume, updateResume } = useResumeStore();
