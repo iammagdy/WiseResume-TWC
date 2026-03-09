@@ -451,28 +451,6 @@ function DashboardPageContent() {
 
   // Auth guard handled by ProtectedRoute
 
-  // Show onboarding for first-time users
-  if (showOnboarding) {
-    return (
-      <AnimatePresence>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[60]"
-        >
-          <Suspense fallback={null}>
-            <OnboardingCarousel
-              onComplete={handleOnboardingComplete}
-              onSkip={handleOnboardingComplete}
-              onChoice={handleOnboardingChoice}
-            />
-          </Suspense>
-        </motion.div>
-      </AnimatePresence>
-    );
-  }
-
   // Suspense fallback already shows DashboardSkeleton; avoid double skeleton
   if (authLoading) return null;
 
