@@ -61,6 +61,15 @@ export function DesktopNav() {
   const { data: resumes } = useResumes({ select: (data) => data.slice(0, 1) });
   const { hasNew, markSeen } = useChangelogBadge();
   const [wiseAIOpen, setWiseAIOpen] = useState(false);
+  const previousPathRef = useRef('/dashboard');
+  const isOnSettings = location.pathname.startsWith('/settings');
+
+  // Track previous non-settings path
+  useEffect(() => {
+    if (!isOnSettings) {
+      previousPathRef.current = location.pathname;
+    }
+  }, [location.pathname, isOnSettings]);
 
   const isActive = (tab: TabItem) => {
     if (tab.matchPaths) {
