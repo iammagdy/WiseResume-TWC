@@ -7,6 +7,13 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: ONBOARDING-DATA-REFLECT-FIX
+- Summary: Onboarding data (name, DOB, phone, referral, career level) was not reflected after completion because the React Query profile cache was never invalidated. Added `queryClient.invalidateQueries({ queryKey: ['profile'] })` after the DB update.
+- Files: src/pages/OnboardingPage.tsx, enhancements-for-vibe-coding/CHANGELOG-local.md
+- Notes: Minimal fix — one import + one invalidation call.
+
+
+- Date: 2026-03-09
 - Issue ID: DOMAIN-SWAP
 - Summary: Replaced deprecated `wiseresume.magdysaber.com` with `resume.thewise.cloud` across all domain references; updated fallback/default URLs
 - Files touched: `src/lib/portfolioUrl.ts`, `supabase/functions/portfolio-meta/index.ts`, `supabase/functions/_shared/cors.ts`
