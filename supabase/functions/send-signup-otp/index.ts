@@ -46,7 +46,10 @@ Deno.serve(async (req) => {
 
     // Generate signup link — this creates the user and returns an OTP token
     // but does NOT send an email (we handle that ourselves)
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+    let linkData: any;
+    let linkError: any;
+
+    const result = await supabaseAdmin.auth.admin.generateLink({
       type: 'signup',
       email,
       password,
@@ -54,15 +57,27 @@ Deno.serve(async (req) => {
         data: { full_name: fullName },
       },
     });
+    linkData = result.data;
+    linkError = result.error;
 
-    if (linkError) {
-      // Check for duplicate user
-      if (linkError.message?.includes('already been registered') || linkError.message?.includes('already exists')) {
-        return new Response(JSON.stringify({ error: 'An account with this email already exists. Please sign in.' }), {
-          status: 409,
+    // If user already exists (registered but possibly unconfirmed), try magiclink to regenerate a token
+    if (linkError && (linkError.message?.includes('already been registered') || linkError.message?.includes('already exists'))) {
+      console.log('[send-signup-otp] User exists, trying magiclink to regenerate token');
+      const fallback = await supabaseAdmin.auth.admin.generateLink({
+        type: 'magiclink',
+        email,
+      });
+      linkData = fallback.data;
+      linkError = fallback.error;
+
+      if (linkError) {
+        console.error('[send-signup-otp] magiclink fallback error:', linkError);
+        return new Response(JSON.stringify({ error: linkError.message || 'Failed to generate verification code' }), {
+          status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+    } else if (linkError) {
       console.error('[send-signup-otp] generateLink error:', linkError);
       return new Response(JSON.stringify({ error: linkError.message || 'Failed to create account' }), {
         status: 400,
