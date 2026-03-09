@@ -407,6 +407,7 @@ export default function PortfolioEditorPage() {
         <div className="flex gap-1.5 p-1 rounded-xl glass-surface border border-border/30">
           {([
             { id: 'setup', label: 'Setup' },
+            { id: 'content', label: 'Content' },
             { id: 'design', label: 'Design' },
             { id: 'more', label: 'More' },
           ] as const).map(tab => (
