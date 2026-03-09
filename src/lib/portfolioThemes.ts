@@ -78,7 +78,7 @@ export const PORTFOLIO_THEMES: PortfolioThemeConfig[] = [
     id: 'classic-clean',
     name: 'Classic Clean',
     description: 'White, serif-accented. Formal & timeless.',
-    category: 'all',
+    category: 'corporate',
     isNew: false,
     colors: { bg: '#ffffff', fg: '#111827', card: '#f9f9f9', border: '#e5e7eb', muted: '#6b7280', accentDefault: '#e84545' },
     typography: { headingFont: 'Georgia, "Times New Roman", serif', bodyFont: 'Inter, system-ui, sans-serif', headingWeight: 700 },
