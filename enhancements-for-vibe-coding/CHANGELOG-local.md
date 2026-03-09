@@ -7,6 +7,13 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: BYOK-ROUTING-FIX
+- Summary: Fixed Gemini BYOK key retrieval failing silently due to schema mismatch. `getUserKeyFromDB` and `getUserKeyAndUrlFromDB` in `aiClient.ts` queried `base_url`/`model` columns that don't exist in the external DB, causing SELECT to fail and all requests to fall back to WiseResume AI gateway. Removed those columns from SELECT queries. Also removed `model` column query from `ai-test/index.ts`.
+- Files touched: supabase/functions/_shared/aiClient.ts, supabase/functions/ai-test/index.ts
+- Notes: base_url/model columns still not present in external DB — Ollama BYOK will need them added later.
+
+
+- Date: 2026-03-09
 - Issue ID: MANAGE-KEYS-500-FIX
 - Summary: Fixed 500 error in manage-api-keys edge function. Two issues: (1) function connected to Lovable Cloud DB instead of external project — switched to EXT_SUPABASE_URL/EXT_SUPABASE_SERVICE_ROLE_KEY; (2) external DB's user_api_keys table lacks base_url/model columns — removed those from SELECT and upsert queries.
 - Files touched: supabase/functions/manage-api-keys/index.ts
