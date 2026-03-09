@@ -40,7 +40,7 @@ function getMiniCardStyle(
 
 /* ── Hero area renderer per heroAlign ───────────────────────── */
 
-function HeroPreview({ theme, accent }: { theme: PortfolioThemeConfig; accent: string }) {
+function HeroPreview({ theme, accent, userName, userAvatarUrl }: { theme: PortfolioThemeConfig; accent: string; userName?: string; userAvatarUrl?: string }) {
   const isTerminal = theme.layout.cardVariant === 'terminal-window';
   const isNeon = theme.layout.cardVariant === 'neon-glow';
   const isSerif = theme.id === 'classic-clean' || theme.id === 'executive-suite';
