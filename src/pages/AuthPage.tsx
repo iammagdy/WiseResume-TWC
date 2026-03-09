@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, ArrowLeft, User, KeyRound } from 'lucide-react';
+import { Mail, ArrowLeft, User, KeyRound, Check } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { OfflineBanner } from '@/components/layout/OfflineBanner';
