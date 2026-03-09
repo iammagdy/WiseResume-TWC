@@ -1,11 +1,11 @@
 import { useState, useCallback } from 'react';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { useAIAction } from './useAIAction';
-import { toast } from 'sonner';
 import type { CompanyBriefing } from '@/types/companyBriefing';
 
 interface GenerateParams {
-  jobDescription: string;
+  companyName?: string;
+  jobDescription?: string;
   resumeData?: {
     summary?: string;
     experience?: Array<{ position?: string; company?: string }>;
@@ -28,6 +28,7 @@ export function useCompanyBriefing() {
       const result = await execute(async () => {
         const { data, error: fnError } = await edgeFunctions.functions.invoke('company-briefing', {
           body: {
+            companyName: params.companyName,
             jobDescription: params.jobDescription,
             resumeData: params.resumeData,
           },
@@ -46,8 +47,9 @@ export function useCompanyBriefing() {
         setError('Could not generate briefing');
       }
       return result;
-    } catch (err: any) {
-      setError(err?.message || 'Could not generate briefing');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Could not generate briefing';
+      setError(message);
       return null;
     } finally {
       setIsLoading(false);
