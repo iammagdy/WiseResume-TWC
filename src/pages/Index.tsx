@@ -235,7 +235,7 @@ const Index = () => {
 
   const handleCTA = () => {
     triggerHaptic.medium();
-    navigate('/auth');
+    navigate('/auth?mode=signup');
   };
 
   // Show loading state while auth resolves to prevent guest→auth flash
@@ -318,7 +318,7 @@ const Index = () => {
               <Button
                 size="sm"
                 className="gap-1.5 h-8 px-3 text-xs font-semibold bg-primary text-primary-foreground hover:opacity-90 active:scale-95 transition-all touch-manipulation"
-                onClick={() => { triggerHaptic.medium(); navigate('/auth'); }}
+                onClick={() => { triggerHaptic.medium(); navigate('/auth?mode=signup'); }}
               >
                 <UserPlus className="w-3.5 h-3.5" />
                 Sign Up
