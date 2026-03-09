@@ -28,6 +28,7 @@ export function DesignTab(props: DesignTabProps) {
     portfolioFont, onPortfolioFontChange,
     portfolioLayout, onPortfolioLayoutChange,
     selectedTheme, onSelectedThemeChange,
+    userName, userAvatarUrl,
   } = props;
 
   const currentTheme = PORTFOLIO_THEMES.find(t => t.id === portfolioStyle);
