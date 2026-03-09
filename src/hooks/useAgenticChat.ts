@@ -195,7 +195,8 @@ export function useAgenticChat() {
       setIsThinking(true);
 
       try {
-        const response = await sendChatMessage(text.trim(), messages, currentResume);
+        const resumeList = allResumes.map(r => ({ id: r.id, title: r.title }));
+        const response = await sendChatMessage(text.trim(), messages, currentResume, { resumeList });
 
         // Deduct credit on success
         incrementUsage.mutate();
