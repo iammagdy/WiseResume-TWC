@@ -168,25 +168,30 @@ function DashboardPageContent() {
     setShowCreateDialog(true);
   }, []);
 
-  // Check onboarding status for authenticated users — runs in background, does NOT block rendering
+  // Check onboarding status for authenticated users
   useEffect(() => {
     if (!user) return;
     const run = async () => {
       try {
+        if (localStorage.getItem('wr-onboarding-completed') === 'true') return;
+
         const { data } = await supabase
           .from('profiles')
           .select('onboarding_completed')
           .eq('user_id', user.id)
           .single();
+          
         if (data && !data.onboarding_completed) {
-          setShowOnboarding(true);
+          navigate('/onboarding', { replace: true });
+        } else if (data?.onboarding_completed) {
+          localStorage.setItem('wr-onboarding-completed', 'true');
         }
       } catch (err) {
         console.error('Failed to check onboarding:', err);
       }
     };
     run();
-  }, [user]);
+  }, [user, navigate]);
 
   // Keyboard shortcuts for empty state
   useEffect(() => {
