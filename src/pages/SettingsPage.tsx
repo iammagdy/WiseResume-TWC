@@ -28,6 +28,7 @@ import { useBiometricLock } from '@/hooks/useBiometricLock';
 import { toast } from 'sonner';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { BackButton } from '@/components/ui/BackButton';
+import { useIsDark } from '@/hooks/useIsDark';
 import { getChangelog } from '@/hooks/useChangelogBadge';
 import developerPhoto from '@/assets/developer-photo.png';
 
