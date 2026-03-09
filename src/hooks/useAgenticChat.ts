@@ -11,6 +11,7 @@ export function useAgenticChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isThinking, setIsThinking] = useState(false);
   const { currentResume, updateResume } = useResumeStore();
+  const { data: allResumes = [] } = useResumes();
   const { incrementUsage, checkCredits } = useAICreditsMutations();
 
   const executeFunctionCall = useCallback(
