@@ -327,9 +327,11 @@ interface ThemeStorePickerProps {
   selectedThemeId: string;
   onSelectTheme: (id: string) => void;
   userAccent: string;
+  userName?: string;
+  userAvatarUrl?: string;
 }
 
-export function ThemeStorePicker({ selectedThemeId, onSelectTheme, userAccent }: ThemeStorePickerProps) {
+export function ThemeStorePicker({ selectedThemeId, onSelectTheme, userAccent, userName, userAvatarUrl }: ThemeStorePickerProps) {
   const [activeCategory, setActiveCategory] = useState<ThemeCategory>('all');
 
   const filteredThemes = activeCategory === 'all'
