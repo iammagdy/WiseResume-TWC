@@ -1,5 +1,4 @@
 import { useState, useRef } from 'react';
-import { openExternal } from '@/lib/openExternal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Linkedin, 
@@ -11,13 +10,12 @@ import {
   Lightbulb, 
   FileText,
   Copy,
-  ExternalLink,
   ChevronRight,
   AlertCircle,
   Upload,
   ClipboardPaste,
-  Link2,
-  ArrowRight
+  User,
+  Wand2
 } from 'lucide-react';
 import { parseResumePDF, parseResumePDFWithOCR } from '@/lib/pdfParser';
 import {
@@ -66,7 +64,7 @@ interface LinkedInImportSheetProps {
   linkedinUsername?: string;
 }
 
-type ParseState = 'method-select' | 'idle' | 'url-guide' | 'parsing' | 'preview' | 'importing' | 'done';
+type ParseState = 'method-select' | 'idle' | 'parsing' | 'preview' | 'importing' | 'done';
 
 const PARSING_STEPS = [
   { id: 1, label: 'Reading profile data...', icon: FileText },
@@ -75,11 +73,37 @@ const PARSING_STEPS = [
   { id: 4, label: 'Structuring education...', icon: GraduationCap },
 ];
 
+const GUIDE_STEPS = [
+  {
+    icon: User,
+    title: 'About / Summary',
+    description: 'Copy your "About" section from the top of your profile',
+    tip: 'Look for the About section below your profile photo',
+  },
+  {
+    icon: Briefcase,
+    title: 'Experience',
+    description: 'Copy all your job titles, companies, dates, and descriptions',
+    tip: 'Scroll to the Experience section and select everything',
+  },
+  {
+    icon: GraduationCap,
+    title: 'Education',
+    description: 'Copy your degrees, schools, and graduation years',
+    tip: 'Find the Education section below Experience',
+  },
+  {
+    icon: Lightbulb,
+    title: 'Skills',
+    description: 'Copy your listed skills — or just type them out',
+    tip: 'Look for the Skills section or "Show all skills"',
+  },
+];
+
 export function LinkedInImportSheet({ 
   open, 
   onOpenChange, 
   onImport,
-  linkedinUsername 
 }: LinkedInImportSheetProps) {
   const [profileText, setProfileText] = useState('');
   const [parseState, setParseState] = useState<ParseState>('method-select');
@@ -94,7 +118,6 @@ export function LinkedInImportSheet({
   const [error, setError] = useState<string | null>(null);
   const [uploadingPdf, setUploadingPdf] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [linkedinUrl, setLinkedinUrl] = useState('');
 
   const handleParse = async () => {
     if (!profileText.trim()) {
@@ -108,7 +131,7 @@ export function LinkedInImportSheet({
                       trimmedText.length < 500;
     
     if (isJustUrl) {
-      setError("It looks like you pasted a LinkedIn URL. Please go to your profile page, select all text (Ctrl/Cmd+A), copy it (Ctrl/Cmd+C), and paste the full content here.");
+      setError("It looks like you pasted a LinkedIn URL. Please copy and paste the actual text content from your profile page.");
       toast.error('Please paste your profile content, not the URL');
       return;
     }
@@ -162,12 +185,10 @@ export function LinkedInImportSheet({
     }, 800);
 
     try {
-      // Use the existing client-side PDF extraction pipeline
       const parseResult = await parseResumePDF(file);
       
       let resumeData = parseResult.data;
       
-      // If OCR is needed, try OCR extraction
       if (parseResult.needsOCR) {
         resumeData = await parseResumePDFWithOCR(file);
       }
@@ -178,7 +199,6 @@ export function LinkedInImportSheet({
 
       clearInterval(stepInterval);
 
-      // Map ResumeData output to LinkedInData format
       const linkedInData: LinkedInData = {
         summary: resumeData.summary || null,
         experience: (resumeData.experience || []).map((exp) => ({
@@ -215,18 +235,6 @@ export function LinkedInImportSheet({
     }
   };
 
-  const handleUrlGuide = () => {
-    const url = linkedinUrl.trim();
-    if (!url) return;
-    
-    // Open the LinkedIn profile in a new tab
-    openExternal(url);
-    
-    // Switch to paste state with the textarea auto-focused
-    setParseState('idle');
-    haptics.light();
-  };
-
   const handleImport = () => {
     if (!parsedData) return;
 
@@ -259,7 +267,6 @@ export function LinkedInImportSheet({
     setParseState('method-select');
     setParsedData(null);
     setProfileText('');
-    setLinkedinUrl('');
     setError(null);
   };
 
@@ -316,19 +323,24 @@ export function LinkedInImportSheet({
               >
                 <p className="text-sm text-muted-foreground">Choose how to import your LinkedIn profile</p>
                 
+                {/* Smart Import card */}
                 <button
                   onClick={() => setParseState('idle')}
-                  className="w-full p-4 rounded-xl border-2 border-border hover:border-primary/50 transition-all text-left flex items-start gap-4 touch-manipulation active:scale-[0.98] min-h-[72px]"
+                  className="w-full p-4 rounded-xl border-2 border-primary/30 bg-primary/5 hover:border-primary/60 transition-all text-left flex items-start gap-4 touch-manipulation active:scale-[0.98] min-h-[72px]"
                 >
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <ClipboardPaste className="w-6 h-6 text-primary" />
+                  <div className="w-12 h-12 rounded-xl bg-primary/15 flex items-center justify-center flex-shrink-0">
+                    <Wand2 className="w-6 h-6 text-primary" />
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground">Paste Profile Text</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">Copy your LinkedIn page content and paste it here</p>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-foreground">Smart Import</h3>
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">AI</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">Paste your profile content — AI organizes it for you</p>
                   </div>
                 </button>
 
+                {/* PDF upload card */}
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   className="w-full p-4 rounded-xl border-2 border-border hover:border-primary/50 transition-all text-left flex items-start gap-4 touch-manipulation active:scale-[0.98] min-h-[72px]"
@@ -339,19 +351,6 @@ export function LinkedInImportSheet({
                   <div>
                     <h3 className="font-semibold text-foreground">Upload LinkedIn PDF</h3>
                     <p className="text-xs text-muted-foreground mt-0.5">Upload the PDF exported from LinkedIn's "Save to PDF"</p>
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => setParseState('url-guide')}
-                  className="w-full p-4 rounded-xl border-2 border-border hover:border-primary/50 transition-all text-left flex items-start gap-4 touch-manipulation active:scale-[0.98] min-h-[72px]"
-                >
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Link2 className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground">Import via URL</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">Paste your LinkedIn profile link — we'll guide you through it</p>
                   </div>
                 </button>
 
@@ -374,105 +373,75 @@ export function LinkedInImportSheet({
               </motion.div>
             )}
 
-            {/* URL Guide State */}
-            {parseState === 'url-guide' && (
-              <motion.div
-                key="url-guide"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="py-6 space-y-5"
-              >
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Your LinkedIn profile URL</label>
-                  <input
-                    type="url"
-                    placeholder="https://linkedin.com/in/your-name"
-                    value={linkedinUrl}
-                    onChange={(e) => setLinkedinUrl(e.target.value)}
-                    className="flex w-full rounded-xl glass-input px-3 py-2.5 text-[16px] ring-offset-background placeholder:text-muted-foreground/60 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 transition-all"
-                  />
-                </div>
-
-                <div className="bg-muted/50 rounded-xl p-4 space-y-3">
-                  <h3 className="font-medium text-sm">Here's how it works</h3>
-                  <ol className="space-y-2.5 text-sm text-muted-foreground">
-                    <li className="flex items-start gap-2">
-                      <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
-                      <span>We'll <strong>open your profile</strong> in a new tab</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
-                      <span><strong>Select all</strong> on the page (Ctrl/Cmd+A) and <strong>Copy</strong> (Ctrl/Cmd+C)</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
-                      <span>Come back here and <strong>paste</strong> the content — AI will do the rest</span>
-                    </li>
-                  </ol>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Paste State */}
+            {/* Smart Import — Guided Paste State */}
             {parseState === 'idle' && (
               <motion.div
                 key="idle"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="py-6 space-y-6"
+                className="py-6 space-y-5"
               >
-                <div className="bg-muted/50 rounded-xl p-4 space-y-3">
-                  <h3 className="font-medium text-sm">How it works</h3>
-                  <ol className="space-y-2 text-sm text-muted-foreground">
-                    <li className="flex items-start gap-2">
-                      <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
-                      <span>Open your LinkedIn profile in a browser</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
-                      <span><strong>Select ALL content</strong> on the page (Ctrl/Cmd+A) and copy (Ctrl/Cmd+C)</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
-                      <span>Paste the <strong>full text</strong> below (not just the URL!)</span>
-                    </li>
-                  </ol>
-                  
-                  {linkedinUsername ? (
-                    <button onClick={() => openExternal(`https://linkedin.com/in/${linkedinUsername}`)} className="inline-flex items-center gap-2 text-sm text-primary hover:underline touch-manipulation">
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      Open Your LinkedIn Profile
-                    </button>
-                  ) : (
-                    <button onClick={() => openExternal('https://linkedin.com')} className="inline-flex items-center gap-2 text-sm text-primary hover:underline touch-manipulation">
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      Go to LinkedIn
-                    </button>
-                  )}
+                {/* Visual guide steps */}
+                <div className="space-y-2">
+                  <h3 className="text-sm font-medium text-foreground">What to copy from LinkedIn</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {GUIDE_STEPS.map((step, index) => {
+                      const Icon = step.icon;
+                      return (
+                        <motion.div
+                          key={step.title}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.08 }}
+                          className="p-3 rounded-xl bg-muted/50 border border-border/50 space-y-1.5"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                              <Icon className="w-3.5 h-3.5 text-primary" />
+                            </div>
+                            <span className="text-xs font-semibold text-foreground leading-tight">{step.title}</span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-snug">{step.tip}</p>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
                 </div>
 
+                {/* Info callout */}
+                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-primary/5 border border-primary/20">
+                  <Sparkles className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-muted-foreground">
+                    <span className="font-medium text-foreground">Paste everything at once</span> — messy text is fine. AI will detect and organize each section automatically.
+                  </p>
+                </div>
+
+                {/* Paste area */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-medium">Paste your profile content</label>
                     <button 
                       onClick={async () => {
-                        const text = await navigator.clipboard.readText();
-                        setProfileText(text);
-                        haptics.light();
+                        try {
+                          const text = await navigator.clipboard.readText();
+                          setProfileText(text);
+                          haptics.light();
+                        } catch {
+                          toast.error('Could not read clipboard');
+                        }
                       }}
-                      className="text-xs text-primary flex items-center gap-1 hover:underline"
+                      className="text-xs text-primary flex items-center gap-1 hover:underline touch-manipulation"
                     >
                       <Copy className="w-3 h-3" />
                       Paste from clipboard
                     </button>
                   </div>
                   <Textarea
-                    placeholder="Paste your LinkedIn profile content here..."
+                    placeholder="Paste your LinkedIn profile content here — about, experience, education, skills…"
                     value={profileText}
                     onChange={(e) => setProfileText(e.target.value)}
-                    className="min-h-[200px] resize-none"
+                    className="min-h-[180px] resize-none"
                   />
                   {profileText && (
                     <p className="text-xs text-muted-foreground">
@@ -667,26 +636,12 @@ export function LinkedInImportSheet({
             <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">Cancel</Button>
           )}
 
-          {parseState === 'url-guide' && (
-            <>
-              <Button variant="outline" onClick={handleReset} className="flex-1">Back</Button>
-              <Button 
-                onClick={handleUrlGuide} 
-                disabled={!linkedinUrl.trim() || !/linkedin\.com/i.test(linkedinUrl)} 
-                className="flex-1 gap-2"
-              >
-                Open & Copy
-                <ArrowRight className="w-4 h-4" />
-              </Button>
-            </>
-          )}
-
           {parseState === 'idle' && (
             <>
               <Button variant="outline" onClick={handleReset} className="flex-1">Back</Button>
               <Button onClick={handleParse} disabled={!profileText.trim()} className="flex-1 gap-2">
                 <Sparkles className="w-4 h-4" />
-                Extract with AI
+                Analyze & Import
               </Button>
             </>
           )}
