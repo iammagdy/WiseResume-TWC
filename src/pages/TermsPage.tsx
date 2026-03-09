@@ -8,7 +8,7 @@ export default function TermsPage() {
   const [contactOpen, setContactOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <header className="sticky top-0 z-40 glass-header border-b border-border/20 px-4 h-12 flex items-center gap-3">
         <Link to="/">
           <Button variant="ghost" size="icon" className="w-9 h-9">
@@ -21,118 +21,110 @@ export default function TermsPage() {
       <main className="max-w-2xl mx-auto px-4 py-8 space-y-8 text-sm text-muted-foreground leading-relaxed pb-safe">
         <div className="flex items-center gap-2 text-foreground">
           <FileText className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-bold">WiseResume Terms of Service</h2>
+          <h2 className="text-lg font-bold">Terms of Service</h2>
         </div>
-        <p className="text-xs">Effective Date: February 20, 2026 · Last Updated: February 20, 2026</p>
+        <p className="text-xs">Effective Date: February 20, 2026 · Last Updated: March 9, 2026</p>
         <p>
-          These Terms of Service ("Terms") govern your use of WiseResume (the "Service"), operated by WiseResume ("we," "us," or "our"). By accessing or using the Service, you agree to be bound by these Terms. If you do not agree, do not use the Service.
+          These Terms govern your use of WiseResume. By creating an account or using the service, you agree to these Terms. If you don't agree, please don't use WiseResume.
         </p>
 
         <section className="space-y-2">
-          <h3 className="text-foreground font-semibold">1. Acceptance & Eligibility</h3>
-          <p>By creating an account or using WiseResume, you confirm that you are at least 16 years of age and have the legal capacity to enter into these Terms. If you are using the Service on behalf of an organization, you represent that you have the authority to bind that organization to these Terms.</p>
+          <h3 className="text-foreground font-semibold">1. Eligibility</h3>
+          <p>You must be at least 16 years old to use WiseResume. If you're using it on behalf of an organization, you confirm you have the authority to accept these Terms for that organization.</p>
         </section>
 
         <section className="space-y-2">
-          <h3 className="text-foreground font-semibold">2. Account Registration</h3>
-          <p>You agree to provide accurate, current, and complete information when creating your account. You are solely responsible for maintaining the confidentiality of your credentials and for all activity under your account. You must notify us immediately at <span className="text-primary">support@thewise.cloud</span> if you suspect unauthorized access.</p>
+          <h3 className="text-foreground font-semibold">2. Your Account</h3>
+          <p>You're responsible for keeping your login credentials secure and for all activity under your account. Please use accurate information when signing up. If you suspect unauthorized access, contact us immediately at <span className="text-primary">support@thewise.cloud</span>.</p>
         </section>
 
         <section className="space-y-2">
-          <h3 className="text-foreground font-semibold">3. Your Content & Intellectual Property</h3>
-          <p>You retain <strong className="text-foreground">full ownership</strong> of all content you create using WiseResume, including but not limited to resumes, cover letters, portfolio content, career assessments, and any other documents. We claim no intellectual property rights over your content.</p>
-          <p>By using the Service, you grant us a limited, non-exclusive license to process your content solely for the purpose of providing and improving the Service. This license terminates when you delete your content or account.</p>
+          <h3 className="text-foreground font-semibold">3. Your Content</h3>
+          <p>Everything you create on WiseResume — resumes, cover letters, portfolios, assessments — belongs to you. We don't claim any ownership over your content.</p>
+          <p>We only process your content to deliver the service. When you delete your content or account, this license ends.</p>
         </section>
 
         <section className="space-y-2">
-          <h3 className="text-foreground font-semibold">4. AI-Generated Content</h3>
-          <p>WiseResume offers AI-powered features including resume writing suggestions, interview coaching, content optimization, and job matching. Regarding AI-generated content:</p>
+          <h3 className="text-foreground font-semibold">4. AI Features</h3>
+          <p>WiseResume includes AI-powered tools for writing, optimization, and interview practice. A few things to keep in mind:</p>
           <ul className="list-disc pl-5 space-y-1">
-            <li><strong className="text-foreground">Suggestions Only:</strong> All AI outputs are suggestions and tools to assist you. They are not professional advice (legal, career, or otherwise).</li>
-            <li><strong className="text-foreground">No Accuracy Guarantee:</strong> While we strive for high quality, we do not guarantee the accuracy, completeness, or suitability of AI-generated content for any particular purpose.</li>
-            <li><strong className="text-foreground">Your Responsibility:</strong> You are solely responsible for reviewing, editing, and approving all AI-generated content before using it in applications, submissions, or any other context.</li>
-            <li><strong className="text-foreground">Ownership:</strong> Once you accept and incorporate AI-generated suggestions into your documents, that content becomes part of your work and is subject to your ownership rights under Section 3.</li>
+            <li>AI outputs are <strong className="text-foreground">suggestions</strong>, not professional advice.</li>
+            <li>We work hard to make them useful, but we can't guarantee they'll be perfect or suitable for every situation.</li>
+            <li>You're responsible for reviewing and approving anything before you use it.</li>
+            <li>Once you accept an AI suggestion into your document, it becomes part of your content under Section 3.</li>
           </ul>
         </section>
 
         <section className="space-y-2">
-          <h3 className="text-foreground font-semibold">5. License to Use the Service</h3>
-          <p>We grant you a limited, non-exclusive, non-transferable, revocable license to access and use WiseResume for personal, non-commercial career development purposes, subject to these Terms. This license does not include the right to sublicense, resell, or redistribute any part of the Service.</p>
+          <h3 className="text-foreground font-semibold">5. What You Can Do</h3>
+          <p>We grant you a personal, non-transferable license to use WiseResume for your own career development. You may not resell, redistribute, or sublicense any part of the service.</p>
         </section>
 
         <section className="space-y-2">
-          <h3 className="text-foreground font-semibold">6. Acceptable Use</h3>
-          <p>You agree not to:</p>
+          <h3 className="text-foreground font-semibold">6. What You Can't Do</h3>
+          <p>Please don't:</p>
           <ul className="list-disc pl-5 space-y-1">
-            <li>Use the Service to create misleading, fraudulent, or deceptive content (e.g., fabricating qualifications, credentials, or work history).</li>
-            <li>Attempt to reverse-engineer, decompile, or extract source code from the Service.</li>
-            <li>Use automated scripts, bots, or scrapers to access the Service.</li>
-            <li>Interfere with the Service's infrastructure, security, or other users' experience.</li>
-            <li>Use the Service for any illegal activity or in violation of applicable laws.</li>
-            <li>Share, distribute, or sell accounts or account access.</li>
+            <li>Create fake or misleading content (e.g., fabricated qualifications or work history).</li>
+            <li>Reverse-engineer, scrape, or interfere with the service.</li>
+            <li>Use bots or automated tools to access WiseResume.</li>
+            <li>Use the service for anything illegal.</li>
+            <li>Share or sell your account access.</li>
           </ul>
-          <p>Violation of these terms may result in immediate suspension or termination of your account without prior notice.</p>
+          <p>Violating these rules may result in account suspension or termination.</p>
         </section>
 
         <section className="space-y-2">
-          <h3 className="text-foreground font-semibold">7. Subscriptions & Payments</h3>
-          <p>WiseResume may offer free and premium tiers. For paid subscriptions:</p>
+          <h3 className="text-foreground font-semibold">7. Payments & Subscriptions</h3>
+          <p>WiseResume may offer free and paid plans. For paid subscriptions:</p>
           <ul className="list-disc pl-5 space-y-1">
-            <li>Billing occurs on a recurring basis (monthly or annually) as selected at checkout.</li>
-            <li>You may cancel your subscription at any time. Access to premium features continues until the end of the current billing period.</li>
-            <li>Refunds are provided in accordance with applicable consumer protection laws. Contact <span className="text-primary">support@thewise.cloud</span> for refund requests.</li>
-            <li>We reserve the right to modify pricing with at least 30 days' notice. Existing subscribers will be notified before any price change takes effect.</li>
+            <li>You'll be billed on a recurring basis (monthly or annually).</li>
+            <li>You can cancel anytime — your access continues until the end of the billing period.</li>
+            <li>For refund requests, contact <span className="text-primary">support@thewise.cloud</span>.</li>
+            <li>We'll give you at least 30 days' notice before any price changes.</li>
           </ul>
         </section>
 
         <section className="space-y-2">
-          <h3 className="text-foreground font-semibold">8. Service Availability</h3>
-          <p>We strive for high availability but do not guarantee uninterrupted, error-free service. We may:</p>
-          <ul className="list-disc pl-5 space-y-1">
-            <li>Perform scheduled maintenance with reasonable advance notice.</li>
-            <li>Experience downtime due to factors beyond our control (e.g., infrastructure provider outages, force majeure events).</li>
-            <li>Modify, suspend, or discontinue features with reasonable notice.</li>
-          </ul>
-          <p>We are not liable for any loss or damage resulting from service interruptions.</p>
+          <h3 className="text-foreground font-semibold">8. Availability</h3>
+          <p>We aim for high uptime but can't guarantee the service will always be available. Scheduled maintenance, infrastructure issues, or events outside our control may cause temporary downtime. We're not liable for losses caused by service interruptions.</p>
         </section>
 
         <section className="space-y-2">
           <h3 className="text-foreground font-semibold">9. Limitation of Liability</h3>
-          <p>To the maximum extent permitted by applicable law:</p>
+          <p>WiseResume is provided "as is." To the extent allowed by law:</p>
           <ul className="list-disc pl-5 space-y-1">
-            <li>WiseResume is provided "AS IS" and "AS AVAILABLE" without warranties of any kind, express or implied, including merchantability, fitness for a particular purpose, and non-infringement.</li>
-            <li>Our total aggregate liability for any claims arising from your use of the Service shall not exceed the amount you paid us in the 12 months preceding the claim, or $100 USD, whichever is greater.</li>
-            <li>We are not liable for indirect, incidental, special, consequential, or punitive damages, including loss of data, revenue, or business opportunities.</li>
+            <li>We don't make warranties about the service's accuracy, reliability, or fitness for a specific purpose.</li>
+            <li>Our total liability is limited to the amount you've paid us in the past 12 months, or $100 USD — whichever is greater.</li>
+            <li>We're not liable for indirect or consequential damages, including lost data or missed opportunities.</li>
           </ul>
-          <p>Nothing in these Terms excludes or limits liability that cannot be excluded under applicable law (e.g., liability for fraud or death/personal injury caused by negligence).</p>
+          <p>Nothing here limits liability that can't be excluded by law (e.g., fraud or negligence causing injury).</p>
         </section>
 
         <section className="space-y-2">
           <h3 className="text-foreground font-semibold">10. Indemnification</h3>
-          <p>You agree to indemnify and hold harmless WiseResume, its officers, employees, and affiliates from any claims, damages, losses, or expenses (including reasonable legal fees) arising from your use of the Service, violation of these Terms, or infringement of any third-party rights.</p>
+          <p>You agree to hold WiseResume harmless from any claims or expenses arising from your use of the service or violation of these Terms.</p>
         </section>
 
         <section className="space-y-2">
           <h3 className="text-foreground font-semibold">11. Termination</h3>
-          <p><strong className="text-foreground">By You:</strong> You may terminate your account at any time by deleting it from Settings. Upon deletion, all your data will be permanently removed in accordance with our Privacy Policy.</p>
-          <p><strong className="text-foreground">By Us:</strong> We may suspend or terminate your account if you violate these Terms, engage in abusive behavior, or if required by law. Where possible, we will provide notice before termination.</p>
-          <p>Upon termination, your license to use the Service ceases immediately. Sections 3, 9, 10, and 12 survive termination.</p>
+          <p><strong className="text-foreground">By you:</strong> Delete your account from Settings at any time. Your data will be permanently removed per our Privacy Policy.</p>
+          <p><strong className="text-foreground">By us:</strong> We may suspend or terminate accounts that violate these Terms. We'll try to give notice when possible.</p>
+          <p>Sections 3, 9, 10, and 12 survive termination.</p>
         </section>
 
         <section className="space-y-2">
-          <h3 className="text-foreground font-semibold">12. Governing Law & Dispute Resolution</h3>
-          <p>These Terms are governed by the laws of the jurisdiction in which WiseResume operates, without regard to conflict of law principles. Any disputes arising under these Terms shall first be attempted to be resolved through good-faith negotiation. If negotiation fails, disputes shall be resolved through binding arbitration in accordance with applicable arbitration rules, except where prohibited by law.</p>
-          <p>Nothing in this section prevents either party from seeking injunctive relief in a court of competent jurisdiction.</p>
+          <h3 className="text-foreground font-semibold">12. Disputes</h3>
+          <p>These Terms are governed by the laws of the jurisdiction where WiseResume operates. We'd prefer to resolve any issues through good-faith discussion first. If that doesn't work, disputes will go to binding arbitration where permitted by law.</p>
         </section>
 
         <section className="space-y-2">
-          <h3 className="text-foreground font-semibold">13. Changes to These Terms</h3>
-          <p>We may update these Terms from time to time. For material changes, we will provide at least 30 days' notice via in-app notification or email. Your continued use of the Service after the effective date of updated Terms constitutes acceptance. If you do not agree with the changes, you may terminate your account before the new Terms take effect.</p>
+          <h3 className="text-foreground font-semibold">13. Updates to These Terms</h3>
+          <p>We may update these Terms from time to time. For significant changes, we'll notify you at least 30 days in advance. Continuing to use WiseResume after that means you accept the updated Terms.</p>
         </section>
 
         <section className="space-y-2">
           <h3 className="text-foreground font-semibold">14. Contact Us</h3>
-          <p>For questions or concerns about these Terms, you can reach us directly:</p>
+          <p>Have a question about these Terms? Reach out:</p>
           <ul className="list-disc pl-5 space-y-1">
             <li>General Support: <span className="text-primary">support@thewise.cloud</span></li>
             <li>Legal Inquiries: <span className="text-primary">legal@thewise.cloud</span></li>
