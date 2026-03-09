@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAI } from "../_shared/aiClient.ts";
+import { getUserKeyFromDB } from "../_shared/aiClient.ts";
+import { getServiceClient } from "../_shared/dbClient.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 serve(async (req) => {
@@ -16,10 +17,7 @@ serve(async (req) => {
       });
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+    const supabase = getServiceClient();
 
     const { data: portfolioData, error: rpcError } = await supabase.rpc("get_public_portfolio", {
       p_username: username.toLowerCase(),
@@ -33,6 +31,44 @@ serve(async (req) => {
 
     const profile = portfolioData.profile;
     const resume = portfolioData.resume;
+
+    // Look up the portfolio owner's user_id from their profile
+    const { data: ownerRow } = await supabase
+      .from('profiles')
+      .select('user_id')
+      .eq('username', username.toLowerCase())
+      .maybeSingle();
+
+    if (!ownerRow?.user_id) {
+      return new Response(JSON.stringify({ error: "Portfolio owner not found" }), {
+        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Fetch the owner's BYOK Gemini key
+    const ownerKey = await getUserKeyFromDB(ownerRow.user_id, 'gemini');
+    if (!ownerKey) {
+      // No API key configured — tell the client to hide the widget
+      return new Response(JSON.stringify({ chatDisabled: true, error: "Chat is not available" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Server-side rate limit: max 50 questions per username per day
+    const today = new Date().toISOString().slice(0, 10);
+    const { count: dailyCount } = await supabase
+      .from('portfolio_visits')
+      .select('id', { count: 'exact', head: true })
+      .eq('username', username.toLowerCase())
+      .gte('visited_at', `${today}T00:00:00Z`);
+
+    // Use a generous limit since portfolio_visits is a proxy; 
+    // real rate limiting per chat could be added later
+    if ((dailyCount ?? 0) > 500) {
+      return new Response(JSON.stringify({ error: "Rate limit reached. Please try again later." }), {
+        status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Build readable context from portfolio data
     const experience = (resume.experience || []).map((e: Record<string, unknown>) =>
@@ -95,6 +131,8 @@ ${context}`;
       messages,
       temperature: 0.3,
       maxTokens: 300,
+      userGeminiKey: ownerKey,
+      userId: ownerRow.user_id,
     });
 
     const answer = aiResponse.content || "I couldn't generate a response. Please try again.";

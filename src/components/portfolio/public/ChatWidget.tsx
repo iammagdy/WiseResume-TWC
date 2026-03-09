@@ -14,6 +14,7 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [chatDisabled, setChatDisabled] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const sessionCountRef = useRef(0);
   const MAX_QUESTIONS = 10;
@@ -29,6 +30,9 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, open, loading]);
+
+  // Hide widget entirely if chat is disabled (owner has no API key)
+  if (chatDisabled) return null;
 
   const send = async (questionOverride?: string) => {
     const q = (questionOverride ?? input).trim();
@@ -54,6 +58,12 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
         }),
       });
       const data = await res.json();
+      // If the owner has no API key, hide the widget
+      if (data.chatDisabled) {
+        setChatDisabled(true);
+        setMessages([]);
+        return;
+      }
       if (!res.ok) throw new Error(data.error || 'Request failed');
       setMessages(prev => [...prev, { role: 'assistant', content: data.answer }]);
     } catch {
@@ -76,8 +86,8 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
         animate={{ scale: 1, opacity: 1 }}
         transition={{ delay: 1.5, type: 'spring', stiffness: 300 }}
         onClick={() => setOpen(o => !o)}
-        className="fixed bottom-6 right-4 z-40 w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 active:scale-95"
-        style={{ background: accentColor, color: '#fff', boxShadow: `0 8px 32px -4px ${accentColor}70` }}
+        className="fixed bottom-6 right-4 z-[60] w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+        style={{ background: accentColor, color: '#fff', boxShadow: `0 8px 32px -4px ${accentColor}70`, pointerEvents: 'auto' }}
         data-pdf-exclude
         title={`Ask ${profile.fullName?.split(' ')[0] || 'me'} anything`}
       >
@@ -101,7 +111,7 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 24, scale: 0.95 }}
             transition={{ duration: 0.22, ease: [0, 0, 0.2, 1] }}
-            className="fixed bottom-24 right-4 z-40 w-[340px] max-w-[calc(100vw-2rem)] rounded-2xl overflow-hidden flex flex-col"
+            className="fixed bottom-24 right-4 z-[60] w-[340px] max-w-[calc(100vw-2rem)] rounded-2xl overflow-hidden flex flex-col"
             style={{
               background: bgPanel,
               backdropFilter: 'blur(24px)',
@@ -109,6 +119,7 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
               border: `1px solid ${borderColor}`,
               boxShadow: `0 24px 64px -12px ${accentColor}30, 0 8px 24px rgba(0,0,0,0.3)`,
               maxHeight: '60vh',
+              pointerEvents: 'auto',
             }}
             data-pdf-exclude
           >
