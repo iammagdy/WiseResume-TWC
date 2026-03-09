@@ -8,9 +8,9 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 
 - Date: 2026-03-09
 - Issue ID: MANAGE-KEYS-500-FIX
-- Summary: Fixed 500 error in manage-api-keys edge function caused by FK violation. Function was connecting to Lovable Cloud DB instead of external project (jnsfmkzgxsviuthaqlyy). Switched to EXT_SUPABASE_URL/EXT_SUPABASE_SERVICE_ROLE_KEY.
+- Summary: Fixed 500 error in manage-api-keys edge function. Two issues: (1) function connected to Lovable Cloud DB instead of external project — switched to EXT_SUPABASE_URL/EXT_SUPABASE_SERVICE_ROLE_KEY; (2) external DB's user_api_keys table lacks base_url/model columns — removed those from SELECT and upsert queries.
 - Files touched: supabase/functions/manage-api-keys/index.ts
-- Notes: Same cross-project pattern as other edge functions.
+- Notes: base_url and model columns should be added to external project's user_api_keys table for full Ollama support.
 
 - Date: 2026-03-09
 - Issue ID: AI-TEST-PROVIDER-IDENTITY

@@ -79,11 +79,11 @@ Deno.serve(async (req) => {
       const body = await req.json();
       const action = body.action || 'save'; // default to save for backward compat
 
-      // ===== GET: return user's saved keys (provider + tier + base_url + model, NOT the actual key) =====
+      // ===== GET: return user's saved keys (provider + tier, NOT the actual key) =====
       if (action === 'get') {
         const { data, error } = await supabase
           .from('user_api_keys')
-          .select('provider, key_tier, base_url, model, created_at, updated_at')
+          .select('provider, key_tier, created_at, updated_at')
           .eq('user_id', userId);
 
         if (error) throw error;
@@ -121,14 +121,6 @@ Deno.serve(async (req) => {
         encrypted_key: encryptedKey,
         key_tier: keyTier || 'unknown',
       };
-      
-      if (baseUrl !== undefined) {
-        upsertData.base_url = baseUrl || null;
-      }
-      
-      if (model !== undefined) {
-        upsertData.model = model || null;
-      }
 
       const { error } = await supabase
         .from('user_api_keys')
@@ -142,7 +134,7 @@ Deno.serve(async (req) => {
     if (req.method === 'GET') {
       const { data, error } = await supabase
         .from('user_api_keys')
-        .select('provider, key_tier, base_url, model, created_at, updated_at')
+        .select('provider, key_tier, created_at, updated_at')
         .eq('user_id', userId);
 
       if (error) throw error;
