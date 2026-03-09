@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: SIGNUP-TERMS-CAPTCHA
+- Summary: Added Terms of Service + Privacy Policy acceptance checkbox and a custom slide-to-verify captcha to the sign-up form. Both must be completed before the Continue button is enabled. Captcha uses a glassmorphic drag handle with spring animations. Checkbox links to /terms and /privacy in new tabs.
+- Files touched: src/components/auth/SlideCaptcha.tsx (new), src/pages/AuthPage.tsx, enhancements-for-vibe-coding/CHANGELOG-local.md
+- Notes: Sign-up only — sign-in flow unchanged. No backend changes.
+
+- Date: 2026-03-09
 - Issue ID: LEGAL-PAGES-POLISH
 - Summary: Fixed black background on Terms/Privacy pages by removing bg-background class. Rewrote all legal content to be concise and professional. Added Contact Us dialog + button to Privacy page section 12 for parity with Terms page.
 - Files touched: src/pages/TermsPage.tsx, src/pages/PrivacyPage.tsx
