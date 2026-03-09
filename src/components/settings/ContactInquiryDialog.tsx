@@ -22,19 +22,6 @@ async function getAppVersion(): Promise<string> {
   return cachedAppVersion;
 }
 
-function getAuthFromCache() {
-  try {
-    const cached = localStorage.getItem(SESSION_CACHE_KEY);
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      return {
-        userId: parsed.user?.id as string | undefined,
-        userEmail: parsed.user?.email as string | undefined,
-      };
-    }
-  } catch { /* ignore */ }
-  return { userId: undefined, userEmail: undefined };
-}
 
 interface ContactInquiryDialogProps {
   open: boolean;
