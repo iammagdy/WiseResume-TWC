@@ -94,7 +94,7 @@ export default function EmailConfirmationPage() {
       } else {
         setVerified(true);
         toast.success('Email verified!');
-        setTimeout(() => navigate('/dashboard', { replace: true }), 1200);
+        setTimeout(() => navigate('/onboarding', { replace: true }), 1200);
       }
     } catch {
       toast.error('Verification failed. Please try again.');

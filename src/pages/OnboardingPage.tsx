@@ -33,16 +33,45 @@ export default function OnboardingPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateId | null>(null);
 
   useEffect(() => {
-    // Fast path: localStorage already marked complete — let dashboard handle it
+    // Fast path: localStorage already marked complete
     if (localStorage.getItem(ONBOARDING_KEY) === 'true') {
       navigate('/dashboard', { replace: true });
+      return;
     }
-  }, [navigate]);
+    
+    // Background check for database status
+    if (user?.id) {
+      const checkStatus = async () => {
+        const { data } = await supabase
+          .from('profiles')
+          .select('onboarding_completed')
+          .eq('user_id', user.id)
+          .single();
+        if (data?.onboarding_completed) {
+          localStorage.setItem(ONBOARDING_KEY, 'true');
+          navigate('/dashboard', { replace: true });
+        }
+      };
+      checkStatus();
+    }
+  }, [navigate, user?.id]);
 
-  const handleSkip = () => {
+  const markCompleted = async () => {
     localStorage.setItem(ONBOARDING_KEY, 'true');
+    if (user?.id) {
+      try {
+        await supabase
+          .from('profiles')
+          .update({ onboarding_completed: true })
+          .eq('user_id', user.id);
+      } catch (err) {
+        console.error('Failed to update onboarding status', err);
+      }
+    }
     navigate('/dashboard', { replace: true });
   };
+
+  const handleSkip = () => markCompleted();
 
   const handleNext = () => {
     if (step === 1 && selectedGoal) {
@@ -52,8 +81,7 @@ export default function OnboardingPage() {
       localStorage.setItem(TEMPLATE_KEY, selectedTemplate);
     }
     if (step === TOTAL_STEPS - 1) {
-      localStorage.setItem(ONBOARDING_KEY, 'true');
-      navigate('/dashboard', { replace: true });
+      markCompleted();
       return;
     }
     setStep(s => s + 1);
