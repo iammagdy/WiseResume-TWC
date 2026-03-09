@@ -540,7 +540,7 @@ export function VisitorsPanel({ username, userId, portfolioEnabled }: VisitorsPa
               className="h-7 w-7 p-0"
               onClick={() => {
                 haptics.light();
-                window.location.reload();
+                queryClient.invalidateQueries({ queryKey: ['portfolio-analytics', username] });
               }}
               title="Refresh"
             >
