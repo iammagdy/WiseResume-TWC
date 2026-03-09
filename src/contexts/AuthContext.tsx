@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { migrateLocalKeysToServer } from '@/lib/migrateLocalKeys';
+import { useSettingsStore } from '@/store/settingsStore';
 import { logAudit } from '@/lib/auditLogger';
 import { runDailyCleanup } from '@/lib/dbCleanup';
 
