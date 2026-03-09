@@ -272,6 +272,6 @@ export default function OnboardingPage() {
           {!isSubmitting && step < TOTAL_STEPS - 1 && <ArrowRight className="w-4 h-4 ml-2" />}
         </Button>
       </div>
-    </div>
+    </motion.div>
   );
 }

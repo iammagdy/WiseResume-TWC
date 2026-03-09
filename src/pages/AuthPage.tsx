@@ -591,6 +591,6 @@ export default function AuthPage() {
           </motion.div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
