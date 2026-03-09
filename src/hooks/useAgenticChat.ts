@@ -83,6 +83,8 @@ export function useAgenticChat(contextFilter?: string) {
               githubUrl: (args.githubUrl as string) || '',
               technologies: (args.technologies as string[]) || [],
               role: (args.role as string) || '',
+              startDate: '',
+              endDate: '',
             };
             updateResume({
               projects: [...(currentResume.projects || []), newProject],
