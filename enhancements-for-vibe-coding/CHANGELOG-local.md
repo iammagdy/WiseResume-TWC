@@ -6,6 +6,14 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 
 ## Unreleased
 
+- Date: 2026-03-09
+- Issue ID: LANDING-PAGE-AUTH-CLEANUP
+- Summary: Removed redundant auth entry points from the landing page. Removed the "Try AI Editor" button from Demo Card A, the "Build Your Portfolio" button from Demo Card B, and the duplicate "Start Building Now" bottom CTA section.
+- Files touched:
+  - `src/pages/Index.tsx`
+  - `enhancements-for-vibe-coding/CHANGELOG-local.md`
+- Notes: Simplifies auth conversion paths to just the header buttons and hero CTA.
+
 - Date: 2026-03-08
 - Issue ID: EMAIL-TEMPLATE-POLISH
 - Summary: Redesigned all 6 auth email templates with a futuristic premium look — dark header/footer bands (#1a1a2e), red accent divider (#e63946), light gray card content area (#f8f9fa), gradient CTA buttons with shadow trick, emoji accents per template type, dark code block for OTP, refined typography (28px/800 headings, -0.5px letter-spacing). Redeployed auth-email-hook.
