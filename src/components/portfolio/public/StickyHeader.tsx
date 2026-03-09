@@ -30,7 +30,7 @@ export function StickyHeader({ name, avatarUrl, initials, contactEmail, accentCo
           <AvatarImage src={avatarUrl || undefined} />
           <AvatarFallback className="text-xs font-bold" style={{ background: accentColor, color: '#fff' }}>{initials}</AvatarFallback>
         </Avatar>
-        <span className="font-semibold text-sm" style={{ color: isLight ? '#111827' : 'var(--pf-fg, #f5f5ff)', fontFamily: 'var(--pf-heading-font)' }}>
+        <span className="font-semibold text-sm" style={{ color: isDark ? 'var(--pf-fg, #f5f5ff)' : '#111827', fontFamily: 'var(--pf-heading-font)' }}>
           {name || 'Portfolio'}
         </span>
       </div>

@@ -56,7 +56,7 @@ export const ActionCard = memo(function ActionCard({
         className={cn(
           'text-sm',
           variant === 'default' && 'text-muted-foreground',
-          variant === 'primary' && 'text-white/80',
+          variant === 'primary' && 'text-foreground/80',
           variant === 'secondary' && 'text-muted-foreground'
         )}
       >

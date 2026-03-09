@@ -468,7 +468,9 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={() => setChangelogOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 active:scale-95 transition text-sm text-muted-foreground font-medium touch-manipulation min-h-[44px]"
+                className={`flex items-center gap-2 px-4 py-2 rounded-full border active:scale-95 transition text-sm text-muted-foreground font-medium touch-manipulation min-h-[44px] ${
+                  isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-black/5 border-black/10 hover:bg-black/10'
+                }`}
               >
                 <ScrollText className="w-4 h-4 text-purple-400" />
                 <span>Changelog</span>
