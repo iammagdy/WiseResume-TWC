@@ -5,7 +5,7 @@
 
 ---
 
-## 1. Confirm Signup
+## 1. Confirm Signup (OTP Mode)
 
 **Subject:** `Welcome to WiseResume — verify your email`
 
@@ -128,7 +128,7 @@
 
 ---
 
-## 3. Magic Link
+## 3. Magic Link (Also used for Link Mode Signup)
 
 **Subject:** `Your WiseResume login link`
 

@@ -82,6 +82,7 @@ function DashboardPageContent() {
   const [deletedResume, setDeletedResume] = useState<{ id: string; title: string } | null>(null);
   const [showLinkedInImport, setShowLinkedInImport] = useState(false);
   const [showAnalyzeJob, setShowAnalyzeJob] = useState(false);
+  const [showProfileBanner, setShowProfileBanner] = useState(false);
 
   const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // tipVisible state removed - tip merged into DashboardStats
@@ -182,7 +183,9 @@ function DashboardPageContent() {
           .single();
           
         if (data && !data.onboarding_completed) {
-          navigate('/onboarding', { replace: true });
+          if (!sessionStorage.getItem('wr-dismissed-profile-banner')) {
+            setShowProfileBanner(true);
+          }
         } else if (data?.onboarding_completed) {
           localStorage.setItem('wr-onboarding-completed', 'true');
         }
@@ -191,7 +194,7 @@ function DashboardPageContent() {
       }
     };
     run();
-  }, [user, navigate]);
+  }, [user]);
 
   // Keyboard shortcuts for empty state
   useEffect(() => {
@@ -607,6 +610,28 @@ function DashboardPageContent() {
                   aria-label="Dismiss"
                 >
                   <X className="w-3.5 h-3.5 text-muted-foreground/50" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Missing Profile Data Banner */}
+          {showProfileBanner && (
+            <div className="px-4 pt-3">
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-primary/20 bg-primary/5">
+                <User className="w-5 h-5 text-primary shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground">Complete your profile to get the most out of WiseResume.</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => navigate('/onboarding')} className="shrink-0 h-8">
+                  Complete
+                </Button>
+                <button
+                  onClick={() => { setShowProfileBanner(false); sessionStorage.setItem('wr-dismissed-profile-banner', 'true'); }}
+                  className="shrink-0 active:scale-95 min-w-[32px] min-h-[32px] flex items-center justify-center"
+                  aria-label="Dismiss"
+                >
+                  <X className="w-4 h-4 text-muted-foreground/70" />
                 </button>
               </div>
             </div>
