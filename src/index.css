@@ -814,7 +814,11 @@ button,
 /* ── Performance: GPU layer promotion for scrollable glass surfaces ── */
 .glass-card,
 .glass-elevated {
-  transform: translateZ(0);
+  will-change: transform;
+}
+/* Restore centering for dialogs using glass-elevated inside Radix portals */
+[data-radix-portal] .glass-elevated {
+  will-change: auto;
 }
 
 /* ── Performance: will-change hints for animated elements ── */
