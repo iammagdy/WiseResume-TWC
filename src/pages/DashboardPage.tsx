@@ -80,7 +80,6 @@ function DashboardPageContent() {
   const [deleteResumeId, setDeleteResumeId] = useState<string | null>(null);
   const [duplicateResumeId, setDuplicateResumeId] = useState<string | null>(null);
   const [deletedResume, setDeletedResume] = useState<{ id: string; title: string } | null>(null);
-  const [showOnboarding, setShowOnboarding] = useState(false);
   const [showLinkedInImport, setShowLinkedInImport] = useState(false);
   const [showAnalyzeJob, setShowAnalyzeJob] = useState(false);
 
