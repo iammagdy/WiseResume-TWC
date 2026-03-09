@@ -7,6 +7,11 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: GOOGLE-AUTH-CALLBACK-FIX
+- Summary: Added error detection in AuthCallbackPage — if Supabase redirects with ?error= query params (e.g. redirect URL not whitelisted), a toast is shown instead of silently landing on the home page. Also added toast on setSession failure.
+- Files touched: src/pages/AuthCallbackPage.tsx
+
+- Date: 2026-03-09
 - Issue ID: GOOGLE-AUTH-FIX
 - Summary: Switched Google OAuth from Lovable Cloud managed auth to direct supabase.auth.signInWithOAuth on external project (jnsfmkzgxsviuthaqlyy). Removed lovable OAuth import from AuthPage. Updated SignInPromptDialog Google button to call supabase directly.
 - Files touched: src/pages/AuthPage.tsx, src/components/auth/SignInPromptDialog.tsx
