@@ -416,7 +416,7 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
               {/* Active resume badge */}
               {currentResume && (
                 <p className="text-[11px] text-muted-foreground px-1 truncate">
-                  Chatting about: <span className="font-medium text-foreground">{currentResume.contactInfo?.fullName || currentResume.title || 'Untitled'}</span>
+                  Chatting about: <span className="font-medium text-foreground">{currentResume.contactInfo?.fullName || 'Untitled'}</span>
                 </p>
               )}
               <div className="flex items-center gap-2">
