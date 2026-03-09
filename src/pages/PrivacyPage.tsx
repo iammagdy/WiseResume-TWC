@@ -87,7 +87,7 @@ export default function PrivacyPage() {
             <li><strong className="text-foreground">Right to Withdraw Consent:</strong> Withdraw consent for optional data processing at any time without affecting the lawfulness of prior processing.</li>
             <li><strong className="text-foreground">Right to Object:</strong> Object to processing based on legitimate interests.</li>
           </ul>
-          <p>To exercise any of these rights, use the in-app settings or contact us at <span className="text-primary">privacy@wiseresume.app</span>. We will respond within 30 days, as required by applicable law.</p>
+          <p>To exercise any of these rights, use the in-app settings or contact us at <span className="text-primary">privacy@thewise.cloud</span>. We will respond within 30 days, as required by applicable law.</p>
           <p><strong className="text-foreground">CCPA-Specific:</strong> California residents have the right to know what personal information we collect, request its deletion, and opt out of any sale of personal information. We do not sell personal information.</p>
         </section>
 
