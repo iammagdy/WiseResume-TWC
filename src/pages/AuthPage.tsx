@@ -280,7 +280,7 @@ export default function AuthPage() {
 
       <div className="flex-1 flex items-center justify-center px-6 py-12">
         <div
-          className="w-full max-w-sm p-[2px] rounded-2xl animate-glow-pulse"
+          className="w-full max-w-sm p-[2px] rounded-2xl"
           style={{
             background: 'linear-gradient(135deg, hsl(355 85% 52% / 0.9), hsl(270 70% 55% / 0.7), hsl(185 90% 45% / 0.6), hsl(355 85% 52% / 0.9))',
             boxShadow: '0 0 30px hsl(355 85% 52% / 0.4), 0 0 60px hsl(270 70% 55% / 0.2)',
