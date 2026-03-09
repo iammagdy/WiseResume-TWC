@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: MANAGE-KEYS-500-FIX
+- Summary: Fixed 500 error in manage-api-keys edge function caused by FK violation. Function was connecting to Lovable Cloud DB instead of external project (jnsfmkzgxsviuthaqlyy). Switched to EXT_SUPABASE_URL/EXT_SUPABASE_SERVICE_ROLE_KEY.
+- Files touched: supabase/functions/manage-api-keys/index.ts
+- Notes: Same cross-project pattern as other edge functions.
+
+- Date: 2026-03-09
 - Issue ID: AI-TEST-PROVIDER-IDENTITY
 - Summary: Made ai-test edge function return deterministic, provider-specific greetings ("Hello! I'm Wise Resume AI" / "Hello! I'm Gemini AI" / "Hello! I'm Ollama AI") instead of letting the AI hallucinate its own name. Prevents fake provider names in Recent AI Requests log.
 - Files touched: supabase/functions/ai-test/index.ts
