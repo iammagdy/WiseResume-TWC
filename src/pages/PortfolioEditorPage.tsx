@@ -309,7 +309,7 @@ export default function PortfolioEditorPage() {
         openToWork,
         availabilityHeadline: availabilityHeadline || null,
         portfolioSyncMode: syncMode,
-        portfolioExtras: { caseStudies, services, testimonials, highlights },
+        portfolioExtras: { caseStudies, services, testimonials, highlights, portfolioSummary },
       };
       await updateProfile(updates as Parameters<typeof updateProfile>[0]);
       if (overrides?.portfolioEnabled !== undefined) {
