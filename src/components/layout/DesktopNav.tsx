@@ -134,6 +134,22 @@ export function DesktopNav() {
         })}
       </div>
 
+      {/* Settings tab — only visible on /settings */}
+      {isOnSettings && (
+        <button
+          onClick={() => { haptics.selection(); }}
+          aria-label="Settings"
+          className={cn(
+            'relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200',
+            'touch-manipulation active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+            'bg-primary/10 text-primary'
+          )}
+        >
+          <Settings className="w-4 h-4" aria-hidden="true" />
+          Settings
+        </button>
+      )}
+
       {/* Ask Wise AI — desktop */}
       <div className="ml-auto">
         <button

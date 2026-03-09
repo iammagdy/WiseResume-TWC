@@ -234,26 +234,47 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       }
     }, [open, geminiApiKey, ollamaApiKey, ollamaBaseUrl, ollamaModel]);
 
+    // Track original provider on sheet open for revert-on-close
+    const originalProviderRef = useRef<AIProvider>(aiProvider);
+    useEffect(() => {
+      if (open) {
+        originalProviderRef.current = aiProvider;
+      }
+    }, [open]);
+
+    // Revert provider on close if key not validated
+    useEffect(() => {
+      if (!open) {
+        const current = useSettingsStore.getState();
+        if (current.aiProvider === 'gemini' && !current.geminiKeyValidated) {
+          current.setAIProvider(originalProviderRef.current === 'gemini' ? 'wiseresume' : originalProviderRef.current);
+        }
+        if (current.aiProvider === 'ollama' && !current.ollamaKeyValidated) {
+          current.setAIProvider(originalProviderRef.current === 'ollama' ? 'wiseresume' : originalProviderRef.current);
+        }
+      }
+    }, [open]);
+
     const handleProviderChange = async (value: string) => {
       haptics.selection();
       setAIProvider(value as AIProvider);
       setTestResult(null);
-      
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user?.id) {
-          const { error } = await supabase
-            .from('user_preferences')
-            .update({ ai_provider: value })
-            .eq('user_id', session.user.id);
-          if (error) {
-            console.error('Failed to sync AI provider preference:', error);
-            toast.error('Failed to save AI engine preference');
+
+      // Only persist to DB if the provider is wiseresume (no key needed) or already validated
+      const shouldPersist = value === 'wiseresume' ||
+        (value === 'gemini' && geminiKeyValidated) ||
+        (value === 'ollama' && ollamaKeyValidated);
+
+      if (shouldPersist) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user?.id) {
+            await supabase
+              .from('user_preferences')
+              .update({ ai_provider: value })
+              .eq('user_id', session.user.id);
           }
-        }
-      } catch (err) {
-        console.error('Failed to sync AI provider preference:', err);
-        toast.error('Failed to save AI engine preference');
+        } catch {}
       }
       
       if (value === 'gemini' && !geminiKeyValidated) {

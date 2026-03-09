@@ -76,6 +76,26 @@ export function useAIKeyHydration() {
           }
         }
 
+        // Seed "last used" provider from most recent AI usage log
+        try {
+          const { data: recentLog } = await supabase
+            .from('ai_usage_logs')
+            .select('metadata')
+            .neq('action_type', 'score')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (recentLog?.metadata) {
+            const lastProvider = (recentLog.metadata as any)?.provider;
+            if (lastProvider && lastProvider !== 'deterministic') {
+              useAIHealthStore.getState().recordProvider(lastProvider);
+            }
+          }
+        } catch {
+          // Non-critical
+        }
+
         hydrated.current = true;
       } catch (err) {
         console.warn('[useAIKeyHydration] Failed to hydrate keys:', err);
