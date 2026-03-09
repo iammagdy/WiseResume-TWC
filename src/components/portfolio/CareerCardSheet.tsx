@@ -515,7 +515,7 @@ export function CareerCardSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="max-h-[94vh] flex flex-col">
+      <SheetContent side="bottom" className="max-h-[94vh] flex flex-col px-3 sm:px-6">
         <SheetHeader className="shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-primary" /> Career Card
