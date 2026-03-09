@@ -230,11 +230,15 @@ function ThemeStoreCard({
   selected,
   userAccent,
   onSelect,
+  userName,
+  userAvatarUrl,
 }: {
   theme: PortfolioThemeConfig;
   selected: boolean;
   userAccent: string;
   onSelect: () => void;
+  userName?: string;
+  userAvatarUrl?: string;
 }) {
   const accent = userAccent || theme.preview.accent;
 
