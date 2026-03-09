@@ -263,7 +263,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { message, conversationHistory, currentResume, functionResponse } = (await req.json()) as ChatRequest;
+    const { message, conversationHistory, currentResume, resumeList, functionResponse } = (await req.json()) as ChatRequest;
 
     if (!message || typeof message !== "string") {
       return new Response(
