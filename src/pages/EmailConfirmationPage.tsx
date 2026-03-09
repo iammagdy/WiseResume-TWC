@@ -88,19 +88,45 @@ export default function EmailConfirmationPage() {
     if (!email || otp.length !== OTP_LENGTH || verifying) return;
     setVerifying(true);
     try {
-      const { error } = await supabase.auth.verifyOtp({
-        email,
-        token: otp,
-        type: 'signup',
+      // Call our custom verify-signup-otp edge function
+      const { data, error } = await edgeFunctions.functions.invoke('verify-signup-otp', {
+        body: { email, otp },
       });
-      if (error) {
-        toast.error(error.message || 'Invalid code. Please try again.');
+
+      const result = data as Record<string, unknown> | null;
+
+      if (error || (result && 'error' in result)) {
+        const msg = (result as any)?.error || (error as any)?.message || 'Invalid code. Please try again.';
+        toast.error(msg);
         setOtp('');
-      } else {
-        setVerified(true);
-        toast.success('Email verified!');
-        setTimeout(() => navigate('/onboarding', { replace: true }), 1200);
+        return;
       }
+
+      if (result?.requiresSignIn) {
+        // User confirmed but couldn't auto-sign-in
+        toast.success('Email verified! Please sign in.');
+        setTimeout(() => navigate('/auth', { replace: true }), 1200);
+        return;
+      }
+
+      // Use the returned token_hash to get a session via verifyOtp
+      if (result?.token_hash) {
+        const { error: sessionError } = await supabase.auth.verifyOtp({
+          email,
+          token_hash: result.token_hash as string,
+          type: 'magiclink',
+        });
+        if (sessionError) {
+          console.warn('[verify-otp] Session creation failed, user can sign in manually:', sessionError.message);
+          toast.success('Email verified! Please sign in.');
+          setTimeout(() => navigate('/auth', { replace: true }), 1200);
+          return;
+        }
+      }
+
+      setVerified(true);
+      toast.success('Email verified!');
+      setTimeout(() => navigate('/onboarding', { replace: true }), 1200);
     } catch {
       toast.error('Verification failed. Please try again.');
       setOtp('');
