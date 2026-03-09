@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { CollapsibleCard, SubSectionHeading } from './shared';
+import { CollapsibleCard } from './shared';
 import type { PortfolioSections } from './ContentVisibilitySection';
 import { SECTION_LABELS } from './ContentVisibilitySection';
 
