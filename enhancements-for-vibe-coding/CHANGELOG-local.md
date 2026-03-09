@@ -7,6 +7,14 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: DEPT-CONTACT-FAQ
+- Summary: Replaced all raw email addresses on Terms & Privacy pages with clickable department hyperlinks that scroll to contact section and auto-open dialog with department pre-selected. Added department dropdown (9 departments) to ContactInquiryDialog. Fixed LOGO_URL in all 3 notification edge functions to use correct avatars bucket PNG. Added z-[100] to ContactInquiryDialog and FeatureRequestDialog for proper centering. Expanded FAQ from 8 to 21 items. Replaced broken mailto link on Help page with Contact Support dialog. Updated HelpSheet to navigate to /help instead of showing "Coming Soon".
+- Files touched: src/components/settings/ContactInquiryDialog.tsx, src/components/settings/FeatureRequestDialog.tsx, src/pages/TermsPage.tsx, src/pages/PrivacyPage.tsx, src/pages/HelpPage.tsx, src/components/settings/HelpSheet.tsx, supabase/functions/send-bug-report/index.ts, supabase/functions/send-feature-request/index.ts, supabase/functions/send-contact-inquiry/index.ts
+- Notes: Department is included in email subject line for routing. Edge functions deployed. Logo uses existing PNG from avatars bucket for email client compatibility.
+
+
+
+- Date: 2026-03-09
 - Issue ID: DIALOG-EMAIL-REVAMP
 - Summary: Fixed dialog positioning (popups opening off-center on Terms/Privacy/Help pages), revamped all 3 notification email templates to match auth email branding (dark header/footer, red accent, logo, table-based layout), expanded SCREEN_MAP with 14 new routes, added `screen` and `error_category` columns to `bug_reports` table for searchability, removed raw user-agent noise from emails.
 - Files touched: src/components/BugReportDialog.tsx, src/lib/bugReport.ts, supabase/functions/send-bug-report/index.ts, supabase/functions/send-feature-request/index.ts, supabase/functions/send-contact-inquiry/index.ts, enhancements-for-vibe-coding/CHANGELOG-local.md

@@ -1,11 +1,29 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ContactInquiryDialog } from '@/components/settings/ContactInquiryDialog';
+import { ContactInquiryDialog, DepartmentValue } from '@/components/settings/ContactInquiryDialog';
 
 export default function PrivacyPage() {
   const [contactOpen, setContactOpen] = useState(false);
+  const [defaultDept, setDefaultDept] = useState<DepartmentValue>('privacy');
+  const contactRef = useRef<HTMLElement>(null);
+
+  const scrollAndOpenContact = useCallback((dept: DepartmentValue) => {
+    setDefaultDept(dept);
+    contactRef.current?.scrollIntoView({ behavior: 'smooth' });
+    setTimeout(() => setContactOpen(true), 400);
+  }, []);
+
+  const DeptLink = ({ dept, children }: { dept: DepartmentValue; children: React.ReactNode }) => (
+    <button
+      type="button"
+      onClick={() => scrollAndOpenContact(dept)}
+      className="text-primary underline underline-offset-2 cursor-pointer hover:opacity-80 transition-opacity inline"
+    >
+      {children}
+    </button>
+  );
 
   return (
     <div className="min-h-screen">
@@ -90,7 +108,7 @@ export default function PrivacyPage() {
             <li><strong className="text-foreground">Restrict</strong> or <strong className="text-foreground">object to</strong> how we process your data.</li>
             <li><strong className="text-foreground">Withdraw consent</strong> for optional processing at any time.</li>
           </ul>
-          <p>To exercise any right, use the in-app settings or email <span className="text-primary">privacy@thewise.cloud</span>. We respond within 30 days.</p>
+          <p>To exercise any right, use the in-app settings or contact our <DeptLink dept="privacy">Privacy Team</DeptLink>. We respond within 30 days.</p>
           <p><strong className="text-foreground">California residents:</strong> You have the right to know what we collect, request deletion, and opt out of data sales. We don't sell your data.</p>
         </section>
 
@@ -115,7 +133,7 @@ export default function PrivacyPage() {
 
         <section className="space-y-2">
           <h3 className="text-foreground font-semibold">10. Children</h3>
-          <p>WiseResume is not for anyone under 16. If we discover we've collected data from a child, we'll delete it immediately. If you believe a child has used our service, please contact <span className="text-primary">privacy@thewise.cloud</span>.</p>
+          <p>WiseResume is not for anyone under 16. If we discover we've collected data from a child, we'll delete it immediately. If you believe a child has used our service, please contact our <DeptLink dept="privacy">Privacy Team</DeptLink>.</p>
         </section>
 
         <section className="space-y-2">
@@ -123,16 +141,11 @@ export default function PrivacyPage() {
           <p>We may update this policy from time to time. For significant changes, we'll notify you at least 30 days in advance. Continued use after the update means you accept it.</p>
         </section>
 
-        <section className="space-y-2">
+        <section ref={contactRef} className="space-y-2">
           <h3 className="text-foreground font-semibold">12. Contact Us</h3>
-          <p>Questions about your data or this policy? Reach out:</p>
-          <ul className="list-disc pl-5 space-y-1">
-            <li>Privacy: <span className="text-primary">privacy@thewise.cloud</span></li>
-            <li>Data Protection: <span className="text-primary">dpo@thewise.cloud</span></li>
-          </ul>
-          <p className="pt-2">Or send us a message directly:</p>
+          <p>Questions about your data or this policy? Reach out to our <DeptLink dept="privacy">Privacy Team</DeptLink> or <DeptLink dept="data-protection">Data Protection Team</DeptLink>.</p>
           <Button
-            onClick={() => setContactOpen(true)}
+            onClick={() => scrollAndOpenContact('privacy')}
             variant="outline"
             className="mt-1"
           >
@@ -141,7 +154,7 @@ export default function PrivacyPage() {
         </section>
       </main>
 
-      <ContactInquiryDialog open={contactOpen} onOpenChange={setContactOpen} />
+      <ContactInquiryDialog open={contactOpen} onOpenChange={setContactOpen} defaultDepartment={defaultDept} />
     </div>
   );
 }

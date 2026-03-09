@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const DEVELOPER_EMAIL = "contact@thewise.cloud";
-const LOGO_URL = "https://jnsfmkzgxsviuthaqlyy.supabase.co/storage/v1/object/public/screenshots/icon-512.png";
+const LOGO_URL = "https://jnsfmkzgxsviuthaqlyy.supabase.co/storage/v1/object/public/avatars/email-assets/wise-ai-logo.png";
 
 function parsePlatform(ua: string): string {
   if (!ua) return "Unknown";
@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { subject, message, user_id, user_email, user_agent, app_version, route } = body;
+    const { subject, message, department, user_id, user_email, user_agent, app_version, route } = body;
 
     if (!subject || !message) {
       return new Response(
@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
 <!-- Header -->
 <tr><td style="background-color:#1a1a2e;padding:32px 40px;border-radius:12px 12px 0 0" align="center">
   <img src="${LOGO_URL}" alt="WiseResume" width="48" height="48" style="display:block;margin:0 auto 12px;border-radius:12px">
-  <h1 style="margin:0;font-size:20px;font-weight:700;color:#ffffff">📩 Contact Inquiry</h1>
+  <h1 style="margin:0;font-size:20px;font-weight:700;color:#ffffff">📩 Contact Inquiry${department ? ` — ${department}` : ""}</h1>
   <p style="margin:8px 0 0;font-size:14px;color:rgba(255,255,255,0.7)">from <strong style="color:#ffffff">${resolvedEmail}</strong></p>
 </td></tr>
 
@@ -161,7 +161,7 @@ Deno.serve(async (req) => {
             from: `${resolvedEmail} via WiseResume <notifications@thewise.cloud>`,
             to: [DEVELOPER_EMAIL],
             reply_to: resolvedEmail,
-            subject: `[Contact] ${subject.slice(0, 80)}`,
+            subject: `[Contact${department ? ` - ${department}` : ""}] ${subject.slice(0, 80)}`,
             html: emailHtml,
           }),
         });

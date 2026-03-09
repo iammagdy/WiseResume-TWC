@@ -1,12 +1,27 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MessageSquare, Send, CheckCircle2 } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { supabase } from '@/integrations/supabase/safeClient';
+
+export const DEPARTMENTS = [
+  { value: 'general', label: 'General Support' },
+  { value: 'legal', label: 'Legal Department' },
+  { value: 'privacy', label: 'Privacy Team' },
+  { value: 'data-protection', label: 'Data Protection' },
+  { value: 'billing', label: 'Billing & Payments' },
+  { value: 'technical', label: 'Technical Support' },
+  { value: 'partnerships', label: 'Partnerships' },
+  { value: 'careers', label: 'Careers' },
+  { value: 'press', label: 'Press & Media' },
+] as const;
+
+export type DepartmentValue = typeof DEPARTMENTS[number]['value'];
 
 let cachedAppVersion: string | null = null;
 async function getAppVersion(): Promise<string> {
@@ -22,16 +37,23 @@ async function getAppVersion(): Promise<string> {
   return cachedAppVersion;
 }
 
-
 interface ContactInquiryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultDepartment?: DepartmentValue;
 }
 
-export function ContactInquiryDialog({ open, onOpenChange }: ContactInquiryDialogProps) {
+export function ContactInquiryDialog({ open, onOpenChange, defaultDepartment }: ContactInquiryDialogProps) {
+  const [department, setDepartment] = useState<DepartmentValue>(defaultDepartment || 'general');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+
+  useEffect(() => {
+    if (open && defaultDepartment) {
+      setDepartment(defaultDepartment);
+    }
+  }, [open, defaultDepartment]);
 
   const handleSend = useCallback(async () => {
     if (!subject.trim() || !message.trim()) return;
@@ -48,10 +70,12 @@ export function ContactInquiryDialog({ open, onOpenChange }: ContactInquiryDialo
     } catch { /* proceed without auth */ }
 
     const appVersion = await getAppVersion();
+    const deptLabel = DEPARTMENTS.find(d => d.value === department)?.label || 'General Support';
 
     const payload = {
       subject: subject.trim(),
       message: message.trim(),
+      department: deptLabel,
       user_id: userId || null,
       user_email: userEmail,
       user_agent: navigator.userAgent,
@@ -71,12 +95,13 @@ export function ContactInquiryDialog({ open, onOpenChange }: ContactInquiryDialo
           setStatus('idle');
           setSubject('');
           setMessage('');
+          setDepartment('general');
         }, 300);
       }, 3000);
     } catch {
       setStatus('error');
     }
-  }, [subject, message, onOpenChange]);
+  }, [subject, message, department, onOpenChange]);
 
   const handleOpenChange = (newOpen: boolean) => {
     onOpenChange(newOpen);
@@ -85,13 +110,14 @@ export function ContactInquiryDialog({ open, onOpenChange }: ContactInquiryDialo
         setStatus('idle');
         setSubject('');
         setMessage('');
+        setDepartment(defaultDepartment || 'general');
       }, 300);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-[min(24rem,calc(100vw-2rem))] rounded-2xl p-6 gap-0">
+      <DialogContent className="max-w-[min(24rem,calc(100vw-2rem))] rounded-2xl p-6 gap-0 z-[100]">
         {status === 'success' ? (
           <div className="flex flex-col items-center gap-4 py-4 text-center">
             <div className="w-16 h-16 rounded-full bg-[hsl(var(--success))]/10 flex items-center justify-center">
@@ -119,6 +145,22 @@ export function ContactInquiryDialog({ open, onOpenChange }: ContactInquiryDialo
             </div>
 
             <div className="space-y-4">
+              <div>
+                <label htmlFor="inquiry-department" className="text-sm font-medium text-foreground mb-1.5 block">
+                  Department
+                </label>
+                <Select value={department} onValueChange={(v) => setDepartment(v as DepartmentValue)}>
+                  <SelectTrigger id="inquiry-department">
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[110]">
+                    {DEPARTMENTS.map(d => (
+                      <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div>
                 <label htmlFor="inquiry-subject" className="text-sm font-medium text-foreground mb-1.5 block">
                   Subject
