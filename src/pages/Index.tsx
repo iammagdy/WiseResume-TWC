@@ -126,7 +126,7 @@ const Index = () => {
       {/* Sticky Mini Header */}
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          scrolled ? 'glass-header border-b border-border/20 shadow-lg shadow-background/20' : 'bg-transparent'
+          scrolled ? 'glass-header' : 'bg-transparent'
         }`}
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
@@ -173,7 +173,7 @@ const Index = () => {
             </DropdownMenu>
             </div>
           ) : (
-            /* Guest header: Log in (ghost) + Sign Up (solid) */
+            /* Guest header: Log in (ghost) + Sign Up (glass pill) */
             <div className="flex items-center gap-1.5">
               <ThemeDropdown />
               <Button
@@ -184,14 +184,13 @@ const Index = () => {
               >
                 Log in
               </Button>
-              <Button
-                size="sm"
-                className="gap-1.5 h-8 px-3 text-xs font-semibold bg-primary text-primary-foreground hover:opacity-90 active:scale-95 transition-all touch-manipulation"
+              <button
+                className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 hover:border-primary/60 active:scale-95 transition-all touch-manipulation backdrop-blur-sm"
                 onClick={() => { triggerHaptic.medium(); navigate('/auth?mode=signup'); }}
               >
                 <UserPlus className="w-3.5 h-3.5" />
                 Sign Up
-              </Button>
+              </button>
             </div>
           )}
         </div>
@@ -262,13 +261,12 @@ const Index = () => {
                 whileHover={prefersReducedMotion ? undefined : { scale: 1.02 }}
                 whileTap={prefersReducedMotion ? undefined : { scale: 0.98 }}
               >
-                <Button
-                  size="lg"
-                  className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-primary to-accent hover:opacity-90 shadow-[0_0_24px_-4px_hsl(var(--primary)/0.5)] hover:shadow-[0_0_32px_-4px_hsl(var(--primary)/0.7)] transition-all active:scale-[0.98] touch-manipulation"
+                <button
+                  className="w-full h-14 text-lg font-semibold rounded-xl border border-primary/40 bg-primary/10 text-foreground hover:bg-primary/20 hover:border-primary/70 active:scale-[0.98] transition-all touch-manipulation backdrop-blur-sm shadow-[0_0_32px_-8px_hsl(var(--primary)/0.4)] hover:shadow-[0_0_48px_-8px_hsl(var(--primary)/0.6)]"
                   onClick={handleCTA}
                 >
                   Get Started Free
-                </Button>
+                </button>
               </motion.div>
             )}
           </motion.div>
