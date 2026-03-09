@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { lovable } from '@/integrations/lovable/index';
 
 type Mode = 'sign-in' | 'sign-up' | 'forgot-password' | 'reset-password';
@@ -150,21 +151,35 @@ export default function AuthPage() {
     if (!email || !password || !fullName) return;
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { full_name: fullName },
-          emailRedirectTo: `${window.location.origin}?verify_method=${verifyMethod}`,
-        },
-      });
-      if (error) {
-        toast.error(error.message || 'Sign-up failed');
-      } else if (data.user?.identities?.length === 0) {
-        toast.error('An account with this email already exists. Please sign in.');
-        setMode('sign-in');
+      if (verifyMethod === 'otp') {
+        // OTP mode: call custom edge function that creates user + sends OTP email
+        const { data, error } = await edgeFunctions.functions.invoke('send-signup-otp', {
+          body: { email, password, fullName },
+        });
+        if (error) {
+          toast.error((error as any).message || 'Sign-up failed');
+          if ((error as any).status === 409) setMode('sign-in');
+        } else {
+          navigate('/auth/confirm-email', { state: { email, verifyMethod: 'otp' }, replace: true });
+        }
       } else {
-        navigate('/auth/confirm-email', { state: { email, verifyMethod }, replace: true });
+        // Link mode: standard Supabase signUp (triggers Lovable webhook → confirmation link)
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { full_name: fullName },
+            emailRedirectTo: `${window.location.origin}`,
+          },
+        });
+        if (error) {
+          toast.error(error.message || 'Sign-up failed');
+        } else if (data.user?.identities?.length === 0) {
+          toast.error('An account with this email already exists. Please sign in.');
+          setMode('sign-in');
+        } else {
+          navigate('/auth/confirm-email', { state: { email, verifyMethod: 'link' }, replace: true });
+        }
       }
     } catch (err: any) {
       toast.error(err?.message || 'Sign-up failed');
@@ -258,15 +273,21 @@ export default function AuthPage() {
         <div
           className="w-full max-w-sm p-[1px] rounded-2xl"
           style={{
-            background: 'linear-gradient(135deg, hsl(355 85% 52% / 0.55), hsl(270 70% 55% / 0.35), hsl(185 90% 45% / 0.28))',
+            background: 'linear-gradient(135deg, hsl(355 85% 52% / 0.7), hsl(270 70% 55% / 0.5), hsl(185 90% 45% / 0.4))',
           }}
         >
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-            className="w-full space-y-6 glass-elevated rounded-[calc(1rem-1px)] p-6 relative overflow-hidden"
-            style={{ boxShadow: '0 0 60px -10px hsl(355 85% 52% / 0.35), 0 25px 50px -12px rgba(0,0,0,0.7)' }}
+            className="w-full space-y-6 rounded-[calc(1rem-1px)] p-6 relative overflow-hidden"
+            style={{
+              background: 'hsl(var(--card) / 0.25)',
+              backdropFilter: 'blur(24px)',
+              WebkitBackdropFilter: 'blur(24px)',
+              border: '1px solid hsl(0 0% 100% / 0.12)',
+              boxShadow: '0 0 60px -10px hsl(355 85% 52% / 0.35), 0 25px 50px -12px rgba(0,0,0,0.7)',
+            }}
           >
             <div
               className="absolute inset-x-0 top-0 h-28 pointer-events-none"

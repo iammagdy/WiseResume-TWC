@@ -79,6 +79,8 @@ project_id = "hjnnamwgztlhzkeuufln"
     verify_jwt = false
   [functions.score-resume]
     verify_jwt = false
+  [functions.send-signup-otp]
+    verify_jwt = false
   [functions.send-bug-report]
     verify_jwt = false
   [functions.send-feature-request]
