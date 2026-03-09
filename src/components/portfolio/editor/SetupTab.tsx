@@ -42,7 +42,7 @@ export function SetupTab(props: SetupTabProps) {
     username, onUsernameChange, usernameError, usernameAvailable, checkingUsername,
     resumes, selectedResumeId, onSelectedResumeIdChange,
     bio, onBioChange, onGenerateBio, generatingBio,
-    sections, onToggleSectionVisibility, syncMode, onSyncModeChange,
+    sections, onToggleSectionVisibility,
     openSections, toggleSection,
     openToWork, onOpenToWorkChange,
     availabilityHeadline, onAvailabilityHeadlineChange,
