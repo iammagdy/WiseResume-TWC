@@ -82,6 +82,7 @@ function DashboardPageContent() {
   const [deletedResume, setDeletedResume] = useState<{ id: string; title: string } | null>(null);
   const [showLinkedInImport, setShowLinkedInImport] = useState(false);
   const [showAnalyzeJob, setShowAnalyzeJob] = useState(false);
+  const [showProfileBanner, setShowProfileBanner] = useState(false);
 
   const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // tipVisible state removed - tip merged into DashboardStats
