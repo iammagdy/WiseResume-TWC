@@ -29,7 +29,7 @@ export function AppShell() {
   const isRootRoute = shouldExitOnBack(location.pathname);
   const enableSwipeBack = showBottomNav && !isEditorRoute && !isRootRoute;
   const scrollRef = useRef<HTMLDivElement>(null);
-  
+  const [wiseAIOpen, setWiseAIOpen] = useState(false);
 
   // Global keyboard awareness
   useKeyboardAwareScroll();
