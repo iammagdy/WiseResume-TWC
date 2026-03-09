@@ -30,7 +30,7 @@ export function HelpSheet({ open, onOpenChange }: HelpSheetProps) {
               label="Documentation & FAQ"
               description="Guides, tips, and frequently asked questions"
               icon={<BookOpen className="w-4 h-4" />}
-              onClick={() => toast.info('Coming Soon', { description: 'Documentation & FAQ is under construction.' })}
+              onClick={() => { onOpenChange(false); window.location.href = '/help'; }}
             />
             <Separator className="bg-border/30" />
             <SettingsRow

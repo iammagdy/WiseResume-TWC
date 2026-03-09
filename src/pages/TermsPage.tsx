@@ -1,11 +1,29 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ContactInquiryDialog } from '@/components/settings/ContactInquiryDialog';
+import { ContactInquiryDialog, DepartmentValue } from '@/components/settings/ContactInquiryDialog';
 
 export default function TermsPage() {
   const [contactOpen, setContactOpen] = useState(false);
+  const [defaultDept, setDefaultDept] = useState<DepartmentValue>('general');
+  const contactRef = useRef<HTMLElement>(null);
+
+  const scrollAndOpenContact = useCallback((dept: DepartmentValue) => {
+    setDefaultDept(dept);
+    contactRef.current?.scrollIntoView({ behavior: 'smooth' });
+    setTimeout(() => setContactOpen(true), 400);
+  }, []);
+
+  const DeptLink = ({ dept, children }: { dept: DepartmentValue; children: React.ReactNode }) => (
+    <button
+      type="button"
+      onClick={() => scrollAndOpenContact(dept)}
+      className="text-primary underline underline-offset-2 cursor-pointer hover:opacity-80 transition-opacity inline"
+    >
+      {children}
+    </button>
+  );
 
   return (
     <div className="min-h-screen">
@@ -35,7 +53,7 @@ export default function TermsPage() {
 
         <section className="space-y-2">
           <h3 className="text-foreground font-semibold">2. Your Account</h3>
-          <p>You're responsible for keeping your login credentials secure and for all activity under your account. Please use accurate information when signing up. If you suspect unauthorized access, contact us immediately at <span className="text-primary">support@thewise.cloud</span>.</p>
+          <p>You're responsible for keeping your login credentials secure and for all activity under your account. Please use accurate information when signing up. If you suspect unauthorized access, contact our <DeptLink dept="general">Support</DeptLink> team immediately.</p>
         </section>
 
         <section className="space-y-2">
@@ -79,7 +97,7 @@ export default function TermsPage() {
           <ul className="list-disc pl-5 space-y-1">
             <li>You'll be billed on a recurring basis (monthly or annually).</li>
             <li>You can cancel anytime — your access continues until the end of the billing period.</li>
-            <li>For refund requests, contact <span className="text-primary">support@thewise.cloud</span>.</li>
+            <li>For refund requests, contact our <DeptLink dept="billing">Billing & Payments</DeptLink> team.</li>
             <li>We'll give you at least 30 days' notice before any price changes.</li>
           </ul>
         </section>
@@ -122,16 +140,11 @@ export default function TermsPage() {
           <p>We may update these Terms from time to time. For significant changes, we'll notify you at least 30 days in advance. Continuing to use WiseResume after that means you accept the updated Terms.</p>
         </section>
 
-        <section className="space-y-2">
+        <section ref={contactRef} className="space-y-2">
           <h3 className="text-foreground font-semibold">14. Contact Us</h3>
-          <p>Have a question about these Terms? Reach out:</p>
-          <ul className="list-disc pl-5 space-y-1">
-            <li>General Support: <span className="text-primary">support@thewise.cloud</span></li>
-            <li>Legal Inquiries: <span className="text-primary">legal@thewise.cloud</span></li>
-          </ul>
-          <p className="pt-2">Or send us a message directly:</p>
+          <p>Have a question about these Terms? Reach out to our <DeptLink dept="general">Support</DeptLink> or <DeptLink dept="legal">Legal Department</DeptLink>.</p>
           <Button
-            onClick={() => setContactOpen(true)}
+            onClick={() => scrollAndOpenContact('general')}
             variant="outline"
             className="mt-1"
           >
@@ -140,7 +153,7 @@ export default function TermsPage() {
         </section>
       </main>
 
-      <ContactInquiryDialog open={contactOpen} onOpenChange={setContactOpen} />
+      <ContactInquiryDialog open={contactOpen} onOpenChange={setContactOpen} defaultDepartment={defaultDept} />
     </div>
   );
 }

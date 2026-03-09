@@ -161,7 +161,7 @@ Deno.serve(async (req) => {
             from: `${resolvedEmail} via WiseResume <notifications@thewise.cloud>`,
             to: [DEVELOPER_EMAIL],
             reply_to: resolvedEmail,
-            subject: `[Contact] ${subject.slice(0, 80)}`,
+            subject: `[Contact${department ? ` - ${department}` : ""}] ${subject.slice(0, 80)}`,
             html: emailHtml,
           }),
         });
