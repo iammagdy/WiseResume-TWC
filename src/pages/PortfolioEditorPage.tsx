@@ -472,6 +472,11 @@ export default function PortfolioEditorPage() {
               <ContentTab
                 openSections={openSections}
                 toggleSection={toggleSection}
+                syncMode={syncMode}
+                onSyncModeChange={setSyncMode}
+                portfolioSummary={portfolioSummary}
+                onPortfolioSummaryChange={setPortfolioSummary}
+                bio={bio}
                 caseStudies={caseStudies}
                 onCaseStudiesChange={setCaseStudies}
                 services={services}
