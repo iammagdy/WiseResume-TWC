@@ -1,6 +1,5 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-
-const LIGHT_THEMES = ['classic-clean', 'executive-suite', 'creative-spotlight', 'freelancer-starter'];
+import { useIsDark } from '@/hooks/useIsDark';
 
 interface StickyHeaderProps {
   name: string | null;
@@ -13,7 +12,7 @@ interface StickyHeaderProps {
 }
 
 export function StickyHeader({ name, avatarUrl, initials, contactEmail, accentColor, visible, pStyle = 'minimal' }: StickyHeaderProps) {
-  const isLight = LIGHT_THEMES.includes(pStyle);
+  const isDark = useIsDark();
 
   return (
     <div
