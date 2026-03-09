@@ -24,7 +24,10 @@ export function InstallButton({ className }: InstallButtonProps) {
   const [isInstalled, setIsInstalled] = useState(false);
   const [showIosSheet, setShowIosSheet] = useState(false);
 
-  const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const ua = navigator.userAgent;
+  const isIos = /iPad|iPhone|iPod/.test(ua);
+  const isChromium = /Chrome/.test(ua) && !/Edg/.test(ua) === false || /Chrome/.test(ua);
+  const isAndroid = /Android/.test(ua);
   const [showGenericSheet, setShowGenericSheet] = useState(false);
 
   useEffect(() => {
