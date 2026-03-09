@@ -442,9 +442,44 @@ export function VisitorsPanel({ username, userId, portfolioEnabled }: VisitorsPa
 
   if (!portfolioEnabled) {
     return (
-      <div className="text-center py-8 space-y-2">
-        <Globe2 className="w-8 h-8 text-muted-foreground mx-auto" />
-        <p className="text-sm text-muted-foreground">Publish your portfolio to start tracking visitors.</p>
+      <div className="space-y-4">
+        <div className="text-center py-4 space-y-2">
+          <Globe2 className="w-8 h-8 text-muted-foreground mx-auto" />
+          <p className="text-sm font-medium text-foreground">Publish to see real data</p>
+          <p className="text-xs text-muted-foreground">Your analytics will appear here once your portfolio is live.</p>
+        </div>
+        {/* Mock preview cards (grayed out) */}
+        <div className="opacity-40 pointer-events-none space-y-3">
+          <div className="grid grid-cols-3 gap-2">
+            <div className="glass-elevated rounded-xl p-3 text-center">
+              <p className="text-lg font-bold text-foreground">24</p>
+              <p className="text-[10px] text-muted-foreground">Visits</p>
+            </div>
+            <div className="glass-elevated rounded-xl p-3 text-center">
+              <p className="text-lg font-bold text-foreground">5</p>
+              <p className="text-[10px] text-muted-foreground">Countries</p>
+            </div>
+            <div className="glass-elevated rounded-xl p-3 text-center">
+              <p className="text-lg font-bold text-foreground">1m 42s</p>
+              <p className="text-[10px] text-muted-foreground">Avg Time</p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {[
+              { flag: '🇺🇸', country: 'United States', referrer: 'LinkedIn', time: '2m 15s' },
+              { flag: '🇬🇧', country: 'United Kingdom', referrer: 'Direct', time: '1m 30s' },
+              { flag: '🇩🇪', country: 'Germany', referrer: 'Google', time: '45s' },
+            ].map((mock, i) => (
+              <div key={i} className="glass-elevated rounded-xl px-3 py-2.5 flex items-center gap-2.5">
+                <span className="text-base">{mock.flag}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-foreground truncate">{mock.country}</p>
+                  <p className="text-[10px] text-muted-foreground">{mock.referrer} · {mock.time}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
