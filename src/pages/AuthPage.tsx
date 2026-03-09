@@ -273,15 +273,21 @@ export default function AuthPage() {
         <div
           className="w-full max-w-sm p-[1px] rounded-2xl"
           style={{
-            background: 'linear-gradient(135deg, hsl(355 85% 52% / 0.55), hsl(270 70% 55% / 0.35), hsl(185 90% 45% / 0.28))',
+            background: 'linear-gradient(135deg, hsl(355 85% 52% / 0.7), hsl(270 70% 55% / 0.5), hsl(185 90% 45% / 0.4))',
           }}
         >
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-            className="w-full space-y-6 glass-elevated rounded-[calc(1rem-1px)] p-6 relative overflow-hidden"
-            style={{ boxShadow: '0 0 60px -10px hsl(355 85% 52% / 0.35), 0 25px 50px -12px rgba(0,0,0,0.7)' }}
+            className="w-full space-y-6 rounded-[calc(1rem-1px)] p-6 relative overflow-hidden"
+            style={{
+              background: 'hsl(var(--card) / 0.25)',
+              backdropFilter: 'blur(24px)',
+              WebkitBackdropFilter: 'blur(24px)',
+              border: '1px solid hsl(0 0% 100% / 0.12)',
+              boxShadow: '0 0 60px -10px hsl(355 85% 52% / 0.35), 0 25px 50px -12px rgba(0,0,0,0.7)',
+            }}
           >
             <div
               className="absolute inset-x-0 top-0 h-28 pointer-events-none"
