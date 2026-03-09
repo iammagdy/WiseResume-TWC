@@ -21,8 +21,8 @@ export function StickyHeader({ name, avatarUrl, initials, contactEmail, accentCo
       style={{
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
-        background: isLight ? 'rgba(255,255,255,0.92)' : 'rgba(10,10,20,0.85)',
-        borderBottom: isLight ? '1px solid rgba(0,0,0,0.08)' : '1px solid rgba(255,255,255,0.06)',
+        background: isDark ? 'rgba(10,10,20,0.85)' : 'rgba(255,255,255,0.92)',
+        borderBottom: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.08)',
       }}
     >
       <div className="flex items-center gap-2.5">
