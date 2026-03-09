@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: EMAIL-DELIVERY-FIX
+- Summary: Fixed "sent but not delivered" emails from Resend by separating from/to addresses. Changed `from` field in all three feedback edge functions from `contact@thewise.cloud` to `noreply@thewise.cloud` with user's email in display name (e.g., `user@gmail.com via WiseResume <noreply@thewise.cloud>`). This prevents self-delivery blocking and shows user identity in inbox.
+- Files touched: supabase/functions/send-bug-report/index.ts, supabase/functions/send-feature-request/index.ts, supabase/functions/send-contact-inquiry/index.ts, enhancements-for-vibe-coding/CHANGELOG-local.md
+- Notes: `reply_to` remains user's email so replies go to them. `to` remains contact@thewise.cloud.
+
+- Date: 2026-03-09
 - Issue ID: LIGHT-MODE-VISIBILITY-FIXES
 - Summary: Fixed hardcoded white-based colors causing visibility issues in light mode across Auth, main app pages, Settings, and portfolio components. Made EmailConfirmationPage card border, StickyHeader background, ActionCard primary variant, and Settings changelog button theme-aware using useIsDark hook and semantic design tokens.
 - Files touched: src/hooks/useIsDark.ts (imported reusable), src/pages/EmailConfirmationPage.tsx, src/components/portfolio/public/StickyHeader.tsx, src/components/home/ActionCard.tsx, src/pages/SettingsPage.tsx, enhancements-for-vibe-coding/CHANGELOG-local.md
