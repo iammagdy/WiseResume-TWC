@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { CollapsibleCard, SubSectionHeading } from './shared';
+import { CollapsibleCard } from './shared';
 import type { PortfolioSections } from './ContentVisibilitySection';
 import { SECTION_LABELS } from './ContentVisibilitySection';
 
@@ -26,8 +26,6 @@ export interface SetupTabProps {
   // Content visibility
   sections: PortfolioSections;
   onToggleSectionVisibility: (key: keyof PortfolioSections) => void;
-  syncMode: 'auto' | 'locked';
-  onSyncModeChange: (val: 'auto' | 'locked') => void;
   openSections: Set<string>;
   toggleSection: (id: string) => void;
   // Availability
@@ -44,7 +42,7 @@ export function SetupTab(props: SetupTabProps) {
     username, onUsernameChange, usernameError, usernameAvailable, checkingUsername,
     resumes, selectedResumeId, onSelectedResumeIdChange,
     bio, onBioChange, onGenerateBio, generatingBio,
-    sections, onToggleSectionVisibility, syncMode, onSyncModeChange,
+    sections, onToggleSectionVisibility,
     openSections, toggleSection,
     openToWork, onOpenToWorkChange,
     availabilityHeadline, onAvailabilityHeadlineChange,
@@ -159,32 +157,6 @@ export function SetupTab(props: SetupTabProps) {
           ))}
         </div>
 
-        {/* Sync Mode */}
-        <SubSectionHeading icon={<Sparkles className="w-3.5 h-3.5" />} label="Content Sync Mode" />
-        <p className="text-[11px] text-muted-foreground mb-2">Control how your portfolio content stays in sync with your resume.</p>
-        <div className="space-y-2">
-          {(['auto', 'locked'] as const).map(mode => (
-            <button
-              key={mode}
-              onClick={() => onSyncModeChange(mode)}
-              className={`w-full flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${
-                syncMode === mode ? 'border-primary bg-primary/5' : 'border-border bg-card/50'
-              }`}
-            >
-              <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${syncMode === mode ? 'border-primary' : 'border-muted-foreground'}`}>
-                {syncMode === mode && <div className="w-2 h-2 rounded-full bg-primary" />}
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">{mode === 'auto' ? 'Auto-sync' : 'Locked snapshot'}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  {mode === 'auto'
-                    ? 'Changes to your resumes automatically sync to this portfolio.'
-                    : "Freeze your portfolio at this version — edits to your resume won't affect it"}
-                </p>
-              </div>
-            </button>
-          ))}
-        </div>
       </CollapsibleCard>
 
       {/* Availability */}

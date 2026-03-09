@@ -455,8 +455,6 @@ export default function PortfolioEditorPage() {
                 generatingBio={generatingBio}
                 sections={sections}
                 onToggleSectionVisibility={toggleSectionVisibility}
-                syncMode={syncMode}
-                onSyncModeChange={setSyncMode}
                 openSections={openSections}
                 toggleSection={toggleSection}
                 openToWork={openToWork}
