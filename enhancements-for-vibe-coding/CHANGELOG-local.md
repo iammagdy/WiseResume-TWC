@@ -7,6 +7,15 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: OTP-RESEND-FIX
+- Summary: Fixed OTP resend sending verification links instead of OTP codes. Pass `password` and `fullName` through router state from AuthPage to EmailConfirmationPage. Updated `handleResend` in OTP mode to call `send-signup-otp` edge function instead of `supabase.auth.resend()`. Updated edge function to handle existing unconfirmed users by falling back to `magiclink` type when `signup` returns "already registered".
+- Files touched:
+  - `src/pages/AuthPage.tsx` (pass password/fullName in router state)
+  - `src/pages/EmailConfirmationPage.tsx` (OTP resend via edge function, import edgeFunctions)
+  - `supabase/functions/send-signup-otp/index.ts` (handle existing users with magiclink fallback)
+- Notes: Edge function redeployed. Risk: `hashed_token` from `generateLink` may not be a 6-digit code — needs end-to-end testing.
+
+- Date: 2026-03-09
 - Issue ID: OTP-DEPLOY-FIX
 - Summary: Deployed `send-signup-otp` edge function to Lovable Cloud (was returning 404). Fixed error handling in AuthPage OTP branch to `return` on failure instead of falling through to navigation. Improved error message extraction to read `{ error }` from edge function response body.
 - Files touched:
