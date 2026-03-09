@@ -1011,10 +1011,9 @@ function DashboardPageContent() {
       <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {selectedIds.size} Resume{selectedIds.size > 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogTitle>Move {selectedIds.size} Resume{selectedIds.size > 1 ? 's' : ''} to Trash?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the selected resumes and all their content.
-              This action cannot be undone.
+              These resumes will be moved to trash and auto-deleted after 30 days. You can restore them anytime from the trash.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1023,7 +1022,7 @@ function DashboardPageContent() {
               onClick={confirmBulkDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete {selectedIds.size}
+              Move to Trash
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
