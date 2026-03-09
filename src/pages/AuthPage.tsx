@@ -259,7 +259,7 @@ export default function AuthPage() {
       initial={{ opacity: 0, scale: 0.98 }} 
       animate={{ opacity: 1, scale: 1 }} 
       transition={{ duration: 0.4, ease: "easeOut" }}
-      className="relative isolate min-h-[100dvh] flex flex-col overflow-hidden"
+      className="relative isolate min-h-[100dvh] flex flex-col overflow-y-auto"
     >
       <OfflineBanner />
 
@@ -278,11 +278,11 @@ export default function AuthPage() {
         <ArrowLeft className="w-5 h-5" />
       </button>
 
-      <div className="flex-1 flex items-center justify-center px-6 py-8">
+      <div className="flex-1 flex items-center justify-center px-6 py-12">
         <div
           className="w-full max-w-sm p-[1px] rounded-2xl"
           style={{
-            background: 'linear-gradient(135deg, hsl(355 85% 52% / 0.7), hsl(270 70% 55% / 0.5), hsl(185 90% 45% / 0.4))',
+            background: 'linear-gradient(135deg, hsl(355 85% 52% / 0.45), hsl(270 70% 55% / 0.3), hsl(185 90% 45% / 0.25))',
           }}
         >
           <motion.div
@@ -291,11 +291,11 @@ export default function AuthPage() {
             transition={{ type: 'spring', stiffness: 300, damping: 25 }}
             className="w-full space-y-6 rounded-[calc(1rem-1px)] p-6 relative overflow-hidden"
             style={{
-              background: 'hsl(var(--card) / 0.25)',
-              backdropFilter: 'blur(24px)',
-              WebkitBackdropFilter: 'blur(24px)',
-              border: '1px solid hsl(0 0% 100% / 0.12)',
-              boxShadow: '0 0 60px -10px hsl(355 85% 52% / 0.35), 0 25px 50px -12px rgba(0,0,0,0.7)',
+              background: 'hsl(var(--card) / 0.12)',
+              backdropFilter: 'blur(28px)',
+              WebkitBackdropFilter: 'blur(28px)',
+              border: '1px solid hsl(0 0% 100% / 0.10)',
+              boxShadow: '0 0 40px -12px hsl(355 85% 52% / 0.2), 0 20px 40px -12px rgba(0,0,0,0.5)',
             }}
           >
             <div
