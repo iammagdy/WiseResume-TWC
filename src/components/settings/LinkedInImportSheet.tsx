@@ -374,6 +374,46 @@ export function LinkedInImportSheet({
               </motion.div>
             )}
 
+            {/* URL Guide State */}
+            {parseState === 'url-guide' && (
+              <motion.div
+                key="url-guide"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="py-6 space-y-5"
+              >
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Your LinkedIn profile URL</label>
+                  <input
+                    type="url"
+                    placeholder="https://linkedin.com/in/your-name"
+                    value={linkedinUrl}
+                    onChange={(e) => setLinkedinUrl(e.target.value)}
+                    className="flex w-full rounded-xl glass-input px-3 py-2.5 text-[16px] ring-offset-background placeholder:text-muted-foreground/60 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 transition-all"
+                  />
+                </div>
+
+                <div className="bg-muted/50 rounded-xl p-4 space-y-3">
+                  <h3 className="font-medium text-sm">Here's how it works</h3>
+                  <ol className="space-y-2.5 text-sm text-muted-foreground">
+                    <li className="flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
+                      <span>We'll <strong>open your profile</strong> in a new tab</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
+                      <span><strong>Select all</strong> on the page (Ctrl/Cmd+A) and <strong>Copy</strong> (Ctrl/Cmd+C)</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
+                      <span>Come back here and <strong>paste</strong> the content — AI will do the rest</span>
+                    </li>
+                  </ol>
+                </div>
+              </motion.div>
+            )}
+
             {/* Paste State */}
             {parseState === 'idle' && (
               <motion.div
