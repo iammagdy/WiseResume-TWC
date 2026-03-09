@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit2, Share2, FileText, Briefcase, Globe, ExternalLink, MapPin, Copy, Clock, HardDrive } from 'lucide-react';
+import { Edit2, Share2, FileText, Briefcase, Globe, ExternalLink, MapPin, Clock, HardDrive, Linkedin } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -14,13 +14,23 @@ import { EditProfileSheet } from '@/components/settings/EditProfileSheet';
 import { CareerMilestonesRow } from '@/components/dashboard/CareerMilestonesRow';
 import { AccountBackupSheet } from '@/components/profile/AccountBackupSheet';
 import { ResumeListCard } from '@/components/dashboard/ResumeListCard';
+import { LinkedInImportSheet } from '@/components/settings/LinkedInImportSheet';
 import { useResumeStore } from '@/store/resumeStore';
 import { dbToResumeData, useResumeMutations } from '@/hooks/useResumes';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { getPortfolioUrl } from '@/lib/portfolioUrl';
-import { openExternal } from '@/lib/openExternal';
 import { formatDistanceToNow } from 'date-fns';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 
 export default function ProfilePage() {
@@ -33,6 +43,8 @@ export default function ProfilePage() {
   const { setCurrentResume, setCurrentResumeId, setSelectedTemplate } = useResumeStore();
   const [editOpen, setEditOpen] = useState(false);
   const [backupOpen, setBackupOpen] = useState(false);
+  const [linkedinOpen, setLinkedinOpen] = useState(false);
+  const [draftWarningOpen, setDraftWarningOpen] = useState(false);
   const [loadingTimedOut, setLoadingTimedOut] = useState(false);
 
   useEffect(() => {
@@ -64,41 +76,46 @@ export default function ProfilePage() {
     }
   };
 
-  const handleCopyProfileSummary = async () => {
-    const parts: string[] = [];
-    if (profile?.fullName) parts.push(profile.fullName + (profile.jobTitle ? ` — ${profile.jobTitle}` : ''));
-    if (profile?.location) parts.push(`Location: ${profile.location}`);
-    if (profile?.industry) parts.push(`Industry: ${profile.industry}`);
-    if (profile?.linkedinUrl) parts.push(`LinkedIn: ${profile.linkedinUrl}`);
-    if (parts.length === 0) parts.push('No profile info yet');
-    parts.push(`${resumes.length} resumes on WiseResume`);
-    await navigator.clipboard.writeText(parts.join('\n'));
-    toast.success('Profile summary copied!');
+  const handlePortfolioShare = async () => {
+    if (!profile?.portfolioEnabled) {
+      setDraftWarningOpen(true);
+      return;
+    }
+    await doPortfolioShare();
+  };
+
+  const doPortfolioShare = async () => {
+    if (!profile?.username) {
+      toast.error('Set up your portfolio username first');
+      return;
+    }
+    const url = getPortfolioUrl(profile.username);
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `${profile?.fullName || 'My'} Portfolio`, url });
+      } catch {}
+    } else {
+      await navigator.clipboard.writeText(url);
+      toast.success('Portfolio URL copied!');
+    }
     haptics.light();
   };
 
-  const handleShareProfile = async () => {
-    if (profile?.portfolioEnabled && profile?.username) {
-      const url = getPortfolioUrl(profile.username);
-      if (navigator.share) {
-        try {
-          await navigator.share({ title: `${profile?.fullName || 'My'} Portfolio`, url });
-        } catch {}
-      } else {
-        await navigator.clipboard.writeText(url);
-        toast.success('Portfolio URL copied!');
-      }
-    } else {
-      const text = `${profile?.fullName || 'User'} — ${profile?.jobTitle || 'Professional'}\n${resumes.length} resumes on WiseResume`;
-      if (navigator.share) {
-        try {
-          await navigator.share({ title: 'My WiseResume Profile', text });
-        } catch {}
-      } else {
-        await navigator.clipboard.writeText(text);
-        toast.success('Profile info copied!');
-      }
+  const handleGoLive = async () => {
+    try {
+      await updateProfile({ portfolioEnabled: true });
+      toast.success('Portfolio is now live!');
+      setDraftWarningOpen(false);
+      await doPortfolioShare();
+    } catch {
+      toast.error('Failed to update portfolio status');
     }
+  };
+
+  const handleLinkedInImport = (data: any) => {
+    // The import callback — data gets handled by the parent (EditProfileSheet or resume editor)
+    toast.success('LinkedIn data ready — use it in your resume editor');
+    haptics.success();
   };
 
   const nextTip = getNextMissingField(profile);
@@ -154,18 +171,15 @@ export default function ProfilePage() {
           </Button>
         </div>
 
-        {/* Actions */}
-        <div className="grid grid-cols-2 gap-3">
-          <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={handleShareProfile}>
-            <Share2 className="w-4 h-4 mr-2" /> Share
-          </Button>
-          <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={handleCopyProfileSummary}>
-            <Copy className="w-4 h-4 mr-2" /> Copy
-          </Button>
+        {/* Actions — Edit, Import from LinkedIn, Backup */}
+        <div className="grid grid-cols-3 gap-3">
           <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={() => setEditOpen(true)}>
             <Edit2 className="w-4 h-4 mr-2" /> Edit
           </Button>
-          <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={() => {haptics.light();setBackupOpen(true);}}>
+          <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={() => { haptics.light(); setLinkedinOpen(true); }}>
+            <Linkedin className="w-4 h-4 mr-2" /> Import
+          </Button>
+          <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={() => { haptics.light(); setBackupOpen(true); }}>
             <HardDrive className="w-4 h-4 mr-2" /> Backup
           </Button>
         </div>
@@ -186,7 +200,6 @@ export default function ProfilePage() {
                 </div>
                 {profile?.username ?
                 <p className="text-xs text-muted-foreground truncate">WiseResume/{profile.username}</p> :
-
                 <p className="text-xs text-muted-foreground">Create your personal portfolio site</p>
                 }
               </div>
@@ -205,26 +218,23 @@ export default function ProfilePage() {
               rel="noopener noreferrer"
               onClick={() => haptics.light()}
               className="inline-flex items-center justify-center h-9 rounded-xl text-xs active:scale-95 touch-manipulation border border-input bg-background hover:bg-accent hover:text-accent-foreground px-3">
-              
                 <ExternalLink className="w-3.5 h-3.5 mr-1" /> Preview
               </a>
             }
-            {profile?.username && profile?.portfolioEnabled &&
+            {profile?.username &&
             <Button
               variant="outline"
               size="sm"
               className="h-9 rounded-xl text-xs active:scale-95 touch-manipulation"
-              onClick={handleShareProfile}>
-              
+              onClick={handlePortfolioShare}>
                 <Share2 className="w-3.5 h-3.5 mr-1" /> Share
               </Button>
             }
             <Button
               variant={profile?.username ? 'outline' : 'default'}
               size="sm"
-              className={`h-9 rounded-xl text-xs active:scale-95 touch-manipulation ${!(profile?.username && profile?.portfolioEnabled) ? 'col-span-3' : ''}`}
-              onClick={() => {haptics.light();navigate('/portfolio');}}>
-              
+              className={`h-9 rounded-xl text-xs active:scale-95 touch-manipulation ${!(profile?.username) ? 'col-span-3' : ''}`}
+              onClick={() => { haptics.light(); navigate('/portfolio'); }}>
               <Edit2 className="w-3.5 h-3.5 mr-1" />
               {profile?.username ? 'Edit' : 'Set Up Portfolio'}
             </Button>
@@ -260,7 +270,6 @@ export default function ProfilePage() {
               onEdit={handleEditResume}
               onDuplicate={(id) => duplicateResume.mutate(id)}
               onDelete={(id) => deleteResume.mutate(id)} />
-
             )}
             </div>
           </div>
@@ -274,7 +283,6 @@ export default function ProfilePage() {
         userId={user.id}
         userEmail={user.email}
         onSave={updateProfile} />
-      
 
       <AccountBackupSheet
         open={backupOpen}
@@ -282,7 +290,32 @@ export default function ProfilePage() {
         userId={user.id}
         userEmail={user.email}
         fullName={profile?.fullName} />
-      
-    </div>);
 
+      <LinkedInImportSheet
+        open={linkedinOpen}
+        onOpenChange={setLinkedinOpen}
+        onImport={handleLinkedInImport} />
+
+      {/* Draft Portfolio Warning */}
+      <AlertDialog open={draftWarningOpen} onOpenChange={setDraftWarningOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Portfolio is inactive</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your portfolio website is currently in draft mode. Visitors won't be able to see it until you make it live.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button variant="outline" onClick={async () => { setDraftWarningOpen(false); await doPortfolioShare(); }}>
+              Share Anyway
+            </Button>
+            <AlertDialogAction onClick={handleGoLive}>
+              Go Live & Share
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
 }
