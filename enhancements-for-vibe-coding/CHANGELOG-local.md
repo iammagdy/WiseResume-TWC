@@ -4,6 +4,12 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-09
 
+### PORTFOLIO-SYNC-MODE-DEDUP
+- **Summary**: Removed duplicate Content Sync Mode toggle from Setup Tab's "Content & Visibility" section. The Content Tab retains the sole toggle with its smart pre-population logic. Setup Tab now focuses purely on section visibility switches.
+- **Files**: `src/components/portfolio/editor/SetupTab.tsx`, `src/pages/PortfolioEditorPage.tsx`
+
+
+
 ### PORTFOLIO-AUDIT-FIX — Issue 2 Refresh Button
 - **Summary**: Replaced `window.location.reload()` with `queryClient.invalidateQueries` for targeted analytics refresh without full page reload.
 - **Files**: `src/components/portfolio/VisitorsPanel.tsx`
