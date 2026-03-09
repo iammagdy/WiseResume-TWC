@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: REMOVE-LOVABLE-CLOUD-AUTH
+- Summary: Deleted src/integrations/lovable/index.ts and removed @lovable.dev/cloud-auth-js package. This package was globally intercepting OAuth calls and routing them through Lovable Cloud's /~oauth proxy instead of the external Supabase project (jnsfmkzgxsviuthaqlyy).
+- Files touched: src/integrations/lovable/index.ts (deleted), package.json
+- Notes: Google OAuth should now redirect directly to jnsfmkzgxsviuthaqlyy.supabase.co. Hard-refresh required after deploy.
+
+- Date: 2026-03-09
 - Issue ID: REMOVE-CROSS-DOMAIN-OAUTH
 - Summary: Removed leftover cross-domain OAuth logic (LOVABLE_ORIGIN, isCustomDomain, oauth-return-origin sessionStorage) from AuthPage. Google OAuth now calls supabase.auth.signInWithOAuth directly without any cross-domain relay.
 - Files touched: src/pages/AuthPage.tsx
