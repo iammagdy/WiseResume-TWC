@@ -47,10 +47,17 @@ serve(async (req) => {
       ollamaConfig = await getUserKeyAndUrlFromDB(userId, 'ollama');
     }
 
+    const identityMap: Record<string, string> = {
+      wiseresume: "Hello! I'm Wise Resume AI",
+      gemini: "Hello! I'm Gemini AI",
+      ollama: "Hello! I'm Ollama AI",
+    };
+    const expectedGreeting = identityMap[preferredProvider] || identityMap.wiseresume;
+
     const aiResponse = await callAI({
       model: testModel,
       messages: [
-        { role: 'system', content: 'You are a helpful AI. Reply with a short greeting that includes the name of the AI model you are. Keep it under 10 words.' },
+        { role: 'system', content: `Reply with exactly this text and nothing else: "${expectedGreeting}"` },
         { role: 'user', content: 'Say hello and identify yourself.' },
       ],
       temperature: 0,
