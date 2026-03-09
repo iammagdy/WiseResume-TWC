@@ -20,6 +20,7 @@ interface SignupEmailProps {
   siteUrl: string
   recipient: string
   confirmationUrl: string
+  token?: string
 }
 
 export const SignupEmail = ({
@@ -27,6 +28,7 @@ export const SignupEmail = ({
   siteUrl,
   recipient,
   confirmationUrl,
+  token,
 }: SignupEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
@@ -49,6 +51,15 @@ export const SignupEmail = ({
           <Text style={bodyText}>
             You're one step away from building your career story. Verify your email address to get started.
           </Text>
+
+          {/* OTP Code Block */}
+          {token && (
+            <Section style={otpWrapper}>
+              <Text style={otpLabel}>Your verification code</Text>
+              <Text style={otpCode}>{token}</Text>
+              <Text style={otpHint}>Enter this code in the app, or use the button below</Text>
+            </Section>
+          )}
 
           <Section style={buttonWrapper}>
             <table cellPadding="0" cellSpacing="0" role="presentation" style={{ margin: '0 auto' }}>
@@ -134,6 +145,38 @@ const bodyText = {
   color: '#4b5563',
   lineHeight: '1.7',
   margin: '0 0 32px',
+  textAlign: 'center' as const,
+}
+const otpWrapper = {
+  textAlign: 'center' as const,
+  marginBottom: '28px',
+  padding: '24px 20px',
+  backgroundColor: '#ffffff',
+  borderRadius: '12px',
+  border: '1px solid #e5e7eb',
+}
+const otpLabel = {
+  fontSize: '12px',
+  fontWeight: '600' as const,
+  color: '#9ca3af',
+  textTransform: 'uppercase' as const,
+  letterSpacing: '1px',
+  margin: '0 0 12px',
+  textAlign: 'center' as const,
+}
+const otpCode = {
+  fontSize: '36px',
+  fontWeight: '800' as const,
+  color: '#1a1a2e',
+  letterSpacing: '8px',
+  margin: '0 0 8px',
+  textAlign: 'center' as const,
+  fontFamily: 'monospace, "Courier New", Courier',
+}
+const otpHint = {
+  fontSize: '12px',
+  color: '#9ca3af',
+  margin: '0',
   textAlign: 'center' as const,
 }
 const buttonWrapper = { textAlign: 'center' as const, marginBottom: '24px' }
