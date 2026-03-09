@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getThemeById } from '@/lib/portfolioThemes';
+import { Eye } from 'lucide-react';
 
 interface LivePreviewCardProps {
   avatarUrl?: string | null;
@@ -9,9 +10,12 @@ interface LivePreviewCardProps {
   portfolioStyle: string;
   accentColor: string;
   portfolioFont: string;
+  bio?: string;
+  openToWork?: boolean;
+  views?: number;
 }
 
-export function LivePreviewCard({ avatarUrl, fullName, jobTitle, portfolioStyle, accentColor, portfolioFont }: LivePreviewCardProps) {
+export function LivePreviewCard({ avatarUrl, fullName, jobTitle, portfolioStyle, accentColor, portfolioFont, bio, openToWork, views }: LivePreviewCardProps) {
   const initials = fullName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
 
   const vars = useMemo(() => {
@@ -32,14 +36,13 @@ export function LivePreviewCard({ avatarUrl, fullName, jobTitle, portfolioStyle,
     return { bg, fg, muted, font } as const;
   }, [portfolioStyle, portfolioFont]);
 
+  const bioSnippet = bio && bio.length > 80 ? bio.slice(0, 80) + '…' : bio;
+
   return (
     <div
       className="relative rounded-xl overflow-hidden border border-border/50"
       style={{ background: vars.bg, padding: '1rem', maxWidth: '100%' }}
     >
-      <div className="absolute top-1.5 right-2 text-[9px] font-mono uppercase tracking-wider opacity-40" style={{ color: vars.muted }}>
-        Preview
-      </div>
       <div
         className="absolute inset-0 opacity-30 pointer-events-none"
         style={{ background: `radial-gradient(ellipse 80% 50% at 50% 0%, color-mix(in srgb, ${accentColor} 20%, transparent), transparent)` }}
@@ -66,6 +69,24 @@ export function LivePreviewCard({ avatarUrl, fullName, jobTitle, portfolioStyle,
             {jobTitle}
           </span>
         )}
+        {bioSnippet && (
+          <p className="text-[10px] leading-relaxed max-w-[220px] line-clamp-2" style={{ color: vars.muted }}>
+            {bioSnippet}
+          </p>
+        )}
+        <div className="flex items-center gap-3 mt-1">
+          {openToWork && (
+            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
+              Open to Work
+            </span>
+          )}
+          {typeof views === 'number' && views > 0 && (
+            <span className="text-[9px] flex items-center gap-0.5" style={{ color: vars.muted }}>
+              <Eye className="w-2.5 h-2.5" />
+              {views}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

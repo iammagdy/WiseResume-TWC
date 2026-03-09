@@ -40,7 +40,7 @@ function getMiniCardStyle(
 
 /* ── Hero area renderer per heroAlign ───────────────────────── */
 
-function HeroPreview({ theme, accent }: { theme: PortfolioThemeConfig; accent: string }) {
+function HeroPreview({ theme, accent, userName, userAvatarUrl }: { theme: PortfolioThemeConfig; accent: string; userName?: string; userAvatarUrl?: string }) {
   const isTerminal = theme.layout.cardVariant === 'terminal-window';
   const isNeon = theme.layout.cardVariant === 'neon-glow';
   const isSerif = theme.id === 'classic-clean' || theme.id === 'executive-suite';
@@ -96,13 +96,21 @@ function HeroPreview({ theme, accent }: { theme: PortfolioThemeConfig; accent: s
   return (
     <div className="flex flex-col items-center gap-1">
       <div className="relative">
-        <div
-          className="w-7 h-7 rounded-full"
-          style={{
-            background: `linear-gradient(135deg, ${accent}66, ${accent})`,
-            boxShadow: isNeon ? `0 0 10px ${accent}66` : theme.id === 'bold-dark' ? `0 0 12px ${accent}44` : 'none',
-          }}
-        />
+        {userName && userAvatarUrl ? (
+          <img src={userAvatarUrl} alt="" className="w-7 h-7 rounded-full object-cover" style={{ boxShadow: isNeon ? `0 0 10px ${accent}66` : 'none' }} />
+        ) : userName ? (
+          <div className="w-7 h-7 rounded-full flex items-center justify-center text-[7px] font-black text-white" style={{ background: `linear-gradient(135deg, ${accent}66, ${accent})`, boxShadow: isNeon ? `0 0 10px ${accent}66` : 'none' }}>
+            {userName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+          </div>
+        ) : (
+          <div
+            className="w-7 h-7 rounded-full"
+            style={{
+              background: `linear-gradient(135deg, ${accent}66, ${accent})`,
+              boxShadow: isNeon ? `0 0 10px ${accent}66` : theme.id === 'bold-dark' ? `0 0 12px ${accent}44` : 'none',
+            }}
+          />
+        )}
         {isNeon && (
           <div
             className="absolute inset-0 rounded-full animate-pulse"
@@ -110,14 +118,16 @@ function HeroPreview({ theme, accent }: { theme: PortfolioThemeConfig; accent: s
           />
         )}
       </div>
-      <div
-        className="rounded-full w-3/5"
-        style={{
-          height: `${headingH}px`,
-          background: theme.preview.text,
-          opacity: 0.85,
-        }}
-      />
+      {userName ? (
+        <div className="text-[7px] font-bold truncate max-w-[80%] text-center" style={{ color: theme.preview.text, opacity: 0.85 }}>
+          {userName}
+        </div>
+      ) : (
+        <div
+          className="rounded-full w-3/5"
+          style={{ height: `${headingH}px`, background: theme.preview.text, opacity: 0.85 }}
+        />
+      )}
       <div
         className="rounded-full w-2/5"
         style={{
@@ -220,11 +230,15 @@ function ThemeStoreCard({
   selected,
   userAccent,
   onSelect,
+  userName,
+  userAvatarUrl,
 }: {
   theme: PortfolioThemeConfig;
   selected: boolean;
   userAccent: string;
   onSelect: () => void;
+  userName?: string;
+  userAvatarUrl?: string;
 }) {
   const accent = userAccent || theme.preview.accent;
 
@@ -275,7 +289,7 @@ function ThemeStoreCard({
           />
         )}
 
-        <HeroPreview theme={theme} accent={accent} />
+        <HeroPreview theme={theme} accent={accent} userName={userName} userAvatarUrl={userAvatarUrl} />
         <CardsPreview theme={theme} accent={accent} />
         <SkillPillsPreview theme={theme} accent={accent} />
 
@@ -313,14 +327,16 @@ interface ThemeStorePickerProps {
   selectedThemeId: string;
   onSelectTheme: (id: string) => void;
   userAccent: string;
+  userName?: string;
+  userAvatarUrl?: string;
 }
 
-export function ThemeStorePicker({ selectedThemeId, onSelectTheme, userAccent }: ThemeStorePickerProps) {
+export function ThemeStorePicker({ selectedThemeId, onSelectTheme, userAccent, userName, userAvatarUrl }: ThemeStorePickerProps) {
   const [activeCategory, setActiveCategory] = useState<ThemeCategory>('all');
 
   const filteredThemes = activeCategory === 'all'
     ? PORTFOLIO_THEMES
-    : PORTFOLIO_THEMES.filter(t => t.category === activeCategory || t.category === 'all');
+    : PORTFOLIO_THEMES.filter(t => t.category === activeCategory);
 
   return (
     <div className="space-y-3">
@@ -350,6 +366,8 @@ export function ThemeStorePicker({ selectedThemeId, onSelectTheme, userAccent }:
             selected={selectedThemeId === theme.id}
             userAccent={userAccent}
             onSelect={() => { haptics.light(); onSelectTheme(theme.id); }}
+            userName={userName}
+            userAvatarUrl={userAvatarUrl}
           />
         ))}
       </div>

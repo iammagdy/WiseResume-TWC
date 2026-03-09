@@ -79,6 +79,7 @@ export default function PortfolioEditorPage() {
   const [services, setServices] = useState<Array<{id:string;title:string;description:string;category:string}>>([]);
   const [testimonials, setTestimonials] = useState<Array<{id:string;quote:string;authorName:string;authorTitle:string}>>([]);
   const [highlights, setHighlights] = useState<Array<{id:string;value:string;label:string}>>([]);
+  const [portfolioSummary, setPortfolioSummary] = useState('');
   const [activeTab, setActiveTab] = useState<'setup' | 'content' | 'design' | 'more'>('setup');
 
   const tabIndexMap = { setup: 0, content: 1, design: 2, more: 3 } as const;
@@ -123,6 +124,7 @@ export default function PortfolioEditorPage() {
       setServices((extras.services as Array<{id:string;title:string;description:string;category:string}>) || []);
       setTestimonials((extras.testimonials as Array<{id:string;quote:string;authorName:string;authorTitle:string}>) || []);
       setHighlights((extras.highlights as Array<{id:string;value:string;label:string}>) || []);
+      setPortfolioSummary((extras.portfolioSummary as string) || '');
     }
   }, [profile]);
 
@@ -307,7 +309,7 @@ export default function PortfolioEditorPage() {
         openToWork,
         availabilityHeadline: availabilityHeadline || null,
         portfolioSyncMode: syncMode,
-        portfolioExtras: { caseStudies, services, testimonials, highlights },
+        portfolioExtras: { caseStudies, services, testimonials, highlights, portfolioSummary },
       };
       await updateProfile(updates as Parameters<typeof updateProfile>[0]);
       if (overrides?.portfolioEnabled !== undefined) {
@@ -401,6 +403,9 @@ export default function PortfolioEditorPage() {
           portfolioStyle={portfolioStyle}
           accentColor={portfolioAccentColor}
           portfolioFont={portfolioFont}
+          bio={bio}
+          openToWork={openToWork}
+          views={profile?.views || 0}
         />
 
         {/* Tab Row */}
@@ -467,6 +472,11 @@ export default function PortfolioEditorPage() {
               <ContentTab
                 openSections={openSections}
                 toggleSection={toggleSection}
+                syncMode={syncMode}
+                onSyncModeChange={setSyncMode}
+                portfolioSummary={portfolioSummary}
+                onPortfolioSummaryChange={setPortfolioSummary}
+                bio={bio}
                 caseStudies={caseStudies}
                 onCaseStudiesChange={setCaseStudies}
                 services={services}
@@ -490,6 +500,8 @@ export default function PortfolioEditorPage() {
                 onPortfolioLayoutChange={setPortfolioLayout}
                 selectedTheme={selectedTheme}
                 onSelectedThemeChange={setSelectedTheme}
+                userName={profile?.fullName || undefined}
+                userAvatarUrl={profile?.avatarUrl || undefined}
               />
             )}
 
