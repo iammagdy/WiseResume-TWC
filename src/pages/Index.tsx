@@ -515,26 +515,6 @@ const Index = () => {
               </div>
             </section>
 
-            {/* Bottom CTA */}
-            <section className="px-4 sm:px-6 py-8 mb-4 animate-fade-in-up" style={{ animationDelay: '0.25s' }}>
-              <div className="max-w-md mx-auto text-center">
-                <h2 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-3 leading-tight">
-                  Ready to Build Your<br />
-                  <span className="text-primary">Dream Resume?</span>
-                </h2>
-                <p className="text-sm text-muted-foreground mb-5">
-                  AI-powered resume writing, interview coaching, and portfolio websites — all free to start.
-                </p>
-                <Button
-                  size="lg"
-                  className="w-full max-w-sm h-12 sm:h-14 text-base sm:text-lg font-semibold gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all shadow-lg shadow-primary/20 active:scale-[0.98] touch-manipulation"
-                  onClick={handleCTA}
-                >
-                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
-                  Start Building Now
-                </Button>
-              </div>
-            </section>
 
             {/* Install on Device Section */}
             <section className="px-4 sm:px-6 py-8">
