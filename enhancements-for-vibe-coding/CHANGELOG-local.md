@@ -7,6 +7,11 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: AI-TEST-401-FIX
+- Summary: Fixed 401 in ai-test edge function. Replaced getClaims() with requireAuth() middleware for cross-project JWT compatibility.
+- Files touched: supabase/functions/ai-test/index.ts
+
+- Date: 2026-03-09
 - Issue ID: OTP-6-DIGIT-FIX
 - Summary: Replaced hashed_token (long hex) with real 6-digit numeric OTP. Created `signup_otps` table to store codes with 10-min expiry. Updated `send-signup-otp` to generate/store 6-digit code and send it via Resend. Created new `verify-signup-otp` edge function that validates the code, confirms the user, and returns a session token. Updated `EmailConfirmationPage` to call `verify-signup-otp` instead of `supabase.auth.verifyOtp`.
 - Files touched:
