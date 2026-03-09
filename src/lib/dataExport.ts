@@ -200,11 +200,25 @@ export async function importResumes(file: File, userId: string): Promise<number>
 }
 
 export async function deleteAllUserData(userId: string): Promise<void> {
-  // Delete dependent tables first (don't rely on cascade)
+  // Delete share_comments via share_ids (no user_id column on share_comments)
+  const { data: shares } = await supabase
+    .from('resume_shares')
+    .select('id')
+    .eq('user_id', userId);
+
+  if (shares && shares.length > 0) {
+    const shareIds = shares.map(s => s.id);
+    const { error: commentsErr } = await supabase
+      .from('share_comments')
+      .delete()
+      .in('share_id', shareIds);
+    if (commentsErr) console.error('Failed to delete share_comments:', commentsErr);
+  }
+
+  // Delete dependent tables that have user_id
   const dependentTables = [
-    'share_comments',   // depends on resume_shares
-    'resume_shares',    // depends on resumes
-    'resume_versions',  // depends on resumes
+    'resume_shares',
+    'resume_versions',
   ] as const;
 
   for (const table of dependentTables) {
@@ -260,9 +274,5 @@ export async function deleteAllUserData(userId: string): Promise<void> {
   if (profileError) console.error('Failed to delete profile:', profileError);
 
   // Clear all local storage
-  localStorage.removeItem('wiseresume-settings');
-  localStorage.removeItem('resume-store');
-  localStorage.removeItem('resume-storage');
-  localStorage.removeItem('wr-ats-score-history');
-  localStorage.removeItem('wr-offline-sync');
+  localStorage.clear();
 }

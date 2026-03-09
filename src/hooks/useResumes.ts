@@ -271,7 +271,8 @@ export function useResumeMutations() {
         .from('resumes')
         .update({ deleted_at: new Date().toISOString() } as any)
         .eq('id', resumeId)
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .select('id');
 
       if (error) throw error;
     },
@@ -293,7 +294,8 @@ export function useResumeMutations() {
         .from('resumes')
         .update({ deleted_at: new Date().toISOString() } as any)
         .in('id', resumeIds)
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .select('id');
 
       if (error) throw error;
     },
@@ -315,7 +317,8 @@ export function useResumeMutations() {
         .from('resumes')
         .update({ deleted_at: null } as any)
         .eq('id', resumeId)
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .select('id');
       if (error) throw error;
     },
     onSuccess: () => {

@@ -1,10 +1,14 @@
 import {
-  Sparkles, Loader2, CheckCircle2, XCircle,
+  Sparkles, Loader2, CheckCircle2, XCircle, Eye, Zap,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { CollapsibleCard, SubSectionHeading } from './shared';
+import type { PortfolioSections } from './ContentVisibilitySection';
+import { SECTION_LABELS } from './ContentVisibilitySection';
 
 export interface SetupTabProps {
   username: string;
@@ -19,6 +23,20 @@ export interface SetupTabProps {
   onBioChange: (val: string) => void;
   onGenerateBio: () => void;
   generatingBio: boolean;
+  // Content visibility
+  sections: PortfolioSections;
+  onToggleSectionVisibility: (key: keyof PortfolioSections) => void;
+  syncMode: 'auto' | 'locked';
+  onSyncModeChange: (val: 'auto' | 'locked') => void;
+  openSections: Set<string>;
+  toggleSection: (id: string) => void;
+  // Availability
+  openToWork: boolean;
+  onOpenToWorkChange: (val: boolean) => void;
+  availabilityHeadline: string;
+  onAvailabilityHeadlineChange: (val: string) => void;
+  onGenerateAvailability: () => void;
+  generatingAvailability: boolean;
 }
 
 export function SetupTab(props: SetupTabProps) {
@@ -26,7 +44,18 @@ export function SetupTab(props: SetupTabProps) {
     username, onUsernameChange, usernameError, usernameAvailable, checkingUsername,
     resumes, selectedResumeId, onSelectedResumeIdChange,
     bio, onBioChange, onGenerateBio, generatingBio,
+    sections, onToggleSectionVisibility, syncMode, onSyncModeChange,
+    openSections, toggleSection,
+    openToWork, onOpenToWorkChange,
+    availabilityHeadline, onAvailabilityHeadlineChange,
+    onGenerateAvailability, generatingAvailability,
   } = props;
+
+  const visibleCount = Object.values(sections).filter(Boolean).length;
+  const totalCount = Object.keys(sections).length;
+
+  const now = new Date();
+  const currentMonthYear = `${now.toLocaleString('default', { month: 'long' })} ${now.getFullYear()}`;
 
   return (
     <div className="space-y-5">
@@ -110,6 +139,90 @@ export function SetupTab(props: SetupTabProps) {
         />
         <p className="text-[11px] text-muted-foreground text-right">{bio.length}/500</p>
       </div>
+
+      {/* Content Visibility */}
+      <CollapsibleCard
+        id="content"
+        icon={<Eye className="w-4 h-4" />}
+        title="Content & Visibility"
+        hint={<span className="text-[11px]">{visibleCount}/{totalCount} shown</span>}
+        openSections={openSections}
+        toggleSection={toggleSection}
+      >
+        <p className="text-[11px] text-muted-foreground">Choose which sections appear on your public portfolio.</p>
+        <div className="space-y-2">
+          {(Object.keys(SECTION_LABELS) as (keyof PortfolioSections)[]).map(key => (
+            <div key={key} className="flex items-center justify-between py-1">
+              <span className="text-sm text-foreground">{SECTION_LABELS[key]}</span>
+              <Switch checked={sections[key]} onCheckedChange={() => onToggleSectionVisibility(key)} />
+            </div>
+          ))}
+        </div>
+
+        {/* Sync Mode */}
+        <SubSectionHeading icon={<Sparkles className="w-3.5 h-3.5" />} label="Content Sync Mode" />
+        <p className="text-[11px] text-muted-foreground mb-2">Control how your portfolio content stays in sync with your resume.</p>
+        <div className="space-y-2">
+          {(['auto', 'locked'] as const).map(mode => (
+            <button
+              key={mode}
+              onClick={() => onSyncModeChange(mode)}
+              className={`w-full flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${
+                syncMode === mode ? 'border-primary bg-primary/5' : 'border-border bg-card/50'
+              }`}
+            >
+              <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${syncMode === mode ? 'border-primary' : 'border-muted-foreground'}`}>
+                {syncMode === mode && <div className="w-2 h-2 rounded-full bg-primary" />}
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">{mode === 'auto' ? 'Auto-sync' : 'Locked snapshot'}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {mode === 'auto'
+                    ? 'Changes to your resumes automatically sync to this portfolio.'
+                    : "Freeze your portfolio at this version — edits to your resume won't affect it"}
+                </p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </CollapsibleCard>
+
+      {/* Availability */}
+      <CollapsibleCard
+        id="availability"
+        icon={<Zap className="w-4 h-4" />}
+        title="Availability"
+        hint={openToWork ? <span className="text-[11px] text-green-500">Open to Work</span> : undefined}
+        openSections={openSections}
+        toggleSection={toggleSection}
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-foreground">Show "Open to Work" badge</p>
+            <p className="text-[11px] text-muted-foreground">Displayed prominently on your portfolio.</p>
+          </div>
+          <Switch checked={openToWork} onCheckedChange={onOpenToWorkChange} />
+        </div>
+        {openToWork && (
+          <div className="space-y-1 mt-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-foreground">Availability headline</label>
+              <Button variant="ghost" size="sm" onClick={onGenerateAvailability} disabled={generatingAvailability} className="h-7 text-xs px-2 active:scale-95">
+                {generatingAvailability ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+                AI Suggest
+              </Button>
+            </div>
+            <Input
+              value={availabilityHeadline}
+              onChange={e => onAvailabilityHeadlineChange(e.target.value)}
+              placeholder={`Open to remote full-time · From ${currentMonthYear}`}
+              maxLength={100}
+              autoCapitalize="sentences"
+            />
+            <p className="text-[11px] text-muted-foreground text-right">{availabilityHeadline.length}/100</p>
+          </div>
+        )}
+      </CollapsibleCard>
     </div>
   );
 }
