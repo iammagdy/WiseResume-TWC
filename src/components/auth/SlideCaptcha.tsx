@@ -67,7 +67,7 @@ export function SlideCaptcha({ onVerified, verified }: SlideCaptchaProps) {
         <motion.div
           className="absolute inset-y-0 left-0 rounded-xl"
           style={{
-            width: useTransform(x, (v) => v + HANDLE_SIZE),
+            width: progressWidth,
             background: 'linear-gradient(90deg, hsl(355 85% 52% / 0.2), hsl(355 85% 52% / 0.08))',
           }}
         />

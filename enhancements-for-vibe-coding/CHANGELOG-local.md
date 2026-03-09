@@ -7,6 +7,12 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: CAPTCHA-HOOKS-FIX
+- Summary: Fixed SlideCaptcha crash ("Rendered fewer hooks than expected") by moving useTransform call above the early return. Fixed ErrorBoundary "Report Issue" button by adding an inline self-contained bug report dialog that works independently of BugReportDialog (which gets unmounted on error).
+- Files touched: src/components/auth/SlideCaptcha.tsx, src/components/ErrorBoundary.tsx, enhancements-for-vibe-coding/CHANGELOG-local.md
+- Notes: triggerBugReport import removed from ErrorBoundary; replaced with direct supabase.functions.invoke + DB fallback.
+
+- Date: 2026-03-09
 - Issue ID: SIGNUP-TERMS-CAPTCHA
 - Summary: Added Terms of Service + Privacy Policy acceptance checkbox and a custom slide-to-verify captcha to the sign-up form. Both must be completed before the Continue button is enabled. Captcha uses a glassmorphic drag handle with spring animations. Checkbox links to /terms and /privacy in new tabs.
 - Files touched: src/components/auth/SlideCaptcha.tsx (new), src/pages/AuthPage.tsx, enhancements-for-vibe-coding/CHANGELOG-local.md
