@@ -201,21 +201,22 @@ export async function importFullAccount(
   setStep(0, 'importing');
   try {
     if (data.profile) {
-      const { id, user_id, created_at, ...profileFields } = data.profile as any;
-      await supabase.from('profiles').update(profileFields).eq('user_id', userId);
+      const { id, user_id, created_at, updated_at, portfolio_resume_id, ...profileFields } = data.profile as any;
+      const { error } = await supabase.from('profiles').update(profileFields).eq('user_id', userId);
+      if (error) throw error;
     }
     setStep(0, 'done'); success++;
   } catch (e: any) { setStep(0, 'error', e.message); failed++; }
 
-  // 1-8: Data tables
-  await upsertRows(1, 'resumes', data.resumes);
-  await upsertRows(2, 'cover_letters', data.coverLetters);
-  await upsertRows(3, 'job_applications', data.jobApplications);
+  // 1-8: Data tables — strip stale cross-reference columns that point to old IDs
+  await upsertRows(1, 'resumes', data.resumes, { stripCols: ['parent_resume_id'] });
+  await upsertRows(2, 'cover_letters', data.coverLetters, { stripCols: ['resume_id'] });
+  await upsertRows(3, 'job_applications', data.jobApplications, { stripCols: ['resume_id', 'cover_letter_id', 'job_id'] });
   await upsertRows(4, 'jobs', data.jobs);
-  await upsertRows(5, 'interview_sessions', data.interviewSessions);
-  await upsertRows(6, 'career_assessments', data.careerAssessments);
+  await upsertRows(5, 'interview_sessions', data.interviewSessions, { stripCols: ['resume_id'] });
+  await upsertRows(6, 'career_assessments', data.careerAssessments, { stripCols: ['resume_id'] });
   await upsertRows(7, 'resignation_letters', data.resignationLetters);
-  await upsertRows(8, 'tailor_history', data.tailorHistory);
+  await upsertRows(8, 'tailor_history', data.tailorHistory, { stripCols: ['resume_id'] });
 
   // 9: Preferences
   setStep(9, 'importing');

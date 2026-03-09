@@ -63,8 +63,8 @@ export function AccountBackupSheet({ open, onOpenChange, userId, userEmail, full
     }
   };
 
-  const handleDone = () => {
-    queryClient.invalidateQueries();
+  const handleDone = async () => {
+    await queryClient.invalidateQueries();
     setImportResult(null);
     setImportSteps([]);
     onOpenChange(false);
