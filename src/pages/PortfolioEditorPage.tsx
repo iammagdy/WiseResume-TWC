@@ -321,7 +321,7 @@ export default function PortfolioEditorPage() {
   };
 
   // Display URL
-  const portfolioDisplayUrl = username ? `WiseResume/${username}` : '';
+  const portfolioDisplayUrl = username ? `thewise.cloud/p/${username}` : '';
   const actualPortfolioUrl = username ? getPortfolioUrl(username) : '';
 
   const handleCopyUrl = async () => {

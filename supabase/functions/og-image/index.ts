@@ -425,7 +425,7 @@ function buildFallbackSVG(): string {
   <rect x="0" y="0" width="1200" height="5" fill="#7c3aed"/>
   <text x="600" y="260" font-family="system-ui,sans-serif" font-size="72" font-weight="800" fill="#f0f0ff" text-anchor="middle">✦ WiseResume</text>
   <text x="600" y="340" font-family="system-ui,sans-serif" font-size="28" fill="#9ca3af" text-anchor="middle">Build your professional portfolio</text>
-  <text x="600" y="400" font-family="system-ui,sans-serif" font-size="22" fill="#7c3aed" text-anchor="middle">wiseresume.app</text>
+  <text x="600" y="400" font-family="system-ui,sans-serif" font-size="22" fill="#7c3aed" text-anchor="middle">thewise.cloud</text>
 </svg>`;
 }
 

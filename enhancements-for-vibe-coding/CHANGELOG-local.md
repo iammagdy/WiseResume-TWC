@@ -7,6 +7,17 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: PORTFOLIO-DOMAIN-FIX
+- Summary: Fixed broken portfolio links by updating all hardcoded domain references from wiseresume.lovable.app to thewise.cloud. Updated FALLBACK_DOMAIN, edge functions (portfolio-meta, og-image), and editor display URL. Also increased public portfolio cache times (staleTime 5→10min, gcTime 10→30min) for performance.
+- Files touched:
+  - `src/lib/portfolioUrl.ts`
+  - `supabase/functions/portfolio-meta/index.ts`
+  - `supabase/functions/og-image/index.ts`
+  - `src/pages/PortfolioEditorPage.tsx`
+  - `src/hooks/usePublicPortfolio.ts`
+- Notes: Deploy edge functions. Test portfolio links from preview and production domains.
+
+- Date: 2026-03-09
 - Issue ID: ONBOARDING-PHASE-3
 - Summary: Implemented Phase 3 of the onboarding flow rewrite. Retired the modal-based `OnboardingCarousel` and moved onboarding to a dedicated `OnboardingPage.tsx` route. Added automatic redirection to `/onboarding` upon successful sign-up and updated `DashboardPage.tsx` to handle background onboarding checks cleanly without modal rendering.
 - Files touched:
