@@ -67,6 +67,10 @@ export default function AuthPage() {
   const [isRecoveryVerified, setIsRecoveryVerified] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [signUpStep, setSignUpStep] = useState<SignUpStep>('form');
+  const [verifyMethod, setVerifyMethod] = useState<VerifyMethod>('otp');
 
   // Show session expired toast if redirected with reason
   useEffect(() => {
