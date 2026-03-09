@@ -163,7 +163,7 @@ export default function AuthPage() {
           setIsLoading(false);
           return;
         } else {
-          navigate('/auth/confirm-email', { state: { email, verifyMethod: 'otp' }, replace: true });
+          navigate('/auth/confirm-email', { state: { email, verifyMethod: 'otp', password, fullName }, replace: true });
         }
       } else {
         // Link mode: standard Supabase signUp (triggers Lovable webhook → confirmation link)

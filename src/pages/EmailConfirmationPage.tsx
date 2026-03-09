@@ -4,6 +4,7 @@ import { Mail, ArrowLeft, AlertTriangle, CheckCircle2, Link as LinkIcon } from '
 import { Button } from '@/components/ui/button';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { toast } from 'sonner';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
