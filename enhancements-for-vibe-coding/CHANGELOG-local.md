@@ -6,7 +6,13 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-09
 
-### COMPANY-BRIEFING-ENHANCEMENT
+### FIX-RESUME-DELETE-DELETEALL-PORTFOLIO-TABS
+- **Summary**: Three fixes: (1) Resume soft-delete — added `.select('id')` to `.update()` mutations to force PostgREST schema cache refresh. (2) Delete All Data — fixed `share_comments` deletion via `share_id` subquery, used `localStorage.clear()` and `window.location.replace('/')`. (3) Portfolio Editor — moved Content & Visibility and Availability from Content tab to Setup tab.
+- **Files**: `src/hooks/useResumes.ts`, `src/lib/dataExport.ts`, `src/pages/SettingsPage.tsx`, `src/components/portfolio/editor/ContentTab.tsx`, `src/components/portfolio/editor/SetupTab.tsx`, `src/pages/PortfolioEditorPage.tsx`
+
+---
+
+## 2026-03-09
 - **Summary**: Enhanced Company Briefing tool with dual input modes (Search by Company Name + Paste Job Description), deep research via `gemini-2.5-pro` for company-name searches, expanded output (competitors, products/services, tech stack, Glassdoor-style workplace insights), PDF download, copy-to-clipboard, and Smart Tailor CTA linking to resume tailoring.
 - **Files**: `supabase/functions/company-briefing/index.ts`, `src/types/companyBriefing.ts`, `src/hooks/useCompanyBriefing.ts`, `src/components/interview/CompanyBriefingSheet.tsx`
 
