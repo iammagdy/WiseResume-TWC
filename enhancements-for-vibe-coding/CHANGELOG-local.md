@@ -7,6 +7,13 @@ This is a local changelog for tracking changes made to WiseResume via Lovable AI
 ## Unreleased
 
 - Date: 2026-03-09
+- Issue ID: SAVEBAR-OVERLAP-FIX
+- Summary: Changed SaveBar from fixed positioning to static flex footer to prevent it from overlapping content (e.g. Availability section). Reduced scroll container bottom padding from pb-36 to pb-6.
+- Files touched: src/components/portfolio/editor/SaveBar.tsx, src/pages/PortfolioEditorPage.tsx
+- Notes: No logic changes. Layout-only fix.
+
+
+- Date: 2026-03-09
 - Issue ID: PORTFOLIO-EMPTY-RESUME-FIX
 - Summary: Updated get_public_portfolio DB function to return profile data with an empty resume skeleton instead of NULL when a user has no resumes. Fixes "Not Found" on portfolio pages for new users who enabled their portfolio before creating a resume.
 - Files touched: Database migration (get_public_portfolio function)

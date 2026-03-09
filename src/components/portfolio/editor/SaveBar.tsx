@@ -13,8 +13,8 @@ export interface SaveBarProps {
 
 export function SaveBar({ onSave, saving, disabled, portfolioEnabled, onPortfolioEnabledChange }: SaveBarProps) {
   return (
-    <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-0 right-0 z-40 px-4 pb-2">
-      <div className="glass-elevated border border-border/40 rounded-2xl p-3 flex items-center gap-3 shadow-lg">
+    <div className="shrink-0 px-4 py-3 pb-safe border-t border-border/30 bg-background">
+      <div className="flex items-center gap-3">
         {/* Publish toggle */}
         <div className="flex items-center gap-2 shrink-0">
           <Switch
