@@ -60,6 +60,7 @@ export function DesktopNav() {
   const setCurrentResume = useResumeStore((s) => s.setCurrentResume);
   const { data: resumes } = useResumes({ select: (data) => data.slice(0, 1) });
   const { hasNew, markSeen } = useChangelogBadge();
+  const [wiseAIOpen, setWiseAIOpen] = useState(false);
 
   const isActive = (tab: TabItem) => {
     if (tab.matchPaths) {
