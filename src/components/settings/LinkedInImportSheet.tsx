@@ -342,6 +342,19 @@ export function LinkedInImportSheet({
                   </div>
                 </button>
 
+                <button
+                  onClick={() => setParseState('url-guide')}
+                  className="w-full p-4 rounded-xl border-2 border-border hover:border-primary/50 transition-all text-left flex items-start gap-4 touch-manipulation active:scale-[0.98] min-h-[72px]"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <Link2 className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Import via URL</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Paste your LinkedIn profile link — we'll guide you through it</p>
+                  </div>
+                </button>
+
                 <input
                   ref={fileInputRef}
                   type="file"
