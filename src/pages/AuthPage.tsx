@@ -72,6 +72,8 @@ export default function AuthPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [signUpStep, setSignUpStep] = useState<SignUpStep>('form');
   const [verifyMethod, setVerifyMethod] = useState<VerifyMethod>('otp');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [captchaVerified, setCaptchaVerified] = useState(false);
 
   // Show session expired toast if redirected with reason
   useEffect(() => {
