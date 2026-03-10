@@ -20,7 +20,7 @@ import { QuickTailorSheet } from '@/components/landing/QuickTailorSheet';
 import { ThemeDropdown } from '@/components/settings/ThemeDropdown';
 import { InstallButton } from '@/components/pwa/InstallButton';
 
-import logoImage from '@/assets/wise-ai-logo.webp';
+import { useThemeLogo } from '@/hooks/useThemeLogo';
 
 // Lazy-load heavy demo components — only mounted when scrolled into view
 const LazyEditorDemo = lazy(() => import('@/components/landing/EditorDemo').then((m) => ({ default: m.EditorDemo })));
