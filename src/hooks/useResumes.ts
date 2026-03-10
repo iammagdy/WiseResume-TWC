@@ -288,14 +288,13 @@ export function useResumeMutations() {
 
       const { error } = await supabase
         .from('resumes')
-        .update({ deleted_at: new Date().toISOString() } as any)
+        .delete()
         .in('id', resumeIds)
-        .select('id');
+        .eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
-      queryClient.invalidateQueries({ queryKey: ['trashed-resumes'] });
       toast.success('Resumes deleted');
     },
     onError: (error) => {
