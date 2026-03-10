@@ -4,6 +4,13 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### AUTH-CLEANUP-LEGACY-ARTIFACTS
+- **Summary**: Removed 6 ghost Clerk-era entries from `supabase/config.toml` (`clerk-webhook`, `debug-jwt`, `patch-clerk-jwt-template`, `provision-clerk-user`, `repair-clerk-uuid`, `repair-user-uuid`). Dropped legacy `signup_otps` table. Kept `auth-email-hook` (Lovable Cloud system function), `KindeAuthTestPage.tsx` (testing phase), and `get_clerk_user_id` DB function (still used by callers, rename deferred).
+- **Files edited**: `supabase/config.toml`
+- **Migration**: `DROP TABLE IF EXISTS public.signup_otps`
+- **Test**: Verify app loads, auth works, Dev-Kit tests pass. No functional changes expected.
+
+
 ### BRIDGE-ERROR-BANNER-USAGE-EVENTS-CONFIG-FIX
 - **Summary**: Added `lastError` state to supabaseBridge with `getLastError()`/`clearLastError()` exports. AppShell now shows a dismissible banner on bridge errors (session expired or data connection issues). Fixed `config.toml` to include `[functions.me]` and removed legacy `send-signup-otp`/`migrate-user-data` entries. Created `usage_events` table (RLS: user SELECT only, no client inserts). Updated `tailor-resume` to insert usage events via service-role. Added "Usage Events" section to Dev-Kit.
 - **Files edited**: `supabase/config.toml`, `src/lib/supabaseBridge.ts`, `src/components/layout/AppShell.tsx`, `supabase/functions/tailor-resume/index.ts`, `src/pages/DevToolsPage.tsx`
