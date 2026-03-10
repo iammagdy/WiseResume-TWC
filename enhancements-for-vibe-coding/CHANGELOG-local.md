@@ -4,6 +4,12 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### THEME-AWARE-LOGO
+- **Summary**: Added theme-aware logo switching — light-mode uses `Logo_Web.webp`, dark-mode uses `Logo_Web-2.webp`. Created `useThemeLogo` hook for reuse. Updated `AppIcon`, `Index`, `Footer`, `JobMatchScore` to switch dynamically. QR generator and PDF export use the dark variant (static context with dark backgrounds).
+- **Files changed**: `src/assets/wise-ai-logo-dark.webp` (new), `src/assets/wise-ai-logo-dark.png` (new), `src/hooks/useThemeLogo.ts` (new), `src/components/brand/AppIcon.tsx`, `src/pages/Index.tsx`, `src/components/landing/Footer.tsx`, `src/components/applications/JobMatchScore.tsx`, `src/components/portfolio/qr/QRGeneratorSheet.tsx`, `src/lib/companyBriefingPdf.ts`
+- **Test**: Toggle between light and dark themes — verify logo changes on landing page (navbar + hero), footer, dashboard (via AppIcon/AppLogo), and JobMatchScore sheet. Check QR generator and PDF export still show logo correctly.
+- **Risks**: Email templates still use remote URLs — needs separate upload.
+
 ### REPLACE-APP-LOGO
 - **Summary**: Replaced entire app logo with new `Logo_Web.webp`. Overwrote `src/assets/wise-ai-logo.webp`, `.png`, and 3 `public/lovable-uploads/` files. Deleted unused variants (`wise-ai-logo-original.png`, `wise-ai-logo-small.png`, `wise-ai-icon.png`). Zero code changes — all existing imports/references automatically use the new logo.
 - **Files changed**: 5 asset files overwritten, 3 deleted
