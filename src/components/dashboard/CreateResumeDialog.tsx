@@ -17,6 +17,7 @@ import haptics from '@/lib/haptics';
 import { useResumeStore } from '@/store/resumeStore';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from '@/hooks/useAuth';
+import { getUserId } from '@/lib/supabaseBridge';
 import { useProfile } from '@/hooks/useProfile';
 import { Json } from '@/integrations/supabase/types';
 import {
