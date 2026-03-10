@@ -168,6 +168,12 @@ export function CreateResumeDialog({
   const handleCreateTailored = async () => {
     if (!title.trim() || !parentResumeId || !user) return;
     
+    const bridgedUserId = getUserId();
+    if (!bridgedUserId) {
+      toast.error('Authentication not ready. Please try again in a moment.');
+      return;
+    }
+    
     const parentResume = existingResumes.find(r => r.id === parentResumeId);
     if (!parentResume) return;
     
@@ -177,7 +183,7 @@ export function CreateResumeDialog({
       const { data: newResume, error } = await supabase
         .from('resumes')
         .insert({
-          user_id: user.id,
+          user_id: bridgedUserId,
           title: title.trim(),
           contact_info: parentResume.contact_info as unknown as Json,
           summary: parentResume.summary,

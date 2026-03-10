@@ -56,11 +56,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const user: KindeAppUser | null = useMemo(() => {
     if (!kindeUser) return null;
     return {
-      id: kindeUser.id ?? '',
+      id: getUserId() || kindeUser.id || '',
       email: kindeUser.email ?? '',
       name: [kindeUser.givenName, kindeUser.familyName].filter(Boolean).join(' ') || undefined,
     };
-  }, [kindeUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kindeUser, bridgeReady]);
 
   // Get Kinde access token safely
   const getKindeToken = useCallback(async (): Promise<string | null> => {
