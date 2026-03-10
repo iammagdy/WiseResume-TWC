@@ -15,8 +15,6 @@ project_id = "hjnnamwgztlhzkeuufln"
     verify_jwt = false
   [functions.career-path-advisor]
     verify_jwt = false
-  [functions.clerk-webhook]
-    verify_jwt = false
   [functions.company-briefing]
     verify_jwt = false
   [functions.debug-jwt]
