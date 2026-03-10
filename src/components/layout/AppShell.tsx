@@ -59,6 +59,22 @@ export function AppShell() {
       </a>
       <OfflineBanner />
       <SlowConnectionBanner />
+      {bridgeError && (
+        <div className="flex items-center justify-between gap-2 px-4 py-2 bg-destructive/10 text-destructive text-sm border-b border-destructive/20">
+          <span>
+            {bridgeError.code === 'INVALID_KINDE_TOKEN'
+              ? 'Your session expired. Please sign in again.'
+              : 'We couldn\'t connect to your data. Please try again in a moment.'}
+          </span>
+          <button
+            onClick={() => { clearLastError(); setBridgeError(null); }}
+            className="shrink-0 p-0.5 rounded hover:bg-destructive/10 transition-colors"
+            aria-label="Dismiss"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
       {!isEditorRoute && <GuestSaveBanner />}
       {showBottomNav && !isEditorRoute && (
         <header className="lg:hidden h-10 flex items-center px-edge pt-safe glass-surface border-b border-border/30 shrink-0">
