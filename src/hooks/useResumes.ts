@@ -61,7 +61,7 @@ function parseDbResume(dbResume: any): DatabaseResume {
     is_primary: dbResume.is_primary || false,
     parent_resume_id: dbResume.parent_resume_id,
     job_url: dbResume.job_url || null,
-    deleted_at: dbResume.deleted_at || null,
+    
     created_at: dbResume.created_at,
     updated_at: dbResume.updated_at,
   };
