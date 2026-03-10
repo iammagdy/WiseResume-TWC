@@ -4,6 +4,12 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### KINDE-EMAIL-LOGIN-SECTION
+- **Summary**: Added experimental Kinde email/password login section to `/auth` page below the Google button. Provides email input + "Sign In" / "Sign Up" buttons that redirect to Kinde's hosted login page with `loginHint` pre-filled. Existing Supabase email/password form untouched.
+- **Files**: `src/pages/AuthPage.tsx`
+- **Notes**: No DB, RLS, or AuthContext changes. Uses `kindeLogin({ loginHint })` and `kindeRegister({ loginHint })` from Kinde React SDK. Section labeled "Beta" to distinguish from primary flow.
+
+
 ### KINDE-AUTH-SOURCE-OF-TRUTH
 - **Summary**: Switched `AuthContext` and `AuthCallbackPage` to use Kinde as the primary auth source for page access (routing). `isAuthenticated` is now true if either Kinde or Supabase session exists. `signOut` clears both providers. `kindeUser` exposed on context. Supabase session kept for data queries — no DB/RLS changes.
 - **Files**: `src/contexts/AuthContext.tsx`, `src/pages/AuthCallbackPage.tsx`
