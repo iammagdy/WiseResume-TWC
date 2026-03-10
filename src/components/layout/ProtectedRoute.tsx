@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 
 export function ProtectedRoute() {
-  const { user, loading } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -27,7 +27,7 @@ export function ProtectedRoute() {
       </div>
     </div>
   );
-  if (!user) {
+  if (!isAuthenticated) {
     // Preserve intended destination so auth can redirect back
     const intendedPath = location.pathname + location.search;
     const redirectParam = intendedPath !== '/' && intendedPath !== '/dashboard'
