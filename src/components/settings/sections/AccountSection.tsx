@@ -7,7 +7,7 @@ import { useResumes } from '@/hooks/useResumes';
 import { useCoverLetters } from '@/hooks/useCoverLetters';
 import { useJobApplications } from '@/hooks/useJobApplications';
 import { haptics } from '@/lib/haptics';
-import type { User } from '@supabase/supabase-js';
+import type { KindeAppUser } from '@/contexts/AuthContext';
 
 const AccountStatsCard = lazy(() => import('./AccountStatsCard'));
 
