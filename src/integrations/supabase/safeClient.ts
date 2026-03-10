@@ -1,18 +1,35 @@
 /**
  * Authenticated Supabase client pointing to project jnsfmkzgxsviuthaqlyy.
  *
- * Uses standard Supabase Auth with persistent sessions.
+ * Uses the token bridge (Kinde → Supabase JWT) for authorization.
  * All runtime code should import from this file.
  */
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabaseConstants';
+import { getToken } from '@/lib/supabaseBridge';
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+/**
+ * Create a Supabase client that uses the bridge token for auth.
+ * The `accessToken` callback is called on every request, so it always
+ * uses the latest bridge token.
+ */
+export const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    flowType: 'implicit',
+    persistSession: false,
+    autoRefreshToken: false,
     detectSessionInUrl: false,
+  },
+  global: {
+    headers: {},
+    fetch: (url, options = {}) => {
+      const bridgeToken = getToken();
+      if (bridgeToken) {
+        const headers = new Headers(options.headers);
+        headers.set('Authorization', `Bearer ${bridgeToken}`);
+        return fetch(url, { ...options, headers });
+      }
+      return fetch(url, options);
+    },
   },
 });
 

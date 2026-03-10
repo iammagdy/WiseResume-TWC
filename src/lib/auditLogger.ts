@@ -1,3 +1,4 @@
+import { getToken, getUserId } from '@/lib/supabaseBridge';
 import { supabase } from '@/integrations/supabase/safeClient';
 
 type AuditCategory = 'migration' | 'account' | 'api_key' | 'auth';
@@ -13,9 +14,8 @@ export function logAudit(
 ): void {
   (async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user?.id) return;
-      const userId = session.user.id;
+      const userId = getUserId();
+      if (!userId) return;
 
       await (supabase.from('audit_logs' as never) as any).insert({
         user_id: userId,
