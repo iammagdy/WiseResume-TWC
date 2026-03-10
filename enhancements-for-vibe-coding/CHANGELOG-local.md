@@ -4,6 +4,12 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### DARK-MODE-TEXT-READABILITY
+- **Summary**: Improved dark-mode text readability over 3D wallpaper by (1) increasing glass surface opacity from ~0.5 to ~0.75-0.82 in dark mode, and (2) adding a subtle `text-shadow` on `body` in dark mode (excluded from resume templates via `[data-resume-template]`).
+- **Files edited**: `src/index.css`
+- **Test**: Toggle dark mode across the app — text in glass cards and on the landing page should be clearly readable. Resume preview/export should have no text-shadow.
+- **Risks**: None — CSS-only, no logic changes.
+
 ### FIX-CLOUDS-NOT-RENDERING
 - **Summary**: Fixed two bugs preventing 3D clouds from rendering: (1) cloud group positioned at Y=-30, far below camera viewport — moved to Y=0; (2) `segments={1}` too low to produce visible geometry — increased to `segments={20}`. Clouds now visible in both light and dark mode.
 - **Files edited**: `src/components/ui/SkyWallpaperCanvas.tsx`
