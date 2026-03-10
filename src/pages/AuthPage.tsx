@@ -634,7 +634,7 @@ export default function AuthPage() {
                         variant="outline"
                         className="flex-1 h-10 text-sm font-medium"
                         disabled={!kindeEmail}
-                        onClick={() => kindeRegister({ login_hint: kindeEmail })}
+                        onClick={() => kindeRegister({ loginHint: kindeEmail })}
                       >
                         <User className="w-4 h-4 mr-1.5" />
                         Sign Up
