@@ -4,6 +4,11 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### KINDE-AUTH-SOURCE-OF-TRUTH
+- **Summary**: Switched `AuthContext` and `AuthCallbackPage` to use Kinde as the primary auth source for page access (routing). `isAuthenticated` is now true if either Kinde or Supabase session exists. `signOut` clears both providers. `kindeUser` exposed on context. Supabase session kept for data queries — no DB/RLS changes.
+- **Files**: `src/contexts/AuthContext.tsx`, `src/pages/AuthCallbackPage.tsx`
+- **Notes**: Kinde-only users can now access protected pages but Supabase data queries will fail without a token bridge (next step). Email/password login unchanged.
+
 ### KINDE-GOOGLE-BUTTON-SWITCH
 - **Summary**: Switched "Continue with Google" button on `/auth` and `SignInPromptDialog` to use Kinde's `login()` instead of `supabase.auth.signInWithOAuth`. Lifted `KindeProvider` to `App.tsx` root. Simplified `KindeAuthTestPage` to use inherited provider.
 - **Files**: `src/App.tsx`, `src/pages/AuthPage.tsx`, `src/components/auth/SignInPromptDialog.tsx`, `src/pages/KindeAuthTestPage.tsx`

@@ -1,6 +1,7 @@
 import React, { createContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { Capacitor } from '@capacitor/core';
+import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { migrateLocalKeysToServer } from '@/lib/migrateLocalKeys';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -16,6 +17,8 @@ interface AuthState {
 export interface AuthContextType extends AuthState {
   signOut: () => Promise<void>;
   isAuthenticated: boolean;
+  /** Kinde user object — available when logged in via Kinde (Google). Null for email/password users. */
+  kindeUser: ReturnType<typeof useKindeAuth>['user'];
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -32,26 +35,44 @@ async function hideSplashScreen() {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  // --- Supabase session state ---
+  const [supabaseUser, setSupabaseUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [supabaseLoading, setSupabaseLoading] = useState(true);
   const [splashHidden, setSplashHidden] = useState(false);
+
+  // --- Kinde auth state ---
+  const {
+    user: kindeUser,
+    isAuthenticated: kindeAuthenticated,
+    isLoading: kindeLoading,
+    logout: kindeLogout,
+  } = useKindeAuth();
+
+  // Combined loading: wait for both providers to resolve
+  const loading = supabaseLoading || kindeLoading;
+
+  // Authenticated if either source says yes
+  const isAuthenticated = kindeAuthenticated || (!!supabaseUser && !!session);
+
+  // Expose supabase user when available (for data queries); may be null for Kinde-only users
+  const user = supabaseUser;
 
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, newSession) => {
         setSession(newSession);
-        setUser(newSession?.user ?? null);
-        setLoading(false);
+        setSupabaseUser(newSession?.user ?? null);
+        setSupabaseLoading(false);
       }
     );
 
     // THEN get initial session
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
       setSession(initialSession);
-      setUser(initialSession?.user ?? null);
-      setLoading(false);
+      setSupabaseUser(initialSession?.user ?? null);
+      setSupabaseLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -68,9 +89,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [loading, splashHidden]);
 
-  // Post-auth side effects
+  // Post-auth side effects (only when Supabase session exists)
   useEffect(() => {
-    if (!user || !session) return;
+    if (!supabaseUser || !session) return;
 
     migrateLocalKeysToServer();
     runDailyCleanup();
@@ -78,23 +99,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase
       .from('profiles')
       .update({ last_active_at: new Date().toISOString() })
-      .eq('user_id', user.id)
+      .eq('user_id', supabaseUser.id)
       .then(({ error }) => {
         if (error) console.warn('[Auth] last_active_at update failed:', error.message);
       });
-  }, [user?.id, session?.access_token]);
+  }, [supabaseUser?.id, session?.access_token]);
 
   const signOut = useCallback(async () => {
     logAudit('auth', 'signed_out');
+
+    // Sign out from both providers
     try {
       await supabase.auth.signOut();
     } catch (e) {
-      console.error('Sign-out failed:', e);
+      console.error('Supabase sign-out failed:', e);
     }
-    useSettingsStore.getState().resetSettings();
-  }, []);
 
-  const isAuthenticated = !!user && !!session;
+    try {
+      await kindeLogout();
+    } catch (e) {
+      console.error('Kinde sign-out failed:', e);
+    }
+
+    useSettingsStore.getState().resetSettings();
+  }, [kindeLogout]);
 
   const value = useMemo<AuthContextType>(() => ({
     user,
@@ -102,7 +130,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     signOut,
     isAuthenticated,
-  }), [user, session, loading, signOut, isAuthenticated]);
+    kindeUser: kindeUser ?? null,
+  }), [user, session, loading, signOut, isAuthenticated, kindeUser]);
 
   return (
     <AuthContext.Provider value={value}>
