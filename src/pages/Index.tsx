@@ -111,9 +111,11 @@ const Index = () => {
           transition: { delay, duration: 0.6, ease: 'easeOut' as Easing },
         };
 
+  const { login: kindeLogin, register: kindeRegister } = useKindeAuth();
+
   const handleCTA = () => {
     triggerHaptic.medium();
-    navigate('/auth?mode=signup');
+    kindeRegister();
   };
 
   // Show loading state while auth resolves to prevent guest→auth flash
