@@ -4,6 +4,13 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### AUTH-CLEANUP-LEGACY-ARTIFACTS
+- **Summary**: Removed all legacy Supabase Auth artifacts after Kinde migration. Deleted unused edge functions (`send-signup-otp`, `verify-signup-otp`, `migrate-user-data`), legacy pages (`ResetPasswordPage`, `EmailConfirmationPage`), and outdated test file (`useAuth.test.tsx`). Removed corresponding lazy imports and route definitions from `App.tsx`. Zero `supabase.auth.*` calls remain in the frontend. Auth is 100% Kinde + token bridge.
+- **Files deleted**: `src/hooks/useAuth.test.tsx`, `src/pages/ResetPasswordPage.tsx`, `src/pages/EmailConfirmationPage.tsx`, `supabase/functions/send-signup-otp/`, `supabase/functions/verify-signup-otp/`, `supabase/functions/migrate-user-data/`
+- **Files edited**: `src/App.tsx` (removed 2 lazy imports and 2 route definitions)
+- **Test**: Verify app loads, `/auth` works, protected routes redirect to `/auth` when logged out, login + dashboard flow works end-to-end.
+- **Note**: `signup_otps` DB table remains (unused) — no schema changes made.
+
 ### DEV-KIT-UPGRADE
 - **Summary**: Full rewrite of `/dev-tools` Dev-Kit page. Expanded from 3 to 7 sections with 18 total tests. Added "Run All" per section with sequential execution and pass/fail summary badges. Added collapsible JSON results with human-readable summary lines. New sections: Routing & Protected Pages, Settings & Preferences, Credits & Usage, Error Handling & Logging. All tests use real code paths.
 - **Files**: `src/pages/DevToolsPage.tsx` (full rewrite)
