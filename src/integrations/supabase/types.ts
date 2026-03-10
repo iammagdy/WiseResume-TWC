@@ -1076,36 +1076,6 @@ export type Database = {
         }
         Relationships: []
       }
-      signup_otps: {
-        Row: {
-          action_link: string
-          created_at: string | null
-          email: string
-          expires_at: string | null
-          id: string
-          otp_code: string
-          used: boolean | null
-        }
-        Insert: {
-          action_link: string
-          created_at?: string | null
-          email: string
-          expires_at?: string | null
-          id?: string
-          otp_code: string
-          used?: boolean | null
-        }
-        Update: {
-          action_link?: string
-          created_at?: string | null
-          email?: string
-          expires_at?: string | null
-          id?: string
-          otp_code?: string
-          used?: boolean | null
-        }
-        Relationships: []
-      }
       store_screenshots: {
         Row: {
           created_at: string

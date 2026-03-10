@@ -63,10 +63,6 @@ project_id = "hjnnamwgztlhzkeuufln"
     verify_jwt = false
   [functions.recruiter-simulation]
     verify_jwt = false
-  [functions.repair-clerk-uuid]
-    verify_jwt = false
-  [functions.repair-user-uuid]
-    verify_jwt = false
   [functions.resolve-short-link]
     verify_jwt = false
   [functions.score-resume]
