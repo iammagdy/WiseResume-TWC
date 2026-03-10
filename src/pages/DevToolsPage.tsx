@@ -160,6 +160,15 @@ export default function DevToolsPage() {
         return { status: ready ? 'success' : 'error', data: { bridgeReady: ready, userId: getUserId(), tokenPresent: !!getToken() }, summary: ready ? `Bridge ready — userId: ${getUserId()?.slice(0, 8)}…` : 'Bridge NOT ready after exchange' };
       },
     },
+    {
+      id: 'who-am-i', label: 'Who am I?', description: 'Call /me edge function — returns userId, kinde_sub, profile, preferences', section: 'auth',
+      run: async () => {
+        const { data, error } = await edgeFunctions.functions.invoke('me');
+        if (error) return { status: 'error', httpStatus: (error as any).status, error: (error as any).message || JSON.stringify(error), summary: `Error: ${(error as any).message || 'unknown'}` };
+        const d = data as any;
+        return { status: 'success', data, summary: `userId: ${d?.userId?.slice(0, 8)}… | kinde_sub: ${d?.kinde_sub || '(none)'} | profile: ${d?.profile?.full_name || d?.profile?.contact_email || '(empty)'}` };
+      },
+    },
     // === ROUTING ===
     {
       id: 'dashboard-route', label: 'Dashboard Route Check', description: 'Verify dashboard data query succeeds (resumes table)', section: 'routing',
