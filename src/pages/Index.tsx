@@ -146,7 +146,7 @@ const Index = () => {
             onClick={() => {triggerHaptic.light();window.scrollTo({ top: 0, behavior: 'smooth' });}}
             className="flex items-center gap-2 touch-manipulation">
             
-            <img src={logoImage} alt="WiseResume" loading="lazy" className="w-7 h-7 object-contain rounded-lg" />
+            <img alt="WiseResume" loading="lazy" className="w-7 h-7 object-contain rounded-lg" src="/lovable-uploads/a7b7e7dc-c267-46b6-b636-2edf3730669c.webp" />
             <span className={`font-display font-bold text-sm text-foreground transition-opacity duration-300 ${scrolled ? 'opacity-100' : 'opacity-0'}`}>
               WiseResume
             </span>
@@ -207,10 +207,10 @@ const Index = () => {
               aria-hidden="true" />
             
             <img
-              src={logoImage}
+
               alt="Wise AI Logo"
               className="relative z-10 w-[120px] h-[120px] object-contain rounded-3xl"
-              loading="eager" />
+              loading="eager" src="/lovable-uploads/e1275e1b-4ef5-46e8-a89f-da0d4aa55624.webp" />
             
           </motion.div>
 
