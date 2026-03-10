@@ -99,16 +99,8 @@ export class ErrorBoundary extends Component<Props, State> {
   private handleSendReport = async () => {
     this.setState({ reportStatus: 'sending' });
     try {
-      // Try getting current user
-      let userId = 'anonymous';
+      let userId = getUserId() || 'anonymous';
       let userEmail = 'anonymous@user';
-      try {
-        const { data } = await supabase.auth.getUser();
-        if (data?.user) {
-          userId = data.user.id;
-          userEmail = data.user.email || userEmail;
-        }
-      } catch { /* ignore */ }
 
       const payload = {
         error_message: this.state.error?.message || 'Unknown error',
