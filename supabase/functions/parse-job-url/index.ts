@@ -262,7 +262,7 @@ If you can't find certain fields, make reasonable guesses based on context. The 
             { role: 'user', content: userPrompt },
           ],
           temperature: 0.2,
-          userId: user.id,
+          userId: userId,
         });
         aiContent = aiResponse.content || '';
         aiProviderUsed = aiResponse.providerUsed;
