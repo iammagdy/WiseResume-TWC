@@ -38,7 +38,7 @@ const AnalyzeJobSheet = lazy(() => import('@/components/dashboard/AnalyzeJobShee
 import { useAuth } from '@/hooks/useAuth';
 import { useGuestMigration } from '@/hooks/useGuestMigration';
 import { useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
-import { TrashSheet } from '@/components/dashboard/TrashSheet';
+
 import { useResumeStore } from '@/store/resumeStore';
 import { useResumeScore, ResumeHealthScore, backgroundScore } from '@/hooks/useResumeScore';
 import { useATSScoreHistoryStore } from '@/store/atsScoreHistoryStore';
