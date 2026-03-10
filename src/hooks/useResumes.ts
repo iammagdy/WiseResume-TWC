@@ -391,9 +391,6 @@ export function useResumeMutations() {
     deleteMultipleResumes,
     duplicateResume,
     setJobTarget,
-    restoreResume,
-    permanentlyDeleteResume,
-    emptyTrash,
   };
 }
 
