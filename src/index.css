@@ -234,6 +234,15 @@ body.wr-security-curtain [data-biometric-lock] {
     font-size: 14.5px;
   }
 
+  /* Dark-mode text contrast over 3D wallpaper */
+  .dark body {
+    text-shadow: 0 0 6px rgba(0, 0, 0, 0.35);
+  }
+  .dark [data-resume-template],
+  .dark [data-resume-template] * {
+    text-shadow: none;
+  }
+
   @media (min-width: 768px) {
     html {
       font-size: 16px;
@@ -403,6 +412,26 @@ button,
 
   .light .glass-card {
     background: hsl(var(--card) / 0.85);
+  }
+
+  /* Dark-mode: increase glass opacity for text readability over 3D canvas */
+  .dark .glass {
+    background: hsl(var(--card) / 0.82);
+  }
+  .dark .glass-card {
+    background: hsl(var(--card) / 0.78);
+  }
+  .dark .glass-surface {
+    background: hsl(var(--card) / 0.75);
+  }
+  .dark .glass-elevated {
+    background: hsl(var(--card) / 0.8);
+  }
+  .dark .glass-input {
+    background: hsl(var(--input) / 0.7);
+  }
+  .dark .glass-header {
+    background: hsl(var(--background) / 0.75);
   }
 
   .glass-surface {
