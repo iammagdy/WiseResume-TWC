@@ -4,6 +4,12 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### REPO-SIZE-CLEANUP
+- **Summary**: Deleted legacy/redundant files to reduce repo size (~16K+ lines removed). Deleted `email-templates-html.md`, `email-templates.md`, `deno.lock`. Could not delete `package-lock.json` or edit `.gitignore` (read-only).
+- **Files deleted**: `email-templates-html.md`, `email-templates.md`, `deno.lock`
+- **Note**: `.gitignore` and `package-lock.json` are read-only — need manual git cleanup for `package-lock.json`.
+
+
 ### ROUTE-RENAME-PRIVACY-TERMS
 - **Summary**: Renamed `/privacy` → `/privacy-policy` and `/terms` → `/terms-of-service` across routes, links, and bug report screen map.
 - **Files edited**: `src/App.tsx`, `src/components/landing/Footer.tsx`, `src/pages/AuthPage.tsx`, `src/lib/bugReport.ts`
