@@ -267,7 +267,11 @@ export function useResumeMutations() {
     mutationFn: async (resumeId: string) => {
       if (!user) throw new Error('Not authenticated');
 
-      const { error } = await supabase.rpc('soft_delete_resume', { p_resume_id: resumeId });
+      const { error } = await supabase
+        .from('resumes')
+        .update({ deleted_at: new Date().toISOString() } as any)
+        .eq('id', resumeId)
+        .select('id');
       if (error) throw error;
     },
     onSuccess: () => {
@@ -284,7 +288,11 @@ export function useResumeMutations() {
     mutationFn: async (resumeIds: string[]) => {
       if (!user) throw new Error('Not authenticated');
 
-      const { error } = await supabase.rpc('soft_delete_resumes', { p_resume_ids: resumeIds });
+      const { error } = await supabase
+        .from('resumes')
+        .update({ deleted_at: new Date().toISOString() } as any)
+        .in('id', resumeIds)
+        .select('id');
       if (error) throw error;
     },
     onSuccess: () => {
@@ -301,7 +309,11 @@ export function useResumeMutations() {
   const restoreResume = useMutation({
     mutationFn: async (resumeId: string) => {
       if (!user) throw new Error('Not authenticated');
-      const { error } = await supabase.rpc('restore_resume', { p_resume_id: resumeId });
+      const { error } = await supabase
+        .from('resumes')
+        .update({ deleted_at: null } as any)
+        .eq('id', resumeId)
+        .select('id');
       if (error) throw error;
     },
     onSuccess: () => {
