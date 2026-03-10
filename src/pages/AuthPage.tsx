@@ -167,9 +167,9 @@ export default function AuthPage() {
 
             <p className="text-center text-xs text-muted-foreground pt-2">
               By continuing, you agree to the{' '}
-              <a href="/terms" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">Terms of Service</a>
+              <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">Terms of Service</a>
               {' '}and{' '}
-              <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">Privacy Policy</a>
+              <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">Privacy Policy</a>
             </p>
           </motion.div>
         </div>
