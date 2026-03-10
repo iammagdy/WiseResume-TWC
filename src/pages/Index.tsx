@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Target, Wand2, Mic, User, LayoutDashboard, Settings, LogOut, Globe, ArrowRight, UserPlus, FileText, Zap, Monitor } from 'lucide-react';
+import { Sparkles, Target, Wand2, Mic, User, LayoutDashboard, Settings, LogOut, Globe, ArrowRight } from 'lucide-react';
 import { Footer } from '@/components/landing/Footer';
 import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
 import { SpaceBackground } from '@/components/landing/SpaceBackground';
@@ -184,24 +184,8 @@ const Index = () => {
             </DropdownMenu>
             </div>
           ) : (
-            /* Guest header: Log in (ghost) + Sign Up (glass pill) */
             <div className="flex items-center gap-1.5">
               <ThemeDropdown />
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground hover:text-foreground text-xs px-2.5 h-8 active:scale-95 transition-all"
-                onClick={() => { triggerHaptic.light(); kindeLogin(); }}
-              >
-                Log in
-              </Button>
-              <button
-                className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 hover:border-primary/60 active:scale-95 transition-all touch-manipulation backdrop-blur-sm"
-                onClick={() => { triggerHaptic.medium(); kindeRegister(); }}
-              >
-                <UserPlus className="w-3.5 h-3.5" />
-                Sign Up
-              </button>
             </div>
           )}
         </div>
@@ -277,10 +261,10 @@ const Index = () => {
                 whileTap={prefersReducedMotion ? undefined : { scale: 0.98 }}
               >
                 <button
-                  className="w-full h-14 text-lg font-semibold rounded-xl border border-primary/40 bg-transparent text-foreground hover:bg-primary/10 hover:border-primary/70 active:scale-[0.98] transition-all touch-manipulation backdrop-blur-sm shadow-[0_0_32px_-8px_hsl(var(--primary)/0.4)] hover:shadow-[0_0_48px_-8px_hsl(var(--primary)/0.6)]"
+                  className="w-full h-14 text-lg font-semibold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-all touch-manipulation shadow-[0_0_40px_-6px_hsl(var(--primary)/0.5)] hover:shadow-[0_0_56px_-6px_hsl(var(--primary)/0.7)] btn-shimmer"
                   onClick={handleCTA}
                 >
-                  Get Started Free
+                  Get Started
                 </button>
               </motion.div>
             )}
