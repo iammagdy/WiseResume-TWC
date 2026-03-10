@@ -103,6 +103,7 @@ const ScreenshotsGalleryPage = lazyWithRetry(() => import("./pages/ScreenshotsGa
 const QrCodePage = lazyWithRetry(() => import("./pages/QrCodePage"));
 const QrBatchPage = lazyWithRetry(() => import("./pages/QrBatchPage"));
 const QrScanPage = lazyWithRetry(() => import("./pages/QrScanPage"));
+const KindeAuthTestPage = lazyWithRetry(() => import("./pages/KindeAuthTestPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -248,6 +249,9 @@ const queryClient = new QueryClient({
         <Route path="/share/:token" element={<Suspense fallback={<ShareSkeleton />}><SharePage /></Suspense>} />
         <Route path="/p/:username" element={<Suspense fallback={<DetailSkeleton />}><PublicPortfolioPage /></Suspense>} />
         <Route path="/l/:linkId" element={<Suspense fallback={<DetailSkeleton />}><ShortLinkPage /></Suspense>} />
+
+        {/* Kinde auth test — isolated, no Supabase interaction */}
+        <Route path="/kinde-auth-test" element={<Suspense fallback={<PageLoadingSpinner />}><KindeAuthTestPage /></Suspense>} />
 
         {/* Internal tooling */}
         <Route element={<ProtectedRoute />}>

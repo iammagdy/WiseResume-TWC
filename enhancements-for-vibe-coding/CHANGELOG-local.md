@@ -2,6 +2,13 @@
 
 Local changelog tracking WiseResume changes via Lovable AI sessions.
 
+## 2026-03-10
+
+### KINDE-AUTH-TEST-PAGE
+- **Summary**: Installed `@kinde-oss/kinde-auth-react` and added isolated `/kinde-auth-test` page with Login/Register/Logout buttons and user info display. Zero changes to existing Supabase Auth.
+- **Files**: `src/pages/KindeAuthTestPage.tsx` (new), `src/App.tsx` (added lazy route)
+- **Notes**: Kinde domain `https://thewisecloud.kinde.com`, Client ID `629174acb2874e6bbf53cd4a95497425`. Redirect URI set to `origin + /kinde-auth-test`.
+
 ## 2026-03-09
 
 ### PORTFOLIO-SYNC-MODE-DEDUP
