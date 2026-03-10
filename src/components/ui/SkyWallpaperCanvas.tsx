@@ -1,22 +1,38 @@
-import { useRef, useEffect, useState, memo } from 'react';
+import { useRef, useEffect, memo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Stars, Cloud, Clouds, useProgress } from '@react-three/drei';
 import * as THREE from 'three';
 import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
-
-gsap.registerPlugin(useGSAP);
 
 const prefersReducedMotion =
   typeof window !== 'undefined' &&
   window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-// ─── Camera parallax on mouse move ──────────────────────────────────────────
+// ─── Camera setup: position above + behind, look down at cloud layer ────────
 
-function CameraRig({ isMobile }: { isMobile: boolean }) {
+function CameraSetup({ isMobile }: { isMobile: boolean }) {
   const { camera } = useThree();
   const mouse = useRef({ x: 0, y: 0 });
+  const baseY = 8;
 
+  useEffect(() => {
+    camera.position.set(0, baseY, 12);
+    camera.lookAt(0, 0, 0);
+  }, [camera]);
+
+  // Scroll parallax — clouds rise as user scrolls
+  useEffect(() => {
+    if (prefersReducedMotion) return;
+    const onScroll = () => {
+      const offset = window.scrollY * 0.005;
+      camera.position.y = baseY - offset;
+      camera.lookAt(0, 0, 0);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [camera]);
+
+  // Mouse parallax (desktop only)
   useEffect(() => {
     if (prefersReducedMotion || isMobile) return;
     const onMove = (e: MouseEvent) => {
@@ -27,38 +43,30 @@ function CameraRig({ isMobile }: { isMobile: boolean }) {
     return () => window.removeEventListener('mousemove', onMove);
   }, [isMobile]);
 
-  useFrame((_, delta) => {
-    if (prefersReducedMotion) return;
-    camera.rotation.y = THREE.MathUtils.lerp(
-      camera.rotation.y,
-      -(mouse.current.x * Math.PI) / 90,
-      0.05
-    );
-    camera.rotation.x = THREE.MathUtils.lerp(
-      camera.rotation.x,
-      -(mouse.current.y * Math.PI) / 180,
-      0.03
-    );
+  useFrame(() => {
+    if (prefersReducedMotion || isMobile) return;
+    const targetRotY = -(mouse.current.x * Math.PI) / 90;
+    const targetRotX = camera.rotation.x; // preserve lookAt tilt
+    camera.rotation.y = THREE.MathUtils.lerp(camera.rotation.y, targetRotY, 0.05);
   });
 
   return null;
 }
 
-// ─── Cloud group ────────────────────────────────────────────────────────────
+// ─── Cloud layer — flat at Y=0, spread on X/Z ──────────────────────────────
 
 const CloudScene = memo(() => (
-  <group position={[0, -6, -1]}>
-    <Clouds material={THREE.MeshBasicMaterial} position={[0, 0, 0]} frustumCulled={false}>
-      <Cloud seed={1} segments={20} concentrate="inside" bounds={[10, 2, 8]} growth={2} position={[-4, 0, 0]} scale={0.5} volume={0.8} speed={0.1} fade={12} opacity={0.55} />
-      <Cloud seed={3} segments={20} concentrate="outside" bounds={[8, 2, 6]} growth={1} position={[3, 0, 1]} scale={0.4} volume={0.7} fade={10} speed={0.08} opacity={0.45} />
-      <Cloud seed={4} segments={20} concentrate="outside" bounds={[12, 2, 8]} growth={2} position={[-7, -1, 1]} scale={0.6} speed={0.09} volume={0.8} opacity={0.4} fade={12} />
-      <Cloud seed={5} segments={20} concentrate="outside" bounds={[5, 2, 4]} growth={1} position={[6, -1, 2]} scale={0.4} volume={0.7} fade={8} speed={0.07} opacity={0.45} />
+  <group position={[0, 0, 0]}>
+    <Clouds material={THREE.MeshBasicMaterial} frustumCulled={false} opacity={0.6}>
+      <Cloud seed={1} segments={40} bounds={[15, 1, 8]} volume={6} color="white" fade={30} speed={0.2} growth={4} />
+      <Cloud seed={2} segments={30} bounds={[12, 1, 6]} volume={5} color="white" fade={25} speed={0.15} growth={3} position={[5, 0, 2]} />
+      <Cloud seed={3} segments={35} bounds={[10, 1, 7]} volume={5} color="white" fade={20} speed={0.18} growth={3} position={[-6, 0, 1]} />
     </Clouds>
   </group>
 ));
 CloudScene.displayName = 'CloudScene';
 
-// ─── Loading fade-in controller ─────────────────────────────────────────────
+// ─── Loading fade-in ────────────────────────────────────────────────────────
 
 function LoadingFade({ canvasRef }: { canvasRef: React.RefObject<HTMLDivElement | null> }) {
   const { progress } = useProgress();
@@ -79,7 +87,7 @@ function LoadingFade({ canvasRef }: { canvasRef: React.RefObject<HTMLDivElement 
   return null;
 }
 
-// ─── Main desktop canvas ────────────────────────────────────────────────────
+// ─── Main component ─────────────────────────────────────────────────────────
 
 interface DesktopCanvasProps {
   isDark: boolean;
@@ -102,25 +110,33 @@ function DesktopCanvas({ isDark, isMobile }: DesktopCanvasProps) {
         overflow: 'hidden',
       }}
     >
+      {/* Bottom shadow overlay for readability */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          zIndex: 1,
+          background: 'linear-gradient(to bottom, transparent 50%, rgba(0,0,0,0.15) 100%)',
+        }}
+      />
       <Canvas
-        camera={{ position: [0, 3, 10], fov: 55 }}
+        camera={{ position: [0, 8, 12], fov: 60 }}
         dpr={isMobile ? [1, 1] : [1, 1.5]}
         gl={{ antialias: false, alpha: true }}
         style={{ width: '100%', height: '100%' }}
       >
         <LoadingFade canvasRef={canvasWrapperRef} />
-        <CameraRig isMobile={isMobile} />
-        {isDark && (
-          <Stars
-            radius={200}
-            depth={100}
-            count={isMobile ? 2000 : 5000}
-            factor={10}
-            saturation={10}
-            fade
-            speed={prefersReducedMotion ? 0 : 1}
-          />
-        )}
+        <CameraSetup isMobile={isMobile} />
+        <Stars
+          radius={200}
+          depth={60}
+          count={isDark ? 4000 : 0}
+          factor={6}
+          saturation={0}
+          fade
+          speed={prefersReducedMotion ? 0 : 0.5}
+        />
         <CloudScene />
       </Canvas>
     </div>
