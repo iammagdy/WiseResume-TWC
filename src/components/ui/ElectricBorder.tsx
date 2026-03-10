@@ -132,7 +132,7 @@ const ElectricBorder: React.FC<ElectricBorderProps> = ({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const octaves = 10;
+    const octaves = 3;
     const lacunarity = 1.6;
     const gain = 0.7;
     const amplitude = chaos;
@@ -180,7 +180,7 @@ const ElectricBorder: React.FC<ElectricBorderProps> = ({
       const maxRadius = Math.min(borderWidth, borderHeight) / 2;
       const radius = Math.min(borderRadius, maxRadius);
       const approximatePerimeter = 2 * (borderWidth + borderHeight) + 2 * Math.PI * radius;
-      const sampleCount = Math.min(Math.floor(approximatePerimeter / 2), 200);
+      const sampleCount = Math.min(Math.floor(approximatePerimeter / 4), 80);
 
       ctx.beginPath();
       for (let i = 0; i <= sampleCount; i++) {
