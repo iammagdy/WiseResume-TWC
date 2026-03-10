@@ -7,12 +7,12 @@ import { useResumes } from '@/hooks/useResumes';
 import { useCoverLetters } from '@/hooks/useCoverLetters';
 import { useJobApplications } from '@/hooks/useJobApplications';
 import { haptics } from '@/lib/haptics';
-import type { User } from '@supabase/supabase-js';
+import type { KindeAppUser } from '@/contexts/AuthContext';
 
 const AccountStatsCard = lazy(() => import('./AccountStatsCard'));
 
 interface AccountSectionProps {
-    user: User;
+    user: KindeAppUser;
     authProvider: string;
     onChangePassword: () => void;
     onSignOut: () => void;
@@ -39,7 +39,7 @@ export const AccountSection = memo(function AccountSection({
                     resumes={resumes.length}
                     coverLetters={coverLetters.length}
                     applications={applications.length}
-                    createdAt={user.created_at}
+                    createdAt={undefined}
                 />
             </Suspense>
 

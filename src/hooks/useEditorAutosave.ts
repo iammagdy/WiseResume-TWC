@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { useAppLifecycle } from '@/hooks/useAppLifecycle';
 import { backgroundScore } from '@/hooks/useResumeScore';
 import type { ResumeData } from '@/types/resume';
-import type { User } from '@supabase/supabase-js';
+import type { KindeAppUser } from '@/contexts/AuthContext';
 
 interface UpdateResumeMutation {
   mutateAsync: (args: { resumeId: string; updates: ResumeData }) => Promise<{ updated_at?: string } | void>;
@@ -14,7 +14,7 @@ interface DatabaseResumeLike {
 }
 
 interface UseEditorAutosaveOptions {
-  user: User | null;
+  user: KindeAppUser | null;
   currentResumeId: string | null;
   resumeRef: React.MutableRefObject<ResumeData | null>;
   lastSavedResumeRef: React.MutableRefObject<string>;

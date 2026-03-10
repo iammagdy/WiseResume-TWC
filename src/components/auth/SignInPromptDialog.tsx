@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom';
 import { Check, Mail } from 'lucide-react';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -29,12 +28,11 @@ export function SignInPromptDialog({
   benefits = DEFAULT_BENEFITS,
   onContinueAsGuest,
 }: SignInPromptDialogProps) {
-  const navigate = useNavigate();
-  const { login: kindeLogin } = useKindeAuth();
+  const { login: kindeLogin, register: kindeRegister } = useKindeAuth();
 
   const handleEmail = () => {
     onOpenChange(false);
-    navigate('/auth?mode=signup');
+    kindeRegister();
   };
 
   const handleGoogle = () => {

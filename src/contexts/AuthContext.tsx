@@ -1,23 +1,21 @@
 import React, { createContext, useEffect, useState, useMemo, useCallback } from 'react';
-import { User, Session } from '@supabase/supabase-js';
 import { Capacitor } from '@capacitor/core';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
-import { supabase } from '@/integrations/supabase/safeClient';
-import { migrateLocalKeysToServer } from '@/lib/migrateLocalKeys';
 import { useSettingsStore } from '@/store/settingsStore';
 import { logAudit } from '@/lib/auditLogger';
-import { runDailyCleanup } from '@/lib/dbCleanup';
 
-interface AuthState {
-  user: User | null;
-  session: Session | null;
-  loading: boolean;
+export interface KindeAppUser {
+  id: string;
+  email: string;
+  name?: string;
 }
 
-export interface AuthContextType extends AuthState {
+export interface AuthContextType {
+  user: KindeAppUser | null;
+  loading: boolean;
   signOut: () => Promise<void>;
   isAuthenticated: boolean;
-  /** Kinde user object — available when logged in via Kinde (Google). Null for email/password users. */
+  /** Raw Kinde user object for advanced usage */
   kindeUser: ReturnType<typeof useKindeAuth>['user'];
 }
 
@@ -35,13 +33,6 @@ async function hideSplashScreen() {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // --- Supabase session state ---
-  const [supabaseUser, setSupabaseUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [supabaseLoading, setSupabaseLoading] = useState(true);
-  const [splashHidden, setSplashHidden] = useState(false);
-
-  // --- Kinde auth state ---
   const {
     user: kindeUser,
     isAuthenticated: kindeAuthenticated,
@@ -49,34 +40,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     logout: kindeLogout,
   } = useKindeAuth();
 
-  // Combined loading: wait for both providers to resolve
-  const loading = supabaseLoading || kindeLoading;
+  const [splashHidden, setSplashHidden] = useState(false);
 
-  // Authenticated if either source says yes
-  const isAuthenticated = kindeAuthenticated || (!!supabaseUser && !!session);
+  const loading = kindeLoading;
+  const isAuthenticated = kindeAuthenticated;
 
-  // Expose supabase user when available (for data queries); may be null for Kinde-only users
-  const user = supabaseUser;
-
-  useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
-        setSession(newSession);
-        setSupabaseUser(newSession?.user ?? null);
-        setSupabaseLoading(false);
-      }
-    );
-
-    // THEN get initial session
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-      setSession(initialSession);
-      setSupabaseUser(initialSession?.user ?? null);
-      setSupabaseLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+  // Derive a simple user object from Kinde
+  const user: KindeAppUser | null = useMemo(() => {
+    if (!kindeUser) return null;
+    return {
+      id: kindeUser.id ?? '',
+      email: kindeUser.email ?? '',
+      name: [kindeUser.givenName, kindeUser.familyName].filter(Boolean).join(' ') || undefined,
+    };
+  }, [kindeUser]);
 
   // Hide splash screen when auth is resolved
   useEffect(() => {
@@ -89,49 +66,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [loading, splashHidden]);
 
-  // Post-auth side effects (only when Supabase session exists)
-  useEffect(() => {
-    if (!supabaseUser || !session) return;
-
-    migrateLocalKeysToServer();
-    runDailyCleanup();
-
-    supabase
-      .from('profiles')
-      .update({ last_active_at: new Date().toISOString() })
-      .eq('user_id', supabaseUser.id)
-      .then(({ error }) => {
-        if (error) console.warn('[Auth] last_active_at update failed:', error.message);
-      });
-  }, [supabaseUser?.id, session?.access_token]);
-
   const signOut = useCallback(async () => {
     logAudit('auth', 'signed_out');
-
-    // Sign out from both providers
-    try {
-      await supabase.auth.signOut();
-    } catch (e) {
-      console.error('Supabase sign-out failed:', e);
-    }
-
     try {
       await kindeLogout();
     } catch (e) {
       console.error('Kinde sign-out failed:', e);
     }
-
     useSettingsStore.getState().resetSettings();
   }, [kindeLogout]);
 
   const value = useMemo<AuthContextType>(() => ({
     user,
-    session,
     loading,
     signOut,
     isAuthenticated,
     kindeUser: kindeUser ?? null,
-  }), [user, session, loading, signOut, isAuthenticated, kindeUser]);
+  }), [user, loading, signOut, isAuthenticated, kindeUser]);
 
   return (
     <AuthContext.Provider value={value}>

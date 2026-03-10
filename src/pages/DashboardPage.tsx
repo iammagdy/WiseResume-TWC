@@ -61,8 +61,8 @@ import {
 function DashboardPageContent() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user, loading: authLoading, session, signOut } = useAuth();
-  const { isMigrating } = useGuestMigration(session);
+  const { user, loading: authLoading, signOut } = useAuth();
+  const { isMigrating } = useGuestMigration(null);
   const { data: resumes, isLoading: resumesLoading, isError: resumesError, refetch } = useResumes();
   const { deleteResume, deleteMultipleResumes, duplicateResume, updateResume } = useResumeMutations();
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();

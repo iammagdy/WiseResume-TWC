@@ -180,10 +180,10 @@ export default function SettingsPage() {
     el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  // Auth provider detection
-  const authProvider = (user?.app_metadata?.provider as string) || 'email';
-  const providerLabel = ({ google: 'Google', apple: 'Apple', email: 'Email' } as Record<string, string>)[authProvider] || 'Email';
-  const ProviderIcon = authProvider === 'google' ? Chrome : Mail;
+  // Auth provider detection — Kinde is now the only provider
+  const authProvider = 'kinde';
+  const providerLabel = 'Kinde';
+  const ProviderIcon = Mail;
 
   // --- Handlers ---
   const handleBiometricToggle = useCallback(async (enabled: boolean) => {
@@ -317,7 +317,7 @@ export default function SettingsPage() {
             className="w-full flex items-center gap-4 p-4 rounded-2xl glass-elevated text-left active:scale-[0.98] transition-all touch-manipulation border-glow"
           >
             <Avatar className="h-14 w-14">
-              <AvatarImage src={profile?.avatarUrl || user?.user_metadata?.avatar_url} />
+              <AvatarImage src={profile?.avatarUrl} />
               <AvatarFallback className="bg-primary text-primary-foreground">
                 {getInitials()}
               </AvatarFallback>

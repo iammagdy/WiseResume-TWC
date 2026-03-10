@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { User } from '@supabase/supabase-js';
+import type { KindeAppUser } from '@/contexts/AuthContext';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/safeClient';
 
@@ -136,7 +136,7 @@ export function getNextMissingField(profile: Partial<Profile> | null): { field: 
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-async function fetchProfile(userId: string, user?: User | null): Promise<Profile> {
+async function fetchProfile(userId: string, user?: KindeAppUser | null): Promise<Profile> {
   // Guard: never send a non-UUID to Postgres — it would throw 22P02
   if (!UUID_REGEX.test(userId)) {
     console.warn('[useProfile] Non-UUID userId blocked:', userId);
@@ -195,9 +195,9 @@ async function fetchProfile(userId: string, user?: User | null): Promise<Profile
     };
   }
 
-  // No profile exists - create one with OAuth metadata
-  const defaultFullName = user?.user_metadata?.full_name || user?.user_metadata?.name || null;
-  const defaultAvatarUrl = user?.user_metadata?.avatar_url || null;
+  // No profile exists - create one with Kinde user info
+  const defaultFullName = user?.name || null;
+  const defaultAvatarUrl = null;
 
   const defaultProfile: Profile = {
     fullName: defaultFullName,
@@ -250,7 +250,7 @@ async function fetchProfile(userId: string, user?: User | null): Promise<Profile
   return defaultProfile;
 }
 
-export function useProfile(userId: string | undefined, user?: User | null) {
+export function useProfile(userId: string | undefined, user?: KindeAppUser | null) {
   const queryClient = useQueryClient();
 
   const { data: profile = null, isLoading: loading } = useQuery({

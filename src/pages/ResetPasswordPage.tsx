@@ -3,17 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 
 /**
- * Trampoline: redirects /reset-password?token_hash=...&type=recovery
- * to /auth?mode=reset&token_hash=...&type=recovery so the flow works
- * even when the custom domain doesn't support SPA fallback.
+ * Legacy page — Supabase password reset is no longer used.
+ * Redirects to /auth.
  */
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const target = `/auth?mode=reset&${params.toString()}`;
-    navigate(target, { replace: true });
+    navigate('/auth', { replace: true });
   }, [navigate]);
 
   return (

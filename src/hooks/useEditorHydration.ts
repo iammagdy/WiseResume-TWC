@@ -5,7 +5,7 @@ import { dbToResumeData } from '@/hooks/useResumes';
 import { useResumeStore } from '@/store/resumeStore';
 import { logAudit } from '@/lib/auditLogger';
 import type { TemplateId } from '@/types/resume';
-import type { User } from '@supabase/supabase-js';
+import type { KindeAppUser } from '@/contexts/AuthContext';
 
 interface DatabaseResumeLike {
   id: string;
@@ -19,7 +19,7 @@ interface DatabaseResumeLike {
 interface UseEditorHydrationOptions {
   resumeFromDb: DatabaseResumeLike | null | undefined;
   currentResumeId: string | null;
-  user: User | null;
+  user: KindeAppUser | null;
   setCurrentResumeId: (id: string | null) => void;
   navigate: ReturnType<typeof useNavigate>;
   lastSavedResumeRef: React.MutableRefObject<string>;
