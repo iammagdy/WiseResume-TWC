@@ -597,6 +597,50 @@ export default function AuthPage() {
                     Continue with Google
                   </Button>
 
+                  {/* ── Kinde Email Login (Experimental) ── */}
+                  <div className="space-y-3 pt-1">
+                    <div className="relative flex items-center gap-3 py-1">
+                      <div className="flex-1 h-px bg-border" />
+                      <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                        or try Kinde email login
+                        <span className="inline-flex items-center rounded-full bg-accent/60 px-1.5 py-0.5 text-[10px] font-medium text-accent-foreground">Beta</span>
+                      </span>
+                      <div className="flex-1 h-px bg-border" />
+                    </div>
+                    <InputFormField
+                      id="kinde-email"
+                      label="Email (Kinde)"
+                      type="email"
+                      icon={<Mail className="w-4 h-4" />}
+                      value={kindeEmail}
+                      onChange={setKindeEmail}
+                      placeholder="you@example.com"
+                      autoComplete="email"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="flex-1 h-10 text-sm font-medium"
+                        disabled={!kindeEmail}
+                        onClick={() => kindeLogin({ login_hint: kindeEmail })}
+                      >
+                        <KeyRound className="w-4 h-4 mr-1.5" />
+                        Sign In
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="flex-1 h-10 text-sm font-medium"
+                        disabled={!kindeEmail}
+                        onClick={() => kindeRegister({ login_hint: kindeEmail })}
+                      >
+                        <User className="w-4 h-4 mr-1.5" />
+                        Sign Up
+                      </Button>
+                    </div>
+                  </div>
+
                   <p className="text-center text-sm text-muted-foreground">
                     {mode === 'sign-in' ? "Don't have an account?" : 'Already have an account?'}{' '}
                     <button
