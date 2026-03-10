@@ -122,8 +122,7 @@ export function useResumes<TData = DatabaseResume[]>(options?: { select?: (data:
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
-      // Filter out soft-deleted resumes in JS to avoid PostgREST schema cache issues
-      return (data || []).map(parseDbResume).filter(r => !r.deleted_at);
+      return (data || []).map(parseDbResume);
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000,
