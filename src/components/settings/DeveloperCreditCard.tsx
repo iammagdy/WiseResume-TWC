@@ -1,8 +1,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Mail, ExternalLink, Github } from 'lucide-react';
+import { Mail, ExternalLink, Github, Wrench } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { openExternal } from '@/lib/openExternal';
+import { useNavigate } from 'react-router-dom';
 import ElectricBorder from '@/components/ui/ElectricBorder';
 
 import './DeveloperCreditCard.css';
