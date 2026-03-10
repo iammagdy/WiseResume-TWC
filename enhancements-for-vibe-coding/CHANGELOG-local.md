@@ -4,6 +4,12 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### KINDE-SUPABASE-TOKEN-BRIDGE
+- **Summary**: Implemented a complete Kinde→Supabase token bridge so RLS and edge functions work for Kinde-only users. Created `token-exchange` edge function that verifies Kinde tokens via JWKS, generates deterministic UUID v5 from Kinde ID, upserts a profile row, and signs a Supabase-compatible JWT. Created `supabaseBridge.ts` singleton to manage token lifecycle. Updated `safeClient.ts` to inject bridge token on every fetch. Updated `AuthContext` to exchange tokens on login and refresh every 50 min. Removed all `supabase.auth.getSession()` calls from frontend.
+- **Files**: `supabase/functions/token-exchange/index.ts` (new), `src/lib/supabaseBridge.ts` (new), `src/contexts/AuthContext.tsx`, `src/integrations/supabase/safeClient.ts`, `src/lib/supabaseAuth.ts`, `src/lib/auditLogger.ts`, `src/integrations/supabase/edgeFunctions.ts`, `src/components/settings/AISettingsSheet.tsx`, `src/components/settings/ContactInquiryDialog.tsx`, `src/components/settings/FeatureRequestDialog.tsx`, `src/components/BugReportDialog.tsx`, `supabase/config.toml`
+- **Secrets**: Added `EXT_SUPABASE_JWT_SECRET` to sign Supabase JWTs
+- **Notes**: Existing data under old Supabase Auth UUIDs will need a separate migration. New data uses deterministic UUID v5 from Kinde ID.
+
 ### REMOVE-SUPABASE-AUTH-KINDE-ONLY
 - **Summary**: Fully removed Supabase Auth from the login flow. AuthPage now shows only Kinde Google + Kinde email sign-in/sign-up (no Supabase forms, forgot-password, or reset-password). AuthContext simplified to derive auth state solely from `useKindeAuth()`. AuthCallbackPage stripped of Supabase token exchange. EmailConfirmationPage and ResetPasswordPage now redirect to `/auth`. SignInPromptDialog uses `kindeRegister()`/`kindeLogin()` instead of navigating to Supabase signup. Updated `useProfile`, `useEditorHydration`, `useEditorAutosave`, `AccountSection`, `DashboardPage`, and `SettingsPage` to use `KindeAppUser` type instead of Supabase `User`.
 - **Files**: `src/pages/AuthPage.tsx`, `src/contexts/AuthContext.tsx`, `src/pages/AuthCallbackPage.tsx`, `src/pages/EmailConfirmationPage.tsx`, `src/pages/ResetPasswordPage.tsx`, `src/components/auth/SignInPromptDialog.tsx`, `src/hooks/useProfile.ts`, `src/hooks/useEditorHydration.ts`, `src/hooks/useEditorAutosave.ts`, `src/components/settings/sections/AccountSection.tsx`, `src/pages/DashboardPage.tsx`, `src/pages/SettingsPage.tsx`
