@@ -4,6 +4,12 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### FIX-CLOUDS-NOT-RENDERING
+- **Summary**: Fixed two bugs preventing 3D clouds from rendering: (1) cloud group positioned at Y=-30, far below camera viewport — moved to Y=0; (2) `segments={1}` too low to produce visible geometry — increased to `segments={20}`. Clouds now visible in both light and dark mode.
+- **Files edited**: `src/components/ui/SkyWallpaperCanvas.tsx`
+- **Test**: Open app on desktop and mobile — clouds should be visible floating in the background in both light and dark mode.
+- **Risks**: None — purely fixes broken rendering.
+
 ### 3D-ANIMATED-BACKGROUND
 - **Summary**: Replaced CSS-based sky background (gradients, puff clouds, stars) with a full-screen 3D animated background using React Three Fiber + GSAP. Desktop renders a `<Canvas>` with drei `<Stars>` (dark mode) and `<Clouds>` (both modes), camera parallax on mouse move, film grain noise overlay, 1rem inset border, and 3s fade-in on load. Mobile skips 3D entirely — plain div with animated background color + noise overlay for zero 3D overhead. Theme transitions animated via `useGSAP`.
 - **Files created**: `src/components/ui/SkyWallpaperCanvas.tsx`
