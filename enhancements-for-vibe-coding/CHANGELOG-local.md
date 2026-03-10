@@ -4,6 +4,11 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### AUDIT-AI-TOOLS-KINDE-AUTH
+- **Summary**: Audited all 30 AI features and their edge function calls after Kinde auth migration. All frontend callers use the bridge token (via `edgeFunctions.invoke` or `getSupabaseToken()`). All edge functions use `requireAuth` middleware with JWT `sub` claim extraction. No issues found — no code changes needed.
+- **Files**: No files changed (audit only)
+- **Test**: Run manual test checklist: Resume Score, Section Enhance, Smart Tailor, Cover Letter, Parse Resume, Interview Simulator, Career Path, AI Chat — confirm no 401/403 errors in DevTools Network tab.
+
 ### REMOVE-TRASH-UI
 - **Summary**: Completely removed Trash concept from UI. Deleted `TrashSheet.tsx`, removed Trash button from dashboard header, removed `showTrash` state and `TrashSheet` rendering from `DashboardPage.tsx`. Delete is now permanent with no Trash view.
 - **Files**: `src/pages/DashboardPage.tsx` (removed import, state, button, component), `src/components/dashboard/TrashSheet.tsx` (deleted)
