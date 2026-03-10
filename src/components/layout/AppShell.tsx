@@ -1,6 +1,6 @@
 import { useLocation, useOutlet } from 'react-router-dom';
 import { useRef, useEffect, useState, lazy, Suspense } from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, X } from 'lucide-react';
 
 import { BottomTabBar } from './BottomTabBar';
 import { DesktopNav } from './DesktopNav';
@@ -14,6 +14,7 @@ import { useKeyboardAwareScroll } from '@/hooks/useKeyboardAwareScroll';
 import { cn } from '@/lib/utils';
 import { getPageTitle } from '@/lib/pageTitles';
 import { shouldExitOnBack } from '@/lib/navigation';
+import { getLastError, clearLastError } from '@/lib/supabaseBridge';
 
 const AgenticChatSheet = lazy(() => import('@/components/editor/AgenticChatSheet').then(m => ({ default: m.AgenticChatSheet })));
 
