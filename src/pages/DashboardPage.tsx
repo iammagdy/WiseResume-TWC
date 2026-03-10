@@ -1084,7 +1084,7 @@ function DashboardPageContent() {
       )}
       {/* Feature Map Sheet */}
       <FeatureMapSheet open={showFeatureMap} onOpenChange={setShowFeatureMap} />
-      <TrashSheet open={showTrash} onOpenChange={setShowTrash} />
+      
     </div>
   );
 }
