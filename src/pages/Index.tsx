@@ -251,7 +251,7 @@ const Index = () => {
                     <Sparkles className="w-4 h-4 text-primary" />
                     Tailor your resume in 10 minutes
                   </button>
-                  <p className="text-xs text-muted-foreground">Paste a job link → get a perfectly matched resume</p>
+                  <p className="text-muted-foreground text-[#e03e4e] text-sm">Paste a job link → get a perfectly matched resume</p>
                 </div>
               </div> :
 
@@ -276,7 +276,7 @@ const Index = () => {
             { label: 'No credit card', icon: '✓' },
             { label: 'AI-powered', icon: '✓' }].
             map((item, i) =>
-            <span key={item.label} className="flex items-center gap-1.5">
+            <span key={item.label} className="flex items-center gap-1.5 text-[#e85463] text-xs">
                 {i > 0 && <span className="w-px h-3 bg-border mr-1.5 sm:mr-2 hidden xs:inline-block" />}
                 <span className="w-4 h-4 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[10px] font-bold flex-shrink-0">{item.icon}</span>
                 {item.label}
@@ -297,7 +297,7 @@ const Index = () => {
             See It in Action
           </motion.h2>
           <motion.p
-            className="text-sm text-muted-foreground text-center mb-6"
+            className="text-muted-foreground text-center mb-6 text-[#d53441] text-base"
             initial={prefersReducedMotion ? false : { opacity: 0, y: 14 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-50px' }}
