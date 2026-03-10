@@ -47,12 +47,12 @@ function CameraRig({ isMobile }: { isMobile: boolean }) {
 // ─── Cloud group ────────────────────────────────────────────────────────────
 
 const CloudScene = memo(() => (
-  <group position={[0, 0, 0]}>
+  <group position={[0, -6, -1]}>
     <Clouds material={THREE.MeshBasicMaterial} position={[0, 0, 0]} frustumCulled={false}>
-      <Cloud seed={1} segments={20} concentrate="inside" bounds={[10, 10, 10]} growth={3} position={[-4, -2, -5]} smallestVolume={2} scale={1.9} volume={2} speed={0.2} fade={5} />
-      <Cloud seed={3} segments={20} concentrate="outside" bounds={[10, 10, 10]} growth={2} position={[5, 1, -3]} smallestVolume={2} scale={1} volume={2} fade={3} speed={0.1} />
-      <Cloud seed={4} segments={20} concentrate="outside" bounds={[10, 10, 10]} growth={4} position={[-8, -1, -8]} smallestVolume={2} scale={2} speed={0.2} volume={3} />
-      <Cloud seed={5} segments={20} concentrate="outside" bounds={[5, 5, 5]} growth={2} position={[8, 0, -6]} smallestVolume={2} scale={2} volume={2} fade={0.1} speed={0.1} />
+      <Cloud seed={1} segments={20} concentrate="inside" bounds={[10, 2, 8]} growth={2} position={[-4, 0, 0]} scale={0.5} volume={0.8} speed={0.1} fade={12} opacity={0.55} />
+      <Cloud seed={3} segments={20} concentrate="outside" bounds={[8, 2, 6]} growth={1} position={[3, 0, 1]} scale={0.4} volume={0.7} fade={10} speed={0.08} opacity={0.45} />
+      <Cloud seed={4} segments={20} concentrate="outside" bounds={[12, 2, 8]} growth={2} position={[-7, -1, 1]} scale={0.6} speed={0.09} volume={0.8} opacity={0.4} fade={12} />
+      <Cloud seed={5} segments={20} concentrate="outside" bounds={[5, 2, 4]} growth={1} position={[6, -1, 2]} scale={0.4} volume={0.7} fade={8} speed={0.07} opacity={0.45} />
     </Clouds>
   </group>
 ));
@@ -103,7 +103,7 @@ function DesktopCanvas({ isDark, isMobile }: DesktopCanvasProps) {
       }}
     >
       <Canvas
-        camera={{ position: [0, 0, 15], fov: 60 }}
+        camera={{ position: [0, 3, 10], fov: 55 }}
         dpr={isMobile ? [1, 1] : [1, 1.5]}
         gl={{ antialias: false, alpha: true }}
         style={{ width: '100%', height: '100%' }}
