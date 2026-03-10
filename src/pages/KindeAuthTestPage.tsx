@@ -5,58 +5,24 @@ const KINDE_CLIENT_ID = "629174acb2874e6bbf53cd4a95497425";
 const REDIRECT_URI = `${window.location.origin}/kinde-auth-test`;
 
 function KindeAuthContent() {
-  const { login, register, logout, user, isAuthenticated, isLoading } =
-    useKindeAuth();
+  const { login, register, logout, user } = useKindeAuth();
 
   return (
     <div className="min-h-[100dvh] flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-lg space-y-6">
-        <h1 className="text-2xl font-bold text-foreground text-center">
-          Kinde Auth Test
-        </h1>
-        <p className="text-sm text-muted-foreground text-center">
-          Isolated test page — does not affect existing auth.
-        </p>
+      <div className="w-full max-w-md space-y-6">
+        <h1 className="text-2xl font-bold text-foreground">Kinde Auth Test Page</h1>
 
-        {isLoading ? (
-          <p className="text-center text-muted-foreground">Loading…</p>
-        ) : isAuthenticated ? (
-          <div className="space-y-4">
-            <div className="rounded-lg bg-muted p-4 space-y-1 text-sm">
-              <p>
-                <span className="font-medium text-foreground">Name:</span>{" "}
-                {user?.givenName} {user?.familyName}
-              </p>
-              <p>
-                <span className="font-medium text-foreground">Email:</span>{" "}
-                {user?.email}
-              </p>
-              <p>
-                <span className="font-medium text-foreground">ID:</span>{" "}
-                <code className="text-xs">{user?.id}</code>
-              </p>
-            </div>
-            <button
-              onClick={() => logout()}
-              className="w-full rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:opacity-90 transition"
-            >
-              Logout
-            </button>
-          </div>
-        ) : (
-          <div className="flex gap-3">
-            <button
-              onClick={() => login()}
-              className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition"
-            >
-              Login
-            </button>
-            <button
-              onClick={() => register()}
-              className="flex-1 rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:opacity-90 transition"
-            >
-              Register
-            </button>
+        <div className="flex gap-3">
+          <button onClick={() => register()} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Register</button>
+          <button onClick={() => login()} className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground">Log In</button>
+          <button onClick={() => logout()} className="rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground">Logout</button>
+        </div>
+
+        {user && (
+          <div className="rounded-lg bg-muted p-4 space-y-1 text-sm text-foreground">
+            <p><strong>ID:</strong> {user.id}</p>
+            <p><strong>Email:</strong> {user.email}</p>
+            <p><strong>Name:</strong> {user.givenName} {user.familyName}</p>
           </div>
         )}
       </div>
