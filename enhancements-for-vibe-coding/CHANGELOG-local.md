@@ -4,6 +4,11 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### FIX-USER-ID-BRIDGED-UUID
+- **Summary**: Fixed `user.id` returning raw Kinde ID (`kp_...`) instead of bridged UUID, causing `invalid input syntax for type uuid` on all Supabase inserts. Updated `AuthContext` to use `getUserId()` from supabaseBridge as the primary `user.id`, falling back to Kinde ID only before bridge is ready. Fixed `CreateResumeDialog.handleCreateTailored` to use `getUserId()` with a null guard and toast error.
+- **Files**: `src/contexts/AuthContext.tsx`, `src/components/dashboard/CreateResumeDialog.tsx`
+- **Notes**: All 31+ files using `user.id` for Supabase calls are automatically fixed via the AuthContext change.
+
 ### KINDE-SUPABASE-TOKEN-BRIDGE
 - **Summary**: Implemented a complete Kinde→Supabase token bridge so RLS and edge functions work for Kinde-only users. Created `token-exchange` edge function that verifies Kinde tokens via JWKS, generates deterministic UUID v5 from Kinde ID, upserts a profile row, and signs a Supabase-compatible JWT. Created `supabaseBridge.ts` singleton to manage token lifecycle. Updated `safeClient.ts` to inject bridge token on every fetch. Updated `AuthContext` to exchange tokens on login and refresh every 50 min. Removed all `supabase.auth.getSession()` calls from frontend.
 - **Files**: `supabase/functions/token-exchange/index.ts` (new), `src/lib/supabaseBridge.ts` (new), `src/contexts/AuthContext.tsx`, `src/integrations/supabase/safeClient.ts`, `src/lib/supabaseAuth.ts`, `src/lib/auditLogger.ts`, `src/integrations/supabase/edgeFunctions.ts`, `src/components/settings/AISettingsSheet.tsx`, `src/components/settings/ContactInquiryDialog.tsx`, `src/components/settings/FeatureRequestDialog.tsx`, `src/components/BugReportDialog.tsx`, `supabase/config.toml`
