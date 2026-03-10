@@ -191,13 +191,13 @@ const Index = () => {
                 variant="ghost"
                 size="sm"
                 className="text-muted-foreground hover:text-foreground text-xs px-2.5 h-8 active:scale-95 transition-all"
-                onClick={() => { triggerHaptic.light(); navigate('/auth?mode=login'); }}
+                onClick={() => { triggerHaptic.light(); kindeLogin(); }}
               >
                 Log in
               </Button>
               <button
                 className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 hover:border-primary/60 active:scale-95 transition-all touch-manipulation backdrop-blur-sm"
-                onClick={() => { triggerHaptic.medium(); navigate('/auth?mode=signup'); }}
+                onClick={() => { triggerHaptic.medium(); kindeRegister(); }}
               >
                 <UserPlus className="w-3.5 h-3.5" />
                 Sign Up
