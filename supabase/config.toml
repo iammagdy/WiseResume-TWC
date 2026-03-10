@@ -15,11 +15,7 @@ project_id = "hjnnamwgztlhzkeuufln"
     verify_jwt = false
   [functions.career-path-advisor]
     verify_jwt = false
-  [functions.clerk-webhook]
-    verify_jwt = false
   [functions.company-briefing]
-    verify_jwt = false
-  [functions.debug-jwt]
     verify_jwt = false
   [functions.detect-and-humanize]
     verify_jwt = false
@@ -63,17 +59,9 @@ project_id = "hjnnamwgztlhzkeuufln"
     verify_jwt = false
   [functions.parse-resume]
     verify_jwt = false
-  [functions.patch-clerk-jwt-template]
-    verify_jwt = false
   [functions.portfolio-meta]
     verify_jwt = false
-  [functions.provision-clerk-user]
-    verify_jwt = false
   [functions.recruiter-simulation]
-    verify_jwt = false
-  [functions.repair-clerk-uuid]
-    verify_jwt = false
-  [functions.repair-user-uuid]
     verify_jwt = false
   [functions.resolve-short-link]
     verify_jwt = false
