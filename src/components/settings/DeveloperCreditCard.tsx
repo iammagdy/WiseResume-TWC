@@ -35,6 +35,7 @@ export function DeveloperCreditCard({
   githubUrl,
   onContactClick
 }: DeveloperCreditCardProps) {
+  const navigate = useNavigate();
   const handleContactClick = () => {
     haptics.light();
     onContactClick();
