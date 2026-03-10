@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Upload, Copy, ArrowRight, GitBranch } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
@@ -17,6 +18,7 @@ import haptics from '@/lib/haptics';
 import { useResumeStore } from '@/store/resumeStore';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from '@/hooks/useAuth';
+import { getUserId } from '@/lib/supabaseBridge';
 import { useProfile } from '@/hooks/useProfile';
 import { Json } from '@/integrations/supabase/types';
 import {
@@ -167,6 +169,12 @@ export function CreateResumeDialog({
   const handleCreateTailored = async () => {
     if (!title.trim() || !parentResumeId || !user) return;
     
+    const bridgedUserId = getUserId();
+    if (!bridgedUserId) {
+      toast.error('Authentication not ready. Please try again in a moment.');
+      return;
+    }
+    
     const parentResume = existingResumes.find(r => r.id === parentResumeId);
     if (!parentResume) return;
     
@@ -176,7 +184,7 @@ export function CreateResumeDialog({
       const { data: newResume, error } = await supabase
         .from('resumes')
         .insert({
-          user_id: user.id,
+          user_id: bridgedUserId,
           title: title.trim(),
           contact_info: parentResume.contact_info as unknown as Json,
           summary: parentResume.summary,

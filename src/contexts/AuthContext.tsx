@@ -3,7 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { useSettingsStore } from '@/store/settingsStore';
 import { logAudit } from '@/lib/auditLogger';
-import { exchangeToken, clearBridge, isReady } from '@/lib/supabaseBridge';
+import { exchangeToken, clearBridge, isReady, getUserId } from '@/lib/supabaseBridge';
 
 export interface KindeAppUser {
   id: string;
@@ -56,11 +56,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const user: KindeAppUser | null = useMemo(() => {
     if (!kindeUser) return null;
     return {
-      id: kindeUser.id ?? '',
+      id: getUserId() || kindeUser.id || '',
       email: kindeUser.email ?? '',
       name: [kindeUser.givenName, kindeUser.familyName].filter(Boolean).join(' ') || undefined,
     };
-  }, [kindeUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kindeUser, bridgeReady]);
 
   // Get Kinde access token safely
   const getKindeToken = useCallback(async (): Promise<string | null> => {
