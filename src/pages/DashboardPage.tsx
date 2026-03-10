@@ -104,7 +104,7 @@ function DashboardPageContent() {
   });
   const [profilePulseSeen, setProfilePulseSeen] = useState(() => !!localStorage.getItem('wr-profile-pulse-seen'));
   const [showFeatureMap, setShowFeatureMap] = useState(false);
-  const [showTrash, setShowTrash] = useState(false);
+  
   
 
   // Pagination: render at most PAGE_SIZE items initially, reveal more on demand
