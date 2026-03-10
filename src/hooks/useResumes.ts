@@ -303,67 +303,6 @@ export function useResumeMutations() {
     },
   });
 
-  const restoreResume = useMutation({
-    mutationFn: async (resumeId: string) => {
-      if (!user) throw new Error('Not authenticated');
-      const { error } = await supabase
-        .from('resumes')
-        .update({ deleted_at: null } as any)
-        .eq('id', resumeId)
-        .select('id');
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['resumes'] });
-      queryClient.invalidateQueries({ queryKey: ['trashed-resumes'] });
-    },
-    onError: () => {
-      toast.error('Failed to restore resume');
-    },
-  });
-
-  const permanentlyDeleteResume = useMutation({
-    mutationFn: async (resumeId: string) => {
-      if (!user) throw new Error('Not authenticated');
-      const { error } = await supabase
-        .from('resumes')
-        .delete()
-        .eq('id', resumeId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trashed-resumes'] });
-    },
-    onError: () => {
-      toast.error('Failed to delete resume');
-    },
-  });
-
-  const emptyTrash = useMutation({
-    mutationFn: async () => {
-      if (!user) throw new Error('Not authenticated');
-      // Fetch all resumes and filter trashed ones in JS to avoid PGRST204 on deleted_at
-      const { data, error: fetchError } = await supabase
-        .from('resumes')
-        .select('id, deleted_at')
-        .eq('user_id', user.id);
-      if (fetchError) throw fetchError;
-      const trashedIds = (data || []).filter((r: any) => !!r.deleted_at).map((r: any) => r.id);
-      if (trashedIds.length === 0) return;
-      const { error } = await supabase
-        .from('resumes')
-        .delete()
-        .in('id', trashedIds);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trashed-resumes'] });
-      queryClient.invalidateQueries({ queryKey: ['resumes'] });
-    },
-    onError: () => {
-      toast.error('Failed to empty trash');
-    },
-  });
 
   const duplicateResume = useMutation({
     mutationFn: async (resumeId: string) => {
