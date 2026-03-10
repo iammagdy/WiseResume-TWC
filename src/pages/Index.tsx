@@ -20,7 +20,7 @@ import { QuickTailorSheet } from '@/components/landing/QuickTailorSheet';
 import { ThemeDropdown } from '@/components/settings/ThemeDropdown';
 import { InstallButton } from '@/components/pwa/InstallButton';
 
-import logoImage from '@/assets/wise-ai-logo.webp';
+import { useThemeLogo } from '@/hooks/useThemeLogo';
 
 // Lazy-load heavy demo components — only mounted when scrolled into view
 const LazyEditorDemo = lazy(() => import('@/components/landing/EditorDemo').then((m) => ({ default: m.EditorDemo })));
@@ -43,6 +43,7 @@ const Index = () => {
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const { profile } = useProfile(isAuthenticated ? user?.id : undefined, user);
   const prefersReducedMotion = useReducedMotion();
+  const themeLogo = useThemeLogo();
   const [scrolled, setScrolled] = useState(false);
   const progressRef = useRef<HTMLDivElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -146,7 +147,7 @@ const Index = () => {
             onClick={() => {triggerHaptic.light();window.scrollTo({ top: 0, behavior: 'smooth' });}}
             className="flex items-center gap-2 touch-manipulation">
             
-            <img alt="WiseResume" loading="lazy" className="w-7 h-7 object-contain rounded" src="/lovable-uploads/a7b7e7dc-c267-46b6-b636-2edf3730669c.webp" />
+            <img alt="WiseResume" loading="lazy" className="w-7 h-7 object-contain rounded" src={themeLogo} />
             <span className={`font-display font-bold text-sm text-foreground transition-opacity duration-300 ${scrolled ? 'opacity-100' : 'opacity-0'}`}>
               WiseResume
             </span>
@@ -210,7 +211,7 @@ const Index = () => {
 
               alt="Wise AI Logo"
               className="relative z-10 w-[120px] h-[120px] object-contain rounded-3xl"
-              loading="eager" src="/lovable-uploads/e1275e1b-4ef5-46e8-a89f-da0d4aa55624.webp" />
+              loading="eager" src={themeLogo} />
             
           </motion.div>
 

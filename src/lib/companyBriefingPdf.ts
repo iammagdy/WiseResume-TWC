@@ -4,7 +4,7 @@
  */
 import { PDFDocument, StandardFonts, rgb, PDFPage, PDFFont, degrees } from 'pdf-lib';
 import type { CompanyBriefing } from '@/types/companyBriefing';
-import wiseAiLogoPng from '@/assets/wise-ai-logo.png';
+import wiseAiLogoPng from '@/assets/wise-ai-logo-dark.png';
 
 // Layout constants
 const PAGE_W = 595; // A4

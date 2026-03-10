@@ -7,7 +7,7 @@ import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { Scissors, Info, Sparkles, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import wiseAiLogo from '@/assets/wise-ai-logo.webp';
+import { useThemeLogo } from '@/hooks/useThemeLogo';
 
 interface Props {
   score: JobMatchResult | null;
@@ -17,6 +17,7 @@ interface Props {
 export function JobMatchScore({ score, jobTitle }: Props) {
   const [showDetail, setShowDetail] = useState(false);
   const navigate = useNavigate();
+  const wiseAiLogo = useThemeLogo();
 
   if (!score) return null;
 
