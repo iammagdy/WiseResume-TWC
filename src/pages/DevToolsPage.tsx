@@ -327,6 +327,16 @@ export default function DevToolsPage() {
         return { status: 'success', data: data[0], summary: `OK — audit log write verified (id: ${data[0].id.slice(0, 8)}…)` };
       },
     },
+    // === USAGE EVENTS ===
+    {
+      id: 'load-usage-events', label: 'Load Last 5 Usage Events', description: 'Query usage_events table for your last 5 events', section: 'usage',
+      run: async () => {
+        const { data, error } = await supabase.from('usage_events').select('*').order('created_at', { ascending: false }).limit(5);
+        if (error) return { status: 'error', error: error.message, summary: `Query error: ${error.message}` };
+        if (!data || data.length === 0) return { status: 'success', data: [], summary: 'No usage events found yet — run an AI tool first' };
+        return { status: 'success', data, summary: `Found ${data.length} event(s) — latest: ${(data[0] as any).event_type} at ${(data[0] as any).created_at}` };
+      },
+    },
   ];
 
   if (!unlocked) {
