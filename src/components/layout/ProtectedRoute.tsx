@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 
 export function ProtectedRoute() {
-  const { user, loading } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
