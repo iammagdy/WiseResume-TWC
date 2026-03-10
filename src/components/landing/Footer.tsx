@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useThemeLogo } from '@/hooks/useThemeLogo';
 
 export function Footer() {
+  const logo = useThemeLogo();
   return (
     <footer className="relative mt-10">
       <div
