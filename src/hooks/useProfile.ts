@@ -136,7 +136,7 @@ export function getNextMissingField(profile: Partial<Profile> | null): { field: 
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-async function fetchProfile(userId: string, user?: User | null): Promise<Profile> {
+async function fetchProfile(userId: string, user?: KindeAppUser | null): Promise<Profile> {
   // Guard: never send a non-UUID to Postgres — it would throw 22P02
   if (!UUID_REGEX.test(userId)) {
     console.warn('[useProfile] Non-UUID userId blocked:', userId);

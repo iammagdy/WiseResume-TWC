@@ -317,7 +317,7 @@ export default function SettingsPage() {
             className="w-full flex items-center gap-4 p-4 rounded-2xl glass-elevated text-left active:scale-[0.98] transition-all touch-manipulation border-glow"
           >
             <Avatar className="h-14 w-14">
-              <AvatarImage src={profile?.avatarUrl || user?.user_metadata?.avatar_url} />
+              <AvatarImage src={profile?.avatarUrl} />
               <AvatarFallback className="bg-primary text-primary-foreground">
                 {getInitials()}
               </AvatarFallback>

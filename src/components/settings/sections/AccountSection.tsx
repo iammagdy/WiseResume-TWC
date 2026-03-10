@@ -39,7 +39,7 @@ export const AccountSection = memo(function AccountSection({
                     resumes={resumes.length}
                     coverLetters={coverLetters.length}
                     applications={applications.length}
-                    createdAt={user.created_at}
+                    createdAt={undefined}
                 />
             </Suspense>
 
