@@ -43,6 +43,7 @@ const Index = () => {
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const { profile } = useProfile(isAuthenticated ? user?.id : undefined, user);
   const prefersReducedMotion = useReducedMotion();
+  const themeLogo = useThemeLogo();
   const [scrolled, setScrolled] = useState(false);
   const progressRef = useRef<HTMLDivElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
