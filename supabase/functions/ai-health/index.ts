@@ -1,8 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getUserKeyFromDB } from "../_shared/aiClient.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders } from '../_shared/cors.ts';
-
+import { decodeJwtPayload } from '../_shared/authMiddleware.ts';
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') {
@@ -21,19 +20,14 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     if (authHeader?.startsWith('Bearer ')) {
       try {
-        const supabase = createClient(
-          Deno.env.get('SUPABASE_URL')!,
-          Deno.env.get('SUPABASE_ANON_KEY')!,
-          { global: { headers: { Authorization: authHeader } } }
-        );
         const token = authHeader.replace('Bearer ', '');
-        const { data: { user } } = await supabase.auth.getUser(token);
-        const userId = user?.id;
+        const claims = decodeJwtPayload(token);
+        const userId = claims['sub'] as string;
         if (userId) {
           geminiKey = await getUserKeyFromDB(userId, 'gemini');
         }
       } catch {
-        // If auth fails, fall through to env var check
+        // If token decode fails, fall through to env var check
       }
     }
 

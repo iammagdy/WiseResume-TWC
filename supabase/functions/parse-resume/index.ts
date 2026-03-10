@@ -1,8 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
+import { decodeJwtPayload } from "../_shared/authMiddleware.ts";
 
 const MAX_TEXT_LENGTH = 100 * 1024;
 
@@ -297,37 +297,15 @@ serve(async (req) => {
     let userId = 'anonymous';
 
     if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.replace('Bearer ', '');
-      
-      // Try validating with this project's Supabase first
       try {
-        const supabaseClient = createClient(
-          Deno.env.get('SUPABASE_URL') ?? '',
-          Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-          { global: { headers: { Authorization: authHeader } } }
-        );
-        const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
-        if (!authError && user) {
-          userId = user.id;
+        const token = authHeader.replace('Bearer ', '');
+        const claims = decodeJwtPayload(token);
+        const sub = claims['sub'] as string;
+        if (sub) {
+          userId = sub;
         }
       } catch {
-        // Token from different project — ignore auth error
-      }
-
-      // If auth didn't work, extract user ID from JWT payload without verification
-      // (for rate limiting only — not for authorization)
-      if (userId === 'anonymous') {
-        try {
-          const payloadB64 = token.split('.')[1];
-          if (payloadB64) {
-            const payload = JSON.parse(atob(payloadB64));
-            if (payload.sub) {
-              userId = `ext:${payload.sub}`;
-            }
-          }
-        } catch {
-          // Malformed token — use anonymous
-        }
+        // Malformed token — use anonymous
       }
     }
 
