@@ -105,6 +105,7 @@ const QrCodePage = lazyWithRetry(() => import("./pages/QrCodePage"));
 const QrBatchPage = lazyWithRetry(() => import("./pages/QrBatchPage"));
 const QrScanPage = lazyWithRetry(() => import("./pages/QrScanPage"));
 const KindeAuthTestPage = lazyWithRetry(() => import("./pages/KindeAuthTestPage"));
+const DevToolsPage = lazyWithRetry(() => import("./pages/DevToolsPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -258,6 +259,7 @@ const queryClient = new QueryClient({
         <Route element={<ProtectedRoute />}>
           <Route path="/store-screenshots" element={<Suspense fallback={<PageLoadingSpinner />}><StoreScreenshotsPage /></Suspense>} />
           <Route path="/screenshots-gallery" element={<Suspense fallback={<PageLoadingSpinner />}><ScreenshotsGalleryPage /></Suspense>} />
+          <Route path="/dev-tools" element={<Suspense fallback={<PageLoadingSpinner />}><DevToolsPage /></Suspense>} />
         </Route>
         
         <Route path="*" element={<Suspense fallback={<DetailSkeleton />}><NotFound /></Suspense>} />

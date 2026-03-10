@@ -4,6 +4,13 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### DEV-TOOLS-PAGE
+- **Summary**: Added password-gated `/dev-tools` page for internal debugging of all AI tools and key features. Runs real requests against edge functions (tailor-resume, enhance-section, analyze-resume, score-resume, parse-resume, generate-cover-letter, agentic-chat) and Supabase queries. Shows raw JSON responses, HTTP status codes, and errors in copyable `<pre>` blocks. Accessible only via "Dev Tools" button on Developer Credit Card in Settings.
+- **Files**: `src/pages/DevToolsPage.tsx` (new), `src/App.tsx` (added route), `src/components/settings/DeveloperCreditCard.tsx` (added Dev Tools button)
+- **Test**: Go to Settings → scroll to Developer card → click "Dev Tools" → enter password `thewisedeveloper` → run each test and verify responses appear.
+- **Removal**: Delete `DevToolsPage.tsx`, remove route from `App.tsx`, revert Dev Tools button in `DeveloperCreditCard.tsx`.
+
+
 ### AUDIT-AI-TOOLS-KINDE-AUTH
 - **Summary**: Audited all 30 AI features and their edge function calls after Kinde auth migration. All frontend callers use the bridge token (via `edgeFunctions.invoke` or `getSupabaseToken()`). All edge functions use `requireAuth` middleware with JWT `sub` claim extraction. No issues found — no code changes needed.
 - **Files**: No files changed (audit only)
