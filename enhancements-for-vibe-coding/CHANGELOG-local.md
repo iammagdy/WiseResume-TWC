@@ -4,6 +4,12 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### FIX-PARSE-JOB-500
+- **Summary**: Fixed 500 errors in `parse-job-text` and `parse-job-url` edge functions. `parse-job-text` had unhandled auth errors (missing try-catch around `requireAuth`). `parse-job-url` had the fix from previous session but was never redeployed. Both functions now deployed to Lovable Cloud.
+- **Files changed**: `supabase/functions/parse-job-text/index.ts` (auth error handling)
+- **Test**: Paste a job description text in the Tailor sheet or Analyze Job sheet — should parse without 500. Try a LinkedIn URL too.
+- **Risks**: None — tailor slowness is expected retry behavior (30s timeout → auto-retry succeeds).
+
 ### THEME-AWARE-LOGO
 - **Summary**: Added theme-aware logo switching — light-mode uses `Logo_Web.webp`, dark-mode uses `Logo_Web-2.webp`. Created `useThemeLogo` hook for reuse. Updated `AppIcon`, `Index`, `Footer`, `JobMatchScore` to switch dynamically. QR generator and PDF export use the dark variant (static context with dark backgrounds).
 - **Files changed**: `src/assets/wise-ai-logo-dark.webp` (new), `src/assets/wise-ai-logo-dark.png` (new), `src/hooks/useThemeLogo.ts` (new), `src/components/brand/AppIcon.tsx`, `src/pages/Index.tsx`, `src/components/landing/Footer.tsx`, `src/components/applications/JobMatchScore.tsx`, `src/components/portfolio/qr/QRGeneratorSheet.tsx`, `src/lib/companyBriefingPdf.ts`

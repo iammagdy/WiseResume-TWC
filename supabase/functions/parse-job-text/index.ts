@@ -12,7 +12,13 @@ serve(async (req) => {
   }
 
   try {
-    const { userId, client } = await requireAuth(req);
+    let userId: string;
+    try {
+      const auth = await requireAuth(req);
+      userId = auth.userId;
+    } catch (authErr) {
+      return authErrorResponse(authErr, req.headers.get('origin'));
+    }
 
     const rateCheck = await checkRateLimit(userId, { maxRequests: 20, windowSeconds: 60, actionType: 'parse_job_text' });
     if (!rateCheck.allowed) {
