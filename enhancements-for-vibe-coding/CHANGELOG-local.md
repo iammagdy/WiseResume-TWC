@@ -4,6 +4,15 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### 3D-ANIMATED-BACKGROUND
+- **Summary**: Replaced CSS-based sky background (gradients, puff clouds, stars) with a full-screen 3D animated background using React Three Fiber + GSAP. Desktop renders a `<Canvas>` with drei `<Stars>` (dark mode) and `<Clouds>` (both modes), camera parallax on mouse move, film grain noise overlay, 1rem inset border, and 3s fade-in on load. Mobile skips 3D entirely — plain div with animated background color + noise overlay for zero 3D overhead. Theme transitions animated via `useGSAP`.
+- **Files created**: `src/components/ui/SkyWallpaperCanvas.tsx`
+- **Files rewritten**: `src/components/ui/SkyWallpaper.tsx`
+- **Dependencies added**: `three`, `@react-three/fiber`, `@react-three/drei`, `gsap`, `@gsap/react`
+- **Test**: Visit app on desktop — should see 3D clouds floating, stars in dark mode, smooth color transition on theme toggle. On mobile — should see plain colored background with noise texture, no 3D. Public routes (`/p/`, `/share/`) should show nothing.
+- **Risks**: R3F is heavier than CSS; lazy-loaded canvas mitigates initial bundle impact.
+
+
 ### LANDING-CTA-POLISH
 - **Summary**: Removed guest "Log in" and "Sign Up" header buttons for a minimal landing page. Renamed "Get Started Free" → "Get Started" with filled primary background and stronger glow effect.
 - **Files edited**: `src/pages/Index.tsx`
