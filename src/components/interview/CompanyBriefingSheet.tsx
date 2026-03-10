@@ -20,7 +20,7 @@ import { AITrustBadge } from '@/components/ui/AITrustBadge';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import type { CompanyBriefing } from '@/types/companyBriefing';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { useAuth } from '@/hooks/useAuth';
 
 interface CompanyBriefingSheetProps {
   open: boolean;
