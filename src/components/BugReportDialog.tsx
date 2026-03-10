@@ -127,18 +127,10 @@ export function BugReportDialog() {
     if (!data) return;
     setStatus('sending');
 
-    // Get auth from the same client the app uses
-    let userId: string | undefined;
-    let userEmail = 'anonymous';
-    let sessionId: string | undefined;
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        userId = session.user.id;
-        userEmail = session.user.email || 'anonymous';
-        sessionId = session.access_token?.slice(-8);
-      }
-    } catch { /* proceed without auth */ }
+    // Get auth from the bridge
+    const userId = getUserId() || undefined;
+    const userEmail = userId ? 'authenticated' : 'anonymous';
+    const sessionId: string | undefined = undefined;
 
     const appVersion = await getAppVersion();
 

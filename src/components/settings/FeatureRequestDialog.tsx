@@ -37,15 +37,8 @@ export function FeatureRequestDialog({ open, onOpenChange }: FeatureRequestDialo
     if (!featureTitle.trim() || !featureDescription.trim()) return;
     setStatus('sending');
 
-    let userId: string | undefined;
-    let userEmail = 'anonymous';
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        userId = session.user.id;
-        userEmail = session.user.email || 'anonymous';
-      }
-    } catch { /* proceed without auth */ }
+    const userId = getUserId() || undefined;
+    const userEmail = 'authenticated';
 
     const appVersion = await getAppVersion();
 
