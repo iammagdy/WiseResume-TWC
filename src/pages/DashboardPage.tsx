@@ -482,15 +482,6 @@ function DashboardPageContent() {
             variant="ghost"
             size="icon"
             className="w-11 h-11 rounded-xl touch-manipulation active:scale-95 relative"
-            onClick={() => { haptics.light(); setShowTrash(true); }}
-            aria-label="Trash"
-          >
-            <Trash2 className="w-5 h-5 text-muted-foreground" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-11 h-11 rounded-xl touch-manipulation active:scale-95 relative"
             onClick={() => { haptics.light(); navigate('/settings'); }}
             aria-label="Settings"
           >
