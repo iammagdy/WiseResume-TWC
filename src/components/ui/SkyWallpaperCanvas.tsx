@@ -103,7 +103,7 @@ function DesktopCanvas({ isDark, isMobile }: DesktopCanvasProps) {
       }}
     >
       <Canvas
-        camera={{ position: [0, 0, 15], fov: 60 }}
+        camera={{ position: [0, 3, 10], fov: 55 }}
         dpr={isMobile ? [1, 1] : [1, 1.5]}
         gl={{ antialias: false, alpha: true }}
         style={{ width: '100%', height: '100%' }}
