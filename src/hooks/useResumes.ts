@@ -301,12 +301,7 @@ export function useResumeMutations() {
   const restoreResume = useMutation({
     mutationFn: async (resumeId: string) => {
       if (!user) throw new Error('Not authenticated');
-      const { error } = await supabase
-        .from('resumes')
-        .update({ deleted_at: null } as any)
-        .eq('id', resumeId)
-        .eq('user_id', user.id)
-        .select('id');
+      const { error } = await supabase.rpc('restore_resume', { p_resume_id: resumeId });
       if (error) throw error;
     },
     onSuccess: () => {
