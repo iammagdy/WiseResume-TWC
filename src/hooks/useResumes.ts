@@ -267,13 +267,7 @@ export function useResumeMutations() {
     mutationFn: async (resumeId: string) => {
       if (!user) throw new Error('Not authenticated');
 
-      const { error } = await supabase
-        .from('resumes')
-        .update({ deleted_at: new Date().toISOString() } as any)
-        .eq('id', resumeId)
-        .eq('user_id', user.id)
-        .select('id');
-
+      const { error } = await supabase.rpc('soft_delete_resume', { p_resume_id: resumeId });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -290,13 +284,7 @@ export function useResumeMutations() {
     mutationFn: async (resumeIds: string[]) => {
       if (!user) throw new Error('Not authenticated');
 
-      const { error } = await supabase
-        .from('resumes')
-        .update({ deleted_at: new Date().toISOString() } as any)
-        .in('id', resumeIds)
-        .eq('user_id', user.id)
-        .select('id');
-
+      const { error } = await supabase.rpc('soft_delete_resumes', { p_resume_ids: resumeIds });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -313,12 +301,7 @@ export function useResumeMutations() {
   const restoreResume = useMutation({
     mutationFn: async (resumeId: string) => {
       if (!user) throw new Error('Not authenticated');
-      const { error } = await supabase
-        .from('resumes')
-        .update({ deleted_at: null } as any)
-        .eq('id', resumeId)
-        .eq('user_id', user.id)
-        .select('id');
+      const { error } = await supabase.rpc('restore_resume', { p_resume_id: resumeId });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -350,15 +333,23 @@ export function useResumeMutations() {
   const emptyTrash = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error('Not authenticated');
+      // Fetch all resumes and filter trashed ones in JS to avoid PGRST204 on deleted_at
+      const { data, error: fetchError } = await supabase
+        .from('resumes')
+        .select('id, deleted_at')
+        .eq('user_id', user.id);
+      if (fetchError) throw fetchError;
+      const trashedIds = (data || []).filter((r: any) => !!r.deleted_at).map((r: any) => r.id);
+      if (trashedIds.length === 0) return;
       const { error } = await supabase
         .from('resumes')
         .delete()
-        .eq('user_id', user.id)
-        .not('deleted_at', 'is', null);
+        .in('id', trashedIds);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trashed-resumes'] });
+      queryClient.invalidateQueries({ queryKey: ['resumes'] });
     },
     onError: () => {
       toast.error('Failed to empty trash');
