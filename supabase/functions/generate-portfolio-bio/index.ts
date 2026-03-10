@@ -1,33 +1,23 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { callAI, sanitizeInputText } from '../_shared/aiClient.ts';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-};
+import { getCorsHeaders } from '../_shared/cors.ts';
+import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+    let userId: string;
+    let client: ReturnType<typeof import('https://esm.sh/@supabase/supabase-js@2').createClient>;
+    try {
+      const auth = await requireAuth(req);
+      userId = auth.userId;
+      client = auth.client;
+    } catch (authErr) {
+      return authErrorResponse(authErr, req.headers.get('origin'));
     }
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
-    }
-    const userId = user.id;
 
     const body = await req.json();
     const { action = 'bio', summary, fullName, jobTitle, experience, skills, careerLevel } = body;
@@ -44,11 +34,7 @@ Deno.serve(async (req) => {
       }
 
       // Increment AI usage
-      const serviceClient = createClient(
-        Deno.env.get('SUPABASE_URL')!,
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-      );
-      await serviceClient.rpc('increment_ai_usage', { p_user_id: userId });
+      await client.rpc('increment_ai_usage', { p_user_id: userId });
 
       const safeDesc = sanitizeInputText(projectDescription || '', 1500);
       const techList = Array.isArray(projectTechnologies) ? projectTechnologies.slice(0, 10).join(', ') : (projectTechnologies || '');
@@ -111,11 +97,7 @@ Example:
     }
 
     // Increment AI usage
-    const serviceClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-    await serviceClient.rpc('increment_ai_usage', { p_user_id: userId });
+    await client.rpc('increment_ai_usage', { p_user_id: userId });
 
     const sanitizedSummary = hasSummary ? sanitizeInputText(summary, 2000) : '';
     const experienceContext = hasExperience
@@ -190,7 +172,6 @@ Example output:
         metaTitle = parsed.metaTitle || '';
         metaDescription = parsed.metaDescription || '';
       } catch {
-        // Fallback: try regex extraction
         const titleMatch = response.content?.match(/"metaTitle"\s*:\s*"([^"]+)"/);
         const descMatch = response.content?.match(/"metaDescription"\s*:\s*"([^"]+)"/);
         metaTitle = titleMatch?.[1] || '';

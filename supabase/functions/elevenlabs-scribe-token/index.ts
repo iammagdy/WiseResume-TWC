@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 
 // Mirrors the AES-GCM decrypt from manage-api-keys/index.ts
 const ENCRYPTION_SECRET = Deno.env.get('API_KEY_ENCRYPTION_SECRET') ?? 'fallback-secret-change-me';
@@ -44,45 +44,25 @@ serve(async (req) => {
   }
 
   try {
-    // Authentication check
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(
-        JSON.stringify({ error: 'Missing authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    // Pass token explicitly for Supabase Edge Functions
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
-    if (authError || !user) {
-      console.error('Auth error:', authError?.message);
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // Authenticate via shared middleware (decodes JWT sub, returns service-role client)
+    let userId: string;
+    let client: any;
+    try {
+      const auth = await requireAuth(req);
+      userId = auth.userId;
+      client = auth.client;
+    } catch (authErr) {
+      return authErrorResponse(authErr, req.headers.get('origin'));
     }
 
     // Resolve API key: prefer user's own stored key, fall back to platform default
     let apiKey: string | undefined;
 
     // Look up user's ElevenLabs key from encrypted server-side store
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    const { data: keyRow } = await supabaseAdmin
+    const { data: keyRow } = await client
       .from('user_api_keys')
       .select('encrypted_key')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('provider', 'elevenlabs')
       .maybeSingle();
 
@@ -91,7 +71,6 @@ serve(async (req) => {
         apiKey = await decrypt(keyRow.encrypted_key);
       } catch (decryptErr) {
         console.error('Failed to decrypt user ElevenLabs key:', decryptErr);
-        // Fall through to platform default
       }
     }
 
