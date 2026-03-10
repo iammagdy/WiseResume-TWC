@@ -21,6 +21,7 @@ import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { RedirectJobRoute } from "@/components/layout/RedirectJobRoute";
 import { useAIKeyHydration } from "@/hooks/useAIKeyHydration";
 import { SkyWallpaper } from "@/components/ui/SkyWallpaper";
+import { KindeProvider } from "@kinde-oss/kinde-auth-react";
 
 const CommandPalette = lazyWithRetry(() => import("@/components/layout/CommandPalette"));
 
@@ -297,13 +298,20 @@ const App = () => {
       <TooltipProvider>
           <ErrorBoundary>
             <Toaster />
-            <BrowserRouter>
-              <AuthProvider>
+             <BrowserRouter>
+               <KindeProvider
+                 clientId="629174acb2874e6bbf53cd4a95497425"
+                 domain="https://thewisecloud.kinde.com"
+                 redirectUri={window.location.origin + '/auth/callback'}
+                 logoutUri={window.location.origin}
+               >
+               <AuthProvider>
                 <AppRoutes />
                 <DeferredProviders />
                 <AppInstallPrompt />
-              </AuthProvider>
-            </BrowserRouter>
+               </AuthProvider>
+               </KindeProvider>
+             </BrowserRouter>
           </ErrorBoundary>
       </TooltipProvider>
     </QueryClientProvider>

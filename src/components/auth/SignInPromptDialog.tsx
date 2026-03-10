@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Check, Mail } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
@@ -30,23 +30,16 @@ export function SignInPromptDialog({
   onContinueAsGuest,
 }: SignInPromptDialogProps) {
   const navigate = useNavigate();
+  const { login: kindeLogin } = useKindeAuth();
 
   const handleEmail = () => {
     onOpenChange(false);
     navigate('/auth?mode=signup');
   };
 
-  const handleGoogle = async () => {
+  const handleGoogle = () => {
     onOpenChange(false);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin + '/auth/callback',
-      },
-    });
-    if (error) {
-      console.error('Google sign-in failed:', error.message);
-    }
+    kindeLogin();
   };
 
   const handleContinueAsGuest = () => {

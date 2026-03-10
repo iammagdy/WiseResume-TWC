@@ -16,7 +16,7 @@ import { SlideCaptcha } from '@/components/auth/SlideCaptcha';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
-// lovable OAuth removed — using direct supabase.auth.signInWithOAuth
+import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 
 type Mode = 'sign-in' | 'sign-up' | 'forgot-password' | 'reset-password';
 type SignUpStep = 'form' | 'method';
@@ -26,6 +26,7 @@ export default function AuthPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { isAuthenticated, loading: authLoading } = useAuth();
+  const { login: kindeLogin } = useKindeAuth();
 
   const redirectTo = searchParams.get('redirect') || '/dashboard';
   const rawMode = searchParams.get('mode');
@@ -583,23 +584,8 @@ export default function AuthPage() {
                     size="lg"
                     className="w-full h-12 text-base font-medium gap-3"
                     disabled={isLoading}
-                    onClick={async () => {
-                      setIsLoading(true);
-                      try {
-                        const { error } = await supabase.auth.signInWithOAuth({
-                          provider: 'google',
-                          options: {
-                            redirectTo: window.location.origin + '/auth/callback',
-                          },
-                        });
-                        if (error) {
-                          toast.error('Google sign-in failed. Please try again.');
-                        }
-                      } catch {
-                        toast.error('Google sign-in failed. Please try again.');
-                      } finally {
-                        setIsLoading(false);
-                      }
+                    onClick={() => {
+                      kindeLogin();
                     }}
                   >
                     <svg className="w-5 h-5" viewBox="0 0 24 24">

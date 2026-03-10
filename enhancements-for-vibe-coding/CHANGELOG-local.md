@@ -4,6 +4,11 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### KINDE-GOOGLE-BUTTON-SWITCH
+- **Summary**: Switched "Continue with Google" button on `/auth` and `SignInPromptDialog` to use Kinde's `login()` instead of `supabase.auth.signInWithOAuth`. Lifted `KindeProvider` to `App.tsx` root. Simplified `KindeAuthTestPage` to use inherited provider.
+- **Files**: `src/App.tsx`, `src/pages/AuthPage.tsx`, `src/components/auth/SignInPromptDialog.tsx`, `src/pages/KindeAuthTestPage.tsx`
+- **Notes**: Email/password auth remains on Supabase. Kinde session does NOT create a Supabase session — `ProtectedRoute` won't recognize Kinde-only users yet. Follow-up needed for token bridge.
+
 ### KINDE-AUTH-TEST-PAGE
 - **Summary**: Installed `@kinde-oss/kinde-auth-react` and added isolated `/kinde-auth-test` page with Login/Register/Logout buttons and user info display. Zero changes to existing Supabase Auth.
 - **Files**: `src/pages/KindeAuthTestPage.tsx` (new), `src/App.tsx` (added lazy route)

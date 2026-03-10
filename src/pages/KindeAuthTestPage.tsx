@@ -1,10 +1,6 @@
-import { KindeProvider, useKindeAuth } from "@kinde-oss/kinde-auth-react";
+import { useKindeAuth } from "@kinde-oss/kinde-auth-react";
 
-const KINDE_DOMAIN = "https://thewisecloud.kinde.com";
-const KINDE_CLIENT_ID = "629174acb2874e6bbf53cd4a95497425";
-const REDIRECT_URI = `${window.location.origin}/kinde-auth-test`;
-
-function KindeAuthContent() {
+export default function KindeAuthTestPage() {
   const { login, register, logout, user } = useKindeAuth();
 
   return (
@@ -27,18 +23,5 @@ function KindeAuthContent() {
         )}
       </div>
     </div>
-  );
-}
-
-export default function KindeAuthTestPage() {
-  return (
-    <KindeProvider
-      clientId={KINDE_CLIENT_ID}
-      domain={KINDE_DOMAIN}
-      redirectUri={REDIRECT_URI}
-      logoutUri={REDIRECT_URI}
-    >
-      <KindeAuthContent />
-    </KindeProvider>
   );
 }
