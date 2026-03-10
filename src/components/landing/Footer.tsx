@@ -36,11 +36,11 @@ export function Footer() {
         </div>
 
         <div className="flex items-center gap-3 text-[11px]">
-          <Link to="/privacy" className="text-muted-foreground/50 hover:text-muted-foreground transition-colors">
+          <Link to="/privacy-policy" className="text-muted-foreground/50 hover:text-muted-foreground transition-colors">
             Privacy Policy
           </Link>
           <span className="w-px h-3 bg-border/30" />
-          <Link to="/terms" className="text-muted-foreground/50 hover:text-muted-foreground transition-colors">
+          <Link to="/terms-of-service" className="text-muted-foreground/50 hover:text-muted-foreground transition-colors">
             Terms of Service
           </Link>
         </div>
