@@ -196,7 +196,7 @@ const queryClient = new QueryClient({
            <Route element={<AppShell />}>
                <Route path="/auth" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />
                <Route path="/sign-in" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />
-               <Route path="/auth/confirm-email" element={<Suspense fallback={<PageLoadingSpinner />}><EmailConfirmationPage /></Suspense>} />
+               
               <Route path="/auth/callback" element={<Suspense fallback={<PageLoadingSpinner />}><AuthCallbackPage /></Suspense>} />
               <Route path="/privacy" element={<Suspense fallback={<PageLoadingSpinner />}><PrivacyPage /></Suspense>} />
                <Route path="/terms" element={<Suspense fallback={<PageLoadingSpinner />}><TermsPage /></Suspense>} />
