@@ -35,6 +35,7 @@ interface CompanyBriefingSheetProps {
 
 export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resumeData }: CompanyBriefingSheetProps) {
   const { generate, briefing, isLoading, error, reset } = useCompanyBriefing();
+  const { user: authUser } = useAuth();
   const [localJD, setLocalJD] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [inputMode, setInputMode] = useState<'company' | 'jd'>('company');
