@@ -3,6 +3,7 @@ import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAIWithRetry, isAIError, parseAIJSON, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
+import { getServiceClient } from "../_shared/dbClient.ts";
 
 /** Safely extract skills as a comma-separated string */
 function safeSkillsString(skills: unknown): string {
