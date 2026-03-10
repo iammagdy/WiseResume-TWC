@@ -10,6 +10,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import triggerHaptic from '@/lib/haptics';
+import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { motion, useReducedMotion, AnimatePresence, type Easing } from 'framer-motion';
 import { useEffect, useState, useRef, lazy, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -110,9 +111,11 @@ const Index = () => {
           transition: { delay, duration: 0.6, ease: 'easeOut' as Easing },
         };
 
+  const { login: kindeLogin, register: kindeRegister } = useKindeAuth();
+
   const handleCTA = () => {
     triggerHaptic.medium();
-    navigate('/auth?mode=signup');
+    kindeRegister();
   };
 
   // Show loading state while auth resolves to prevent guest→auth flash
@@ -188,13 +191,13 @@ const Index = () => {
                 variant="ghost"
                 size="sm"
                 className="text-muted-foreground hover:text-foreground text-xs px-2.5 h-8 active:scale-95 transition-all"
-                onClick={() => { triggerHaptic.light(); navigate('/auth?mode=login'); }}
+                onClick={() => { triggerHaptic.light(); kindeLogin(); }}
               >
                 Log in
               </Button>
               <button
                 className="flex items-center gap-1.5 h-8 px-3 text-xs font-semibold rounded-lg border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 hover:border-primary/60 active:scale-95 transition-all touch-manipulation backdrop-blur-sm"
-                onClick={() => { triggerHaptic.medium(); navigate('/auth?mode=signup'); }}
+                onClick={() => { triggerHaptic.medium(); kindeRegister(); }}
               >
                 <UserPlus className="w-3.5 h-3.5" />
                 Sign Up
