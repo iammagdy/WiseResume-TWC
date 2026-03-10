@@ -13,19 +13,19 @@ const prefersReducedMotion =
 
 // ─── Camera parallax on mouse move ──────────────────────────────────────────
 
-function CameraRig() {
+function CameraRig({ isMobile }: { isMobile: boolean }) {
   const { camera } = useThree();
   const mouse = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
-    if (prefersReducedMotion) return;
+    if (prefersReducedMotion || isMobile) return;
     const onMove = (e: MouseEvent) => {
       mouse.current.x = (e.clientX / window.innerWidth - 0.5) * 2;
       mouse.current.y = (e.clientY / window.innerHeight - 0.5) * 2;
     };
     window.addEventListener('mousemove', onMove, { passive: true });
     return () => window.removeEventListener('mousemove', onMove);
-  }, []);
+  }, [isMobile]);
 
   useFrame((_, delta) => {
     if (prefersReducedMotion) return;
