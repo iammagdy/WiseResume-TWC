@@ -4,6 +4,13 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### ROUTE-RENAME-PRIVACY-TERMS
+- **Summary**: Renamed `/privacy` → `/privacy-policy` and `/terms` → `/terms-of-service` across routes, links, and bug report screen map.
+- **Files edited**: `src/App.tsx`, `src/components/landing/Footer.tsx`, `src/pages/AuthPage.tsx`, `src/lib/bugReport.ts`
+- **Test**: Click Privacy Policy and Terms of Service links in footer and auth page; verify they navigate to `/privacy-policy` and `/terms-of-service`.
+
+
+
 ### AUTH-CLEANUP-LEGACY-ARTIFACTS
 - **Summary**: Removed 6 ghost Clerk-era entries from `supabase/config.toml` (`clerk-webhook`, `debug-jwt`, `patch-clerk-jwt-template`, `provision-clerk-user`, `repair-clerk-uuid`, `repair-user-uuid`). Dropped legacy `signup_otps` table. Kept `auth-email-hook` (Lovable Cloud system function), `KindeAuthTestPage.tsx` (testing phase), and `get_clerk_user_id` DB function (still used by callers, rename deferred).
 - **Files edited**: `supabase/config.toml`
