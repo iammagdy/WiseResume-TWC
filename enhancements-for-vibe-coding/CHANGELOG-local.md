@@ -4,6 +4,10 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### FIX-EDGE-FUNCTION-AUTH-401
+- **Summary**: Fixed 401 Unauthorized in `tailor-resume`, `enhance-section`, `parse-job-url`. Replaced `getClaims()` (verifies against Lovable Cloud JWT secret) with `requireAuth()` from shared middleware (decodes without signature check, matching bridge token pattern).
+- **Files**: `supabase/functions/tailor-resume/index.ts`, `supabase/functions/enhance-section/index.ts`, `supabase/functions/parse-job-url/index.ts`
+
 ### DEBUG-SHADOW-USER-CREATION
 - **Summary**: Enhanced `token-exchange` edge function with verbose logging around `auth.admin.createUser` — logs target URL, user ID, email, full success/error objects. Broadened error matching to handle `already`/`duplicate`/`exists` variants. Added `getUserById` fallback verification: if createUser fails with unexpected error, confirms user actually exists before proceeding; returns 500 if not.
 - **Files**: `supabase/functions/token-exchange/index.ts`
