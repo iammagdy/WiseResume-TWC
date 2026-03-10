@@ -51,6 +51,7 @@ const SECTIONS: { id: SectionId; title: string; emoji: string }[] = [
   { id: 'ai', title: 'AI Tools Smoke Test', emoji: '🤖' },
   { id: 'db', title: 'Resume & Data Checks', emoji: '🗄️' },
   { id: 'errors', title: 'Error Handling & Logging', emoji: '🔥' },
+  { id: 'usage', title: 'Usage Events', emoji: '📊' },
 ];
 
 function StatusBadge({ status }: { status: TestStatus }) {

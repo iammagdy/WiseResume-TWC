@@ -465,6 +465,16 @@ Analyze deeply, then return this exact JSON structure:
 
     await recordUsage(userId, 'tailor', { provider: aiResponse.providerUsed || 'unknown' });
 
+    // Fire-and-forget usage event insert
+    try {
+      const svcClient = getServiceClient();
+      svcClient.from('usage_events').insert({
+        user_id: userId,
+        event_type: 'ai.tailor_resume',
+        metadata: { model: aiResponse.providerUsed || 'unknown' },
+      }).then(() => {});
+    } catch { /* non-critical */ }
+
     return new Response(
       JSON.stringify({ ...tailoredResult, _providerUsed: aiResponse.providerUsed || 'unknown' }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
