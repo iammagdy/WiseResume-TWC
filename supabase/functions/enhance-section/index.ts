@@ -516,6 +516,7 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  try {
     // Authentication via shared middleware (decodes JWT without signature check)
     let userId: string;
     try {
