@@ -30,23 +30,16 @@ export function SignInPromptDialog({
   onContinueAsGuest,
 }: SignInPromptDialogProps) {
   const navigate = useNavigate();
+  const { login: kindeLogin } = useKindeAuth();
 
   const handleEmail = () => {
     onOpenChange(false);
     navigate('/auth?mode=signup');
   };
 
-  const handleGoogle = async () => {
+  const handleGoogle = () => {
     onOpenChange(false);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin + '/auth/callback',
-      },
-    });
-    if (error) {
-      console.error('Google sign-in failed:', error.message);
-    }
+    kindeLogin();
   };
 
   const handleContinueAsGuest = () => {

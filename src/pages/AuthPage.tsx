@@ -583,23 +583,8 @@ export default function AuthPage() {
                     size="lg"
                     className="w-full h-12 text-base font-medium gap-3"
                     disabled={isLoading}
-                    onClick={async () => {
-                      setIsLoading(true);
-                      try {
-                        const { error } = await supabase.auth.signInWithOAuth({
-                          provider: 'google',
-                          options: {
-                            redirectTo: window.location.origin + '/auth/callback',
-                          },
-                        });
-                        if (error) {
-                          toast.error('Google sign-in failed. Please try again.');
-                        }
-                      } catch {
-                        toast.error('Google sign-in failed. Please try again.');
-                      } finally {
-                        setIsLoading(false);
-                      }
+                    onClick={() => {
+                      kindeLogin();
                     }}
                   >
                     <svg className="w-5 h-5" viewBox="0 0 24 24">

@@ -309,8 +309,9 @@ const App = () => {
                 <AppRoutes />
                 <DeferredProviders />
                 <AppInstallPrompt />
-              </AuthProvider>
-            </BrowserRouter>
+               </AuthProvider>
+               </KindeProvider>
+             </BrowserRouter>
           </ErrorBoundary>
       </TooltipProvider>
     </QueryClientProvider>
