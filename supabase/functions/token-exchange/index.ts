@@ -110,14 +110,36 @@ serve(async (req) => {
     // 5. Upsert profile so the user exists in DB
     const serviceClient = getServiceClient();
 
+    const extUrl = Deno.env.get('EXT_SUPABASE_URL') || Deno.env.get('SUPABASE_URL') || '(none)';
+    console.log(`[token-exchange] Creating shadow user — id=${supabaseUserId}, email=${email || '(empty)'}, target=${extUrl}`);
+
     // Create shadow user in auth.users so FK constraints are satisfied
-    const { error: createUserError } = await serviceClient.auth.admin.createUser({
+    const { data: createUserData, error: createUserError } = await serviceClient.auth.admin.createUser({
       id: supabaseUserId,
       email: email || `${kindeUserId}@kinde.placeholder`,
       email_confirm: true,
     });
-    if (createUserError && !createUserError.message?.includes('already been registered')) {
-      console.error('[token-exchange] Failed to create shadow user:', createUserError);
+
+    if (createUserError) {
+      const msg = createUserError.message?.toLowerCase() || '';
+      const isAlreadyExists = msg.includes('already') || msg.includes('duplicate') || msg.includes('exists');
+      if (isAlreadyExists) {
+        console.log(`[token-exchange] Shadow user already exists (expected): ${createUserError.message}`);
+      } else {
+        console.error(`[token-exchange] createUser FAILED: status=${createUserError.status}, message=${createUserError.message}`);
+        // Verify user actually exists before proceeding
+        const { data: existingUser, error: getUserErr } = await serviceClient.auth.admin.getUserById(supabaseUserId);
+        if (getUserErr || !existingUser?.user) {
+          console.error(`[token-exchange] getUserById also failed — user does NOT exist in auth.users. Returning 500.`);
+          return new Response(JSON.stringify({ error: 'Failed to provision user account' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        console.log(`[token-exchange] getUserById confirmed user exists despite createUser error`);
+      }
+    } else {
+      console.log(`[token-exchange] Shadow user created successfully: id=${createUserData?.user?.id}`);
     }
 
     await serviceClient.from('profiles').upsert(

@@ -4,6 +4,11 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### DEBUG-SHADOW-USER-CREATION
+- **Summary**: Enhanced `token-exchange` edge function with verbose logging around `auth.admin.createUser` — logs target URL, user ID, email, full success/error objects. Broadened error matching to handle `already`/`duplicate`/`exists` variants. Added `getUserById` fallback verification: if createUser fails with unexpected error, confirms user actually exists before proceeding; returns 500 if not.
+- **Files**: `supabase/functions/token-exchange/index.ts`
+- **Test**: Trigger token-exchange, check edge function logs for diagnostic output. Confirm shadow user row exists in auth.users.
+
 ### FIX-SHADOW-USER-AUTH-USERS
 - **Summary**: Fixed `resumes_user_id_fkey` foreign key violation by creating a shadow `auth.users` row in the `token-exchange` edge function using `serviceClient.auth.admin.createUser()` before upserting profiles. Idempotent — ignores "already registered" errors.
 - **Files**: `supabase/functions/token-exchange/index.ts`
