@@ -7,16 +7,23 @@
  */
 import { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY } from '@/lib/supabaseConstants';
 
+interface BridgeError {
+  code: string;
+  message: string;
+}
+
 interface BridgeState {
   supabaseToken: string | null;
   userId: string | null;
   expiresAt: number; // unix seconds
+  lastError: BridgeError | null;
 }
 
 const state: BridgeState = {
   supabaseToken: null,
   userId: null,
   expiresAt: 0,
+  lastError: null,
 };
 
 let exchangePromise: Promise<void> | null = null;
