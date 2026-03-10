@@ -3,7 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { useSettingsStore } from '@/store/settingsStore';
 import { logAudit } from '@/lib/auditLogger';
-import { exchangeToken, clearBridge, isReady } from '@/lib/supabaseBridge';
+import { exchangeToken, clearBridge, isReady, getUserId } from '@/lib/supabaseBridge';
 
 export interface KindeAppUser {
   id: string;
