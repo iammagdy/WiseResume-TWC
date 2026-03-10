@@ -4,6 +4,14 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### AUTH-FLOW-SIMPLIFICATION
+- **Summary**: Removed intermediate auth page card UI. Landing page buttons (Log in, Sign Up, Get Started Free) now call Kinde directly. AuthPage.tsx converted to a thin redirect layer that auto-triggers Kinde login/register based on `?mode=` param.
+- **Files edited**: `src/pages/Index.tsx`, `src/pages/AuthPage.tsx`
+- **Test**: Click "Log in", "Sign Up", and "Get Started Free" on landing page — should redirect directly to Kinde hosted auth. Visit `/auth?mode=login` directly — should auto-redirect to Kinde login.
+- **Manual action**: Update Kinde dashboard (Design → Pages) to match app dark theme: background `hsl(240 30% 3%)`, primary button color to match app primary red.
+
+
+
 ### REPO-SIZE-CLEANUP
 - **Summary**: Deleted legacy/redundant files to reduce repo size (~16K+ lines removed). Deleted `email-templates-html.md`, `email-templates.md`, `deno.lock`. Could not delete `package-lock.json` or edit `.gitignore` (read-only).
 - **Files deleted**: `email-templates-html.md`, `email-templates.md`, `deno.lock`
