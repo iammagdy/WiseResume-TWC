@@ -486,9 +486,6 @@ function DashboardPageContent() {
             aria-label="Trash"
           >
             <Trash2 className="w-5 h-5 text-muted-foreground" />
-            {trashedResumes.length > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive border-2 border-background" />
-            )}
           </Button>
           <Button
             variant="ghost"

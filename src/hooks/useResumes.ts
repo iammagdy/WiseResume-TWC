@@ -394,25 +394,6 @@ export function useResumeMutations() {
   };
 }
 
-export function useTrashedResumes() {
-  const { user } = useAuth();
-
-  return useQuery({
-    queryKey: ['trashed-resumes', user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('resumes')
-        .select('*')
-        .order('updated_at', { ascending: false });
-
-      if (error) throw error;
-      // Filter in JS to avoid PostgREST schema cache issues with deleted_at column
-      return (data || []).map(parseDbResume).filter(r => !!r.deleted_at);
-    },
-    enabled: !!user,
-    staleTime: 30 * 1000,
-  });
-}
 
 export function useSetMasterCV() {
   const { user } = useAuth();
