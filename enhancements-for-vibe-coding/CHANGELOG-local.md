@@ -4,6 +4,12 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### FIX-SHADOW-USER-AUTH-USERS
+- **Summary**: Fixed `resumes_user_id_fkey` foreign key violation by creating a shadow `auth.users` row in the `token-exchange` edge function using `serviceClient.auth.admin.createUser()` before upserting profiles. Idempotent — ignores "already registered" errors.
+- **Files**: `supabase/functions/token-exchange/index.ts`
+- **Notes**: Same pattern as `migrate-user-data`. The edge function auto-deploys on Lovable Cloud.
+
+
 ### FIX-USER-ID-BRIDGED-UUID
 - **Summary**: Fixed `user.id` returning raw Kinde ID (`kp_...`) instead of bridged UUID, causing `invalid input syntax for type uuid` on all Supabase inserts. Updated `AuthContext` to use `getUserId()` from supabaseBridge as the primary `user.id`, falling back to Kinde ID only before bridge is ready. Fixed `CreateResumeDialog.handleCreateTailored` to use `getUserId()` with a null guard and toast error.
 - **Files**: `src/contexts/AuthContext.tsx`, `src/components/dashboard/CreateResumeDialog.tsx`
