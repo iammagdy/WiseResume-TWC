@@ -21,6 +21,16 @@ const state: BridgeState = {
 
 let exchangePromise: Promise<void> | null = null;
 
+/** Registered Kinde token getter — set by AuthContext */
+let _getKindeTokenFn: (() => Promise<string | null>) | null = null;
+
+/**
+ * Register the Kinde token getter so the bridge can refresh autonomously.
+ */
+export function setKindeTokenGetter(fn: () => Promise<string | null>): void {
+  _getKindeTokenFn = fn;
+}
+
 /**
  * Exchange a Kinde access token for a Supabase JWT.
  * Deduplicates concurrent calls (only one in-flight request at a time).
@@ -62,6 +72,33 @@ export async function exchangeToken(kindeToken: string): Promise<void> {
 }
 
 /**
+ * Refresh the bridge token if expired or about to expire.
+ * Uses the registered Kinde token getter. Returns true if token is valid after attempt.
+ */
+export async function refreshTokenIfNeeded(): Promise<boolean> {
+  // If token is still valid, no-op
+  if (getToken()) return true;
+
+  if (!_getKindeTokenFn) {
+    console.warn('[SupabaseBridge] No Kinde token getter registered — cannot refresh');
+    return false;
+  }
+
+  try {
+    const kindeToken = await _getKindeTokenFn();
+    if (!kindeToken) {
+      console.warn('[SupabaseBridge] Kinde token getter returned null');
+      return false;
+    }
+    await exchangeToken(kindeToken);
+    return getToken() !== null;
+  } catch (err) {
+    console.error('[SupabaseBridge] refreshTokenIfNeeded failed:', err);
+    return false;
+  }
+}
+
+/**
  * Get the current Supabase JWT, or null if not available / expired.
  */
 export function getToken(): string | null {
@@ -93,5 +130,6 @@ export function clearBridge(): void {
   state.userId = null;
   state.expiresAt = 0;
   exchangePromise = null;
+  _getKindeTokenFn = null;
   console.log('[SupabaseBridge] Cleared');
 }

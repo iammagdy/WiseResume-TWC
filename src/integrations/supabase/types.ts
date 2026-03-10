@@ -1180,6 +1180,33 @@ export type Database = {
           },
         ]
       }
+      token_exchanges: {
+        Row: {
+          created_at: string
+          error_code: string | null
+          id: string
+          kinde_sub: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_code?: string | null
+          id?: string
+          kinde_sub: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_code?: string | null
+          id?: string
+          kinde_sub?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_api_keys: {
         Row: {
           base_url: string | null
