@@ -4,6 +4,12 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### REMOVE-SUPABASE-AUTH-KINDE-ONLY
+- **Summary**: Fully removed Supabase Auth from the login flow. AuthPage now shows only Kinde Google + Kinde email sign-in/sign-up (no Supabase forms, forgot-password, or reset-password). AuthContext simplified to derive auth state solely from `useKindeAuth()`. AuthCallbackPage stripped of Supabase token exchange. EmailConfirmationPage and ResetPasswordPage now redirect to `/auth`. SignInPromptDialog uses `kindeRegister()`/`kindeLogin()` instead of navigating to Supabase signup. Updated `useProfile`, `useEditorHydration`, `useEditorAutosave`, `AccountSection`, `DashboardPage`, and `SettingsPage` to use `KindeAppUser` type instead of Supabase `User`.
+- **Files**: `src/pages/AuthPage.tsx`, `src/contexts/AuthContext.tsx`, `src/pages/AuthCallbackPage.tsx`, `src/pages/EmailConfirmationPage.tsx`, `src/pages/ResetPasswordPage.tsx`, `src/components/auth/SignInPromptDialog.tsx`, `src/hooks/useProfile.ts`, `src/hooks/useEditorHydration.ts`, `src/hooks/useEditorAutosave.ts`, `src/components/settings/sections/AccountSection.tsx`, `src/pages/DashboardPage.tsx`, `src/pages/SettingsPage.tsx`
+- **Notes**: Supabase client kept for DB queries. Data-access helpers (`auditLogger`, `edgeFunctions`, `supabaseAuth`) still reference `supabase.auth.getSession()` and will need a token bridge in a future step. No DB/RLS changes.
+
+
 ### KINDE-EMAIL-LOGIN-SECTION
 - **Summary**: Added experimental Kinde email/password login section to `/auth` page below the Google button. Provides email input + "Sign In" / "Sign Up" buttons that redirect to Kinde's hosted login page with `loginHint` pre-filled. Existing Supabase email/password form untouched.
 - **Files**: `src/pages/AuthPage.tsx`
