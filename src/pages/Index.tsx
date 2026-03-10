@@ -10,6 +10,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import triggerHaptic from '@/lib/haptics';
+import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { motion, useReducedMotion, AnimatePresence, type Easing } from 'framer-motion';
 import { useEffect, useState, useRef, lazy, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
