@@ -13,19 +13,19 @@ const prefersReducedMotion =
 
 // ─── Camera parallax on mouse move ──────────────────────────────────────────
 
-function CameraRig() {
+function CameraRig({ isMobile }: { isMobile: boolean }) {
   const { camera } = useThree();
   const mouse = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
-    if (prefersReducedMotion) return;
+    if (prefersReducedMotion || isMobile) return;
     const onMove = (e: MouseEvent) => {
       mouse.current.x = (e.clientX / window.innerWidth - 0.5) * 2;
       mouse.current.y = (e.clientY / window.innerHeight - 0.5) * 2;
     };
     window.addEventListener('mousemove', onMove, { passive: true });
     return () => window.removeEventListener('mousemove', onMove);
-  }, []);
+  }, [isMobile]);
 
   useFrame((_, delta) => {
     if (prefersReducedMotion) return;
@@ -83,9 +83,10 @@ function LoadingFade({ canvasRef }: { canvasRef: React.RefObject<HTMLDivElement 
 
 interface DesktopCanvasProps {
   isDark: boolean;
+  isMobile: boolean;
 }
 
-function DesktopCanvas({ isDark }: DesktopCanvasProps) {
+function DesktopCanvas({ isDark, isMobile }: DesktopCanvasProps) {
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
 
   return (
@@ -93,27 +94,27 @@ function DesktopCanvas({ isDark }: DesktopCanvasProps) {
       ref={canvasWrapperRef}
       style={{
         position: 'absolute',
-        inset: '1rem',
-        width: 'calc(100% - 2rem)',
-        height: 'calc(100% - 2rem)',
+        inset: isMobile ? 0 : '1rem',
+        width: isMobile ? '100%' : 'calc(100% - 2rem)',
+        height: isMobile ? '100%' : 'calc(100% - 2rem)',
         opacity: 0,
-        borderRadius: '8px',
+        borderRadius: isMobile ? 0 : '8px',
         overflow: 'hidden',
       }}
     >
       <Canvas
         camera={{ position: [0, 0, 15], fov: 60 }}
-        dpr={[1, 1.5]}
+        dpr={isMobile ? [1, 1] : [1, 1.5]}
         gl={{ antialias: false, alpha: true }}
         style={{ width: '100%', height: '100%' }}
       >
         <LoadingFade canvasRef={canvasWrapperRef} />
-        <CameraRig />
+        <CameraRig isMobile={isMobile} />
         {isDark && (
           <Stars
             radius={200}
             depth={100}
-            count={5000}
+            count={isMobile ? 2000 : 5000}
             factor={10}
             saturation={10}
             fade

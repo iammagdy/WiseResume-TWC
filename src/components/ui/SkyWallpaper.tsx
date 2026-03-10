@@ -60,11 +60,9 @@ export function SkyWallpaper() {
         ...NOISE_OVERLAY,
       }}
     >
-      {!isMobile && (
-        <Suspense fallback={null}>
-          <DesktopCanvas isDark={isDark} />
-        </Suspense>
-      )}
+      <Suspense fallback={null}>
+        <DesktopCanvas isDark={isDark} isMobile={isMobile} />
+      </Suspense>
     </div>
   );
 }
