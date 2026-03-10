@@ -17,8 +17,6 @@ project_id = "hjnnamwgztlhzkeuufln"
     verify_jwt = false
   [functions.company-briefing]
     verify_jwt = false
-  [functions.debug-jwt]
-    verify_jwt = false
   [functions.detect-and-humanize]
     verify_jwt = false
   [functions.elevenlabs-scribe-token]
