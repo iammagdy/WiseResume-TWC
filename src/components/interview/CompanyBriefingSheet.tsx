@@ -77,8 +77,7 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
     toast.info('Generating PDF…');
     try {
       const { generateCompanyBriefingPDF } = await import('@/lib/companyBriefingPdf');
-      const user = (await supabase.auth.getUser()).data.user;
-      const blob = await generateCompanyBriefingPDF(briefing, user?.email || '');
+      const blob = await generateCompanyBriefingPDF(briefing, authUser?.email || '');
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

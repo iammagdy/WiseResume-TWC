@@ -2,6 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home, MessageSquareWarning, Send, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { getUserId } from '@/lib/supabaseBridge';
 
 interface Props {
   children: ReactNode;
