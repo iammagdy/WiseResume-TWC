@@ -9,9 +9,7 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabaseConstants';
 import { getToken } from '@/lib/supabaseBridge';
 
 /**
- * Create a Supabase client that uses the bridge token for auth.
- * The `accessToken` callback is called on every request, so it always
- * uses the latest bridge token.
+ * Create a Supabase client that injects the bridge token on every request.
  */
 export const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
@@ -20,15 +18,14 @@ export const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON
     detectSessionInUrl: false,
   },
   global: {
-    headers: {},
-    fetch: (url, options = {}) => {
+    fetch: (url: RequestInfo | URL, init?: RequestInit) => {
       const bridgeToken = getToken();
       if (bridgeToken) {
-        const headers = new Headers(options.headers);
+        const headers = new Headers(init?.headers);
         headers.set('Authorization', `Bearer ${bridgeToken}`);
-        return fetch(url, { ...options, headers });
+        return fetch(url, { ...init, headers });
       }
-      return fetch(url, options);
+      return fetch(url, init);
     },
   },
 });
