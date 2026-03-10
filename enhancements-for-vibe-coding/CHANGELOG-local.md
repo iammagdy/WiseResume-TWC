@@ -4,6 +4,12 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### BRIDGE-ERROR-BANNER-USAGE-EVENTS-CONFIG-FIX
+- **Summary**: Added `lastError` state to supabaseBridge with `getLastError()`/`clearLastError()` exports. AppShell now shows a dismissible banner on bridge errors (session expired or data connection issues). Fixed `config.toml` to include `[functions.me]` and removed legacy `send-signup-otp`/`migrate-user-data` entries. Created `usage_events` table (RLS: user SELECT only, no client inserts). Updated `tailor-resume` to insert usage events via service-role. Added "Usage Events" section to Dev-Kit.
+- **Files edited**: `supabase/config.toml`, `src/lib/supabaseBridge.ts`, `src/components/layout/AppShell.tsx`, `supabase/functions/tailor-resume/index.ts`, `src/pages/DevToolsPage.tsx`
+- **Migration**: Created `public.usage_events` table
+- **Test**: Log in → Dev-Kit → run "Load Last 5 Usage Events" (empty initially). Run tailor-resume, then re-check usage events. Verify bridge error banner by simulating token failure.
+
 ### TOKEN-EXCHANGE-HARDENING-AND-ME-ENDPOINT
 - **Summary**: Hardened token-exchange with structured error codes (`INVALID_KINDE_TOKEN`, `SHADOW_USER_FAILED`, `PROFILE_UPSERT_FAILED`, `JWT_SECRET_MISSING`, `INTERNAL_ERROR`) and proper HTTP statuses. Added `token_exchanges` audit table for exchange diagnostics. Added `refreshTokenIfNeeded()` to supabaseBridge with auto-retry on 401 in safeClient and edgeFunctions. Created `/me` edge function returning userId, kinde_sub, profile, and preferences. Added "Who am I?" test to Dev-Kit.
 - **Files edited**: `supabase/functions/token-exchange/index.ts`, `src/lib/supabaseBridge.ts`, `src/contexts/AuthContext.tsx`, `src/integrations/supabase/safeClient.ts`, `src/integrations/supabase/edgeFunctions.ts`, `src/pages/DevToolsPage.tsx`

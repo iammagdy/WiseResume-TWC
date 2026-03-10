@@ -49,7 +49,7 @@ project_id = "hjnnamwgztlhzkeuufln"
     verify_jwt = false
   [functions.manage-api-keys]
     verify_jwt = false
-  [functions.migrate-user-data]
+  [functions.me]
     verify_jwt = false
   [functions.og-image]
     verify_jwt = false
@@ -78,8 +78,6 @@ project_id = "hjnnamwgztlhzkeuufln"
   [functions.resolve-short-link]
     verify_jwt = false
   [functions.score-resume]
-    verify_jwt = false
-  [functions.send-signup-otp]
     verify_jwt = false
   [functions.send-bug-report]
     verify_jwt = false

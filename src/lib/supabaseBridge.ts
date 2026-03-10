@@ -7,16 +7,23 @@
  */
 import { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY } from '@/lib/supabaseConstants';
 
+interface BridgeError {
+  code: string;
+  message: string;
+}
+
 interface BridgeState {
   supabaseToken: string | null;
   userId: string | null;
   expiresAt: number; // unix seconds
+  lastError: BridgeError | null;
 }
 
 const state: BridgeState = {
   supabaseToken: null,
   userId: null,
   expiresAt: 0,
+  lastError: null,
 };
 
 let exchangePromise: Promise<void> | null = null;
@@ -53,8 +60,16 @@ export async function exchangeToken(kindeToken: string): Promise<void> {
       if (!res.ok) {
         const text = await res.text();
         console.error('[SupabaseBridge] Token exchange failed:', res.status, text);
+        try {
+          const errBody = JSON.parse(text);
+          state.lastError = { code: errBody.code || 'UNKNOWN', message: errBody.message || text };
+        } catch {
+          state.lastError = { code: 'UNKNOWN', message: text };
+        }
         return;
       }
+      // Clear any previous error on success
+      state.lastError = null;
 
       const data = await res.json();
       state.supabaseToken = data.supabaseToken;
@@ -129,7 +144,22 @@ export function clearBridge(): void {
   state.supabaseToken = null;
   state.userId = null;
   state.expiresAt = 0;
+  state.lastError = null;
   exchangePromise = null;
   _getKindeTokenFn = null;
   console.log('[SupabaseBridge] Cleared');
+}
+
+/**
+ * Get the last bridge error (from token exchange), or null if none.
+ */
+export function getLastError(): BridgeError | null {
+  return state.lastError;
+}
+
+/**
+ * Clear the last bridge error (e.g. after showing a banner).
+ */
+export function clearLastError(): void {
+  state.lastError = null;
 }

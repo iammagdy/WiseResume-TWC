@@ -1,6 +1,6 @@
 import { useLocation, useOutlet } from 'react-router-dom';
 import { useRef, useEffect, useState, lazy, Suspense } from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, X } from 'lucide-react';
 
 import { BottomTabBar } from './BottomTabBar';
 import { DesktopNav } from './DesktopNav';
@@ -14,6 +14,7 @@ import { useKeyboardAwareScroll } from '@/hooks/useKeyboardAwareScroll';
 import { cn } from '@/lib/utils';
 import { getPageTitle } from '@/lib/pageTitles';
 import { shouldExitOnBack } from '@/lib/navigation';
+import { getLastError, clearLastError } from '@/lib/supabaseBridge';
 
 const AgenticChatSheet = lazy(() => import('@/components/editor/AgenticChatSheet').then(m => ({ default: m.AgenticChatSheet })));
 
@@ -30,6 +31,15 @@ export function AppShell() {
   const enableSwipeBack = showBottomNav && !isEditorRoute && !isRootRoute;
   const scrollRef = useRef<HTMLDivElement>(null);
   const [wiseAIOpen, setWiseAIOpen] = useState(false);
+  const [bridgeError, setBridgeError] = useState<{ code: string; message: string } | null>(null);
+
+  // Check for bridge errors after route changes
+  useEffect(() => {
+    const err = getLastError();
+    if (err) {
+      setBridgeError(err);
+    }
+  }, [location.pathname]);
 
   // Global keyboard awareness
   useKeyboardAwareScroll();
@@ -49,6 +59,22 @@ export function AppShell() {
       </a>
       <OfflineBanner />
       <SlowConnectionBanner />
+      {bridgeError && (
+        <div className="flex items-center justify-between gap-2 px-4 py-2 bg-destructive/10 text-destructive text-sm border-b border-destructive/20">
+          <span>
+            {bridgeError.code === 'INVALID_KINDE_TOKEN'
+              ? 'Your session expired. Please sign in again.'
+              : 'We couldn\'t connect to your data. Please try again in a moment.'}
+          </span>
+          <button
+            onClick={() => { clearLastError(); setBridgeError(null); }}
+            className="shrink-0 p-0.5 rounded hover:bg-destructive/10 transition-colors"
+            aria-label="Dismiss"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
       {!isEditorRoute && <GuestSaveBanner />}
       {showBottomNav && !isEditorRoute && (
         <header className="lg:hidden h-10 flex items-center px-edge pt-safe glass-surface border-b border-border/30 shrink-0">

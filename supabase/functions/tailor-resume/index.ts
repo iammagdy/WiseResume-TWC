@@ -3,6 +3,7 @@ import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAIWithRetry, isAIError, parseAIJSON, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
+import { getServiceClient } from "../_shared/dbClient.ts";
 
 /** Safely extract skills as a comma-separated string */
 function safeSkillsString(skills: unknown): string {
@@ -463,6 +464,16 @@ Analyze deeply, then return this exact JSON structure:
     console.log("Successfully tailored resume with SUPERCHARGED data");
 
     await recordUsage(userId, 'tailor', { provider: aiResponse.providerUsed || 'unknown' });
+
+    // Fire-and-forget usage event insert
+    try {
+      const svcClient = getServiceClient();
+      svcClient.from('usage_events').insert({
+        user_id: userId,
+        event_type: 'ai.tailor_resume',
+        metadata: { model: aiResponse.providerUsed || 'unknown' },
+      }).then(() => {});
+    } catch { /* non-critical */ }
 
     return new Response(
       JSON.stringify({ ...tailoredResult, _providerUsed: aiResponse.providerUsed || 'unknown' }),
