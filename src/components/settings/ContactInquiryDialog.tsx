@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MessageSquare, Send, CheckCircle2 } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { getUserId } from '@/lib/supabaseBridge';
 
 export const DEPARTMENTS = [
   { value: 'general', label: 'General Support' },
