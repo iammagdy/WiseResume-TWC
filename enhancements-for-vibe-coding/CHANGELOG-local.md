@@ -4,6 +4,11 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### DEV-KIT-UPGRADE
+- **Summary**: Full rewrite of `/dev-tools` Dev-Kit page. Expanded from 3 to 7 sections with 18 total tests. Added "Run All" per section with sequential execution and pass/fail summary badges. Added collapsible JSON results with human-readable summary lines. New sections: Routing & Protected Pages, Settings & Preferences, Credits & Usage, Error Handling & Logging. All tests use real code paths.
+- **Files**: `src/pages/DevToolsPage.tsx` (full rewrite)
+- **Test**: Go to Settings → Dev Tools → enter password → verify all 7 sections render → click "Run All" per section → verify summaries and collapsible JSON work.
+
 ### DEV-TOOLS-PAGE
 - **Summary**: Added password-gated `/dev-tools` page for internal debugging of all AI tools and key features. Runs real requests against edge functions (tailor-resume, enhance-section, analyze-resume, score-resume, parse-resume, generate-cover-letter, agentic-chat) and Supabase queries. Shows raw JSON responses, HTTP status codes, and errors in copyable `<pre>` blocks. Accessible only via "Dev Tools" button on Developer Credit Card in Settings.
 - **Files**: `src/pages/DevToolsPage.tsx` (new), `src/App.tsx` (added route), `src/components/settings/DeveloperCreditCard.tsx` (added Dev Tools button)
