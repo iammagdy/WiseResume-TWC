@@ -439,9 +439,9 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
           setAIProvider('ollama');
           // Persist provider preference now that key is validated
           try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user?.id) {
-              await supabase.from('user_preferences').update({ ai_provider: 'ollama' }).eq('user_id', session.user.id);
+            const uid = getUserId();
+            if (uid) {
+              await supabase.from('user_preferences').update({ ai_provider: 'ollama' }).eq('user_id', uid);
             }
           } catch {}
           logAudit('api_key', 'key_saved', { provider: 'ollama', model: ollamaModelInput.trim() });
