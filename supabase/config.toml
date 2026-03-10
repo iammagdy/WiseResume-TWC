@@ -59,8 +59,6 @@ project_id = "hjnnamwgztlhzkeuufln"
     verify_jwt = false
   [functions.parse-resume]
     verify_jwt = false
-  [functions.patch-clerk-jwt-template]
-    verify_jwt = false
   [functions.portfolio-meta]
     verify_jwt = false
   [functions.provision-clerk-user]
