@@ -2,6 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home, MessageSquareWarning, Send, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { getUserId } from '@/lib/supabaseBridge';
 
 interface Props {
   children: ReactNode;
@@ -98,16 +99,8 @@ export class ErrorBoundary extends Component<Props, State> {
   private handleSendReport = async () => {
     this.setState({ reportStatus: 'sending' });
     try {
-      // Try getting current user
-      let userId = 'anonymous';
+      let userId = getUserId() || 'anonymous';
       let userEmail = 'anonymous@user';
-      try {
-        const { data } = await supabase.auth.getUser();
-        if (data?.user) {
-          userId = data.user.id;
-          userEmail = data.user.email || userEmail;
-        }
-      } catch { /* ignore */ }
 
       const payload = {
         error_message: this.state.error?.message || 'Unknown error',
@@ -129,7 +122,6 @@ export class ErrorBoundary extends Component<Props, State> {
       console.error('Failed to send bug report:', err);
       // Fallback: insert directly into bug_reports table
       try {
-        const { data } = await supabase.auth.getUser();
         await supabase.from('bug_reports').insert({
           error_message: this.state.error?.message || 'Unknown error',
           error_stack: this.state.error?.stack?.slice(0, 4000),
@@ -137,8 +129,8 @@ export class ErrorBoundary extends Component<Props, State> {
           route: window.location.pathname,
           user_agent: navigator.userAgent,
           additional_context: this.state.reportContext || null,
-          user_id: data?.user?.id || 'anonymous',
-          user_email: data?.user?.email || 'anonymous@user',
+          user_id: getUserId() || 'anonymous',
+          user_email: 'anonymous@user',
           app_version: 'unknown',
         });
         this.setState({ reportStatus: 'sent' });

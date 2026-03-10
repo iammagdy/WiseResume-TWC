@@ -20,7 +20,7 @@ import { AITrustBadge } from '@/components/ui/AITrustBadge';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import type { CompanyBriefing } from '@/types/companyBriefing';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { useAuth } from '@/hooks/useAuth';
 
 interface CompanyBriefingSheetProps {
   open: boolean;
@@ -35,6 +35,7 @@ interface CompanyBriefingSheetProps {
 
 export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resumeData }: CompanyBriefingSheetProps) {
   const { generate, briefing, isLoading, error, reset } = useCompanyBriefing();
+  const { user: authUser } = useAuth();
   const [localJD, setLocalJD] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [inputMode, setInputMode] = useState<'company' | 'jd'>('company');
@@ -77,8 +78,7 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
     toast.info('Generating PDF…');
     try {
       const { generateCompanyBriefingPDF } = await import('@/lib/companyBriefingPdf');
-      const user = (await supabase.auth.getUser()).data.user;
-      const blob = await generateCompanyBriefingPDF(briefing, user?.email || '');
+      const blob = await generateCompanyBriefingPDF(briefing, authUser?.email || '');
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
