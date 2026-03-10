@@ -268,12 +268,12 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
 
       if (shouldPersist) {
         try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.user?.id) {
+          const uid = getUserId();
+          if (uid) {
             await supabase
               .from('user_preferences')
               .update({ ai_provider: value })
-              .eq('user_id', session.user.id);
+              .eq('user_id', uid);
           }
         } catch {}
       }
