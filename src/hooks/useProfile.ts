@@ -195,9 +195,9 @@ async function fetchProfile(userId: string, user?: KindeAppUser | null): Promise
     };
   }
 
-  // No profile exists - create one with OAuth metadata
-  const defaultFullName = user?.user_metadata?.full_name || user?.user_metadata?.name || null;
-  const defaultAvatarUrl = user?.user_metadata?.avatar_url || null;
+  // No profile exists - create one with Kinde user info
+  const defaultFullName = user?.name || null;
+  const defaultAvatarUrl = null;
 
   const defaultProfile: Profile = {
     fullName: defaultFullName,
