@@ -250,6 +250,9 @@ const queryClient = new QueryClient({
         <Route path="/p/:username" element={<Suspense fallback={<DetailSkeleton />}><PublicPortfolioPage /></Suspense>} />
         <Route path="/l/:linkId" element={<Suspense fallback={<DetailSkeleton />}><ShortLinkPage /></Suspense>} />
 
+        {/* Kinde auth test — isolated, no Supabase interaction */}
+        <Route path="/kinde-auth-test" element={<Suspense fallback={<PageLoadingSpinner />}><KindeAuthTestPage /></Suspense>} />
+
         {/* Internal tooling */}
         <Route element={<ProtectedRoute />}>
           <Route path="/store-screenshots" element={<Suspense fallback={<PageLoadingSpinner />}><StoreScreenshotsPage /></Suspense>} />

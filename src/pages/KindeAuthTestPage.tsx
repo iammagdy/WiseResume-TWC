@@ -25,7 +25,7 @@ function KindeAuthContent() {
             <div className="rounded-lg bg-muted p-4 space-y-1 text-sm">
               <p>
                 <span className="font-medium text-foreground">Name:</span>{" "}
-                {user?.given_name} {user?.family_name}
+                {user?.givenName} {user?.familyName}
               </p>
               <p>
                 <span className="font-medium text-foreground">Email:</span>{" "}
