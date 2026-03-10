@@ -4,6 +4,14 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### LANDING-CTA-POLISH
+- **Summary**: Removed guest "Log in" and "Sign Up" header buttons for a minimal landing page. Renamed "Get Started Free" → "Get Started" with filled primary background and stronger glow effect.
+- **Files edited**: `src/pages/Index.tsx`
+- **Test**: Visit landing page as guest — header should show only logo + theme toggle. Hero CTA should say "Get Started" with a bold primary-colored button.
+- **Manual action**: Update Kinde dashboard theme (Design → Pages): background `#070712`, primary button `#D92638`, upload WiseResume logo, card background `hsl(240 20% 8%)`.
+
+
+
 ### AUTH-FLOW-SIMPLIFICATION
 - **Summary**: Removed intermediate auth page card UI. Landing page buttons (Log in, Sign Up, Get Started Free) now call Kinde directly. AuthPage.tsx converted to a thin redirect layer that auto-triggers Kinde login/register based on `?mode=` param.
 - **Files edited**: `src/pages/Index.tsx`, `src/pages/AuthPage.tsx`
