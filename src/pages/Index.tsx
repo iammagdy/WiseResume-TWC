@@ -276,9 +276,9 @@ const Index = () => {
             { label: 'No credit card', icon: '✓' },
             { label: 'AI-powered', icon: '✓' }].
             map((item, i) =>
-            <span key={item.label} className="flex items-center gap-1.5 text-[#e85463] text-xs">
+            <span key={item.label} className="flex items-center gap-1.5 text-xs text-green-50">
                 {i > 0 && <span className="w-px h-3 bg-border mr-1.5 sm:mr-2 hidden xs:inline-block" />}
-                <span className="w-4 h-4 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[10px] font-bold flex-shrink-0">{item.icon}</span>
+                <span className="w-4 h-4 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[10px] font-bold flex-shrink-0 text-slate-100 bg-slate-950">{item.icon}</span>
                 {item.label}
               </span>
             )}
