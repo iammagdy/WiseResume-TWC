@@ -180,10 +180,10 @@ export default function SettingsPage() {
     el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  // Auth provider detection
-  const authProvider = (user?.app_metadata?.provider as string) || 'email';
-  const providerLabel = ({ google: 'Google', apple: 'Apple', email: 'Email' } as Record<string, string>)[authProvider] || 'Email';
-  const ProviderIcon = authProvider === 'google' ? Chrome : Mail;
+  // Auth provider detection — Kinde is now the only provider
+  const authProvider = 'kinde';
+  const providerLabel = 'Kinde';
+  const ProviderIcon = Mail;
 
   // --- Handlers ---
   const handleBiometricToggle = useCallback(async (enabled: boolean) => {
