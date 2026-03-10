@@ -4,7 +4,12 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
-### FIX-PGRST204-SOFT-DELETE (v2)
+### HARD-DELETE-REMOVE-TRASH
+- **Summary**: Replaced soft delete (`deleted_at` column) with hard delete (`.delete()`) to permanently fix PGRST204 schema cache errors. Removed Trash UI, `useTrashedResumes`, `restoreResume`, `permanentlyDeleteResume`, `emptyTrash`. TrashSheet now shows an empty state explaining deletions are permanent. Removed `deleted_at` from backup column whitelist.
+- **Files**: `src/hooks/useResumes.ts`, `src/components/dashboard/TrashSheet.tsx`, `src/pages/DashboardPage.tsx`, `src/lib/accountBackup.ts`
+- **Test**: Delete a resume → it should disappear permanently with no PGRST errors. Trash button shows info-only sheet.
+
+### FIX-PGRST204-SOFT-DELETE (v2) — superseded by HARD-DELETE-REMOVE-TRASH
 - **Summary**: Fixed PGRST202 error — RPCs not found in schema cache. Replaced `.rpc()` calls with direct `.update({ deleted_at })` + `.select('id')` which forces PostgREST to resolve the column. `emptyTrash` unchanged (already uses JS filtering + hard delete by ID).
 - **Files**: `src/hooks/useResumes.ts`
 - **Test**: Click Delete on a resume → should soft-delete without errors. Open Trash → restore and permanently delete should work. Empty Trash should work.
