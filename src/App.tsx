@@ -200,7 +200,7 @@ const queryClient = new QueryClient({
               <Route path="/auth/callback" element={<Suspense fallback={<PageLoadingSpinner />}><AuthCallbackPage /></Suspense>} />
               <Route path="/privacy" element={<Suspense fallback={<PageLoadingSpinner />}><PrivacyPage /></Suspense>} />
                <Route path="/terms" element={<Suspense fallback={<PageLoadingSpinner />}><TermsPage /></Suspense>} />
-               <Route path="/reset-password" element={<Suspense fallback={<PageLoadingSpinner />}><ResetPasswordPage /></Suspense>} />
+               
            </Route>
 
           {/* Protected routes */}
