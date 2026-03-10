@@ -7,7 +7,7 @@ import { Lightbulb, Send, CheckCircle2 } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 
-import { supabase } from '@/integrations/supabase/safeClient';
+import { getUserId } from '@/lib/supabaseBridge';
 
 let cachedAppVersion: string | null = null;
 async function getAppVersion(): Promise<string> {
