@@ -26,6 +26,7 @@ export default function AuthPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { isAuthenticated, loading: authLoading } = useAuth();
+  const { login: kindeLogin } = useKindeAuth();
 
   const redirectTo = searchParams.get('redirect') || '/dashboard';
   const rawMode = searchParams.get('mode');
