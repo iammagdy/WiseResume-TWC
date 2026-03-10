@@ -103,6 +103,7 @@ const ScreenshotsGalleryPage = lazyWithRetry(() => import("./pages/ScreenshotsGa
 const QrCodePage = lazyWithRetry(() => import("./pages/QrCodePage"));
 const QrBatchPage = lazyWithRetry(() => import("./pages/QrBatchPage"));
 const QrScanPage = lazyWithRetry(() => import("./pages/QrScanPage"));
+const KindeAuthTestPage = lazyWithRetry(() => import("./pages/KindeAuthTestPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
