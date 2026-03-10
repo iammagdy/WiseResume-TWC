@@ -30,6 +30,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSettingsStore, AIProvider, GeminiKeyTier } from '@/store/settingsStore';
 import { resetFallbackToast } from '@/lib/aiFallbackToast';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { getUserId } from '@/lib/supabaseBridge';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
@@ -267,12 +268,12 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
 
       if (shouldPersist) {
         try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.user?.id) {
+          const uid = getUserId();
+          if (uid) {
             await supabase
               .from('user_preferences')
               .update({ ai_provider: value })
-              .eq('user_id', session.user.id);
+              .eq('user_id', uid);
           }
         } catch {}
       }
@@ -343,9 +344,9 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
           setAIProvider('gemini');
           // Persist provider preference now that key is validated
           try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user?.id) {
-              await supabase.from('user_preferences').update({ ai_provider: 'gemini' }).eq('user_id', session.user.id);
+            const uid = getUserId();
+            if (uid) {
+              await supabase.from('user_preferences').update({ ai_provider: 'gemini' }).eq('user_id', uid);
             }
           } catch {}
           logAudit('api_key', 'key_saved', { provider: 'gemini', tier: validationResult.tier, model: modelToSave });
@@ -438,9 +439,9 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
           setAIProvider('ollama');
           // Persist provider preference now that key is validated
           try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user?.id) {
-              await supabase.from('user_preferences').update({ ai_provider: 'ollama' }).eq('user_id', session.user.id);
+            const uid = getUserId();
+            if (uid) {
+              await supabase.from('user_preferences').update({ ai_provider: 'ollama' }).eq('user_id', uid);
             }
           } catch {}
           logAudit('api_key', 'key_saved', { provider: 'ollama', model: ollamaModelInput.trim() });

@@ -3,6 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { useSettingsStore } from '@/store/settingsStore';
 import { logAudit } from '@/lib/auditLogger';
+import { exchangeToken, clearBridge, isReady } from '@/lib/supabaseBridge';
 
 export interface KindeAppUser {
   id: string;
@@ -15,8 +16,12 @@ export interface AuthContextType {
   loading: boolean;
   signOut: () => Promise<void>;
   isAuthenticated: boolean;
+  /** Whether the Supabase token bridge is ready (data queries will work) */
+  supabaseReady: boolean;
   /** Raw Kinde user object for advanced usage */
   kindeUser: ReturnType<typeof useKindeAuth>['user'];
+  /** Get the current Kinde access token */
+  getKindeToken: () => Promise<string | null>;
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -38,9 +43,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated: kindeAuthenticated,
     isLoading: kindeLoading,
     logout: kindeLogout,
+    getToken,
   } = useKindeAuth();
 
   const [splashHidden, setSplashHidden] = useState(false);
+  const [bridgeReady, setBridgeReady] = useState(false);
 
   const loading = kindeLoading;
   const isAuthenticated = kindeAuthenticated;
@@ -55,6 +62,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [kindeUser]);
 
+  // Get Kinde access token safely
+  const getKindeToken = useCallback(async (): Promise<string | null> => {
+    try {
+      if (!getToken) return null;
+      const token = await getToken();
+      return token ?? null;
+    } catch {
+      return null;
+    }
+  }, [getToken]);
+
+  // Exchange Kinde token for Supabase JWT when user is authenticated
+  useEffect(() => {
+    if (!kindeAuthenticated || !kindeUser || kindeLoading) {
+      setBridgeReady(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const kindeToken = await getKindeToken();
+        if (!kindeToken || cancelled) return;
+
+        await exchangeToken(kindeToken);
+        if (!cancelled) {
+          setBridgeReady(isReady());
+        }
+      } catch (err) {
+        console.error('[AuthContext] Bridge exchange failed:', err);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [kindeAuthenticated, kindeUser, kindeLoading, getKindeToken]);
+
+  // Refresh bridge token every 50 minutes
+  useEffect(() => {
+    if (!bridgeReady || !kindeAuthenticated) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const kindeToken = await getKindeToken();
+        if (kindeToken) {
+          await exchangeToken(kindeToken);
+          setBridgeReady(isReady());
+        }
+      } catch (err) {
+        console.error('[AuthContext] Bridge refresh failed:', err);
+      }
+    }, 50 * 60 * 1000); // 50 minutes
+
+    return () => clearInterval(interval);
+  }, [bridgeReady, kindeAuthenticated, getKindeToken]);
+
   // Hide splash screen when auth is resolved
   useEffect(() => {
     if (!loading && !splashHidden) {
@@ -68,6 +131,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     logAudit('auth', 'signed_out');
+    clearBridge();
+    setBridgeReady(false);
     try {
       await kindeLogout();
     } catch (e) {
@@ -81,8 +146,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     signOut,
     isAuthenticated,
+    supabaseReady: bridgeReady,
     kindeUser: kindeUser ?? null,
-  }), [user, loading, signOut, isAuthenticated, kindeUser]);
+    getKindeToken,
+  }), [user, loading, signOut, isAuthenticated, bridgeReady, kindeUser, getKindeToken]);
 
   return (
     <AuthContext.Provider value={value}>

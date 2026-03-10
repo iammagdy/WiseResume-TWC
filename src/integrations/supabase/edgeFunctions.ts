@@ -1,9 +1,9 @@
 import { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY } from '@/lib/supabaseConstants';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { getToken } from '@/lib/supabaseBridge';
 
 /**
  * Authenticated edge function client.
- * Uses the Supabase Auth session token for Authorization.
+ * Uses the Supabase bridge token for Authorization.
  */
 export const edgeFunctions = {
   functions: {
@@ -11,13 +11,7 @@ export const edgeFunctions = {
       fnName: string,
       options?: { body?: unknown; headers?: Record<string, string>; method?: string }
     ) => {
-      let token: string | null = null;
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        token = session?.access_token ?? null;
-      } catch {
-        // No session
-      }
+      const bridgeToken = getToken();
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -25,11 +19,11 @@ export const edgeFunctions = {
         ...(options?.headers || {}),
       };
 
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+      if (bridgeToken) {
+        headers['Authorization'] = `Bearer ${bridgeToken}`;
       } else {
         headers['Authorization'] = `Bearer ${EDGE_FUNCTIONS_ANON_KEY}`;
-        console.warn(`[edgeFunctions] No auth token available for ${fnName} — using anon fallback`);
+        console.warn(`[edgeFunctions] No bridge token available for ${fnName} — using anon fallback`);
       }
 
       const url = `${EDGE_FUNCTIONS_URL}/functions/v1/${fnName}`;

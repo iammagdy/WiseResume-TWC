@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { HeartHandshake, Send, CheckCircle2, MapPin, Info, Wrench, AlertTriangle, ToggleLeft, ToggleRight } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { getSupabaseToken, getAuthUserId } from '@/lib/supabaseAuth';
+import { getUserId } from '@/lib/supabaseBridge';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import {
@@ -126,18 +127,10 @@ export function BugReportDialog() {
     if (!data) return;
     setStatus('sending');
 
-    // Get auth from the same client the app uses
-    let userId: string | undefined;
-    let userEmail = 'anonymous';
-    let sessionId: string | undefined;
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        userId = session.user.id;
-        userEmail = session.user.email || 'anonymous';
-        sessionId = session.access_token?.slice(-8);
-      }
-    } catch { /* proceed without auth */ }
+    // Get auth from the bridge
+    const userId = getUserId() || undefined;
+    const userEmail = userId ? 'authenticated' : 'anonymous';
+    const sessionId: string | undefined = undefined;
 
     const appVersion = await getAppVersion();
 

@@ -1,33 +1,23 @@
 /**
- * Supabase Auth helpers.
+ * Supabase Auth helpers — now powered by the Kinde→Supabase token bridge.
  *
- * Provides functions to get the current session access token and user ID,
+ * Provides functions to get the current Supabase JWT and user ID,
  * used by edge function callers and utility files.
  */
-import { supabase } from '@/integrations/supabase/safeClient';
+import { getToken, getUserId } from '@/lib/supabaseBridge';
 
 /**
- * Get the current Supabase Auth access token.
- * Returns null if the user is not authenticated.
+ * Get the current Supabase JWT (from the bridge).
+ * Returns null if the bridge hasn't exchanged yet.
  */
 export async function getSupabaseToken(): Promise<string | null> {
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    return session?.access_token ?? null;
-  } catch {
-    return null;
-  }
+  return getToken();
 }
 
 /**
- * Get the current authenticated user's UUID.
+ * Get the current authenticated user's UUID (deterministic from Kinde ID).
  * Returns null if not authenticated.
  */
 export async function getAuthUserId(): Promise<string | null> {
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    return session?.user?.id ?? null;
-  } catch {
-    return null;
-  }
+  return getUserId();
 }

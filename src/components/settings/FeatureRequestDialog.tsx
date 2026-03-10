@@ -7,7 +7,7 @@ import { Lightbulb, Send, CheckCircle2 } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 
-import { supabase } from '@/integrations/supabase/safeClient';
+import { getUserId } from '@/lib/supabaseBridge';
 
 let cachedAppVersion: string | null = null;
 async function getAppVersion(): Promise<string> {
@@ -37,15 +37,8 @@ export function FeatureRequestDialog({ open, onOpenChange }: FeatureRequestDialo
     if (!featureTitle.trim() || !featureDescription.trim()) return;
     setStatus('sending');
 
-    let userId: string | undefined;
-    let userEmail = 'anonymous';
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        userId = session.user.id;
-        userEmail = session.user.email || 'anonymous';
-      }
-    } catch { /* proceed without auth */ }
+    const userId = getUserId() || undefined;
+    const userEmail = 'authenticated';
 
     const appVersion = await getAppVersion();
 
