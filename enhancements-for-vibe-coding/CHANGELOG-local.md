@@ -4,6 +4,12 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### FIX-PDF-DOWNLOAD-AUTH
+- **Summary**: Fixed "Failed to generate PDF" in Company Briefing — `handleDownloadPDF` called `supabase.auth.getUser()` which fails with Kinde bridge tokens. Replaced with `useAuth()` hook to get user email. Also fixed `ErrorBoundary.tsx` bug report to use `getUserId()` from bridge instead of `supabase.auth.getUser()`.
+- **Files**: `src/components/interview/CompanyBriefingSheet.tsx`, `src/components/ErrorBoundary.tsx`
+- **Test**: Generate a Company Briefing, click Download PDF — should succeed. Trigger ErrorBoundary report — should include user ID.
+
+
 ### AUTH-AUDIT-EDGE-FUNCTIONS
 - **Summary**: Audited all 48 edge functions for auth consistency with Kinde→Supabase token bridge. Fixed 4 functions that used `supabase.auth.getUser()` (fails with cross-project bridge tokens): `generate-portfolio-bio` and `elevenlabs-scribe-token` now use `requireAuth()` from shared middleware; `ai-health` and `parse-resume` now use `decodeJwtPayload()` for optional auth. Removed unused `createClient` imports. 26 functions were already correct; 13+ public functions unchanged.
 - **Files**: `supabase/functions/generate-portfolio-bio/index.ts`, `supabase/functions/elevenlabs-scribe-token/index.ts`, `supabase/functions/ai-health/index.ts`, `supabase/functions/parse-resume/index.ts`
