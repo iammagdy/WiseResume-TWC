@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import wiseAiLogo from '@/assets/wise-ai-logo.webp';
+import wiseAiLogoLight from '@/assets/wise-ai-logo.webp';
+import wiseAiLogoDark from '@/assets/wise-ai-logo-dark.webp';
+import { useIsDark } from '@/hooks/useIsDark';
 
 interface AppIconProps {
   size?: number | string;
@@ -9,10 +11,12 @@ interface AppIconProps {
 
 export function AppIcon({ size = 64, showSparkle = true, className = '' }: AppIconProps) {
   const [loaded, setLoaded] = useState(false);
+  const isDark = useIsDark();
+  const logo = isDark ? wiseAiLogoDark : wiseAiLogoLight;
 
   return (
     <img
-      src={wiseAiLogo}
+      src={logo}
       alt="Wise AI"
       width={size}
       height={size}

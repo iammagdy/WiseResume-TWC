@@ -17,9 +17,9 @@ export function Footer() {
 
       <div className="py-8 flex flex-col items-center gap-3">
         <img
-
+          src={logo}
           alt="WiseResume"
-          className="w-8 h-8 object-contain rounded" src="/lovable-uploads/fd9cbea8-24ff-4b8b-a311-510bf9919554.webp" />
+          className="w-8 h-8 object-contain rounded" />
         
         <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <Sparkles className="w-3 h-3 text-primary" />

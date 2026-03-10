@@ -17,6 +17,7 @@ interface Props {
 export function JobMatchScore({ score, jobTitle }: Props) {
   const [showDetail, setShowDetail] = useState(false);
   const navigate = useNavigate();
+  const wiseAiLogo = useThemeLogo();
 
   if (!score) return null;
 

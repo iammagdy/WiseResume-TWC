@@ -211,7 +211,7 @@ const Index = () => {
 
               alt="Wise AI Logo"
               className="relative z-10 w-[120px] h-[120px] object-contain rounded-3xl"
-              loading="eager" src="/lovable-uploads/e1275e1b-4ef5-46e8-a89f-da0d4aa55624.webp" />
+              loading="eager" src={themeLogo} />
             
           </motion.div>
 
