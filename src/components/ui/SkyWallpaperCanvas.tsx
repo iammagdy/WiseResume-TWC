@@ -57,7 +57,7 @@ function CameraSetup({ isMobile }: { isMobile: boolean }) {
 
 const CloudScene = memo(() => (
   <group position={[0, 0, 0]}>
-    <Clouds material={THREE.MeshBasicMaterial} frustumCulled={false} opacity={0.6}>
+    <Clouds material={THREE.MeshBasicMaterial} frustumCulled={false}>
       <Cloud seed={1} segments={40} bounds={[15, 1, 8]} volume={6} color="white" fade={30} speed={0.2} growth={4} />
       <Cloud seed={2} segments={30} bounds={[12, 1, 6]} volume={5} color="white" fade={25} speed={0.15} growth={3} position={[5, 0, 2]} />
       <Cloud seed={3} segments={35} bounds={[10, 1, 7]} volume={5} color="white" fade={20} speed={0.18} growth={3} position={[-6, 0, 1]} />
