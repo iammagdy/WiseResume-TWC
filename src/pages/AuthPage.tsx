@@ -624,7 +624,7 @@ export default function AuthPage() {
                         variant="outline"
                         className="flex-1 h-10 text-sm font-medium"
                         disabled={!kindeEmail}
-                        onClick={() => kindeLogin({ login_hint: kindeEmail })}
+                        onClick={() => kindeLogin({ loginHint: kindeEmail })}
                       >
                         <KeyRound className="w-4 h-4 mr-1.5" />
                         Sign In
