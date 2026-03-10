@@ -27,7 +27,7 @@ export function ProtectedRoute() {
       </div>
     </div>
   );
-  if (!user) {
+  if (!isAuthenticated) {
     // Preserve intended destination so auth can redirect back
     const intendedPath = location.pathname + location.search;
     const redirectParam = intendedPath !== '/' && intendedPath !== '/dashboard'
