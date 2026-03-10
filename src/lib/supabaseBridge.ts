@@ -60,8 +60,16 @@ export async function exchangeToken(kindeToken: string): Promise<void> {
       if (!res.ok) {
         const text = await res.text();
         console.error('[SupabaseBridge] Token exchange failed:', res.status, text);
+        try {
+          const errBody = JSON.parse(text);
+          state.lastError = { code: errBody.code || 'UNKNOWN', message: errBody.message || text };
+        } catch {
+          state.lastError = { code: 'UNKNOWN', message: text };
+        }
         return;
       }
+      // Clear any previous error on success
+      state.lastError = null;
 
       const data = await res.json();
       state.supabaseToken = data.supabaseToken;
