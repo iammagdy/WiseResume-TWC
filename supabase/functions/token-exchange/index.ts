@@ -109,6 +109,17 @@ serve(async (req) => {
 
     // 5. Upsert profile so the user exists in DB
     const serviceClient = getServiceClient();
+
+    // Create shadow user in auth.users so FK constraints are satisfied
+    const { error: createUserError } = await serviceClient.auth.admin.createUser({
+      id: supabaseUserId,
+      email: email || `${kindeUserId}@kinde.placeholder`,
+      email_confirm: true,
+    });
+    if (createUserError && !createUserError.message?.includes('already been registered')) {
+      console.error('[token-exchange] Failed to create shadow user:', createUserError);
+    }
+
     await serviceClient.from('profiles').upsert(
       {
         user_id: supabaseUserId,
