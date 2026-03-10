@@ -31,6 +31,15 @@ export function AppShell() {
   const enableSwipeBack = showBottomNav && !isEditorRoute && !isRootRoute;
   const scrollRef = useRef<HTMLDivElement>(null);
   const [wiseAIOpen, setWiseAIOpen] = useState(false);
+  const [bridgeError, setBridgeError] = useState<{ code: string; message: string } | null>(null);
+
+  // Check for bridge errors after route changes
+  useEffect(() => {
+    const err = getLastError();
+    if (err) {
+      setBridgeError(err);
+    }
+  }, [location.pathname]);
 
   // Global keyboard awareness
   useKeyboardAwareScroll();
