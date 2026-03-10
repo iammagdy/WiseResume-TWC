@@ -358,7 +358,7 @@ Analyze deeply, then return this exact JSON structure:
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.5,
-      maxTokens: 8000,
+      maxTokens: 16000,
       userId,
     });
 
