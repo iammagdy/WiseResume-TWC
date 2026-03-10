@@ -228,6 +228,16 @@ body.wr-security-curtain [data-biometric-lock] {
     background-color: hsl(var(--background));
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
+
+  /* Dark-mode text contrast over 3D wallpaper */
+  .dark & body,
+  .dark body {
+    text-shadow: 0 0 6px rgba(0, 0, 0, 0.35);
+  }
+  .dark [data-resume-template],
+  .dark [data-resume-template] * {
+    text-shadow: none;
+  }
     -moz-osx-font-smoothing: grayscale;
     scroll-behavior: smooth;
     /* Compact mobile density: ~10% smaller than browser default */
