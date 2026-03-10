@@ -175,8 +175,8 @@ export default function DevToolsPage() {
 
   if (!unlocked) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="w-full max-w-sm space-y-4">
+      <div className="min-h-screen flex items-center justify-center p-4 relative z-10">
+        <div className="w-full max-w-sm space-y-4 bg-card border border-border rounded-2xl p-6 shadow-lg">
           <h1 className="text-xl font-bold text-foreground text-center">Developer Tools</h1>
           <p className="text-sm text-muted-foreground text-center">Enter the developer password to continue.</p>
           <form onSubmit={(e) => { e.preventDefault(); if (pw === PASSWORD) { setUnlocked(true); setPwError(false); } else { setPwError(true); } }}>
