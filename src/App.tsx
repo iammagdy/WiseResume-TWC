@@ -88,7 +88,7 @@ const GuidesPage = lazyWithRetry(() => import("./pages/GuidesPage"));
 const GuidePage = lazyWithRetry(() => import("./pages/GuidePage"));
 const AIStudioPage = lazyWithRetry(() => import("./pages/AIStudioPage"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
-const ResetPasswordPage = lazyWithRetry(() => import("./pages/ResetPasswordPage"));
+
 const ShortLinkPage = lazyWithRetry(() => import("./pages/ShortLinkPage"));
 const AuthCallbackPage = lazyWithRetry(() => import("./pages/AuthCallbackPage"));
 const EmailConfirmationPage = lazyWithRetry(() => import("./pages/EmailConfirmationPage"));
