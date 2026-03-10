@@ -47,12 +47,12 @@ function CameraRig({ isMobile }: { isMobile: boolean }) {
 // ─── Cloud group ────────────────────────────────────────────────────────────
 
 const CloudScene = memo(() => (
-  <group position={[0, -25, 5.69]}>
-    <Clouds material={THREE.MeshBasicMaterial} position={[0, -5, 0]} frustumCulled={false}>
-      <Cloud seed={1} segments={1} concentrate="inside" bounds={[10, 10, 10]} growth={3} position={[-1, 0, 0]} smallestVolume={2} scale={1.9} volume={2} speed={0.2} fade={5} />
-      <Cloud seed={3} segments={1} concentrate="outside" bounds={[10, 10, 10]} growth={2} position={[2, 0, 2]} smallestVolume={2} scale={1} volume={2} fade={3} speed={0.1} />
-      <Cloud seed={4} segments={1} concentrate="outside" bounds={[10, 20, 15]} growth={4} position={[-10, -10, 4]} smallestVolume={2} scale={2} speed={0.2} volume={3} />
-      <Cloud seed={5} segments={1} concentrate="outside" bounds={[5, 5, 5]} growth={2} position={[6, -3, 8]} smallestVolume={2} scale={2} volume={2} fade={0.1} speed={0.1} />
+  <group position={[0, 0, 0]}>
+    <Clouds material={THREE.MeshBasicMaterial} position={[0, 0, 0]} frustumCulled={false}>
+      <Cloud seed={1} segments={20} concentrate="inside" bounds={[10, 10, 10]} growth={3} position={[-4, -2, -5]} smallestVolume={2} scale={1.9} volume={2} speed={0.2} fade={5} />
+      <Cloud seed={3} segments={20} concentrate="outside" bounds={[10, 10, 10]} growth={2} position={[5, 1, -3]} smallestVolume={2} scale={1} volume={2} fade={3} speed={0.1} />
+      <Cloud seed={4} segments={20} concentrate="outside" bounds={[10, 10, 10]} growth={4} position={[-8, -1, -8]} smallestVolume={2} scale={2} speed={0.2} volume={3} />
+      <Cloud seed={5} segments={20} concentrate="outside" bounds={[5, 5, 5]} growth={2} position={[8, 0, -6]} smallestVolume={2} scale={2} volume={2} fade={0.1} speed={0.1} />
     </Clouds>
   </group>
 ));
