@@ -14,6 +14,12 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 - **Summary**: Replaced entire app logo with new `Logo_Web.webp`. Overwrote `src/assets/wise-ai-logo.webp`, `.png`, and 3 `public/lovable-uploads/` files. Deleted unused variants (`wise-ai-logo-original.png`, `wise-ai-logo-small.png`, `wise-ai-icon.png`). Zero code changes — all existing imports/references automatically use the new logo.
 - **Files changed**: 5 asset files overwritten, 3 deleted
 - **Test**: Check logo on splash screen, landing page (navbar + hero), footer, dashboard, QR generator, and PDF export.
+
+### FIX-PARSE-JOB-URL-USER-UNDEFINED
+- **Summary**: Fixed `ReferenceError: user is not defined` in `parse-job-url` edge function. The variable is `userId` (from `requireAuth`), not `user.id`. Changed line 265 from `userId: user.id` to `userId: userId`.
+- **Files changed**: `supabase/functions/parse-job-url/index.ts`
+- **Test**: Try parsing a job URL via the Quick Tailor flow — should no longer return 500.
+- **Risks**: None.
 - **Risks**: Email templates still reference remote storage URL — needs separate upload.
 
 
