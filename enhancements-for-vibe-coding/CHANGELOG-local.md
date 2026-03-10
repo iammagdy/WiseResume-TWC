@@ -4,6 +4,13 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### REPLACE-APP-LOGO
+- **Summary**: Replaced entire app logo with new `Logo_Web.webp`. Overwrote `src/assets/wise-ai-logo.webp`, `.png`, and 3 `public/lovable-uploads/` files. Deleted unused variants (`wise-ai-logo-original.png`, `wise-ai-logo-small.png`, `wise-ai-icon.png`). Zero code changes — all existing imports/references automatically use the new logo.
+- **Files changed**: 5 asset files overwritten, 3 deleted
+- **Test**: Check logo on splash screen, landing page (navbar + hero), footer, dashboard, QR generator, and PDF export.
+- **Risks**: Email templates still reference remote storage URL — needs separate upload.
+
+
 ### DARK-MODE-TEXT-READABILITY
 - **Summary**: Improved dark-mode text readability over 3D wallpaper by (1) increasing glass surface opacity from ~0.5 to ~0.75-0.82 in dark mode, and (2) adding a subtle `text-shadow` on `body` in dark mode (excluded from resume templates via `[data-resume-template]`).
 - **Files edited**: `src/index.css`
