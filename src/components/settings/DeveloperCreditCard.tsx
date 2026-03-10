@@ -132,7 +132,7 @@ export function DeveloperCreditCard({
                         }}
                       >
                         <Wrench className="w-4 h-4" />
-                        <span>Dev Tools</span>
+                        <span>DevKit</span>
                       </button>
                     </div>
                   </motion.div>
