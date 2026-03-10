@@ -14,7 +14,7 @@ interface DatabaseResumeLike {
 }
 
 interface UseEditorAutosaveOptions {
-  user: User | null;
+  user: KindeAppUser | null;
   currentResumeId: string | null;
   resumeRef: React.MutableRefObject<ResumeData | null>;
   lastSavedResumeRef: React.MutableRefObject<string>;

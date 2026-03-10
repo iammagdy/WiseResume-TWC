@@ -12,7 +12,7 @@ import type { KindeAppUser } from '@/contexts/AuthContext';
 const AccountStatsCard = lazy(() => import('./AccountStatsCard'));
 
 interface AccountSectionProps {
-    user: User;
+    user: KindeAppUser;
     authProvider: string;
     onChangePassword: () => void;
     onSignOut: () => void;

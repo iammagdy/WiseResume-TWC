@@ -250,7 +250,7 @@ async function fetchProfile(userId: string, user?: User | null): Promise<Profile
   return defaultProfile;
 }
 
-export function useProfile(userId: string | undefined, user?: User | null) {
+export function useProfile(userId: string | undefined, user?: KindeAppUser | null) {
   const queryClient = useQueryClient();
 
   const { data: profile = null, isLoading: loading } = useQuery({
