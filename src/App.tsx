@@ -21,6 +21,7 @@ import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { RedirectJobRoute } from "@/components/layout/RedirectJobRoute";
 import { useAIKeyHydration } from "@/hooks/useAIKeyHydration";
 import { SkyWallpaper } from "@/components/ui/SkyWallpaper";
+import { KindeProvider } from "@kinde-oss/kinde-auth-react";
 
 const CommandPalette = lazyWithRetry(() => import("@/components/layout/CommandPalette"));
 
