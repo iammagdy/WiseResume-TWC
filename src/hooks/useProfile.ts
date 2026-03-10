@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { User } from '@supabase/supabase-js';
+import type { KindeAppUser } from '@/contexts/AuthContext';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/safeClient';
 
