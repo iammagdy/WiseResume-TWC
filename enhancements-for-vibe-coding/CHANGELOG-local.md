@@ -4,6 +4,14 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-10
 
+### TOKEN-EXCHANGE-HARDENING-AND-ME-ENDPOINT
+- **Summary**: Hardened token-exchange with structured error codes (`INVALID_KINDE_TOKEN`, `SHADOW_USER_FAILED`, `PROFILE_UPSERT_FAILED`, `JWT_SECRET_MISSING`, `INTERNAL_ERROR`) and proper HTTP statuses. Added `token_exchanges` audit table for exchange diagnostics. Added `refreshTokenIfNeeded()` to supabaseBridge with auto-retry on 401 in safeClient and edgeFunctions. Created `/me` edge function returning userId, kinde_sub, profile, and preferences. Added "Who am I?" test to Dev-Kit.
+- **Files edited**: `supabase/functions/token-exchange/index.ts`, `src/lib/supabaseBridge.ts`, `src/contexts/AuthContext.tsx`, `src/integrations/supabase/safeClient.ts`, `src/integrations/supabase/edgeFunctions.ts`, `src/pages/DevToolsPage.tsx`
+- **Files created**: `supabase/functions/me/index.ts`
+- **Migration**: Created `public.token_exchanges` table with RLS (deny-all for public, service-role only)
+- **Test**: Log in → Dev-Kit → run "Who am I?" test → verify structured response. Test token expiry handling by waiting or manually clearing bridge.
+
+
 ### AUTH-CLEANUP-LEGACY-ARTIFACTS
 - **Summary**: Removed all legacy Supabase Auth artifacts after Kinde migration. Deleted unused edge functions (`send-signup-otp`, `verify-signup-otp`, `migrate-user-data`), legacy pages (`ResetPasswordPage`, `EmailConfirmationPage`), and outdated test file (`useAuth.test.tsx`). Removed corresponding lazy imports and route definitions from `App.tsx`. Zero `supabase.auth.*` calls remain in the frontend. Auth is 100% Kinde + token bridge.
 - **Files deleted**: `src/hooks/useAuth.test.tsx`, `src/pages/ResetPasswordPage.tsx`, `src/pages/EmailConfirmationPage.tsx`, `supabase/functions/send-signup-otp/`, `supabase/functions/verify-signup-otp/`, `supabase/functions/migrate-user-data/`

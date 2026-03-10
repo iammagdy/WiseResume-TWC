@@ -3,7 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { useSettingsStore } from '@/store/settingsStore';
 import { logAudit } from '@/lib/auditLogger';
-import { exchangeToken, clearBridge, isReady, getUserId } from '@/lib/supabaseBridge';
+import { exchangeToken, clearBridge, isReady, getUserId, setKindeTokenGetter } from '@/lib/supabaseBridge';
 
 export interface KindeAppUser {
   id: string;
@@ -52,17 +52,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loading = kindeLoading;
   const isAuthenticated = kindeAuthenticated;
 
-  // Derive a simple user object from Kinde
-  const user: KindeAppUser | null = useMemo(() => {
-    if (!kindeUser) return null;
-    return {
-      id: getUserId() || kindeUser.id || '',
-      email: kindeUser.email ?? '',
-      name: [kindeUser.givenName, kindeUser.familyName].filter(Boolean).join(' ') || undefined,
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kindeUser, bridgeReady]);
-
   // Get Kinde access token safely
   const getKindeToken = useCallback(async (): Promise<string | null> => {
     try {
@@ -73,6 +62,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
   }, [getToken]);
+
+  // Derive a simple user object from Kinde
+  const user: KindeAppUser | null = useMemo(() => {
+    if (!kindeUser) return null;
+    return {
+      id: getUserId() || kindeUser.id || '',
+      email: kindeUser.email ?? '',
+      name: [kindeUser.givenName, kindeUser.familyName].filter(Boolean).join(' ') || undefined,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kindeUser, bridgeReady]);
 
   // Exchange Kinde token for Supabase JWT when user is authenticated
   useEffect(() => {
@@ -91,6 +91,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await exchangeToken(kindeToken);
         if (!cancelled) {
           setBridgeReady(isReady());
+          // Register the getter so the bridge can auto-refresh
+          setKindeTokenGetter(getKindeToken);
         }
       } catch (err) {
         console.error('[AuthContext] Bridge exchange failed:', err);
