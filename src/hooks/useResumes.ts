@@ -30,7 +30,7 @@ export interface DatabaseResume {
   is_primary: boolean;
   parent_resume_id: string | null;
   job_url: string | null;
-  deleted_at: string | null;
+  
   created_at: string;
   updated_at: string;
 }
