@@ -65,7 +65,7 @@ const TABLE_COLUMNS: Record<string, string[]> = {
     'views', 'website_url', 'availability_headline',
   ],
   resumes: [
-    'awards', 'certifications', 'contact_info', 'customization', 'deleted_at',
+    'awards', 'certifications', 'contact_info', 'customization',
     'education', 'experience', 'hobbies', 'is_primary', 'job_match_score', 'job_url',
     'projects', 'publications', 'references', 'skills', 'summary', 'target_company',
     'target_job_title', 'template_id', 'title', 'volunteering',

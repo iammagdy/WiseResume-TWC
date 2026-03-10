@@ -37,7 +37,7 @@ const AnalyzeJobSheet = lazy(() => import('@/components/dashboard/AnalyzeJobShee
 
 import { useAuth } from '@/hooks/useAuth';
 import { useGuestMigration } from '@/hooks/useGuestMigration';
-import { useResumes, useResumeMutations, useTrashedResumes, dbToResumeData } from '@/hooks/useResumes';
+import { useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
 import { TrashSheet } from '@/components/dashboard/TrashSheet';
 import { useResumeStore } from '@/store/resumeStore';
 import { useResumeScore, ResumeHealthScore, backgroundScore } from '@/hooks/useResumeScore';
@@ -105,7 +105,7 @@ function DashboardPageContent() {
   const [profilePulseSeen, setProfilePulseSeen] = useState(() => !!localStorage.getItem('wr-profile-pulse-seen'));
   const [showFeatureMap, setShowFeatureMap] = useState(false);
   const [showTrash, setShowTrash] = useState(false);
-  const { data: trashedResumes = [] } = useTrashedResumes();
+  
 
   // Pagination: render at most PAGE_SIZE items initially, reveal more on demand
   const PAGE_SIZE = 10;
@@ -486,9 +486,6 @@ function DashboardPageContent() {
             aria-label="Trash"
           >
             <Trash2 className="w-5 h-5 text-muted-foreground" />
-            {trashedResumes.length > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive border-2 border-background" />
-            )}
           </Button>
           <Button
             variant="ghost"

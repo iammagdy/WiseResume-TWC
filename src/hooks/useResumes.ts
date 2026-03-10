@@ -30,7 +30,7 @@ export interface DatabaseResume {
   is_primary: boolean;
   parent_resume_id: string | null;
   job_url: string | null;
-  deleted_at: string | null;
+  
   created_at: string;
   updated_at: string;
 }
@@ -61,7 +61,7 @@ function parseDbResume(dbResume: any): DatabaseResume {
     is_primary: dbResume.is_primary || false,
     parent_resume_id: dbResume.parent_resume_id,
     job_url: dbResume.job_url || null,
-    deleted_at: dbResume.deleted_at || null,
+    
     created_at: dbResume.created_at,
     updated_at: dbResume.updated_at,
   };
@@ -122,8 +122,7 @@ export function useResumes<TData = DatabaseResume[]>(options?: { select?: (data:
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
-      // Filter out soft-deleted resumes in JS to avoid PostgREST schema cache issues
-      return (data || []).map(parseDbResume).filter(r => !r.deleted_at);
+      return (data || []).map(parseDbResume);
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000,
@@ -269,14 +268,13 @@ export function useResumeMutations() {
 
       const { error } = await supabase
         .from('resumes')
-        .update({ deleted_at: new Date().toISOString() } as any)
+        .delete()
         .eq('id', resumeId)
-        .select('id');
+        .eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
-      queryClient.invalidateQueries({ queryKey: ['trashed-resumes'] });
     },
     onError: (error) => {
       toast.error('Failed to delete resume');
@@ -290,14 +288,13 @@ export function useResumeMutations() {
 
       const { error } = await supabase
         .from('resumes')
-        .update({ deleted_at: new Date().toISOString() } as any)
+        .delete()
         .in('id', resumeIds)
-        .select('id');
+        .eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
-      queryClient.invalidateQueries({ queryKey: ['trashed-resumes'] });
       toast.success('Resumes deleted');
     },
     onError: (error) => {
@@ -306,67 +303,6 @@ export function useResumeMutations() {
     },
   });
 
-  const restoreResume = useMutation({
-    mutationFn: async (resumeId: string) => {
-      if (!user) throw new Error('Not authenticated');
-      const { error } = await supabase
-        .from('resumes')
-        .update({ deleted_at: null } as any)
-        .eq('id', resumeId)
-        .select('id');
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['resumes'] });
-      queryClient.invalidateQueries({ queryKey: ['trashed-resumes'] });
-    },
-    onError: () => {
-      toast.error('Failed to restore resume');
-    },
-  });
-
-  const permanentlyDeleteResume = useMutation({
-    mutationFn: async (resumeId: string) => {
-      if (!user) throw new Error('Not authenticated');
-      const { error } = await supabase
-        .from('resumes')
-        .delete()
-        .eq('id', resumeId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trashed-resumes'] });
-    },
-    onError: () => {
-      toast.error('Failed to delete resume');
-    },
-  });
-
-  const emptyTrash = useMutation({
-    mutationFn: async () => {
-      if (!user) throw new Error('Not authenticated');
-      // Fetch all resumes and filter trashed ones in JS to avoid PGRST204 on deleted_at
-      const { data, error: fetchError } = await supabase
-        .from('resumes')
-        .select('id, deleted_at')
-        .eq('user_id', user.id);
-      if (fetchError) throw fetchError;
-      const trashedIds = (data || []).filter((r: any) => !!r.deleted_at).map((r: any) => r.id);
-      if (trashedIds.length === 0) return;
-      const { error } = await supabase
-        .from('resumes')
-        .delete()
-        .in('id', trashedIds);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trashed-resumes'] });
-      queryClient.invalidateQueries({ queryKey: ['resumes'] });
-    },
-    onError: () => {
-      toast.error('Failed to empty trash');
-    },
-  });
 
   const duplicateResume = useMutation({
     mutationFn: async (resumeId: string) => {
@@ -455,31 +391,9 @@ export function useResumeMutations() {
     deleteMultipleResumes,
     duplicateResume,
     setJobTarget,
-    restoreResume,
-    permanentlyDeleteResume,
-    emptyTrash,
   };
 }
 
-export function useTrashedResumes() {
-  const { user } = useAuth();
-
-  return useQuery({
-    queryKey: ['trashed-resumes', user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('resumes')
-        .select('*')
-        .order('updated_at', { ascending: false });
-
-      if (error) throw error;
-      // Filter in JS to avoid PostgREST schema cache issues with deleted_at column
-      return (data || []).map(parseDbResume).filter(r => !!r.deleted_at);
-    },
-    enabled: !!user,
-    staleTime: 30 * 1000,
-  });
-}
 
 export function useSetMasterCV() {
   const { user } = useAuth();
