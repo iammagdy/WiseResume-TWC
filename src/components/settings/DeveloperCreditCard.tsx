@@ -124,6 +124,16 @@ export function DeveloperCreditCard({
                           <span>GitHub</span>
                         </button>
                       )}
+                      <button
+                        className="dev-github-btn"
+                        onClick={() => {
+                          haptics.light();
+                          navigate('/dev-tools');
+                        }}
+                      >
+                        <Wrench className="w-4 h-4" />
+                        <span>Dev Tools</span>
+                      </button>
                     </div>
                   </motion.div>
                 </div>
