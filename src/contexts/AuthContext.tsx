@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return {
       id: kindeUser.id ?? '',
       email: kindeUser.email ?? '',
-      name: [kindeUser.given_name, kindeUser.family_name].filter(Boolean).join(' ') || undefined,
+      name: [kindeUser.givenName, kindeUser.familyName].filter(Boolean).join(' ') || undefined,
     };
   }, [kindeUser]);
 
