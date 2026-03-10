@@ -24,7 +24,7 @@ const MINIMAL_RESUME = {
 const SAMPLE_JD = 'We are looking for a Senior Frontend Engineer with 3+ years of React and TypeScript experience. Must have experience with REST APIs, state management, and CI/CD pipelines.';
 
 type TestStatus = 'idle' | 'running' | 'success' | 'error';
-type SectionId = 'auth' | 'ai' | 'db' | 'routing' | 'settings' | 'credits' | 'errors';
+type SectionId = 'auth' | 'ai' | 'db' | 'routing' | 'settings' | 'credits' | 'errors' | 'usage';
 
 interface TestResult {
   status: TestStatus;
