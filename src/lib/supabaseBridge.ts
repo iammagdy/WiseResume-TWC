@@ -144,7 +144,22 @@ export function clearBridge(): void {
   state.supabaseToken = null;
   state.userId = null;
   state.expiresAt = 0;
+  state.lastError = null;
   exchangePromise = null;
   _getKindeTokenFn = null;
   console.log('[SupabaseBridge] Cleared');
+}
+
+/**
+ * Get the last bridge error (from token exchange), or null if none.
+ */
+export function getLastError(): BridgeError | null {
+  return state.lastError;
+}
+
+/**
+ * Clear the last bridge error (e.g. after showing a banner).
+ */
+export function clearLastError(): void {
+  state.lastError = null;
 }
