@@ -122,7 +122,6 @@ export class ErrorBoundary extends Component<Props, State> {
       console.error('Failed to send bug report:', err);
       // Fallback: insert directly into bug_reports table
       try {
-        const { data } = await supabase.auth.getUser();
         await supabase.from('bug_reports').insert({
           error_message: this.state.error?.message || 'Unknown error',
           error_stack: this.state.error?.stack?.slice(0, 4000),
@@ -130,8 +129,8 @@ export class ErrorBoundary extends Component<Props, State> {
           route: window.location.pathname,
           user_agent: navigator.userAgent,
           additional_context: this.state.reportContext || null,
-          user_id: data?.user?.id || 'anonymous',
-          user_email: data?.user?.email || 'anonymous@user',
+          user_id: getUserId() || 'anonymous',
+          user_email: 'anonymous@user',
           app_version: 'unknown',
         });
         this.setState({ reportStatus: 'sent' });
