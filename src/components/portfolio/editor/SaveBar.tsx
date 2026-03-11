@@ -20,41 +20,41 @@ export function SaveBar({ onSave, saving, disabled, portfolioEnabled, onPortfoli
           <Switch
             checked={portfolioEnabled}
             onCheckedChange={onPortfolioEnabledChange}
-            className="scale-90"
-          />
+            className="scale-90" />
+          
           <span className="text-[11px] font-medium text-muted-foreground">
             {portfolioEnabled ? 'Live' : 'Draft'}
           </span>
         </div>
 
         {/* Save button — tooltip when disabled explains why (PE-1) */}
-        {disabled ? (
-          <TooltipProvider>
+        {disabled ?
+        <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="flex-1">
                   <Button
-                    disabled
-                    className="w-full h-11 min-h-[44px] rounded-xl pointer-events-none"
-                  >
+                  disabled
+                  className="w-full h-11 min-h-[44px] rounded-xl pointer-events-none">
+                  
                     Save Portfolio
                   </Button>
                 </span>
               </TooltipTrigger>
               <TooltipContent side="top">Fix username errors before saving</TooltipContent>
             </Tooltip>
-          </TooltipProvider>
-        ) : (
-          <Button
-            onClick={onSave}
-            disabled={saving}
-            className="flex-1 h-11 min-h-[44px] rounded-xl active:scale-95 touch-manipulation"
-          >
+          </TooltipProvider> :
+
+        <Button
+          onClick={onSave}
+          disabled={saving}
+          className="flex-1 h-11 min-h-[44px] rounded-xl active:scale-95 touch-manipulation mx-[50px] my-0 pr-0 ml-0 mr-[80px] text-center pl-0">
+          
             {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             Save Portfolio
           </Button>
-        )}
+        }
       </div>
-    </div>
-  );
+    </div>);
+
 }
