@@ -397,10 +397,7 @@ export default function AIStudioPage() {
               <button key={s} className="px-3 py-1.5 text-xs rounded-full border border-border bg-muted/50 text-muted-foreground hover:bg-muted transition-colors truncate">
                 {s}
               </button>
-
-
-
-            )}
+            ))}
           </div>
         </div>
       </motion.div>
