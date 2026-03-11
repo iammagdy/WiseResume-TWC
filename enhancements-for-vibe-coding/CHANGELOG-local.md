@@ -2,6 +2,13 @@
 
 Local changelog tracking WiseResume changes via Lovable AI sessions.
 
+## 2026-03-11
+
+### ADD-BACKGROUND-ASSETS
+- **Summary**: Added 4 SkyWallpaper background assets to `public/backgrounds/` — light photo, dark photo, light video, dark video (all 1920×1080).
+- **Files added**: `public/backgrounds/sky-light.jpg`, `public/backgrounds/sky-dark.jpg`, `public/backgrounds/sky-light.mp4`, `public/backgrounds/sky-dark.mp4`
+- **Notes**: These are static fallback/marketing assets matching the 3D SkyWallpaper theme. Not wired into the app — available for App Store screenshots, social previews, or fallback backgrounds.
+
 ## 2026-03-10
 
 ### FIX-PARSE-JOB-500
