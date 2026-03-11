@@ -47,8 +47,8 @@ import {
   OnboardingSkeleton,
   GuidesExamplesSkeleton,
   AnalyticsSkeleton,
-  AchievementsSkeleton,
-} from "@/components/layout/PageSkeletons";
+  AchievementsSkeleton } from
+"@/components/layout/PageSkeletons";
 import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
@@ -113,12 +113,12 @@ const queryClient = new QueryClient({
       staleTime: 5 * 60 * 1000,
       gcTime: 10 * 60 * 1000,
       refetchOnWindowFocus: false,
-      retry: 1,
-    },
-  },
+      retry: 1
+    }
+  }
 });
 
- function AppRoutes() {
+function AppRoutes() {
   useBackButton();
   useStatusBarThemeSync();
   useDeepLinking();
@@ -134,61 +134,61 @@ const queryClient = new QueryClient({
   useAppLifecycle({
     onBackground: () => {
       window.dispatchEvent(new CustomEvent('app:save-draft'));
-    },
+    }
   });
 
-   const theme = useSettingsStore((s) => s.theme);
-   useEffect(() => {
-     const root = document.documentElement;
-     const apply = (resolved: 'light' | 'dark') => {
-       root.classList.remove('light', 'dark');
-       root.classList.add(resolved);
-     };
-     if (theme === 'system') {
-       const mq = window.matchMedia('(prefers-color-scheme: dark)');
-       apply(mq.matches ? 'dark' : 'light');
-       const handler = (e: MediaQueryListEvent) => apply(e.matches ? 'dark' : 'light');
-       mq.addEventListener('change', handler);
-       return () => mq.removeEventListener('change', handler);
-     }
-     apply(theme);
-   }, [theme]);
-   
-   const { biometricLockEnabled, biometricLockTimeout, hasSeenSplash, setHasSeenSplash } = useSettingsStore();
-    const { isLocked, isAvailable, biometryType, isAuthenticating, authenticate } = useBiometricLock(biometricLockEnabled, biometricLockTimeout);
-    const location = useLocation();
+  const theme = useSettingsStore((s) => s.theme);
+  useEffect(() => {
+    const root = document.documentElement;
+    const apply = (resolved: 'light' | 'dark') => {
+      root.classList.remove('light', 'dark');
+      root.classList.add(resolved);
+    };
+    if (theme === 'system') {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      apply(mq.matches ? 'dark' : 'light');
+      const handler = (e: MediaQueryListEvent) => apply(e.matches ? 'dark' : 'light');
+      mq.addEventListener('change', handler);
+      return () => mq.removeEventListener('change', handler);
+    }
+    apply(theme);
+  }, [theme]);
 
-    const isPublicStandalone = location.pathname.startsWith('/p/')
-      || location.pathname.startsWith('/share/')
-      || location.pathname.startsWith('/l/');
+  const { biometricLockEnabled, biometricLockTimeout, hasSeenSplash, setHasSeenSplash } = useSettingsStore();
+  const { isLocked, isAvailable, biometryType, isAuthenticating, authenticate } = useBiometricLock(biometricLockEnabled, biometricLockTimeout);
+  const location = useLocation();
 
-    useEffect(() => {
-      const handleRejection = (event: PromiseRejectionEvent) => {
-        console.error("Unhandled rejection:", event.reason);
-        toast.error("Something went wrong. Please try again.");
-        event.preventDefault();
-      };
+  const isPublicStandalone = location.pathname.startsWith('/p/') ||
+  location.pathname.startsWith('/share/') ||
+  location.pathname.startsWith('/l/');
 
-      window.addEventListener("unhandledrejection", handleRejection);
-      return () => window.removeEventListener("unhandledrejection", handleRejection);
-    }, []);
-    
-     if (!hasSeenSplash && !isPublicStandalone) {
-       return <AnimatedSplash onComplete={() => setHasSeenSplash(true)} />;
-     }
+  useEffect(() => {
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      console.error("Unhandled rejection:", event.reason);
+      toast.error("Something went wrong. Please try again.");
+      event.preventDefault();
+    };
 
-    if (biometricLockEnabled && isLocked && isAvailable) {
-     return (
-       <BiometricLockScreen
-         biometryType={biometryType}
-         isAuthenticating={isAuthenticating}
-         onAuthenticate={authenticate}
-       />
-     );
-   }
-   
-      return (
-        <>
+    window.addEventListener("unhandledrejection", handleRejection);
+    return () => window.removeEventListener("unhandledrejection", handleRejection);
+  }, []);
+
+  if (!hasSeenSplash && !isPublicStandalone) {
+    return <AnimatedSplash onComplete={() => setHasSeenSplash(true)} />;
+  }
+
+  if (biometricLockEnabled && isLocked && isAvailable) {
+    return (
+      <BiometricLockScreen
+        biometryType={biometryType}
+        isAuthenticating={isAuthenticating}
+        onAuthenticate={authenticate} />);
+
+
+  }
+
+  return (
+    <>
         <SkyWallpaper />
         <Routes>
           {/* Public routes */}
@@ -220,7 +220,7 @@ const queryClient = new QueryClient({
                 <Route path="/job/:id" element={<Suspense fallback={<DetailSkeleton />}><JobDetailPage /></Suspense>} />
                 <Route path="/application/:id" element={<Suspense fallback={<DetailSkeleton />}><ApplicationTrackerPage /></Suspense>} />
                  <Route path="/notifications" element={<Suspense fallback={<NotificationsSkeleton />}><NotificationsPage /></Suspense>} />
-                 <Route path="/portfolio" element={<Suspense fallback={<PortfolioEditorSkeleton />}><PortfolioEditorPage /></Suspense>} />
+                 <Route path="/portfolio" element={<Suspense fallback={<PortfolioEditorSkeleton />}><PortfolioEditorPage /></Suspense>} className="bg-[#050505]/[0.03]" />
                  
                  <Route path="/cover-letters" element={<Suspense fallback={<CoverLettersSkeleton />}><CoverLettersPage /></Suspense>} />
                 <Route path="/cover-letter/new" element={<Suspense fallback={<DetailSkeleton />}><CoverLetterNewPage /></Suspense>} />
@@ -265,35 +265,35 @@ const queryClient = new QueryClient({
         <Route path="*" element={<Suspense fallback={<DetailSkeleton />}><NotFound /></Suspense>} />
       </Routes>
       
-      </>
-    );
- }
+      </>);
+
+}
 
 function DeferredProviders() {
   const [ready, setReady] = useState(false);
   const location = useLocation();
-  const isPublicStandalone = location.pathname.startsWith('/p/')
-    || location.pathname.startsWith('/share/')
-    || location.pathname.startsWith('/l/');
-  useEffect(() => { const t = setTimeout(() => setReady(true), 2000); return () => clearTimeout(t); }, []);
+  const isPublicStandalone = location.pathname.startsWith('/p/') ||
+  location.pathname.startsWith('/share/') ||
+  location.pathname.startsWith('/l/');
+  useEffect(() => {const t = setTimeout(() => setReady(true), 2000);return () => clearTimeout(t);}, []);
   if (!ready || isPublicStandalone) return null;
   return (
     <>
       <Suspense fallback={null}><CommandPalette /></Suspense>
       <Suspense fallback={null}><BugReportDialog /></Suspense>
-    </>
-  );
+    </>);
+
 }
 
 function AppInstallPrompt() {
   const location = useLocation();
-  const isPublicStandalone = location.pathname.startsWith('/p/')
-    || location.pathname.startsWith('/share/')
-    || location.pathname.startsWith('/l/');
+  const isPublicStandalone = location.pathname.startsWith('/p/') ||
+  location.pathname.startsWith('/share/') ||
+  location.pathname.startsWith('/l/');
   if (isPublicStandalone) return null;
   return <InstallPrompt />;
 }
- 
+
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
@@ -302,11 +302,11 @@ const App = () => {
             <Toaster />
              <BrowserRouter>
                <KindeProvider
-                 clientId="629174acb2874e6bbf53cd4a95497425"
-                 domain="https://thewisecloud.kinde.com"
-                 redirectUri={window.location.origin + '/auth/callback'}
-                 logoutUri={window.location.origin}
-               >
+              clientId="629174acb2874e6bbf53cd4a95497425"
+              domain="https://thewisecloud.kinde.com"
+              redirectUri={window.location.origin + '/auth/callback'}
+              logoutUri={window.location.origin}>
+              
                <AuthProvider>
                 <AppRoutes />
                 <DeferredProviders />
@@ -316,8 +316,8 @@ const App = () => {
              </BrowserRouter>
           </ErrorBoundary>
       </TooltipProvider>
-    </QueryClientProvider>
-  );
+    </QueryClientProvider>);
+
 };
 
 export default App;

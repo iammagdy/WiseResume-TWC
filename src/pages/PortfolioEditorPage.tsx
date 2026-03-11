@@ -35,10 +35,10 @@ export default function PortfolioEditorPage() {
   // Collapsible sections state — all collapsed by default
   const [openSections, setOpenSections] = useState<Set<string>>(new Set());
   const toggleSection = useCallback((id: string) => {
-    setOpenSections(prev => {
+    setOpenSections((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) next.delete(id);else
+      next.add(id);
       return next;
     });
   }, []);
@@ -75,10 +75,10 @@ export default function PortfolioEditorPage() {
   const [showQR, setShowQR] = useState(false);
   const [showCareerCard, setShowCareerCard] = useState(false);
   const [syncMode, setSyncMode] = useState<'auto' | 'locked'>('auto');
-  const [caseStudies, setCaseStudies] = useState<Array<{id:string;title:string;challenge:string;outcome:string}>>([]);
-  const [services, setServices] = useState<Array<{id:string;title:string;description:string;category:string}>>([]);
-  const [testimonials, setTestimonials] = useState<Array<{id:string;quote:string;authorName:string;authorTitle:string}>>([]);
-  const [highlights, setHighlights] = useState<Array<{id:string;value:string;label:string}>>([]);
+  const [caseStudies, setCaseStudies] = useState<Array<{id: string;title: string;challenge: string;outcome: string;}>>([]);
+  const [services, setServices] = useState<Array<{id: string;title: string;description: string;category: string;}>>([]);
+  const [testimonials, setTestimonials] = useState<Array<{id: string;quote: string;authorName: string;authorTitle: string;}>>([]);
+  const [highlights, setHighlights] = useState<Array<{id: string;value: string;label: string;}>>([]);
   const [portfolioSummary, setPortfolioSummary] = useState('');
   const [activeTab, setActiveTab] = useState<'setup' | 'content' | 'design' | 'more'>('setup');
 
@@ -109,34 +109,34 @@ export default function PortfolioEditorPage() {
       setContactEmail(profile.contactEmail || '');
       setSelectedTheme(profile.theme || 'system');
       const p = profile as unknown as Record<string, unknown>;
-      setSections((p.portfolioSections as PortfolioSections) || DEFAULT_SECTIONS);
-      setMetaTitle((p.portfolioMetaTitle as string) || '');
-      setMetaDescription((p.portfolioMetaDescription as string) || '');
+      setSections(p.portfolioSections as PortfolioSections || DEFAULT_SECTIONS);
+      setMetaTitle(p.portfolioMetaTitle as string || '');
+      setMetaDescription(p.portfolioMetaDescription as string || '');
       setPortfolioStyle((profile.portfolioStyle || 'minimal') as PortfolioStyle);
       setPortfolioLayout((profile.portfolioLayout || 'single') as PortfolioLayout);
       setPortfolioAccentColor(profile.portfolioAccentColor || '#e84545');
       setPortfolioFont((profile.portfolioFont || 'inter') as PortfolioFont);
       setOpenToWork(profile.openToWork || false);
       setAvailabilityHeadline(profile.availabilityHeadline || '');
-      setSyncMode((profile.portfolioSyncMode as 'auto' | 'locked') || 'auto');
-      const extras = (profile.portfolioExtras as Record<string, unknown>) || {};
-      setCaseStudies((extras.caseStudies as Array<{id:string;title:string;challenge:string;outcome:string}>) || []);
-      setServices((extras.services as Array<{id:string;title:string;description:string;category:string}>) || []);
-      setTestimonials((extras.testimonials as Array<{id:string;quote:string;authorName:string;authorTitle:string}>) || []);
-      setHighlights((extras.highlights as Array<{id:string;value:string;label:string}>) || []);
-      setPortfolioSummary((extras.portfolioSummary as string) || '');
+      setSyncMode(profile.portfolioSyncMode as 'auto' | 'locked' || 'auto');
+      const extras = profile.portfolioExtras as Record<string, unknown> || {};
+      setCaseStudies(extras.caseStudies as Array<{id: string;title: string;challenge: string;outcome: string;}> || []);
+      setServices(extras.services as Array<{id: string;title: string;description: string;category: string;}> || []);
+      setTestimonials(extras.testimonials as Array<{id: string;quote: string;authorName: string;authorTitle: string;}> || []);
+      setHighlights(extras.highlights as Array<{id: string;value: string;label: string;}> || []);
+      setPortfolioSummary(extras.portfolioSummary as string || '');
     }
   }, [profile]);
 
   // Init selectedResumeId
   useEffect(() => {
     if (resumes.length > 0 && !selectedResumeId) {
-      const hasData = (r: typeof resumes[0]) => !!(r.summary || (r.experience && (r.experience as unknown[]).length > 0));
-      if (profile?.portfolioResumeId && resumes.some(r => r.id === profile.portfolioResumeId)) {
+      const hasData = (r: typeof resumes[0]) => !!(r.summary || r.experience && (r.experience as unknown[]).length > 0);
+      if (profile?.portfolioResumeId && resumes.some((r) => r.id === profile.portfolioResumeId)) {
         setSelectedResumeId(profile.portfolioResumeId);
       } else {
         const withData = resumes.find(hasData);
-        const primary = resumes.find(r => r.is_primary);
+        const primary = resumes.find((r) => r.is_primary);
         setSelectedResumeId(withData?.id || primary?.id || resumes[0].id);
       }
     }
@@ -161,7 +161,7 @@ export default function PortfolioEditorPage() {
       try {
         const { data, error } = await supabase.rpc('check_username_available', {
           p_username: username,
-          p_user_id: user!.id,
+          p_user_id: user!.id
         });
         if (error) throw error;
         setUsernameAvailable(data === true);
@@ -171,7 +171,7 @@ export default function PortfolioEditorPage() {
         setCheckingUsername(false);
       }
     }, 500);
-    return () => { if (usernameCheckRef.current) clearTimeout(usernameCheckRef.current); };
+    return () => {if (usernameCheckRef.current) clearTimeout(usernameCheckRef.current);};
   }, [username, usernameError, user, profile?.username]);
 
 
@@ -181,11 +181,11 @@ export default function PortfolioEditorPage() {
   if (loading) return null;
 
   const validateUsername = (value: string) => {
-    if (!value) { setUsernameError(''); return; }
-    if (value.length < 3) { setUsernameError('At least 3 characters'); return; }
-    if (value.length > 30) { setUsernameError('Max 30 characters'); return; }
-    if (!/^[a-z0-9-]+$/.test(value)) { setUsernameError('Only lowercase letters, numbers, hyphens'); return; }
-    if (value.startsWith('-') || value.endsWith('-')) { setUsernameError('Cannot start or end with hyphen'); return; }
+    if (!value) {setUsernameError('');return;}
+    if (value.length < 3) {setUsernameError('At least 3 characters');return;}
+    if (value.length > 30) {setUsernameError('Max 30 characters');return;}
+    if (!/^[a-z0-9-]+$/.test(value)) {setUsernameError('Only lowercase letters, numbers, hyphens');return;}
+    if (value.startsWith('-') || value.endsWith('-')) {setUsernameError('Cannot start or end with hyphen');return;}
     setUsernameError('');
   };
 
@@ -196,7 +196,7 @@ export default function PortfolioEditorPage() {
   };
 
   const callPortfolioAI = async (action: string, extraBody?: Record<string, unknown>) => {
-    const selectedResume = resumes.find(r => r.id === selectedResumeId) || resumes[0];
+    const selectedResume = resumes.find((r) => r.id === selectedResumeId) || resumes[0];
     const token = await getSupabaseToken();
     const res = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/generate-portfolio-bio`, {
       method: 'POST',
@@ -209,15 +209,15 @@ export default function PortfolioEditorPage() {
         experience: selectedResume?.experience || [],
         skills: selectedResume?.skills || [],
         careerLevel: (profile as unknown as Record<string, unknown>)?.careerLevel || 'mid',
-        ...extraBody,
-      }),
+        ...extraBody
+      })
     });
     if (!res.ok) throw new Error(`AI request failed`);
     return res.json();
   };
 
   const handleGenerateBio = async () => {
-    const selectedResume = resumes.find(r => r.id === selectedResumeId) || resumes[0];
+    const selectedResume = resumes.find((r) => r.id === selectedResumeId) || resumes[0];
     if (!selectedResume?.summary && !profile?.jobTitle && (!selectedResume?.experience || (selectedResume.experience as unknown[]).length === 0)) {
       toast.error('Selected resume has no data for bio generation.');
       return;
@@ -264,9 +264,9 @@ export default function PortfolioEditorPage() {
     }
   };
 
-  const handleSave = async (overrides?: { portfolioEnabled?: boolean }) => {
+  const handleSave = async (overrides?: {portfolioEnabled?: boolean;}) => {
     const isEnabling = overrides?.portfolioEnabled === true ||
-      (overrides?.portfolioEnabled === undefined && portfolioEnabled);
+    overrides?.portfolioEnabled === undefined && portfolioEnabled;
     if (isEnabling && !username) {
       toast.error('Set a username before publishing your portfolio.');
       setSavingPortfolio(false);
@@ -279,7 +279,7 @@ export default function PortfolioEditorPage() {
       if (username && username.length >= 3 && profile?.username !== username) {
         const { data: available } = await supabase.rpc('check_username_available', {
           p_username: username,
-          p_user_id: user!.id,
+          p_user_id: user!.id
         });
         if (!available) {
           setUsernameAvailable(false);
@@ -309,7 +309,7 @@ export default function PortfolioEditorPage() {
         openToWork,
         availabilityHeadline: availabilityHeadline || null,
         portfolioSyncMode: syncMode,
-        portfolioExtras: { caseStudies, services, testimonials, highlights, portfolioSummary },
+        portfolioExtras: { caseStudies, services, testimonials, highlights, portfolioSummary }
       };
       await updateProfile(updates as Parameters<typeof updateProfile>[0]);
       if (overrides?.portfolioEnabled !== undefined) {
@@ -342,7 +342,7 @@ export default function PortfolioEditorPage() {
     if (navigator.share) {
       try {
         await navigator.share({ title: `${profile?.fullName || 'My'} Portfolio`, url: actualPortfolioUrl });
-      } catch { /* cancelled */ }
+      } catch {/* cancelled */}
     } else {
       await navigator.clipboard.writeText(actualPortfolioUrl);
       toast.success('Link copied!');
@@ -350,25 +350,25 @@ export default function PortfolioEditorPage() {
   };
 
   const toggleSectionVisibility = (key: keyof PortfolioSections) => {
-    setSections(prev => ({ ...prev, [key]: !prev[key] }));
+    setSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   // ── Portfolio Strength ────────────────────────────────────────────────────
-  const selectedResume = resumes.find(r => r.id === selectedResumeId) || resumes[0];
+  const selectedResume = resumes.find((r) => r.id === selectedResumeId) || resumes[0];
   const strengthChecks = [
-    { ok: !!profile?.avatarUrl, tip: 'Add a profile photo in Settings → Profile' },
-    { ok: bio.length >= 50, tip: 'Write a bio (at least 50 characters)' },
-    { ok: username.length >= 3, tip: 'Set a portfolio username' },
-    { ok: !!(linkedinUrl || githubUrl || websiteUrl || twitterUrl || contactEmail), tip: 'Add at least one social link or contact email' },
-    { ok: availabilityHeadline.length > 0, tip: 'Set an availability headline' },
-    { ok: metaTitle.length > 0, tip: 'Add a custom page title for SEO' },
-    { ok: metaDescription.length > 0, tip: 'Add a meta description for SEO' },
-    { ok: Array.isArray(selectedResume?.experience) && (selectedResume?.experience as unknown[]).length >= 1, tip: 'Add work experience to your resume' },
-    { ok: Array.isArray(selectedResume?.skills) && (selectedResume?.skills as unknown[]).length >= 3, tip: 'Add at least 3 skills to your resume' },
-    { ok: portfolioEnabled, tip: 'Publish your portfolio to make it live' },
-  ];
-  const strengthScore = Math.round((strengthChecks.filter(c => c.ok).length / strengthChecks.length) * 100);
-  const strengthMissing = strengthChecks.filter(c => !c.ok).slice(0, 3);
+  { ok: !!profile?.avatarUrl, tip: 'Add a profile photo in Settings → Profile' },
+  { ok: bio.length >= 50, tip: 'Write a bio (at least 50 characters)' },
+  { ok: username.length >= 3, tip: 'Set a portfolio username' },
+  { ok: !!(linkedinUrl || githubUrl || websiteUrl || twitterUrl || contactEmail), tip: 'Add at least one social link or contact email' },
+  { ok: availabilityHeadline.length > 0, tip: 'Set an availability headline' },
+  { ok: metaTitle.length > 0, tip: 'Add a custom page title for SEO' },
+  { ok: metaDescription.length > 0, tip: 'Add a meta description for SEO' },
+  { ok: Array.isArray(selectedResume?.experience) && (selectedResume?.experience as unknown[]).length >= 1, tip: 'Add work experience to your resume' },
+  { ok: Array.isArray(selectedResume?.skills) && (selectedResume?.skills as unknown[]).length >= 3, tip: 'Add at least 3 skills to your resume' },
+  { ok: portfolioEnabled, tip: 'Publish your portfolio to make it live' }];
+
+  const strengthScore = Math.round(strengthChecks.filter((c) => c.ok).length / strengthChecks.length * 100);
+  const strengthMissing = strengthChecks.filter((c) => !c.ok).slice(0, 3);
   const strengthLabel = strengthScore < 40 ? 'Needs work' : strengthScore < 70 ? 'Good' : 'Strong';
 
 
@@ -380,7 +380,7 @@ export default function PortfolioEditorPage() {
         <h1 className="text-page-title leading-tight flex-1">Portfolio</h1>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 pb-6">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 pb-6 bg-transparent">
         {/* Status Bar */}
         <StatusBar
           portfolioEnabled={portfolioEnabled}
@@ -388,12 +388,12 @@ export default function PortfolioEditorPage() {
           actualPortfolioUrl={actualPortfolioUrl}
           copied={copied}
           onCopyUrl={handleCopyUrl}
-          onOpenQR={() => { haptics.light(); setShowQR(true); }}
-          
+          onOpenQR={() => {haptics.light();setShowQR(true);}}
+
           strengthScore={strengthScore}
           strengthLabel={strengthLabel}
-          strengthMissing={strengthMissing}
-        />
+          strengthMissing={strengthMissing} />
+        
 
         {/* Live Preview Card */}
         <LivePreviewCard
@@ -405,29 +405,29 @@ export default function PortfolioEditorPage() {
           portfolioFont={portfolioFont}
           bio={bio}
           openToWork={openToWork}
-          views={profile?.views || 0}
-        />
+          views={profile?.views || 0} />
+        
 
         {/* Tab Row */}
         <div className="flex gap-1.5 p-1 rounded-xl glass-surface border border-border/30">
           {([
-            { id: 'setup', label: 'Setup' },
-            { id: 'content', label: 'Content' },
-            { id: 'design', label: 'Design' },
-            { id: 'more', label: 'More' },
-          ] as const).map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] touch-manipulation active:scale-[0.97] ${
-                activeTab === tab.id
-                  ? 'glass-elevated text-foreground shadow-[0_0_16px_-4px_hsl(var(--primary)/0.2)]'
-                  : 'text-muted-foreground hover:bg-muted/50'
-              }`}
-            >
+          { id: 'setup', label: 'Setup' },
+          { id: 'content', label: 'Content' },
+          { id: 'design', label: 'Design' },
+          { id: 'more', label: 'More' }] as
+          const).map((tab) =>
+          <button
+            key={tab.id}
+            onClick={() => handleTabChange(tab.id)}
+            className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] touch-manipulation active:scale-[0.97] ${
+            activeTab === tab.id ?
+            'glass-elevated text-foreground shadow-[0_0_16px_-4px_hsl(var(--primary)/0.2)]' :
+            'text-muted-foreground hover:bg-muted/50'}`
+            }>
+            
               {tab.label}
             </button>
-          ))}
+          )}
         </div>
 
         {/* Tab Content */}
@@ -437,102 +437,102 @@ export default function PortfolioEditorPage() {
             initial={reducedMotion ? false : { x: directionRef.current * 20, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={reducedMotion ? undefined : { x: directionRef.current * -20, opacity: 0 }}
-            transition={{ duration: reducedMotion ? 0 : 0.2, ease: 'easeInOut' }}
-          >
-            {activeTab === 'setup' && (
-              <SetupTab
-                username={username}
-                onUsernameChange={handleUsernameChange}
-                usernameError={usernameError}
-                usernameAvailable={usernameAvailable}
-                checkingUsername={checkingUsername}
-                resumes={resumes}
-                selectedResumeId={selectedResumeId}
-                onSelectedResumeIdChange={setSelectedResumeId}
-                bio={bio}
-                onBioChange={setBio}
-                onGenerateBio={handleGenerateBio}
-                generatingBio={generatingBio}
-                sections={sections}
-                onToggleSectionVisibility={toggleSectionVisibility}
-                openSections={openSections}
-                toggleSection={toggleSection}
-                openToWork={openToWork}
-                onOpenToWorkChange={setOpenToWork}
-                availabilityHeadline={availabilityHeadline}
-                onAvailabilityHeadlineChange={setAvailabilityHeadline}
-                onGenerateAvailability={handleGenerateAvailability}
-                generatingAvailability={generatingAvailability}
-              />
-            )}
+            transition={{ duration: reducedMotion ? 0 : 0.2, ease: 'easeInOut' }}>
+            
+            {activeTab === 'setup' &&
+            <SetupTab
+              username={username}
+              onUsernameChange={handleUsernameChange}
+              usernameError={usernameError}
+              usernameAvailable={usernameAvailable}
+              checkingUsername={checkingUsername}
+              resumes={resumes}
+              selectedResumeId={selectedResumeId}
+              onSelectedResumeIdChange={setSelectedResumeId}
+              bio={bio}
+              onBioChange={setBio}
+              onGenerateBio={handleGenerateBio}
+              generatingBio={generatingBio}
+              sections={sections}
+              onToggleSectionVisibility={toggleSectionVisibility}
+              openSections={openSections}
+              toggleSection={toggleSection}
+              openToWork={openToWork}
+              onOpenToWorkChange={setOpenToWork}
+              availabilityHeadline={availabilityHeadline}
+              onAvailabilityHeadlineChange={setAvailabilityHeadline}
+              onGenerateAvailability={handleGenerateAvailability}
+              generatingAvailability={generatingAvailability} />
 
-            {activeTab === 'content' && (
-              <ContentTab
-                openSections={openSections}
-                toggleSection={toggleSection}
-                syncMode={syncMode}
-                onSyncModeChange={setSyncMode}
-                portfolioSummary={portfolioSummary}
-                onPortfolioSummaryChange={setPortfolioSummary}
-                bio={bio}
-                caseStudies={caseStudies}
-                onCaseStudiesChange={setCaseStudies}
-                services={services}
-                onServicesChange={setServices}
-                testimonials={testimonials}
-                onTestimonialsChange={setTestimonials}
-                highlights={highlights}
-                onHighlightsChange={setHighlights}
-              />
-            )}
+            }
 
-            {activeTab === 'design' && (
-              <DesignTab
-                portfolioStyle={portfolioStyle}
-                onPortfolioStyleChange={setPortfolioStyle}
-                portfolioAccentColor={portfolioAccentColor}
-                onPortfolioAccentColorChange={setPortfolioAccentColor}
-                portfolioFont={portfolioFont}
-                onPortfolioFontChange={setPortfolioFont}
-                portfolioLayout={portfolioLayout}
-                onPortfolioLayoutChange={setPortfolioLayout}
-                selectedTheme={selectedTheme}
-                onSelectedThemeChange={setSelectedTheme}
-                userName={profile?.fullName || undefined}
-                userAvatarUrl={profile?.avatarUrl || undefined}
-              />
-            )}
+            {activeTab === 'content' &&
+            <ContentTab
+              openSections={openSections}
+              toggleSection={toggleSection}
+              syncMode={syncMode}
+              onSyncModeChange={setSyncMode}
+              portfolioSummary={portfolioSummary}
+              onPortfolioSummaryChange={setPortfolioSummary}
+              bio={bio}
+              caseStudies={caseStudies}
+              onCaseStudiesChange={setCaseStudies}
+              services={services}
+              onServicesChange={setServices}
+              testimonials={testimonials}
+              onTestimonialsChange={setTestimonials}
+              highlights={highlights}
+              onHighlightsChange={setHighlights} />
 
-            {activeTab === 'more' && (
-              <MoreTab
-                metaTitle={metaTitle}
-                onMetaTitleChange={setMetaTitle}
-                metaDescription={metaDescription}
-                onMetaDescriptionChange={setMetaDescription}
-                onGenerateSEO={handleGenerateSEO}
-                generatingSEO={generatingSEO}
-                seoPlaceholderName={profile?.fullName || 'Name'}
-                seoPlaceholderTitle={profile?.jobTitle || 'Job Title'}
-                portfolioUsername={profile?.username || undefined}
-                userId={user?.id}
-                portfolioEnabled={portfolioEnabled}
-                views={profile?.views || 0}
-                onOpenCareerCard={() => setShowCareerCard(true)}
-                hasLivePortfolio={portfolioEnabled && !!username}
-                linkedinUrl={linkedinUrl}
-                onLinkedinUrlChange={setLinkedinUrl}
-                githubUrl={githubUrl}
-                onGithubUrlChange={setGithubUrl}
-                contactEmail={contactEmail}
-                onContactEmailChange={setContactEmail}
-                twitterUrl={twitterUrl}
-                onTwitterUrlChange={setTwitterUrl}
-                websiteUrl={websiteUrl}
-                onWebsiteUrlChange={setWebsiteUrl}
-                openSections={openSections}
-                toggleSection={toggleSection}
-              />
-            )}
+            }
+
+            {activeTab === 'design' &&
+            <DesignTab
+              portfolioStyle={portfolioStyle}
+              onPortfolioStyleChange={setPortfolioStyle}
+              portfolioAccentColor={portfolioAccentColor}
+              onPortfolioAccentColorChange={setPortfolioAccentColor}
+              portfolioFont={portfolioFont}
+              onPortfolioFontChange={setPortfolioFont}
+              portfolioLayout={portfolioLayout}
+              onPortfolioLayoutChange={setPortfolioLayout}
+              selectedTheme={selectedTheme}
+              onSelectedThemeChange={setSelectedTheme}
+              userName={profile?.fullName || undefined}
+              userAvatarUrl={profile?.avatarUrl || undefined} />
+
+            }
+
+            {activeTab === 'more' &&
+            <MoreTab
+              metaTitle={metaTitle}
+              onMetaTitleChange={setMetaTitle}
+              metaDescription={metaDescription}
+              onMetaDescriptionChange={setMetaDescription}
+              onGenerateSEO={handleGenerateSEO}
+              generatingSEO={generatingSEO}
+              seoPlaceholderName={profile?.fullName || 'Name'}
+              seoPlaceholderTitle={profile?.jobTitle || 'Job Title'}
+              portfolioUsername={profile?.username || undefined}
+              userId={user?.id}
+              portfolioEnabled={portfolioEnabled}
+              views={profile?.views || 0}
+              onOpenCareerCard={() => setShowCareerCard(true)}
+              hasLivePortfolio={portfolioEnabled && !!username}
+              linkedinUrl={linkedinUrl}
+              onLinkedinUrlChange={setLinkedinUrl}
+              githubUrl={githubUrl}
+              onGithubUrlChange={setGithubUrl}
+              contactEmail={contactEmail}
+              onContactEmailChange={setContactEmail}
+              twitterUrl={twitterUrl}
+              onTwitterUrlChange={setTwitterUrl}
+              websiteUrl={websiteUrl}
+              onWebsiteUrlChange={setWebsiteUrl}
+              openSections={openSections}
+              toggleSection={toggleSection} />
+
+            }
           </motion.div>
         </AnimatePresence>
       </div>
@@ -543,8 +543,8 @@ export default function PortfolioEditorPage() {
         saving={savingPortfolio}
         disabled={!!usernameError || usernameAvailable === false || checkingUsername}
         portfolioEnabled={portfolioEnabled}
-        onPortfolioEnabledChange={setPortfolioEnabled}
-      />
+        onPortfolioEnabledChange={setPortfolioEnabled} />
+      
 
       {/* Sheets */}
       <QRGeneratorSheet
@@ -552,15 +552,15 @@ export default function PortfolioEditorPage() {
         onOpenChange={setShowQR}
         portfolioUrl={actualPortfolioUrl}
         displayUrl={portfolioDisplayUrl}
-        onShare={handleShareQR}
-      />
+        onShare={handleShareQR} />
+      
       <CareerCardSheet
         open={showCareerCard}
         onOpenChange={setShowCareerCard}
         profile={profile as Parameters<typeof CareerCardSheet>[0]['profile']}
         selectedResume={selectedResume as Parameters<typeof CareerCardSheet>[0]['selectedResume']}
-        accentColor={portfolioAccentColor}
-      />
-    </div>
-  );
+        accentColor={portfolioAccentColor} />
+      
+    </div>);
+
 }
