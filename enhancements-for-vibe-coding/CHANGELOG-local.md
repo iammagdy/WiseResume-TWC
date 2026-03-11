@@ -4,6 +4,16 @@ Local changelog tracking WiseResume changes via Lovable AI sessions.
 
 ## 2026-03-11
 
+### FIX-MOBILE-EDITOR-NAV-OVERLAP
+- **Summary**: Added `pb-20` to the SectionNavButtons container in the mobile editor so Previous/Next buttons are not hidden behind the BottomTabBar.
+- **Files changed**: `src/pages/EditorPage.tsx`
+- **Notes**: Only affects the mobile tabbed editor layout; desktop layout unchanged.
+
+### FIX-AISTUDIO-BUILD-ERROR
+- **Summary**: Fixed `.map()` returning `void[]` instead of `ReactNode[]` in AIStudioPage suggestions.
+- **Files changed**: `src/pages/AIStudioPage.tsx`
+
+
 ### ADD-BACKGROUND-ASSETS
 - **Summary**: Added 4 SkyWallpaper background assets + replication prompt to `public/backgrounds/`.
 - **Files added**: `sky-light.jpg`, `sky-dark.jpg`, `sky-light.mp4`, `sky-dark.mp4`, `REPLICATION-PROMPT.md`

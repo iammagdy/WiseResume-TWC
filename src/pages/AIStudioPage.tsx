@@ -393,14 +393,11 @@ export default function AIStudioPage() {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-            {SUGGESTIONS.slice(0, 3).map((s) => {}
-
-
-
-
-
-
-            )}
+            {SUGGESTIONS.slice(0, 3).map((s) => (
+              <button key={s} className="px-3 py-1.5 text-xs rounded-full border border-border bg-muted/50 text-muted-foreground hover:bg-muted transition-colors truncate">
+                {s}
+              </button>
+            ))}
           </div>
         </div>
       </motion.div>

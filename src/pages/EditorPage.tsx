@@ -733,7 +733,7 @@ export default function EditorPage() {
               <EditorSectionContent {...editorSectionProps} />
             </div>
             {/* Pinned nav — always visible above bottom tab bar */}
-            <div className="shrink-0 px-4 border-t border-border bg-background">
+            <div className="shrink-0 px-4 pb-20 border-t border-border bg-background">
               <SectionNavButtons steps={steps} activeTab={activeTab} handleTabChange={handleTabChange} navigate={navigate} />
             </div>
           </TabsContent>
