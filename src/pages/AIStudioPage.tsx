@@ -389,7 +389,7 @@ export default function AIStudioPage() {
               <p className="font-semibold text-sm">Need help tailoring, analyzing, or planning? Wise AI can do it all - tap Ask to chat now.
 
               </p>
-              <p className="text-xs text-muted-foreground truncate">{PLACEHOLDER_EXAMPLES[placeholderIdx]}</p>
+              <p className="text-muted-foreground truncate mt-[5px] mb-0 pt-0 text-sm">{PLACEHOLDER_EXAMPLES[placeholderIdx]}</p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
