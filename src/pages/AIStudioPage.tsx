@@ -538,27 +538,27 @@ export default function AIStudioPage() {
       }
 
       {/* Sticky Mobile Chat Input */}
-      <div className="fixed bottom-[68px] left-0 right-0 z-40 md:hidden bg-background border-t border-border shadow-[0_-2px_8px_rgba(0,0,0,0.08)] px-4 py-2 pb-safe pb-[10px] rounded-full mb-0 mt-0 bg-[#fefbfb]/[0.18] ml-0 mr-0">
-        <form
-          onSubmit={(e) => {e.preventDefault();handleStickySubmit();}}
-          className="flex items-center gap-2">
-          
-          <input
-            type="text"
-            value={stickyInput}
-            onChange={(e) => setStickyInput(e.target.value)}
-            placeholder={PLACEHOLDER_EXAMPLES[placeholderIdx]}
-            className="flex-1 h-12 text-base rounded-full glass-input px-4 py-3 placeholder:text-muted-foreground/60 focus:outline-none touch-manipulation" />
-          
-          <button
-            type="submit"
-            disabled={!stickyInput.trim()}
-            className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full gradient-primary flex items-center justify-center disabled:opacity-40 active:scale-95 transition-all touch-manipulation">
-            
-            <Send className="w-5 h-5 text-primary-foreground" />
-          </button>
-        </form>
-      </div>
+      
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      
 
       {/* Resume Picker Sheet */}
       {showResumePicker &&
