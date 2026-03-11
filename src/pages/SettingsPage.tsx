@@ -4,8 +4,8 @@ import { getAppUrl } from '@/lib/portfolioUrl';
 import { useNavigate } from 'react-router-dom';
 import {
   LogOut, Info, ChevronRight, Download, Bell, Sparkles, Shield, Palette,
-  Brain, Chrome, Mail, ScrollText, X, Check,
-} from 'lucide-react';
+  Brain, Chrome, Mail, ScrollText, X, Check } from
+'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { openExternal } from '@/lib/openExternal';
 import { SettingsRow } from '@/components/settings/SettingsRow';
@@ -33,15 +33,15 @@ import { getChangelog } from '@/hooks/useChangelogBadge';
 import developerPhoto from '@/assets/developer-photo.png';
 
 // Lazy-loaded sheets
-const EditProfileSheet = lazy(() => import('@/components/settings/EditProfileSheet').then(m => ({ default: m.EditProfileSheet })));
-const DataExportSheet = lazy(() => import('@/components/settings/DataExportSheet').then(m => ({ default: m.DataExportSheet })));
-const DeleteDataDialog = lazy(() => import('@/components/settings/DeleteDataDialog').then(m => ({ default: m.DeleteDataDialog })));
-const BiometricSetupSheet = lazy(() => import('@/components/settings/BiometricSetupSheet').then(m => ({ default: m.BiometricSetupSheet })));
-const BiometricTimeoutSheet = lazy(() => import('@/components/settings/BiometricTimeoutSheet').then(m => ({ default: m.BiometricTimeoutSheet })));
-const ElevenLabsKeySheet = lazy(() => import('@/components/settings/ElevenLabsKeySheet').then(m => ({ default: m.ElevenLabsKeySheet })));
-const AISettingsSheet = lazy(() => import('@/components/settings/AISettingsSheet').then(m => ({ default: m.AISettingsSheet })));
-const HelpSheet = lazy(() => import('@/components/settings/HelpSheet').then(m => ({ default: m.HelpSheet })));
-const DeveloperCreditCard = lazy(() => import('@/components/settings/DeveloperCreditCard').then(m => ({ default: m.DeveloperCreditCard })));
+const EditProfileSheet = lazy(() => import('@/components/settings/EditProfileSheet').then((m) => ({ default: m.EditProfileSheet })));
+const DataExportSheet = lazy(() => import('@/components/settings/DataExportSheet').then((m) => ({ default: m.DataExportSheet })));
+const DeleteDataDialog = lazy(() => import('@/components/settings/DeleteDataDialog').then((m) => ({ default: m.DeleteDataDialog })));
+const BiometricSetupSheet = lazy(() => import('@/components/settings/BiometricSetupSheet').then((m) => ({ default: m.BiometricSetupSheet })));
+const BiometricTimeoutSheet = lazy(() => import('@/components/settings/BiometricTimeoutSheet').then((m) => ({ default: m.BiometricTimeoutSheet })));
+const ElevenLabsKeySheet = lazy(() => import('@/components/settings/ElevenLabsKeySheet').then((m) => ({ default: m.ElevenLabsKeySheet })));
+const AISettingsSheet = lazy(() => import('@/components/settings/AISettingsSheet').then((m) => ({ default: m.AISettingsSheet })));
+const HelpSheet = lazy(() => import('@/components/settings/HelpSheet').then((m) => ({ default: m.HelpSheet })));
+const DeveloperCreditCard = lazy(() => import('@/components/settings/DeveloperCreditCard').then((m) => ({ default: m.DeveloperCreditCard })));
 
 // Extracted section components
 import { AccountSection } from '@/components/settings/sections/AccountSection';
@@ -54,25 +54,25 @@ import { AboutSection } from '@/components/settings/sections/AboutSection';
 
 // --- Section index chips ---
 const SECTIONS = [
-  { id: 'section-account', label: 'Account', icon: LogOut },
-  { id: 'section-appearance', label: 'Appearance', icon: Palette },
-  { id: 'section-ai-voice', label: 'AI & Voice', icon: Brain },
-  { id: 'section-editor-export', label: 'Editor', icon: Download },
-  { id: 'section-notifications', label: 'Notifications', icon: Bell },
-  { id: 'section-privacy', label: 'Privacy', icon: Shield },
-  { id: 'section-about', label: 'About', icon: Info },
-] as const;
+{ id: 'section-account', label: 'Account', icon: LogOut },
+{ id: 'section-appearance', label: 'Appearance', icon: Palette },
+{ id: 'section-ai-voice', label: 'AI & Voice', icon: Brain },
+{ id: 'section-editor-export', label: 'Editor', icon: Download },
+{ id: 'section-notifications', label: 'Notifications', icon: Bell },
+{ id: 'section-privacy', label: 'Privacy', icon: Shield },
+{ id: 'section-about', label: 'About', icon: Info }] as
+const;
 
 // --- Section header helper ---
-function SectionHeader({ icon: Icon, label, badge }: { icon: React.ElementType; label: string; badge?: React.ReactNode }) {
+function SectionHeader({ icon: Icon, label, badge }: {icon: React.ElementType;label: string;badge?: React.ReactNode;}) {
   return (
     <h2 className="text-label uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
       <div className="w-1 h-5 rounded-full bg-primary/40" />
       <Icon className="w-4 h-4 text-primary/60" />
       {label}
       {badge}
-    </h2>
-  );
+    </h2>);
+
 }
 
 export default function SettingsPage() {
@@ -88,7 +88,7 @@ export default function SettingsPage() {
     setBiometricLockEnabled,
     elevenlabsApiKey,
     setElevenlabsApiKey,
-    setHasSeenSplash,
+    setHasSeenSplash
   } = useSettingsStore();
 
   const { isAvailable: biometricAvailable, biometryType, authenticate } = useBiometricLock(biometricLockEnabled);
@@ -106,7 +106,7 @@ export default function SettingsPage() {
   const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
 
   // Dynamic changelog
-  const [changelogData, setChangelogData] = useState<Array<{ version: string; date: string; latest?: boolean; summary?: string; items: Array<{ title: string; description: string }> }>>([]);
+  const [changelogData, setChangelogData] = useState<Array<{version: string;date: string;latest?: boolean;summary?: string;items: Array<{title: string;description: string;}>;}>>([]);
   const [changelogLoading, setChangelogLoading] = useState(false);
   const [changelogError, setChangelogError] = useState(false);
   const changelogFetchedAt = useRef<number>(0);
@@ -120,7 +120,7 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    getChangelog().then(data => {
+    getChangelog().then((data) => {
       setChangelogData(data as typeof changelogData);
       changelogFetchedAt.current = Date.now();
     });
@@ -132,11 +132,11 @@ export default function SettingsPage() {
     if (changelogData.length > 0 && age < 5 * 60 * 1000) return;
     setChangelogLoading(true);
     setChangelogError(false);
-    fetch('/changelog.json')
-      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
-      .then(data => { setChangelogData(data); changelogFetchedAt.current = Date.now(); })
-      .catch(() => setChangelogError(true))
-      .finally(() => setChangelogLoading(false));
+    fetch('/changelog.json').
+    then((r) => {if (!r.ok) throw new Error();return r.json();}).
+    then((data) => {setChangelogData(data);changelogFetchedAt.current = Date.now();}).
+    catch(() => setChangelogError(true)).
+    finally(() => setChangelogLoading(false));
   }, [changelogOpen]);
 
   const appVersion = changelogData[0]?.version || 'v2.0.0';
@@ -170,7 +170,7 @@ export default function SettingsPage() {
       observers.push(obs);
     });
 
-    return () => observers.forEach(o => o.disconnect());
+    return () => observers.forEach((o) => o.disconnect());
   }, [user]);
 
   const scrollToSection = (id: string) => {
@@ -223,16 +223,16 @@ export default function SettingsPage() {
     const shareData = {
       title: 'WiseResume',
       text: 'Build a professional resume in minutes with AI-powered writing assistance.',
-      url: getAppUrl(),
+      url: getAppUrl()
     };
     haptics.light();
     if (navigator.share) {
-      try { await navigator.share(shareData); } catch { }
+      try {await navigator.share(shareData);} catch {}
     } else {
       try {
         await navigator.clipboard.writeText(shareData.url);
         toast.success('Link copied to clipboard');
-      } catch { }
+      } catch {}
     }
   }, []);
 
@@ -248,14 +248,14 @@ export default function SettingsPage() {
 
   const getInitials = () => {
     if (profile?.fullName) {
-      return profile.fullName
-        .split(' ')
-        .map((w: string) => w[0])
-        .filter(Boolean)
-        .slice(0, 2)
-        .join('')
-        .toUpperCase()
-        .slice(0, 2);
+      return profile.fullName.
+      split(' ').
+      map((w: string) => w[0]).
+      filter(Boolean).
+      slice(0, 2).
+      join('').
+      toUpperCase().
+      slice(0, 2);
     }
     if (user?.email) {
       return user.email.charAt(0).toUpperCase();
@@ -290,15 +290,15 @@ export default function SettingsPage() {
                     onClick={() => scrollToSection(id)}
                     className={cn(
                       'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all active:scale-95 touch-manipulation shrink-0 min-h-[44px]',
-                      isActive
-                        ? 'bg-primary text-primary-foreground shadow-sm'
-                        : 'bg-muted/60 text-muted-foreground hover:bg-muted'
-                    )}
-                  >
+                      isActive ?
+                      'bg-primary text-primary-foreground shadow-sm' :
+                      'bg-muted/60 text-muted-foreground hover:bg-muted'
+                    )}>
+                    
                     <SIcon className="w-3 h-3" />
                     {label}
-                  </button>
-                );
+                  </button>);
+
               })}
             </div>
             {/* Right-edge fade to hint horizontal scroll */}
@@ -314,8 +314,8 @@ export default function SettingsPage() {
           {/* Profile Section */}
           <button
             onClick={() => navigate('/profile')}
-            className="w-full flex items-center gap-4 p-4 rounded-2xl glass-elevated text-left active:scale-[0.98] transition-all touch-manipulation border-glow"
-          >
+            className="w-full flex items-center gap-4 p-4 rounded-2xl glass-elevated text-left active:scale-[0.98] transition-all touch-manipulation border-glow">
+            
             <Avatar className="h-14 w-14">
               <AvatarImage src={profile?.avatarUrl} />
               <AvatarFallback className="bg-primary text-primary-foreground">
@@ -324,9 +324,9 @@ export default function SettingsPage() {
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="font-medium truncate">{displayName}</p>
-              {user?.email && (
-                <p className="text-sm text-muted-foreground truncate">{user.email}</p>
-              )}
+              {user?.email &&
+              <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+              }
               <div className="mt-1.5 flex items-center gap-1.5">
                 <Badge variant="secondary" className="text-[10px] px-2 py-0.5 gap-1 font-normal">
                   <ProviderIcon className="w-3 h-3" />
@@ -341,22 +341,22 @@ export default function SettingsPage() {
           <Separator className="opacity-10" />
 
           {/* Account Section */}
-          {user && (
-            <>
+          {user &&
+          <>
               <div id="section-account">
                 <SectionHeader icon={LogOut} label="Account" />
                 <p className="text-xs text-muted-foreground mb-3 px-1">Manage your account and data</p>
                 <AccountSection
-                  user={user}
-                  authProvider={authProvider}
-                  onChangePassword={handleChangePassword}
-                  onSignOut={() => setSignOutConfirmOpen(true)}
-                  onDeleteData={() => setDeleteDialogOpen(true)}
-                />
+                user={user}
+                authProvider={authProvider}
+                onChangePassword={handleChangePassword}
+                onSignOut={() => setSignOutConfirmOpen(true)}
+                onDeleteData={() => setDeleteDialogOpen(true)} />
+              
               </div>
               <Separator className="opacity-10" />
             </>
-          )}
+          }
 
           <Separator className="opacity-10" />
 
@@ -375,8 +375,8 @@ export default function SettingsPage() {
             <p className="text-xs text-muted-foreground mb-3 px-1">Choose your AI engine and voice settings</p>
             <AIVoiceSection
               onOpenAISettings={() => setAISettingsOpen(true)}
-              onOpenElevenLabsKey={() => setElevenLabsKeyOpen(true)}
-            />
+              onOpenElevenLabsKey={() => setElevenLabsKeyOpen(true)} />
+            
           </div>
 
           <Separator className="opacity-10" />
@@ -388,8 +388,8 @@ export default function SettingsPage() {
             <EditorExportSection
               isSignedIn={!!user}
               onManageExports={() => setDataExportSheetOpen(true)}
-              onNavigateAuth={() => navigate('/auth')}
-            />
+              onNavigateAuth={() => navigate('/auth')} />
+            
           </div>
 
           <Separator className="opacity-10" />
@@ -409,8 +409,8 @@ export default function SettingsPage() {
             <p className="text-xs text-muted-foreground mb-3 px-1">Biometric lock, data protection, and privacy controls</p>
             <PrivacySection
               onOpenBiometricTimeout={() => setBiometricTimeoutOpen(true)}
-              onBiometricToggle={handleBiometricToggle}
-            />
+              onBiometricToggle={handleBiometricToggle} />
+            
           </div>
 
           <Separator className="opacity-10" />
@@ -439,8 +439,8 @@ export default function SettingsPage() {
               }}
               onRateApp={handleRateApp}
               onShareApp={handleShareApp}
-              onOpenHelp={() => setHelpSheetOpen(true)}
-            />
+              onOpenHelp={() => setHelpSheetOpen(true)} />
+            
           </div>
 
           {/* Developer Credit Card */}
@@ -451,8 +451,8 @@ export default function SettingsPage() {
               avatarUrl={developerPhoto}
               websiteUrl="https://magdysaber.com"
               githubUrl="https://github.com/iammagdy"
-              onContactClick={() => openExternal('mailto:contact@magdysaber.com')}
-            />
+              onContactClick={() => openExternal('mailto:contact@magdysaber.com')} />
+            
           </Suspense>
 
           {/* Branded Footer */}
@@ -463,7 +463,7 @@ export default function SettingsPage() {
               </div>
               <div className="flex flex-col items-center gap-1.5">
                 <h2 className="text-lg font-bold text-foreground tracking-tight">WiseResume</h2>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/25 text-purple-300 text-xs font-mono font-medium">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/25 text-xs font-mono font-medium text-gray-950">
                   {appVersion}
                 </span>
               </div>
@@ -474,9 +474,9 @@ export default function SettingsPage() {
                 type="button"
                 onClick={() => setChangelogOpen(true)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-full border active:scale-95 transition text-sm text-muted-foreground font-medium touch-manipulation min-h-[44px] ${
-                  isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-black/5 border-black/10 hover:bg-black/10'
-                }`}
-              >
+                isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-black/5 border-black/10 hover:bg-black/10'}`
+                }>
+                
                 <ScrollText className="w-4 h-4 text-purple-400" />
                 <span>Changelog</span>
                 <ChevronRight className="w-3 h-3 text-muted-foreground/60 ml-1" />
@@ -488,71 +488,71 @@ export default function SettingsPage() {
 
       {/* Sheets and Dialogs */}
       <Suspense fallback={null}>
-        {editProfileOpen && user && (
-          <EditProfileSheet
-            open={editProfileOpen}
-            onOpenChange={setEditProfileOpen}
-            profile={profile}
-            userId={user?.id}
-            userEmail={user?.email}
-            onSave={updateProfile}
-          />
-        )}
-        {dataExportSheetOpen && (
-          <DataExportSheet
-            open={dataExportSheetOpen}
-            onOpenChange={setDataExportSheetOpen}
-            resumes={resumes}
-            userEmail={user?.email ?? null}
-            userName={profile?.fullName ?? null}
-            currentResumeId={currentResumeId}
-          />
-        )}
-        {deleteDialogOpen && user && (
-          <DeleteDataDialog
-            open={deleteDialogOpen}
-            onOpenChange={setDeleteDialogOpen}
-            userId={user.id}
-            resumeCount={resumes.length}
-            onDeleted={handleDataDeleted}
-          />
-        )}
-        {biometricSetupOpen && (
-          <BiometricSetupSheet
-            open={biometricSetupOpen}
-            onOpenChange={setBiometricSetupOpen}
-            biometryType={biometryType}
-            onEnable={handleBiometricSetupConfirm}
-          />
-        )}
-        {biometricTimeoutOpen && (
-          <BiometricTimeoutSheet
-            open={biometricTimeoutOpen}
-            onOpenChange={setBiometricTimeoutOpen}
-            selectedTimeout={useSettingsStore.getState().biometricLockTimeout}
-            onSelect={useSettingsStore.getState().setBiometricLockTimeout}
-          />
-        )}
-        {elevenLabsKeyOpen && (
-          <ElevenLabsKeySheet
-            open={elevenLabsKeyOpen}
-            onOpenChange={setElevenLabsKeyOpen}
-            currentKey={elevenlabsApiKey}
-            onSave={setElevenlabsApiKey}
-          />
-        )}
-        {aiSettingsOpen && (
-          <AISettingsSheet
-            open={aiSettingsOpen}
-            onOpenChange={setAISettingsOpen}
-          />
-        )}
-        {helpSheetOpen && (
-          <HelpSheet
-            open={helpSheetOpen}
-            onOpenChange={setHelpSheetOpen}
-          />
-        )}
+        {editProfileOpen && user &&
+        <EditProfileSheet
+          open={editProfileOpen}
+          onOpenChange={setEditProfileOpen}
+          profile={profile}
+          userId={user?.id}
+          userEmail={user?.email}
+          onSave={updateProfile} />
+
+        }
+        {dataExportSheetOpen &&
+        <DataExportSheet
+          open={dataExportSheetOpen}
+          onOpenChange={setDataExportSheetOpen}
+          resumes={resumes}
+          userEmail={user?.email ?? null}
+          userName={profile?.fullName ?? null}
+          currentResumeId={currentResumeId} />
+
+        }
+        {deleteDialogOpen && user &&
+        <DeleteDataDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          userId={user.id}
+          resumeCount={resumes.length}
+          onDeleted={handleDataDeleted} />
+
+        }
+        {biometricSetupOpen &&
+        <BiometricSetupSheet
+          open={biometricSetupOpen}
+          onOpenChange={setBiometricSetupOpen}
+          biometryType={biometryType}
+          onEnable={handleBiometricSetupConfirm} />
+
+        }
+        {biometricTimeoutOpen &&
+        <BiometricTimeoutSheet
+          open={biometricTimeoutOpen}
+          onOpenChange={setBiometricTimeoutOpen}
+          selectedTimeout={useSettingsStore.getState().biometricLockTimeout}
+          onSelect={useSettingsStore.getState().setBiometricLockTimeout} />
+
+        }
+        {elevenLabsKeyOpen &&
+        <ElevenLabsKeySheet
+          open={elevenLabsKeyOpen}
+          onOpenChange={setElevenLabsKeyOpen}
+          currentKey={elevenlabsApiKey}
+          onSave={setElevenlabsApiKey} />
+
+        }
+        {aiSettingsOpen &&
+        <AISettingsSheet
+          open={aiSettingsOpen}
+          onOpenChange={setAISettingsOpen} />
+
+        }
+        {helpSheetOpen &&
+        <HelpSheet
+          open={helpSheetOpen}
+          onOpenChange={setHelpSheetOpen} />
+
+        }
       </Suspense>
 
       {/* Sign Out Confirmation */}
@@ -583,83 +583,83 @@ export default function SettingsPage() {
             <DialogDescription>WiseResume release history</DialogDescription>
           </DialogHeader>
           <div className="max-h-[60vh] overflow-y-auto -mx-1 px-1">
-            {changelogLoading ? (
-              <div className="space-y-6 pt-2">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="space-y-2">
+            {changelogLoading ?
+            <div className="space-y-6 pt-2">
+                {[1, 2, 3].map((i) =>
+              <div key={i} className="space-y-2">
                     <Skeleton className="h-5 w-16" />
                     <Skeleton className="h-3 w-full" />
                     <Skeleton className="h-3 w-4/5" />
                     <Skeleton className="h-3 w-2/3" />
                   </div>
-                ))}
-              </div>
-            ) : changelogError ? (
-              <p className="text-sm text-muted-foreground text-center py-8">Could not load changelog.</p>
-            ) : (
-              <div className="relative pt-2">
+              )}
+              </div> :
+            changelogError ?
+            <p className="text-sm text-muted-foreground text-center py-8">Could not load changelog.</p> :
+
+            <div className="relative pt-2">
                 <div className="absolute left-[7px] top-4 bottom-4 w-px bg-border" />
                 <div className="space-y-6">
-                  {changelogData.map((release, idx) => (
-                    <div key={release.version} className="relative pl-6">
+                  {changelogData.map((release, idx) =>
+                <div key={release.version} className="relative pl-6">
                       <div className={cn(
-                        "absolute left-0 top-1 w-[15px] h-[15px] rounded-full border-2 flex items-center justify-center",
-                        idx === 0
-                          ? "border-primary bg-primary"
-                          : "border-muted-foreground/40 bg-background"
-                      )}>
-                        {idx === 0 && (
-                          <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />
-                        )}
+                    "absolute left-0 top-1 w-[15px] h-[15px] rounded-full border-2 flex items-center justify-center",
+                    idx === 0 ?
+                    "border-primary bg-primary" :
+                    "border-muted-foreground/40 bg-background"
+                  )}>
+                        {idx === 0 &&
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />
+                    }
                       </div>
                       <div className="flex items-center gap-2 mb-1">
                         <span className={cn(
-                          "text-sm font-bold tracking-tight",
-                          idx === 0 ? "text-primary" : "text-foreground"
-                        )}>
+                      "text-sm font-bold tracking-tight",
+                      idx === 0 ? "text-primary" : "text-foreground"
+                    )}>
                           {release.version}
                         </span>
-                        {release.latest && (
-                          <span className="text-[10px] font-semibold bg-primary/15 text-primary px-2 py-0.5 rounded-full uppercase tracking-wide">
+                        {release.latest &&
+                    <span className="text-[10px] font-semibold bg-primary/15 text-primary px-2 py-0.5 rounded-full uppercase tracking-wide">
                             Latest
                           </span>
-                        )}
+                    }
                         <span className="text-[11px] text-muted-foreground ml-auto">
                           {release.date}
                         </span>
                       </div>
-                      {release.summary && (
-                        <p className="text-xs text-muted-foreground mb-2.5 leading-relaxed">
+                      {release.summary &&
+                  <p className="text-xs text-muted-foreground mb-2.5 leading-relaxed">
                           {release.summary}
                         </p>
-                      )}
+                  }
                       <ul className="space-y-1.5">
-                        {release.items.map((item, i) => (
-                          <li key={i} className="flex gap-2 text-xs">
+                        {release.items.map((item, i) =>
+                    <li key={i} className="flex gap-2 text-xs">
                             <span className="text-muted-foreground/50 mt-0.5 shrink-0">·</span>
                             <span>
                               <span className="font-medium text-foreground">{item.title}</span>
                               <span className="text-muted-foreground"> — {item.description}</span>
                             </span>
                           </li>
-                        ))}
+                    )}
                       </ul>
                     </div>
-                  ))}
+                )}
                 </div>
               </div>
-            )}
+            }
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-  );
+    </div>);
+
 }
 
 // --- Guest CTA Card ---
 const GUEST_CTA_DISMISS_KEY = 'wr-settings-guest-cta-dismissed';
 
-function GuestCtaCard({ navigate }: { navigate: (path: string) => void }) {
+function GuestCtaCard({ navigate }: {navigate: (path: string) => void;}) {
   const [dismissed, setDismissed] = useState(() => localStorage.getItem(GUEST_CTA_DISMISS_KEY) === '1');
 
   const handleDismiss = () => {
@@ -669,19 +669,19 @@ function GuestCtaCard({ navigate }: { navigate: (path: string) => void }) {
 
   return (
     <AnimatePresence mode="wait">
-      {!dismissed ? (
-        <motion.div
-          key="full-cta"
-          initial={{ opacity: 1 }}
-          exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-          transition={{ duration: 0.2 }}
-          className="rounded-2xl glass-elevated border-glow overflow-hidden relative"
-        >
+      {!dismissed ?
+      <motion.div
+        key="full-cta"
+        initial={{ opacity: 1 }}
+        exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+        transition={{ duration: 0.2 }}
+        className="rounded-2xl glass-elevated border-glow overflow-hidden relative">
+        
           <button
-            onClick={handleDismiss}
-            className="absolute top-3 right-3 p-1 rounded-full hover:bg-muted transition-colors touch-manipulation min-w-[28px] min-h-[28px] flex items-center justify-center z-10"
-            aria-label="Dismiss"
-          >
+          onClick={handleDismiss}
+          className="absolute top-3 right-3 p-1 rounded-full hover:bg-muted transition-colors touch-manipulation min-w-[28px] min-h-[28px] flex items-center justify-center z-10"
+          aria-label="Dismiss">
+          
             <X className="w-3.5 h-3.5 text-muted-foreground" />
           </button>
           <div className="h-1 bg-gradient-to-r from-primary via-primary/60 to-transparent" />
@@ -713,23 +713,23 @@ function GuestCtaCard({ navigate }: { navigate: (path: string) => void }) {
               Get Started Free
             </Button>
           </div>
-        </motion.div>
-      ) : (
-        <motion.div
-          key="compact-cta"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.2 }}
-          className="rounded-2xl glass-elevated overflow-hidden"
-        >
+        </motion.div> :
+
+      <motion.div
+        key="compact-cta"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.2 }}
+        className="rounded-2xl glass-elevated overflow-hidden">
+        
           <SettingsRow
-            type="navigation"
-            label="Sign in to unlock all features"
-            icon={<AppIcon size={20} showSparkle={false} />}
-            onClick={() => navigate('/auth')}
-          />
+          type="navigation"
+          label="Sign in to unlock all features"
+          icon={<AppIcon size={20} showSparkle={false} />}
+          onClick={() => navigate('/auth')} />
+        
         </motion.div>
-      )}
-    </AnimatePresence>
-  );
+      }
+    </AnimatePresence>);
+
 }
