@@ -386,9 +386,9 @@ export default function AIStudioPage() {
               <Sparkles className="w-5 h-5 text-primary-foreground" />
             </div>
             <div className="text-left flex-1 min-w-0">
-              <p className="font-semibold text-sm">Need help tailoring, analyzing, or planning? Wise AI can do it all 
+              <p className="font-semibold text-sm">Need help tailoring, analyzing, or planning? Wise AI can do it all - tap Ask to chat now.
 
-tap Ask to chat now.</p>
+              </p>
               <p className="text-xs text-muted-foreground truncate">{PLACEHOLDER_EXAMPLES[placeholderIdx]}</p>
             </div>
           </div>
