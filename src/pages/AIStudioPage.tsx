@@ -367,7 +367,7 @@ export default function AIStudioPage() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="px-4 pb-4">
+        className="px-4 pl-[16px] pb-[5px] pt-[5px]">
         
         <div
           onClick={() => {
