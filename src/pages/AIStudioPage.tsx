@@ -299,8 +299,8 @@ export default function AIStudioPage() {
         animate={{ opacity: 1, y: 0 }}
         className="px-4 pt-4 pb-3 sm:pt-6 sm:pb-4">
         
-        <h1 className="text-fluid-xl font-bold bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent animate-gradient-x">
-          AI Studio
+        <h1 className="text-fluid-xl font-bold bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent animate-gradient-x ml-[120px] pt-0 pb-0">
+          Wise AI Studio
         </h1>
         <div className="flex items-center justify-between mt-2">
           <AIEngineBadge showSettingsLink />
@@ -458,7 +458,7 @@ export default function AIStudioPage() {
               <button
                 key={tool.id}
                 onClick={() => handleToolAction(tool)}
-                className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-primary/20 bg-primary/[0.03] hover:bg-primary/[0.06] active:scale-95 transition-all touch-manipulation shrink-0 min-h-[56px]">
+                className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-primary/20 bg-primary/[0.03] hover:bg-primary/[0.06] active:scale-95 transition-all touch-manipulation shrink-0 min-h-[56px] pl-[5px] pr-[5px] pt-[5px] pb-[5px]">
                 
                   <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                     <tool.icon className={cn('w-4.5 h-4.5', tool.color)} />
