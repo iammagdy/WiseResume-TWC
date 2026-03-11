@@ -65,7 +65,7 @@ export function DeveloperCreditCard({
       </div>
 
       <ElectricBorder color="#7C3AED" borderRadius={20} speed={1} chaos={0.12}>
-        <div className="dev-card mr-0 mx-0 pb-[2px] pr-[2px] pl-[2px]">
+        <div className="dev-card mr-0 mx-0 pb-[2px] pr-[2px] pl-[5px]">
           {/* Holographic light sweep */}
           <div className="dev-holo-sweep" />
           {/* Floating particles */}
