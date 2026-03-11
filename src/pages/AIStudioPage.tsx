@@ -323,7 +323,7 @@ export default function AIStudioPage() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.05 }}
-        className="px-4 pb-4">
+        className="px-4 pb-[5px] pt-[5px]">
         
         {currentResumeId && resumeData ?
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl glass-surface border border-border/50">
