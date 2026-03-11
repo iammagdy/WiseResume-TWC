@@ -99,7 +99,7 @@ export function DeveloperCreditCard({
                 {/* Name, title, buttons */}
                 <div className="flex flex-1 flex-col min-w-0">
                   <motion.div variants={itemVariants} className="mb-2">
-                    <h3 className="dev-name">{name}</h3>
+                    <h3 className="dev-name text-3xl">{name}</h3>
                     <p className="dev-title text-slate-50">{title}</p>
                   </motion.div>
 
