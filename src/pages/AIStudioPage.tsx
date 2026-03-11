@@ -376,9 +376,9 @@ export default function AIStudioPage() {
             if (!currentResumeId) {toast.info('Select a resume first to chat with Wise AI');return;}
             setShowChat(true);
           }}
-          className={cn(
-            'w-full p-4 rounded-2xl glass-elevated border border-primary/20 hover:border-primary/40 active:scale-[0.98] transition-all touch-manipulation relative overflow-hidden cursor-pointer',
-            isFirstVisit && 'ring-2 ring-primary/40 animate-[pulse_1.5s_ease-in-out_3]'
+          className={cn("w-full p-4 rounded-2xl glass-elevated border border-primary/20 hover:border-primary/40 active:scale-[0.98] transition-all touch-manipulation relative overflow-hidden cursor-pointer pb-0 pt-[8px]",
+
+          isFirstVisit && 'ring-2 ring-primary/40 animate-[pulse_1.5s_ease-in-out_3]'
           )}>
           
           <div className="flex items-center gap-3 mb-3">
@@ -386,20 +386,20 @@ export default function AIStudioPage() {
               <Sparkles className="w-5 h-5 text-primary-foreground" />
             </div>
             <div className="text-left flex-1 min-w-0">
-              <p className="font-semibold text-sm">Wise AI Chat</p>
+              <p className="font-semibold text-sm">Need help tailoring, analyzing, or planning? Wise AI can do it all 
+
+tap Ask to chat now.</p>
               <p className="text-xs text-muted-foreground truncate">{PLACEHOLDER_EXAMPLES[placeholderIdx]}</p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-            {SUGGESTIONS.slice(0, 3).map((s) =>
-            <button
-              key={s}
-              type="button"
-              onClick={(e) => {e.stopPropagation();openChatWithMessage(s);}}
-              className="text-sm px-3 py-1.5 min-h-[44px] flex items-center justify-center sm:justify-start rounded-full bg-primary/5 border border-primary/10 text-muted-foreground hover:bg-primary/10 hover:border-primary/20 active:scale-95 transition-all touch-manipulation text-left">
-              
-                {s}
-              </button>
+            {SUGGESTIONS.slice(0, 3).map((s) => {}
+
+
+
+
+
+
             )}
           </div>
         </div>
