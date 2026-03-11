@@ -488,11 +488,11 @@ export default function AIStudioPage() {
               <button
                 key={tool.id}
                 onClick={() => handleToolAction(tool)}
-                className={cn(
-                  'flex flex-col items-center gap-2 p-3 rounded-xl glass-surface border active:scale-95 transition-all touch-manipulation min-h-[100px] relative',
-                  isFeatured ?
-                  'border-primary/20 shadow-[0_0_12px_-4px_hsl(var(--primary)/0.2)]' :
-                  'border-border/30 hover:border-primary/20'
+                className={cn("p-3 glass-surface border active:scale-95 transition-all touch-manipulation min-h-[100px] relative pl-[5px] pt-[5px] pb-[5px] pr-[5px] ml-[9px] mt-0 mr-[9px] mb-0 flex-col flex items-center justify-center gap-0 text-center rounded-3xl",
+
+                isFeatured ?
+                'border-primary/20 shadow-[0_0_12px_-4px_hsl(var(--primary)/0.2)]' :
+                'border-border/30 hover:border-primary/20'
                 )}>
                 
                   {isFeatured &&
