@@ -458,7 +458,7 @@ export default function AIStudioPage() {
               <button
                 key={tool.id}
                 onClick={() => handleToolAction(tool)}
-                className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-primary/20 bg-primary/[0.03] hover:bg-primary/[0.06] active:scale-95 transition-all touch-manipulation shrink-0 min-h-[56px] pl-[5px] pr-[5px] pt-[5px] pb-[5px]">
+                className="gap-2.5 px-4 py-3 rounded-xl border border-primary/20 bg-primary/[0.03] hover:bg-primary/[0.06] active:scale-95 transition-all touch-manipulation shrink-0 min-h-[56px] pl-[5px] pt-[5px] pb-[5px] flex items-center justify-center pr-[16px]">
                 
                   <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                     <tool.icon className={cn('w-4.5 h-4.5', tool.color)} />
