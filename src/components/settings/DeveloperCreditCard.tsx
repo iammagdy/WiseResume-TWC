@@ -54,8 +54,8 @@ export function DeveloperCreditCard({
       initial={{ opacity: 0, y: 30, scale: 0.97 }}
       whileInView={{ opacity: 1, y: 0, scale: 1 }}
       viewport={{ once: true, amount: 0.3 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
-    >
+      transition={{ duration: 0.5, ease: "easeOut" }}>
+      
       {/* Sparkle elements */}
       <div className="dev-sparkles">
         <span className="dev-sparkle" />
@@ -65,7 +65,7 @@ export function DeveloperCreditCard({
       </div>
 
       <ElectricBorder color="#7C3AED" borderRadius={20} speed={1} chaos={0.12}>
-        <div className="dev-card">
+        <div className="dev-card mr-0 mx-0 pl-[5px] pb-[2px] pr-[2px]">
           {/* Holographic light sweep */}
           <div className="dev-holo-sweep" />
           {/* Floating particles */}
@@ -78,8 +78,8 @@ export function DeveloperCreditCard({
             variants={containerVariants}
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, amount: 0.3 }}
-          >
+            viewport={{ once: true, amount: 0.3 }}>
+            
             <div className="flex flex-col gap-3 w-full">
               {/* Top section: avatar + info */}
               <div className="flex items-start gap-3 w-full">
@@ -90,8 +90,8 @@ export function DeveloperCreditCard({
                       <img
                         src={avatarUrl}
                         alt={name}
-                        className="dev-avatar"
-                      />
+                        className="dev-avatar" />
+                      
                     </div>
                   </div>
                 </motion.div>
@@ -100,37 +100,37 @@ export function DeveloperCreditCard({
                 <div className="flex flex-1 flex-col min-w-0">
                   <motion.div variants={itemVariants} className="mb-2">
                     <h3 className="dev-name">{name}</h3>
-                    <p className="dev-title">{title}</p>
+                    <p className="dev-title text-slate-50">{title}</p>
                   </motion.div>
 
                   <motion.div variants={itemVariants}>
                     <div className="dev-btn-row">
                       <button
                         className="dev-contact-btn"
-                        onClick={handleContactClick}
-                      >
+                        onClick={handleContactClick}>
+                        
                         <Mail className="w-4 h-4" />
                         <span>Contact</span>
                       </button>
-                      {githubUrl && (
-                        <button
-                          className="dev-github-btn"
-                          onClick={() => {
-                            haptics.light();
-                            openExternal(githubUrl);
-                          }}
-                        >
+                      {githubUrl &&
+                      <button
+                        className="dev-github-btn"
+                        onClick={() => {
+                          haptics.light();
+                          openExternal(githubUrl);
+                        }}>
+                        
                           <Github className="w-4 h-4" />
                           <span>GitHub</span>
                         </button>
-                      )}
+                      }
                       <button
                         className="dev-github-btn"
                         onClick={() => {
                           haptics.light();
                           navigate('/dev-tools');
-                        }}
-                      >
+                        }}>
+                        
                         <Wrench className="w-4 h-4" />
                         <span>DevKit</span>
                       </button>
@@ -140,25 +140,25 @@ export function DeveloperCreditCard({
               </div>
 
               {/* Bottom section: website link */}
-              {websiteUrl && (
-                <motion.div variants={itemVariants}>
+              {websiteUrl &&
+              <motion.div variants={itemVariants}>
                   <a
-                    href={websiteUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => { e.preventDefault(); handleWebsiteClick(); }}
-                    className="dev-website-link"
-                    aria-label={`Visit ${new URL(websiteUrl).hostname.replace('www.', '')}`}
-                  >
+                  href={websiteUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => {e.preventDefault();handleWebsiteClick();}}
+                  className="dev-website-link text-slate-50 text-center text-base ml-[5px] mb-[2px] mt-0 pt-[2px]"
+                  aria-label={`Visit ${new URL(websiteUrl).hostname.replace('www.', '')}`}>
+                  
                     <ExternalLink className="w-3 h-3 flex-shrink-0" />
                     <span className="truncate">{new URL(websiteUrl).hostname.replace('www.', '')}</span>
                   </a>
                 </motion.div>
-              )}
+              }
             </div>
           </motion.div>
         </div>
       </ElectricBorder>
-    </motion.div>
-  );
+    </motion.div>);
+
 }
