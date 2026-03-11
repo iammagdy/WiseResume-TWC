@@ -37,16 +37,16 @@ const STATUS_BADGE_CLASSES: Record<ApplicationStatus, string> = {
   screening: 'bg-warning/10 text-warning border-warning/30',
   interviewing: 'bg-accent/20 text-accent-foreground border-accent/30',
   offer: 'bg-success/10 text-success border-success/30',
-  rejected: 'bg-destructive/10 text-destructive border-destructive/30',
+  rejected: 'bg-destructive/10 text-destructive border-destructive/30'
 };
 
-function JobCard({ job, onClick, matchScore, onTailor, onMarkApplied }: { job: Job; onClick: () => void; matchScore: JobMatchResult | null; onTailor: () => void; onMarkApplied: () => void }) {
+function JobCard({ job, onClick, matchScore, onTailor, onMarkApplied }: {job: Job;onClick: () => void;matchScore: JobMatchResult | null;onTailor: () => void;onMarkApplied: () => void;}) {
   return (
     <div className="glass-card rounded-2xl p-4 space-y-2">
       <button
         onClick={onClick}
-        className="flex items-start gap-3 w-full text-left"
-      >
+        className="flex items-start gap-3 w-full text-left">
+        
         <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
           <Briefcase className="w-5 h-5 text-primary" />
         </div>
@@ -57,15 +57,15 @@ function JobCard({ job, onClick, matchScore, onTailor, onMarkApplied }: { job: J
             <span className="truncate">{job.company}</span>
           </div>
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            {job.location && (
-              <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground">
+            {job.location &&
+            <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground">
                 <MapPin className="w-3 h-3" /> {job.location}
               </span>
-            )}
+            }
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{job.job_type}</Badge>
-            {job.salary_range && (
-              <span className="text-[11px] text-muted-foreground">{job.salary_range}</span>
-            )}
+            {job.salary_range &&
+            <span className="text-[11px] text-muted-foreground">{job.salary_range}</span>
+            }
           </div>
         </div>
         <JobMatchScore score={matchScore} jobTitle={job.title} />
@@ -73,20 +73,20 @@ function JobCard({ job, onClick, matchScore, onTailor, onMarkApplied }: { job: J
       {/* Action buttons */}
       <div className="flex gap-2 pl-[52px]">
         <button
-          onClick={(e) => { e.stopPropagation(); haptics.light(); onTailor(); }}
-          className="flex items-center gap-1 text-[11px] text-primary font-medium px-2 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/15 transition-colors min-h-[44px] touch-manipulation active:scale-95"
-        >
+          onClick={(e) => {e.stopPropagation();haptics.light();onTailor();}}
+          className="flex items-center gap-1 text-[11px] text-primary font-medium px-2 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/15 transition-colors min-h-[44px] touch-manipulation active:scale-95">
+          
           <Scissors className="w-3 h-3" /> Tailor Resume
         </button>
         <button
-          onClick={(e) => { e.stopPropagation(); haptics.light(); onMarkApplied(); }}
-          className="flex items-center gap-1 text-[11px] text-success font-medium px-2 py-1.5 rounded-lg bg-success/10 hover:bg-success/15 transition-colors min-h-[44px] touch-manipulation active:scale-95"
-        >
+          onClick={(e) => {e.stopPropagation();haptics.light();onMarkApplied();}}
+          className="flex items-center gap-1 text-[11px] text-success font-medium px-2 py-1.5 rounded-lg bg-success/10 hover:bg-success/15 transition-colors min-h-[44px] touch-manipulation active:scale-95">
+          
           <CheckCircle2 className="w-3 h-3" /> Mark Applied
         </button>
       </div>
-    </div>
-  );
+    </div>);
+
 }
 
 export default function ApplicationsPage() {
@@ -100,7 +100,7 @@ export default function ApplicationsPage() {
   const [showSearch, setShowSearch] = useState(false);
   const [showSaveJob, setShowSaveJob] = useState(false);
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'all'>('all');
-  const [followUpApp, setFollowUpApp] = useState<{ company: string; jobTitle: string } | null>(null);
+  const [followUpApp, setFollowUpApp] = useState<{company: string;jobTitle: string;} | null>(null);
   const [filters, setFilters] = useState<JobFilters>({ query: '', jobTypes: [], location: '' });
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
   const { data: jobs = [] } = useJobs();
@@ -122,7 +122,7 @@ export default function ApplicationsPage() {
 
   // Get primary resume for match scoring
   const primaryResume = useMemo(() => {
-    const primary = resumes?.find(r => r.is_primary) || resumes?.[0];
+    const primary = resumes?.find((r) => r.is_primary) || resumes?.[0];
     return primary ? dbToResumeData(primary) : null;
   }, [resumes]);
 
@@ -143,7 +143,7 @@ export default function ApplicationsPage() {
   // Fire background AI scoring for visible jobs (once per mount/resume change)
   useEffect(() => {
     if (!primaryResume || jobs.length === 0 || activeTab !== 'jobs') return;
-    const primaryResumeRaw = resumes?.find(r => r.is_primary) || resumes?.[0];
+    const primaryResumeRaw = resumes?.find((r) => r.is_primary) || resumes?.[0];
     if (!primaryResumeRaw) return;
 
     // Reset flag when resume changes
@@ -158,7 +158,7 @@ export default function ApplicationsPage() {
     if (Object.keys(fromCache).length > 0) setAiScores(fromCache);
 
     // Score uncached jobs in background (max 5 concurrent to avoid rate limits)
-    const uncached = jobs.filter(j => !fromCache[j.id]);
+    const uncached = jobs.filter((j) => !fromCache[j.id]);
     if (uncached.length === 0 || aiScoringRan.current) return;
     aiScoringRan.current = true;
 
@@ -168,12 +168,12 @@ export default function ApplicationsPage() {
         const job = uncached[i];
         const result = await scoreJobMatchAI(primaryResume, job, primaryResumeRaw.id);
         if (result && !cancelled) {
-          setAiScores(prev => ({ ...prev, [job.id]: result }));
+          setAiScores((prev) => ({ ...prev, [job.id]: result }));
         }
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {cancelled = true;};
   }, [primaryResume, jobs, resumes, activeTab]);
 
   // Merged scores: AI overrides heuristic when available
@@ -189,13 +189,13 @@ export default function ApplicationsPage() {
 
   // Filter jobs
   const filteredJobs = useMemo(() => {
-    return jobs.filter(job => {
+    return jobs.filter((job) => {
       if (deferredQuery) {
         const q = deferredQuery.toLowerCase();
         if (!job.title.toLowerCase().includes(q) && !job.company.toLowerCase().includes(q)) return false;
       }
       if (filters.jobTypes.length > 0) {
-        if (!filters.jobTypes.some(t => t.toLowerCase() === job.job_type.toLowerCase())) return false;
+        if (!filters.jobTypes.some((t) => t.toLowerCase() === job.job_type.toLowerCase())) return false;
       }
       if (filters.location) {
         if (!job.location.toLowerCase().includes(filters.location.toLowerCase())) return false;
@@ -215,10 +215,10 @@ export default function ApplicationsPage() {
 
   // Auth guard handled by ProtectedRoute
 
-  const TABS: { key: TabKey; label: string }[] = [
-    { key: 'applications', label: 'My Applications' },
-    { key: 'jobs', label: 'Saved Jobs' },
-  ];
+  const TABS: {key: TabKey;label: string;}[] = [
+  { key: 'applications', label: 'My Applications' },
+  { key: 'jobs', label: 'Saved Jobs' }];
+
 
   const hasActiveFilters = filters.query || filters.jobTypes.length > 0 || filters.location;
 
@@ -233,26 +233,26 @@ export default function ApplicationsPage() {
           </div>
           <div className="flex items-center gap-1">
             <button
-              onClick={() => { haptics.light(); setShowSearch(true); }}
+              onClick={() => {haptics.light();setShowSearch(true);}}
               className={`relative p-2.5 rounded-xl hover:bg-muted/50 transition-all touch-manipulation ${hasActiveFilters ? 'text-primary' : 'text-muted-foreground'}`}
-              aria-label="Search jobs"
-            >
+              aria-label="Search jobs">
+              
               <Search className="w-5 h-5" />
-              {hasActiveFilters && (
-                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary" />
-              )}
+              {hasActiveFilters &&
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary" />
+              }
             </button>
             <button
               onClick={() => navigate('/notifications')}
               className="relative p-2.5 rounded-xl hover:bg-muted/50 text-muted-foreground transition-all touch-manipulation"
-              aria-label="Notifications"
-            >
+              aria-label="Notifications">
+              
               <Bell className="w-5 h-5" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
+              {unreadCount > 0 &&
+              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
-              )}
+              }
             </button>
           </div>
         </div>
@@ -265,20 +265,20 @@ export default function ApplicationsPage() {
         <div className="px-4 py-4 space-y-4 max-w-3xl mx-auto w-full">
           {/* Premium Tab Bar */}
           <div className="rounded-2xl bg-muted/50 p-1 flex gap-1 -mt-2">
-            {TABS.map(t => (
-              <button
-                key={t.key}
-                onClick={() => { haptics.selection(); setActiveTab(t.key); }}
-                className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all min-h-[44px] flex-1 touch-manipulation active:scale-95 ${
-                  activeTab === t.key ? 'bg-background text-foreground shadow-sm border border-border/50' : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
+            {TABS.map((t) =>
+            <button
+              key={t.key}
+              onClick={() => {haptics.selection();setActiveTab(t.key);}}
+              className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all min-h-[44px] flex-1 touch-manipulation active:scale-95 ${
+              activeTab === t.key ? 'bg-background text-foreground shadow-sm border border-border/50' : 'text-muted-foreground hover:text-foreground'}`
+              }>
+              
                 {t.label}
               </button>
-            ))}
+            )}
           </div>
-          {activeTab === 'applications' ? (
-            <>
+          {activeTab === 'applications' ?
+          <>
               {/* Status Filter */}
               <StatusFilter value={statusFilter} onChange={setStatusFilter} counts={statusCounts} />
 
@@ -287,16 +287,16 @@ export default function ApplicationsPage() {
 
               {/* Stats - show above cards when meaningful */}
               {(stats.applicationsSubmitted > 0 || stats.originals > 0) && <JobActivityStatsCard
-                stats={stats}
-                onOriginalsTap={() => {
-                  setResumeListFilter('originals');
-                  setResumeListOpen(true);
-                }}
-                onTailoredTap={() => {
-                  setResumeListFilter('tailored');
-                  setResumeListOpen(true);
-                }}
-              />}
+              stats={stats}
+              onOriginalsTap={() => {
+                setResumeListFilter('originals');
+                setResumeListOpen(true);
+              }}
+              onTailoredTap={() => {
+                setResumeListFilter('tailored');
+                setResumeListOpen(true);
+              }} />
+            }
 
               {/* Recent Activity — primary content, always visible */}
               <div id="activity-timeline">
@@ -308,79 +308,79 @@ export default function ApplicationsPage() {
               </div>
 
               {/* Application Cards */}
-              {applications.length > 0 ? (
-                <div className="space-y-2">
+              {applications.length > 0 ?
+            <div className="space-y-2">
                   <h2 className="text-sm font-semibold text-muted-foreground">Applications</h2>
-                  {applications.map(app => {
-                    const isInterviewing = app.status === 'interviewing' || app.status === 'screening';
-                    const remindDue = app.remind_at && isBefore(new Date(app.remind_at), addDays(new Date(), 1));
-                    const deadlineSoon = app.deadline && !isInterviewing && isBefore(new Date(app.deadline), addDays(new Date(), 3)) && !isBefore(new Date(app.deadline), new Date());
-                    return (
-                      <div
-                        key={app.id}
-                        className="glass-card rounded-2xl p-4 space-y-2"
-                      >
+                  {applications.map((app) => {
+                const isInterviewing = app.status === 'interviewing' || app.status === 'screening';
+                const remindDue = app.remind_at && isBefore(new Date(app.remind_at), addDays(new Date(), 1));
+                const deadlineSoon = app.deadline && !isInterviewing && isBefore(new Date(app.deadline), addDays(new Date(), 3)) && !isBefore(new Date(app.deadline), new Date());
+                return (
+                  <div
+                    key={app.id}
+                    className="glass-card rounded-2xl p-4 space-y-2">
+                    
                         <button
-                          onClick={() => navigate(`/application/${app.id}`)}
-                          className="flex items-start gap-3 w-full text-left"
-                        >
+                      onClick={() => navigate(`/application/${app.id}`)}
+                      className="flex items-start gap-3 w-full text-left">
+                      
                           <div className="w-10 h-10 rounded-xl bg-secondary/15 flex items-center justify-center shrink-0">
                             <FileText className="w-5 h-5 text-secondary" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold truncate" title={app.job_title}>{app.job_title}</p>
                             <p className="text-xs text-muted-foreground truncate">{app.company}</p>
-                            {app.applied_at && (
-                              <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                            {app.applied_at &&
+                        <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
                                 <Calendar className="w-3 h-3" />
                                 Applied {format(new Date(app.applied_at), 'MMM d, yyyy')}
                               </p>
-                            )}
-                            {app.deadline && isInterviewing && (
-                              <p className="text-[11px] text-primary flex items-center gap-1 mt-0.5">
+                        }
+                            {app.deadline && isInterviewing &&
+                        <p className="text-[11px] text-primary flex items-center gap-1 mt-0.5">
                                 <Calendar className="w-3 h-3" />
                                 Interview: {format(new Date(app.deadline), 'MMM d, h:mm a')}
                               </p>
-                            )}
-                            {deadlineSoon && (
-                              <Badge variant="secondary" className="text-[10px] mt-1 bg-destructive/15 text-destructive border-destructive/30">
+                        }
+                            {deadlineSoon &&
+                        <Badge variant="secondary" className="text-[10px] mt-1 bg-destructive/15 text-destructive border-destructive/30">
                                 Deadline soon
                               </Badge>
-                            )}
-                            {remindDue && (
-                              <Badge variant="secondary" className="text-[10px] mt-1 bg-warning/15 text-warning border-warning/30">
+                        }
+                            {remindDue &&
+                        <Badge variant="secondary" className="text-[10px] mt-1 bg-warning/15 text-warning border-warning/30">
                                 Follow-up due
                               </Badge>
-                            )}
+                        }
                           </div>
                           <Badge variant="outline" className={`text-[10px] shrink-0 ${STATUS_BADGE_CLASSES[app.status as ApplicationStatus] || ''}`}>{app.status}</Badge>
                         </button>
 
                         {/* Action buttons */}
                         <div className="flex gap-2 pl-[52px]">
-                          {isInterviewing && (
-                            <button
-                              onClick={() => { haptics.light(); navigate('/interview'); }}
-                              className="flex items-center gap-1 text-[11px] text-primary font-medium px-2 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/15 transition-colors min-h-[44px] touch-manipulation active:scale-95"
-                            >
+                          {isInterviewing &&
+                      <button
+                        onClick={() => {haptics.light();navigate('/interview');}}
+                        className="flex items-center gap-1 text-[11px] text-primary font-medium px-2 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/15 transition-colors min-h-[44px] touch-manipulation active:scale-95">
+                        
                               <Mic className="w-3 h-3" /> Prep
                             </button>
-                          )}
+                      }
                           <button
-                            onClick={() => { haptics.light(); setFollowUpApp({ company: app.company, jobTitle: app.job_title }); }}
-                            className="flex items-center gap-1 text-[11px] text-muted-foreground font-medium px-2 py-1.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors min-h-[44px] touch-manipulation active:scale-95"
-                          >
+                        onClick={() => {haptics.light();setFollowUpApp({ company: app.company, jobTitle: app.job_title });}}
+                        className="flex items-center gap-1 text-[11px] text-muted-foreground font-medium px-2 py-1.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors min-h-[44px] touch-manipulation active:scale-95">
+                        
                             <Mail className="w-3 h-3" /> Follow-up
                           </button>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                statusFilter === 'all' ? (
-                  /* Centered empty state for first-time users */
-                  <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                      </div>);
+
+              })}
+                </div> :
+
+            statusFilter === 'all' ? (
+            /* Centered empty state for first-time users */
+            <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
                     <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
                       <FileText className="w-8 h-8 text-primary" />
                     </div>
@@ -389,15 +389,15 @@ export default function ApplicationsPage() {
                       Add applications to stay organized and never miss a follow-up
                     </p>
                     <button
-                      onClick={() => { haptics.medium(); setShowAdd(true); }}
-                      className="px-5 py-3 rounded-full gradient-primary text-primary-foreground text-sm font-semibold min-h-[44px] touch-manipulation active:scale-95 shadow-md"
-                    >
+                onClick={() => {haptics.medium();setShowAdd(true);}}
+                className="px-5 py-3 rounded-full gradient-primary text-primary-foreground text-sm font-semibold min-h-[44px] touch-manipulation active:scale-95 shadow-md">
+                
                       Add your first application
                     </button>
-                  </div>
-                ) : (
-                  /* Compact empty state for filtered view */
-                  <div className="glass-surface rounded-2xl p-4 flex items-center gap-3">
+                  </div>) : (
+
+            /* Compact empty state for filtered view */
+            <div className="glass-surface rounded-2xl p-4 flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                       <FileText className="w-4 h-4 text-primary" />
                     </div>
@@ -407,150 +407,150 @@ export default function ApplicationsPage() {
                     </div>
                     <div className="flex gap-2 shrink-0">
                       <button
-                        onClick={() => { haptics.light(); setStatusFilter('all'); }}
-                        className="px-3 py-2 rounded-full bg-muted text-foreground text-xs font-medium min-h-[44px] touch-manipulation active:scale-95"
-                      >
+                  onClick={() => {haptics.light();setStatusFilter('all');}}
+                  className="px-3 py-2 rounded-full bg-muted text-foreground text-xs font-medium min-h-[44px] touch-manipulation active:scale-95">
+                  
                         Show All
                       </button>
                       <button
-                        onClick={() => { haptics.light(); setShowAdd(true); }}
-                        className="px-3 py-2 rounded-full bg-primary/10 text-primary text-xs font-medium min-h-[44px] touch-manipulation active:scale-95"
-                      >
+                  onClick={() => {haptics.light();setShowAdd(true);}}
+                  className="px-3 py-2 rounded-full bg-primary/10 text-primary text-xs font-medium min-h-[44px] touch-manipulation active:scale-95">
+                  
                         + Add
                       </button>
                     </div>
-                  </div>
-                )
-              )}
+                  </div>)
 
-            </>
-          ) : (
-            <>
+            }
+
+            </> :
+
+          <>
               {/* Jobs List */}
-              {filteredJobs.length > 0 ? (
-                <div className="space-y-2">
-                  {filteredJobs.map(job => (
-                    <JobCard
-                      key={job.id}
-                      job={job}
-                      onClick={() => navigate(`/job/${job.id}`)}
-                      matchScore={matchScores[job.id] || null}
-                      onTailor={() => {
-                        // Store job description in Zustand so TailorSheet picks it up
-                        const { setJobDescription } = useResumeStore.getState();
-                        setJobDescription(job.description || '');
-                        navigate(`/editor?tailor=true&jobTitle=${encodeURIComponent(job.title)}&company=${encodeURIComponent(job.company)}`);
-                      }}
-                      onMarkApplied={() => {
-                        createApplication.mutate({
-                          job_title: job.title,
-                          company: job.company,
-                          status: 'applied',
-                          url: job.source_url || undefined,
-                        }, {
-                          onSuccess: () => {
-                            queryClient.invalidateQueries({ queryKey: ['job-applications'] });
-                            queryClient.invalidateQueries({ queryKey: ['job-activity-stats'] });
-                            queryClient.invalidateQueries({ queryKey: ['activity-timeline'] });
-                            setActiveTab('applications');
-                            haptics.success();
-                          },
-                        });
-                      }}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+              {filteredJobs.length > 0 ?
+            <div className="space-y-2">
+                  {filteredJobs.map((job) =>
+              <JobCard
+                key={job.id}
+                job={job}
+                onClick={() => navigate(`/job/${job.id}`)}
+                matchScore={matchScores[job.id] || null}
+                onTailor={() => {
+                  // Store job description in Zustand so TailorSheet picks it up
+                  const { setJobDescription } = useResumeStore.getState();
+                  setJobDescription(job.description || '');
+                  navigate(`/editor?tailor=true&jobTitle=${encodeURIComponent(job.title)}&company=${encodeURIComponent(job.company)}`);
+                }}
+                onMarkApplied={() => {
+                  createApplication.mutate({
+                    job_title: job.title,
+                    company: job.company,
+                    status: 'applied',
+                    url: job.source_url || undefined
+                  }, {
+                    onSuccess: () => {
+                      queryClient.invalidateQueries({ queryKey: ['job-applications'] });
+                      queryClient.invalidateQueries({ queryKey: ['job-activity-stats'] });
+                      queryClient.invalidateQueries({ queryKey: ['activity-timeline'] });
+                      setActiveTab('applications');
+                      haptics.success();
+                    }
+                  });
+                }} />
+
+              )}
+                </div> :
+
+            <div className="items-center justify-center text-muted-foreground py-[30px] my-[50px] flex flex-col">
                   <Briefcase className="w-12 h-12 mb-3 opacity-30" />
                   <p className="font-medium">{hasActiveFilters ? 'No jobs match filters' : 'No saved jobs yet'}</p>
                   <p className="text-sm mt-1 mb-4">{hasActiveFilters ? 'Try adjusting your filters' : 'Save jobs to start tracking your applications'}</p>
-                  {!hasActiveFilters && (
-                    <>
+                  {!hasActiveFilters &&
+              <>
                       <div className="flex gap-3">
                         <button
-                          onClick={() => { haptics.light(); setShowSearch(true); }}
-                          className="flex items-center gap-1.5 text-xs font-medium text-primary px-4 py-2.5 rounded-full bg-primary/10 hover:bg-primary/15 transition-colors min-h-[44px] touch-manipulation"
-                        >
+                    onClick={() => {haptics.light();setShowSearch(true);}}
+                    className="flex items-center gap-1.5 text-xs font-medium text-primary px-4 py-2.5 rounded-full bg-primary/10 hover:bg-primary/15 transition-colors min-h-[44px] touch-manipulation">
+                    
                           <Search className="w-3.5 h-3.5" /> Search Jobs
                         </button>
                         <button
-                          onClick={() => { haptics.light(); setShowSaveJob(true); }}
-                          className="flex items-center gap-1.5 text-xs font-medium text-foreground px-4 py-2.5 rounded-full bg-muted hover:bg-muted/80 transition-colors min-h-[44px] touch-manipulation"
-                        >
+                    onClick={() => {haptics.light();setShowSaveJob(true);}}
+                    className="flex items-center gap-1.5 text-xs font-medium text-foreground px-4 py-2.5 rounded-full bg-muted hover:bg-muted/80 transition-colors min-h-[44px] touch-manipulation">
+                    
                           <Plus className="w-3.5 h-3.5" /> Add Manually
                         </button>
                       </div>
                       <button
-                        disabled={isSeeding}
-                        onClick={async () => {
-                          setIsSeeding(true);
-                          try {
-                            for (const job of sampleJobs) {
-                              await createJob.mutateAsync(job);
-                            }
-                            toast.success('5 sample jobs added!');
-                          } catch {
-                            toast.error('Failed to add sample jobs');
-                          } finally {
-                            setIsSeeding(false);
-                          }
-                        }}
-                        className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground px-4 py-2 rounded-full border border-dashed border-border hover:border-primary/40 hover:text-primary transition-colors min-h-[44px] touch-manipulation mt-3"
-                      >
+                  disabled={isSeeding}
+                  onClick={async () => {
+                    setIsSeeding(true);
+                    try {
+                      for (const job of sampleJobs) {
+                        await createJob.mutateAsync(job);
+                      }
+                      toast.success('5 sample jobs added!');
+                    } catch {
+                      toast.error('Failed to add sample jobs');
+                    } finally {
+                      setIsSeeding(false);
+                    }
+                  }}
+                  className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground px-4 py-2 rounded-full border border-dashed border-border hover:border-primary/40 hover:text-primary transition-colors min-h-[44px] touch-manipulation mt-3">
+                  
                         <FlaskConical className="w-3.5 h-3.5" />
                         {isSeeding ? 'Adding...' : 'Add Sample Jobs'}
                       </button>
                     </>
-                  )}
+              }
                 </div>
-              )}
+            }
             </>
-          )}
+          }
         </div>
       </PullToRefresh>
 
       {/* FAB */}
-      {activeTab === 'jobs' && (
-        <button
-          onClick={() => { haptics.medium(); setShowSaveJob(true); }}
-          className="fixed bottom-[7.5rem] sm:bottom-20 right-4 pr-safe z-50 w-14 h-14 rounded-full gradient-primary shadow-lg flex items-center justify-center active:scale-95 transition-transform"
-          aria-label="Save new job"
-        >
+      {activeTab === 'jobs' &&
+      <button
+        onClick={() => {haptics.medium();setShowSaveJob(true);}}
+        className="fixed bottom-[7.5rem] sm:bottom-20 right-4 pr-safe z-50 w-14 h-14 rounded-full gradient-primary shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+        aria-label="Save new job">
+        
           <Plus className="w-6 h-6 text-primary-foreground" />
         </button>
-      )}
-      {activeTab === 'applications' && (
-        <button
-          onClick={() => { haptics.medium(); setShowAdd(true); }}
-          className="fixed bottom-[7.5rem] sm:bottom-20 right-4 pr-safe z-50 w-14 h-14 rounded-full gradient-primary shadow-lg flex items-center justify-center active:scale-95 transition-transform"
-          aria-label="Add application"
-        >
+      }
+      {activeTab === 'applications' &&
+      <button
+        onClick={() => {haptics.medium();setShowAdd(true);}}
+        className="fixed bottom-[7.5rem] sm:bottom-20 right-4 pr-safe z-50 w-14 h-14 rounded-full gradient-primary shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+        aria-label="Add application">
+        
           <Plus className="w-6 h-6 text-primary-foreground" />
         </button>
-      )}
+      }
 
       <AddApplicationSheet open={showAdd} onOpenChange={setShowAdd} />
       <ResumeListSheet
         open={resumeListOpen}
         onOpenChange={setResumeListOpen}
-        filter={resumeListFilter}
-      />
+        filter={resumeListFilter} />
+      
       <JobSearchSheet
         open={showSearch}
         onOpenChange={setShowSearch}
         filters={filters}
-        onFiltersChange={setFilters}
-      />
+        onFiltersChange={setFilters} />
+      
       <SaveJobSheet open={showSaveJob} onOpenChange={setShowSaveJob} />
-      {followUpApp && (
-        <FollowUpEmailSheet
-          open={!!followUpApp}
-          onOpenChange={(open) => { if (!open) setFollowUpApp(null); }}
-          company={followUpApp.company}
-          jobTitle={followUpApp.jobTitle}
-        />
-      )}
-    </div>
-  );
+      {followUpApp &&
+      <FollowUpEmailSheet
+        open={!!followUpApp}
+        onOpenChange={(open) => {if (!open) setFollowUpApp(null);}}
+        company={followUpApp.company}
+        jobTitle={followUpApp.jobTitle} />
+
+      }
+    </div>);
+
 }
