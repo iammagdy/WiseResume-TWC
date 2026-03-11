@@ -13,7 +13,7 @@ interface AIEngineBadgeProps {
 
 export const AIEngineBadge = memo(function AIEngineBadge({
   showSettingsLink = false,
-  className,
+  className
 }: AIEngineBadgeProps) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const providerInfo = useAIProviderInfo();
@@ -38,17 +38,17 @@ export const AIEngineBadge = memo(function AIEngineBadge({
           showSettingsLink && 'cursor-pointer active:scale-[0.98]',
           !showSettingsLink && 'cursor-default',
           className
-        )}
-      >
-        <div className="ai-engine-badge-inner">
+        )}>
+        
+        <div className="ai-engine-badge-inner opacity-90">
           {/* Floating particles */}
           <span className="ai-engine-particle" />
           <span className="ai-engine-particle" />
 
           {/* Pulsing icon */}
-          <IconComponent 
-            className="w-4 h-4 ai-engine-icon text-primary" 
-          />
+          <IconComponent
+            className="w-4 h-4 ai-engine-icon text-primary" />
+          
 
           {/* Shimmer text */}
           <span className="ai-engine-text text-sm font-medium">
@@ -56,13 +56,13 @@ export const AIEngineBadge = memo(function AIEngineBadge({
           </span>
 
           {/* Settings gear */}
-          {showSettingsLink && (
-            <Settings className="w-4 h-4 ai-engine-settings text-muted-foreground" />
-          )}
+          {showSettingsLink &&
+          <Settings className="w-4 h-4 ai-engine-settings text-muted-foreground" />
+          }
         </div>
       </button>
 
       <AISettingsSheet open={sheetOpen} onOpenChange={setSheetOpen} />
-    </>
-  );
+    </>);
+
 });
