@@ -299,7 +299,7 @@ export default function AIStudioPage() {
         animate={{ opacity: 1, y: 0 }}
         className="px-4 pt-4 pb-3 sm:pt-6 sm:pb-4">
         
-        <h1 className="text-fluid-xl font-bold bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent animate-gradient-x ml-[120px] pt-0 pb-0">
+        <h1 className="text-fluid-xl font-bold bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent animate-gradient-x pt-0 pb-0 ml-0">
           Wise AI Studio
         </h1>
         <div className="flex items-center justify-between mt-2">
@@ -393,11 +393,14 @@ export default function AIStudioPage() {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-            {SUGGESTIONS.slice(0, 3).map((s) => (
-              <button key={s} className="px-3 py-1.5 text-xs rounded-full border border-border bg-muted/50 text-muted-foreground hover:bg-muted transition-colors truncate">
-                {s}
-              </button>
-            ))}
+            {SUGGESTIONS.slice(0, 3).map((s) => {}
+
+
+
+
+
+
+            )}
           </div>
         </div>
       </motion.div>
