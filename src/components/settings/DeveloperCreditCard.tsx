@@ -147,7 +147,7 @@ export function DeveloperCreditCard({
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => {e.preventDefault();handleWebsiteClick();}}
-                  className="dev-website-link text-slate-50 text-center text-base ml-[5px] mb-[2px] mt-0 pt-[2px]"
+                  className="dev-website-link text-center text-base ml-[5px] mb-[2px] mt-0 pt-[2px] text-slate-50"
                   aria-label={`Visit ${new URL(websiteUrl).hostname.replace('www.', '')}`}>
                   
                     <ExternalLink className="w-3 h-3 flex-shrink-0" />
