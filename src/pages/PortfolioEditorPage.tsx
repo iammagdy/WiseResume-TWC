@@ -380,7 +380,7 @@ export default function PortfolioEditorPage() {
         <h1 className="text-page-title leading-tight flex-1">Portfolio</h1>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 pb-6 bg-transparent">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 pb-6 bg-[#fbf9f9]/15">
         {/* Status Bar */}
         <StatusBar
           portfolioEnabled={portfolioEnabled}
