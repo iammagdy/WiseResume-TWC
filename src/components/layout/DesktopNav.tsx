@@ -8,7 +8,7 @@ import { useChangelogBadge } from '@/hooks/useChangelogBadge';
 import { toast } from 'sonner';
 import { lazy, Suspense, useState, useRef, useEffect } from 'react';
 
-const AgenticChatSheet = lazy(() => import('@/components/editor/AgenticChatSheet').then(m => ({ default: m.AgenticChatSheet })));
+const AgenticChatSheet = lazy(() => import('@/components/editor/AgenticChatSheet').then((m) => ({ default: m.AgenticChatSheet })));
 
 interface TabItem {
   path: string;
@@ -19,38 +19,38 @@ interface TabItem {
 }
 
 const tabs: TabItem[] = [
-  {
-    path: '/dashboard',
-    icon: Home,
-    label: 'Home',
-    matchPaths: ['/dashboard', '/notifications', '/templates', '/examples', '/guides', '/resume', '/onboarding'],
-  },
-  {
-    path: '/editor',
-    icon: FileText,
-    label: 'Editor',
-    matchPaths: ['/editor', '/preview'],
-    guarded: true,
-  },
-  {
-    path: '/ai-studio',
-    icon: Sparkles,
-    label: 'AI Tools',
-    matchPaths: ['/ai-studio', '/career', '/cover-letter', '/cover-letters', '/resignation-letter', '/resignation-letters', '/interview'],
-  },
-  {
-    path: '/applications',
-    icon: BarChart3,
-    label: 'Activity',
-    matchPaths: ['/applications', '/application', '/job'],
-  },
-  {
-    path: '/portfolio',
-    icon: Globe,
-    label: 'Portfolio',
-    matchPaths: ['/portfolio'],
-  },
-];
+{
+  path: '/dashboard',
+  icon: Home,
+  label: 'Home',
+  matchPaths: ['/dashboard', '/notifications', '/templates', '/examples', '/guides', '/resume', '/onboarding']
+},
+{
+  path: '/editor',
+  icon: FileText,
+  label: 'Editor',
+  matchPaths: ['/editor', '/preview'],
+  guarded: true
+},
+{
+  path: '/ai-studio',
+  icon: Sparkles,
+  label: 'AI Tools',
+  matchPaths: ['/ai-studio', '/career', '/cover-letter', '/cover-letters', '/resignation-letter', '/resignation-letters', '/interview']
+},
+{
+  path: '/applications',
+  icon: BarChart3,
+  label: 'Activity',
+  matchPaths: ['/applications', '/application', '/job']
+},
+{
+  path: '/portfolio',
+  icon: Globe,
+  label: 'Portfolio',
+  matchPaths: ['/portfolio']
+}];
+
 
 export function DesktopNav() {
   const location = useLocation();
@@ -100,8 +100,8 @@ export function DesktopNav() {
   return (
     <nav
       className="hidden lg:flex items-center gap-1 px-4 h-12 border-b border-border/50 glass-header shrink-0"
-      aria-label="Main navigation"
-    >
+      aria-label="Main navigation">
+      
       {/* Brand mark */}
       <span className="text-sm font-bold text-primary mr-3 select-none">WiseResume</span>
 
@@ -114,59 +114,59 @@ export function DesktopNav() {
               key={tab.path}
               onClick={() => handleTabPress(tab)}
               aria-label={tab.label}
-              className={cn(
-                'relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200',
-                'touch-manipulation active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-                active
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-              )}
-            >
+              className={cn("relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all duration-200 touch-manipulation active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary text-base",
+
+
+              active ?
+              'bg-primary/10 text-primary' :
+              'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+              )}>
+              
               <div className="relative">
                 <Icon className="w-4 h-4" aria-hidden="true" />
-                {tab.path === '/dashboard' && hasNew && (
-                  <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-primary border border-background" />
-                )}
+                {tab.path === '/dashboard' && hasNew &&
+                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-primary border border-background" />
+                }
               </div>
               {tab.label}
-            </button>
-          );
+            </button>);
+
         })}
       </div>
 
       {/* Settings tab — only visible on /settings */}
-      {isOnSettings && (
-        <button
-          onClick={() => { haptics.selection(); }}
-          aria-label="Settings"
-          className={cn(
-            'relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200',
-            'touch-manipulation active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-            'bg-primary/10 text-primary'
-          )}
-        >
+      {isOnSettings &&
+      <button
+        onClick={() => {haptics.selection();}}
+        aria-label="Settings"
+        className={cn(
+          'relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200',
+          'touch-manipulation active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+          'bg-primary/10 text-primary'
+        )}>
+        
           <Settings className="w-4 h-4" aria-hidden="true" />
           Settings
         </button>
-      )}
+      }
 
       {/* Ask Wise AI — desktop */}
       <div className="ml-auto">
         <button
-          onClick={() => { haptics.selection(); setWiseAIOpen(true); }}
+          onClick={() => {haptics.selection();setWiseAIOpen(true);}}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-colors active:scale-95"
-          aria-label="Ask Wise AI"
-        >
+          aria-label="Ask Wise AI">
+          
           <MessageCircle className="w-4 h-4" />
           Ask
         </button>
       </div>
 
-      {wiseAIOpen && (
-        <Suspense fallback={null}>
+      {wiseAIOpen &&
+      <Suspense fallback={null}>
           <AgenticChatSheet open={wiseAIOpen} onOpenChange={setWiseAIOpen} />
         </Suspense>
-      )}
-    </nav>
-  );
+      }
+    </nav>);
+
 }
