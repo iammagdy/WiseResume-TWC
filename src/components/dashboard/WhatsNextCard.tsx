@@ -23,37 +23,37 @@ const SECTION_LABELS: Record<string, string> = {
   summary: 'Summary',
   experience: 'Experience',
   education: 'Education',
-  skills: 'Skills',
+  skills: 'Skills'
 };
 
 // Feature discovery tips (merged from FeatureDiscoveryCard)
 const FEATURE_TIPS = [
-  {
-    title: 'A/B Resume Compare',
-    description: 'Score two versions of your resume side-by-side to find the stronger one.',
-    route: '/ai-studio?tool=ab-compare',
-  },
-  {
-    title: 'Smart Tailor',
-    description: 'Paste a job description and auto-adapt your resume keywords to match.',
-    route: '/ai-studio?tool=tailor',
-  },
-  {
-    title: 'Company Briefing',
-    description: 'Get a quick research brief on any company before your interview.',
-    route: '/ai-studio?tool=company-briefing',
-  },
-  {
-    title: 'Portfolio Website',
-    description: 'Turn your resume into a shareable portfolio site with one tap.',
-    route: '/portfolio',
-  },
-  {
-    title: 'Cover Letter Generator',
-    description: 'Create AI-powered cover letters tailored to any job posting.',
-    route: '/cover-letter/new',
-  },
-];
+{
+  title: 'A/B Resume Compare',
+  description: 'Score two versions of your resume side-by-side to find the stronger one.',
+  route: '/ai-studio?tool=ab-compare'
+},
+{
+  title: 'Smart Tailor',
+  description: 'Paste a job description and auto-adapt your resume keywords to match.',
+  route: '/ai-studio?tool=tailor'
+},
+{
+  title: 'Company Briefing',
+  description: 'Get a quick research brief on any company before your interview.',
+  route: '/ai-studio?tool=company-briefing'
+},
+{
+  title: 'Portfolio Website',
+  description: 'Turn your resume into a shareable portfolio site with one tap.',
+  route: '/portfolio'
+},
+{
+  title: 'Cover Letter Generator',
+  description: 'Create AI-powered cover letters tailored to any job posting.',
+  route: '/cover-letter/new'
+}];
+
 
 const TIP_INDEX_KEY = 'feature-discovery-index';
 const TIP_DISMISSED_KEY = 'feature-discovery-dismissed';
@@ -61,17 +61,17 @@ const TIP_DISMISSED_KEY = 'feature-discovery-dismissed';
 export const WhatsNextCard = memo(function WhatsNextCard() {
   const navigate = useNavigate();
   const { data: resumes } = useResumes();
-  const setCurrentResumeId = useResumeStore(s => s.setCurrentResumeId);
-  const setCurrentResume = useResumeStore(s => s.setCurrentResume);
+  const setCurrentResumeId = useResumeStore((s) => s.setCurrentResumeId);
+  const setCurrentResume = useResumeStore((s) => s.setCurrentResume);
 
   // Feature tip dismissed state
   const [tipDismissed, setTipDismissed] = useState(() => {
-    try { return localStorage.getItem(TIP_DISMISSED_KEY) === '1'; } catch { return false; }
+    try {return localStorage.getItem(TIP_DISMISSED_KEY) === '1';} catch {return false;}
   });
 
   // Read onboarding goal
   const onboardingGoal = useMemo(() => {
-    try { return localStorage.getItem('wr-onboarding-goal') || null; } catch { return null; }
+    try {return localStorage.getItem('wr-onboarding-goal') || null;} catch {return null;}
   }, []);
 
   // Rotating tip index
@@ -81,7 +81,7 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
       const next = saved ? (parseInt(saved, 10) + 1) % FEATURE_TIPS.length : 0;
       localStorage.setItem(TIP_INDEX_KEY, String(next));
       return next;
-    } catch { return 0; }
+    } catch {return 0;}
   }, []);
 
   const step = useMemo<NextStep | null>(() => {
@@ -95,12 +95,12 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
         description: 'Get started in under 2 minutes',
         action: () => navigate('/dashboard?action=create'),
         color: 'text-primary',
-        bgColor: 'bg-primary/10',
+        bgColor: 'bg-primary/10'
       };
     }
 
     // Find the best master resume
-    const masterResumes = resumes.filter(r => !r.parent_resume_id);
+    const masterResumes = resumes.filter((r) => !r.parent_resume_id);
     const best = masterResumes[0];
     if (!best) return null;
     const bestData = dbToResumeData(best);
@@ -116,7 +116,7 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
           description: 'Find the perfect look for your resume',
           action: () => navigate('/templates'),
           color: 'text-primary',
-          bgColor: 'bg-primary/10',
+          bgColor: 'bg-primary/10'
         };
       }
       const section = getNextIncompleteSection(bestData);
@@ -131,12 +131,12 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
           navigate('/editor');
         },
         color: 'text-amber-500',
-        bgColor: 'bg-amber-500/10',
+        bgColor: 'bg-amber-500/10'
       };
     }
 
     // 3. Never tailored — prioritize based on goal
-    const hasTailored = resumes.some(r => r.parent_resume_id);
+    const hasTailored = resumes.some((r) => r.parent_resume_id);
     if (!hasTailored) {
       // Goal: "Update my resume" → Enhance first
       if (onboardingGoal === 'update-resume') {
@@ -150,7 +150,7 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
             navigate('/ai-studio?tool=enhance');
           },
           color: 'text-cyan-500',
-          bgColor: 'bg-cyan-500/10',
+          bgColor: 'bg-cyan-500/10'
         };
       }
       return {
@@ -163,7 +163,7 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
           navigate('/ai-studio?tool=tailor');
         },
         color: 'text-primary',
-        bgColor: 'bg-primary/10',
+        bgColor: 'bg-primary/10'
       };
     }
 
@@ -178,7 +178,7 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
         navigate('/interview');
       },
       color: 'text-orange-500',
-      bgColor: 'bg-orange-500/10',
+      bgColor: 'bg-orange-500/10'
     };
   }, [resumes, navigate, setCurrentResumeId, setCurrentResume, onboardingGoal]);
 
@@ -187,12 +187,12 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
     const Icon = step.icon;
     return (
       <motion.button
-        onClick={() => { haptics.light(); step.action(); }}
-        className="mx-4 mb-3 w-[calc(100%-2rem)] rounded-2xl glass-elevated p-4 text-left active:scale-[0.98] transition-transform touch-manipulation border-l-[3px] border-primary/40 bg-primary/[0.03]"
+        onClick={() => {haptics.light();step.action();}}
+        className="mx-4 mb-3 w-[calc(100%-2rem)] rounded-2xl glass-elevated p-4 text-left active:scale-[0.98] transition-transform touch-manipulation border-l-[3px] border-primary/40 bg-primary/[0.03] mt-[10px]"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, delay: 0.1 }}
-      >
+        transition={{ duration: 0.35, delay: 0.1 }}>
+        
         <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Suggested next step</p>
         <div className="flex items-center gap-3">
           <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0', step.bgColor)}>
@@ -204,8 +204,8 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
           </div>
           <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
         </div>
-      </motion.button>
-    );
+      </motion.button>);
+
   }
 
   // Fallback: show a feature discovery tip (only after session 3+)
@@ -217,16 +217,16 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mx-4 mb-3 rounded-2xl glass-elevated p-4 relative overflow-hidden"
-    >
+      className="mx-4 mb-3 rounded-2xl glass-elevated p-4 relative overflow-hidden">
+      
       <button
         onClick={() => {
           setTipDismissed(true);
           localStorage.setItem(TIP_DISMISSED_KEY, '1');
         }}
         className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-muted/50 text-muted-foreground min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
-        aria-label="Dismiss"
-      >
+        aria-label="Dismiss">
+        
         <X className="w-4 h-4" />
       </button>
       <div className="flex items-start gap-3 pr-8">
@@ -238,13 +238,13 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
           <p className="text-sm font-semibold text-foreground">{tip.title}</p>
           <p className="text-xs text-muted-foreground mt-0.5">{tip.description}</p>
           <button
-            onClick={() => { haptics.light(); navigate(tip.route); }}
-            className="mt-2 text-xs font-medium text-primary flex items-center gap-1 min-h-[44px] touch-manipulation active:scale-95"
-          >
+            onClick={() => {haptics.light();navigate(tip.route);}}
+            className="mt-2 text-xs font-medium text-primary flex items-center gap-1 min-h-[44px] touch-manipulation active:scale-95">
+            
             Try it <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
-    </motion.div>
-  );
+    </motion.div>);
+
 });
