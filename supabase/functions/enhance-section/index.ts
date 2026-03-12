@@ -3,6 +3,7 @@ import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { callAIWithRetry, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
 
 // ============= SECURITY: Input validation limits =============
 const MAX_CONTENT_SIZE = 50 * 1024; // 50KB for current content
@@ -533,6 +534,15 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'rate_limit', message: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Server-side AI Credits check (Scenario 2.2 Rejection)
+    const creditCheck = await checkUserCreditBalance(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'payment_required', message: 'AI credits exhausted. Please add credits to your account or use your own API key.' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

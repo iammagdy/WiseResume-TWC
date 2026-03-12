@@ -12,6 +12,11 @@
 
 The core value proposition of WiseResume is providing an all-in-one career toolkit. It replaces fragmented workflows by offering a resume builder with 30 professional templates, AI-driven job tailoring, automated ATS scoring, cover letter generation, voice-assisted mock interviews, portfolio hosting, and a centralized job application tracker—all featuring a cohesive, modern, polished design.
 
+## Clarifications
+### Session 2026-03-13
+- Q: Which failure scenario worries you the most and should be our #1 priority to test first? → A: Users being blocked from logging in (Kinde Auth Flow) and bypassing AI credit limits.
+- Q: How comfortable are you with us changing existing code to make it more testable? → A: Only refactor what is strictly necessary to get critical tests running; avoid changing how UI screens are built.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Create a New Resume (Priority: P1)
