@@ -1,24 +1,19 @@
 # WiseResume Templates Hub
 
-Welcome to your personal template hub for **WiseResume**. This document serves as a centralized location for storing and managing custom resume templates, content snippets, and AI prompts used within the **Wise AI** ecosystem.
+This directory contains the standard, governance-aligned AI agent prompt templates for the **WiseResume** repository.
 
-## Table of Contents
+Select a template based on the task you need the agent to perform, copy the prompt inside the code block, fill in the `<PLACEHOLDERS>`, and use it to execute the task securely.
 
-- [Resume Templates](#resume-templates)
-- [Content Snippets](#content-snippets)
-- [AI Prompts](#ai-prompts)
-- [Design Tokens](#design-tokens)
+## Available Templates:
 
----
-
-## Resume Templates
-*Paste your custom resume templates here.*
-
-## Content Snippets
-*Store reusable summaries, experience bullet points, or skills lists here.*
-
-## AI Prompts
-*Save your favored prompts for Wise AI tailoring or generation.*
-
-## Design Tokens
-*Reference specific HSL colors or typography settings for your templates.*
+- [01 – Bug Issue Template (WiseResume)](./01-bug-issue-template.md)
+- [02 – UI Issue Template (WiseResume)](./02-ui-issue-template.md)
+- [03 – Feature Spec Template (WiseResume)](./03-feature-spec-template.md)
+- [04 – Refactor Template (WiseResume)](./04-refactor-template.md)
+- [05 – Changelog + Version Bump Template (WiseResume)](./05-changelog-version-template.md)
+- [06 – Settings Changelog UI Template (WiseResume)](./06-settings-changelog-ui-template.md)
+- [07 – Cleanup Unnecessary Files Template (WiseResume)](./07-cleanup-unnecessary-files-template.md)
+- [08 – Branding / Foreign App Check Template (WiseResume)](./08-branding-foreign-app-check-template.md)
+- [09 – README / Docs Update Template (WiseResume)](./09-readme-docs-update-template.md)
+- [10 – Quick Governance Prefix Template (WiseResume)](./10-governance-prefix-template.md)
+- [99 – Add New Template (Template Maker)](./99-add-new-template.md)
