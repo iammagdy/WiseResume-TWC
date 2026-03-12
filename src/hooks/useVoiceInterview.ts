@@ -516,7 +516,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
         clearTimeout(slowTimer);
       }
     },
-    [resumeData, addEntry, speak]
+    [resumeData, addEntry, speak, checkCredits, incrementUsage]
   );
 
   const clearSilenceTimer = useCallback(() => {
