@@ -17,3 +17,10 @@ Select a template based on the task you need the agent to perform, copy the prom
 - [09 – README / Docs Update Template (WiseResume)](./09-readme-docs-update-template.md)
 - [10 – Quick Governance Prefix Template (WiseResume)](./10-governance-prefix-template.md)
 - [99 – Add New Template (Template Maker)](./99-add-new-template.md)
+
+## Testing & Audit Templates
+
+- [11 – Full Governance Audit Template (WiseResume)](./11-full-governance-audit-template.md)
+- [12 – UI Analyze Template (WiseResume)](./12-ui-analyze-template.md)
+- [13 – Testing Strategy / Test Plan Template (WiseResume)](./13-testing-strategy-template.md)
+- [14 – Unit / Integration Test Generator Template (WiseResume)](./14-unit-integration-test-template.md)
