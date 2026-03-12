@@ -1,4 +1,6 @@
-# Feature Specification: WiseResume Product Definition
+# WiseResume Product Requirements Document (PRD)
+
+> Source of truth for current WiseResume product behavior.
 
 **Feature Branch**: `001-prd-wiseresume`  
 **Created**: 2026-03-12  
