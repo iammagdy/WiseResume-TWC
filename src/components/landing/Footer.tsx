@@ -7,7 +7,7 @@ export function Footer() {
   return (
     <footer className="relative mt-10">
       <div
-        className="h-px w-full"
+        className="h-px w-full opacity-95"
         style={{
           background:
           'linear-gradient(90deg, transparent 0%, hsl(var(--primary) / 0.5) 30%, hsl(var(--accent) / 0.5) 70%, transparent 100%)'
