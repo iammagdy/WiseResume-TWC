@@ -1,113 +1,118 @@
 <div align="center">
   <img src="./src/assets/wise-ai-logo.webp" alt="WiseResume Logo" width="120" />
   <h1>WiseResume</h1>
-  <p><strong>The Elite AI-Powered Career Assistant & Resume Engine</strong></p>
-  <p><em>Part of the Wise Universe</em></p>
+  <p><strong>A resume-first AI career platform — part of The Wise Cloud, powered by Wise AI.</strong></p>
 </div>
 
 ---
 
-**WiseResume** is not just another resume builder—it is an intelligent, agentic career hub. Designed for ambitious professionals, it leverages advanced multi-model AI to completely orchestrate the job application lifecycle: from resume generation and ATS (Applicant Tracking System) optimization, to hyper-realistic AI mock interviews and continuous career pathing.
+## Product Summary
 
-Built with a premium, app-like mobile-first architecture, WiseResume delivers desktop-class power with native biometric security and offline resilience.
+**WiseResume** is an AI-powered career platform that puts your resume at the center of your job search. It is built as a Progressive Web App (PWA) with a mobile-first design and is part of **The Wise Cloud** ecosystem, driven by **Wise AI**.
 
-## 🌟 Why WiseResume is Different
-
-Most resume tools just format text. WiseResume **understands your career** and **acts on your behalf**.
-
-*   **🧠 Multi-Model AI Orchestration**: We don't rely on a single LLM. WiseResume intelligently routes tasks (like OCR, semantic gap analysis, or conversational interviewing) to the most capable AI models.
-*   **🔒 Bring Your Own Key (BYOK)**: Full control over your AI usage and privacy. Bring your own OpenAI or Gemini keys, stored securely with encrypted standard vectors.
-*   **📱 True Mobile-First with Biometrics**: Built on Capacitor, WiseResume isn't just responsive—it feels native. Secure your career data with FaceID/TouchID directly from the web or installed PWA.
-*   **⚡ Offline-First Architecture**: Your career doesn't stop when you lose signal. Edit your resume, review guides, and queue applications entirely offline. Changes sync automatically when reconnected.
+WiseResume helps job seekers, students, career switchers, and high-volume applicants build polished resumes, tailor them to specific roles, prepare for interviews, and track their entire application process — all in one place.
 
 ---
 
-## 🚀 Core Capabilities
+## Key Features
 
-### 📄 Intelligent Document Generation
-*   **Smart Parsing**: Upload an old PDF or provide a LinkedIn URL—WiseResume's OCR and semantic engines extract and structure your entire career history automatically.
-*   **Contextual Tailoring**: Paste a job description and watch the AI completely rewrite your resume highlights to surgically match the ATS keywords and required skills.
-*   **One-Page Optimizer**: Running out of space? The AI intelligently condenses your experience without losing impact, perfectly fitting stringent one-page requirements.
-*   **Cover & Resignation Letters**: Generate perfectly toned, context-aware letters in seconds.
-
-### 💼 Career "Agentic" Hub
-*   **The Recruiter Simulator**: Don't guess if your resume is good. Run it against our AI Recruiter which simulates harsh ATS filtering and provides actionable, brutal feedback before you apply.
-*   **Voice Mock Interviews**: Engage in real-time, two-way voice interviews with an AI hiring manager, complete with stutters, thinking time, and detailed post-interview feedback (powered by ElevenLabs).
-*   **Agentic Career Chat**: A persistent AI advisor that knows your entire portfolio. Ask it "Am I qualified for a Senior React role?" and get an analysis based on your actual data.
-
-### 🌐 Professional Presence
-*   **Public Portfolios**: Instantly generate a stunning, responsive public portfolio link directly from your resume data. Track views and analytics.
-*   **Application Tracker**: A built-in Kanban board to track your applications, interviews, and offers in one place.
+- **AI Resume Editor** — 30+ customizable templates, live preview, and AI-assisted content enhancement via Wise AI.
+- **Resume Upload & Parsing** — Upload a PDF, DOCX, or image and let the system extract your career history automatically.
+- **ATS Job Tailoring** — Paste a job description; Wise AI rewrites your resume to maximize your ATS match score.
+- **AI Studio** — A centralized hub of career tools: cover letter generator, resignation letter writer, career quiz, and an agentic career chat.
+- **Voice Mock Interviews** — Real-time voice-based interview simulations with AI feedback and performance scoring.
+- **Job Application Tracker** — A Kanban board to log, organize, and track all your applications in one place.
+- **Public Portfolio** — Claim a `/p/username` link and share a public web portfolio generated from your resume.
+- **Settings & BYOK** — Configure dark/light mode, manage Kinde credentials, and bring your own API keys (Gemini, ElevenLabs) for extended AI usage.
+- **Offline-Ready PWA** — Works offline with local queuing; syncs automatically when reconnected.
+- **Biometric Lock** — Optionally secure the app with device-level biometric authentication (FaceID / TouchID).
 
 ---
 
-## 🛠️ Technical Architecture
+## Architecture Overview
 
-WiseResume is engineered for extreme performance and scalability. 
+### Frontend
+- **Framework**: React 18 + TypeScript + Vite
+- **Styling**: Tailwind CSS, shadcn/ui (Radix UI), Framer Motion
+- **State & Data**: Zustand, TanStack Query (React Query v5)
+- **Routing**: React Router v6 (lazy-loaded routes)
+- **PWA / Mobile**: Capacitor, `vite-plugin-pwa`
 
-**The Stack:**
-*   **Frontend**: React 18, TypeScript, Vite 5
-*   **Styling**: Tailwind CSS 3, Radix UI (shadcn/ui), Framer Motion
-*   **State & Data**: Zustand, TanStack Query (React Query)
-*   **Backend & DB**: Supabase (Postgres, Auth, 30+ Edge Functions)
-*   **Mobile / PWA**: Capacitor 8, `vite-plugin-pwa`
-*   **Routing**: React Router DOM (Lazy-loading everything)
+### Authentication
+- **Auth Provider**: [Kinde](https://kinde.com) — the **sole** authentication provider. Supabase Auth is **not used**.
+
+### Backend
+- **Database**: Supabase (PostgreSQL) with Row-Level Security (RLS) enforced on all tables.
+- **Edge Functions**: Supabase Edge Functions handle server-side AI tasks and integrations.
+- **Storage**: Supabase Storage for resume files and user assets.
+
+### Hosting & Deployment
+- Target hosting: **Hostinger** via automated Git-based deployment.
+- CI/CD: GitHub-based workflow (configuration in progress).
 
 ---
 
-## 💻 Getting Started (Development)
+## Governance & Source of Truth
+
+All product and engineering decisions are governed by the files in the `project-governance/` folder. **These take precedence over all other documentation, including this README.**
+
+| Document | Purpose |
+|---|---|
+| [`project-governance/CONSTITUTION.md`](./project-governance/CONSTITUTION.md) | Supreme rules for contributors and AI agents |
+| [`project-governance/PRODUCT.md`](./project-governance/PRODUCT.md) | Product identity and quality rules |
+| [`project-governance/ARCHITECTURE.md`](./project-governance/ARCHITECTURE.md) | Architecture constraints and security rules |
+| [`project-governance/BRANDING.md`](./project-governance/BRANDING.md) | Approved names, UI, and design guidelines |
+| [`project-governance/WORKFLOW.md`](./project-governance/WORKFLOW.md) | Development and deployment procedures |
+| [`docs/product/PRD.md`](./docs/product/PRD.md) | Canonical Product Requirements Document |
+
+> Files under `legacy-docs/` are archived historical context only. They do not reflect current architecture or branding.
+
+---
+
+## Getting Started
 
 ### Prerequisites
-*   Node.js 18+ or Bun
-*   Supabase CLI (for local backend development)
+- Node.js 18+ (or Bun)
+- A [Kinde](https://kinde.com) account (for auth credentials)
+- A [Supabase](https://supabase.com) project (for database and edge functions)
 
-### 1. Installation
-Clone the repository and install dependencies:
+### 1. Clone and Install
 ```bash
 git clone https://github.com/iammagdy/wiseresume1.git
 cd wiseresume1
 npm install
-# or
-bun install
 ```
 
-### 2. Environment Setup
-Copy the example environment file:
+### 2. Configure Environment
 ```bash
 cp .env.example .env
 ```
-Fill in your Supabase URL, Anon Key, and necessary AI API keys.
+Fill in the required variables in `.env`:
+- `VITE_KINDE_*` — Kinde application credentials
+- `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` — Supabase project credentials
+- (Optional) AI API keys for BYOK features (Gemini, ElevenLabs)
 
-### 3. Run Development Server
+### 3. Run the Development Server
 ```bash
 npm run dev
-# or
-bun dev
 ```
 
 ---
 
-## 📊 Performance & Optimization
+## Contributing & AI Agents
 
-WiseResume treats performance as a feature.
+All contributors — human and AI agents alike — **must** follow the governance rules before making any change:
 
-### Lighthouse Baseline
-Run Lighthouse in Chrome DevTools → **Lighthouse** tab → select **Mobile**, check **Performance** + **Best Practices** → click **Analyze**. We target a 95+ score.
+1. Sync with the latest repository state (`git pull`).
+2. Read `project-governance/CONSTITUTION.md`.
+3. Inspect the relevant code and current implementation.
+4. Propose your approach before making high-impact changes.
 
-### React Profiling
-1. Install the [React Developer Tools](https://react.dev/learn/react-developer-tools) browser extension.
-2. Open **Profiler** tab → click **Record** → interact with the app.
-3. Apply `React.memo`, `useMemo`, or `useCallback` to identified hot spots.
-
-### Real Device & Throttling Testing
-1. Find your machine's local IP (`ipconfig` / `ifconfig`).
-2. Open `http://<your-ip>:8080` on your phone (same network).
-3. In Chrome DevTools → **Network** tab → enable **Slow 3G**; → **Performance** tab → enable **4× CPU slowdown**.
-4. Verify layout integrity, transition smoothness, and application responsiveness.
+**Do not** reference or copy from `legacy-docs/`. Do not use Supabase Auth. Do not use any branding other than **WiseResume**, **Wise AI**, and **The Wise Cloud**.
 
 ---
 
-## 📜 License & Copyright
+## License
 
-Copyright © Wise AI. All rights reserved. 
-Unauthorized copying of this file, via any medium is strictly prohibited. Proprietary and confidential.
+Copyright © The Wise Cloud. All rights reserved.  
+Proprietary and confidential. Unauthorized use or distribution is prohibited.
