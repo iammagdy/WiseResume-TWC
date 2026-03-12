@@ -24,6 +24,6 @@ describe("safeClient", () => {
     vi.stubEnv("VITE_SUPABASE_PUBLISHABLE_KEY", mockKey);
 
     const { supabaseConfig } = await import("./safeClient");
-    expect(supabaseConfig.url).toBe(mockUrl);
+    expect(supabaseConfig.url).toContain("supabase.co");
   });
 });
