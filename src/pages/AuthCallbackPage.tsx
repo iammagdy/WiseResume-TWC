@@ -11,6 +11,7 @@ export default function AuthCallbackPage() {
   const navigate = useNavigate();
   const { isAuthenticated: kindeAuthenticated, isLoading: kindeLoading } = useKindeAuth();
   const handled = useRef(false);
+  const wasLoading = useRef(false);
 
   // Handle errors in query params
   useEffect(() => {
@@ -24,17 +25,26 @@ export default function AuthCallbackPage() {
     }
   }, [navigate]);
 
-  // Handle Kinde redirect resolution
+  // Track when Kinde starts loading (processing the auth code)
+  useEffect(() => {
+    if (kindeLoading) {
+      wasLoading.current = true;
+    }
+  }, [kindeLoading]);
+
+  // Handle Kinde redirect resolution — only act after loading completes
   useEffect(() => {
     if (handled.current || kindeLoading) return;
+    // Only redirect after we've seen a loading state (Kinde processed the code)
+    if (!wasLoading.current) return;
 
     if (kindeAuthenticated) {
       handled.current = true;
       navigate('/dashboard', { replace: true });
       return;
     }
-
-    // Not authenticated — back to auth
+    // Not authenticated after loading — back to auth
+    handled.current = true;
     navigate('/auth', { replace: true });
   }, [kindeLoading, kindeAuthenticated, navigate]);
 
