@@ -29,24 +29,24 @@ describe("MoreTab", () => {
     onTwitterUrlChange: vi.fn(),
     websiteUrl: "",
     onWebsiteUrlChange: vi.fn(),
-    openSections: new Set(["sociallinks"]),
+    openSections: new Set(["sociallinks", "seo"]),
     toggleSection: vi.fn(),
   };
 
   it("renders LinkedIn URL input", () => {
     render(<MoreTab {...defaultProps} />);
-    expect(screen.getByLabelText(/LinkedIn URL/i)).toBeDefined();
+    expect(screen.getByPlaceholderText(/linkedin\.com\/in/i)).toBeDefined();
   });
 
   it("calls onLinkedinUrlChange when input changes", () => {
     render(<MoreTab {...defaultProps} />);
-    const input = screen.getByLabelText(/LinkedIn URL/i);
+    const input = screen.getByPlaceholderText(/linkedin\.com\/in/i);
     fireEvent.change(input, { target: { value: "https://linkedin.com/in/new" } });
     expect(defaultProps.onLinkedinUrlChange).toHaveBeenCalledWith("https://linkedin.com/in/new");
   });
 
   it("renders Meta Title field for SEO", () => {
     render(<MoreTab {...defaultProps} />);
-    expect(screen.getByLabelText(/Page Title/i)).toBeDefined();
+    expect(screen.getByPlaceholderText(/John.*Dev/i)).toBeDefined();
   });
 });

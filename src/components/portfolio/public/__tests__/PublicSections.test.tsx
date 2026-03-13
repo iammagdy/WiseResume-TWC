@@ -4,13 +4,6 @@ import { PublicSections } from "../PublicSections";
 import { mockProfile, mockResumes } from "../../../../test/mocks/data";
 import React from "react";
 
-// Mock framer-motion
-vi.mock("framer-motion", () => ({
-  motion: {
-    section: ({ children, ...props }: any) => <section {...props}>{children}</section>,
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-  },
-}));
 
 // Mock child components to keep it simple
 vi.mock("../StatsStrip", () => ({ StatsStrip: () => <div data-testid="stats">Stats</div> }));

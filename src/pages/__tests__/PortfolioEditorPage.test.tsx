@@ -31,13 +31,6 @@ vi.mock("@/integrations/supabase/safeClient", () => ({
   },
 }));
 
-// Mock framer-motion
-vi.mock("framer-motion", () => ({
-  motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-  },
-  AnimatePresence: ({ children }: any) => <>{children}</>,
-}));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -68,7 +61,7 @@ describe("PortfolioEditorPage", () => {
 
   it("shows the status bar with the portfolio URL", async () => {
     render(<PortfolioEditorPage />, { wrapper });
-    expect(screen.getByText(new RegExp(mockProfile.username, "i"))).toBeDefined();
+    expect(await screen.findByText(/resume\.thewise\.cloud\/p\/johndoe/i)).toBeDefined();
   });
 
   it("can switch between tabs", async () => {

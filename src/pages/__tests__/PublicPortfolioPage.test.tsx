@@ -41,8 +41,9 @@ describe("PublicPortfolioPage", () => {
   it("renders the public portfolio for a user", async () => {
     render(<PublicPortfolioPage />, { wrapper });
     
-    // Check if the user's name is rendered (Hero section)
-    expect(await screen.findByText(mockProfile.fullName)).toBeDefined();
+    // Check if the user's name is rendered (Hero section main heading)
+    const headings = await screen.findAllByText(mockProfile.fullName);
+    expect(headings.length).toBeGreaterThan(0);
   });
 
   it("shows the 'Open to Work' badge if enabled", async () => {

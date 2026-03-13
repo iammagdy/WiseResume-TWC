@@ -4,13 +4,6 @@ import { PublicHero } from "../PublicHero";
 import { mockProfile, mockResumes } from "../../../../test/mocks/data";
 import React from "react";
 
-// Mock framer-motion to avoid animation issues in tests
-vi.mock("framer-motion", () => ({
-  motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-    span: ({ children, ...props }: any) => <span {...props}>{children}</span>,
-  },
-}));
 
 // Mock TypewriterText
 vi.mock("../TypewriterText", () => ({
