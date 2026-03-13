@@ -162,7 +162,7 @@ function AppRoutes() {
 
   const isPublicStandalone = location.pathname.startsWith('/p/') ||
   location.pathname.startsWith('/share/') ||
-  location.pathname.startsWith('/l/');
+  location.pathname.startsWith('/l/') ||     location.pathname.startsWith('/auth/callback');
 
   useEffect(() => {
     const handleRejection = (event: PromiseRejectionEvent) => {
@@ -276,7 +276,7 @@ function DeferredProviders() {
   const location = useLocation();
   const isPublicStandalone = location.pathname.startsWith('/p/') ||
   location.pathname.startsWith('/share/') ||
-  location.pathname.startsWith('/l/');
+  location.pathname.startsWith('/l/') ||     location.pathname.startsWith('/auth/callback');
   useEffect(() => {const t = setTimeout(() => setReady(true), 2000);return () => clearTimeout(t);}, []);
   if (!ready || isPublicStandalone) return null;
   return (
@@ -291,7 +291,7 @@ function AppInstallPrompt() {
   const location = useLocation();
   const isPublicStandalone = location.pathname.startsWith('/p/') ||
   location.pathname.startsWith('/share/') ||
-  location.pathname.startsWith('/l/');
+  location.pathname.startsWith('/l/') ||     location.pathname.startsWith('/auth/callback');
   if (isPublicStandalone) return null;
   return <InstallPrompt />;
 }
