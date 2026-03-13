@@ -239,7 +239,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
     if (lovableKey && !userOllamaData && !userGeminiKey) {
       console.log('[AI] Using Lovable AI Gateway for model:', model);
       const res = await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
-      return { ...res, providerUsed: 'lovable' };
+      return { ...res, providerUsed: 'wiseresume' };
     }
 
     // Priority 2: User BYOK Ollama key — use stored model name
@@ -260,7 +260,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
           const fallbackTimeout = setTimeout(() => fallbackController.abort(), timeout);
           try {
             const res = await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, fallbackController.signal);
-            return { ...res, fallbackUsed: true, fallbackReason: 'ollama_error', providerUsed: 'lovable_fallback' };
+            return { ...res, fallbackUsed: true, fallbackReason: 'ollama_error', providerUsed: 'wiseresume_fallback' };
           } finally {
             clearTimeout(fallbackTimeout);
           }
@@ -289,7 +289,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
           const fallbackTimeout = setTimeout(() => fallbackController.abort(), timeout);
           try {
             const res = await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, fallbackController.signal);
-            return { ...res, fallbackUsed: true, fallbackReason, providerUsed: 'lovable_fallback' };
+            return { ...res, fallbackUsed: true, fallbackReason, providerUsed: 'wiseresume_fallback' };
           } finally {
             clearTimeout(fallbackTimeout);
           }
@@ -302,7 +302,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
     if (lovableKey) {
       console.log('[AI] Using Lovable AI Gateway for model:', model);
       const res = await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
-      return { ...res, providerUsed: 'lovable' };
+      return { ...res, providerUsed: 'wiseresume' };
     }
 
     // Priority 5: Global GEMINI_API_KEY (legacy)

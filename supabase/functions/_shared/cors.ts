@@ -19,8 +19,8 @@ export const getCorsHeaders = (origin?: string | null) => {
 
   const isLocalhost = origin?.startsWith('http://localhost') || origin?.startsWith('https://localhost');
   const isNativeApp = !origin || origin === 'null';
-  const isLovable = origin?.endsWith('.lovableproject.com') || origin?.endsWith('.lovable.app');
-  const isAllowed = isNativeApp || isLocalhost || isLovable || (origin && origins.includes(origin));
+  const isCloudProvider = origin?.endsWith('.lovableproject.com') || origin?.endsWith('.lovable.app');
+  const isAllowed = isNativeApp || isLocalhost || isCloudProvider || (origin && origins.includes(origin));
 
   // For allowed origins, echo back the actual origin. For unknown origins, use wildcard.
   const resolvedOrigin = isAllowed && origin ? origin : '*';

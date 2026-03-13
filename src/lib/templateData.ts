@@ -234,16 +234,16 @@ export const atsScoreLabels: Record<string, string> = {
 
 export const sampleResumeData = {
   contactInfo: {
-    fullName: 'Wise Megz',
-    email: 'megz@wiseuniverse.ai',
+    fullName: 'Wise Portfolio',
+    email: 'contact@thewise.cloud',
     phone: '(555) 123-4567',
-    location: 'Wise Universe HQ',
+    location: 'The Wise Cloud HQ',
   },
   summary: 'Interstellar AI Navigator specializing in quantum propulsion and autonomous spacecraft operations across multiple galaxies.',
   experience: [
     {
       id: '1',
-      company: 'Wise Universe',
+      company: 'The Wise Cloud',
       position: 'Senior AI Navigator',
       startDate: 'Jan 2020',
       endDate: 'Present',

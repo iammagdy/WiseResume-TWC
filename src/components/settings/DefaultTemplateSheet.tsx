@@ -16,16 +16,16 @@ interface DefaultTemplateSheetProps {
 // Sample resume data for thumbnails
 const sampleResume: ResumeData = {
   contactInfo: {
-    fullName: 'Wise Megz',
-    email: 'megz@wiseuniverse.ai',
+    fullName: 'Wise Portfolio',
+    email: 'contact@thewise.cloud',
     phone: '(555) 123-4567',
-    location: 'Wise Universe HQ',
+    location: 'The Wise Cloud HQ',
   },
   summary: 'Interstellar AI Navigator with 5+ years commanding autonomous spacecraft and quantum propulsion systems across multiple galaxies.',
   experience: [
     {
       id: '1',
-      company: 'Wise Universe',
+      company: 'The Wise Cloud',
       position: 'Senior AI Navigator',
       startDate: '2020-01',
       endDate: '',

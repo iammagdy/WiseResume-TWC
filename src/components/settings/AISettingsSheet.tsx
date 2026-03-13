@@ -1111,12 +1111,10 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                           const providerLabel: Record<string, string> = {
                             ollama: '🟢 Ollama',
                             gemini_byok: '🔵 Gemini',
-                            lovable: '⚡ WiseResume',
-                            'lovable-gateway': '⚡ WiseResume',
-                            lovable_fallback: '⚡ Fallback',
+                            wiseresume: '⚡ WiseResume',
+                            wiseresume_fallback: '⚡ Fallback',
                             gemini_global: '🔵 Gemini',
                             emergent: '🟣 Emergent',
-                            wiseresume: '⚡ WiseResume',
                           };
                           const actionLabels: Record<string, string> = {
                             enhance: 'Enhance',

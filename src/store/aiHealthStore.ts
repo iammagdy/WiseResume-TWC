@@ -62,13 +62,11 @@ export function deriveErrorCode(results: AICallResult[]): number | null {
 export function deriveLastProvider(lastProviderUsed: string | null): string {
   if (!lastProviderUsed) return '—';
   const map: Record<string, string> = {
-    'lovable': 'WiseResume AI',
-    'lovable-gateway': 'WiseResume AI',
+    'wiseresume': 'WiseResume AI',
     'gemini': 'Gemini BYOK',
     'gemini-byok': 'Gemini BYOK',
     'ollama': 'Ollama',
-    'lovable-fallback': 'WiseResume (Fallback)',
-    'lovable_fallback': 'WiseResume (Fallback)',
+    'wiseresume_fallback': 'WiseResume (Fallback)',
     'deterministic': 'Local',
   };
   return map[lastProviderUsed.toLowerCase()] || lastProviderUsed;

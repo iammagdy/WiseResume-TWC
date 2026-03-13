@@ -168,7 +168,7 @@ function drawFooters(ctx: PdfContext) {
       thickness: 0.5,
       color: DIVIDER,
     });
-    const leftText = `Report by WiseResume AI  |  wiseresume.lovable.app`;
+    const leftText = `Report by WiseResume AI  |  resume.thewise.cloud`;
     page.drawText(leftText, { x: MARGIN, y: footerY, size: 7, font: ctx.fontRegular, color: LIGHT_GRAY });
 
     const emailText = ctx.userEmail || '';
