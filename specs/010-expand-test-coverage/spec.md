@@ -17,7 +17,7 @@ As an engineering team, we want all Resume-related pages, components, and data h
 
 **Why this priority**: The Resume module is the primary value proposition of WiseResume. Regressions here have the highest user impact.
 
-**Independent Test**: Can be fully tested by running the test suite filtered to resume-related files and verifying each test file passes with meaningful assertions.
+**Independent Test**: Can be fully tested by running the test suite filtered to `src/**resume**` and verifying each test file passes with meaningful assertions.
 
 **Acceptance Scenarios**:
 
@@ -45,7 +45,7 @@ As an engineering team, we want the authentication entry points (login, registra
 
 As an engineering team, we want the Settings and Profile management pages to have automated tests so that we can confidently change profile data handling logic without risking silent data loss bugs.
 
-**Why this priority**: Profile settings directly affect data shown on the public portfolio — silent failures here can damage a user's professional reputation.
+**Why this priority**: Profile settings directly affect data shown on the public portfolio — silent failures here can damage user's professional reputation.
 
 **Independent Test**: Can be fully tested by mounting the Settings/Profile page with mock profile data and simulating field changes and save actions.
 
@@ -58,15 +58,15 @@ As an engineering team, we want the Settings and Profile management pages to hav
 
 ### User Story 4 - Coverage Threshold Enforcement Validation (Priority: P2)
 
-As an engineering team, we want proof that the 80% coverage threshold passes in CI without false negatives, so that we trust the coverage gate is actually enforcing quality rather than silently bypassed.
+As an engineering team, we want proof that the 80% coverage threshold passes in CI without false negatives, so that we trust the coverage gate is actually enforceable rather than just configured.
 
-**Why this priority**: A misconfigured threshold gives false security. Passing CI with 15% coverage while 80% is required means the gate is broken.
+**Why this priority**: A misconfigured threshold gives a false sense of security. Passing CI with 15% coverage while the threshold says 80% means the gate is silently broken.
 
-**Independent Test**: Run the coverage command and verify all four metrics meet or exceed 80% with exit code 0.
+**Independent Test**: Run `npm run test:coverage` and verify the output shows all four metrics (lines, functions, branches, statements) meeting or exceeding 80% without errors.
 
 **Acceptance Scenarios**:
 
-1. **Given** the expanded test suite, **When** the coverage command is run, **Then** the report shows ≥80% for all four metrics (lines, functions, branches, statements) with exit code 0.
+1. **Given** the expanded test suite, **When** `npm run test:coverage` is run, **Then** the coverage report shows ≥80% for all four metrics with exit code 0.
 2. **Given** the coverage threshold is met, **When** a developer intentionally deletes a test, **Then** the coverage command fails as expected.
 
 ---
@@ -75,7 +75,7 @@ As an engineering team, we want proof that the 80% coverage threshold passes in 
 
 - What happens when a module has zero test coverage and is excluded from the coverage `include` patterns?
 - How does the system handle test files that mock entire modules — do they still count toward coverage?
-- What occurs when a component has complex conditional rendering with many branches that are hard to reach in tests?
+- What occurs when a component has complex conditional rendering with many branches that are hard to reach?
 
 ## Requirements *(mandatory)*
 
@@ -99,8 +99,15 @@ As an engineering team, we want proof that the 80% coverage threshold passes in 
 
 ### Measurable Outcomes
 
+<<<<<<< HEAD
 - **SC-001**: Running the coverage command exits with code 0, meaning all tests pass AND all 4 coverage metrics are ≥80%.
 - **SC-002**: The number of test files increases from 26 to at minimum 35, covering Resume, Auth, and Settings modules.
 - **SC-003**: Zero regressions introduced to the existing 166 passing tests.
 - **SC-004**: The CI coverage gate is verified to fail as expected when a test is deliberately removed, proving the threshold is enforced.
+=======
+- **SC-001**: Running `npm run test:coverage` exits with code 0 — meaning all 166+ tests pass AND all 4 coverage metrics are ≥80%.
+- **SC-002**: The number of test files increases from 26 to at minimum 35, covering Resume, Auth, and Settings modules.
+- **SC-003**: Zero regressions are introduced to the existing 166 passing tests.
+- **SC-004**: The GitHub Actions CI coverage gate is verified to fail as expected when a test is deliberately removed (proving the threshold is enforced, not silently bypassed).
+>>>>>>> 011-theme-code-splitting
 - **SC-005**: All new test files follow the project's established mock patterns documented in `CONTRIBUTING.md`.
