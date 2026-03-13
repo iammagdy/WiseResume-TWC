@@ -51,6 +51,7 @@ import {
 "@/components/layout/PageSkeletons";
 import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
+import { getSafeMatchMedia, isBrowser } from "@/lib/envUtils";
 
 // Eagerly load Index for LCP
 import Index from "./pages/Index";
@@ -139,13 +140,14 @@ function AppRoutes() {
 
   const theme = useSettingsStore((s) => s.theme);
   useEffect(() => {
+    if (!isBrowser) return;
     const root = document.documentElement;
     const apply = (resolved: 'light' | 'dark') => {
       root.classList.remove('light', 'dark');
       root.classList.add(resolved);
     };
     if (theme === 'system') {
-      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      const mq = getSafeMatchMedia('(prefers-color-scheme: dark)');
       apply(mq.matches ? 'dark' : 'light');
       const handler = (e: MediaQueryListEvent) => apply(e.matches ? 'dark' : 'light');
       mq.addEventListener('change', handler);

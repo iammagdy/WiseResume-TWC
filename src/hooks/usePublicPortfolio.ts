@@ -47,6 +47,7 @@ export interface PublicProfile {
   services: PortfolioService[];
   testimonials: Array<{ id: string; quote: string; authorName: string; authorTitle?: string; avatarUrl?: string }>;
   highlights: Array<{ id: string; value: string; label: string }>;
+  portfolioSummary: string | null;
   portfolioSyncMode: 'auto' | 'locked';
   githubProjectsCache: Array<{ name: string; description: string; url: string; language: string | null; stars: number; topics: string[] }>;
 }
@@ -88,7 +89,8 @@ async function fetchPublicPortfolio(username: string): Promise<PublicPortfolioDa
   const profile = raw.profile as Record<string, unknown>;
   const resume = raw.resume as Record<string, unknown>;
 
-  const extras = (profile.portfolioExtras as Record<string, unknown>) || {};
+  const extras = (profile.portfolioExtras as Record<string, any>) || {};
+  const safeArray = (arr: any) => Array.isArray(arr) ? arr : [];
 
   return {
     profile: {
@@ -117,10 +119,11 @@ async function fetchPublicPortfolio(username: string): Promise<PublicPortfolioDa
       openToWork: (profile.openToWork as boolean) || false,
       availabilityHeadline: (profile.availabilityHeadline as string) || null,
       lastActiveAt: (profile.lastActiveAt as string) || null,
-      caseStudies: (extras.caseStudies as CaseStudy[]) || [],
-      services: (extras.services as PortfolioService[]) || [],
-      testimonials: (extras.testimonials as Array<{ id: string; quote: string; authorName: string; authorTitle?: string; avatarUrl?: string }>) || [],
-      highlights: (extras.highlights as Array<{ id: string; value: string; label: string }>) || [],
+      caseStudies: safeArray(extras.caseStudies),
+      services: safeArray(extras.services),
+      testimonials: safeArray(extras.testimonials),
+      highlights: safeArray(extras.highlights),
+      portfolioSummary: (extras.portfolioSummary as string) || null,
       portfolioSyncMode: ((profile.portfolioSyncMode as string) || 'auto') as 'auto' | 'locked',
       githubProjectsCache: (profile.githubProjectsCache as Array<{ name: string; description: string; url: string; language: string | null; stars: number; topics: string[] }>) || [],
     },
@@ -147,7 +150,7 @@ export function usePublicPortfolio(username: string | undefined) {
     queryKey: ['public-portfolio', username],
     queryFn: () => fetchPublicPortfolio(username!),
     enabled: !!username,
-    staleTime: 10 * 60 * 1000,
+    staleTime: 30 * 1000,
     gcTime: 30 * 60 * 1000,
   });
 }

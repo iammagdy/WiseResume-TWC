@@ -1,4 +1,5 @@
 import { useCallback, useRef } from 'react';
+import { getSafeMatchMedia } from '@/lib/envUtils';
 
 export function useTilt(maxDeg = 3) {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -8,7 +9,7 @@ export function useTilt(maxDeg = 3) {
     if (!el) return;
     // Skip on touch devices
     if (e.pointerType === 'touch') return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (getSafeMatchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
     const rect = el.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width - 0.5;

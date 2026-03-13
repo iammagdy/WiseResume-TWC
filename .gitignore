@@ -34,3 +34,6 @@ bun.lockb
 *.jar
 events.json
 .bfg-report/
+ 
+ # Test coverage
+ coverage/
