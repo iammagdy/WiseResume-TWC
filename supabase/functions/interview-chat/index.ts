@@ -23,7 +23,7 @@ serve(async (req) => {
   try {
     const { userId, client } = await requireAuth(req);
 
-    const rateCheck = await checkRateLimit(userId, { maxRequests: 30, windowSeconds: 60, actionType: 'interview' });
+    const rateCheck = await checkRateLimit(userId, { maxRequests: 60, windowSeconds: 60, actionType: 'interview' });
     if (!rateCheck.allowed) {
       return new Response(
         JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
@@ -92,7 +92,7 @@ Return JSON with this exact structure: {"title":"exact job title","keySkills":["
       const aiResponse = await callAIWithRetry({
         model: 'google/gemini-2.5-flash',
         messages: [{ role: 'user', content: analyzePrompt }],
-        userId: user.id,
+        userId,
         maxTokens: 512,
         temperature: 0.3,
       });
@@ -107,7 +107,7 @@ Return JSON with this exact structure: {"title":"exact job title","keySkills":["
       }
 
       // Fix #7: Record usage for analyzeRole path
-      await recordUsage(user.id, 'interview', { provider: aiResponse.providerUsed || 'unknown' });
+      await recordUsage(userId, 'interview', { provider: aiResponse.providerUsed || 'unknown' });
 
       return new Response(JSON.stringify({ reply: "Role analyzed", roleAnalysis }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -178,14 +178,14 @@ After EVERY candidate answer, include this scoring block at the end of your resp
     const aiResponse = await callAIWithRetry({
       model: 'google/gemini-2.5-flash',
       messages: [{ role: "system", content: systemPrompt }, ...messages],
-      userId: user.id,
+      userId,
       maxTokens,
       temperature,
     });
 
     const reply = aiResponse.content || "I couldn't generate a response. Let's try again.";
 
-    await recordUsage(user.id, 'interview', { provider: aiResponse.providerUsed || 'unknown' });
+    await recordUsage(userId, 'interview', { provider: aiResponse.providerUsed || 'unknown' });
 
     return new Response(JSON.stringify({ reply }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
