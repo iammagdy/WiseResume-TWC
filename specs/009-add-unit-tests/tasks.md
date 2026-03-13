@@ -7,9 +7,9 @@
 
 **Purpose**: Project initialization and basic testing structure
 
-- [ ] T001 Install Vitest UI and coverage dependencies (`@vitest/coverage-v8`, `@vitest/ui`) in `package.json`
-- [ ] T002 Configure `vite.config.ts` to include standard vitest configuration and 80% coverage thresholds
-- [ ] T003 Create global test setup environment in `src/test/setup.ts`
+- [x] T001 Install Vitest UI and coverage dependencies (`@vitest/coverage-v8`, `@vitest/ui`) in `package.json`
+- [x] T002 Configure `vite.config.ts` to include standard vitest configuration and 80% coverage thresholds
+- [x] T003 Create global test setup environment in `src/test/setup.ts`
 
 ---
 
@@ -17,9 +17,9 @@
 
 **Purpose**: Core infrastructure and mocks that MUST be complete before ANY user story test can run successfully
 
-- [ ] T004 Create Supabase client mocks in `src/test/mocks/supabase.ts`
-- [ ] T005 [P] Create mock entities (Profile, Resume) in `src/test/mocks/data.ts`
-- [ ] T006 [P] Create global browser mocks (matchMedia, IntersectionObserver) in `src/test/mocks/browser.ts`
+- [x] T004 Create Supabase client mocks in `src/test/mocks/supabase.ts`
+- [x] T005 [P] Create mock entities (Profile, Resume) in `src/test/mocks/data.ts`
+- [x] T006 [P] Create global browser mocks (matchMedia, IntersectionObserver) in `src/test/mocks/browser.ts`
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -33,9 +33,24 @@
 
 ### Implementation for User Story 1
 
-- [ ] T007 [US1] Create a basic sanity test in `src/test/sanity.test.ts` (asserting `1+1=2`) to verify framework routing and reporter configuration
-- [ ] T008 [US1] Update `package.json` scripts to include proper coverage and watch flags
-- [ ] T009 [US1] Generate a GitHub Actions CI workflow in `.github/workflows/test.yml` to run tests and guard PRs
+- [x] T007 [US1] Create a basic sanity test in `src/test/sanity.test.ts` (asserting `1+1=2`) to verify framework routing and reporter configuration
+- [x] T008 [US1] Verify Vitest UI starts and displays tests correctly
+- [x] T009 [US1] Set up a basic GitHub Action to run `npm test` on PRs (Phase 3)
+- [x] T010 [US2] Implement unit tests for `useProfile` logic
+- [x] T011 [US2] Implement unit tests for `useResumes` logic
+- [x] T012 [US2] Implement unit tests for `useAuth` logic
+- [x] T013 [US2] Implement unit tests for `usePublicPortfolio` logic
+- [x] T014 [US3] Create tests for `ProfileEditorTab` components
+- [x] T015 [US3] Create tests for `PublicHero` component
+- [x] T016 [US3] Create tests for `PublicSections` component
+- [x] T017 [US3] Create tests for `MoreTab` component
+- [x] T018 [US4] Create integration test for `PortfolioEditorPage`
+- [x] T019 [US4] Create integration test for `PublicPortfolioPage`
+- [x] T010 [P] [US2] Write unit tests for `normalizeUrl` and `isValidUrl` in `src/lib/__tests__/urlUtils.test.ts`
+- [x] T011 [P] [US2] Write unit tests for environment guards in `src/lib/__tests__/envUtils.test.ts`
+- [x] T012 [P] [US2] Write unit tests for PDF capture retry logic in `src/lib/__tests__/html2canvasRetry.test.ts`
+- [x] T013 [P] [US2] Write test suite for `usePublicPortfolio` hook in `src/hooks/__tests__/usePublicPortfolio.test.ts`
+- [x] T014 [US2] Execute and verify `npm run test` explicitly for the lib/hooks folders
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
@@ -49,11 +64,11 @@
 
 ### Implementation for User Story 2
 
-- [ ] T010 [P] [US2] Write unit tests for `normalizeUrl` and `isValidUrl` in `src/lib/__tests__/urlUtils.test.ts`
-- [ ] T011 [P] [US2] Write unit tests for environment guards in `src/lib/__tests__/envUtils.test.ts`
-- [ ] T012 [P] [US2] Write unit tests for PDF capture retry logic in `src/lib/__tests__/html2canvasRetry.test.ts`
-- [ ] T013 [P] [US2] Write test suite for `usePublicPortfolio` hook in `src/hooks/__tests__/usePublicPortfolio.test.ts`
-- [ ] T014 [US2] Execute and verify `npm run test` explicitly for the lib/hooks folders
+- [x] T010 [P] [US2] Write unit tests for `normalizeUrl` and `isValidUrl` in `src/lib/__tests__/urlUtils.test.ts`
+- [x] T011 [P] [US2] Write unit tests for environment guards in `src/lib/__tests__/envUtils.test.ts`
+- [x] T012 [P] [US2] Write unit tests for PDF capture retry logic in `src/lib/__tests__/html2canvasRetry.test.ts`
+- [x] T013 [P] [US2] Write test suite for `usePublicPortfolio` hook in `src/hooks/__tests__/usePublicPortfolio.test.ts`
+- [x] T014 [US2] Execute and verify `npm run test` explicitly for the lib/hooks folders
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently
 
