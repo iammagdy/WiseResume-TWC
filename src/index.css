@@ -2250,3 +2250,13 @@ button,
     visibility: visible !important;
   }
 }
+
+
+/* Theme preview isolation */
+.pf-preview-reset {
+  background: transparent !important;
+  color: inherit !important;
+}
+.pf-preview-reset * {
+  font-family: inherit !important;
+}

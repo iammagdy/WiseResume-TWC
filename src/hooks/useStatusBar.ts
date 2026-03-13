@@ -1,15 +1,17 @@
 import { useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
+import { isBrowser, getSafeMatchMedia } from '@/lib/envUtils';
 
 /**
  * Determines if the current theme is dark by checking the <html> class
  * and falling back to the OS preference.
  */
 function isDarkTheme(): boolean {
+  if (!isBrowser) return true;
   return (
     document.documentElement.classList.contains('dark') ||
     (!document.documentElement.classList.contains('light') &&
-      window.matchMedia('(prefers-color-scheme: dark)').matches)
+      getSafeMatchMedia('(prefers-color-scheme: dark)').matches)
   );
 }
 
@@ -19,6 +21,7 @@ function isDarkTheme(): boolean {
  */
 function getThemeColor(): string {
   const dark = isDarkTheme();
+  if (!isBrowser) return dark ? '#09091a' : '#ffffff';
 
   try {
     const raw = getComputedStyle(document.documentElement)
@@ -76,6 +79,7 @@ async function applyNativeStatusBar(color: string) {
  */
 export function useStatusBar(color?: string) {
   useEffect(() => {
+    if (!isBrowser) return;
     const statusBarColor = color || getThemeColor();
 
     // Update PWA meta tag
@@ -96,6 +100,8 @@ export function useStatusBar(color?: string) {
  */
 export function useStatusBarThemeSync() {
   useEffect(() => {
+    if (!isBrowser) return;
+
     const updateStatusBar = () => {
       const color = getThemeColor();
 
@@ -117,7 +123,7 @@ export function useStatusBarThemeSync() {
     });
 
     // Watch for OS-level theme changes
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const mediaQuery = getSafeMatchMedia('(prefers-color-scheme: dark)');
     mediaQuery.addEventListener('change', updateStatusBar);
 
     // Initial apply

@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { CollapsibleCard } from './shared';
 import { VisitorsPanel } from '@/components/portfolio/VisitorsPanel';
 import { haptics } from '@/lib/haptics';
+import { normalizeUrl } from '@/lib/urlUtils';
 
 export interface MoreTabProps {
   // SEO
@@ -73,26 +74,26 @@ export function MoreTab(props: MoreTabProps) {
             <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
               <Linkedin className="w-3.5 h-3.5" /> LinkedIn URL
             </label>
-            <Input placeholder="https://linkedin.com/in/yourusername" value={linkedinUrl} onChange={e => onLinkedinUrlChange(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+            <Input placeholder="https://linkedin.com/in/yourusername" value={linkedinUrl} onChange={e => onLinkedinUrlChange(e.target.value)} onBlur={() => onLinkedinUrlChange(normalizeUrl(linkedinUrl))} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
               <Github className="w-3.5 h-3.5" /> GitHub URL
             </label>
-            <Input placeholder="https://github.com/yourusername" value={githubUrl} onChange={e => onGithubUrlChange(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+            <Input placeholder="https://github.com/yourusername" value={githubUrl} onChange={e => onGithubUrlChange(e.target.value)} onBlur={() => onGithubUrlChange(normalizeUrl(githubUrl))} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-foreground">Contact Email</label>
-            <Input type="email" placeholder="your@email.com" value={contactEmail} onChange={e => onContactEmailChange(e.target.value)} autoComplete="email" autoCapitalize="none" inputMode="email" />
+            <Input type="email" placeholder="your@email.com" value={contactEmail} onChange={e => onContactEmailChange(e.target.value)} onBlur={() => onContactEmailChange(contactEmail.trim().toLowerCase())} autoComplete="email" autoCapitalize="none" inputMode="email" />
             <p className="text-[11px] text-muted-foreground">Public email shown on your portfolio. Defaults to your account email if empty.</p>
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-foreground">X (Twitter) URL</label>
-            <Input placeholder="https://x.com/yourusername" value={twitterUrl} onChange={e => onTwitterUrlChange(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+            <Input placeholder="https://x.com/yourusername" value={twitterUrl} onChange={e => onTwitterUrlChange(e.target.value)} onBlur={() => onTwitterUrlChange(normalizeUrl(twitterUrl))} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-foreground">Personal Website</label>
-            <Input placeholder="https://yourwebsite.com" value={websiteUrl} onChange={e => onWebsiteUrlChange(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+            <Input placeholder="https://yourwebsite.com" value={websiteUrl} onChange={e => onWebsiteUrlChange(e.target.value)} onBlur={() => onWebsiteUrlChange(normalizeUrl(websiteUrl))} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
           </div>
         </div>
       </CollapsibleCard>

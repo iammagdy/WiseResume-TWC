@@ -10,11 +10,15 @@ import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { supabase } from '@/integrations/supabase/safeClient';
 
 import { EDGE_FUNCTIONS_URL } from '@/lib/supabaseConstants';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
+import { PortfolioEditorSkeleton } from '@/components/layout/PageSkeletons';
 
 import { getPortfolioUrl } from '@/lib/portfolioUrl';
 import { openExternal } from '@/lib/openExternal';
+import { getSafeMatchMedia } from '@/lib/envUtils';
+import { normalizeUrl } from '@/lib/urlUtils';
 
 import type { PortfolioStyle, PortfolioLayout, PortfolioFont } from '@/components/portfolio/editor/AppearanceSection';
 import { type PortfolioSections, DEFAULT_SECTIONS } from '@/components/portfolio/editor/ContentVisibilitySection';
@@ -31,6 +35,7 @@ export default function PortfolioEditorPage() {
   const { user } = useAuth();
   const { profile, loading, updateProfile } = useProfile(user?.id, user);
   const { data: resumes = [] } = useResumes();
+  const queryClient = useQueryClient();
 
   // Collapsible sections state — all collapsed by default
   const [openSections, setOpenSections] = useState<Set<string>>(new Set());
@@ -85,7 +90,7 @@ export default function PortfolioEditorPage() {
   const tabIndexMap = { setup: 0, content: 1, design: 2, more: 3 } as const;
   const directionRef = useRef(0);
   const prevTabRef = useRef(activeTab);
-  const reducedMotion = useMemo(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches, []);
+  const reducedMotion = useMemo(() => getSafeMatchMedia('(prefers-reduced-motion: reduce)').matches, []);
 
   const handleTabChange = useCallback((tab: 'setup' | 'content' | 'design' | 'more') => {
     directionRef.current = tabIndexMap[tab] > tabIndexMap[prevTabRef.current] ? 1 : -1;
@@ -177,8 +182,7 @@ export default function PortfolioEditorPage() {
 
 
   if (!user) return null;
-  // Suspense fallback already shows PortfolioEditorSkeleton; avoid double skeleton
-  if (loading) return null;
+  if (loading || !profile) return <PortfolioEditorSkeleton />;
 
   const validateUsername = (value: string) => {
     if (!value) {setUsernameError('');return;}
@@ -196,7 +200,17 @@ export default function PortfolioEditorPage() {
   };
 
   const callPortfolioAI = async (action: string, extraBody?: Record<string, unknown>) => {
-    const selectedResume = resumes.find((r) => r.id === selectedResumeId) || resumes[0];
+    // Priority: 1. State selectedResumeId, 2. Profile linked resume, 3. Primary resume, 4. Any resume
+    const linkedResumeId = profile?.portfolioResumeId;
+    const primaryResumeId = resumes.find(r => r.is_primary)?.id;
+    const targetId = selectedResumeId || linkedResumeId || primaryResumeId || resumes[0]?.id;
+    
+    const selectedResume = resumes.find((r) => r.id === targetId);
+
+    if (!selectedResume && action === 'bio') {
+      throw new Error("Resume data not available yet. Please wait a moment.");
+    }
+
     const token = await getSupabaseToken();
     const res = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/generate-portfolio-bio`, {
       method: 'POST',
@@ -293,11 +307,11 @@ export default function PortfolioEditorPage() {
         portfolioBio: bio || null,
         portfolioEnabled: overrides?.portfolioEnabled !== undefined ? overrides.portfolioEnabled : portfolioEnabled,
         portfolioResumeId: selectedResumeId || null,
-        githubUrl: githubUrl || null,
-        websiteUrl: websiteUrl || null,
-        twitterUrl: twitterUrl || null,
-        linkedinUrl: linkedinUrl || null,
-        contactEmail: contactEmail || null,
+        githubUrl: normalizeUrl(githubUrl) || null,
+        websiteUrl: normalizeUrl(websiteUrl) || null,
+        twitterUrl: normalizeUrl(twitterUrl) || null,
+        linkedinUrl: normalizeUrl(linkedinUrl) || null,
+        contactEmail: contactEmail?.trim().toLowerCase() || null,
         theme: selectedTheme,
         portfolioSections: sections,
         portfolioMetaTitle: metaTitle || null,
@@ -312,6 +326,9 @@ export default function PortfolioEditorPage() {
         portfolioExtras: { caseStudies, services, testimonials, highlights, portfolioSummary }
       };
       await updateProfile(updates as Parameters<typeof updateProfile>[0]);
+      
+      // Invalidate public portfolio cache to reflect changes immediately
+      queryClient.invalidateQueries({ queryKey: ['public-portfolio'] });
       if (overrides?.portfolioEnabled !== undefined) {
         setPortfolioEnabled(overrides.portfolioEnabled);
       }
@@ -356,20 +373,20 @@ export default function PortfolioEditorPage() {
   // ── Portfolio Strength ────────────────────────────────────────────────────
   const selectedResume = resumes.find((r) => r.id === selectedResumeId) || resumes[0];
   const strengthChecks = [
-  { ok: !!profile?.avatarUrl, tip: 'Add a profile photo in Settings → Profile' },
-  { ok: bio.length >= 50, tip: 'Write a bio (at least 50 characters)' },
-  { ok: username.length >= 3, tip: 'Set a portfolio username' },
-  { ok: !!(linkedinUrl || githubUrl || websiteUrl || twitterUrl || contactEmail), tip: 'Add at least one social link or contact email' },
-  { ok: availabilityHeadline.length > 0, tip: 'Set an availability headline' },
-  { ok: metaTitle.length > 0, tip: 'Add a custom page title for SEO' },
-  { ok: metaDescription.length > 0, tip: 'Add a meta description for SEO' },
-  { ok: Array.isArray(selectedResume?.experience) && (selectedResume?.experience as unknown[]).length >= 1, tip: 'Add work experience to your resume' },
-  { ok: Array.isArray(selectedResume?.skills) && (selectedResume?.skills as unknown[]).length >= 3, tip: 'Add at least 3 skills to your resume' },
-  { ok: portfolioEnabled, tip: 'Publish your portfolio to make it live' }];
+    { ok: !!profile?.avatarUrl, tip: 'Add a profile photo in Settings → Profile' },
+    { ok: bio.length >= 50, tip: 'Write a bio (at least 50 characters)' },
+    { ok: username.length >= 3, tip: 'Set a portfolio username' },
+    { ok: !!(linkedinUrl || githubUrl || websiteUrl || twitterUrl || contactEmail), tip: 'Add at least one social link or contact email' },
+    { ok: availabilityHeadline.length > 0, tip: 'Set an availability headline' },
+    { ok: metaTitle.length > 0, tip: 'Add a custom page title for SEO' },
+    { ok: metaDescription.length > 0, tip: 'Add a meta description for SEO' },
+    { ok: Array.isArray(selectedResume?.experience) && (selectedResume?.experience as unknown[]).length >= 1, tip: 'Add work experience to your resume' },
+    { ok: Array.isArray(selectedResume?.skills) && (selectedResume?.skills as unknown[]).length >= 3, tip: 'Add at least 3 skills to your resume' }
+  ];
 
   const strengthScore = Math.round(strengthChecks.filter((c) => c.ok).length / strengthChecks.length * 100);
   const strengthMissing = strengthChecks.filter((c) => !c.ok).slice(0, 3);
-  const strengthLabel = strengthScore < 40 ? 'Needs work' : strengthScore < 70 ? 'Good' : 'Strong';
+  const strengthLabel = strengthScore === 100 ? 'Ready to Publish' : strengthScore < 40 ? 'Needs work' : strengthScore < 70 ? 'Good' : 'Strong';
 
 
   return (

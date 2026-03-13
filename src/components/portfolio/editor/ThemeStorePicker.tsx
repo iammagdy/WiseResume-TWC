@@ -254,7 +254,7 @@ function ThemeStoreCard({
     >
       {/* Mini preview */}
       <div
-        className="h-28 p-3 space-y-2 relative overflow-hidden"
+        className="pf-preview-reset h-28 p-3 space-y-2 relative overflow-hidden"
         style={{
           background: theme.preview.heroGradient || theme.preview.bg,
         }}

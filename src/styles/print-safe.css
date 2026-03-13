@@ -1,0 +1,58 @@
+/* print-safe.css
+ * Simplified styles for PDF exports to prevent rendering bugs and artifacts
+ * when using html2canvas.
+ */
+
+/* Override complex filters, backdrop filters, and opacities which break PDF layout */
+[data-pdf-force-layout] {
+  background-attachment: scroll !important;
+  scroll-behavior: auto !important;
+}
+
+[data-pdf-force-layout] * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  filter: none !important;
+  transition: none !important;
+  animation: none !important;
+}
+
+/* Ensure sticky elements are static so they don't break page flow or disappear */
+[data-pdf-force-layout] .pf-sticky-header,
+[data-pdf-force-layout] [style*="position: sticky"],
+[data-pdf-force-layout] [style*="position: fixed"] {
+  position: static !important;
+  transform: none !important;
+}
+
+/* Adjust text contrasts safely */
+[data-pdf-force-layout] .text-muted-foreground,
+[data-pdf-force-layout] [style*="color: var(--pf-muted"] {
+  color: #666666 !important;
+  opacity: 1 !important;
+}
+
+/* Strip transparent backgrounds to solid colors if they rely on backdrop-filter */
+[data-pdf-force-layout] .glass-header,
+[data-pdf-force-layout] .glass-surface,
+[data-pdf-force-layout] .glass-elevated {
+  background: var(--pf-card, #ffffff) !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+  border-color: var(--pf-border, #e5e7eb) !important;
+}
+
+/* Ensure visibility of specific containers */
+[data-pdf-force-layout] .pf-card-revealed,
+[data-pdf-force-layout] .pf-edu-revealed {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+}
+
+/* Make sure skill clouds don't overflow layout limits */
+[data-pdf-force-layout] .flex-wrap {
+  flex-wrap: wrap !important;
+}
