@@ -321,10 +321,10 @@ serve(async (req) => {
     }
 
     // Log AI configuration for debugging
-    const EMERGENT_KEY = Deno.env.get('EMERGENT_LLM_KEY');
+    const WISE_KEY = Deno.env.get('WISE_AI_API_KEY');
     const GEMINI_KEY = Deno.env.get('GEMINI_API_KEY');
     console.log('🔑 AI configuration:', {
-      hasEmergentKey: !!EMERGENT_KEY,
+      hasWiseAIKey: !!WISE_KEY,
       hasGeminiKey: !!GEMINI_KEY,
       userId: userId.slice(0, 8),
     });

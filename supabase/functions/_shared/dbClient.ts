@@ -1,11 +1,12 @@
 /**
  * Shared database client for Edge Functions.
- * Creates a service-role Supabase client pointing at the EXTERNAL database project.
+ * Creates a service-role Supabase client for database operations.
  *
- * On Lovable Cloud the built-in SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY env vars
- * point to the *hosting* project, not the external DB where all tables live.
- * EXT_SUPABASE_URL and EXT_SUPABASE_SERVICE_ROLE_KEY override them to hit the
- * correct project (jnsfmkzgxsviuthaqlyy).
+ * In unified architecture, SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are
+ * auto-injected by Supabase and point to the correct project (jnsfmkzgxsviuthaqlyy).
+ *
+ * EXT_SUPABASE_URL and EXT_SUPABASE_SERVICE_ROLE_KEY are kept as optional
+ * overrides for backward compatibility or split-project setups.
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';

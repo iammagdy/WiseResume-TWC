@@ -74,7 +74,7 @@ export const InviteEmail = ({
 
 export default InviteEmail
 
-const logoUrl = 'https://hjnnamwgztlhzkeuufln.supabase.co/storage/v1/object/public/avatars/email-assets/wise-ai-logo.png'
+const logoUrl = 'https://jnsfmkzgxsviuthaqlyy.supabase.co/storage/v1/object/public/avatars/email-assets/wise-ai-logo.png'
 
 const main = {
   backgroundColor: '#ffffff',

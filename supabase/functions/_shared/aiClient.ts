@@ -193,15 +193,14 @@ async function getUserPreferredProvider(userId: string): Promise<string | null> 
 }
 
 /**
- * Calls AI API (Gemini or Emergent Universal).
- * If userId is provided, attempts to fetch their Gemini key from the DB.
- * Falls back to global GEMINI_API_KEY env var, then EMERGENT_LLM_KEY.
+ * Calls AI API using Wise AI (Gemini) as default or user BYOK keys.
+ * Priority: BYOK Ollama → BYOK Gemini → Wise AI (WISE_AI_API_KEY) → GEMINI_API_KEY fallback
  */
 export async function callAI(options: AICallOptions): Promise<AIResponse> {
   const { model, messages, temperature = 0.7, maxTokens, tools, toolChoice, userId, timeout = 30_000 } = options;
 
-  // Lovable AI Gateway (primary)
-  const lovableKey = Deno.env.get('LOVABLE_API_KEY');
+  // Wise AI default key (Gemini-direct)
+  const wiseAIKey = Deno.env.get('WISE_AI_API_KEY');
 
   // Resolve user BYOK keys only if userId provided
   let userGeminiKey: string | undefined;
@@ -215,18 +214,17 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
     } else if (preferredProvider === 'gemini') {
       userGeminiKey = await getUserKeyFromDB(userId);
     } else {
-      // No preference or 'wiseresume': skip BYOK, use Lovable Gateway
+      // No preference or 'wiseresume': skip BYOK, use Wise AI default
     }
   }
   if (!userGeminiKey && !userOllamaData && options.userGeminiKey) {
     userGeminiKey = options.userGeminiKey; // deprecated body param
   }
 
-  // Legacy fallbacks
+  // Legacy fallback
   const globalGeminiKey = Deno.env.get('GEMINI_API_KEY');
-  const emergentKey = Deno.env.get('EMERGENT_LLM_KEY');
 
-  if (!lovableKey && !userGeminiKey && !userOllamaData && !globalGeminiKey && !emergentKey) {
+  if (!wiseAIKey && !userGeminiKey && !userOllamaData && !globalGeminiKey) {
     console.error('[AI] No API key available');
     throw createAIError('invalid_key', 'No AI API key configured. Please add your API key in Settings.', 500);
   }
@@ -235,14 +233,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
-    // Priority 1: Lovable AI Gateway (always first — unless user has BYOK)
-    if (lovableKey && !userOllamaData && !userGeminiKey) {
-      console.log('[AI] Using Lovable AI Gateway for model:', model);
-      const res = await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
-      return { ...res, providerUsed: 'wiseresume' };
-    }
-
-    // Priority 2: User BYOK Ollama key — use stored model name
+    // Priority 1: User BYOK Ollama key — use stored model name
     if (userOllamaData && userOllamaData.baseUrl) {
       const ollamaModel = userOllamaData.model;
       if (!ollamaModel) {
@@ -253,13 +244,12 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
         const res = await callOllamaDirect(userOllamaData.key, userOllamaData.baseUrl, ollamaModel, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
         return { ...res, providerUsed: 'ollama' };
       } catch (err) {
-        console.warn('[AI] Ollama BYOK failed, falling back to Lovable Gateway:', err instanceof Error ? err.message : err);
-        if (lovableKey) {
-          // Create a fresh controller for the fallback — the original may already be aborted
+        console.warn('[AI] Ollama BYOK failed, falling back to Wise AI:', err instanceof Error ? err.message : err);
+        if (wiseAIKey) {
           const fallbackController = new AbortController();
           const fallbackTimeout = setTimeout(() => fallbackController.abort(), timeout);
           try {
-            const res = await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, fallbackController.signal);
+            const res = await callGeminiDirect(wiseAIKey, model, messages, temperature, maxTokens, tools, toolChoice, fallbackController.signal);
             return { ...res, fallbackUsed: true, fallbackReason: 'ollama_error', providerUsed: 'wiseresume_fallback' };
           } finally {
             clearTimeout(fallbackTimeout);
@@ -269,7 +259,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
       }
     }
 
-    // Priority 3: User BYOK Gemini key (fallback)
+    // Priority 2: User BYOK Gemini key
     if (userGeminiKey) {
       console.log('[AI] Using user BYOK Gemini key for model:', model);
       try {
@@ -277,18 +267,17 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
         return { ...res, providerUsed: 'gemini_byok' };
       } catch (err) {
         const errDetail = err instanceof Error ? `${err.message} (type=${(err as any)?.type}, status=${(err as any)?.status})` : String(err);
-        console.warn('[AI] Gemini BYOK failed, falling back to Lovable Gateway:', errDetail);
-        // Extract specific error type for better fallback reporting
+        console.warn('[AI] Gemini BYOK failed, falling back to Wise AI:', errDetail);
         const fallbackReason = (err as any)?.type === 'quota_exceeded' ? 'quota_exceeded'
           : (err as any)?.type === 'invalid_key' ? 'invalid_key'
           : (err as any)?.type === 'rate_limit' ? 'rate_limit'
           : (err instanceof Error && err.message?.includes('not found')) ? 'model_not_found'
           : 'gemini_error';
-        if (lovableKey) {
+        if (wiseAIKey) {
           const fallbackController = new AbortController();
           const fallbackTimeout = setTimeout(() => fallbackController.abort(), timeout);
           try {
-            const res = await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, fallbackController.signal);
+            const res = await callGeminiDirect(wiseAIKey, model, messages, temperature, maxTokens, tools, toolChoice, fallbackController.signal);
             return { ...res, fallbackUsed: true, fallbackReason, providerUsed: 'wiseresume_fallback' };
           } finally {
             clearTimeout(fallbackTimeout);
@@ -298,24 +287,22 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
       }
     }
 
-    // Priority 4: Lovable Gateway (if we have BYOK but it was skipped)
-    if (lovableKey) {
-      console.log('[AI] Using Lovable AI Gateway for model:', model);
-      const res = await callLovableGateway(lovableKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+    // Priority 3: Wise AI default (WISE_AI_API_KEY → Gemini direct)
+    if (wiseAIKey) {
+      console.log('[AI] Using Wise AI (Gemini) for model:', model);
+      const res = await callGeminiDirect(wiseAIKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
       return { ...res, providerUsed: 'wiseresume' };
     }
 
-    // Priority 5: Global GEMINI_API_KEY (legacy)
+    // Priority 4: Global GEMINI_API_KEY (legacy fallback)
     if (globalGeminiKey) {
       console.log('[AI] Using global GEMINI_API_KEY for model:', model);
       const res = await callGeminiDirect(globalGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
       return { ...res, providerUsed: 'gemini_global' };
     }
 
-    // Priority 6: Emergent Universal API (legacy)
-    console.log('[AI] Using Emergent Universal Key for model:', model);
-    const res = await callEmergentUniversal(emergentKey!, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
-    return { ...res, providerUsed: 'emergent' };
+    // Should not reach here due to guard above
+    throw createAIError('invalid_key', 'No AI API key configured.', 500);
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       throw createAIError('network', `AI request timed out after ${Math.round(timeout / 1000)} seconds. Please try again.`, 408);
@@ -544,125 +531,8 @@ async function callGeminiDirect(
   return parseOpenAIResponse(data);
 }
 
-/**
- * Calls Lovable AI Gateway
- * Uses OpenAI-compatible endpoint at ai.gateway.lovable.dev
- */
-async function callLovableGateway(
-  apiKey: string,
-  model: string,
-  messages: AIMessage[],
-  temperature: number,
-  maxTokens?: number,
-  tools?: AITool[],
-  toolChoice?: { type: 'function'; function: { name: string } } | 'auto',
-  signal?: AbortSignal
-): Promise<AIResponse> {
-  const body: Record<string, unknown> = { model, messages, temperature };
-  if (maxTokens) body.max_tokens = maxTokens;
-  if (tools && tools.length > 0) {
-    body.tools = tools;
-    if (toolChoice) body.tool_choice = toolChoice;
-  }
-
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-    signal,
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Lovable AI Gateway error:', response.status, errorText);
-    
-    let errorMessage = 'AI request failed';
-    try {
-      const parsed = JSON.parse(errorText);
-      errorMessage = parsed.error?.message || parsed.error || errorMessage;
-    } catch {}
-
-    if (response.status === 401 || response.status === 403) {
-      throw createAIError('invalid_key', 'Invalid Lovable AI key.', 401);
-    }
-    if (response.status === 402) {
-      throw createAIError('payment_required', 'AI credits exhausted. Please add credits to your workspace.', 402);
-    }
-    if (response.status === 429) {
-      throw createAIError('rate_limit', 'Too many requests. Please wait a moment.', 429);
-    }
-    throw createAIError('unknown', errorMessage, response.status);
-  }
-
-  const data = await response.json();
-  return parseOpenAIResponse(data);
-}
-
-/**
- * Calls Emergent Universal API
- * Uses OpenAI-compatible endpoint with universal key that routes to multiple LLM providers
- */
-async function callEmergentUniversal(
-  apiKey: string,
-  model: string,
-  messages: AIMessage[],
-  temperature: number,
-  maxTokens?: number,
-  tools?: AITool[],
-  toolChoice?: { type: 'function'; function: { name: string } } | 'auto',
-  signal?: AbortSignal
-): Promise<AIResponse> {
-  // Map model names to Emergent-compatible format
-  const emergentModel = mapModelForEmergent(model);
-
-  const body: Record<string, unknown> = { model: emergentModel, messages, temperature };
-  if (maxTokens) body.max_tokens = maxTokens;
-  if (tools && tools.length > 0) {
-    body.tools = tools;
-    if (toolChoice) body.tool_choice = toolChoice;
-  }
-
-  const response = await fetch('https://api.emergent.sh/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-    signal,
-  });
-
-  if (!response.ok) {
-    handleEmergentError(response.status, await response.text());
-  }
-
-  const data = await response.json();
-  return parseOpenAIResponse(data);
-}
-
-// Model mapping for Emergent Universal API
-function mapModelForEmergent(model: string): string {
-  const EMERGENT_MODEL_MAP: Record<string, string> = {
-    'google/gemini-2.5-flash': 'gemini-2.5-flash',
-    'google/gemini-2.5-pro': 'gemini-2.5-pro',
-    'google/gemini-2.5-flash-lite': 'gemini-2.5-flash-lite',
-    'google/gemini-3-flash-preview': 'gemini-3-flash-preview',
-    'google/gemini-3-pro-preview': 'gemini-3-pro-preview',
-    'gemini-2.5-flash': 'gemini-2.5-flash',
-    'gemini-2.5-pro': 'gemini-2.5-pro',
-    'gemini-3-flash-preview': 'gemini-3-flash-preview',
-    'gemini-2.0-flash': 'gemini-2.0-flash',
-    'gemini-2.0-flash-lite': 'gemini-2.0-flash-lite',
-    'gemini-1.5-pro': 'gemini-2.5-pro',
-  };
-
-  // If model starts with google/, strip it for Emergent
-  const stripped = model.startsWith('google/') ? model.replace('google/', '') : model;
-  return EMERGENT_MODEL_MAP[model] || EMERGENT_MODEL_MAP[stripped] || stripped;
-}
+// NOTE: callLovableGateway and callEmergentUniversal have been removed.
+// All default AI calls now go through callGeminiDirect using WISE_AI_API_KEY.
 
 /**
  * Parses OpenAI-format response into our AIResponse type
@@ -722,32 +592,7 @@ function handleGeminiError(status: number, errorText: string): never {
   throw createAIError('unknown', errorMessage, status);
 }
 
-/**
- * Handles errors from Emergent Universal API calls
- */
-function handleEmergentError(status: number, errorText: string): never {
-  console.error('Emergent API error:', status, errorText);
-
-  let errorMessage = 'AI request failed';
-  try {
-    const parsed = JSON.parse(errorText);
-    errorMessage = parsed.error?.message || errorMessage;
-  } catch {
-    // Use raw error text
-  }
-
-  if (status === 401 || status === 403) {
-    throw createAIError('invalid_key', 'Invalid Emergent Universal Key. Please contact support.', 401);
-  }
-  if (status === 402) {
-    throw createAIError('payment_required', 'Emergent Universal Key balance exhausted. Please add credits.', 402);
-  }
-  if (status === 429) {
-    throw createAIError('rate_limit', 'Too many requests. Please wait a moment.', 429);
-  }
-
-  throw createAIError('unknown', errorMessage, status);
-}
+// handleEmergentError removed — Emergent Universal API no longer used.
 
 /**
  * Creates a typed AI error

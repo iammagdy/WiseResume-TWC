@@ -44,3 +44,61 @@ This constitution is supported by the following specialized governance files:
 * [WORKFLOW.md](./WORKFLOW.md) - Development workflows, repo sync rules, communication, and deployment.
 * [DECISIONS.md](./DECISIONS.md) - Log of all major technical decisions.
 * [CHANGELOG.md](./CHANGELOG.md) - Maintained record of all accepted changes to the project.
+
+## 6. Agent Execution Instructions
+
+The following instructions MUST be treated as a persistent system prompt for any AI agent (including AntiGravity) working on this repository. Agents MUST follow these instructions for every action, unless explicitly overridden by this constitution or other governance files.
+
+### 6.1 General Behavior
+
+- Always treat the current codebase as the primary source of truth.
+- Always read and respect all documents under `project-governance/` before making changes.
+- Do NOT guess routes, files, variables, providers, tables, or behaviors. If anything is unclear, ask the user before implementing.
+- High‑risk changes MUST be explained to the user before implementation.
+
+### 6.2 Branch and Git Discipline
+
+- You MUST NOT create new Git branches on your own (no `feature/*`, `fix/*`, `00x-*`, or similar).
+- You MUST only work on the branch explicitly specified by the user for the current task.
+- You MUST NOT push directly to `main` unless the user explicitly instructs you to do so.
+- Before making changes, you MUST ensure you are working against the latest state of the specified branch.
+
+### 6.3 Testing Discipline
+
+- For any non-trivial change (logic, UI, data flow, or configuration), you MUST run the project’s test suite (for example: `npm run test`) after applying your changes.
+- A task is NOT considered complete until:
+  - Code changes are applied to the specified branch.
+  - The test suite has been executed.
+  - Any failing tests have been either fixed or explicitly reported to the user.
+
+### 6.4 Changelog Discipline
+
+- Every accepted change to this repository MUST be recorded in `project-governance/CHANGELOG.md`.
+- You MUST always follow the existing style, structure, and context already used in `CHANGELOG.md`. Reuse the same headings, formatting, tense, and level of detail as existing entries.
+- For each change, you MUST:
+  - Inspect the current contents of `project-governance/CHANGELOG.md` before adding a new entry.
+  - Add a new entry in the correct place according to the existing format (typically at the top, under the appropriate version or date section, unless the file specifies a different pattern).
+- Each new changelog entry MUST include, at minimum:
+  - The date of the change in `YYYY-MM-DD` format.
+  - The area or scope of the change (for example: `Interview`, `Portfolio`, `Tests`, `Onboarding`, etc.).
+  - A concise but clear title or summary of the change.
+  - A short description of what was changed and why, written in the same voice and style as existing entries.
+  - References to relevant files, components, or features that were touched.
+  - (If applicable) a reference to the branch name, spec ID, or task identifier associated with this change.
+- You MUST NOT invent a new changelog style or structure. If you need to extend the format (for example, to add a new section or area), you MUST do it in a way that is consistent with the existing context and explain the reasoning in the entry description.
+
+### 6.5 Task Completion Definition
+
+For any implementation or modification task, the task is only considered “done” when all of the following are true:
+
+1. The required code changes have been applied to the user-specified branch.
+2. The test suite has been executed and test outcomes have been reported, with failures either fixed or clearly reported to the user.
+3. `project-governance/CHANGELOG.md` has been updated with a new entry that:
+   - Follows the existing changelog style and context.
+   - Accurately describes the change, its scope, and its impact.
+4. In your final summary back to the user, you MUST explicitly state:
+   - What you changed in the code.
+   - Which tests you ran and their result.
+   - Exactly what you added or modified in `project-governance/CHANGELOG.md` (including date, scope, and the main title/summary of the entry).
+
+Agents MUST treat these instructions as mandatory requirements for every change they make within this repository.

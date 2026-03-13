@@ -1,7 +1,34 @@
-﻿# CHANGELOG-local.md
+# CHANGELOG
 
-Local changelog tracking WiseResume changes via Lovable AI sessions.
+Local changelog tracking WiseResume changes.
 
+## 2026-03-13
+
+### BACKEND-GATEWAY-OVERHAUL
+- **Summary**: Complete backend overhaul: unified split Supabase architecture, replaced Lovable AI Gateway with Gemini-direct (Wise AI), migrated email from Lovable SDK to Resend, and cleaned codebase of all legacy references.
+- **Phase 1 — Architecture Unification**:
+  - Updated `supabase/config.toml` project_id from `hjnnamwgztlhzkeuufln` → `jnsfmkzgxsviuthaqlyy`
+  - Added 3 missing functions to config.toml: `ai-test`, `parse-job-text`, `send-contact-inquiry`
+  - Unified `src/lib/supabaseConstants.ts` — `EDGE_FUNCTIONS_URL` now aliases `SUPABASE_URL`
+  - Updated `src/integrations/supabase/client.ts` fallback URL to primary project
+  - Updated `supabase/functions/_shared/dbClient.ts` comments for unified architecture
+- **Phase 2 — Lovable Gateway → Wise AI (Gemini Direct)**:
+  - Rewrote `supabase/functions/_shared/aiClient.ts` — removed `callLovableGateway()` and `callEmergentUniversal()` (~130 lines), `mapModelForEmergent()`, `handleEmergentError()`
+  - New priority chain: BYOK Ollama → BYOK Gemini → `WISE_AI_API_KEY` (Gemini direct) → `GEMINI_API_KEY` (legacy fallback)
+  - Updated `generate-headshot/index.ts` and `parse-resume/index.ts` to use `WISE_AI_API_KEY`
+  - Updated `generate-store-screenshots/index.ts` — replaced `ai.gateway.lovable.dev` URL with `generativelanguage.googleapis.com`
+  - Updated `_shared/__tests__/aiClient.test.ts` to reflect new priority chain
+- **Phase 3 — Email Migration (Lovable SDK → Resend)**:
+  - Rewrote `supabase/functions/auth-email-hook/index.ts` — removed `@lovable.dev/email-js` and `@lovable.dev/webhooks-js`, replaced with direct Resend API using `RESEND_API_KEY`
+  - Updated all 6 email template logo URLs from old project to primary project (`signup`, `recovery`, `reauthentication`, `magic-link`, `invite`, `email-change`)
+- **Phase 4 — CORS & Environment Cleanup**:
+  - Removed Lovable domains (`lovable.app`, `lovableproject.com`) from `_shared/cors.ts` CORS allowlist
+  - Updated `.env.example` with correct Supabase URL and secret placeholders
+- **Phase 5 — Deployment**: Requires Supabase CLI auth (deferred to manual step)
+- **Phase 6 — Verification**: Build passes (exit code 0), PWA service worker built. Codebase scan confirms zero remaining references to `lovable`, `EMERGENT_LLM`, or old project ID `hjnnamwgztlhzkeuufln`.
+- **Files changed**: `config.toml`, `supabaseConstants.ts`, `client.ts`, `dbClient.ts`, `aiClient.ts`, `aiClient.test.ts`, `cors.ts`, `.env.example`, `auth-email-hook/index.ts`, `generate-headshot/index.ts`, `parse-resume/index.ts`, `generate-store-screenshots/index.ts`, 6 email templates
+- **Secrets to set**: `WISE_AI_API_KEY`, `RESEND_API_KEY` (via Supabase Dashboard)
+- **Risks**: Edge functions need redeployment. Email logo assumes `wise-ai-logo.png` exists in primary project storage bucket.
 ## 2026-03-11
 
 ### FIX-MOBILE-EDITOR-NAV-OVERLAP

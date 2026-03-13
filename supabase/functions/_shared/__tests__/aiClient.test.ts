@@ -31,7 +31,8 @@ Deno.test("BYOK Edge Cases - AI Client", async (t) => {
   });
 
   await t.step("Scenario 3.2: Graceful failure when external AI provider fails with invalid BYOK", async () => {
-    // We will set up Deno.env.get to return a mock GEMINI_API_KEY so it bypasses Lovable Gateway
+    // We will set up Deno.env.get to return a mock GEMINI_API_KEY (with no WISE_AI_API_KEY)
+    // so it falls through to the global GEMINI_API_KEY path
     Deno.env.get = (key: string) => {
       if (key === 'GEMINI_API_KEY') return 'mock-invalid-key';
       return originalDenoEnvGet(key);

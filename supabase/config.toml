@@ -1,9 +1,11 @@
-project_id = "hjnnamwgztlhzkeuufln"
+project_id = "jnsfmkzgxsviuthaqlyy"
 
 [functions]
   [functions.agentic-chat]
     verify_jwt = false
   [functions.ai-health]
+    verify_jwt = false
+  [functions.ai-test]
     verify_jwt = false
   [functions.analyze-resume]
     verify_jwt = false
@@ -53,6 +55,8 @@ project_id = "hjnnamwgztlhzkeuufln"
     verify_jwt = false
   [functions.optimize-for-linkedin]
     verify_jwt = false
+  [functions.parse-job-text]
+    verify_jwt = false
   [functions.parse-job-url]
     verify_jwt = false
   [functions.parse-linkedin]
@@ -68,6 +72,8 @@ project_id = "hjnnamwgztlhzkeuufln"
   [functions.score-resume]
     verify_jwt = false
   [functions.send-bug-report]
+    verify_jwt = false
+  [functions.send-contact-inquiry]
     verify_jwt = false
   [functions.send-feature-request]
     verify_jwt = false

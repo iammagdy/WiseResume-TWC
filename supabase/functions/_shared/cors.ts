@@ -5,7 +5,6 @@ const ALLOWED_ORIGINS = [
   'https://localhost',          // Capacitor Android v5+
   'capacitor://localhost',      // Capacitor iOS
   'https://resume.thewise.cloud',
-  'https://wiseresume.lovable.app',
   'https://thewise.cloud',
 ];
 
@@ -19,8 +18,7 @@ export const getCorsHeaders = (origin?: string | null) => {
 
   const isLocalhost = origin?.startsWith('http://localhost') || origin?.startsWith('https://localhost');
   const isNativeApp = !origin || origin === 'null';
-  const isCloudProvider = origin?.endsWith('.lovableproject.com') || origin?.endsWith('.lovable.app');
-  const isAllowed = isNativeApp || isLocalhost || isCloudProvider || (origin && origins.includes(origin));
+  const isAllowed = isNativeApp || isLocalhost || (origin && origins.includes(origin));
 
   // For allowed origins, echo back the actual origin. For unknown origins, use wildcard.
   const resolvedOrigin = isAllowed && origin ? origin : '*';

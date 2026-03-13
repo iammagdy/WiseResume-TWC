@@ -36,11 +36,11 @@ serve(async (req) => {
 
     // Call Gemini directly with image input via the native Gemini API
     const geminiModel = 'gemini-2.5-flash';
-    const geminiKey = Deno.env.get('GEMINI_API_KEY');
+    const geminiKey = Deno.env.get('WISE_AI_API_KEY') || Deno.env.get('GEMINI_API_KEY');
 
     if (!geminiKey) {
       return new Response(
-        JSON.stringify({ error: "GEMINI_API_KEY is not configured. Please set it in Supabase Secrets." }),
+        JSON.stringify({ error: "WISE_AI_API_KEY is not configured. Please set it in Supabase Secrets." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
