@@ -99,15 +99,8 @@ As an engineering team, we want proof that the 80% coverage threshold passes in 
 
 ### Measurable Outcomes
 
-<<<<<<< HEAD
-- **SC-001**: Running the coverage command exits with code 0, meaning all tests pass AND all 4 coverage metrics are ≥80%.
-- **SC-002**: The number of test files increases from 26 to at minimum 35, covering Resume, Auth, and Settings modules.
-- **SC-003**: Zero regressions introduced to the existing 166 passing tests.
-- **SC-004**: The CI coverage gate is verified to fail as expected when a test is deliberately removed, proving the threshold is enforced.
-=======
 - **SC-001**: Running `npm run test:coverage` exits with code 0 — meaning all 166+ tests pass AND all 4 coverage metrics are ≥80%.
 - **SC-002**: The number of test files increases from 26 to at minimum 35, covering Resume, Auth, and Settings modules.
 - **SC-003**: Zero regressions are introduced to the existing 166 passing tests.
 - **SC-004**: The GitHub Actions CI coverage gate is verified to fail as expected when a test is deliberately removed (proving the threshold is enforced, not silently bypassed).
->>>>>>> 011-theme-code-splitting
 - **SC-005**: All new test files follow the project's established mock patterns documented in `CONTRIBUTING.md`.
