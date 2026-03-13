@@ -1,6 +1,6 @@
 # Tasks: Portfolio Phase 3 – Low Portfolio Fixes
 
-**Branch**: `008-portfolio-phase-3` | **Status**: Initialized
+**Branch**: `008-portfolio-phase-3` | **Status**: Complete
 **Goal**: Polish UX, output quality, and design accuracy for the Portfolio feature.
 
 ## Phase 1: Setup
@@ -29,8 +29,8 @@
 ## Phase 5: Input Validation - Social Link Normalization (US3)
 **Goal**: Automatically add `https://` to social links where missing.
 **Test Criteria**: Links input like `linkedin.com/user` are saved as `https://linkedin.com/user`.
-- [ ] T012 [US3] Implement `normalizeUrl` logic in `src/pages/PortfolioEditorPage.tsx` for all social link fields
-- [ ] T013 [US3] Add `onBlur` handlers to social link inputs to trigger normalization immediately in the UI
+- [x] T012 [US3] Implement `normalizeUrl` logic in `src/components/portfolio/editor/MoreTab.tsx` for all social link fields (via `onBlur` handlers)
+- [x] T013 [US3] `onBlur` handlers on all social link inputs trigger normalization immediately in the UI
 
 ## Phase 6: Design Accuracy - Preview Isolation (US4)
 **Goal**: Prevent page theme styles from bleeding into "Design" tab previews.

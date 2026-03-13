@@ -4,7 +4,6 @@ on:
   push:
     branches: [ main, 009-add-unit-tests ]
   pull_request:
-    branches: [ main ]
 
 jobs:
   test:
