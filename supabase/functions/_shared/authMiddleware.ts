@@ -7,12 +7,22 @@ export interface AuthResult {
   client: SupabaseClient;
 }
 
+export class AuthError extends Error {
+  status: number;
+
+  constructor(message = 'Unauthorized', status = 401) {
+    super(message);
+    this.name = 'AuthError';
+    this.status = status;
+  }
+}
+
 /**
  * Decodes a JWT payload without verifying the signature.
  */
 export function decodeJwtPayload(token: string): Record<string, unknown> {
   const parts = token.split('.');
-  if (parts.length !== 3) throw { status: 401, message: 'Invalid token format' };
+  if (parts.length !== 3) throw new AuthError('Invalid token format', 401);
   const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
   const json = atob(b64.padEnd(b64.length + (4 - b64.length % 4) % 4, '='));
   return JSON.parse(json);
@@ -26,7 +36,7 @@ export function decodeJwtPayload(token: string): Record<string, unknown> {
 export async function requireAuth(req: Request): Promise<AuthResult> {
   const authHeader = req.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
-    throw { status: 401, message: 'Missing authorization header' };
+    throw new AuthError('Missing authorization header', 401);
   }
 
   const token = authHeader.replace('Bearer ', '');
@@ -34,14 +44,15 @@ export async function requireAuth(req: Request): Promise<AuthResult> {
   let claims: Record<string, unknown>;
   try {
     claims = decodeJwtPayload(token);
-  } catch {
-    throw { status: 401, message: 'Unauthorized' };
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'AuthError') throw err;
+    throw new AuthError('Unauthorized', 401);
   }
 
   // With Supabase Auth, sub is the user UUID directly
   const userId = claims['sub'] as string;
   if (!userId) {
-    throw { status: 401, message: 'Unauthorized' };
+    throw new AuthError('Missing sub claim (unauthorized)', 401);
   }
 
   const client = getServiceClient();

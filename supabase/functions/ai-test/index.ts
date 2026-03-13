@@ -16,6 +16,18 @@ serve(async (req) => {
     // Auth via manual JWT decode (cross-project compatible)
     const { userId, client: supabaseAdmin } = await requireAuth(req);
 
+    // Parse request body for potential 'checkOnly' flag
+    let checkOnly = false;
+    try {
+      const text = await req.clone().text();
+      if (text) {
+        const body = JSON.parse(text);
+        checkOnly = body?.checkOnly === true;
+      }
+    } catch {
+      // Ignore parse errors for empty/invalid bodies
+    }
+
     // Get user's preferred provider (use service-role client for cross-project DB)
     const { data: prefs } = await supabaseAdmin
       .from('user_preferences')
@@ -24,6 +36,57 @@ serve(async (req) => {
       .maybeSingle();
 
     const preferredProvider = (prefs?.ai_provider as 'gemini' | 'ollama' | 'wiseresume') || 'wiseresume';
+
+    // ===== Cooldown Check for WiseResume AI =====
+    if (preferredProvider === 'wiseresume') {
+      const COOLDOWN_SECONDS = 300; // 5 minutes
+      console.log(`[ai-test] Checking cooldown for user: ${userId}`);
+      
+      const { data: lastTest, error: logError } = await supabaseAdmin
+        .from('ai_usage_logs')
+        .select('created_at')
+        .eq('user_id', userId)
+        .eq('action_type', 'test')
+        .filter('metadata->>provider', 'eq', 'wiseresume')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (logError) {
+        console.error('[ai-test] Error fetching usage logs:', logError);
+      }
+
+      if (lastTest) {
+        const lastTestAt = new Date(lastTest.created_at).getTime();
+        const now = Date.now();
+        const elapsedSeconds = Math.floor((now - lastTestAt) / 1000);
+        console.log(`[ai-test] Last test was ${elapsedSeconds}s ago`);
+        
+        if (elapsedSeconds < COOLDOWN_SECONDS) {
+          const secondsRemaining = COOLDOWN_SECONDS - elapsedSeconds;
+          return new Response(JSON.stringify({
+            success: false,
+            reason: 'cooldown',
+            secondsRemaining,
+            cooldownEndsAt: new Date(lastTestAt + COOLDOWN_SECONDS * 1000).toISOString(),
+            message: `Please wait ${Math.ceil(secondsRemaining / 60)} more minutes before testing again.`
+          }), {
+            status: 429,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      } else {
+        console.log('[ai-test] No previous test found for WiseResume AI');
+      }
+    }
+
+    // If checkOnly was requested and we passed the cooldown check, return OK
+    if (checkOnly) {
+      console.log('[ai-test] Cooldown check passed (checkOnly)');
+      return new Response(JSON.stringify({ success: true, cooldownActive: false }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Resolve user keys
     let userGeminiKey: string | undefined;
@@ -43,6 +106,7 @@ serve(async (req) => {
     };
     const expectedGreeting = identityMap[preferredProvider] || identityMap.wiseresume;
 
+    console.log(`[ai-test] Calling AI for provider: ${preferredProvider}, model: ${testModel}`);
     const aiResponse = await callAI({
       model: testModel,
       messages: [
@@ -59,9 +123,10 @@ serve(async (req) => {
 
     const latencyMs = Date.now() - startTime;
     const providerUsed = aiResponse.providerUsed || preferredProvider;
+    console.log(`[ai-test] AI responded in ${latencyMs}ms using ${providerUsed}`);
 
     // Log test call
-    await supabaseAdmin.from('ai_usage_logs').insert({
+    const { error: insertError } = await supabaseAdmin.from('ai_usage_logs').insert({
       user_id: userId,
       action_type: 'test',
       metadata: {
@@ -72,6 +137,10 @@ serve(async (req) => {
         fallbackUsed: aiResponse.fallbackUsed || false,
       },
     });
+
+    if (insertError) {
+      console.error('[ai-test] Failed to log usage:', insertError);
+    }
 
     return new Response(JSON.stringify({
       success: true,
@@ -85,6 +154,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
+    console.error('[ai-test] Unhandled error:', err);
     // If it's an auth error from requireAuth, return it properly
     if (typeof err === 'object' && err !== null && 'status' in err) {
       return authErrorResponse(err, req.headers.get('origin'));

@@ -342,105 +342,130 @@ export default function SettingsPage() {
 
           {/* Account Section */}
           {user &&
-          <>
-              <div id="section-account">
-                <SectionHeader icon={LogOut} label="Account" />
-                <p className="text-xs text-muted-foreground mb-3 px-1">Manage your account and data</p>
+            <div id="section-account" className="space-y-3 px-1">
+              <div className="p-4 rounded-2xl glass-elevated border border-white/10 space-y-4">
+                <div>
+                  <SectionHeader icon={LogOut} label="Account" />
+                  <p className="text-xs text-muted-foreground mt-1">Manage your account and data</p>
+                </div>
                 <AccountSection
-                user={user}
-                authProvider={authProvider}
-                onChangePassword={handleChangePassword}
-                onSignOut={() => setSignOutConfirmOpen(true)}
-                onDeleteData={() => setDeleteDialogOpen(true)} />
-              
+                  user={user}
+                  authProvider={authProvider}
+                  onChangePassword={handleChangePassword}
+                  onSignOut={() => setSignOutConfirmOpen(true)}
+                  onDeleteData={() => setDeleteDialogOpen(true)} 
+                />
               </div>
-              <Separator className="opacity-10" />
-            </>
+            </div>
           }
 
           <Separator className="opacity-10" />
 
           {/* Appearance Section */}
-          <div id="section-appearance">
-            <SectionHeader icon={Palette} label="Appearance" />
-            <p className="text-xs text-muted-foreground mb-3 px-1">Theme, language, and display preferences</p>
-            <AppearanceSection onLanguage={handleLanguage} />
+          <div id="section-appearance" className="space-y-3 px-1">
+            <div className="p-4 rounded-2xl glass-elevated border border-white/10 space-y-4">
+              <div>
+                <SectionHeader icon={Palette} label="Appearance" />
+                <p className="text-xs text-muted-foreground mt-1">Theme, language, and display preferences</p>
+              </div>
+              <AppearanceSection onLanguage={handleLanguage} />
+            </div>
           </div>
 
           <Separator className="opacity-10" />
 
           {/* AI & Voice Section */}
-          <div id="section-ai-voice">
-            <SectionHeader icon={Brain} label="AI & Voice" />
-            <p className="text-xs text-muted-foreground mb-3 px-1">Choose your AI engine and voice settings</p>
-            <AIVoiceSection
-              onOpenAISettings={() => setAISettingsOpen(true)}
-              onOpenElevenLabsKey={() => setElevenLabsKeyOpen(true)} />
-            
+          <div id="section-ai-voice" className="space-y-3 px-1">
+            <div className="p-4 rounded-2xl glass-elevated border border-white/10 space-y-4">
+              <div>
+                <SectionHeader icon={Brain} label="AI & Voice" />
+                <p className="text-xs text-muted-foreground mt-1">Choose your AI engine and voice settings</p>
+              </div>
+              <AIVoiceSection
+                onOpenAISettings={() => setAISettingsOpen(true)}
+                onOpenElevenLabsKey={() => setElevenLabsKeyOpen(true)} 
+              />
+            </div>
           </div>
 
           <Separator className="opacity-10" />
 
           {/* Editor & Export Section */}
-          <div id="section-editor-export">
-            <SectionHeader icon={Download} label="Editor & Export" />
-            <p className="text-xs text-muted-foreground mb-3 px-1">PDF output and resume backup options</p>
-            <EditorExportSection
-              isSignedIn={!!user}
-              onManageExports={() => setDataExportSheetOpen(true)}
-              onNavigateAuth={() => navigate('/auth')} />
-            
+          <div id="section-editor-export" className="space-y-3 px-1">
+            <div className="p-4 rounded-2xl glass-elevated border border-white/10 space-y-4">
+              <div>
+                <SectionHeader icon={Download} label="Editor & Export" />
+                <p className="text-xs text-muted-foreground mt-1">PDF output and resume backup options</p>
+              </div>
+              <EditorExportSection
+                isSignedIn={!!user}
+                onManageExports={() => setDataExportSheetOpen(true)}
+                onNavigateAuth={() => navigate('/auth')} 
+              />
+            </div>
           </div>
 
           <Separator className="opacity-10" />
 
           {/* Notifications Section */}
-          <div id="section-notifications">
-            <SectionHeader icon={Bell} label="Notifications" />
-            <p className="text-xs text-muted-foreground mb-3 px-1">Control alerts and suggestion prompts</p>
-            <NotificationsSection />
+          <div id="section-notifications" className="space-y-3 px-1">
+            <div className="p-4 rounded-2xl glass-elevated border border-white/10 space-y-4">
+              <div>
+                <SectionHeader icon={Bell} label="Notifications" />
+                <p className="text-xs text-muted-foreground mt-1">Control alerts and suggestion prompts</p>
+              </div>
+              <NotificationsSection />
+            </div>
           </div>
 
           <Separator className="opacity-10" />
 
           {/* Privacy Section */}
-          <div id="section-privacy">
-            <SectionHeader icon={Shield} label="Privacy & Security" />
-            <p className="text-xs text-muted-foreground mb-3 px-1">Biometric lock, data protection, and privacy controls</p>
-            <PrivacySection
-              onOpenBiometricTimeout={() => setBiometricTimeoutOpen(true)}
-              onBiometricToggle={handleBiometricToggle} />
-            
+          <div id="section-privacy" className="space-y-3 px-1">
+            <div className="p-4 rounded-2xl glass-elevated border border-white/10 space-y-4">
+              <div>
+                <SectionHeader icon={Shield} label="Privacy & Security" />
+                <p className="text-xs text-muted-foreground mt-1">Biometric lock, data protection, and privacy controls</p>
+              </div>
+              <PrivacySection
+                onOpenBiometricTimeout={() => setBiometricTimeoutOpen(true)}
+                onBiometricToggle={handleBiometricToggle} 
+              />
+            </div>
           </div>
 
           <Separator className="opacity-10" />
 
           {/* About Section */}
-          <div id="section-about">
-            <SectionHeader icon={Info} label="About & Help" />
-            <p className="text-xs text-muted-foreground mb-3 px-1">App info, onboarding, and sharing</p>
-            <AboutSection
-              isSignedIn={!!user}
-              onTakeTour={async () => {
-                haptics.light();
-                if (user) {
-                  await (await import('@/integrations/supabase/client')).supabase.from('profiles').update({ onboarding_completed: false }).eq('user_id', user.id);
-                } else {
-                  localStorage.removeItem('wr-onboarding-seen');
-                }
-                toast.success('Onboarding reset — redirecting…');
-                navigate('/onboarding');
-              }}
-              onReplaySplash={() => {
-                haptics.light();
-                setHasSeenSplash(false);
-                toast.success('Replaying splash…');
-                navigate('/');
-              }}
-              onRateApp={handleRateApp}
-              onShareApp={handleShareApp}
-              onOpenHelp={() => setHelpSheetOpen(true)} />
-            
+          <div id="section-about" className="space-y-3 px-1">
+            <div className="p-4 rounded-2xl glass-elevated border border-white/10 space-y-4">
+              <div>
+                <SectionHeader icon={Info} label="About & Help" />
+                <p className="text-xs text-muted-foreground mt-1">App info, onboarding, and sharing</p>
+              </div>
+              <AboutSection
+                isSignedIn={!!user}
+                onTakeTour={async () => {
+                  haptics.light();
+                  if (user) {
+                    await (await import('@/integrations/supabase/client')).supabase.from('profiles').update({ onboarding_completed: false }).eq('user_id', user.id);
+                  } else {
+                    localStorage.removeItem('wr-onboarding-seen');
+                  }
+                  toast.success('Onboarding reset — redirecting…');
+                  navigate('/onboarding');
+                }}
+                onReplaySplash={() => {
+                  haptics.light();
+                  setHasSeenSplash(false);
+                  toast.success('Replaying splash…');
+                  navigate('/');
+                }}
+                onRateApp={handleRateApp}
+                onShareApp={handleShareApp}
+                onOpenHelp={() => setHelpSheetOpen(true)} 
+              />
+            </div>
           </div>
 
           {/* Developer Credit Card */}

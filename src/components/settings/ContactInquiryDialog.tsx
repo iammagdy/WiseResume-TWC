@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MessageSquare, Send, CheckCircle2 } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { useAuth } from '@/hooks/useAuth';
 import { getUserId } from '@/lib/supabaseBridge';
 
 export const DEPARTMENTS = [
@@ -44,6 +45,8 @@ interface ContactInquiryDialogProps {
 }
 
 export function ContactInquiryDialog({ open, onOpenChange, defaultDepartment }: ContactInquiryDialogProps) {
+  const { user } = useAuth();
+  const [email, setEmail] = useState('');
   const [department, setDepartment] = useState<DepartmentValue>(defaultDepartment || 'general');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
@@ -66,21 +69,25 @@ export function ContactInquiryDialog({ open, onOpenChange, defaultDepartment }: 
     const deptLabel = DEPARTMENTS.find(d => d.value === department)?.label || 'General Support';
 
     const payload = {
-      subject: subject.trim(),
+      type: 'contact',
+      email: user?.email || email.trim(),
+      subject: `[Support] ${deptLabel}: ${subject.trim()}`,
       message: message.trim(),
-      department: deptLabel,
-      user_id: userId || null,
-      user_email: userEmail,
-      user_agent: navigator.userAgent,
-      app_version: appVersion,
-      route: window.location.pathname,
+      metadata: {
+        department: deptLabel,
+        user_id: userId || null,
+        user_agent: navigator.userAgent,
+        app_version: appVersion,
+        route: window.location.pathname,
+      },
     };
 
     try {
-      const { error } = await edgeFunctions.functions.invoke('send-contact-inquiry', {
+      const { data: res, error } = await edgeFunctions.functions.invoke('send-contact-email', {
         body: payload,
       });
       if (error) throw error;
+      if (res?.error) throw new Error(res.error);
       setStatus('success');
       setTimeout(() => {
         onOpenChange(false);
@@ -138,6 +145,21 @@ export function ContactInquiryDialog({ open, onOpenChange, defaultDepartment }: 
             </div>
 
             <div className="space-y-4">
+              {!user && (
+                <div>
+                  <label htmlFor="contact-email" className="text-sm font-medium text-foreground mb-1.5 block">
+                    Your Email
+                  </label>
+                  <Input
+                    id="contact-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
               <div>
                 <label htmlFor="inquiry-department" className="text-sm font-medium text-foreground mb-1.5 block">
                   Department
@@ -189,7 +211,7 @@ export function ContactInquiryDialog({ open, onOpenChange, defaultDepartment }: 
 
               <Button
                 onClick={handleSend}
-                disabled={status === 'sending' || !subject.trim() || !message.trim()}
+                disabled={status === 'sending' || !subject.trim() || !message.trim() || (!user && !email.trim())}
                 className="w-full h-12 active:scale-95 transition-transform"
                 size="lg"
               >

@@ -185,8 +185,9 @@ export function useResumeMutations() {
       if (error) throw error;
       return parseDbResume(data);
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
+      useResumeStore.getState().setCurrentResumeId(data.id);
       toast.success('Resume created');
     },
     onError: (error) => {
@@ -340,8 +341,9 @@ export function useResumeMutations() {
       if (error) throw error;
       return parseDbResume(data);
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
+      useResumeStore.getState().setCurrentResumeId(data.id);
       toast.success('Resume duplicated');
     },
     onError: (error) => {

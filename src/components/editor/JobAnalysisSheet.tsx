@@ -39,6 +39,8 @@ export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) 
     setIsAnalyzing 
   } = useResumeStore();
 
+  const [isToastShown, setIsToastShown] = useState(false);
+
   // Clear stale results when sheet closes
   const handleOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
@@ -48,9 +50,13 @@ export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) 
     onOpenChange(isOpen);
   };
 
-  const handleAnalyze = async () => {
+  const handleAnalyzeClick = async () => {
     if (!jobDescription.trim()) {
-      toast.error('Please paste a job description');
+      if (!isToastShown) {
+        setIsToastShown(true);
+        toast("Add Job Description");
+        setTimeout(() => setIsToastShown(false), 2000);
+      }
       return;
     }
 
@@ -111,8 +117,8 @@ export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) 
 
           <Button
             className="w-full h-12 gradient-primary font-semibold"
-            onClick={handleAnalyze}
-            disabled={isAnalyzing || !jobDescription.trim()}
+            onClick={handleAnalyzeClick}
+            disabled={isAnalyzing}
           >
             {isAnalyzing ? (
               <>

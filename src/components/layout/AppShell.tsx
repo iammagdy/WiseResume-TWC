@@ -26,12 +26,12 @@ export function AppShell() {
   const location = useLocation();
   const currentOutlet = useOutlet();
   const showBottomNav = TAB_ROUTES.some(r => location.pathname.startsWith(r));
-  const isEditorRoute = location.pathname.startsWith('/editor');
+  const isEditorRoute = location.pathname.startsWith('/editor') || location.pathname.startsWith('/preview');
   const isRootRoute = shouldExitOnBack(location.pathname);
   const enableSwipeBack = showBottomNav && !isEditorRoute && !isRootRoute;
   const scrollRef = useRef<HTMLDivElement>(null);
   const [wiseAIOpen, setWiseAIOpen] = useState(false);
-  const [bridgeError, setBridgeError] = useState<{ code: string; message: string } | null>(null);
+  const [bridgeError, setBridgeError] = useState<{ type?: string; code: string; message: string } | null>(null);
 
   // Check for bridge errors after route changes
   useEffect(() => {
@@ -59,7 +59,7 @@ export function AppShell() {
       </a>
       <OfflineBanner />
       <SlowConnectionBanner />
-      {bridgeError && (
+      {bridgeError && bridgeError.type === 'AUTH_REJECTION' && (
         <div className="flex items-center justify-between gap-2 px-4 py-2 bg-destructive/10 text-destructive text-sm border-b border-destructive/20">
           <span>
             {bridgeError.code === 'INVALID_KINDE_TOKEN'
@@ -94,7 +94,7 @@ export function AppShell() {
         id="main-content"
         className={cn(
           "flex-1 flex flex-col min-h-0 overflow-hidden",
-          showBottomNav && !isEditorRoute && "pb-20 lg:pb-0"
+          showBottomNav && !isEditorRoute && "pb-[calc(4.5rem+env(safe-area-inset-bottom))] lg:pb-0"
         )}
       >
         <div
@@ -125,7 +125,7 @@ export function AppShell() {
       {showBottomNav && !isEditorRoute && (
         <button
           onClick={() => setWiseAIOpen(true)}
-          className="fixed bottom-24 right-4 z-40 lg:hidden flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 active:scale-95 transition-transform touch-manipulation"
+          className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 z-40 lg:hidden flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 active:scale-95 transition-transform touch-manipulation"
           aria-label="Ask Wise AI"
         >
           <Sparkles className="w-4 h-4" />

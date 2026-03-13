@@ -588,10 +588,9 @@ export async function generatePDF(
     onProgress?.('finalizing', 90);
 
     const pdfBytes = await pdfDoc.save();
-    const buffer = pdfBytes.buffer as ArrayBuffer;
     
     onProgress?.('downloading', 100);
-    return new Blob([buffer], { type: 'application/pdf' });
+    return new Blob([pdfBytes], { type: 'application/pdf' });
   } catch (error) {
     if (error instanceof PdfGenerationError) throw error;
     throw new PdfGenerationError('Failed to capture resume template. Please try again.', 'CAPTURE_FAILED');
@@ -683,7 +682,7 @@ export async function generateOnePagePDF(
 
     const pdfBytes = await pdfDoc.save();
     onProgress?.('downloading', 100);
-    return new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
+    return new Blob([pdfBytes], { type: 'application/pdf' });
   } catch (error) {
     if (error instanceof PdfGenerationError) throw error;
     throw new PdfGenerationError('Failed to generate one-page PDF. Please try again.', 'CAPTURE_FAILED');
@@ -770,7 +769,7 @@ export async function generateCoverLetterPDF(
   await addPageFooter(pdfDoc, options);
 
   const pdfBytes = await pdfDoc.save();
-  return new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
+  return new Blob([pdfBytes], { type: 'application/pdf' });
 }
 
 /**

@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Lightbulb, Send, CheckCircle2 } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
-
+import { useAuth } from '@/hooks/useAuth';
 import { getUserId } from '@/lib/supabaseBridge';
 
 let cachedAppVersion: string | null = null;
@@ -29,6 +29,8 @@ interface FeatureRequestDialogProps {
 }
 
 export function FeatureRequestDialog({ open, onOpenChange }: FeatureRequestDialogProps) {
+  const { user } = useAuth();
+  const [email, setEmail] = useState('');
   const [featureTitle, setFeatureTitle] = useState('');
   const [featureDescription, setFeatureDescription] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
@@ -43,20 +45,25 @@ export function FeatureRequestDialog({ open, onOpenChange }: FeatureRequestDialo
     const appVersion = await getAppVersion();
 
     const payload = {
-      feature_title: featureTitle.trim(),
-      feature_description: featureDescription.trim(),
-      user_id: userId || null,
-      user_email: userEmail,
-      user_agent: navigator.userAgent,
-      app_version: appVersion,
-      route: window.location.pathname,
+      type: 'feature',
+      email: user?.email || email.trim(),
+      subject: `[Feature] ${featureTitle.trim()}`,
+      message: featureDescription.trim(),
+      metadata: {
+        feature_title: featureTitle.trim(),
+        user_id: userId || null,
+        user_agent: navigator.userAgent,
+        app_version: appVersion,
+        route: window.location.pathname,
+      },
     };
 
     try {
-      const { error } = await edgeFunctions.functions.invoke('send-feature-request', {
+      const { data: res, error } = await edgeFunctions.functions.invoke('send-contact-email', {
         body: payload,
       });
       if (error) throw error;
+      if (res?.error) throw new Error(res.error);
       setStatus('success');
       setTimeout(() => {
         onOpenChange(false);
@@ -113,6 +120,21 @@ export function FeatureRequestDialog({ open, onOpenChange }: FeatureRequestDialo
             </div>
 
             <div className="space-y-4">
+              {!user && (
+                <div>
+                  <label htmlFor="feature-email" className="text-sm font-medium text-foreground mb-1.5 block">
+                    Your Email (to reply to you)
+                  </label>
+                  <Input
+                    id="feature-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
               <div>
                 <label htmlFor="feature-title" className="text-sm font-medium text-foreground mb-1.5 block">
                   Feature title
@@ -148,7 +170,7 @@ export function FeatureRequestDialog({ open, onOpenChange }: FeatureRequestDialo
 
               <Button
                 onClick={handleSend}
-                disabled={status === 'sending' || !featureTitle.trim() || !featureDescription.trim()}
+                disabled={status === 'sending' || !featureTitle.trim() || !featureDescription.trim() || (!user && !email.trim())}
                 className="w-full h-12 active:scale-95 transition-transform"
                 size="lg"
               >

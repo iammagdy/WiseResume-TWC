@@ -7,7 +7,14 @@
  */
 import { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY } from '@/lib/supabaseConstants';
 
+export enum BridgeErrorType {
+  OFFLINE_NETWORK = 'OFFLINE_NETWORK',
+  AUTH_REJECTION = 'AUTH_REJECTION',
+  UNKNOWN = 'UNKNOWN',
+}
+
 interface BridgeError {
+  type: BridgeErrorType;
   code: string;
   message: string;
 }
@@ -60,11 +67,12 @@ export async function exchangeToken(kindeToken: string): Promise<void> {
       if (!res.ok) {
         const text = await res.text();
         console.error('[SupabaseBridge] Token exchange failed:', res.status, text);
+        console.log('[SupabaseBridge] Error path taken: AUTH_REJECTION');
         try {
           const errBody = JSON.parse(text);
-          state.lastError = { code: errBody.code || 'UNKNOWN', message: errBody.message || text };
+          state.lastError = { type: BridgeErrorType.AUTH_REJECTION, code: errBody.code || 'UNKNOWN', message: errBody.message || text };
         } catch {
-          state.lastError = { code: 'UNKNOWN', message: text };
+          state.lastError = { type: BridgeErrorType.AUTH_REJECTION, code: 'UNKNOWN', message: text };
         }
         return;
       }
@@ -78,6 +86,13 @@ export async function exchangeToken(kindeToken: string): Promise<void> {
       console.log('[SupabaseBridge] Token exchanged successfully, userId:', data.userId);
     } catch (err) {
       console.error('[SupabaseBridge] Token exchange error:', err);
+      if (err instanceof TypeError && err.message.includes('fetch')) {
+        console.log('[SupabaseBridge] Error path taken: OFFLINE_NETWORK');
+        state.lastError = { type: BridgeErrorType.OFFLINE_NETWORK, code: 'OFFLINE', message: 'Network disconnected' };
+      } else {
+        console.log('[SupabaseBridge] Error path taken: UNKNOWN');
+        state.lastError = { type: BridgeErrorType.UNKNOWN, code: 'UNKNOWN', message: String(err) };
+      }
     } finally {
       exchangePromise = null;
     }

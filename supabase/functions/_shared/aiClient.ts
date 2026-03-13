@@ -630,6 +630,20 @@ export function toUserError(error: unknown): { status: number; error: string; me
       message: map[error.type] || error.message || 'AI request failed. Please try again.',
     };
   }
+
+  // Explicit mapping for AuthError (or duck-typed auth failures)
+  if (
+    (error instanceof Error && (error.name === 'AuthError' || (error as any).status === 401)) ||
+    (typeof error === 'object' && error !== null && (error as any).status === 401)
+  ) {
+    const msg = error instanceof Error ? error.message : ((error as any).message || 'Unauthorized');
+    return {
+      status: 401,
+      error: 'unauthorized',
+      message: msg,
+    };
+  }
+
   // For non-AI errors, return a safe generic message (don't leak internals)
   console.error('[toUserError] Internal error:', error);
   return {

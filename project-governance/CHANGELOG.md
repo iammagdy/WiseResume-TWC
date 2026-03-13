@@ -4,6 +4,23 @@ Local changelog tracking WiseResume changes.
 
 ## 2026-03-13
 
+### API-BUGFIXES-UX
+- **Summary**: Implemented 6 core fixes and UX improvements (013-api-bugfixes-ux).
+  1) Token-exchange flow inspection and validation context established.
+  2) Forced `currentResumeId` sync after creating/duplicating to prevent "Create a resume first" interstitial bug.
+  3) Differentiated `OFFLINE_NETWORK` vs `AUTH_REJECTION` for the connection error banner in `AppShell`.
+  4) Replaced disabled Deep Analyze text area with a clickable Toast interceptor for better feedback.
+  5) Fixed PDF export BLOB generation (using `Uint8Array` directly) to ensure PDF integrity on all platforms.
+  6) Added glassmorphic `backdrop-blur-md` to Settings/Dialogs/Sheets and adjusted AppShell FAB / layout padding to prevent overlap with `BottomTabBar`.
+- **Files**: `src/lib/supabaseBridge.ts`, `src/hooks/useResumes.ts`, `src/components/editor/JobAnalysisSheet.tsx`, `src/components/layout/AppShell.tsx`, `src/lib/pdfGenerator.ts`, `src/components/ui/dialog.tsx`, `src/components/ui/sheet.tsx`, `src/components/ui/alert-dialog.tsx`
+
+### AI-TEST-COOLDOWN
+- **Summary**: Implemented a per-user 5-minute cooldown for the "Test AI Connection" action when using the built-in WiseResume AI provider.
+  - Backend: Updated `ai-test` edge function to check `ai_usage_logs` for recent tests and return a 429 status with remaining time.
+  - Frontend: Updated `AISettingsSheet.tsx` to handle 429 status, display a countdown timer on the test button, and disable it during the cooldown period.
+  - Scope: Cooldown only applies to "WiseResume AI" provider; "Own API Key" providers are exempt.
+- **Files**: `supabase/functions/ai-test/index.ts`, `src/components/settings/AISettingsSheet.tsx`
+
 ### BACKEND-GATEWAY-OVERHAUL
 - **Summary**: Complete backend overhaul: unified split Supabase architecture, replaced Lovable AI Gateway with Gemini-direct (Wise AI), migrated email from Lovable SDK to Resend, and cleaned codebase of all legacy references.
 - **Phase 1 — Architecture Unification**:

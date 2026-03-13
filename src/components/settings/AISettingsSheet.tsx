@@ -113,6 +113,8 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     // Test connection state
     const [isTesting, setIsTesting] = useState(false);
     const [testResult, setTestResult] = useState<TestResult | null>(null);
+    const [cooldownEndsAt, setCooldownEndsAt] = useState<string | null>(null);
+    const [secondsRemaining, setSecondsRemaining] = useState(0);
 
     // Usage history
     interface UsageLog {
@@ -135,6 +137,55 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       if (!key || key.length < 8) return '••••••••';
       return `${key.slice(0, 4)}...${key.slice(-4)}`;
     };
+
+    const safeProvider = (['wiseresume', 'gemini', 'ollama'] as const).includes(aiProvider as any) 
+      ? aiProvider 
+      : 'wiseresume';
+
+    // Check cooldown status
+    const checkCooldownStatus = async () => {
+      if (safeProvider !== 'wiseresume') {
+        setSecondsRemaining(0);
+        setCooldownEndsAt(null);
+        return;
+      }
+
+      try {
+        const { data, error } = await edgeFunctions.functions.invoke('ai-test', {
+          body: { checkOnly: true }
+        });
+        
+        // Cooldown might be returned as data (if logic allows) or error (if 429)
+        const result = data || (error?.message?.includes('{') ? JSON.parse(error.message.replace(/^Edge function returned \d+: /, '')) : null);
+
+        if (result?.reason === 'cooldown' && result.secondsRemaining > 0) {
+          setSecondsRemaining(result.secondsRemaining);
+          setCooldownEndsAt(result.cooldownEndsAt);
+        } else {
+          setSecondsRemaining(0);
+          setCooldownEndsAt(null);
+        }
+      } catch {
+        // Ignore check failures
+      }
+    };
+
+    // Timer logic
+    useEffect(() => {
+      let interval: number | undefined;
+      if (secondsRemaining > 0) {
+        interval = window.setInterval(() => {
+          setSecondsRemaining((prev) => {
+            if (prev <= 1) {
+              clearInterval(interval);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      }
+      return () => clearInterval(interval);
+    }, [secondsRemaining > 0]);
 
     // Reusable helper to refresh usage history
     const refreshUsageHistory = async () => {
@@ -217,11 +268,11 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
           }
         }
       }).catch(() => {});
-    }, [open]);
 
-    const safeProvider = (['wiseresume', 'gemini', 'ollama'] as const).includes(aiProvider as any) 
-      ? aiProvider 
-      : 'wiseresume';
+      // Initial cooldown check
+      checkCooldownStatus();
+    }, [open, safeProvider]);
+
 
     useEffect(() => {
       if (open) {
@@ -495,12 +546,31 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
         const { data, error } = await edgeFunctions.functions.invoke('ai-test');
 
         if (error) {
+          // Check for cooldown (429)
+          if ((error as any).status === 429 || error.message?.includes('cooldown')) {
+             try {
+               // Extract JSON if it has the "Edge function returned 429: " prefix
+               const jsonText = error.message.replace(/^Edge function returned \d+: /, '');
+               const errData = JSON.parse(jsonText);
+               
+               if (errData.reason === 'cooldown') {
+                 setSecondsRemaining(errData.secondsRemaining);
+                 setCooldownEndsAt(errData.cooldownEndsAt);
+                 haptics.error();
+                 toast.error(errData.message || 'Cooldown active');
+                 return;
+               }
+             } catch (e) {
+               console.error('Failed to parse cooldown error:', e);
+             }
+          }
+
           haptics.error();
           setTestResult({
             status: 'error',
             providerUsed: safeProvider,
             latencyMs: 0,
-            error: 'Failed to reach AI service',
+            error: error.message || 'Failed to reach AI service',
           });
           return;
         }
@@ -516,7 +586,19 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
             response: data.response,
             model: data.model,
           });
+          // After a successful WiseResume AI test, we expect a cooldown
+          if (safeProvider === 'wiseresume') {
+            setSecondsRemaining(300); // Start 5m countdown locally immediately
+          }
         } else {
+          // Handle specific cooldown returned in data if not caught in error
+          if (data?.reason === 'cooldown') {
+            setSecondsRemaining(data.secondsRemaining);
+            setCooldownEndsAt(data.cooldownEndsAt);
+            haptics.error();
+            return;
+          }
+
           haptics.error();
           setTestResult({
             status: 'error',
@@ -998,13 +1080,18 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                 <Button
                   variant="outline"
                   onClick={handleTestConnection}
-                  disabled={isTesting}
+                  disabled={isTesting || (safeProvider === 'wiseresume' && secondsRemaining > 0)}
                   className="w-full h-9 text-sm gap-2"
                 >
                   {isTesting ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
                       Testing...
+                    </>
+                  ) : secondsRemaining > 0 && safeProvider === 'wiseresume' ? (
+                    <>
+                      <Clock className="w-4 h-4" />
+                      Try again in {Math.floor(secondsRemaining / 60)}:{String(secondsRemaining % 60).padStart(2, '0')}
                     </>
                   ) : (
                     <>

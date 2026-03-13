@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { HeartHandshake, Send, CheckCircle2, MapPin, Info, Wrench, AlertTriangle, ToggleLeft, ToggleRight } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
@@ -8,6 +9,7 @@ import { getSupabaseToken, getAuthUserId } from '@/lib/supabaseAuth';
 import { getUserId } from '@/lib/supabaseBridge';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { useAuth } from '@/hooks/useAuth';
 import {
   onBugReport,
   detectScreen,
@@ -82,8 +84,10 @@ function DetectedContextCard({
 // ── Main Dialog ────────────────────────────────────────────────────────────
 
 export function BugReportDialog() {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<BugReportData | null>(null);
+  const [email, setEmail] = useState('');
   const [additionalContext, setAdditionalContext] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [reportMode, setReportMode] = useState<'detected' | 'custom'>('detected');
@@ -139,57 +143,57 @@ export function BugReportDialog() {
       : data.errorMessage;
 
     const payload = {
-      error_message: effectiveMessage,
-      error_stack: (reportMode === 'detected' && recentError?.stack) || data.errorStack || null,
-      component_stack: data.componentStack || null,
-      route: data.route,
-      selected_screen: screenLabel,
-      error_category: categoryInfo.category,
-      action: data.action || null,
-      active_feature: activeFeature || null,
-      recent_errors: data.detectedContext?.recentErrors || null,
-      user_id: userId || null,
-      user_email: userEmail,
-      session_id: sessionId || null,
-      user_agent: navigator.userAgent,
-      app_version: appVersion,
-      additional_context: additionalContext.trim() || null,
-      timestamp: new Date().toISOString(),
+      type: 'bug',
+      email: user?.email || email.trim(),
+      subject: `[Bug] ${screenLabel} · ${categoryInfo.category}`,
+      message: effectiveMessage + (additionalContext.trim() ? `\n\nUser Note: ${additionalContext.trim()}` : ''),
+      metadata: {
+        error_stack: (reportMode === 'detected' && recentError?.stack) || data.errorStack || null,
+        component_stack: data.componentStack || null,
+        route: data.route,
+        selected_screen: screenLabel,
+        error_category: categoryInfo.category,
+        action: data.action || null,
+        active_feature: activeFeature || null,
+        recent_errors: data.detectedContext?.recentErrors || null,
+        user_id: userId || null,
+        user_agent: navigator.userAgent,
+        app_version: appVersion,
+        timestamp: new Date().toISOString(),
+      },
     };
 
     try {
-      // Primary path: edge function
-      const { error } = await edgeFunctions.functions.invoke('send-bug-report', {
+      // Primary path: new centralized edge function
+      const { data: res, error } = await edgeFunctions.functions.invoke('send-contact-email', {
         body: payload,
       });
       if (error) throw error;
+      if (res?.error) throw new Error(res.error);
+      
       activityTracker.clearErrors();
       setStatus('success');
       setTimeout(() => setOpen(false), 2000);
-    } catch {
+    } catch (err) {
+      console.error('Email send failed:', err);
       // Fallback: direct DB insert (works even if function deployment drifts)
-      if (userId) {
-        try {
-          const { error: dbErr } = await supabase.from('bug_reports').insert({
-            user_id: userId,
-            user_email: userEmail,
-            error_message: effectiveMessage.slice(0, 2000),
-            error_stack: payload.error_stack?.slice(0, 5000) || null,
-            component_stack: payload.component_stack?.slice(0, 5000) || null,
-            route: payload.route || null,
-            session_id: payload.session_id || null,
-            user_agent: payload.user_agent?.slice(0, 500) || null,
-            additional_context: payload.additional_context?.slice(0, 1000) || null,
-            app_version: appVersion,
-            active_feature: payload.active_feature || null,
-            recent_errors: payload.recent_errors || null,
-          });
-          if (dbErr) throw dbErr;
-          activityTracker.clearErrors();
-          setStatus('success');
-          setTimeout(() => setOpen(false), 2000);
-          return;
-        } catch { /* both paths failed */ }
+      try {
+        const { error: dbErr } = await supabase.from('contact_requests').insert({
+          type: 'bug',
+          email: payload.email,
+          subject: payload.subject,
+          message: payload.message,
+          metadata: payload.metadata,
+          user_id: userId || null,
+          ip_address: 'client-side-fallback',
+        });
+        if (dbErr) throw dbErr;
+        activityTracker.clearErrors();
+        setStatus('success');
+        setTimeout(() => setOpen(false), 2000);
+        return;
+      } catch (fallbackErr) {
+        console.error('Fallback DB insert failed:', fallbackErr);
       }
       setStatus('error');
     }
@@ -255,6 +259,23 @@ export function BugReportDialog() {
                 </p>
               )}
 
+              {!user && (
+                <div>
+                  <label htmlFor="bug-email" className="text-sm font-medium text-foreground mb-1.5 block">
+                    Your Email (to reply to you)
+                  </label>
+                  <Input
+                    id="bug-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="text-sm"
+                    required
+                  />
+                </div>
+              )}
+
               <div>
                 <label htmlFor="bug-context" className="text-sm font-medium text-foreground mb-1.5 block">
                   {reportMode === 'detected' && recentError
@@ -281,7 +302,7 @@ export function BugReportDialog() {
 
               <Button
                 onClick={handleSend}
-                disabled={status === 'sending'}
+                disabled={status === 'sending' || (!user && !email.trim())}
                 className="w-full h-12 active:scale-95 transition-transform"
                 size="lg"
               >
