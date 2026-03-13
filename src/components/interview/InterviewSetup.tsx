@@ -27,8 +27,11 @@ interface InterviewSetupProps {
 
 export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAvailable, voiceGender, onVoiceGenderChange, onStart, resumeData }: InterviewSetupProps) {
   const [mode, setMode] = useState<InterviewMode>(() => {
-    const saved = localStorage.getItem('wiseresume_interview_mode');
-    return (saved === 'general' || saved === 'job-targeted' || saved === 'quick-practice') ? saved : 'general';
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('wiseresume_interview_mode');
+      return (saved === 'general' || saved === 'job-targeted' || saved === 'quick-practice') ? saved : 'general';
+    }
+    return 'general';
   });
   const micResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [jobDescription, setJobDescription] = useState('');
@@ -435,7 +438,7 @@ export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAv
       <QuestionBankSheet
         open={showQuestionBank}
         onOpenChange={setShowQuestionBank}
-        jobTitle={jobDescription ? 'Target Role' : undefined}
+        jobTitle={jobDescription ? (jobDescription.split(/[\n\r]/)[0].substring(0, 50).trim() || 'Target Role') : undefined}
         jobDescription={jobDescription}
         resumeSummary={resumeData?.summary}
         onPracticeQuestion={(q) => {

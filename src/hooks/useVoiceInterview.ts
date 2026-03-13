@@ -38,7 +38,7 @@ export interface RoleAnalysis {
 const SILENCE_TIMEOUT_MS = 5000;
 const MAX_TEXT_LENGTH = 2000;
 const COUNTDOWN_SECONDS = 2;
-const NO_SPEECH_TIMEOUT_MS = 15000;
+const NO_SPEECH_TIMEOUT_MS = 8000;
 
 const FEMALE_VOICE_KEYWORDS = ['female', 'samantha', 'zira', 'karen', 'fiona', 'moira', 'tessa', 'victoria', 'google uk english female', 'google us english female', 'microsoft zira'];
 const MALE_VOICE_KEYWORDS = ['male', 'daniel', 'david', 'james', 'alex', 'fred', 'google uk english male', 'google us english male', 'microsoft david'];
@@ -70,8 +70,18 @@ function getAudioContext(): AudioContext | null {
   if (!sharedAudioContext) {
     const ContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
     if (ContextClass) sharedAudioContext = new ContextClass();
+  } else if (sharedAudioContext.state === 'closed') {
+    const ContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (ContextClass) sharedAudioContext = new ContextClass();
   }
   return sharedAudioContext;
+}
+
+export function cleanupAudioContext() {
+  if (sharedAudioContext && sharedAudioContext.state !== 'closed') {
+    sharedAudioContext.close().catch(() => {});
+  }
+  sharedAudioContext = null;
 }
 
 function ensureAudioReady(ctx: AudioContext): Promise<AudioContext> {
@@ -178,8 +188,8 @@ function parseScoreBlock(text: string): { cleanText: string; score: AnswerScore 
       score: {
         questionIndex: 0,
         score,
-        tip: '',
-        improvedAnswer: '',
+        tip: 'Keep practicing to improve this answer.',
+        improvedAnswer: 'Try to structure your answer with a clear beginning, middle, and end.',
       },
     };
   }
@@ -227,6 +237,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const usingFallbackRef = useRef(false);
   const quickPracticeRef = useRef(false);
   const noSpeechCountRef = useRef(0);
+  const isSubmittingTextRef = useRef(false);
 
   // Shared transcript handlers
   const handlePartialTranscript = useCallback((text: string) => {
@@ -252,6 +263,8 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       stopListeningRef.current?.();
       return;
     }
+
+    if (isSubmittingTextRef.current) return;
 
     setSilenceDetected(true);
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
@@ -353,6 +366,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       if (noSpeechTimerRef.current) clearTimeout(noSpeechTimerRef.current);
       window.speechSynthesis?.cancel();
+      cleanupAudioContext();
     };
   }, []);
 
@@ -622,10 +636,24 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
 
   const sendTextMessage = useCallback(
     async (text: string) => {
-      if (!text.trim()) return;
+      if (!text.trim() || isSubmittingTextRef.current) return;
+      isSubmittingTextRef.current = true;
+      
+      // Clear STT state so it doesn't fire a duplicate
+      isListeningRef.current = false;
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
+      setSilenceDetected(false);
+      finalTextRef.current = '';
+      setInterimText('');
+      
       addEntry('user', text);
       messagesRef.current.push({ role: 'user', content: text });
       await callAI();
+      
+      isSubmittingTextRef.current = false;
     },
     [addEntry, callAI]
   );
@@ -743,6 +771,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     messagesRef.current = [];
     jobDescriptionRef.current = '';
     finalTextRef.current = '';
+    isSubmittingTextRef.current = false;
   }, [clearSilenceTimer, disconnectCurrentSTT]);
 
   const dismissScore = useCallback(() => {
