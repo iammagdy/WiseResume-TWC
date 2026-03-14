@@ -16,8 +16,8 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
   const [loading, setLoading] = useState(false);
   const [isFallback, setIsFallback] = useState(false);
   const [chatDisabled, setChatDisabled] = useState(false);
+  const [questionCount, setQuestionCount] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const sessionCountRef = useRef(0);
   const MAX_QUESTIONS = 10;
 
   const isLight = pStyle === 'classic-clean';
@@ -40,14 +40,14 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
     if (!q || loading) return;
     const maxAllowed = isFallback ? 5 : MAX_QUESTIONS;
     
-    if (sessionCountRef.current >= maxAllowed) {
+    if (questionCount >= maxAllowed) {
       toast.error(isFallback 
         ? 'Platform credit limit reached (5 questions). Contact the owner directly for more info!' 
         : 'Session limit reached. Refresh to continue.'
       );
       return;
     }
-    sessionCountRef.current += 1;
+    setQuestionCount(c => c + 1);
     const userMsg: ChatMessage = { role: 'user', content: q };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
@@ -82,6 +82,7 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
     } catch {
       toast.error('Could not get a response. Please try again.');
       setMessages(prev => prev.slice(0, -1));
+      setQuestionCount(c => Math.max(0, c - 1)); // refund on failure
     } finally {
       setLoading(false);
     }
@@ -148,14 +149,14 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
                 </p>
                 <div className="flex items-center gap-2">
                   <p className="text-[10px]" style={{ color: mutedColor }}>Powered by portfolio data</p>
-                  {sessionCountRef.current > 0 && (
+                  {questionCount > 0 && (
                     <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" 
                       style={{ 
                         background: `color-mix(in srgb, ${accentColor} 15%, transparent)`, 
                         color: accentColor,
                         border: `1px solid color-mix(in srgb, ${accentColor} 20%, transparent)`
                       }}>
-                      {sessionCountRef.current}/{isFallback ? 5 : MAX_QUESTIONS}
+                      {questionCount}/{isFallback ? 5 : MAX_QUESTIONS}
                     </span>
                   )}
                 </div>

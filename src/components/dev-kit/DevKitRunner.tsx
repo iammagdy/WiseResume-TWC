@@ -397,7 +397,7 @@ export function DevKitRunner() {
               </span>
               {smokeSummary.failed === 0 && (
                 <p className="text-xs text-muted-foreground font-normal mt-0.5">
-                  ✉️ Check your email at health-check@wiseresume.com to confirm the Email Service Test delivery.
+                  ✉️ Check your email at contact@thewise.cloud to confirm the Email Service Test delivery.
                 </p>
               )}
             </div>

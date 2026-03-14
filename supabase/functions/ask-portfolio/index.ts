@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { callAI } from "../_shared/aiClient.ts";
-import { getUserKeyFromDB } from "../_shared/aiClient.ts";
+import { callAI, getUserKeyFromDB } from "../_shared/aiClient.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
@@ -126,7 +125,7 @@ ${context}`;
       messages,
       temperature: 0.3,
       maxTokens: 300,
-      userGeminiKey: ownerKey,
+      ...(ownerKey ? { userGeminiKey: ownerKey } : {}),
       userId: ownerRow.user_id,
     });
 
