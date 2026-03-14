@@ -19,10 +19,21 @@ interface State {
   reportOpen: boolean;
   reportContext: string;
   reportStatus: 'idle' | 'sending' | 'sent' | 'error';
+  isRetrying: boolean;
 }
+
+const MAX_RETRIES = 2;
+const TRANSIENT_ERRORS = [
+  'Failed to fetch',
+  'dynamically imported module',
+  'Loading chunk',
+  'Load failed'
+];
 
 export class ErrorBoundary extends Component<Props, State> {
   private countdownTimer: ReturnType<typeof setInterval> | null = null;
+  private retryTimer: number | null = null;
+
   public state: State = {
     hasError: false,
     error: null,
@@ -32,28 +43,70 @@ export class ErrorBoundary extends Component<Props, State> {
     reportOpen: false,
     reportContext: '',
     reportStatus: 'idle',
+    isRetrying: false,
   };
 
   public static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, error, errorInfo: null };
   }
 
+  private logError(error: Error, errorInfo: ErrorInfo) {
+    console.error('[ErrorBoundary] caught an error:', error, errorInfo);
+  }
+
+  private async clearSiteData() {
+    console.log('[ErrorBoundary] Aggressively clearing site data to resolve chunk error...');
+    try {
+      // 1. Unregister all service workers
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const registration of registrations) {
+          await registration.unregister();
+        }
+      }
+
+      // 2. Clear all named caches
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        for (const name of cacheNames) {
+          await caches.delete(name);
+        }
+      }
+
+      console.log('[ErrorBoundary] Site data cleared. Reloading...');
+    } catch (err) {
+      console.error('[ErrorBoundary] Failed to clear site data:', err);
+    } finally {
+      window.location.reload();
+    }
+  }
+
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    if (this.state.isRetrying) return;
+
+    this.logError(error, errorInfo);
     this.setState({ errorInfo });
 
-    // Auto-retry up to 2 times for transient network/chunk errors
-    if (this.state.retryCount < 2) {
-      const msg = error?.message || '';
-      const isTransient = msg.includes('Failed to fetch') ||
-        msg.includes('dynamically imported module') ||
-        msg.includes('Loading chunk') ||
-        msg.includes('Load failed');
-      if (isTransient) {
-        setTimeout(() => {
-          this.setState({ hasError: false, error: null, errorInfo: null, retryCount: this.state.retryCount + 1 });
-        }, 1500);
-      }
+    // Specific check for ChunkLoadError (Vite/Webpack)
+    const isChunkError = 
+      error.name === 'ChunkLoadError' || 
+      /Loading chunk .* failed/.test(error.message) ||
+      /Failed to fetch dynamically imported module/.test(error.message);
+
+    if (isChunkError) {
+      console.error('[ErrorBoundary] Chunk loading failed. This is likely a stale PWA/deployment issue.');
+      this.setState({ isRetrying: true, retryCount: this.state.retryCount + 1 });
+      this.clearSiteData();
+      return;
+    }
+
+    // Generic retry logic for other transient errors
+    const isTransient = TRANSIENT_ERRORS.some(msg => error.message?.includes(msg));
+    if (isTransient && this.state.retryCount < MAX_RETRIES) {
+      this.setState({ isRetrying: true, retryCount: this.state.retryCount + 1 });
+      this.retryTimer = window.setTimeout(() => {
+        window.location.reload();
+      }, 500);
     }
   }
 

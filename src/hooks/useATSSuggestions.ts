@@ -1,4 +1,5 @@
 import { useMemo, useCallback, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { ResumeData, SectionId } from '@/types/resume';
 import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { showErrorToast } from '@/lib/errorToast';
@@ -237,7 +238,10 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
   }, []);
 
   const fetchDeepSuggestions = useCallback(async (section: SectionId) => {
-    if (!resume || !jobDescription) return;
+    if (!jobDescription || !jobDescription.trim()) {
+      toast.error('Please add a job description first to use Deep Analyze');
+      return;
+    }
 
     const cacheKey = `${section}-${hashString(jobDescription)}`;
     if (cacheRef.current[cacheKey]) {
@@ -251,11 +255,13 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
     if (!hasCredits) return;
 
     setAnalyzingSections(prev => new Set(prev).add(section));
+    const startTime = Date.now();
     try {
       const currentContent = getSectionContent(resume, section);
       const token = await getSupabaseToken();
       if (!token) throw new Error('Please sign in to use AI features');
 
+      console.log(`[useATSSuggestions] Starting deep analysis for ${section}...`);
       const res = await fetch(`${CLOUD_URL}/functions/v1/enhance-section`, {
         method: 'POST',
         headers: {
@@ -273,9 +279,11 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
 
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
+        console.error(`[useATSSuggestions] Edge Function ${res.status} error:`, errBody);
         throw new Error(errBody?.message || `Edge function returned ${res.status}`);
       }
       const data = await res.json();
+      console.log(`[useATSSuggestions] Deep analysis for ${section} completed in ${Date.now() - startTime}ms`);
 
       // Store full result for apply/discard UI
       const result: DeepResult = {
