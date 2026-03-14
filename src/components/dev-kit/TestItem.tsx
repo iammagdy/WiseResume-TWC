@@ -24,7 +24,7 @@ export function TestItem({ test, result, isExpanded, onRun, onToggleExpand }: Te
   };
 
   return (
-    <div className="rounded-xl border border-border bg-card/50 backdrop-blur-sm p-4 space-y-3 transition-all hover:bg-card/80">
+    <div className="rounded-xl border border-border bg-card/90 dark:bg-card/50 backdrop-blur-sm p-4 space-y-3 transition-all hover:bg-card/100 dark:hover:bg-card/80 shadow-sm hover:shadow-md">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap mb-1">

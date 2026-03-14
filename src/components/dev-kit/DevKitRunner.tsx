@@ -53,9 +53,10 @@ export function DevKitRunner() {
   };
 
   /**
-   * strictInvoke: Helper to enforce US1-FR-DK-002
+   * strictInvoke: Helper to enforce US1-FR-DK-002. Wrapped in useCallback so useMemo
+   * dependency on strictInvoke is stable and doesn't cause infinite re-creation of tests[].
    */
-  const strictInvoke = async (testId: string, fn: () => Promise<any>): Promise<TestResult> => {
+  const strictInvoke = useCallback(async (testId: string, fn: () => Promise<any>): Promise<TestResult> => {
     const start = Date.now();
     try {
       const res = await fn();
@@ -64,7 +65,7 @@ export function DevKitRunner() {
       // Check if it's a Supabase edge function response
       if (res && typeof res === 'object' && ('data' in res || 'error' in res)) {
         const { data, error } = res;
-        
+
         // Strict Error: Edge function returned an error object
         if (error) {
           const status = (error as any).status || 500;
@@ -100,7 +101,7 @@ export function DevKitRunner() {
         summary: `Execution Error: ${err.message || 'Unknown'}`,
       };
     }
-  };
+  }, []);
 
   const runTest = useCallback(async (test: TestDef) => {
     setResult(test.id, { status: 'running' });
@@ -131,24 +132,20 @@ export function DevKitRunner() {
         return { bridgeReady: isReady(), userId: getUserId(), tokenPresent: !!getToken() };
       }),
     },
-    // === EMAIL === (T006) — FR-DK-003: All 3 contact types tested independently
     {
-      id: 'email-health-contact', label: 'Email: Contact Us', description: 'Smoke → send-contact-email (type: contact)', section: 'email',
-      run: () => strictInvoke('email-health-contact', () => edgeFunctions.functions.invoke('send-contact-email', {
-        body: { type: 'contact', email: 'health-check@wiseresume.com', subject: '[HC] Contact', message: 'Dev Kit smoke test.', metadata: { source: 'dev-kit' } }
-      })),
+      id: 'who-am-i', label: 'Who am I?', description: 'Call /me edge function', section: 'auth',
+      run: () => strictInvoke('who-am-i', () => edgeFunctions.functions.invoke('me')),
     },
+    // === EMAIL === — Single consolidated test to conserve the 3,000/month email quota
     {
-      id: 'email-health-bug', label: 'Email: Bug Report', description: 'Smoke → send-contact-email (type: bug)', section: 'email',
-      run: () => strictInvoke('email-health-bug', () => edgeFunctions.functions.invoke('send-contact-email', {
-        body: { type: 'bug', email: 'health-check@wiseresume.com', subject: '[HC] Bug', message: 'Dev Kit smoke test.', metadata: { source: 'dev-kit' } }
-      })),
-    },
-    {
-      id: 'email-health-feature', label: 'Email: Feature Request', description: 'Smoke → send-contact-email (type: feature)', section: 'email',
-      run: () => strictInvoke('email-health-feature', () => edgeFunctions.functions.invoke('send-contact-email', {
-        body: { type: 'feature', email: 'health-check@wiseresume.com', subject: '[HC] Feature', message: 'Dev Kit smoke test.', metadata: { source: 'dev-kit' } }
-      })),
+      id: 'email-service', label: 'Email Service Test', description: 'Sends one real email via send-contact-email to verify the entire email pipeline end-to-end.', section: 'email',
+      run: () => strictInvoke('email-service', async () => {
+        const res = await edgeFunctions.functions.invoke('send-contact-email', {
+          body: { type: 'contact', email: 'contact@thewise.cloud', subject: '[HC] Email Service Test', message: 'Dev Kit smoke test — email pipeline verification.', metadata: { source: 'dev-kit' } }
+        });
+        if (res.error) throw new Error((res.error as any).message || 'Email function error');
+        return { ...res.data, _hint: '✉️ Check your email at contact@thewise.cloud to verify delivery.' };
+      }),
     },
     // === AI ===
     {
@@ -158,10 +155,6 @@ export function DevKitRunner() {
     {
       id: 'agentic-chat', label: 'Agentic Chat', description: 'Call agentic-chat edge function', section: 'ai',
       run: () => strictInvoke('agentic-chat', () => edgeFunctions.functions.invoke('agentic-chat', { body: { message: 'What can you help me with?', conversationHistory: [], currentResume: null } })),
-    },
-    {
-      id: 'who-am-i', label: 'Who am I?', description: 'Call /me edge function', section: 'auth',
-      run: () => strictInvoke('who-am-i', () => edgeFunctions.functions.invoke('me')),
     },
     // === ROUTING ===
     {
@@ -182,8 +175,8 @@ export function DevKitRunner() {
     },
     {
       id: 'ui-readability-instruction', label: 'UI Readability Check', description: 'Manual instruction for verifying section headers', section: 'settings',
-      run: async () => ({ 
-        status: 'success', 
+      run: async () => ({
+        status: 'success' as const,
         summary: 'MANUAL ACTION: Go to Settings -> Account/Security. Verify headers are inside cards & readable against cloud background.',
         data: { instruction: 'Headers should have backdrop-blur and translucent backgrounds.' }
       }),
@@ -199,7 +192,7 @@ export function DevKitRunner() {
         return data;
       }),
     },
-    // === AI ===
+    // === AI (continued) ===
     {
       id: 'enhance-section', label: 'Enhance Section', description: 'Call enhance-section edge function', section: 'ai',
       run: () => strictInvoke('enhance-section', async () => edgeFunctions.functions.invoke('enhance-section', { body: { section: 'summary', action: 'improve', currentContent: MINIMAL_RESUME.summary, context: { resume: MINIMAL_RESUME } } })),
@@ -234,7 +227,7 @@ export function DevKitRunner() {
     },
     // === USAGE ===
     // U3: Production UI queries usage_events directly via Supabase client (no edge function wraps it).
-    // This Dev Kit test is intentionally a direct DB call — same path as the real feature. Not a false-positive risk.
+    // This Dev Kit test is intentionally a direct DB call — same path as the real feature.
     {
       id: 'load-usage-events', label: 'Usage Events Health', description: 'Query last 10 events from real table', section: 'usage',
       run: () => strictInvoke('load-usage-events', async () => {
@@ -243,22 +236,23 @@ export function DevKitRunner() {
         return data;
       }),
     },
-    // More tests can be ported here...
   ], [auth, strictInvoke]);
 
   const runAllInSection = useCallback(async (sectionId: SectionId) => {
     const sectionTests = tests.filter(t => t.section === sectionId);
+    // Auto-expand section when running
+    setCollapsed(prev => ({ ...prev, [sectionId]: false }));
     setSectionRunning(prev => ({ ...prev, [sectionId]: true }));
     let passed = 0;
     let failed = 0;
-    
-    // Run sequentially per section for clarity
+
+    // Run sequentially per section
     for (const test of sectionTests) {
       const status = await runTest(test);
       if (status === 'success') passed++;
       else failed++;
     }
-    
+
     setSectionSummary(prev => ({ ...prev, [sectionId]: { passed, failed } }));
     setSectionRunning(prev => ({ ...prev, [sectionId]: false }));
   }, [tests, runTest]);
@@ -266,22 +260,45 @@ export function DevKitRunner() {
   const runSmoke = useCallback(async () => {
     setGlobalRunning(true);
     setSmokeSummary(null);
-    // FR-DK-008: AI + Email (all 3) + Usage Events + Auth/Storage baseline
-    const criticalIds = [
-      'auth-state', 'token-exchange', 'dashboard-route',                     // Auth & Storage
-      'email-health-contact', 'email-health-bug', 'email-health-feature',    // Email – all 3 types
-      'tailor-resume', 'agentic-chat',                                        // AI
-      'load-usage-events',                                                    // Usage
-    ];
-    const smokeTests = tests.filter(t => criticalIds.includes(t.id));
-    // Run in parallel; collect pass/fail for FR-DK-011 summary
-    const statuses = await Promise.all(
-      smokeTests.map(async t => ({ id: t.id, status: await runTest(t) }))
-    );
-    const failedIds = statuses.filter(s => s.status !== 'success').map(s => s.id);
-    setSmokeSummary({ passed: statuses.length - failedIds.length, failed: failedIds.length, failedIds });
+
+    // Group EVERY test by its section ID
+    const bySectionId: Record<string, TestDef[]> = {};
+    for (const test of tests) {
+      if (!bySectionId[test.section]) bySectionId[test.section] = [];
+      bySectionId[test.section].push(test);
+    }
+
+    const allStatuses: { id: string; status: string }[] = [];
+
+    // Walk through SECTIONS in order to reveal them progressively
+    for (const section of SECTIONS) {
+      const sectionTests = bySectionId[section.id];
+      if (!sectionTests || sectionTests.length === 0) continue;
+
+      // Reveal & expand this section as we start it
+      setCollapsed(prev => ({ ...prev, [section.id]: false }));
+      setSectionRunning(prev => ({ ...prev, [section.id]: true }));
+
+      // Run every test in this section one by one
+      let passed = 0;
+      let failed = 0;
+      for (const test of sectionTests) {
+        const status = await runTest(test);
+        allStatuses.push({ id: test.id, status });
+        if (status === 'success') passed++;
+        else failed++;
+        // Add a micro-delay to make the UI feel responsive
+        await new Promise(r => setTimeout(r, 50));
+      }
+
+      setSectionSummary(prev => ({ ...prev, [section.id]: { passed, failed } }));
+      setSectionRunning(prev => ({ ...prev, [section.id]: false }));
+    }
+
+    const failedIds = allStatuses.filter(s => s.status !== 'success').map(s => s.id);
+    setSmokeSummary({ passed: allStatuses.length - failedIds.length, failed: failedIds.length, failedIds });
     setGlobalRunning(false);
-  }, [tests, runTest]);
+  }, [tests, runTest, results]);
 
   const renderSection = (section: typeof SECTIONS[number]) => {
     const sectionTests = tests.filter(t => t.section === section.id);
@@ -310,11 +327,7 @@ export function DevKitRunner() {
             size="sm"
             variant="ghost"
             disabled={running || globalRunning}
-            onClick={() => {
-              // Auto-expand when running
-              setCollapsed(prev => ({ ...prev, [section.id]: false }));
-              runAllInSection(section.id);
-            }}
+            onClick={() => runAllInSection(section.id)}
             className="hover:bg-primary/10 hover:text-primary transition-colors h-8 flex-shrink-0 ml-2"
           >
             {running ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <PlayCircle className="w-3.5 h-3.5 mr-1.5" />}
@@ -342,12 +355,12 @@ export function DevKitRunner() {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Sticky toolbar + FR-DK-011 smoke summary banner */}
-      <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/50">
+      <div className="sticky top-0 z-30 bg-background/98 dark:bg-background/80 backdrop-blur-md border-b border-border/50">
         <div className="flex items-center justify-between py-4 px-1">
           <div className="flex items-center gap-3">
-            <Button 
-              onClick={runSmoke} 
-              disabled={globalRunning} 
+            <Button
+              onClick={runSmoke}
+              disabled={globalRunning}
               className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 transition-all active:scale-95"
             >
               {globalRunning ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <PlayCircle className="w-4 h-4 mr-2" />}
@@ -357,7 +370,7 @@ export function DevKitRunner() {
               <Trash2 className="w-4 h-4 mr-2" /> Clear All
             </Button>
           </div>
-          
+
           {globalRunning && (
             <div className="flex items-center gap-2 text-primary font-medium text-sm">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -375,12 +388,19 @@ export function DevKitRunner() {
               ? <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
               : <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
             }
-            <span>
-              {smokeSummary.failed === 0
-                ? `✅ All ${smokeSummary.passed} smoke checks passed`
-                : `❌ ${smokeSummary.failed} failed: ${smokeSummary.failedIds.join(', ')}`
-              }
-            </span>
+            <div>
+              <span>
+                {smokeSummary.failed === 0
+                  ? `✅ All ${smokeSummary.passed} smoke checks passed`
+                  : `❌ ${smokeSummary.failed} failed: ${smokeSummary.failedIds.join(', ')}`
+                }
+              </span>
+              {smokeSummary.failed === 0 && (
+                <p className="text-xs text-muted-foreground font-normal mt-0.5">
+                  ✉️ Check your email at health-check@wiseresume.com to confirm the Email Service Test delivery.
+                </p>
+              )}
+            </div>
           </div>
         )}
       </div>

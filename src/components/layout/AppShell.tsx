@@ -15,8 +15,9 @@ import { cn } from '@/lib/utils';
 import { getPageTitle } from '@/lib/pageTitles';
 import { shouldExitOnBack } from '@/lib/navigation';
 import { getLastError, clearLastError } from '@/lib/supabaseBridge';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
 
-const AgenticChatSheet = lazy(() => import('@/components/editor/AgenticChatSheet').then(m => ({ default: m.AgenticChatSheet })));
+const AgenticChatSheet = lazyWithRetry(() => import('@/components/editor/AgenticChatSheet').then(m => ({ default: m.AgenticChatSheet })));
 
 
 // Routes that show bottom nav

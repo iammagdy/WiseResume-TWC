@@ -72,6 +72,7 @@
       if (r) { sessionStorage.removeItem('spa-redirect'); history.replaceState(null, '', r); }
     })();
   </script>
+  <!-- Global Theme Script -->
   <script>
     (function () {
       var t = 'dark';
@@ -84,12 +85,13 @@
         ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
         : t;
       document.documentElement.classList.add(resolved);
+      
+      // Also set a temporary data attribute for the splash screen to use
+      document.documentElement.setAttribute('data-initial-theme', resolved);
     })();
   </script>
 
   <!-- Open Graph -->
-  
-  
   <meta property="og:type" content="website" />
   <meta property="og:image" content="/favicon.png">
 
@@ -99,14 +101,16 @@
   <meta name="twitter:image" content="/favicon.png">
   <meta property="og:title" content="Wiseresume AI - AI Resume Editor">
   <meta name="twitter:title" content="Wiseresume AI - AI Resume Editor">
-  <meta property="og:description" content="AI-powered resume editor with job match scoring, gap analysis, and ATS-friendly templates. Optimize your resume for any job.">
-  <meta name="twitter:description" content="AI-powered resume editor with job match scoring, gap analysis, and ATS-friendly templates. Optimize your resume for any job.">
+  <meta property="og:description"
+    content="AI-powered resume editor with job match scoring, gap analysis, and ATS-friendly templates. Optimize your resume for any job.">
+  <meta name="twitter:description"
+    content="AI-powered resume editor with job match scoring, gap analysis, and ATS-friendly templates. Optimize your resume for any job.">
 </head>
 
 <body>
   <div id="root">
-    <div
-      style="position:fixed;inset:0;background:#0a0a14;display:flex;align-items:center;justify-content:center;overflow:hidden;z-index:50;">
+    <div id="splash-screen"
+      style="position:fixed;inset:0;background:#0a0a14;display:flex;align-items:center;justify-content:center;overflow:hidden;z-index:9999;transition: background-color 0.3s ease;">
       <div style="display:flex;flex-direction:column;align-items:center;gap:24px;">
         <!-- Spinner container 144px -->
         <div style="position:relative;width:144px;height:144px;display:flex;align-items:center;justify-content:center;">
@@ -129,10 +133,10 @@
           <!-- Logo -->
           <div
             style="position:relative;display:flex;align-items:center;justify-content:center;animation:glow 1.6s ease-in-out infinite;">
-            <div style="position:absolute;width:56px;height:56px;border-radius:50%;background:rgba(220,38,38,0.15);">
+            <div style="position:absolute;width:64px;height:64px;border-radius:50%;background:rgba(220,38,38,0.15);">
             </div>
-            <img src="/favicon.png" alt="" width="40" height="40"
-              style="position:relative;opacity:0;transition:opacity 0.2s ease-in;filter:drop-shadow(0 0 24px rgba(220,38,38,0.7));border-radius:12px;"
+            <img id="splash-logo" src="/favicon.png" alt="" width="56" height="56"
+              style="position:relative;opacity:0;transition:opacity 0.2s ease-in;filter:drop-shadow(0 0 24px rgba(220,38,38,0.4));border-radius:14px;"
               onload="this.style.opacity='1'" />
           </div>
         </div>
@@ -141,6 +145,25 @@
           style="font-family:'Space Grotesk',system-ui,sans-serif;font-size:14px;font-weight:500;color:rgba(255,255,255,0.5);animation:shimmer 1.8s ease-in-out infinite;">Loading...</span>
       </div>
     </div>
+    <script>
+      (function () {
+        var screen = document.getElementById('splash-screen');
+        var logo = document.getElementById('splash-logo');
+        var theme = document.documentElement.getAttribute('data-initial-theme') || 'dark';
+
+        if (screen) {
+          screen.style.background = theme === 'dark' ? '#0a0a14' : '#ffffff';
+          // Update loading text color for light mode
+          var text = screen.querySelector('span');
+          if (text && theme === 'light') {
+            text.style.color = 'rgba(0,0,0,0.4)';
+          }
+        }
+        if (logo) {
+          logo.src = theme === 'dark' ? '/logo-dark.png' : '/logo-light.png';
+        }
+      })();
+    </script>
     <style>
       @keyframes sp1 {
         to {

@@ -95,8 +95,28 @@ export class ErrorBoundary extends Component<Props, State> {
 
     if (isChunkError) {
       console.error('[ErrorBoundary] Chunk loading failed. This is likely a stale PWA/deployment issue.');
-      this.setState({ isRetrying: true, retryCount: this.state.retryCount + 1 });
-      this.clearSiteData();
+      
+      // Prevent infinite reload loops using sessionStorage
+      const now = Date.now();
+      const lastRetry = Number(sessionStorage.getItem('wiseresume-chunk-retry-time') || 0);
+      const retryCount = Number(sessionStorage.getItem('wiseresume-chunk-retry-count') || 0);
+      
+      // If we retried more than 3 times in the last 30 seconds, don't auto-reload again
+      if (retryCount >= 3 && (now - lastRetry) < 30000) {
+        console.warn('[ErrorBoundary] Too many chunk retries. Stopping auto-reload.');
+        this.setState({ hasError: true });
+        return;
+      }
+
+      // Track retry
+      sessionStorage.setItem('wiseresume-chunk-retry-time', String(now));
+      sessionStorage.setItem('wiseresume-chunk-retry-count', String(retryCount + 1));
+
+      this.setState({ isRetrying: true });
+      
+      // Show countdown then clear and reload
+      this.startCountdown();
+      setTimeout(() => this.clearSiteData(), 5000);
       return;
     }
 

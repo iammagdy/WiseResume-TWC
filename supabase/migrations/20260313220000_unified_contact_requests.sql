@@ -33,6 +33,6 @@ BEGIN
     WHERE ip_address = client_ip
     AND created_at > now() - interval '1 hour';
     
-    RETURN request_count < 3;
+    RETURN request_count < 10;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

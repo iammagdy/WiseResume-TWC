@@ -100,7 +100,7 @@ export function DeveloperCreditCard({
                 <div className="flex flex-1 flex-col min-w-0">
                   <motion.div variants={itemVariants} className="mb-2">
                     <h3 className="dev-name text-3xl">{name}</h3>
-                    <p className="dev-title text-slate-50">{title}</p>
+                    <p className="dev-title">{title}</p>
                   </motion.div>
 
                   <motion.div variants={itemVariants}>
@@ -147,7 +147,7 @@ export function DeveloperCreditCard({
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => {e.preventDefault();handleWebsiteClick();}}
-                  className="dev-website-link text-center text-base ml-[5px] mb-[2px] mt-0 pt-[2px] text-slate-50"
+                  className="dev-website-link text-center text-base ml-[5px] mb-[2px] mt-0 pt-[2px]"
                   aria-label={`Visit ${new URL(websiteUrl).hostname.replace('www.', '')}`}>
                   
                     <ExternalLink className="w-3 h-3 flex-shrink-0" />

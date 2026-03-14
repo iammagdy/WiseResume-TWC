@@ -2,6 +2,40 @@
 
 Local changelog tracking WiseResume changes.
 
+## 2026-03-14
+
+### DEV-KIT-SECURITY-UI
+- **Summary**: Secured the Developer Kit by moving password verification server-side, increased email rate limits for robustness, and overhauled the UI for better contrast.
+- **Security**: Deleted hardcoded frontend password and implemented `verify-dev-kit` Edge Function.
+- **Reliability**: Increased `check_email_rate_limit` (3 → 10 per hour) to accommodate full Dev Kit smoke tests.
+- **UI/UX**: Replaced problematic translucent `secondary` button variant with solid accessible background. Increased Dev Kit card and header opacity.
+- **Files**: `src/pages/DevToolsPage.tsx`, `src/components/ui/button.tsx`, `src/components/dev-kit/TestItem.tsx`, `src/components/dev-kit/DevKitRunner.tsx`, `supabase/functions/verify-dev-kit/index.ts`, `supabase/migrations/20260313220000_unified_contact_requests.sql`
+
+### PORTFOLIO-CHAT-PERSISTENCE
+- **Summary**: Fixed the "disappearing chat" issue on public portfolios by implementing logic for fallbacks and message limits.
+- **Logic**: Updated `ask-portfolio` Edge Function to return `isFallback: true` instead of disabling chat when owner BYOK is missing.
+- **UX**: Implemented a 5-message visitor limit with a visible `N/5` counter for fallback sessions.
+- **Resilience**: Removed aggressive "self-hide" logic in `ChatWidget`. The widget now stays visible and provides helpful feedback/errors.
+- **Files**: `src/components/portfolio/public/ChatWidget.tsx`, `supabase/functions/ask-portfolio/index.ts`
+
+### DOMAIN-STANDARDIZATION
+- **Summary**: Global replacement of legacy domains with official ones across all layers.
+- **Domains**: Replaced `wiseresume.com`, `wiseresume.mcdisover.com`, and `wiseresume.lovable.app` references with `thewise.cloud` and `resume.thewise.cloud`.
+- **Integrations**: Updated Dev Kit smoke tests to use `contact@thewise.cloud`.
+- **Files**: `src/components/dev-kit/DevKitRunner.tsx`, `src/lib/portfolioUrl.ts`, `supabase/functions/_shared/cors.ts`, Global regex replace.
+
+### UI-READABILITY-FIXES
+- **Summary**: Improved theme-awareness and readability for core components.
+- **Developer Card**: Redesigned `DeveloperCreditCard` with theme-responsive backgrounds and glassmorphism. Fixed hardcoded dark text/backgrounds that broke light theme visibility.
+- **Files**: `src/components/settings/DeveloperCreditCard.tsx`, `src/components/settings/DeveloperCreditCard.css`
+
+### THEME-AWARE-BRANDING
+- **Summary**: Standardized app branding with theme-aware assets and dynamic splash screen.
+- **Branding**: Implemented `Light.webp` and `Dark.webp` as primary logo sources.
+- **UX**: Added dynamic theme-aware splash screen in `index.html` to prevent white-flash on load.
+- **Assets**: Regenerated PWA icons and favicons using official branding. Removed all legacy `wise-ai-logo` assets.
+- **Files**: `index.html`, `src/hooks/useThemeLogo.ts`, `src/components/brand/AppIcon.tsx`, `src/components/layout/AppShell.tsx`
+
 ## 2026-03-13
 
 ### API-BUGFIXES-UX

@@ -14,6 +14,7 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isFallback, setIsFallback] = useState(false);
   const [chatDisabled, setChatDisabled] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const sessionCountRef = useRef(0);
@@ -31,14 +32,19 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
     }
   }, [messages, open, loading]);
 
-  // Hide widget entirely if chat is disabled (owner has no API key)
-  if (chatDisabled) return null;
+  // We no longer hide the widget entirely to avoid jarring "disappearance"
+  // if (chatDisabled) return null;
 
   const send = async (questionOverride?: string) => {
     const q = (questionOverride ?? input).trim();
     if (!q || loading) return;
-    if (sessionCountRef.current >= MAX_QUESTIONS) {
-      toast.error('Session limit reached. Refresh to continue.');
+    const maxAllowed = isFallback ? 5 : MAX_QUESTIONS;
+    
+    if (sessionCountRef.current >= maxAllowed) {
+      toast.error(isFallback 
+        ? 'Platform credit limit reached (5 questions). Contact the owner directly for more info!' 
+        : 'Session limit reached. Refresh to continue.'
+      );
       return;
     }
     sessionCountRef.current += 1;
@@ -58,10 +64,17 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
         }),
       });
       const data = await res.json();
-      // If the owner has no API key, hide the widget
+      
+      if (data.isFallback) {
+        setIsFallback(true);
+      }
+
+      // If the owner has explicitly disabled chat or a permanent error occurs
       if (data.chatDisabled) {
-        setChatDisabled(true);
-        setMessages([]);
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: "I'm sorry, but chat is currently disabled for this portfolio. You can still reach out via the contact buttons!" 
+        }]);
         return;
       }
       if (!res.ok) throw new Error(data.error || 'Request failed');
@@ -133,7 +146,19 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
                 <p className="text-sm font-bold leading-tight truncate" style={{ color: fgColor }}>
                   Ask {profile.fullName?.split(' ')[0] || 'me'} anything
                 </p>
-                <p className="text-[10px]" style={{ color: mutedColor }}>Powered by portfolio data only</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-[10px]" style={{ color: mutedColor }}>Powered by portfolio data</p>
+                  {sessionCountRef.current > 0 && (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" 
+                      style={{ 
+                        background: `color-mix(in srgb, ${accentColor} 15%, transparent)`, 
+                        color: accentColor,
+                        border: `1px solid color-mix(in srgb, ${accentColor} 20%, transparent)`
+                      }}>
+                      {sessionCountRef.current}/{isFallback ? 5 : MAX_QUESTIONS}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 

@@ -608,7 +608,7 @@ serve(async (req) => {
     // Call AI using the shared client
     const temperature = action === 'ats_improve' ? 0.3 : 0.7;
     const aiResponse = await callAIWithRetry({
-      model: 'google/gemini-2.5-flash',
+      model: 'google/gemini-2.0-flash',
       messages: [{ role: 'user', content: prompt }],
       temperature,
       userId,

@@ -47,12 +47,7 @@ serve(async (req) => {
 
     // Fetch the owner's BYOK Gemini key
     const ownerKey = await getUserKeyFromDB(ownerRow.user_id, 'gemini');
-    if (!ownerKey) {
-      // No API key configured — tell the client to hide the widget
-      return new Response(JSON.stringify({ chatDisabled: true, error: "Chat is not available" }), {
-        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const isFallback = !ownerKey;
 
     // Server-side rate limit: max 50 questions per username per day
     const today = new Date().toISOString().slice(0, 10);
@@ -137,7 +132,7 @@ ${context}`;
 
     const answer = aiResponse.content || "I couldn't generate a response. Please try again.";
 
-    return new Response(JSON.stringify({ answer }), {
+    return new Response(JSON.stringify({ answer, isFallback }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
