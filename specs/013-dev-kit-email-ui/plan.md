@@ -1,113 +1,104 @@
-# Implementation Plan: 013-dev-kit-email-ui
+# Implementation Plan: [FEATURE]
 
-**Branch**: `013-dev-kit-email-ui` | **Date**: 2026-03-13 | **Spec**: [specs/013-dev-kit-email-ui/spec.md](specs/013-dev-kit-email-ui/spec.md)
-**Input**: Feature specification from `/specs/013-dev-kit-email-ui/spec.md`
+**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+
+**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
 
 ## Summary
 
-This plan outlines the steps to implement reliable Dev Kit health checks, operational outbound email endpoints, and UI readability improvements for Settings and public pages. The work is split between robust backend edge functions (for email and strict Dev Kit checks) and resilient frontend UI updates (for responsiveness, themes, and Dev Kit action tracking).
+[Extract from feature spec: primary requirement + technical approach from research]
 
 ## Technical Context
 
-**Language/Version**: TypeScript / Node.js
-**Primary Dependencies**: React (Next.js/Vite), Supabase Edge Functions, Resend API
-**Storage**: Supabase PostgreSQL (`usage_events` table)
-**Target Platform**: Web Browsers (Mobile and Desktop)
-**Project Type**: Fullstack Web Application
-**Constraints**: Edge functions must enforce IP rate limiting; Settings headers must be contained in cards; UI colors must contrast against the cloud background.
+<!--
+  ACTION REQUIRED: Replace the content in this section with the technical details
+  for the project. The structure here is presented in advisory capacity to guide
+  the iteration process.
+-->
+
+**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
+**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
+**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
+**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
+**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
+**Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]  
+**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
+**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
+**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
 
 ## Constitution Check
 
-*GATE: Passed. No new architectural libraries or breaking changes introduced. The plan relies on existing tools (Resend, Supabase) and standard React UI layout behaviors.*
+*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-## Phase 0: Outline & Research
-
-No `[NEEDS CLARIFICATION]` markers exist in the specification. 
-Research is considered complete via the prior `speckit.clarify` workflow. IP rate limiting will be implemented within the Supabase boundary.
-
-## Phase 1: Design & Tasks
-
-### Task Breakdown
-
-#### Backend: Edge Functions
-
-- **T001: Implement Email Edge Function**
-  - Create/update an edge function (e.g., `send-contact-email`) to handle Bug Reports, Feature Requests, and Contact Us.
-  - Integrate `RESEND_API_KEY` for dispatching.
-  - Implement IP-based rate limiting (max 3 per IP per hour).
-  - Return clear JSON success (200/202) or standard error codes.
-  - *Maps to: FR-EM-001, FR-EM-002, FR-EM-003*
-
-- **T002: Upgrade Usage Events Endpoint**
-  - Ensure the usage events retrieval mechanism reads directly from the `usage_events` table.
-  - Hardcode limit `N=10` with no pagination for fast health checking.
-  - *Maps to: FR-DK-004*
-
-- **T003: Dev Kit Endpoint Strictness**
-  - Ensure backend endpoints invoked by the Dev Kit use the genuine authentication flows and models, rejecting any "demo" mock data paths.
-  - *Maps to: FR-DK-001, FR-DK-010*
-
-#### Frontend: Dev Kit Upgrades
-
-- **T004: Restructure Dev Kit UI Sections**
-  - Group existing and new tests into logical, collapsible sections ("Core Smoke", "AI & Backend", "Email Tools", etc.).
-  - Default non-critical sections to collapsed (mobile-first).
-  - *Maps to: FR-DK-006, FR-DK-007, FR-RWD-002, FR-RWD-003*
-
-- **T005: Dev Kit Test Validation Logic**
-  - Update the client-side Dev Kit runner to strictly validate HTTP 2xx and absence of the `error` field in JSON payloads before marking "Success".
-  - Build UI to extract and prominently display raw error messages from failed backend requests.
-  - Add "View raw JSON" expansion toggles to all test results.
-  - *Maps to: FR-DK-002, FR-DK-005, FR-DK-009*
-
-- **T006: Integrate Email Tools Health Check**
-  - Add specific Dev Kit entries to trigger the Bug Report, Feature Request, and Contact Us endpoints.
-  - Ensure the test validates the returning JSON.
-  - *Maps to: FR-DK-003, FR-EM-004*
-
-- **T007: Implement "Run All Smoke" Action**
-  - Add a master button to execute a critical path: AI test, Email check, Usage (N=10), and Auth/Storage baseline.
-  - Provide a consolidated summary with surfaced error text on failure.
-  - *Maps to: FR-DK-008, FR-DK-011*
-
-#### Frontend: UI Readability & RWD
-
-- **T008: Settings UI Card Grouping**
-  - Modify the Settings page layouts (Privacy, Appearance, etc.) so that section headers and descriptions are wrapped inside the same visually distinct translucent card elements.
-  - *Maps to: FR-UI-001*
-
-- **T009: Theme Contrast Adjustments**
-  - Implement CSS variables or Tailwind classes to enforce dark text on Light theme and light text on Dark theme over the cloud background.
-  - Verify public pages (About, Terms) for contrast.
-  - *Maps to: FR-UI-002, FR-UI-003, FR-UI-004*
-
-- **T010: RWD Layout Fixes**
-  - Clean up horizontal scrolling and container padding across smartphone sizes for the Dev Kit and Settings pages.
-  - Ensure legibility of labels and JSON payloads on small viewports.
-  - *Maps to: FR-RWD-001, FR-RWD-004*
+[Gates determined based on constitution file]
 
 ## Project Structure
 
-### Documentation
+### Documentation (this feature)
 
 ```text
-specs/013-dev-kit-email-ui/
-├── plan.md              # This file
-├── spec.md              # Requirements and goals
-└── checklists/          # QC checklists
+specs/[###-feature]/
+├── plan.md              # This file (/speckit.plan command output)
+├── research.md          # Phase 0 output (/speckit.plan command)
+├── data-model.md        # Phase 1 output (/speckit.plan command)
+├── quickstart.md        # Phase 1 output (/speckit.plan command)
+├── contracts/           # Phase 1 output (/speckit.plan command)
+└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
 ```
 
-### Source Code Mapping
+### Source Code (repository root)
+<!--
+  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
+  for this feature. Delete unused options and expand the chosen structure with
+  real paths (e.g., apps/admin, packages/something). The delivered plan must
+  not include Option labels.
+-->
 
 ```text
-supabase/functions/
-├── [email-function]/    # Email sending endpoint with IP rate-limiting (T001)
-
+# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
 src/
-├── components/          
-│   ├── dev-kit/         # Dev kit UI, test running logic, formatting (T004 - T007)
-│   ├── settings/        # Settings cards, headers, contrast fixes (T008 - T010)
-│   └── public/          # Public page theme legibility (T009)
+├── models/
+├── services/
+├── cli/
+└── lib/
+
+tests/
+├── contract/
+├── integration/
+└── unit/
+
+# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
+backend/
+├── src/
+│   ├── models/
+│   ├── services/
+│   └── api/
+└── tests/
+
+frontend/
+├── src/
+│   ├── components/
+│   ├── pages/
+│   └── services/
+└── tests/
+
+# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
+api/
+└── [same as backend above]
+
+ios/ or android/
+└── [platform-specific structure: feature modules, UI flows, platform tests]
 ```
 
-**Structure Decision**: No new global architectural patterns are required; work takes place in the existing Next.js/React folder hierarchy and standard Supabase Edge Functions structure.
+**Structure Decision**: [Document the selected structure and reference the real
+directories captured above]
+
+## Complexity Tracking
+
+> **Fill ONLY if Constitution Check has violations that must be justified**
+
+| Violation | Why Needed | Simpler Alternative Rejected Because |
+|-----------|------------|-------------------------------------|
+| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
+| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
