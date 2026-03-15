@@ -10,23 +10,24 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 ALTER TABLE public.resumes ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT false;
 ALTER TABLE public.resumes ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 
--- Portfolios (Assuming it exists based on spec)
-ALTER TABLE public.portfolios ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT false;
-ALTER TABLE public.portfolios ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+-- Portfolios table is not present in the current schema. skipped.
 
 -- Messages
 -- Note: Messages table will be created in US6, but we'll add it there.
 
--- 2. Update RLS Policies to filter out deleted records
 -- Profiles
-DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
-CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles
-    FOR SELECT USING (is_deleted = false);
+DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
+CREATE POLICY "Users can view own profile" ON public.profiles
+    FOR SELECT USING (is_deleted = false AND (auth.uid() = user_id OR get_clerk_user_id() = user_id));
 
 -- Resumes
-DROP POLICY IF EXISTS "Users can manage own resumes" ON public.resumes;
-CREATE POLICY "Users can manage own resumes" ON public.resumes
-    FOR ALL USING (auth.uid() = user_id AND is_deleted = false);
+DROP POLICY IF EXISTS "Users can view own resumes" ON public.resumes;
+CREATE POLICY "Users can view own resumes" ON public.resumes
+    FOR SELECT USING (is_deleted = false AND (auth.uid() = user_id OR get_clerk_user_id() = user_id));
+
+DROP POLICY IF EXISTS "Users can update own resumes" ON public.resumes;
+CREATE POLICY "Users can update own resumes" ON public.resumes
+    FOR UPDATE USING (is_deleted = false AND (auth.uid() = user_id OR get_clerk_user_id() = user_id));
 
 -- 3. Automatic Soft Delete Trigger (Alternative to hard delete)
 -- This trigger intercepts DELETE and performs UPDATE instead

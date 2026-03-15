@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface NetworkStatus {
   isOnline: boolean;
@@ -10,14 +10,17 @@ export function useNetworkStatus(): NetworkStatus {
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
   const [wasOffline, setWasOffline] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleOnline = useCallback(() => {
     setIsOnline(true);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
     // Keep wasOffline true briefly to show "back online" message
-    setTimeout(() => setWasOffline(false), 3000);
+    timeoutRef.current = setTimeout(() => setWasOffline(false), 3000);
   }, []);
 
   const handleOffline = useCallback(() => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
     setIsOnline(false);
     setWasOffline(true);
   }, []);
@@ -27,6 +30,7 @@ export function useNetworkStatus(): NetworkStatus {
     window.addEventListener('offline', handleOffline);
 
     return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };

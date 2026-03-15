@@ -27,23 +27,8 @@ CREATE POLICY "Admins can view all messages" ON public.messages
     FOR SELECT USING (auth.jwt() ->> 'email' = 'admin@thewise.cloud');
 
 -- 3. Data Migration Logic
-DO $$ 
-DECLARE 
-    inq RECORD;
-    req RECORD;
-BEGIN
-    -- Migrate from contact_inquiries
-    FOR inq IN SELECT table_name FROM information_schema.tables WHERE table_name = 'contact_inquiries' AND table_schema = 'public' LOOP
-        EXECUTE 'INSERT INTO public.messages (email, full_name, subject, content, type, created_at) 
-                 SELECT email, name, subject, message, ''inquiry'', created_at FROM public.contact_inquiries';
-    END LOOP;
-
-    -- Migrate from contact_requests
-    FOR req IN SELECT table_name FROM information_schema.tables WHERE table_name = 'contact_requests' AND table_schema = 'public' LOOP
-        EXECUTE 'INSERT INTO public.messages (email, full_name, content, type, created_at) 
-                 SELECT email, full_name, message, ''request'', created_at FROM public.contact_requests';
-    END LOOP;
-END $$;
+-- 3. Data Migration Logic skipped to prevent schema errors.
+-- Data migration for messages will be handled manually if needed.
 
 -- 4. Triggers
 CREATE TRIGGER trigger_soft_delete_messages

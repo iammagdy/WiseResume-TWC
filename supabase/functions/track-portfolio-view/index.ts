@@ -105,34 +105,27 @@ serve(async (req) => {
       .single();
 
     // ── 5. Create in-app notification for portfolio owner ──────────────────
-    try {
-      const locationParts = [city, country].filter(Boolean);
-      const locationStr = locationParts.length > 0 ? ` from ${locationParts.join(", ")}` : "";
-      await supabaseClient.from("notifications").insert({
-        user_id: profileRow.user_id,
-        type: "portfolio_view",
-        title: "👀 Someone viewed your portfolio",
-        message: `A visitor${locationStr} just checked out your portfolio.`,
-        link: "/portfolio?tab=analytics",
-      });
-    } catch (notifErr) {
-      console.warn("Notification creation failed (non-fatal):", notifErr);
+    if (profileRow?.user_id) {
+      try {
+        const locationParts = [city, country].filter(Boolean);
+        const locationStr = locationParts.length > 0 ? ` from ${locationParts.join(", ")}` : "";
+        await supabaseClient.from("notifications").insert({
+          user_id: profileRow.user_id,
+          type: "portfolio_view",
+          title: "👀 Someone viewed your portfolio",
+          message: `A visitor${locationStr} just checked out your portfolio.`,
+          link: "/portfolio?tab=analytics",
+        });
+      } catch (notifErr) {
+        console.warn("Notification creation failed (non-fatal):", notifErr);
+      }
     }
 
-    // ── 5. Increment short link click count if ref provided ────────────────
+    // ── 6. Increment short link click count if ref provided ────────────────
     if (ref) {
-      const { data: link } = await supabaseClient
-        .from("short_links")
-        .select("click_count")
-        .eq("id", ref)
-        .single();
-
-      if (link) {
-        await supabaseClient
-          .from("short_links")
-          .update({ click_count: (link.click_count || 0) + 1 })
-          .eq("id", ref);
-      }
+      await supabaseClient.rpc("increment_short_link_clicks", { 
+        p_id: ref 
+      });
     }
 
     return new Response(JSON.stringify({ ok: true }), {

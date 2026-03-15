@@ -43,8 +43,8 @@ export async function checkRateLimit(
 
   if (error) {
     console.error('Rate limit check error:', error);
-    // Fail open — don't block users if the check itself fails
-    return { allowed: true, remaining: maxRequests };
+    // Fail closed — don't block users if the check itself fails
+    return { allowed: false, remaining: 0, retryAfterSeconds: windowSeconds };
   }
 
   const used = count ?? 0;

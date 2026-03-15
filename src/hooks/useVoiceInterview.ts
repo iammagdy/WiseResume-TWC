@@ -145,6 +145,27 @@ function playDoubleBeep(): void {
 }
 
 function parseScoreBlock(text: string): { cleanText: string; score: AnswerScore | null } {
+  // FR-016: Try parsing the entire text as JSON first
+  try {
+    const cleanJson = text.replace(/```json\n?|\n?```/gi, '').trim();
+    if (cleanJson.startsWith('{')) {
+      const parsed = JSON.parse(cleanJson);
+      if (parsed && typeof parsed.reply === 'string' && parsed.score && typeof parsed.score.score === 'number') {
+        return {
+          cleanText: parsed.reply,
+          score: {
+            questionIndex: 0,
+            score: Math.min(10, Math.max(0, parsed.score.score)),
+            tip: parsed.score.tip || '',
+            improvedAnswer: parsed.score.improved_answer || parsed.score.improvedAnswer || '',
+          },
+        };
+      }
+    }
+  } catch {
+    // Fallback to regex if pure JSON parsing fails
+  }
+
   const scoreRegex = /---SCORE---\s*([\s\S]*?)\s*---END_SCORE---/;
   const match = text.match(scoreRegex);
   const cleanText = match ? text.replace(scoreRegex, '').trim() : text;
@@ -198,6 +219,11 @@ function parseScoreBlock(text: string): { cleanText: string; score: AnswerScore 
 }
 
 export function useVoiceInterview(resumeData: ResumeData | null) {
+  const resumeDataRef = useRef<ResumeData | null>(resumeData);
+  useEffect(() => {
+    resumeDataRef.current = resumeData;
+  }, [resumeData]);
+
   const { checkCredits, incrementUsage } = useAICreditsMutations();
   const [status, setStatus] = useState<InterviewStatus>('idle');
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
@@ -238,6 +264,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const quickPracticeRef = useRef(false);
   const noSpeechCountRef = useRef(0);
   const isSubmittingTextRef = useRef(false);
+  const endInterviewFnRef = useRef<() => Promise<void>>();
 
   // Shared transcript handlers
   const handlePartialTranscript = useCallback((text: string) => {
@@ -477,7 +504,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
         const aiPromise = edgeFunctions.functions.invoke('interview-chat', {
           body: {
             messages: windowedMessages,
-            resumeData,
+            resumeData: resumeDataRef.current,
             jobDescription: jobDescriptionRef.current || undefined,
             endInterview,
             quickPractice: quickPracticeRef.current || undefined,
@@ -500,8 +527,28 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
 
         incrementUsage.mutate();
 
+        // FR-016: Edge function now returns { reply: string, score: object|null }
+        // Use the server-parsed score directly; fall back to parseScoreBlock for any legacy responses.
         const rawReply = data.reply as string;
-        const { cleanText: reply, score } = parseScoreBlock(rawReply);
+        const serverScore = data.score as { score?: number; tip?: string; improved_answer?: string } | null | undefined;
+
+        let reply = rawReply;
+        let score: { questionIndex: number; score: number; tip: string; improvedAnswer: string } | null = null;
+
+        if (serverScore && typeof serverScore.score === 'number') {
+          // Happy path: structured score came from the edge function
+          score = {
+            questionIndex: 0,
+            score: Math.min(10, Math.max(0, serverScore.score)),
+            tip: serverScore.tip || '',
+            improvedAnswer: serverScore.improved_answer || '',
+          };
+        } else {
+          // Fallback: parse embedded score block (for older edge function responses)
+          const parsed = parseScoreBlock(rawReply);
+          reply = parsed.cleanText;
+          score = parsed.score;
+        }
 
         if (score) {
           answerCountRef.current++;
@@ -510,7 +557,8 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
           setLatestScore(fullScore);
         }
 
-        messagesRef.current.push({ role: 'assistant', content: rawReply });
+        // Store the clean reply text (not raw JSON blob) in conversation history
+        messagesRef.current.push({ role: 'assistant', content: reply });
 
         if (endInterview) {
           setSummary(reply);
@@ -519,6 +567,11 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
         } else {
           addEntry('interviewer', reply);
           await speak(reply);
+
+          if (quickPracticeRef.current && answerCountRef.current >= 5) {
+            toast.success('Quick Practice Complete', { description: 'Analyzing your session...', duration: 5000 });
+            endInterviewFnRef.current?.();
+          }
         }
       } catch (err: unknown) {
         console.error('AI call error:', err);
@@ -530,7 +583,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
         clearTimeout(slowTimer);
       }
     },
-    [resumeData, addEntry, speak, checkCredits, incrementUsage]
+    [addEntry, speak, checkCredits, incrementUsage]
   );
 
   const clearSilenceTimer = useCallback(() => {
@@ -666,7 +719,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       const { data, error: fnError } = await supabase.functions.invoke('interview-chat', {
         body: {
           analyzeRole: true,
-          resumeData,
+          resumeData: resumeDataRef.current,
           jobDescription,
         },
       });
@@ -687,7 +740,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     } finally {
       setIsAnalyzingRole(false);
     }
-  }, [resumeData]);
+  }, [checkCredits, incrementUsage]);
 
   const startInterview = useCallback(
     async (jobDescription?: string, quickPractice?: boolean) => {
@@ -741,6 +794,10 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     await callAI(true);
     setIsStarted(false);
   }, [callAI, clearSilenceTimer, disconnectCurrentSTT]);
+
+  useEffect(() => {
+    endInterviewFnRef.current = endInterviewFn;
+  }, [endInterviewFn]);
 
   const resetInterview = useCallback(() => {
     isListeningRef.current = false;

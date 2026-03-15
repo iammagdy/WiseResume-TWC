@@ -21,3 +21,13 @@ This file logs all major technical decisions for the WiseResume repository. Ever
 * **Context**: Fixing OAuth 404 origin mismatches during Kinde routing.
 * **Decision**: Switched from PKCE to an implicit OAuth flow.
 * **Consequences**: Resolved callback hash token forwarding on custom domains securely.
+
+## Decision #5: Soft vs. Hard Delete Policy
+* **Context**: Need to decide how user data deletion is handled across the application, especially for compliance and referential integrity (Audit FR-006).
+* **Decision**: Adopted a soft-delete default policy. The `is_deleted` flag is flipped on profiles and messages. Associated child records are preserved unless they hold sensitive data, in which case they may be hard deleted or scrubbed.
+* **Consequences**: Queries for active data must explicitly filter `is_deleted = false` (e.g., `get_public_portfolio`).
+
+## Decision #6: Fail-Closed Rate Limiting
+* **Context**: The AI Gateway rate limiter (`_shared/rateLimiter.ts`) previously failed open on database query errors, allowing potential billing abuse if the database went down.
+* **Decision**: Aligned `rateLimiter.ts` to fail closed, matching the strict behavior of `creditUtils.ts`.
+* **Consequences**: If the `ai_usage_logs` table is unreachable, AI endpoints (`ai-health`, `ai-test`, `ask-portfolio`) will block requests, ensuring cost control at the expense of temporary availability during DB outages.

@@ -60,6 +60,19 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- 5. Harden New User Trigger (pre-emptive fix for migration conflicts)
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (user_id)
+  VALUES (NEW.id)
+  ON CONFLICT (user_id) DO NOTHING;
+  
+  -- These will be expanded in later migrations, but we need the function to be safe now
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
 COMMENT ON TYPE public.career_level_enum IS 'Standardized career levels for profile normalization.';
 COMMENT ON TYPE public.industry_enum IS 'Standardized industry categories.';
 COMMENT ON TYPE public.theme_enum IS 'Available portfolio themes.';

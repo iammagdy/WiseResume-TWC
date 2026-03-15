@@ -69,7 +69,10 @@ BEGIN
             enabled, resume_id, sync_mode, meta_title, meta_description, extras
         ) VALUES (
             r.user_id, 
-            COALESCE(r.portfolio_theme::public.theme_enum, 'minimal'), 
+            CASE 
+                WHEN r.portfolio_theme IN ('modern', 'neo', 'minimal', 'classic', 'glass', 'dark') THEN r.portfolio_theme::public.theme_enum 
+                ELSE 'minimal'::public.theme_enum 
+            END, 
             r.portfolio_accent_color, r.portfolio_font, r.portfolio_style, 
             r.portfolio_layout, r.portfolio_sections, r.portfolio_enabled, 
             r.portfolio_resume_id, r.portfolio_sync_mode, 
@@ -78,16 +81,16 @@ BEGIN
 
         -- Migrate Social Links (Transforming fixed columns to KV)
         IF r.linkedin_url IS NOT NULL THEN
-            INSERT INTO public.social_links (user_id, platform_key, url) VALUES (r.user_id, 'linkedin', r.linkedin_url);
+            INSERT INTO public.social_links (user_id, platform_key, url) VALUES (r.user_id, 'linkedin', r.linkedin_url) ON CONFLICT (user_id, platform_key) DO NOTHING;
         END IF;
         IF r.github_url IS NOT NULL THEN
-            INSERT INTO public.social_links (user_id, platform_key, url) VALUES (r.user_id, 'github', r.github_url);
+            INSERT INTO public.social_links (user_id, platform_key, url) VALUES (r.user_id, 'github', r.github_url) ON CONFLICT (user_id, platform_key) DO NOTHING;
         END IF;
         IF r.twitter_url IS NOT NULL THEN
-            INSERT INTO public.social_links (user_id, platform_key, url) VALUES (r.user_id, 'twitter', r.twitter_url);
+            INSERT INTO public.social_links (user_id, platform_key, url) VALUES (r.user_id, 'twitter', r.twitter_url) ON CONFLICT (user_id, platform_key) DO NOTHING;
         END IF;
         IF r.website_url IS NOT NULL THEN
-            INSERT INTO public.social_links (user_id, platform_key, url) VALUES (r.user_id, 'website', r.website_url);
+            INSERT INTO public.social_links (user_id, platform_key, url) VALUES (r.user_id, 'website', r.website_url) ON CONFLICT (user_id, platform_key) DO NOTHING;
         END IF;
 
         -- Migrate Gamification
@@ -104,13 +107,16 @@ CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
   INSERT INTO public.profiles (user_id)
-  VALUES (NEW.id);
+  VALUES (NEW.id)
+  ON CONFLICT (user_id) DO NOTHING;
   
   INSERT INTO public.portfolio_settings (user_id)
-  VALUES (NEW.id);
+  VALUES (NEW.id)
+  ON CONFLICT (user_id) DO NOTHING;
   
   INSERT INTO public.user_gamification (user_id)
-  VALUES (NEW.id);
+  VALUES (NEW.id)
+  ON CONFLICT (user_id) DO NOTHING;
   
   RETURN NEW;
 END;

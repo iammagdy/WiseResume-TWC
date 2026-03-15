@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Square, Keyboard, KeyboardOff, Sparkles, History, Lightbulb, RotateCcw, SkipForward } from 'lucide-react';
@@ -189,30 +189,56 @@ function InterviewPageContent() {
   const mins = Math.floor(elapsedSeconds / 60);
   const secs = elapsedSeconds % 60;
 
+  // Single source of truth: parse the AI summary (JSON or legacy markdown) once.
+  // Both the auto-save useEffect and the InterviewSummary display consume this.
+  const parsedSummary = useMemo(() => {
+    if (!summary) return { displayText: '', overallScore: undefined as number | undefined, strengths: [] as string[], improvements: [] as string[] };
+    try {
+      const cleanJson = summary.replace(/```json\n?|\n?```/g, '').trim();
+      if (cleanJson.startsWith('{')) {
+        const parsed = JSON.parse(cleanJson);
+        const strengths: string[] = parsed.strengths || [];
+        const improvements: string[] = parsed.improvements || [];
+        const displayText = `**Overall Assessment:**\n${parsed.overallAssessment}\n\n**Strengths:**\n${strengths.map((s: string) => `- ${s}`).join('\n')}\n\n**Areas to Improve:**\n${improvements.map((s: string) => `- ${s}`).join('\n')}\n\n**Score: ${parsed.score}/10**\n\n**Next Steps:**\n${(parsed.nextSteps || []).map((s: string) => `- ${s}`).join('\n')}`;
+        return { displayText, overallScore: parsed.score as number | undefined, strengths, improvements };
+      }
+    } catch (_e) {
+      // Fall through to legacy parsing
+    }
+    // Legacy markdown fallback
+    const scoreMatch = summary.match(/Score:\s*(\d+)\/10/i);
+    const strengthsMatch = summary.match(/\*\*Strengths:\*\*\n([\s\S]*?)(?=\n\*\*)/);
+    const improvementsMatch = summary.match(/\*\*Areas to Improve:\*\*\n([\s\S]*?)(?=\n\*\*)/);
+    return {
+      displayText: summary,
+      overallScore: scoreMatch ? parseInt(scoreMatch[1]) : undefined,
+      strengths: strengthsMatch ? strengthsMatch[1].split('\n').filter(l => l.trim().startsWith('-')).map(l => l.replace(/^-\s*/, '').trim()) : [],
+      improvements: improvementsMatch ? improvementsMatch[1].split('\n').filter(l => l.trim().startsWith('-')).map(l => l.replace(/^-\s*/, '').trim()) : [],
+    };
+  }, [summary]);
+
   // Auto-save session when summary is shown
   useEffect(() => {
     if (summary && !sessionSaved && user) {
       setSessionSaved(true);
-      // Parse score from summary
-      const scoreMatch = summary.match(/Score:\s*(\d+)\/10/i);
-      const overallScore = scoreMatch ? parseInt(scoreMatch[1]) : undefined;
-      // Parse strengths and improvements
-      const strengthsMatch = summary.match(/\*\*Strengths:\*\*\n([\s\S]*?)(?=\n\*\*)/);
-      const improvementsMatch = summary.match(/\*\*Areas to Improve:\*\*\n([\s\S]*?)(?=\n\*\*)/);
-      const strengths = strengthsMatch ? strengthsMatch[1].split('\n').filter(l => l.trim().startsWith('-')).map(l => l.replace(/^-\s*/, '').trim()) : [];
-      const improvements = improvementsMatch ? improvementsMatch[1].split('\n').filter(l => l.trim().startsWith('-')).map(l => l.replace(/^-\s*/, '').trim()) : [];
-
       saveSession.mutate({
         interview_type: activeInterviewTypeRef.current,
         job_description: activeJobDescriptionRef.current,
         messages: transcript as any,
-        overall_score: overallScore,
-        strengths,
-        improvements,
+        overall_score: parsedSummary.overallScore,
+        strengths: parsedSummary.strengths,
+        improvements: parsedSummary.improvements,
         duration_seconds: elapsedSeconds,
+      }, {
+        onError: (err) => {
+          console.error('Failed to save session:', err);
+          toast.error('Failed to save interview', {
+            description: 'A network or authentication error occurred.',
+          });
+        }
       });
     }
-  }, [summary, sessionSaved, user, transcript, elapsedSeconds, saveSession]);
+  }, [summary, sessionSaved, user, transcript, elapsedSeconds, saveSession, parsedSummary]);
 
   // Show loading while store hydrates
   if (!hydrated) {
@@ -242,7 +268,7 @@ function InterviewPageContent() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto">
           <InterviewSummary
-            summary={summary!}
+            summary={parsedSummary.displayText}
             duration={elapsedSeconds}
             scores={scores}
             onRestart={() => { setSessionSaved(false); handleReset(); }}
