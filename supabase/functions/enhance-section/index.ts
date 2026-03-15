@@ -214,7 +214,7 @@ The scorer checks keyword echo — it does textBlob.includes(skillName) to see i
 SECTION-SPECIFIC SCORING RULES FOR EXPERIENCE:
 The scorer checks two things per bullet: (1) starts with an action verb, (2) contains a number/metric.
 - Every bullet in "achievements" and "responsibilities" MUST start with one of these exact action verbs: ${ACTION_VERBS.join(', ')}
-- Every bullet MUST contain at least one quantified metric (number, percentage, dollar amount, team size, or timeframe). If the original has none, add a realistic placeholder like "10+", "15%", "$50K".
+- Only add metrics if they are explicitly provided in the source context. Do NOT invent or guess any numbers or metrics.
 - NEVER remove existing bullets — only improve wording or add new ones
 - Preserve ALL dates, company names, job titles, and "id" values EXACTLY as given — do NOT reformat dates
 - Preserve the exact date format used (if "2020" do not change to "Jan 2020")`;
@@ -376,10 +376,9 @@ POSITIONS TO OPTIMIZE:
 ${roleLines}
 
 RULES:
-- For EACH entry, research what that specific job title does at that specific company/industry.
+- Only use the provided achievements and responsibilities. Do NOT invent new achievements or duties based on the job title or company.
 - Do NOT copy content between entries — each role must have unique, role-appropriate content.
-- A "Transport Supervisor" gets transport/logistics content. A "Customer Service Rep" gets customer service content. NEVER mix them.
-- Match the industry, function, and seniority level of EACH title EXACTLY.
+- Match the industry, function, and seniority level of EACH title EXACTLY using the provided context.
 
 `;
   }
@@ -396,7 +395,7 @@ RULES:
 The user's ACTUAL job title is: "${position}"
 The user's ACTUAL company is: "${company}"`;
   if (account) ctx += `\nThe user serves the "${account}" account/client at ${company}.`;
-  ctx += `\n\nYou MUST research what a "${position}" actually does${company ? ` at a company like "${company}"` : ''} and generate content that accurately reflects this specific role's real-world responsibilities. Do NOT generate content for a different role. If the title says "Supervisor" do NOT write about "technical support." If the title says "Transport" do NOT write about "software development." Match the industry, function, and seniority level of the title EXACTLY.\n\n`;
+  ctx += `\n\nOnly use the provided achievements and responsibilities. Do NOT invent new achievements or duties based on the job title or company.\n\n`;
   return ctx;
 }
 
@@ -562,6 +561,13 @@ serve(async (req) => {
       );
     }
 
+    if (fixInstruction && fixInstruction.length > 1000) {
+      return new Response(
+        JSON.stringify({ error: `Instruction is too long. Maximum size is 1000 characters.` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (!action || !VALID_ACTIONS.includes(action)) {
       return new Response(
         JSON.stringify({ error: `Invalid action. Must be one of: ${VALID_ACTIONS.join(', ')}` }),
@@ -622,10 +628,10 @@ serve(async (req) => {
     console.log('AI response received, parsing...');
 
     // Parse the JSON from the AI response — never inject raw text into resume
-    const enhancedContent = parseAIJSON(content);
+    const enhancedContent = parseAIJSON(content) as Record<string, unknown> | null;
 
-    if (!enhancedContent) {
-      console.error("Failed to parse enhance AI response:", content?.slice(0, 500));
+    if (!enhancedContent || enhancedContent.improved === undefined) {
+      console.error("Failed to parse enhance AI response or missing 'improved' key:", content?.slice(0, 500));
       return new Response(JSON.stringify({
         error: 'enhancement_failed',
         message: 'AI response was malformed. Please try again.',
@@ -646,6 +652,12 @@ serve(async (req) => {
       responseBody._fallbackUsed = true;
       responseBody._fallbackReason = aiResponse.fallbackReason;
     }
+
+    // Deduct credit only after a fully successful response and processing
+    const { deductCredit } = await import("../_shared/creditUtils.ts");
+    await deductCredit(userId, 1).catch(err => {
+      console.error('Failed to deduct credit after successful AI call:', err);
+    });
 
     return new Response(JSON.stringify(responseBody), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

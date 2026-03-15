@@ -59,3 +59,60 @@ export async function checkUserCreditBalance(userId: string): Promise<CreditChec
     remaining: Math.max(0, remaining)
   };
 }
+
+/**
+ * Deduct a given amount of credits from a user's daily usage balance.
+ * Assumes checkUserCreditBalance has already been called and approved the operation.
+ * @param userId the user's Supabase UUID
+ * @param amount number of credits to deduct (default 1)
+ */
+export async function deductCredit(userId: string, amount = 1): Promise<void> {
+  const supabase = getServiceClient();
+
+  // 1. Check if user is BYOK (unlimited credits)
+  const { data: preferences } = await supabase
+    .from('user_preferences')
+    .select('ai_provider')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  const isBYOK = preferences?.ai_provider && preferences.ai_provider !== 'wiseresume';
+  if (isBYOK) {
+    return; // Don't deduct credits for BYOK users
+  }
+
+  // Use a database RPC to safely increment daily_usage, or just fall back to a naive read-modify-write if RPC isn't available
+  // Here we do a naive update, assuming ai_credits is managed properly. If usage_date is stale, we'll reset it to today.
+  const today = new Date().toISOString().split('T')[0];
+
+  const { data: credits, error: fetchError } = await supabase
+    .from('ai_credits')
+    .select('daily_usage, usage_date')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (fetchError) {
+    console.error('Failed to fetch ai_credits for deduction:', fetchError);
+    return;
+  }
+
+  let newUsage = amount;
+
+  if (credits) {
+    if (credits.usage_date === today) {
+      newUsage = (credits.daily_usage || 0) + amount;
+    }
+  }
+
+  const { error: updateError } = await supabase
+    .from('ai_credits')
+    .upsert({
+      user_id: userId,
+      daily_usage: newUsage,
+      usage_date: today
+    }, { onConflict: 'user_id' });
+
+  if (updateError) {
+    console.error('Failed to update ai_credits:', updateError);
+  }
+}

@@ -160,7 +160,7 @@ const systemPrompt = `You are an expert resume parser. Extract ALL structured in
 
 const retryPrompt = `You are an expert resume parser doing a SECOND PASS. The first extraction missed some fields.
 Focus on finding these missing fields in the text. Extract ONLY the fields that were missed.
-Be more aggressive in your extraction - look for implicit information, infer from context.
+Do NOT invent or fabricate any information. Extract strictly from the provided text.
 Return empty strings/arrays only if truly not present in the text.`;
 
 /**
@@ -193,13 +193,13 @@ function assessTextQuality(text: string): { score: number; issues: string[] } {
   const keywordCount = keywords.filter(k => cleaned.toLowerCase().includes(k)).length;
   if (keywordCount < 2) { score -= 0.2; issues.push('low_keyword_density'); }
 
-  // Gibberish ratio
-  const alphaRatio = cleaned.replace(/[^a-zA-Z\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF\u0900-\u097F\u4E00-\u9FFF]/g, '').length / Math.max(cleaned.length, 1);
-  if (alphaRatio < 0.5) { score -= 0.3; issues.push('high_gibberish'); }
+  // Gibberish ratio - updated to include more scripts or removed if it's too aggressive
+  const alphaRatio = cleaned.replace(/[^a-zA-Z\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF\u0900-\u097F\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7A3\u05D0-\u05FF]/g, '').length / Math.max(cleaned.length, 1);
+  if (alphaRatio < 0.3) { score -= 0.3; issues.push('high_gibberish'); }
 
-  // Average word length
+  // Average word length - CJK words can be 1-2 characters
   const avgLen = words.reduce((s, w) => s + w.length, 0) / Math.max(words.length, 1);
-  if (avgLen < 2.5 || avgLen > 15) { score -= 0.15; issues.push('unusual_word_lengths'); }
+  if (avgLen < 1.5 || avgLen > 20) { score -= 0.15; issues.push('unusual_word_lengths'); }
 
   return { score: Math.max(0, Math.min(1, score)), issues };
 }
@@ -230,7 +230,8 @@ Return ONLY the cleaned text, nothing else.`,
       timeout: 15000,
     });
     
-    if (response.content && response.content.length > text.length * 0.5) {
+    // Ensure AI didn't drop significant chunks of text
+    if (response.content && response.content.length > text.length * 0.8) {
       console.log('🧹 AI text cleaning successful');
       return response.content;
     }
@@ -309,15 +310,23 @@ serve(async (req) => {
       }
     }
 
-    // Rate limit using whatever identifier we got
-    if (userId !== 'anonymous') {
-      const rateCheck = await checkRateLimit(userId, { maxRequests: 10, windowSeconds: 60, actionType: 'parse_resume' });
-      if (!rateCheck.allowed) {
-        return new Response(
-          JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+    // If anonymous, create a pseudo-ID based on IP
+    if (userId === 'anonymous') {
+      const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown-ip';
+      // Simple hash of IP to avoid storing raw IPs
+      const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ip));
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      userId = `anon_${hashHex.substring(0, 16)}`;
+    }
+
+    // Rate limit using whatever identifier we got (now applies to anonymous too)
+    const rateCheck = await checkRateLimit(userId, { maxRequests: 10, windowSeconds: 60, actionType: 'parse_resume' });
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Log AI configuration for debugging
@@ -374,7 +383,16 @@ serve(async (req) => {
       );
     }
 
-    let parsedData = JSON.parse(toolCall.function.arguments);
+    let parsedData;
+    try {
+      parsedData = JSON.parse(toolCall.function.arguments);
+    } catch (parseError) {
+      console.error('Failed to parse AI tool call arguments:', parseError, toolCall.function.arguments);
+      return new Response(
+        JSON.stringify({ error: 'Failed to process resume text. The AI returned malformed data.' }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Phase 4: Check completeness and retry if needed
     const firstPassConfidence = computeFieldConfidence(parsedData);
@@ -425,7 +443,7 @@ serve(async (req) => {
     const looksLikeEmail = fullName.includes('@');
     const looksLikeUrl = /https?:|www\.|\.com|\.linkedin/i.test(fullName);
     const looksLikePhone = /^\+?\d[\d\s\-()]{6,}$/.test(fullName);
-    const isEmptyOrJunk = fullName.length < 2 || /^[^a-zA-Z\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF\u0900-\u097F\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF\u05D0-\u05FF]+$/.test(fullName);
+    const isEmptyOrJunk = fullName.length < 2 || /^[^a-zA-Z\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF\u0900-\u097F\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7A3\u05D0-\u05FF]+$/.test(fullName);
 
     if (invalidNamePatterns.test(fullName) || looksLikeEmail || looksLikeUrl || looksLikePhone || isEmptyOrJunk) {
       const firstLines = processedText.split('\n').filter((l: string) => l.trim()).slice(0, 8);
@@ -437,7 +455,7 @@ serve(async (req) => {
         if (invalidNamePatterns.test(t)) return false;
         const words = t.split(/\s+/);
         return words.length >= 1 && words.length <= 5 &&
-          /^[A-Za-z\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF\u0900-\u097F\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF\u05D0-\u05FF\s.\-']+$/.test(t);
+          /^[A-Za-z\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF\u0900-\u097F\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7A3\u05D0-\u05FF\s.\-']+$/.test(t);
       });
       fullName = nameCandidate?.trim() || '';
     }
@@ -539,8 +557,8 @@ serve(async (req) => {
       `${resumeData.volunteering.length} volunteering. Completeness: ${finalConfidence.completeness}%`
     );
 
-    // Only record usage for local users (cross-project users have ext: prefix or are anonymous)
-    if (userId !== 'anonymous' && !userId.startsWith('ext:')) {
+    // Record usage for local users and anonymous users
+    if (!userId.startsWith('ext:')) {
       try { await recordUsage(userId, 'parse_resume', { provider: aiResponse.providerUsed || 'unknown' }); } catch (e) { console.warn('recordUsage skipped:', e); }
     }
 
@@ -570,29 +588,47 @@ serve(async (req) => {
  * Validate and fix misclassified fields (e.g. skills in location).
  */
 function validateAndFixFields(data: any): any {
-  const SKILL_PATTERN = /^(python|javascript|typescript|java|c\+\+|c#|ruby|go|rust|swift|kotlin|php|r|scala|perl|html|css|sql|sq|react|angular|vue|node|django|flask|spring|express|docker|kubernetes|aws|azure|gcp|git|linux|mongodb|postgresql|mysql|redis|terraform|jenkins|graphql|rest|api|apis|agile|scrum|jira|figma|tableau|power\s*bi|excel|machine\s*learning|ai|ml|data\s*science|deep\s*learning|nlp|tensorflow|pytorch|numpy|pandas|nosql|sass|less|ci|cd|\.net|c)$/i;
+  const SKILL_PATTERN = /^(python|javascript|typescript|java|c\+\+|c#|ruby|go|rust|swift|kotlin|php|r|scala|perl|html|css|sql|sq|react|angular|vue|node|django|flask|spring|express|docker|kubernetes|k8s|aws|azure|gcp|git|linux|mongodb|postgresql|mysql|redis|terraform|jenkins|graphql|rest|api|apis|agile|scrum|jira|figma|tableau|power\s*bi|excel|machine\s*learning|ai|ml|data\s*science|deep\s*learning|nlp|tensorflow|pytorch|numpy|pandas|nosql|sass|less|ci|cd|\.net|c)$/i;
 
   const skills: string[] = [...(data.skills || [])];
 
-  // Location: split by comma/semicolon and check each part individually
-  const location = data.contactInfo?.location?.trim() || '';
-  if (location) {
-    const locationParts = location.split(/[,;]/).map((p: string) => p.trim()).filter(Boolean);
-    const skillParts: string[] = [];
+  // Helper to extract skills and clean a field
+  const extractSkills = (fieldValue: string, isLocation = false): string => {
+    if (!fieldValue) return '';
+    const parts = fieldValue.split(isLocation ? /[,;]/ : /\s+/).map((p: string) => p.trim()).filter(Boolean);
     const geoParts: string[] = [];
+    const skillParts: string[] = [];
 
-    for (const part of locationParts) {
-      if (SKILL_PATTERN.test(part)) {
-        skillParts.push(part);
+    for (const part of parts) {
+      if (SKILL_PATTERN.test(part.replace(/[,;]/g, ''))) {
+        skillParts.push(part.replace(/[,;]/g, ''));
       } else {
         geoParts.push(part);
       }
     }
 
     if (skillParts.length > 0) {
-      console.log(`⚠️ Location "${location}" contains skills [${skillParts.join(', ')}], moving to skills array`);
       skills.push(...skillParts);
-      data.contactInfo.location = geoParts.join(', ');
+      return geoParts.join(isLocation ? ', ' : ' ');
+    }
+    return fieldValue;
+  };
+
+  // Location: check parts for skills
+  if (data.contactInfo?.location) {
+    const origLocation = data.contactInfo.location;
+    data.contactInfo.location = extractSkills(origLocation, true);
+    if (data.contactInfo.location !== origLocation) {
+      console.log(`⚠️ Location contained skills, moved to skills array`);
+    }
+  }
+
+  // Name: sometimes skills end up in the name
+  if (data.contactInfo?.fullName) {
+    const origName = data.contactInfo.fullName;
+    data.contactInfo.fullName = extractSkills(origName, false);
+    if (data.contactInfo.fullName !== origName) {
+      console.log(`⚠️ FullName contained skills, moved to skills array`);
     }
   }
 
@@ -638,14 +674,14 @@ function mergeParseResults(pass1: any, pass2: any, pass1Confidence: Record<strin
     merged.summary = pass2.summary;
   }
 
-  // Arrays: use pass2 if pass1 was empty, never merge arrays (risk of duplicates)
-  if (pass1Confidence.experience < 0.5 && pass2.experience?.length > 0) {
+  // Arrays: use pass2 if pass1 was empty or if pass2 provides significantly more items
+  if (pass1Confidence.experience < 0.5 && pass2.experience?.length > (merged.experience?.length || 0)) {
     merged.experience = pass2.experience;
   }
-  if (pass1Confidence.education < 0.5 && pass2.education?.length > 0) {
+  if (pass1Confidence.education < 0.5 && pass2.education?.length > (merged.education?.length || 0)) {
     merged.education = pass2.education;
   }
-  if (pass1Confidence.skills < 0.5 && pass2.skills?.length > 0) {
+  if (pass1Confidence.skills < 0.5 && pass2.skills?.length > (merged.skills?.length || 0)) {
     merged.skills = pass2.skills;
   }
 

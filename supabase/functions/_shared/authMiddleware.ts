@@ -31,7 +31,7 @@ export function decodeJwtPayload(token: string): Record<string, unknown> {
 /**
  * Validates the Authorization header and returns the authenticated user's ID
  * and a service-role Supabase client that targets the EXTERNAL database project.
- * With pure Supabase Auth, the `sub` claim IS the user UUID directly.
+ * Uses the service client's getUser() method to verify the JWT signature.
  */
 export async function requireAuth(req: Request): Promise<AuthResult> {
   const authHeader = req.headers.get('Authorization');
@@ -40,24 +40,21 @@ export async function requireAuth(req: Request): Promise<AuthResult> {
   }
 
   const token = authHeader.replace('Bearer ', '');
+  const client = getServiceClient();
 
-  let claims: Record<string, unknown>;
   try {
-    claims = decodeJwtPayload(token);
+    const { data: { user }, error } = await client.auth.getUser(token);
+
+    if (error || !user) {
+      console.warn('requireAuth: Invalid JWT signature or user not found:', error?.message);
+      throw new AuthError('Unauthorized', 401);
+    }
+
+    return { userId: user.id, client };
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'AuthError') throw err;
     throw new AuthError('Unauthorized', 401);
   }
-
-  // With Supabase Auth, sub is the user UUID directly
-  const userId = claims['sub'] as string;
-  if (!userId) {
-    throw new AuthError('Missing sub claim (unauthorized)', 401);
-  }
-
-  const client = getServiceClient();
-
-  return { userId, client };
 }
 
 /**

@@ -71,8 +71,9 @@ const MODEL_MAPPING: Record<string, string> = {
   'google/gemini-2.0-pro': 'gemini-2.0-pro',
   'google/gemini-1.5-flash': 'gemini-1.5-flash',
   'google/gemini-1.5-pro': 'gemini-1.5-pro',
-  'google/gemini-2.5-flash': 'gemini-2.0-flash', // Compatibility/Typo fix
-  'google/gemini-2.5-pro': 'gemini-2.0-pro', // Compatibility/Typo fix
+  'google/gemini-2.5-flash': 'gemini-2.5-flash', // Compatibility mapping removed, maps to itself
+  'google/gemini-2.5-pro': 'gemini-2.5-pro',     // Compatibility mapping removed
+  'google/gemini-2.5-flash-lite': 'gemini-2.5-flash-lite', // Ensure lite model works
 };
 
 function mapModelForGemini(model: string): string {
@@ -88,7 +89,7 @@ function mapModelForGemini(model: string): string {
 
 const ENCRYPTION_SECRET = Deno.env.get('API_KEY_ENCRYPTION_SECRET') || '';
 
-async function getDecryptionKey(): Promise<CryptoKey> {
+async function getDecryptionKey(salt: string): Promise<CryptoKey> {
   const encoder = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
@@ -98,7 +99,7 @@ async function getDecryptionKey(): Promise<CryptoKey> {
     ['deriveKey']
   );
   return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt: encoder.encode('user-api-keys-salt'), iterations: 100000, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt: encoder.encode(salt), iterations: 100000, hash: 'SHA-256' },
     keyMaterial,
     { name: 'AES-GCM', length: 256 },
     false,
@@ -106,13 +107,27 @@ async function getDecryptionKey(): Promise<CryptoKey> {
   );
 }
 
-async function decryptKey(encoded: string): Promise<string> {
-  const key = await getDecryptionKey();
+async function decryptKey(encoded: string, userId: string): Promise<string> {
   const combined = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
   const iv = combined.slice(0, 12);
   const ciphertext = combined.slice(12);
-  const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
-  return new TextDecoder().decode(decrypted);
+
+  // Try per-user salt first
+  try {
+    const userKey = await getDecryptionKey(userId);
+    const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, userKey, ciphertext);
+    return new TextDecoder().decode(decrypted);
+  } catch (e) {
+    // If it fails, fallback to the old global salt for backward compatibility
+    console.warn(`[aiClient] Failed to decrypt key for user ${userId} using per-user salt, trying legacy global salt...`);
+    try {
+      const globalKey = await getDecryptionKey('user-api-keys-salt');
+      const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, globalKey, ciphertext);
+      return new TextDecoder().decode(decrypted);
+    } catch (e2) {
+      throw new Error(`Failed to decrypt key: ${e2}`);
+    }
+  }
 }
 
 /**
@@ -136,7 +151,7 @@ export async function getUserKeyFromDB(userId: string, provider = 'gemini'): Pro
       .maybeSingle();
 
     if (error || !data?.encrypted_key) return undefined;
-    return await decryptKey(data.encrypted_key);
+    return await decryptKey(data.encrypted_key, userId);
   } catch (err) {
     console.warn('[aiClient] Failed to fetch user key from DB:', err);
     return undefined;
@@ -154,14 +169,14 @@ export async function getUserKeyAndUrlFromDB(userId: string, provider: string): 
 
     const { data, error } = await supabase
       .from('user_api_keys')
-      .select('encrypted_key')
+      .select('encrypted_key, base_url, model')
       .eq('user_id', userId)
       .eq('provider', provider)
       .maybeSingle();
 
     if (error || !data?.encrypted_key) return undefined;
-    const key = await decryptKey(data.encrypted_key);
-    return { key, baseUrl: null, model: null };
+    const key = await decryptKey(data.encrypted_key, userId);
+    return { key, baseUrl: data.base_url || null, model: data.model || null };
   } catch (err) {
     console.warn('[aiClient] Failed to fetch user key from DB:', err);
     return undefined;
@@ -671,10 +686,25 @@ export function parseAIJSON<T = unknown>(text: string): T | null {
     }
   }
 
-  const jsonMatch = text.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
-  if (jsonMatch) {
+  // Find first { or [ and last } or ]
+  const firstBrace = text.indexOf('{');
+  const lastBrace = text.lastIndexOf('}');
+  const firstBracket = text.indexOf('[');
+  const lastBracket = text.lastIndexOf(']');
+
+  // Check which one appears first
+  const isObject = firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket);
+  const isArray = firstBracket !== -1 && (firstBrace === -1 || firstBracket < firstBrace);
+
+  if (isObject && lastBrace !== -1 && lastBrace > firstBrace) {
     try {
-      return JSON.parse(jsonMatch[1]) as T;
+      return JSON.parse(text.slice(firstBrace, lastBrace + 1)) as T;
+    } catch {
+      // Fall through
+    }
+  } else if (isArray && lastBracket !== -1 && lastBracket > firstBracket) {
+    try {
+      return JSON.parse(text.slice(firstBracket, lastBracket + 1)) as T;
     } catch {
       // Fall through
     }

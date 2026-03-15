@@ -80,11 +80,13 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
           }),
         });
 
-        clearTimeout(slowTimer);
         const _latency = Date.now() - _start;
 
         if (!res.ok) {
           useAIHealthStore.getState().recordFailure(0);
+          if (res.status === 401) {
+            throw new Error('401 Unauthorized');
+          }
           throw new Error(`Edge function returned ${res.status}`);
         }
 
@@ -111,7 +113,6 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
       });
 
       if (!data) {
-        clearTimeout(slowTimer);
         setIsEnhancing(false);
         setCurrentAction(null);
         return null;
@@ -121,10 +122,9 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
       return data;
 
     } catch (error) {
-      clearTimeout(slowTimer);
       console.error('AI enhancement error:', error);
       const errMsg = error instanceof Error ? error.message : '';
-      const is401 = errMsg.includes('401') || errMsg.toLowerCase().includes('unauthorized') || errMsg.toLowerCase().includes('jwt expired');
+      const is401 = errMsg === '401 Unauthorized' || errMsg.toLowerCase().includes('unauthorized') || errMsg.toLowerCase().includes('jwt expired');
       if (!navigator.onLine) {
         toast.warning("You're offline — AI features need an internet connection. Your resume content is safe.");
       } else if (is401) {
@@ -136,6 +136,7 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
       }
       return null;
     } finally {
+      clearTimeout(slowTimer);
       setIsEnhancing(false);
       setCurrentAction(null);
     }

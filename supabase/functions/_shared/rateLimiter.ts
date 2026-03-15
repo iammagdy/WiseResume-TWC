@@ -36,7 +36,7 @@ export async function checkRateLimit(
 
   const { count, error } = await supabase
     .from('ai_usage_logs')
-    .select('*', { count: 'exact', head: true })
+    .select('id', { count: 'exact', head: true })
     .eq('user_id', userId)
     .eq('action_type', actionType)
     .gte('created_at', windowStart);
