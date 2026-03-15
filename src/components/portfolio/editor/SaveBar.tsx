@@ -20,6 +20,7 @@ export function SaveBar({ onSave, saving, disabled, portfolioEnabled, onPortfoli
           <Switch
             checked={portfolioEnabled}
             onCheckedChange={onPortfolioEnabledChange}
+            disabled={disabled}
             className="scale-90" />
           
           <span className="text-[11px] font-medium text-muted-foreground">

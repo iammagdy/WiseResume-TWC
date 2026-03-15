@@ -169,8 +169,10 @@ export default function PortfolioEditorPage() {
         });
         if (error) throw error;
         setUsernameAvailable(data === true);
-      } catch {
+      } catch (err) {
+        console.error('Failed to check username availability:', err);
         setUsernameAvailable(null);
+        toast.error('Failed to check username availability. Please try again.');
       } finally {
         setCheckingUsername(false);
       }
@@ -242,7 +244,8 @@ export default function PortfolioEditorPage() {
       setBio(generatedBio);
       toast.success('Bio generated!');
     } catch (err: unknown) {
-      toast.error((err as Error).message || 'Failed to generate bio');
+      console.error('Bio generation failed:', err);
+      toast.error('Failed to generate bio. Please try again later.');
     } finally {
       setGeneratingBio(false);
     }
@@ -257,7 +260,8 @@ export default function PortfolioEditorPage() {
       if (d) setMetaDescription(d);
       toast.success('SEO meta generated!');
     } catch (err: unknown) {
-      toast.error((err as Error).message || 'Failed to generate SEO meta');
+      console.error('SEO generation failed:', err);
+      toast.error('Failed to generate SEO meta. Please try again later.');
     } finally {
       setGeneratingSEO(false);
     }
@@ -271,7 +275,8 @@ export default function PortfolioEditorPage() {
       if (headline) setAvailabilityHeadline(headline);
       toast.success('Availability headline generated!');
     } catch (err: unknown) {
-      toast.error((err as Error).message || 'Failed to generate headline');
+      console.error('Headline generation failed:', err);
+      toast.error('Failed to generate headline. Please try again later.');
     } finally {
       setGeneratingAvailability(false);
     }
@@ -338,7 +343,11 @@ export default function PortfolioEditorPage() {
         setUsernameAvailable(false);
         toast.error('This username was just taken. Please choose another.');
       } else {
-        toast.error('Failed to save portfolio');
+        toast.error('Failed to save portfolio. Your changes might not be published.');
+      }
+      // Revert local state toggles if it failed to save the override
+      if (overrides?.portfolioEnabled !== undefined && profile) {
+        setPortfolioEnabled(!!profile.portfolioEnabled);
       }
     } finally {
       setSavingPortfolio(false);

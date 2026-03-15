@@ -71,9 +71,12 @@ export function AddApplicationSheet({ open, onOpenChange, defaultValues }: AddAp
         if (parsed.title && !jobTitle) setJobTitle(parsed.title);
         if (parsed.company && !company) setCompany(parsed.company);
         if (parsed.deadline) setDeadline(parsed.deadline.split('T')[0]);
+      } else {
+        toast.error('Failed to parse URL automatically.');
       }
-    } catch {
-      // Silent fail - URL parsing is optional
+    } catch (error) {
+      console.error('URL parse failed:', error);
+      toast.error('Failed to parse URL automatically. Please enter details manually.');
     } finally {
       setIsParsingUrl(false);
     }
@@ -82,24 +85,29 @@ export function AddApplicationSheet({ open, onOpenChange, defaultValues }: AddAp
   const handleSubmit = async () => {
     if (!jobTitle.trim() || !company.trim()) return;
 
-    await createApplication.mutateAsync({
-      job_title: jobTitle.trim(),
-      company: company.trim(),
-      status,
-      url: url.trim() || undefined,
-      notes: notes.trim() || undefined,
-      resume_id: resumeId || defaultValues?.resume_id,
-      deadline: deadline ? new Date(deadline).toISOString() : undefined,
-    });
+    try {
+      await createApplication.mutateAsync({
+        job_title: jobTitle.trim(),
+        company: company.trim(),
+        status,
+        url: url.trim() || undefined,
+        notes: notes.trim() || undefined,
+        resume_id: resumeId || defaultValues?.resume_id,
+        deadline: deadline ? new Date(deadline).toISOString() : undefined,
+      });
 
-    onOpenChange(false);
-    setJobTitle('');
-    setCompany('');
-    setStatus('applied');
-    setUrl('');
-    setNotes('');
-    setDeadline('');
-    setResumeId('');
+      onOpenChange(false);
+      setJobTitle('');
+      setCompany('');
+      setStatus('applied');
+      setUrl('');
+      setNotes('');
+      setDeadline('');
+      setResumeId('');
+    } catch (error) {
+      console.error('Failed to track application:', error);
+      toast.error('Failed to save application. Please try again.');
+    }
   };
 
   return (
