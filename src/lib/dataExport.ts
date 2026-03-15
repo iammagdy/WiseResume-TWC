@@ -175,28 +175,30 @@ export async function importResumes(file: File, userId: string): Promise<number>
   }
 
   // Upsert resumes into the database
-  let imported = 0;
-  for (const resume of resumes) {
-    const { error } = await supabase.from('resumes').upsert({
-      id: resume.id || undefined,
-      user_id: userId,
-      title: resume.title,
-      contact_info: resume.contactInfo,
-      summary: resume.summary || '',
-      experience: resume.experience || [],
-      education: resume.education || [],
-      skills: resume.skills || [],
-      certifications: resume.certifications || [],
-      template_id: resume.templateId || 'modern',
-      target_job_title: resume.targetJobTitle || null,
-      target_company: resume.targetCompany || null,
-      job_match_score: resume.jobMatchScore || null,
-    }, { onConflict: 'id' });
+  const resumesToUpsert = resumes.map((resume: Record<string, unknown>) => ({
+    id: typeof resume.id === 'string' ? resume.id : undefined,
+    user_id: userId,
+    title: typeof resume.title === 'string' ? resume.title : 'Untitled Resume',
+    contact_info: resume.contactInfo,
+    summary: typeof resume.summary === 'string' ? resume.summary : '',
+    experience: Array.isArray(resume.experience) ? resume.experience : [],
+    education: Array.isArray(resume.education) ? resume.education : [],
+    skills: Array.isArray(resume.skills) ? resume.skills : [],
+    certifications: Array.isArray(resume.certifications) ? resume.certifications : [],
+    template_id: typeof resume.templateId === 'string' ? resume.templateId : 'modern',
+    target_job_title: typeof resume.targetJobTitle === 'string' ? resume.targetJobTitle : null,
+    target_company: typeof resume.targetCompany === 'string' ? resume.targetCompany : null,
+    job_match_score: typeof resume.jobMatchScore === 'number' ? resume.jobMatchScore : null,
+  }));
 
-    if (!error) imported++;
+  const { error } = await supabase.from('resumes').upsert(resumesToUpsert, { onConflict: 'id' });
+
+  if (error) {
+    console.error('Failed to import resumes:', error);
+    return 0;
   }
 
-  return imported;
+  return resumesToUpsert.length;
 }
 
 export async function deleteAllUserData(userId: string): Promise<void> {
