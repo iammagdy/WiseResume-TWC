@@ -360,7 +360,14 @@ export default function ApplicationsPage() {
                         <div className="flex gap-2 pl-[52px]">
                           {isInterviewing &&
                       <button
-                        onClick={() => {haptics.light();navigate('/interview');}}
+                        onClick={() => {
+                          haptics.light();
+                          if (!primaryResume || !primaryResume.contactInfo?.fullName) {
+                            toast.error('Please select or create a resume first to start interview prep.');
+                          } else {
+                            navigate('/interview');
+                          }
+                        }}
                         className="flex items-center gap-1 text-[11px] text-primary font-medium px-2 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/15 transition-colors min-h-[44px] touch-manipulation active:scale-95">
                         
                               <Mic className="w-3 h-3" /> Prep

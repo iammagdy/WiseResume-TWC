@@ -46,6 +46,7 @@ export default function ProfilePage() {
   const [linkedinOpen, setLinkedinOpen] = useState(false);
   const [draftWarningOpen, setDraftWarningOpen] = useState(false);
   const [loadingTimedOut, setLoadingTimedOut] = useState(false);
+  const [isNavigatingToOnboarding, setIsNavigatingToOnboarding] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setLoadingTimedOut(true), 8000);
@@ -139,8 +140,17 @@ export default function ProfilePage() {
               <p className="text-sm font-medium text-foreground">Profile {completion}% complete</p>
               <p className="text-xs text-muted-foreground">Finish setup for better AI suggestions</p>
             </div>
-            <Button variant="default" size="sm" className="shrink-0 h-8" onClick={() => navigate('/onboarding')}>
-              Complete
+            <Button
+              variant="default"
+              size="sm"
+              className="shrink-0 h-8"
+              disabled={isNavigatingToOnboarding}
+              onClick={() => {
+                setIsNavigatingToOnboarding(true);
+                navigate('/onboarding');
+              }}
+            >
+              {isNavigatingToOnboarding ? 'Loading...' : 'Complete'}
             </Button>
           </div>
         )}

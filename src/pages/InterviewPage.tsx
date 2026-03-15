@@ -16,6 +16,7 @@ import { InterviewStatsCard } from '@/components/interview/InterviewStatsCard';
 import { useVoiceInterview } from '@/hooks/useVoiceInterview';
 import { useSaveInterviewSession } from '@/hooks/useInterviewHistory';
 import { useResumeStore, useResumeStoreHydration } from '@/store/resumeStore';
+import { useBlocker } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Button } from '@/components/ui/button';
@@ -233,7 +234,11 @@ function InterviewPageContent() {
         onError: (err) => {
           console.error('Failed to save session:', err);
           toast.error('Failed to save interview', {
-            description: 'A network or authentication error occurred.',
+            description: 'A network or authentication error occurred. Your session won\'t be saved in history.',
+            action: {
+              label: 'Retry',
+              onClick: () => setSessionSaved(false), // Resetting allows it to retry saving next render
+            }
           });
         }
       });
@@ -244,6 +249,25 @@ function InterviewPageContent() {
   if (!hydrated) {
     return <PageLoadingSpinner />;
   }
+
+  // Block navigation during an active interview
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      isStarted && phase === 'active' && currentLocation.pathname !== nextLocation.pathname
+  );
+
+  useEffect(() => {
+    if (blocker.state === 'blocked') {
+      setShowEndConfirm(true);
+    }
+  }, [blocker.state]);
+
+  // When showEndConfirm is closed and blocker is still active, cancel it
+  useEffect(() => {
+    if (!showEndConfirm && blocker.state === 'blocked') {
+      blocker.reset();
+    }
+  }, [showEndConfirm, blocker]);
 
   // Empty state — no resume loaded
   if (!hasValidResume) {
@@ -572,14 +596,25 @@ function InterviewPageContent() {
             <Button
               variant="destructive"
               className="w-full py-3 rounded-xl font-semibold min-h-[48px]"
-              onClick={() => { setShowEndConfirm(false); endInterview(); }}
+              onClick={() => {
+                setShowEndConfirm(false);
+                endInterview();
+                if (blocker.state === 'blocked') {
+                  blocker.proceed();
+                }
+              }}
             >
               Yes, End Interview
             </Button>
             <Button
               variant="ghost"
               className="w-full py-3 rounded-xl font-medium bg-muted/50 min-h-[48px]"
-              onClick={() => setShowEndConfirm(false)}
+              onClick={() => {
+                setShowEndConfirm(false);
+                if (blocker.state === 'blocked') {
+                  blocker.reset();
+                }
+              }}
             >
               Keep Going
             </Button>

@@ -136,7 +136,11 @@ export function EditProfileSheet({
         });
         setAutoSaved(true);
         setTimeout(() => setAutoSaved(false), 2000);
-      } catch {}
+      } catch (error) {
+        console.error('Auto-save failed:', error);
+        toast.error('Failed to auto-save changes. Please check your connection.');
+        haptics.error();
+      }
     }, 1500);
   }, [fullName, jobTitle, industry, careerLevel, location, linkedinUrl, onSave]);
 

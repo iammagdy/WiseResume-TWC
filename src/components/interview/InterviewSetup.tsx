@@ -72,7 +72,8 @@ export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAv
   // Auto-reset mic test after success/failure
   useEffect(() => {
     if (micTestStatus === 'success' || micTestStatus === 'failed') {
-      micResetTimerRef.current = setTimeout(() => setMicTestStatus('idle'), 3000);
+      const delay = micTestStatus === 'failed' ? 5000 : 3000;
+      micResetTimerRef.current = setTimeout(() => setMicTestStatus('idle'), delay);
     }
     return () => {
       if (micResetTimerRef.current) clearTimeout(micResetTimerRef.current);
@@ -110,9 +111,11 @@ export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAv
         requestAnimationFrame(tick);
       };
       tick();
-    } catch {
+    } catch (error) {
+      console.error('Microphone test failed:', error);
       setMicTestStatus('failed');
       setMicLevel(0);
+      toast.error('Microphone access denied or unavailable. Please check your browser settings.');
     }
   }, []);
 

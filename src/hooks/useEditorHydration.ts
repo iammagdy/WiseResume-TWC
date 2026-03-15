@@ -89,19 +89,23 @@ export function useEditorHydration({
       serverUpdatedAt !== lastRefreshedServerTs.current
     ) {
       const isClean = lastSavedResumeRef.current === JSON.stringify(localResume);
-      useResumeStore.getState().setCurrentResume(dbToResumeData(resumeFromDb as any));
-      useResumeStore.getState().setSelectedTemplate(
-        ((resumeFromDb.template_id as string) || 'modern') as TemplateId
-      );
-      localLoadedAtRef.current = serverUpdatedAt;
-      lastSavedResumeRef.current = JSON.stringify(dbToResumeData(resumeFromDb as any));
-      lastRefreshedServerTs.current = serverUpdatedAt;
-      toast.info(
-        isClean
-          ? 'Resume updated — refreshed to latest version.'
-          : 'Resume updated from another device — refreshed to latest version.',
-        { duration: 3000 }
-      );
+
+      if (isClean) {
+        useResumeStore.getState().setCurrentResume(dbToResumeData(resumeFromDb as any));
+        useResumeStore.getState().setSelectedTemplate(
+          ((resumeFromDb.template_id as string) || 'modern') as TemplateId
+        );
+        localLoadedAtRef.current = serverUpdatedAt;
+        lastSavedResumeRef.current = JSON.stringify(dbToResumeData(resumeFromDb as any));
+        lastRefreshedServerTs.current = serverUpdatedAt;
+        toast.info('Resume updated — refreshed to latest version.', { duration: 3000 });
+      } else {
+        // Prevent silent overwrite of dirty state
+        toast.error(
+          'Resume updated from another device. Please save or refresh to sync.',
+          { duration: 5000, action: { label: 'Refresh', onClick: () => window.location.reload() } }
+        );
+      }
     }
   }, [resumeFromDb, currentResumeId, user, setCurrentResumeId, navigate, lastSavedResumeRef, isSavingRef]);
 

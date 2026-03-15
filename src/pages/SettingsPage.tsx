@@ -135,7 +135,11 @@ export default function SettingsPage() {
     fetch('/changelog.json').
     then((r) => {if (!r.ok) throw new Error();return r.json();}).
     then((data) => {setChangelogData(data);changelogFetchedAt.current = Date.now();}).
-    catch(() => setChangelogError(true)).
+    catch((err) => {
+      console.error('Failed to load changelog:', err);
+      setChangelogError(true);
+      toast.error('Failed to load changelog. Please check your connection.');
+    }).
     finally(() => setChangelogLoading(false));
   }, [changelogOpen]);
 
