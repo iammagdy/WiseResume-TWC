@@ -297,17 +297,21 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
             } as CSSProperties}
           >
             {currentResume.customization && (
-              <style dangerouslySetInnerHTML={{ __html: generateCustomizationCSS(currentResume.customization) }} />
+              <style>
+                {generateCustomizationCSS(currentResume.customization)}
+              </style>
             )}
             {highlightSection && (
-              <style dangerouslySetInnerHTML={{ __html: `
-                [data-section="${highlightSection}"] {
-                  outline: 2px solid hsl(var(--primary) / 0.2);
-                  outline-offset: 4px;
-                  border-radius: 4px;
-                  transition: outline-color 0.3s ease;
-                }
-              ` }} />
+              <style>
+                {`
+                  [data-section="${highlightSection}"] {
+                    outline: 2px solid hsl(var(--primary) / 0.2);
+                    outline-offset: 4px;
+                    border-radius: 4px;
+                    transition: outline-color 0.3s ease;
+                  }
+                `}
+              </style>
             )}
             <Suspense fallback={<PreviewSkeleton />}>
               <TemplateComponent resume={filteredResume} />
