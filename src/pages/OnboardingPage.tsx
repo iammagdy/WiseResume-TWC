@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { useQueryClient } from '@tanstack/react-query';
 
 const ONBOARDING_KEY = 'wr-onboarding-completed';
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
 
 const REFERRAL_OPTIONS = ['Word of Mouth', 'Social Media', 'AI Search', 'Other'];
 
@@ -48,7 +48,7 @@ export default function OnboardingPage() {
     
     if (user?.id) {
       try {
-        const updates: any = {
+        const updates: Record<string, unknown> = {
           onboarding_completed: !skip,
         };
         
@@ -99,7 +99,7 @@ export default function OnboardingPage() {
 
   const progress = ((step + 1) / TOTAL_STEPS) * 100;
 
-  const canProceed = step === 0 || step === 4 
+  const canProceed = step === 0 || step === 4 || step === 5
     || (step === 1 && name.trim().length > 0)
     || (step === 2 && referral !== null)
     || (step === 3 && role !== null);
@@ -257,7 +257,52 @@ export default function OnboardingPage() {
                   </div>
                 </motion.div>
                 <h2 className="text-2xl font-bold text-foreground mb-2">Profile Complete! 🎉</h2>
-                <p className="text-muted-foreground mb-6">You're all set up. Let's start building your career story.</p>
+                <p className="text-muted-foreground mb-6">You're all set up. Let's discover what you can do next.</p>
+              </>
+            )}
+
+            {/* Step 5: What's Next */}
+            {step === 5 && (
+              <>
+                <h2 className="text-2xl font-bold text-foreground mb-4">What's Next?</h2>
+                <p className="text-muted-foreground mb-6">Explore AI Studio tools to land your next role.</p>
+                <div className="w-full space-y-4 text-left">
+                  <div className="p-4 border rounded-xl bg-card">
+                    <h3 className="font-semibold mb-1 flex items-center gap-2">
+                      <Target className="w-4 h-4 text-primary" /> Create a Resume First
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Before using the interview practice or portfolio builder, you'll need a resume in your account.
+                    </p>
+                    <Button variant="outline" size="sm" onClick={() => { markCompleted(false); navigate('/ai-studio'); }}>
+                      Go to AI Studio
+                    </Button>
+                  </div>
+
+                  <div className="p-4 border rounded-xl bg-card">
+                    <h3 className="font-semibold mb-1 flex items-center gap-2">
+                      <Briefcase className="w-4 h-4 text-primary" /> AI Interview Practice
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Practice answering questions out loud with our AI interviewer. Get instant feedback and scoring.
+                    </p>
+                    <Button variant="outline" size="sm" onClick={() => { markCompleted(false); navigate('/interview'); }}>
+                      Try Interview Practice
+                    </Button>
+                  </div>
+
+                  <div className="p-4 border rounded-xl bg-card">
+                    <h3 className="font-semibold mb-1 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-primary" /> Build Your Portfolio
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Turn your resume into a beautiful web portfolio in one click. Customize it and share with recruiters.
+                    </p>
+                    <Button variant="outline" size="sm" onClick={() => { markCompleted(false); navigate('/portfolio'); }}>
+                      Open Portfolio Editor
+                    </Button>
+                  </div>
+                </div>
               </>
             )}
           </motion.div>
@@ -266,15 +311,26 @@ export default function OnboardingPage() {
 
       {/* Footer */}
       <div className="shrink-0 px-6 pb-6 pb-safe">
-        <Button
-          onClick={handleNext}
-          disabled={!canProceed || isSubmitting}
-          className="w-full h-12 text-base rounded-xl"
-          size="lg"
-        >
-          {isSubmitting ? 'Saving...' : step === TOTAL_STEPS - 1 ? 'Go to Dashboard' : 'Continue'}
-          {!isSubmitting && step < TOTAL_STEPS - 1 && <ArrowRight className="w-4 h-4 ml-2" />}
-        </Button>
+        {step < TOTAL_STEPS - 1 ? (
+          <Button
+            onClick={handleNext}
+            disabled={!canProceed || isSubmitting}
+            className="w-full h-12 text-base rounded-xl"
+            size="lg"
+          >
+            {isSubmitting ? 'Saving...' : 'Continue'}
+            {!isSubmitting && <ArrowRight className="w-4 h-4 ml-2" />}
+          </Button>
+        ) : (
+          <Button
+            onClick={() => markCompleted(false)}
+            disabled={isSubmitting}
+            className="w-full h-12 text-base rounded-xl"
+            size="lg"
+          >
+            {isSubmitting ? 'Saving...' : 'Go to Dashboard'}
+          </Button>
+        )}
       </div>
     </motion.div>
   );

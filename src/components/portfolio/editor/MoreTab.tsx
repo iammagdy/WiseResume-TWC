@@ -1,5 +1,5 @@
 import {
-  Eye, Sparkles, Search, Loader2, Link2, Linkedin, Github,
+  Eye, Sparkles, Search, Loader2, Link2, Linkedin, Github, History
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,6 +11,8 @@ import { haptics } from '@/lib/haptics';
 import { normalizeUrl } from '@/lib/urlUtils';
 
 export interface MoreTabProps {
+  // History
+  onOpenHistory: () => void;
   // SEO
   metaTitle: string;
   onMetaTitleChange: (val: string) => void;
@@ -46,6 +48,7 @@ export interface MoreTabProps {
 
 export function MoreTab(props: MoreTabProps) {
   const {
+    onOpenHistory,
     metaTitle, onMetaTitleChange, metaDescription, onMetaDescriptionChange,
     onGenerateSEO, generatingSEO, seoPlaceholderName, seoPlaceholderTitle,
     portfolioUsername, userId, portfolioEnabled, views,
@@ -140,6 +143,12 @@ export function MoreTab(props: MoreTabProps) {
           userId={userId}
           portfolioEnabled={portfolioEnabled}
         />
+        <div className="mt-4 pt-4 border-t border-border/50">
+          <p className="text-[11px] text-muted-foreground mb-2">View and restore previous versions of your portfolio.</p>
+          <Button variant="outline" size="sm" className="w-full text-xs" onClick={onOpenHistory}>
+            <History className="w-3.5 h-3.5 mr-1.5" /> Revision History
+          </Button>
+        </div>
       </CollapsibleCard>
 
       {/* Career Card */}

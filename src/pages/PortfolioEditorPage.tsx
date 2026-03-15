@@ -29,12 +29,15 @@ import { ContentTab } from '@/components/portfolio/editor/ContentTab';
 import { DesignTab } from '@/components/portfolio/editor/DesignTab';
 import { MoreTab } from '@/components/portfolio/editor/MoreTab';
 import { SaveBar } from '@/components/portfolio/editor/SaveBar';
+import { PortfolioHistorySheet } from '@/components/portfolio/PortfolioHistorySheet';
+import { usePortfolioHistory } from '@/hooks/usePortfolioHistory';
 
 
 export default function PortfolioEditorPage() {
   const { user } = useAuth();
   const { profile, loading, updateProfile } = useProfile(user?.id, user);
   const { data: resumes = [] } = useResumes();
+  const { saveSnapshot } = usePortfolioHistory(user?.id);
   const queryClient = useQueryClient();
 
   // Collapsible sections state — all collapsed by default
@@ -79,6 +82,8 @@ export default function PortfolioEditorPage() {
   const [availabilityHeadline, setAvailabilityHeadline] = useState('');
   const [showQR, setShowQR] = useState(false);
   const [showCareerCard, setShowCareerCard] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [isRestoringHistory, setIsRestoringHistory] = useState(false);
   const [syncMode, setSyncMode] = useState<'auto' | 'locked'>('auto');
   const [caseStudies, setCaseStudies] = useState<Array<{id: string;title: string;challenge: string;outcome: string;}>>([]);
   const [services, setServices] = useState<Array<{id: string;title: string;description: string;category: string;}>>([]);
@@ -329,8 +334,16 @@ export default function PortfolioEditorPage() {
         portfolioSyncMode: syncMode,
         portfolioExtras: { caseStudies, services, testimonials, highlights, portfolioSummary }
       };
+
       await updateProfile(updates as Parameters<typeof updateProfile>[0]);
       
+      // Save history snapshot (fire and forget to not block UI)
+      if (overrides?.portfolioEnabled === undefined) {
+        saveSnapshot(updates as Record<string, unknown>).catch(e => {
+          console.error("Failed to save history snapshot", e);
+        });
+      }
+
       // Invalidate public portfolio cache to reflect changes immediately
       queryClient.invalidateQueries({ queryKey: ['public-portfolio'] });
       if (overrides?.portfolioEnabled !== undefined) {
@@ -382,6 +395,24 @@ export default function PortfolioEditorPage() {
 
   const toggleSectionVisibility = (key: keyof PortfolioSections) => {
     setSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleRestoreHistory = async (historyData: Record<string, unknown>) => {
+    setIsRestoringHistory(true);
+    haptics.light();
+    try {
+      await updateProfile(historyData as Parameters<typeof updateProfile>[0]);
+      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['public-portfolio'] });
+
+      toast.success('Portfolio restored successfully!');
+      setShowHistory(false);
+    } catch (err) {
+      console.error('Failed to restore portfolio:', err);
+      toast.error('Failed to restore portfolio. Please try again.');
+    } finally {
+      setIsRestoringHistory(false);
+    }
   };
 
   // ── Portfolio Strength ────────────────────────────────────────────────────
@@ -536,6 +567,7 @@ export default function PortfolioEditorPage() {
 
             {activeTab === 'more' &&
             <MoreTab
+              onOpenHistory={() => setShowHistory(true)}
               metaTitle={metaTitle}
               onMetaTitleChange={setMetaTitle}
               metaDescription={metaDescription}
@@ -591,6 +623,14 @@ export default function PortfolioEditorPage() {
         profile={profile as Parameters<typeof CareerCardSheet>[0]['profile']}
         selectedResume={selectedResume as Parameters<typeof CareerCardSheet>[0]['selectedResume']}
         accentColor={portfolioAccentColor} />
+
+      <PortfolioHistorySheet
+        open={showHistory}
+        onOpenChange={setShowHistory}
+        userId={user?.id}
+        onRestore={handleRestoreHistory}
+        isRestoring={isRestoringHistory}
+      />
       
     </div>);
 
