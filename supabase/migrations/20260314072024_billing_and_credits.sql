@@ -78,10 +78,11 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION public.initialize_subscription()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO public.subscriptions (user_id) VALUES (NEW.user_id);
+    INSERT INTO public.subscriptions (user_id) VALUES (NEW.user_id)
+    ON CONFLICT (user_id) DO NOTHING;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 CREATE TRIGGER trigger_init_subscription AFTER INSERT ON public.profiles
     FOR EACH ROW EXECUTE FUNCTION public.initialize_subscription();

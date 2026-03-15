@@ -51,6 +51,7 @@ export function useEditorAutosave({
 }: UseEditorAutosaveOptions): { saveToCloud: () => Promise<void> } {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastScoreTimeRef = useRef<number>(0);
+  const isMountedRef = useRef(true);
   // Keep a stable ref to resumeFromDb so the saveToCloud callback never stales
   const resumeFromDbRef = useRef(resumeFromDb);
   resumeFromDbRef.current = resumeFromDb;
@@ -118,6 +119,7 @@ export function useEditorAutosave({
       } else {
         // Silent retry once after 2s (handles transient JWT warm-up race on first save)
         await new Promise(r => setTimeout(r, 2000));
+        if (!isMountedRef.current) return;
         try {
           const retryResult = await updateResume.mutateAsync({ resumeId: currentResumeId, updates: resume });
           lastSavedResumeRef.current = currentResumeJson;
@@ -170,7 +172,9 @@ export function useEditorAutosave({
 
   // Cleanup save timeout on unmount
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
+      isMountedRef.current = false;
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
   }, []);

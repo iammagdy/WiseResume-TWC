@@ -3,6 +3,7 @@ import { callAI, getUserKeyFromDB, getUserKeyAndUrlFromDB } from "../_shared/aiC
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
+import { checkRateLimit } from '../_shared/rateLimiter.ts';
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
@@ -15,6 +16,11 @@ serve(async (req) => {
   try {
     // Auth via manual JWT decode (cross-project compatible)
     const { userId, client: supabaseAdmin } = await requireAuth(req);
+
+    const { allowed } = await checkRateLimit(userId, { actionType: 'test_check', maxRequests: 10, windowSeconds: 60 });
+    if (!allowed) {
+      return new Response(JSON.stringify({ success: false, error: "Rate limit exceeded" }), { status: 429, headers: corsHeaders });
+    }
 
     // Parse request body for potential 'checkOnly' flag
     let checkOnly = false;

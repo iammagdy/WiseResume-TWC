@@ -31,6 +31,12 @@ serve(async (req) => {
     const profile = portfolioData.profile;
     const resume = portfolioData.resume;
 
+    if (!profile || !resume) {
+      return new Response(JSON.stringify({ error: "Incomplete portfolio data" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Look up the portfolio owner's user_id from their profile
     const { data: ownerRow } = await supabase
       .from('profiles')
@@ -51,14 +57,13 @@ serve(async (req) => {
     // Server-side rate limit: max 50 questions per username per day
     const today = new Date().toISOString().slice(0, 10);
     const { count: dailyCount } = await supabase
-      .from('portfolio_visits')
+      .from('ai_usage_logs')
       .select('id', { count: 'exact', head: true })
-      .eq('username', username.toLowerCase())
-      .gte('visited_at', `${today}T00:00:00Z`);
+      .eq('user_id', ownerRow.user_id)
+      .eq('action_type', 'chat')
+      .gte('created_at', `${today}T00:00:00Z`);
 
-    // Use a generous limit since portfolio_visits is a proxy; 
-    // real rate limiting per chat could be added later
-    if ((dailyCount ?? 0) > 500) {
+    if ((dailyCount ?? 0) >= 50) {
       return new Response(JSON.stringify({ error: "Rate limit reached. Please try again later." }), {
         status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

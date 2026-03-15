@@ -118,7 +118,7 @@ Return JSON with this exact structure: {"title":"exact job title","keySkills":["
     let effectiveEndInterview = endInterview;
     if (quickPractice && !endInterview && messages) {
       const userMessageCount = messages.filter((m: any) => m.role === 'user').length;
-      // After 5 user answers (6 user messages including the "start interview" message), auto-end
+      // userMessageCount >= 6 = 1 "start interview" trigger + 5 candidate answers → auto-end
       if (userMessageCount >= 6) {
         effectiveEndInterview = true;
       }
@@ -129,25 +129,20 @@ Return JSON with this exact structure: {"title":"exact job title","keySkills":["
 
     // Fix #6: Include resumeContext and jobContext in end-interview prompt
     const systemPrompt = effectiveEndInterview
-      ? `You are Wise AI, a professional interview coach. The mock interview has ended. Provide a structured performance summary:
+      ? `You are Wise AI, a professional interview coach. The mock interview has ended. Provide a structured performance summary.
 ${resumeContext}${jobContext}
 
-**Overall Assessment:** [2-3 sentences evaluating the candidate's interview performance]
-
-**Strengths:**
-- [Specific strength with example from their answers]
-- [Another strength]
-- [Another strength if applicable]
-
-**Areas to Improve:**
-- [Specific area with actionable advice]
-- [Another area with actionable advice]
-
-**Score: [X]/10**
-
-**Next Steps:** [2-3 specific, actionable things to practice before their real interview]
+You MUST return a pure JSON object matching this exact schema:
+{
+  "overallAssessment": "2-3 sentences evaluating the candidate's interview performance",
+  "strengths": ["Specific strength with example from their answers", "Another strength"],
+  "improvements": ["Specific area with actionable advice", "Another area with actionable advice"],
+  "score": 8,
+  "nextSteps": ["2-3 specific, actionable things to practice before their real interview"]
+}
 
 Be encouraging but honest. Reference specific answers they gave when possible.
+Ensure the response is ONLY valid JSON, no markdown formatting globally over the response.
 
 GROUNDING RULES:
 - Only reference skills, experiences, and achievements actually present in the candidate's resume above. Do not fabricate scenarios or claim the candidate mentioned things they didn't.
@@ -167,10 +162,16 @@ INTERVIEW RULES:
 6. Keep your responses concise — no more than 150 words per turn.
 7. SILENCE HANDLING: If the candidate sends "(no response)" or "(silence)", respond naturally like a real interviewer would — gently encourage them ("No worries, take your time"), offer to rephrase the question, or suggest moving to the next one. Never ignore these markers or treat them as actual answers.
 ${quickPractice ? '8. QUICK PRACTICE MODE: Ask exactly 5 questions total. After the 5th answer, provide your summary automatically without being asked.\n' : ''}
-After EVERY candidate answer, include this scoring block at the end of your response:
----SCORE---
-{"score": [1-10], "tip": "[one specific actionable tip]", "improved_answer": "[a stronger version of their answer in 2-3 sentences]"}
----END_SCORE---`;
+You MUST return your response as a strict JSON object matching this schema:
+{
+  "reply": "Your conversational response to the candidate (max 150 words)",
+  "score": {
+    "score": 8,
+    "tip": "One specific actionable tip based on their answer",
+    "improved_answer": "A stronger version of their answer in 2-3 sentences"
+  }
+}
+Do not include markdown blocks globally. Ensure the output is valid JSON.`;
 
     // Fix #9: Use appropriate temperature per mode
     const temperature = effectiveEndInterview ? 0.5 : 0.7;
@@ -183,11 +184,19 @@ After EVERY candidate answer, include this scoring block at the end of your resp
       temperature,
     });
 
-    const reply = aiResponse.content || "I couldn't generate a response. Let's try again.";
+    // FR-016: Parse the structured JSON response from the AI.
+    // The system prompt instructs the model to return { reply, score }.
+    // We extract them here so the client receives clean text, not a raw JSON blob.
+    const rawContent = aiResponse.content || '';
+    const parsed = parseAIJSON<{ reply?: string; score?: { score?: number; tip?: string; improved_answer?: string } }>(rawContent);
+
+    // If model returned valid structured JSON, use the reply field; fall back to raw content.
+    const replyText = parsed?.reply || rawContent || "I couldn't generate a response. Let's try again.";
+    const scoreData = parsed?.score || null;
 
     await recordUsage(userId, 'interview', { provider: aiResponse.providerUsed || 'unknown' });
 
-    return new Response(JSON.stringify({ reply }), {
+    return new Response(JSON.stringify({ reply: replyText, score: scoreData }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

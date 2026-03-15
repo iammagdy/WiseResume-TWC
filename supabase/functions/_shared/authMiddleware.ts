@@ -19,6 +19,9 @@ export class AuthError extends Error {
 
 /**
  * Decodes a JWT payload without verifying the signature.
+ * @deprecated Use `requireAuth()` for authenticated edge functions. This function
+ * does NOT verify the JWT signature and should only be used for optional/public auth
+ * where no security decision depends on the token being valid.
  */
 export function decodeJwtPayload(token: string): Record<string, unknown> {
   const parts = token.split('.');
@@ -28,11 +31,8 @@ export function decodeJwtPayload(token: string): Record<string, unknown> {
   return JSON.parse(json);
 }
 
-/**
- * Validates the Authorization header and returns the authenticated user's ID
- * and a service-role Supabase client that targets the EXTERNAL database project.
- * With pure Supabase Auth, the `sub` claim IS the user UUID directly.
- */
+import * as jose from 'https://deno.land/x/jose@v4.15.5/index.ts';
+
 export async function requireAuth(req: Request): Promise<AuthResult> {
   const authHeader = req.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
@@ -40,13 +40,20 @@ export async function requireAuth(req: Request): Promise<AuthResult> {
   }
 
   const token = authHeader.replace('Bearer ', '');
+  const secretStr = Deno.env.get('EXT_SUPABASE_JWT_SECRET');
+  
+  if (!secretStr) {
+    throw new Error('EXT_SUPABASE_JWT_SECRET environment variable is not set');
+  }
 
-  let claims: Record<string, unknown>;
+  let claims: jose.JWTPayload;
   try {
-    claims = decodeJwtPayload(token);
+    const secret = new TextEncoder().encode(secretStr);
+    const { payload } = await jose.jwtVerify(token, secret);
+    claims = payload;
   } catch (err: unknown) {
-    if (err instanceof Error && err.name === 'AuthError') throw err;
-    throw new AuthError('Unauthorized', 401);
+    console.error('JWT verification failed:', err);
+    throw new AuthError('Unauthorized - invalid signature', 401);
   }
 
   // With Supabase Auth, sub is the user UUID directly

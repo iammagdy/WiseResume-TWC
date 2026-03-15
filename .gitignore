@@ -26,6 +26,11 @@ dist-ssr
 
 # Build artifacts
 bun.lockb
+bun.lock
+
+# Auto-generated files (regenerated from remote schema)
+src/types/supabase.ts
+
 
 # AI tool configs
 .lovable/

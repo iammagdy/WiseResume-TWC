@@ -77,7 +77,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Exchange Kinde token for Supabase JWT when user is authenticated
   useEffect(() => {
     if (!kindeAuthenticated || !kindeUser || kindeLoading) {
-      setBridgeReady(false);
+      // If Kinde is down or loading, we preserve the cached bridge locally
+      // so the user can still access Supabase functionality offline/if Kinde is unreachable.
+      if (isReady()) setBridgeReady(true);
       return;
     }
 

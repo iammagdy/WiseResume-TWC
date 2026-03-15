@@ -26,12 +26,37 @@ interface BridgeState {
   lastError: BridgeError | null;
 }
 
-const state: BridgeState = {
-  supabaseToken: null,
-  userId: null,
-  expiresAt: 0,
-  lastError: null,
-};
+const STORAGE_KEY = 'wise_supabase_bridge_state';
+
+function loadState(): BridgeState {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed.supabaseToken && parsed.expiresAt && parsed.expiresAt > Date.now() / 1000 + 60) {
+        return { ...parsed, lastError: null };
+      }
+    }
+  } catch {}
+  return {
+    supabaseToken: null,
+    userId: null,
+    expiresAt: 0,
+    lastError: null,
+  };
+}
+
+function persistState(s: BridgeState) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      supabaseToken: s.supabaseToken,
+      userId: s.userId,
+      expiresAt: s.expiresAt,
+    }));
+  } catch {}
+}
+
+const state: BridgeState = loadState();
 
 let exchangePromise: Promise<void> | null = null;
 
@@ -83,6 +108,7 @@ export async function exchangeToken(kindeToken: string): Promise<void> {
       state.supabaseToken = data.supabaseToken;
       state.userId = data.userId;
       state.expiresAt = data.expiresAt;
+      persistState(state);
       console.log('[SupabaseBridge] Token exchanged successfully, userId:', data.userId);
     } catch (err) {
       console.error('[SupabaseBridge] Token exchange error:', err);
@@ -162,6 +188,7 @@ export function clearBridge(): void {
   state.lastError = null;
   exchangePromise = null;
   _getKindeTokenFn = null;
+  try { localStorage.removeItem(STORAGE_KEY); } catch {}
   console.log('[SupabaseBridge] Cleared');
 }
 

@@ -113,10 +113,9 @@ export default function PortfolioEditorPage() {
       setLinkedinUrl(profile.linkedinUrl || '');
       setContactEmail(profile.contactEmail || '');
       setSelectedTheme(profile.theme || 'system');
-      const p = profile as unknown as Record<string, unknown>;
-      setSections(p.portfolioSections as PortfolioSections || DEFAULT_SECTIONS);
-      setMetaTitle(p.portfolioMetaTitle as string || '');
-      setMetaDescription(p.portfolioMetaDescription as string || '');
+      setSections((profile.portfolioSections as PortfolioSections) || DEFAULT_SECTIONS);
+      setMetaTitle(profile.portfolioMetaTitle || '');
+      setMetaDescription(profile.portfolioMetaDescription || '');
       setPortfolioStyle((profile.portfolioStyle || 'minimal') as PortfolioStyle);
       setPortfolioLayout((profile.portfolioLayout || 'single') as PortfolioLayout);
       setPortfolioAccentColor(profile.portfolioAccentColor || '#e84545');
@@ -124,7 +123,7 @@ export default function PortfolioEditorPage() {
       setOpenToWork(profile.openToWork || false);
       setAvailabilityHeadline(profile.availabilityHeadline || '');
       setSyncMode(profile.portfolioSyncMode as 'auto' | 'locked' || 'auto');
-      const extras = profile.portfolioExtras as Record<string, unknown> || {};
+      const extras = profile.portfolioExtras || {};
       setCaseStudies(extras.caseStudies as Array<{id: string;title: string;challenge: string;outcome: string;}> || []);
       setServices(extras.services as Array<{id: string;title: string;description: string;category: string;}> || []);
       setTestimonials(extras.testimonials as Array<{id: string;quote: string;authorName: string;authorTitle: string;}> || []);
@@ -222,7 +221,7 @@ export default function PortfolioEditorPage() {
         jobTitle: profile?.jobTitle || '',
         experience: selectedResume?.experience || [],
         skills: selectedResume?.skills || [],
-        careerLevel: (profile as unknown as Record<string, unknown>)?.careerLevel || 'mid',
+        careerLevel: profile?.careerLevel || 'mid',
         ...extraBody
       })
     });
@@ -333,8 +332,14 @@ export default function PortfolioEditorPage() {
         setPortfolioEnabled(overrides.portfolioEnabled);
       }
       toast.success('Portfolio saved!');
-    } catch {
-      toast.error('Failed to save portfolio');
+    } catch (err: unknown) {
+      const pgError = err as { code?: string; message?: string };
+      if (pgError?.code === '23505') {
+        setUsernameAvailable(false);
+        toast.error('This username was just taken. Please choose another.');
+      } else {
+        toast.error('Failed to save portfolio');
+      }
     } finally {
       setSavingPortfolio(false);
     }

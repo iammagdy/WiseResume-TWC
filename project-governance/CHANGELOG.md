@@ -2,6 +2,21 @@
 
 Local changelog tracking WiseResume changes.
 
+## 2026-03-15
+
+### SECURITY-AUDIT-FIXES
+- **Summary**: Addressed all critical and medium-priority findings from the code security audit. Six targeted fixes applied with small, safe changes. All 166 tests pass. Edge functions redeployed.
+- **Security (Critical)**: `authMiddleware.ts` — replaced insecure JWT payload decode with full HS256 signature verification using `jose.jwtVerify()` and `EXT_SUPABASE_JWT_SECRET`. Downstream functions now reject tampered tokens.
+- **Bug Fix (Medium)**: `PortfolioEditorPage.tsx` — explicitly catches PostgreSQL error code `23505` (duplicate key) in `handleSave` and displays a user-friendly "username taken" toast instead of a silent failure.
+- **Error Handling (Medium)**: `InterviewPage.tsx` — added `.onError()` callback to `saveSession.mutate()` that shows a toast on network or auth failures. Also consolidated JSON/regex parse paths into a single `useMemo` and added display-safe markdown conversion for new AI JSON output.
+- **Resilience**: `AuthContext.tsx` — preserves cached Supabase bridge token when Kinde is loading or unavailable, enabling graceful offline/fallback access.
+- **Persistence**: `supabaseBridge.ts` — migrated bridge token storage from in-memory to `localStorage`, eliminating redundant token exchange calls on page refresh. `clearBridge()` also clears localStorage.
+- **AI Output**: `interview-chat/index.ts` — rewrote end-interview system prompt to output structured JSON (`overallAssessment`, `strengths`, `improvements`, `score`, `nextSteps`) instead of fragile markdown, with legacy regex fallback in the parser.
+- **Rate Limiting**: New migration `20260315000000_rate_limit_get_public_portfolio.sql` — adds `rpc_rate_limits` tracking table and enforces 60 requests/minute per IP inside `get_public_portfolio` RPC body.
+- **Files**: `supabase/functions/_shared/authMiddleware.ts`, `src/pages/PortfolioEditorPage.tsx`, `src/pages/InterviewPage.tsx`, `src/contexts/AuthContext.tsx`, `src/lib/supabaseBridge.ts`, `supabase/functions/interview-chat/index.ts`, `supabase/migrations/20260315000000_rate_limit_get_public_portfolio.sql`
+- **Tests**: `npm run test` — 166/166 passing. Edge functions deployed via `npx supabase functions deploy`.
+- **Next**: Run `npx supabase db push` to apply rate limit migration to production DB.
+
 ## 2026-03-14
 
 ### DEV-KIT-SECURITY-UI

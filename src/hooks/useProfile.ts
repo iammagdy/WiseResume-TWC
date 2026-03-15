@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import type { KindeAppUser } from '@/contexts/AuthContext';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/safeClient';
@@ -29,7 +29,10 @@ export interface PortfolioExtras {
   testimonials?: Array<{ id: string; quote: string; authorName: string; authorTitle?: string; avatarUrl?: string }>;
   highlights?: Array<{ id: string; value: string; label: string }>;
   portfolioSnapshot?: Record<string, unknown> | null;
+  portfolioSummary?: string;
 }
+
+import { PortfolioSections } from '@/components/portfolio/editor/ContentVisibilitySection';
 
 interface Profile {
   fullName: string | null;
@@ -50,7 +53,7 @@ interface Profile {
   contactEmail: string | null;
   theme: string | null;
   phoneNumber: string | null;
-  portfolioSections: Record<string, boolean> | null;
+  portfolioSections: PortfolioSections | null;
   portfolioMetaTitle: string | null;
   portfolioMetaDescription: string | null;
   views: number;
@@ -174,7 +177,7 @@ async function fetchProfile(userId: string, user?: KindeAppUser | null): Promise
       contactEmail: d.contact_email as string | null,
       theme: d.portfolio_theme as string | null,
       phoneNumber: d.phone_number as string | null,
-      portfolioSections: d.portfolio_sections as Record<string, boolean> | null,
+      portfolioSections: d.portfolio_sections as PortfolioSections | null,
       portfolioMetaTitle: d.portfolio_meta_title as string | null,
       portfolioMetaDescription: d.portfolio_meta_description as string | null,
       // New fields
@@ -252,6 +255,11 @@ async function fetchProfile(userId: string, user?: KindeAppUser | null): Promise
 
 export function useProfile(userId: string | undefined, user?: KindeAppUser | null) {
   const queryClient = useQueryClient();
+  const userIdRef = useRef(userId);
+
+  useEffect(() => {
+    userIdRef.current = userId;
+  }, [userId]);
 
   const { data: profile = null, isLoading: loading } = useQuery({
     queryKey: ['profile', userId],
@@ -315,12 +323,14 @@ export function useProfile(userId: string | undefined, user?: KindeAppUser | nul
       return updates;
     },
     onSuccess: (updates) => {
+      const currentUserId = userIdRef.current;
+      if (!currentUserId) return;
       // Optimistically update the cache
-      queryClient.setQueryData(['profile', userId], (old: Profile | null) =>
+      queryClient.setQueryData(['profile', currentUserId], (old: Profile | null) =>
         old ? { ...old, ...updates } : updates as Profile
       );
       // Force a fresh fetch from DB so the profile page always reflects latest data
-      queryClient.invalidateQueries({ queryKey: ['profile', userId] });
+      queryClient.invalidateQueries({ queryKey: ['profile', currentUserId] });
     },
     onError: () => {
       // Let callers handle error display

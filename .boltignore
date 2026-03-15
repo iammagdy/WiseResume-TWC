@@ -23,3 +23,13 @@ lerna-debug.log*
 coverage/
 test_output.txt
 vite.config.ts.timestamp-*
+
+# Generated / lock files — Bolt uses its own package manager
+package-lock.json
+bun.lock
+bun.lockb
+
+# Auto-generated type files
+src/types/supabase.ts
+src/integrations/supabase/types.ts
+
