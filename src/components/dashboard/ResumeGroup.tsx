@@ -186,9 +186,12 @@ export function organizeResumeHierarchy(resumes: DatabaseResume[]) {
     }
   });
 
+  // ⚡ Bolt: Replace O(N²) nested loop with O(1) Set lookup
+  const masterIds = new Set(masterResumes.map(m => m.id));
+
   // Check for orphaned tailored resumes (parent was deleted)
   Object.entries(tailoredByParent).forEach(([parentId, tailored]) => {
-    const parentExists = masterResumes.some((m) => m.id === parentId);
+    const parentExists = masterIds.has(parentId);
     if (!parentExists) {
       // Promote orphaned resumes to master level
       orphanTailored.push(...tailored);
