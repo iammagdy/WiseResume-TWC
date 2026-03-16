@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo } from 'react';
 import { Loader2, Sparkles, Wand2, Target, Minimize2, BarChart3, BookOpen, CheckCircle, Layers, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -81,7 +81,7 @@ const experienceEmptyActions: AIActionConfig[] = [
   { id: 'generate', label: 'Generate Description', icon: <Wand2 className="w-4 h-4" />, description: 'Create a detailed description based on your role, company, and account' },
 ];
 
-export function InlineAIButton({
+export const InlineAIButton = memo(function InlineAIButton({
   section,
   onAction,
   isLoading = false,
@@ -210,4 +210,4 @@ export function InlineAIButton({
       )}
     </div>
   );
-}
+});

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, memo } from 'react';
 import { motion } from 'framer-motion';
 import { AlertCircle, X, Sparkles, Wand2 } from 'lucide-react';
 import { Experience } from '@/types/resume';
@@ -23,7 +23,7 @@ interface TimelineSegment {
   company?: string;
 }
 
-export function ExperienceTimeline({ experiences, onDismiss, onExplainGap, onFillGap }: ExperienceTimelineProps) {
+export const ExperienceTimeline = memo(function ExperienceTimeline({ experiences, onDismiss, onExplainGap, onFillGap }: ExperienceTimelineProps) {
   const isMobile = useIsMobile();
 
   const { segments, gaps, timelineStart, timelineEnd } = useMemo(() => {
@@ -282,4 +282,4 @@ export function ExperienceTimeline({ experiences, onDismiss, onExplainGap, onFil
       )}
     </motion.div>
   );
-}
+});
