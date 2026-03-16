@@ -682,13 +682,13 @@ function DashboardPageContent() {
           {selectionMode && resumes && resumes.length > 0 && (
             <div className="px-4 pb-3">
               <div className="flex items-center gap-2 rounded-xl glass-elevated px-3 py-2">
-                <Button variant="ghost" size="sm" onClick={exitSelectionMode} className="min-w-[44px] min-h-[44px]">
+                <Button variant="ghost" size="sm" onClick={exitSelectionMode} className="min-w-[44px] min-h-[44px]" aria-label="Exit selection mode">
                   <X className="w-4 h-4" />
                 </Button>
                 <span className="text-sm font-medium flex-1">
                   {selectedIds.size} selected
                 </span>
-                <Button variant="ghost" size="sm" onClick={handleSelectAll} className="text-xs">
+                <Button variant="ghost" size="sm" onClick={handleSelectAll} className="text-xs" aria-label="Select all resumes">
                   Select All
                 </Button>
                 <Button
@@ -697,6 +697,7 @@ function DashboardPageContent() {
                   disabled={selectedIds.size === 0}
                   onClick={() => setShowBulkDeleteConfirm(true)}
                   className="min-h-[44px] active:scale-95"
+                  aria-label="Delete selected resumes"
                 >
                   <Trash2 className="w-4 h-4 mr-1" />
                   Delete
@@ -725,6 +726,7 @@ function DashboardPageContent() {
               <button
                 onClick={() => refetch()}
                 className="text-sm text-primary hover:underline min-h-[44px] touch-manipulation flex items-center"
+                aria-label="Retry loading resumes"
               >
                 Retry
               </button>
@@ -739,7 +741,7 @@ function DashboardPageContent() {
                 <h3 className="font-semibold text-lg mb-1">Something went wrong</h3>
                 <p className="text-sm text-muted-foreground">We couldn't load your resumes.</p>
               </div>
-              <Button variant="outline" onClick={() => refetch()} className="min-h-[44px] gap-2">
+              <Button variant="outline" onClick={() => refetch()} className="min-h-[44px] gap-2" aria-label="Retry loading resumes">
                 <RefreshCw className="w-4 h-4" />
                 Tap to retry
               </Button>
