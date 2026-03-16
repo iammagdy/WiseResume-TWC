@@ -180,9 +180,9 @@ serve(async (req) => {
     }
 
     // 6. Sign Supabase-compatible JWT
-    const jwtSecret = Deno.env.get('EXT_SUPABASE_JWT_SECRET');
+    const jwtSecret = Deno.env.get('EXT_SUPABASE_JWT_SECRET') || Deno.env.get('SUPABASE_JWT_SECRET');
     if (!jwtSecret) {
-      console.error('[token-exchange] EXT_SUPABASE_JWT_SECRET not configured');
+      console.error('[token-exchange] SUPABASE_JWT_SECRET not configured');
       logExchange(serviceClient, kindeSub, supabaseUserId, 'error', 'JWT_SECRET_MISSING');
       return errorResponse('JWT_SECRET_MISSING', 'Server configuration error', 500, corsHeaders);
     }

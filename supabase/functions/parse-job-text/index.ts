@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAI, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient.ts";
+import { callAI, isAIError, parseAIJSON, toUserError, sanitizeInputText } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 
@@ -42,7 +42,7 @@ serve(async (req) => {
 
     const userPrompt = `Extract job posting details from this text:
 
-${trimmedText}
+${sanitizeInputText(trimmedText, 25000)}
 
 Return JSON:
 {

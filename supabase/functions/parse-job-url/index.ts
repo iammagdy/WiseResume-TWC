@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAI, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient.ts";
+import { callAI, isAIError, parseAIJSON, toUserError, sanitizeInputText } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 
 // ============= SECURITY: Domain Whitelist =============
@@ -227,7 +227,7 @@ Return ONLY valid JSON with no markdown or code blocks.`;
 
       const userPrompt = `Extract the job posting details from this page content:
 
-${textContent}
+${sanitizeInputText(textContent, 60000)}
 
 Return JSON with this comprehensive format:
 {

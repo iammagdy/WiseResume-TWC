@@ -81,6 +81,8 @@ function InterviewPageContent() {
     sendTextMessage,
     endInterview,
     resetInterview,
+    retryAI,
+    skipAITurn,
   } = useVoiceInterview(currentResume);
 
   // No navigation redirect — show an in-page empty state instead
@@ -446,6 +448,30 @@ function InterviewPageContent() {
         {/* Show typing indicator when AI is thinking */}
         <AnimatePresence>
           {status === 'thinking' && <TypingBubble />}
+        </AnimatePresence>
+
+        {/* Show error recovery options if AI call failed */}
+        <AnimatePresence>
+          {status === 'error' && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="flex justify-center my-4"
+            >
+              <div className="flex flex-col items-center gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-center max-w-sm w-full">
+                <p className="text-sm font-medium text-destructive">Connection failed</p>
+                <div className="flex w-full gap-2">
+                  <Button variant="outline" size="sm" className="w-full" onClick={skipAITurn}>
+                    Skip Turn
+                  </Button>
+                  <Button variant="default" size="sm" className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={retryAI}>
+                    Retry
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
 
         {interimText && (

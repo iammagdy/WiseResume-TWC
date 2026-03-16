@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAI, isAIError, toUserError } from "../_shared/aiClient.ts";
+import { callAI, isAIError, toUserError, sanitizeInputText } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { decodeJwtPayload } from "../_shared/authMiddleware.ts";
 
@@ -224,7 +224,7 @@ Reconstruct it into clean, readable text while preserving ALL original content. 
 - Missing spaces between words
 Return ONLY the cleaned text, nothing else.`,
         },
-        { role: 'user', content: text },
+        { role: 'user', content: sanitizeInputText(text, 100000) },
       ],
       userId,
       timeout: 15000,
@@ -359,7 +359,7 @@ serve(async (req) => {
       model: 'google/gemini-2.5-flash',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Parse the following resume text:\n\n${processedText}` },
+        { role: 'user', content: `Parse the following resume text:\n\n${sanitizeInputText(processedText, 100000)}` },
       ],
       tools: [parseResumeTool],
       toolChoice: { type: 'function', function: { name: 'parse_resume' } },
@@ -394,7 +394,7 @@ serve(async (req) => {
             { role: 'system', content: retryPrompt },
             {
               role: 'user',
-              content: `The first extraction missed these fields: ${missingFields.join(', ')}.\n\nPlease re-extract from this resume text:\n\n${processedText}`,
+              content: `The first extraction missed these fields: ${missingFields.join(', ')}.\n\nPlease re-extract from this resume text:\n\n${sanitizeInputText(processedText, 100000)}`,
             },
           ],
           tools: [parseResumeTool],

@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
-import { callAIWithRetry, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
+import { callAIWithRetry, isAIError, parseAIJSON, sanitizeInputText } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
@@ -430,11 +430,11 @@ function buildPrompt(section: string, action: string, currentContent: unknown, c
   const baseContext = `You are an expert resume writer and career coach. Your goal is to help users create compelling, ATS-friendly resume content.
 
 Current resume context:
-${JSON.stringify(context, null, 2)}
+${sanitizeInputText(JSON.stringify(context, null, 2), 15000)}
 
 Section to enhance: ${section}
 Current content:
-${JSON.stringify(currentContent, null, 2)}
+${sanitizeInputText(JSON.stringify(currentContent, null, 2), 5000)}
 `;
 
   const sectionAtsRules = getSectionSpecificAtsRules(section, currentContent, context);

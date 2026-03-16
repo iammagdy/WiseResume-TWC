@@ -1,5 +1,5 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAI, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient.ts";
+import { callAI, isAIError, parseAIJSON, toUserError, sanitizeInputText } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 
@@ -100,9 +100,9 @@ Deno.serve(async (req) => {
 
     const prompt = `You are a resume optimization expert. Condense this ${currentPages}-page resume to one page.
 
-${resumeJson}
+${sanitizeInputText(resumeJson, 15000)}
 
-${targetRole ? `Target role: ${targetRole}` : ''}
+${targetRole ? `Target role: ${sanitizeInputText(targetRole, 100)}` : ''}
 ${yearsOfExperience ? `Years of experience: ${yearsOfExperience}` : ''}
 Preserve the most recent ${preserveRecent} jobs in full detail.
 
