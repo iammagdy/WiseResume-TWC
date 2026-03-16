@@ -48,7 +48,9 @@ export default function ResumeDetailPage() {
   const { data: dbResume, isLoading } = useResume(id || null);
   const { data: allResumes = [] } = useResumes();
   const { deleteResume, duplicateResume } = useResumeMutations();
-  const { setCurrentResume, setCurrentResumeId, setSelectedTemplate } = useResumeStore();
+  const setCurrentResume = useResumeStore(s => s.setCurrentResume);
+  const setCurrentResumeId = useResumeStore(s => s.setCurrentResumeId);
+  const setSelectedTemplate = useResumeStore(s => s.setSelectedTemplate);
   const { getCachedScore, getLatestCachedScore, scoreResume, scoringId } = useResumeScore();
   const { createShare } = useResumeShareMutations();
   const { updateResume } = useResumeMutations();

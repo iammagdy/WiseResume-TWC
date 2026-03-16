@@ -40,7 +40,9 @@ export default function ProfilePage() {
   const { data: resumes = [] } = useResumes();
   const { data: applications = [] } = useJobApplications();
   const { deleteResume, duplicateResume } = useResumeMutations();
-  const { setCurrentResume, setCurrentResumeId, setSelectedTemplate } = useResumeStore();
+  const setCurrentResume = useResumeStore(s => s.setCurrentResume);
+  const setCurrentResumeId = useResumeStore(s => s.setCurrentResumeId);
+  const setSelectedTemplate = useResumeStore(s => s.setSelectedTemplate);
   const [editOpen, setEditOpen] = useState(false);
   const [backupOpen, setBackupOpen] = useState(false);
   const [linkedinOpen, setLinkedinOpen] = useState(false);

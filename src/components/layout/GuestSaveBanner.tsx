@@ -11,7 +11,7 @@ const DISMISS_KEY = 'wr-guest-banner-dismissed';
 export function GuestSaveBanner() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { currentResume } = useResumeStore();
+  const currentResume = useResumeStore(s => s.currentResume);
   const [dismissed, setDismissed] = useState(() => sessionStorage.getItem(DISMISS_KEY) === '1');
 
   const handleDismiss = () => {

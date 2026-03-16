@@ -65,7 +65,8 @@ function DashboardPageContent() {
   const { isMigrating } = useGuestMigration(null);
   const { data: resumes, isLoading: resumesLoading, isError: resumesError, refetch } = useResumes();
   const { deleteResume, deleteMultipleResumes, duplicateResume, updateResume } = useResumeMutations();
-  const { setCurrentResume, setCurrentResumeId } = useResumeStore();
+  const setCurrentResume = useResumeStore(s => s.setCurrentResume);
+  const setCurrentResumeId = useResumeStore(s => s.setCurrentResumeId);
   const { scoreResume, getCachedScore, scoringId } = useResumeScore();
   const { profile } = useProfile(user?.id, user);
   const { hasNew: hasNewChangelog } = useChangelogBadge();

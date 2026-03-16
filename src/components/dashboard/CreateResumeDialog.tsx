@@ -50,7 +50,8 @@ export function CreateResumeDialog({
   const { user } = useAuth();
   const { profile } = useProfile(user?.id);
   const { createResume, duplicateResume } = useResumeMutations();
-  const { setCurrentResume, setCurrentResumeId } = useResumeStore();
+  const setCurrentResume = useResumeStore(s => s.setCurrentResume);
+  const setCurrentResumeId = useResumeStore(s => s.setCurrentResumeId);
   
   const [mode, setMode] = useState<CreateMode | null>(null);
   const [title, setTitle] = useState('');

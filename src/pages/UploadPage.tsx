@@ -34,7 +34,8 @@ import { useATSScoreHistoryStore } from '@/store/atsScoreHistoryStore';
 export default function UploadPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { setCurrentResume, setCurrentResumeId } = useResumeStore();
+  const setCurrentResume = useResumeStore(s => s.setCurrentResume);
+  const setCurrentResumeId = useResumeStore(s => s.setCurrentResumeId);
   const { createResume } = useResumeMutations();
   const { scoreResume } = useResumeScore();
   const [isDragging, setIsDragging] = useState(false);

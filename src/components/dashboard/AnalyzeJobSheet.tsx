@@ -27,7 +27,7 @@ export function AnalyzeJobSheet({ open, onOpenChange }: AnalyzeJobSheetProps) {
   const navigate = useNavigate();
   const { createJob } = useJobMutations();
   const { data: resumes } = useResumes();
-  const { setCurrentResumeId } = useResumeStore();
+  const setCurrentResumeId = useResumeStore(s => s.setCurrentResumeId);
 
   const [phase, setPhase] = useState<Phase>('input');
   const [jobDescription, setJobDescription] = useState('');

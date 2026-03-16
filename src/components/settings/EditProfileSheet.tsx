@@ -103,7 +103,8 @@ export function EditProfileSheet({
   const [cropSheetOpen, setCropSheetOpen] = useState(false);
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
 
-  const { currentResume, updateResume } = useResumeStore();
+  const currentResume = useResumeStore(s => s.currentResume);
+  const updateResume = useResumeStore(s => s.updateResume);
   const { data: allResumes = [] } = useResumes();
   const masterCV = allResumes.find((r) => r.is_primary);
 

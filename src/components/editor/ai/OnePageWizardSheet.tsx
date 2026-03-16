@@ -69,7 +69,8 @@ interface OnePageResult {
 type ViewState = 'preview' | 'analyzing' | 'results';
 
 export function OnePageWizardSheet({ open, onOpenChange, onExportOnePage }: OnePageWizardSheetProps) {
-  const { currentResume, updateResume } = useResumeStore();
+  const currentResume = useResumeStore(s => s.currentResume);
+  const updateResume = useResumeStore(s => s.updateResume);
   const [viewState, setViewState] = useState<ViewState>('preview');
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<OnePageResult | null>(null);

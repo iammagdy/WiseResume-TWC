@@ -46,7 +46,8 @@ interface RecruiterSimSheetProps {
 type ViewState = 'persona_select' | 'analyzing' | 'results';
 
 export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps) {
-  const { currentResume, updateResume } = useResumeStore();
+  const currentResume = useResumeStore(s => s.currentResume);
+  const updateResume = useResumeStore(s => s.updateResume);
   const [viewState, setViewState] = useState<ViewState>('persona_select');
   const [selectedPersona, setSelectedPersona] = useState<RecruiterPersonaInfo | null>(null);
   const [analysis, setAnalysis] = useState<RecruiterAnalysis | null>(null);

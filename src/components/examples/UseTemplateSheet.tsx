@@ -38,7 +38,8 @@ const options = [
 export function UseTemplateSheet({ example, open, onOpenChange }: Props) {
   const navigate = useNavigate();
   const { createResume } = useResumeMutations();
-  const { setCurrentResume, setCurrentResumeId } = useResumeStore();
+  const setCurrentResume = useResumeStore(s => s.setCurrentResume);
+  const setCurrentResumeId = useResumeStore(s => s.setCurrentResumeId);
 
   if (!example) return null;
 

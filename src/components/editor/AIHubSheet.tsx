@@ -104,7 +104,7 @@ export function AIHubSheet({
   onRecruiterSim,
   onTemplateAdvisor,
 }: AIHubSheetProps) {
-  const { currentComparison } = useResumeStore();
+  const currentComparison = useResumeStore(s => s.currentComparison);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

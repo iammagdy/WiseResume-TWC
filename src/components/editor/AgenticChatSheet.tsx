@@ -241,7 +241,9 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
   const navigate = useNavigate();
   const location = useLocation();
   const { data: allResumes = [] } = useResumes();
-  const { currentResume, setCurrentResume, setCurrentResumeId } = useResumeStore();
+  const currentResume = useResumeStore(s => s.currentResume);
+  const setCurrentResume = useResumeStore(s => s.setCurrentResume);
+  const setCurrentResumeId = useResumeStore(s => s.setCurrentResumeId);
   const [activeContext, setActiveContext] = useState(() => detectContextFromRoute(location.pathname));
   const {
     messages,

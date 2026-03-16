@@ -81,7 +81,7 @@ export default function SettingsPage() {
   const { user, loading, signOut } = useAuth();
   const { profile, updateProfile } = useProfile(user?.id, user);
   const { data: resumes = [] } = useResumes();
-  const { currentResumeId } = useResumeStore();
+  const currentResumeId = useResumeStore(s => s.currentResumeId);
 
   const {
     biometricLockEnabled,

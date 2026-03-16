@@ -10,7 +10,8 @@ import { toast } from 'sonner';
 export function useAgenticChat(contextFilter?: string) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isThinking, setIsThinking] = useState(false);
-  const { currentResume, updateResume } = useResumeStore();
+  const currentResume = useResumeStore(s => s.currentResume);
+  const updateResume = useResumeStore(s => s.updateResume);
   const { data: allResumes = [] } = useResumes();
   const { incrementUsage, checkCredits } = useAICreditsMutations();
 

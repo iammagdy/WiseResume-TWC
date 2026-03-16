@@ -234,7 +234,7 @@ function ActionPlanStep({ step }: { step: ActionStep }) {
 }
 
 export function CareerPathSheet({ open, onOpenChange }: CareerPathSheetProps) {
-  const { currentResume } = useResumeStore();
+  const currentResume = useResumeStore(s => s.currentResume);
   const [result, setResult] = useState<CareerPathResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -36,7 +36,7 @@ function InterviewPageContent() {
   }, []);
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { currentResume } = useResumeStore();
+  const currentResume = useResumeStore(s => s.currentResume);
   const hydrated = useResumeStoreHydration();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [textInput, setTextInput] = useState('');

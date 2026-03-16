@@ -26,7 +26,10 @@ const CAREER_LEVEL_RECOMMENDATIONS: Record<CareerLevel, TemplateId[]> = {
 
 
 export function TemplateSelector({ open, onOpenChange, onTemplateApplied }: TemplateSelectorProps) {
-  const { selectedTemplate, setSelectedTemplate, updateResume, currentResume } = useResumeStore();
+  const selectedTemplate = useResumeStore(s => s.selectedTemplate);
+  const setSelectedTemplate = useResumeStore(s => s.setSelectedTemplate);
+  const updateResume = useResumeStore(s => s.updateResume);
+  const currentResume = useResumeStore(s => s.currentResume);
   const { user } = useAuth();
   const { profile } = useProfile(user?.id);
 

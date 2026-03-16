@@ -234,7 +234,8 @@ function applySectionText(
 }
 
 export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
-  const { currentResume, updateResume } = useResumeStore();
+  const currentResume = useResumeStore(s => s.currentResume);
+  const updateResume = useResumeStore(s => s.updateResume);
   const [viewState, setViewState] = useState<ViewState>('input');
   const [inputText, setInputText] = useState('');
   const [selectedTone, setSelectedTone] = useState<ToneOption>('professional');

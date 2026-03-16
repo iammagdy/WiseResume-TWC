@@ -28,7 +28,7 @@ interface Suggestion {
 export function TemplateAdvisorSheet({ open, onOpenChange, onApply }: TemplateAdvisorSheetProps) {
   const [loading, setLoading] = useState(false);
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
-  const { currentResume } = useResumeStore();
+  const currentResume = useResumeStore(s => s.currentResume);
 
   const handleGenerate = async () => {
     if (!currentResume) {

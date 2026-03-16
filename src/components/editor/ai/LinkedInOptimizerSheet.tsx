@@ -108,7 +108,7 @@ function buildAllContentText(result: LinkedInResult, name: string): string {
 }
 
 export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizerSheetProps) {
-  const { currentResume } = useResumeStore();
+  const currentResume = useResumeStore(s => s.currentResume);
   const [isLoading, setIsLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState<RegionOption>('global');
