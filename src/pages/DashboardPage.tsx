@@ -262,7 +262,7 @@ function DashboardPageContent() {
     toast.success('Resumes refreshed');
   };
 
-  const handleEdit = (resumeId: string) => {
+  const handleEdit = useCallback((resumeId: string) => {
     haptics.light();
     const resume = resumes?.find(r => r.id === resumeId);
     if (resume) {
@@ -270,13 +270,13 @@ function DashboardPageContent() {
       setCurrentResume(dbToResumeData(resume));
       navigate('/editor');
     }
-  };
+  }, [resumes, setCurrentResumeId, setCurrentResume, navigate]);
 
-  const handleDuplicate = (resumeId: string) => {
+  const handleDuplicate = useCallback((resumeId: string) => {
     setDuplicateResumeId(resumeId);
-  };
+  }, []);
 
-  const confirmDuplicate = () => {
+  const confirmDuplicate = useCallback(() => {
     if (duplicateResumeId) {
       haptics.success();
       duplicateResume.mutate(duplicateResumeId, {
@@ -286,9 +286,9 @@ function DashboardPageContent() {
       });
       setDuplicateResumeId(null);
     }
-  };
+  }, [duplicateResumeId, duplicateResume]);
 
-  const handleInterview = (resumeId: string) => {
+  const handleInterview = useCallback((resumeId: string) => {
     const resume = resumes?.find(r => r.id === resumeId);
     if (resume) {
       haptics.light();
@@ -296,19 +296,19 @@ function DashboardPageContent() {
       setCurrentResume(dbToResumeData(resume));
       navigate('/interview');
     }
-  };
+  }, [resumes, setCurrentResumeId, setCurrentResume, navigate]);
 
-  const handleRename = (resumeId: string, newTitle: string) => {
+  const handleRename = useCallback((resumeId: string, newTitle: string) => {
     updateResume.mutate({ resumeId, updates: {}, title: newTitle }, {
       onSuccess: () => toast.success('Resume renamed'),
     });
-  };
+  }, [updateResume]);
 
-  const handleDelete = (resumeId: string) => {
+  const handleDelete = useCallback((resumeId: string) => {
     setDeleteResumeId(resumeId);
-  };
+  }, []);
 
-  const confirmDelete = () => {
+  const confirmDelete = useCallback(() => {
     if (deleteResumeId) {
       const resumeToDelete = resumes?.find(r => r.id === deleteResumeId);
 
@@ -328,7 +328,7 @@ function DashboardPageContent() {
       });
       setDeleteResumeId(null);
     }
-  };
+  }, [deleteResumeId, resumes, deleteResume]);
 
   // Deferred search for smoother typing
   const deferredSearch = useDeferredValue(searchQuery);
@@ -447,10 +447,10 @@ function DashboardPageContent() {
   };
 
   // Handle creating a tailored version
-  const handleCreateTailored = (parentId: string) => {
+  const handleCreateTailored = useCallback((parentId: string) => {
     setCreateTailoredParentId(parentId);
     setShowCreateDialog(true);
-  };
+  }, []);
 
   // Auth guard handled by ProtectedRoute
 
