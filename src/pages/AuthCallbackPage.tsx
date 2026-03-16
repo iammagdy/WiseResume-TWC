@@ -44,7 +44,7 @@ export default function AuthCallbackPage() {
         borderRadius: '50%',
         animation: 'spin 0.8s linear infinite',
       }} />
-      <style dangerouslySetInnerHTML={{ __html: '@keyframes spin { to { transform: rotate(360deg); } }' }} />
+      <style>{'@keyframes spin { to { transform: rotate(360deg); } }'}</style>
       <p style={{ margin: 0, opacity: 0.6, fontSize: '14px' }}>Signing you in…</p>
     </div>
   );
