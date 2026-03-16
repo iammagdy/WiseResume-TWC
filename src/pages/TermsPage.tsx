@@ -29,7 +29,7 @@ export default function TermsPage() {
     <div className="min-h-screen">
       <header className="sticky top-0 z-40 glass-header border-b border-border/20 px-4 h-12 flex items-center gap-3">
         <Link to="/">
-          <Button variant="ghost" size="icon" className="w-9 h-9">
+          <Button variant="ghost" size="icon" className="w-9 h-9" aria-label="Go back">
             <ArrowLeft className="w-4 h-4" />
           </Button>
         </Link>
