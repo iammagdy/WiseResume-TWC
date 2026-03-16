@@ -1,26 +1,21 @@
-import { useState, memo, useCallback, lazy, Suspense } from 'react';
+import { useState, memo, useCallback, useMemo, lazy, Suspense } from 'react';
 
-import { Plus, Trash2, ChevronDown, ChevronUp, Building2, Briefcase, Calendar, Linkedin, ArrowUp, ArrowDown, Sparkles } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Plus, Briefcase, Linkedin, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { useResumeStore } from '@/store/resumeStore';
 import { Experience } from '@/types/resume';
 import { v4 as uuidv4 } from 'uuid';
 import { AIEnhanceDialog } from './ai/AIEnhanceDialog';
 import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
-import { InlineAIButton } from './InlineAIButton';
 import { AIContextualNudge } from './AIContextualNudge';
 import { useResumeNudges } from '@/hooks/useResumeNudges';
 import { ExperienceTimeline } from './ExperienceTimeline';
 import { GapExplainerSheet } from './GapExplainerSheet';
 import { GapFillerSheet } from './GapFillerSheet';
-import { formatDateRange, calculateDuration, GapInfo } from '@/lib/dateUtils';
+import { GapInfo } from '@/lib/dateUtils';
 import { SectionEmptyState } from './SectionEmptyState';
 import { experienceExample } from '@/lib/emptyStateExamples';
+import { ExperienceItem } from './ExperienceItem';
 const BoostAllExperienceSheet = lazy(() => import('./BoostAllExperienceSheet').then(m => ({ default: m.BoostAllExperienceSheet })));
 
 export const ExperienceSection = memo(function ExperienceSection() {
@@ -89,21 +84,39 @@ export const ExperienceSection = memo(function ExperienceSection() {
     setExpandedId(newExp.id);
   };
 
-  const updateExperience = (id: string, updates: Partial<Experience>) => {
+  const updateExperience = useCallback((id: string, updates: Partial<Experience>) => {
     updateResume({
       experience: experience.map((exp) =>
         exp.id === id ? { ...exp, ...updates } : exp
       ),
     });
-  };
+  }, [experience, updateResume]);
 
-  const deleteExperience = (id: string) => {
+  const deleteExperience = useCallback((id: string) => {
     updateResume({
       experience: experience.filter((exp) => exp.id !== id),
     });
-  };
+  }, [experience, updateResume]);
 
-  const handleAIAction = async (actionId: string, exp: Experience) => {
+  const handleMoveUp = useCallback((index: number) => {
+    if (index === 0) return;
+    const reordered = [...experience];
+    [reordered[index - 1], reordered[index]] = [reordered[index], reordered[index - 1]];
+    updateResume({ experience: reordered });
+  }, [experience, updateResume]);
+
+  const handleMoveDown = useCallback((index: number) => {
+    if (index === experience.length - 1) return;
+    const reordered = [...experience];
+    [reordered[index], reordered[index + 1]] = [reordered[index + 1], reordered[index]];
+    updateResume({ experience: reordered });
+  }, [experience, updateResume]);
+
+  const handleToggleExpand = useCallback((id: string) => {
+    setExpandedId((prevId) => (prevId === id ? null : id));
+  }, []);
+
+  const handleAIAction = useCallback(async (actionId: string, exp: Experience) => {
     setEnhancingExpId(exp.id);
     setOriginalDescription(exp.description);
     
@@ -125,7 +138,40 @@ export const ExperienceSection = memo(function ExperienceSection() {
       setImprovedEntry(entry as typeof improvedEntry);
       setShowDialog(true);
     }
-  };
+  }, [enhance, currentResume]);
+
+  const handleTimelineDismiss = useCallback(() => setShowTimeline(false), []);
+  const handleTimelineExplainGap = useCallback((gap: GapInfo) => {
+    setSelectedGap(gap);
+    setShowGapSheet(true);
+  }, []);
+  const handleTimelineFillGap = useCallback((gap: GapInfo) => {
+    setSelectedGapForFill(gap);
+    setShowGapFiller(true);
+  }, []);
+
+  // Use a map of callbacks, or just rely on a new ExperienceItem component to keep it clean.
+  // Actually, extracting to ExperienceItem is the cleanest approach.
+  // We'll leave the InlineAIButton and AIContextualNudge callbacks as simple closures for now,
+  // but wait! If we do that, we lose memoization.
+  // We will create a stable callback that takes the experience ID and then calls the main function.
+  // But wait! `handleAIAction` needs `exp`, not just `id`. We can find `exp` from `id`.
+
+  const handleAIActionById = useCallback(async (actionId: string, expId: string) => {
+    const exp = experience.find(e => e.id === expId);
+    if (exp) {
+      await handleAIAction(actionId, exp);
+    }
+  }, [experience, handleAIAction]);
+
+  const handleNudgeActionById = useCallback((actionId: string, expId: string, trigger: string) => {
+    handleAIActionById(actionId, expId);
+    dismissNudge(trigger);
+  }, [handleAIActionById, dismissNudge]);
+
+  const handleNudgeDismissById = useCallback((trigger: string) => {
+    dismissNudge(trigger);
+  }, [dismissNudge]);
 
   const handleHeaderAction = async (actionId: string) => {
     if (experience.length > 0) {
@@ -172,15 +218,9 @@ export const ExperienceSection = memo(function ExperienceSection() {
       {showTimeline && experience.length >= 2 && (
         <ExperienceTimeline
           experiences={experience}
-          onDismiss={() => setShowTimeline(false)}
-          onExplainGap={(gap) => {
-            setSelectedGap(gap);
-            setShowGapSheet(true);
-          }}
-          onFillGap={(gap) => {
-            setSelectedGapForFill(gap);
-            setShowGapFiller(true);
-          }}
+          onDismiss={handleTimelineDismiss}
+          onExplainGap={handleTimelineExplainGap}
+          onFillGap={handleTimelineFillGap}
         />
       )}
 
@@ -216,224 +256,22 @@ export const ExperienceSection = memo(function ExperienceSection() {
         ) : (
           <div className="space-y-3">
             {experience.map((exp, index) => (
-              <div
+              <ExperienceItem
                 key={exp.id}
-                className="rounded-xl border border-border overflow-hidden transition-all duration-200"
-              >
-                {/* Header - Always visible */}
-                <div className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors min-h-[80px] sm:min-h-[72px]">
-                  {/* Reorder arrows */}
-                  <div className="flex flex-col gap-0.5 mr-2 shrink-0">
-                    <button
-                      type="button"
-                      disabled={index === 0}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const reordered = [...experience];
-                        [reordered[index - 1], reordered[index]] = [reordered[index], reordered[index - 1]];
-                        updateResume({ experience: reordered });
-                      }}
-                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                      aria-label="Move up"
-                    >
-                      <ArrowUp className="w-4 h-4 text-muted-foreground" />
-                    </button>
-                    <button
-                      type="button"
-                      disabled={index === experience.length - 1}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const reordered = [...experience];
-                        [reordered[index], reordered[index + 1]] = [reordered[index + 1], reordered[index]];
-                        updateResume({ experience: reordered });
-                      }}
-                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                      aria-label="Move down"
-                    >
-                      <ArrowDown className="w-4 h-4 text-muted-foreground" />
-                    </button>
-                  </div>
-                  <button
-                    onClick={() => setExpandedId(expandedId === exp.id ? null : exp.id)}
-                    className="flex-1 flex items-center justify-between touch-manipulation active:bg-muted/70 min-w-0"
-                  >
-                    <div className="text-left flex-1 min-w-0 pr-3">
-                      <p className="font-semibold text-base sm:text-sm truncate">
-                        {exp.position || `Position ${index + 1}`}
-                      </p>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {exp.company || 'Company name'}
-                        {exp.account && <span className="text-muted-foreground/70"> ({exp.account} Account)</span>}
-                      </p>
-                      {(exp.startDate || exp.endDate || exp.current) && (
-                        <p className="text-xs text-muted-foreground/70 mt-0.5 flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          <span>
-                            {formatDateRange(exp.startDate, exp.endDate, exp.current)}
-                            {exp.startDate && (
-                              <span className="ml-1 text-muted-foreground/50">
-                                • {calculateDuration(exp.startDate, exp.endDate, exp.current)}
-                              </span>
-                            )}
-                          </span>
-                        </p>
-                      )}
-                    </div>
-                    <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full hover:bg-muted">
-                      {expandedId === exp.id ? (
-                        <ChevronUp className="w-5 h-5 text-muted-foreground" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                      )}
-                    </div>
-                  </button>
-                </div>
-
-                {/* Expanded content */}
-                {expandedId === exp.id && (
-                    <div className="animate-in fade-in-0 duration-200"
-                    >
-                      <div className="p-4 pt-0 space-y-4 border-t border-border">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <Label className="text-sm flex items-center gap-1.5 mb-2">
-                              <Briefcase className="w-4 h-4" />
-                              Position
-                            </Label>
-                            <Input
-                              value={exp.position}
-                              onChange={(e) => updateExperience(exp.id, { position: e.target.value })}
-                              placeholder="Job Title"
-                              className="h-12"
-                              autoComplete="organization-title"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-sm flex items-center gap-1.5 mb-2">
-                              <Building2 className="w-4 h-4" />
-                              Company
-                            </Label>
-                            <Input
-                              value={exp.company}
-                              onChange={(e) => updateExperience(exp.id, { company: e.target.value })}
-                              placeholder="Company Name"
-                              className="h-12"
-                              autoComplete="organization"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <Label className="text-sm flex items-center gap-1.5 mb-2">
-                            <Building2 className="w-4 h-4 text-muted-foreground" />
-                            Account / Client (optional)
-                          </Label>
-                          <Input
-                            value={exp.account || ''}
-                            onChange={(e) => updateExperience(exp.id, { account: e.target.value })}
-                            placeholder="e.g., Verizon, AT&T — the client you served at this company"
-                            className="h-12"
-                            autoComplete="off"
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <Label className="text-sm flex items-center gap-1.5 mb-2">
-                              <Calendar className="w-4 h-4" />
-                              Start Date
-                            </Label>
-                            <Input
-                              value={exp.startDate}
-                              onChange={(e) => updateExperience(exp.id, { startDate: e.target.value })}
-                              placeholder="Jan 2020"
-                              className="h-12"
-                              autoComplete="off"
-                              autoCapitalize="words"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-sm flex items-center gap-1.5 mb-2">
-                              <Calendar className="w-4 h-4" />
-                              End Date
-                            </Label>
-                            <Input
-                              value={exp.current ? 'Present' : exp.endDate}
-                              onChange={(e) => updateExperience(exp.id, { endDate: e.target.value })}
-                              placeholder="Present"
-                              disabled={exp.current}
-                              className="h-12"
-                              autoComplete="off"
-                              autoCapitalize="words"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-3 py-1">
-                          <Switch
-                            checked={exp.current}
-                            onCheckedChange={(checked) => updateExperience(exp.id, { current: checked })}
-                          />
-                          <Label className="text-sm">Currently working here</Label>
-                        </div>
-
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <Label className="text-sm">Description</Label>
-                            <InlineAIButton
-                              section="experience"
-                              onAction={(actionId) => handleAIAction(actionId, exp)}
-                              isLoading={isEnhancing && enhancingExpId === exp.id}
-                              disabled={!exp.position}
-                              hasContent={!!exp.description?.trim()}
-                            />
-                          </div>
-                          {!exp.description?.trim() && (
-                            <p className="text-xs text-muted-foreground mb-2 leading-snug">
-                              Tip: Start each line with an action verb — e.g. &ldquo;Led&rdquo;, &ldquo;Built&rdquo;, &ldquo;Improved&rdquo; — and include a result or metric where possible.
-                            </p>
-                          )}
-                          <Textarea
-                            dir="auto"
-                            value={exp.description}
-                            onChange={(e) => updateExperience(exp.id, { description: e.target.value })}
-                            placeholder="Describe your responsibilities and achievements..."
-                            className="min-h-[120px] resize-none text-base"
-                          />
-                        </div>
-
-
-                        {/* Per-entry AI nudge chips */}
-                        {getNudgesForExperience(exp.id).map((entryNudge) => (
-                          <AIContextualNudge
-                            key={`${entryNudge.trigger}_${exp.id}`}
-                            compact
-                            show
-                            message={entryNudge.message}
-                            actionLabel={entryNudge.actionLabel}
-                            onAction={() => {
-                              handleAIAction(entryNudge.action, exp);
-                              dismissNudge(`${entryNudge.trigger}_${exp.id}`);
-                            }}
-                            onDismiss={() => dismissNudge(`${entryNudge.trigger}_${exp.id}`)}
-                          />
-                        ))}
-
-                        <div className="flex justify-end sm:justify-end pt-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => deleteExperience(exp.id)}
-                            className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 w-full sm:w-auto min-h-[44px]"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            Remove
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-              </div>
+                exp={exp}
+                index={index}
+                totalLength={experience.length}
+                isExpanded={expandedId === exp.id}
+                isEnhancing={isEnhancing && enhancingExpId === exp.id}
+                entryNudges={getNudgesForExperience(exp.id)}
+                onToggleExpand={handleToggleExpand}
+                onUpdate={updateExperience}
+                onDelete={deleteExperience}
+                onMoveUp={handleMoveUp}
+                onMoveDown={handleMoveDown}
+                onAIAction={handleAIActionById}
+                onDismissNudge={handleNudgeDismissById}
+              />
             ))}
           </div>
         )}
