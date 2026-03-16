@@ -1,5 +1,5 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAI, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient.ts";
+import { callAI, isAIError, parseAIJSON, toUserError, sanitizeInputText } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 
@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
       americas: 'Use direct, achievement-focused language common in North and South American business culture.',
     };
 
-    const resumeContext = `
+    const resumeContext = sanitizeInputText(`
 Name: ${resume.contactInfo.fullName}
 Current/Recent Role: ${resume.experience?.[0]?.position || 'Not specified'} at ${resume.experience?.[0]?.company || 'Not specified'}
 Summary: ${resume.summary || 'Not provided'}
@@ -100,7 +100,7 @@ Skills: ${safeSkillsString(resume.skills)}
 Experience Highlights: ${resume.experience?.slice(0, 3).map(e => `${e.position} at ${e.company}`).join('; ') || 'Not listed'}
 Education: ${resume.education?.[0]?.degree} in ${resume.education?.[0]?.field} from ${resume.education?.[0]?.institution || 'Not listed'}
 ${targetRole ? `Target Role: ${targetRole}` : ''}
-`;
+`, 5000);
 
     const prompt = `You are a LinkedIn optimization expert who helps professionals create compelling profiles.
 

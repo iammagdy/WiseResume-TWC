@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAI, isAIError, toUserError } from "../_shared/aiClient.ts";
+import { callAI, isAIError, toUserError, sanitizeInputText } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 
@@ -63,7 +63,7 @@ Extract: Summary/About, Experience, Education, Skills. For dates, use "Jan 2020"
       model: 'google/gemini-2.5-flash',
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: `Extract structured data from this LinkedIn profile:\n\n${profileText}` },
+        { role: "user", content: `Extract structured data from this LinkedIn profile:\n\n${sanitizeInputText(profileText, 30000)}` },
       ],
       tools: [
         {

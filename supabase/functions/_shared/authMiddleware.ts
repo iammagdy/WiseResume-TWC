@@ -40,10 +40,10 @@ export async function requireAuth(req: Request): Promise<AuthResult> {
   }
 
   const token = authHeader.replace('Bearer ', '');
-  const secretStr = Deno.env.get('EXT_SUPABASE_JWT_SECRET');
+  const secretStr = Deno.env.get('EXT_SUPABASE_JWT_SECRET') || Deno.env.get('SUPABASE_JWT_SECRET');
   
   if (!secretStr) {
-    throw new Error('EXT_SUPABASE_JWT_SECRET environment variable is not set');
+    throw new Error('SUPABASE_JWT_SECRET environment variable is not set');
   }
 
   let claims: jose.JWTPayload;

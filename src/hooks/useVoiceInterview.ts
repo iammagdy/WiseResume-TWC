@@ -8,7 +8,7 @@ import { useAICreditsMutations } from './useAICredits';
 import { toast } from 'sonner';
 
 
-export type InterviewStatus = 'idle' | 'listening' | 'thinking' | 'speaking' | 'ready';
+export type InterviewStatus = 'idle' | 'listening' | 'thinking' | 'speaking' | 'ready' | 'error';
 
 export type VoiceGender = 'male' | 'female';
 
@@ -578,13 +578,26 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to get AI response';
         setError(errorMessage);
         toast.error('Interview error', { description: errorMessage });
-        setStatus('idle');
+        setStatus('error');
       } finally {
         clearTimeout(slowTimer);
       }
     },
     [addEntry, speak, checkCredits, incrementUsage]
   );
+
+  const retryAI = useCallback(() => {
+    setError(null);
+    setStatus('idle');
+    callAI(); // We just retry the same call
+  }, [callAI]);
+
+  const skipAITurn = useCallback(() => {
+    setError(null);
+    setStatus('idle');
+    messagesRef.current.push({ role: 'user', content: '(skipped due to error)' });
+    callAI();
+  }, [callAI]);
 
   const clearSilenceTimer = useCallback(() => {
     if (silenceTimerRef.current) {
@@ -863,5 +876,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     sendTextMessage,
     endInterview: endInterviewFn,
     resetInterview,
+    retryAI,
+    skipAITurn,
   };
 }
