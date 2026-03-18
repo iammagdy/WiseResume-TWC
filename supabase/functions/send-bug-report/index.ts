@@ -231,16 +231,23 @@ ${error_stack ? `
 
 </table></td></tr></table></body></html>`;
 
+        const emailPayload: Record<string, unknown> = {
+          from: "WiseResume <notifications@thewise.cloud>",
+          to: [DEVELOPER_EMAIL],
+          subject: `[Bug] ${screenDisplay} · ${categoryDisplay} — ${error_message.slice(0, 50)}`,
+          html: emailHtml,
+        };
+
+        // Only set reply_to if resolvedEmail is a valid address (has @ with a dot after it)
+        const atIndex = resolvedEmail.indexOf("@");
+        if (atIndex > 0 && resolvedEmail.indexOf(".", atIndex) > atIndex) {
+          emailPayload.reply_to = resolvedEmail;
+        }
+
         const emailRes = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            from: `${resolvedEmail} via WiseResume <notifications@thewise.cloud>`,
-            to: [DEVELOPER_EMAIL],
-            reply_to: resolvedEmail,
-            subject: `[Bug] ${screenDisplay} · ${categoryDisplay} — ${error_message.slice(0, 50)}`,
-            html: emailHtml,
-          }),
+          body: JSON.stringify(emailPayload),
         });
         const emailBody = await emailRes.text();
         if (!emailRes.ok) {

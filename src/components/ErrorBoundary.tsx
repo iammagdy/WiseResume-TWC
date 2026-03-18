@@ -173,7 +173,7 @@ export class ErrorBoundary extends Component<Props, State> {
     this.setState({ reportStatus: 'sending' });
     try {
       let userId = getUserId() || 'anonymous';
-      let userEmail = 'anonymous@user';
+      let userEmail: string | null = null;
 
       const payload = {
         error_message: this.state.error?.message || 'Unknown error',
