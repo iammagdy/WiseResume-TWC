@@ -55,6 +55,7 @@ interface SettingsState {
   
   // AI Provider Settings
   aiProvider: AIProvider;
+  /** Stores a masked preview of the key (e.g. AIza...xyz). The full key is only in the server DB. */
   geminiApiKey: string;
   
   geminiKeyTier: GeminiKeyTier;
@@ -63,6 +64,7 @@ interface SettingsState {
   geminiModel: string;
   
   // Ollama Provider Settings (in-memory only, keys stored server-side)
+  /** Stores a masked preview of the key. The full key is only in the server DB. */
   ollamaApiKey: string;
   ollamaBaseUrl: string;
   ollamaModel: string;

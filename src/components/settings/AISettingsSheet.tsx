@@ -386,7 +386,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
             return;
           }
 
-          setGeminiApiKey(keyInput.trim());
+          setGeminiApiKey(maskKey(keyInput.trim()));
           setGeminiMaskedKey(maskKey(keyInput.trim()));
           setGeminiKeyTier(validationResult.tier);
           setGeminiKeyValidated(true);
@@ -482,7 +482,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
             return;
           }
 
-          setOllamaApiKey(ollamaKeyInput.trim());
+          setOllamaApiKey(maskKey(ollamaKeyInput.trim() || 'ollama-no-key'));
           setOllamaBaseUrl(ollamaUrlInput.trim());
           setOllamaModel(ollamaModelInput.trim());
           setOllamaKeyValidated(true);

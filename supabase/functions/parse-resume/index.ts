@@ -292,7 +292,10 @@ serve(async (req) => {
   }
 
   try {
-    // Auth is optional — token may come from a different Supabase project
+    // Auth is intentionally optional — this endpoint accepts tokens from multiple Supabase projects
+    // (e.g. mobile clients). requireAuth() would reject foreign-project JWTs since it checks
+    // SUPABASE_JWT_SECRET. decodeJwtPayload() is used here ONLY to extract a rate-limit key (sub),
+    // not to gate any data access — so the lack of signature verification is acceptable.
     const authHeader = req.headers.get('Authorization');
     let userId = 'anonymous';
 

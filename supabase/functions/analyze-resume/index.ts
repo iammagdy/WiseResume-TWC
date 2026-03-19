@@ -3,6 +3,8 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAIWithRetry, isAIError, parseAIJSON, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
+import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
+import { getServiceClient } from "../_shared/dbClient.ts";
 
 // ============= SECURITY: Input validation limits =============
 const MAX_RESUME_SIZE = 100 * 1024; // 100KB
@@ -32,6 +34,15 @@ serve(async (req) => {
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const creditCheck = await checkUserCreditBalance(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'Insufficient AI credits.' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const isByok = creditCheck.remaining === 9999;
 
     const body = await req.json();
     const resume = body.resume;
@@ -138,6 +149,17 @@ Provide analysis in this exact JSON format:
         JSON.stringify({ error: "Failed to parse AI response. Please try again." }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    if (!isByok) {
+      try {
+        const svcClient = getServiceClient();
+        svcClient.rpc('increment_ai_usage', { p_user_id: userId }).catch((err: any) => {
+          console.error('[credit] increment_ai_usage failed for user:', userId, err);
+        });
+      } catch (err) {
+        console.error('[credit] increment_ai_usage failed for user:', userId, err);
+      }
     }
 
     await recordUsage(userId, 'analyze', { provider: aiResponse.providerUsed || 'unknown' });

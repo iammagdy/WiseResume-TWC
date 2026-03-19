@@ -320,7 +320,11 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
   }, [jobDescription, currentResume, intensity, executeAI, setPendingTailor, currentResumeId, jobUrl]);
 
   // Auto-tailor when a URL is parsed
+  // T009: Reset autoTailorTriggered when a new, different parsedJobInfo is received
   const handleParsedJobInfo = useCallback((info: { title: string; company: string; url?: string } | null) => {
+    if (info && (info.title !== parsedJobInfo?.title || info.company !== parsedJobInfo?.company)) {
+      autoTailorTriggered.current = false;
+    }
     setParsedJobInfo(info);
     if (info?.url) setJobUrl(info.url);
     if (info && jobDescription.trim() && currentResume && !autoTailorTriggered.current) {
@@ -328,7 +332,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
       toast.info('Auto-tailoring your resume...', { duration: 2000 });
       setTimeout(() => handleTailor(), 500);
     }
-  }, [jobDescription, currentResume, handleTailor]);
+  }, [jobDescription, currentResume, handleTailor, parsedJobInfo]); // T010: parsedJobInfo added as dependency
 
   useEffect(() => {
     if (open) {
@@ -389,11 +393,17 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
   const handleApplyChanges = useCallback(async () => {
     if (!tailorResult || !currentResume || !user) return;
 
+    // T007: Guard against null currentResumeId — abort with specific message, keep sheet open
+    if (!currentResumeId) {
+      toast.error('Please select a resume before applying changes.');
+      return;
+    }
+
     setIsApplying(true);
 
     try {
       const mergedResume: ResumeData = { ...currentResume };
-      
+
       if (enabledSections.includes('summary')) {
         mergedResume.summary = tailorResult.summary;
       }
@@ -401,16 +411,18 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
         mergedResume.skills = tailorResult.skills;
       }
       if (enabledSections.includes('experience')) {
-        mergedResume.experience = tailorResult.experience.map((exp, index) => ({
-          ...currentResume.experience[index],
-          ...exp,
-        }));
+        // T005: ID-based merge — iterate originals as source of truth, look up AI version by id
+        mergedResume.experience = currentResume.experience.map(orig => {
+          const tailored = tailorResult.experience.find(e => e.id === orig.id);
+          return tailored ? { ...orig, ...tailored } : orig;
+        });
       }
       if (enabledSections.includes('education')) {
-        mergedResume.education = tailorResult.education.map((edu, index) => ({
-          ...currentResume.education[index],
-          ...edu,
-        }));
+        // T006: ID-based merge for education — same pattern as experience
+        mergedResume.education = currentResume.education.map(orig => {
+          const tailored = tailorResult.education.find(e => e.id === orig.id);
+          return tailored ? { ...orig, ...tailored } : orig;
+        });
       }
       if (enabledSections.includes('projects') && tailorResult.projects) {
         mergedResume.projects = tailorResult.projects;
@@ -444,7 +456,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
           parent_resume_id: currentResumeId,
           target_job_title: jobTitle,
           target_company: company,
-          job_match_score: tailorResult.overallScore?.after ?? 0,
+          job_match_score: tailorResult.overallScore?.after ?? null, // T008: null not 0 when score absent
           job_url: jobUrl || null,
         })
         .select()

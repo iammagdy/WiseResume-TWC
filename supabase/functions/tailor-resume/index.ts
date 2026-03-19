@@ -4,6 +4,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAIWithRetry, isAIError, parseAIJSON, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
+import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
 
 /** Safely extract skills as a comma-separated string */
 function safeSkillsString(skills: unknown): string {
@@ -23,7 +24,7 @@ serve(async (req) => {
   }
 
   try {
-    // Authentication via shared middleware (decodes JWT without signature check)
+    // requireAuth() verifies JWT signature via jose.jwtVerify — see _shared/authMiddleware.ts
     let userId: string;
     try {
       const auth = await requireAuth(req);
@@ -31,7 +32,6 @@ serve(async (req) => {
     } catch (authErr) {
       return authErrorResponse(authErr, req.headers.get('origin'));
     }
-    console.log('Authenticated user:', userId);
     console.log('Authenticated user:', userId);
 
     const rateCheck = await checkRateLimit(userId, { maxRequests: 10, windowSeconds: 60, actionType: 'tailor' });
@@ -41,6 +41,16 @@ serve(async (req) => {
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // ============= CREDIT CHECK: Validate before spending AI tokens =============
+    const creditCheck = await checkUserCreditBalance(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'Insufficient AI credits. Add your own Gemini API key for unlimited access.' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const isByok = creditCheck.remaining === 9999;
 
     const body = await req.json();
     const resume = body.resume;
@@ -474,6 +484,18 @@ Analyze deeply, then return this exact JSON structure:
         metadata: { model: aiResponse.providerUsed || 'unknown' },
       }).then(() => {});
     } catch { /* non-critical */ }
+
+    // Decrement AI credit for non-BYOK users (fire-and-forget)
+    if (!isByok) {
+      try {
+        const svcClient = getServiceClient();
+        svcClient.rpc('increment_ai_usage', { p_user_id: userId }).catch((err: any) => {
+          console.error('[credit] increment_ai_usage failed for user:', userId, err);
+        });
+      } catch (err: any) {
+        console.error('[credit] increment_ai_usage failed for user:', userId, err);
+      }
+    }
 
     return new Response(
       JSON.stringify({ ...tailoredResult, _providerUsed: aiResponse.providerUsed || 'unknown' }),

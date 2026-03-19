@@ -1,13 +1,19 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit } from "../_shared/rateLimiter.ts";
 
 const DEVELOPER_EMAIL = "contact@thewise.cloud";
 const LOGO_URL = "https://jnsfmkzgxsviuthaqlyy.supabase.co/storage/v1/object/public/avatars/email-assets/wise-ai-logo.png";
+
+function escapeHtml(str: string): string {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 function parsePlatform(ua: string): string {
   if (!ua) return "Unknown";
@@ -32,29 +38,51 @@ function parseBrowser(ua: string): string {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req.headers.get("origin"));
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || req.headers.get('x-real-ip') || 'unknown';
+    const rateCheck = await checkRateLimit(`bug-report:${clientIp}`, { maxRequests: 5, windowSeconds: 3600, actionType: 'bug_report' });
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const body = await req.json();
 
     const {
-      error_message,
-      error_stack,
-      component_stack,
-      route,
-      selected_screen,
-      error_category,
+      error_message: raw_error_message,
+      error_stack: raw_error_stack,
+      component_stack: raw_component_stack,
+      route: raw_route,
+      selected_screen: raw_selected_screen,
+      error_category: raw_error_category,
       user_id,
-      user_email,
+      user_email: raw_user_email,
       session_id,
-      user_agent,
+      user_agent: raw_user_agent,
       app_version,
-      additional_context,
-      active_feature,
+      additional_context: raw_additional_context,
+      active_feature: raw_active_feature,
       recent_errors,
     } = body;
+
+    const error_message = escapeHtml(raw_error_message);
+    const error_stack = escapeHtml(raw_error_stack);
+    const component_stack = escapeHtml(raw_component_stack);
+    const route = escapeHtml(raw_route);
+    const selected_screen = escapeHtml(raw_selected_screen);
+    const error_category = escapeHtml(raw_error_category);
+    const user_email = escapeHtml(raw_user_email);
+    const user_agent = escapeHtml(raw_user_agent);
+    const additional_context = escapeHtml(raw_additional_context);
+    const active_feature = escapeHtml(raw_active_feature);
 
     if (!error_message) {
       return new Response(
@@ -139,7 +167,7 @@ Deno.serve(async (req) => {
 <tr><td style="background-color:#1a1a2e;padding:32px 40px;border-radius:12px 12px 0 0" align="center">
   <img src="${LOGO_URL}" alt="WiseResume" width="48" height="48" style="display:block;margin:0 auto 12px;border-radius:12px">
   <h1 style="margin:0;font-size:20px;font-weight:700;color:#ffffff">🐛 Bug Report</h1>
-  <p style="margin:8px 0 0;font-size:14px;color:rgba(255,255,255,0.7)">from <strong style="color:#ffffff">${resolvedEmail}</strong></p>
+  <p style="margin:8px 0 0;font-size:14px;color:rgba(255,255,255,0.7)">from <strong style="color:#ffffff">${escapeHtml(resolvedEmail)}</strong></p>
 </td></tr>
 
 <!-- Red accent -->
@@ -182,7 +210,7 @@ ${recentErrorsDisplay.length > 0 ? `
   <p style="margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;font-weight:600">Recent Errors (last 60s)</p>
   ${recentErrorsDisplay.slice(0, 3).map((e: { message?: string }) => `
   <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:8px 12px;margin-bottom:6px">
-    <p style="margin:0;font-size:12px;color:#991b1b;font-family:ui-monospace,SFMono-Regular,monospace;word-break:break-all">${(e.message || '').slice(0, 150)}</p>
+    <p style="margin:0;font-size:12px;color:#991b1b;font-family:ui-monospace,SFMono-Regular,monospace;word-break:break-all">${escapeHtml((e.message || '').slice(0, 150))}</p>
   </div>`).join("")}
 </td></tr>` : ""}
 

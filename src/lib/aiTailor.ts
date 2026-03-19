@@ -200,27 +200,6 @@ export async function tailorResumeWithProgress(
   }
 }
 
-export async function tailorResume(
-  resume: ResumeData,
-  jobDescription: string
-): Promise<TailorResult> {
-  const { data, error } = await edgeFunctions.functions.invoke('tailor-resume', {
-    body: { resume, jobDescription },
-  });
-
-  if (error) {
-    console.error('Tailor resume error:', error);
-    throw new Error(extractErrorMessage(error, data, 'Failed to tailor resume'));
-  }
-  if (data?.error) {
-    throw new Error(data.message || data.error);
-  }
-
-  trackGeminiUsage();
-  checkAIFallback(data);
-  return data;
-}
-
 export interface ParsedJobData {
   title: string;
   company: string;

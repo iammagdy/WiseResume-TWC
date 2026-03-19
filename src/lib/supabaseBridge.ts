@@ -115,12 +115,21 @@ export async function exchangeToken(kindeToken: string): Promise<void> {
       } else {
         state.lastError = { type: BridgeErrorType.UNKNOWN, code: 'UNKNOWN', message: String(err) };
       }
-    } finally {
       exchangePromise = null;
+      throw err;
+    } finally {
+      // Handled above or on success
+      if (state.supabaseToken) {
+        exchangePromise = null;
+      }
     }
   })();
 
-  return exchangePromise;
+  try {
+    await exchangePromise;
+  } catch {
+    exchangePromise = null;
+  }
 }
 
 /**

@@ -3,6 +3,8 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAIWithRetry, isAIError, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
+import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
+import { getServiceClient } from "../_shared/dbClient.ts";
 
 const safeSkillsString = (skills: any[] | undefined): string =>
   (skills || []).map((s: any) => (typeof s === 'string' ? s : s?.name || '')).filter(Boolean).join(', ');
@@ -28,6 +30,15 @@ serve(async (req) => {
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const creditCheck = await checkUserCreditBalance(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'Insufficient AI credits.' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const isByok = creditCheck.remaining === 9999;
 
     const reqBody = await req.json();
     const resume = reqBody.resume;
@@ -116,6 +127,21 @@ Write a ${validTone} cover letter with a professional header containing actual c
 
     const coverLetter = aiResponse.content;
     if (!coverLetter) throw new Error("No content in AI response");
+
+    if (!isByok) {
+      // Cover letters cost 2 credits
+      try {
+        const svcClient = getServiceClient();
+        svcClient.rpc('increment_ai_usage', { p_user_id: userId }).catch((err: any) => {
+          console.error('[credit] increment_ai_usage 1/2 failed for user:', userId, err);
+        });
+        svcClient.rpc('increment_ai_usage', { p_user_id: userId }).catch((err: any) => {
+          console.error('[credit] increment_ai_usage 2/2 failed for user:', userId, err);
+        });
+      } catch (err) {
+        console.error('[credit] increment_ai_usage failed for user:', userId, err);
+      }
+    }
 
     await recordUsage(userId, 'cover_letter', { provider: aiResponse.providerUsed || 'unknown' });
 
