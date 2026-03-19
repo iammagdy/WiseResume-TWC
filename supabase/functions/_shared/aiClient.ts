@@ -578,7 +578,7 @@ function handleGeminiError(status: number, errorText: string): never {
     throw createAIError('invalid_key', 'Invalid Gemini API key. Please check your settings.', 401);
   }
   if (status === 404) {
-    throw createAIError('invalid_key', `Model not found: ${errorMessage}. Check your selected model in AI Settings.`, 404);
+    throw createAIError('unknown', `Model not found: ${errorMessage}. Check your selected model in AI Settings.`, 404);
   }
   if (status === 429) {
     if (errorText.includes('RESOURCE_EXHAUSTED') || errorText.includes('quota')) {

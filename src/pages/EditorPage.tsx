@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'react';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { logAudit } from '@/lib/auditLogger';
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';

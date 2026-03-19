@@ -22,10 +22,6 @@ import { RedirectJobRoute } from "@/components/layout/RedirectJobRoute";
 import { useAIKeyHydration } from "@/hooks/useAIKeyHydration";
 import { SkyWallpaper } from "@/components/ui/SkyWallpaper";
 import { KindeProvider } from "@kinde-oss/kinde-auth-react";
-
-const CommandPalette = lazyWithRetry(() => import("@/components/layout/CommandPalette"));
-
-const BugReportDialog = lazyWithRetry(() => import("@/components/BugReportDialog"));
 import {
   DashboardSkeleton,
   EditorSkeleton,
@@ -51,6 +47,10 @@ import {
 "@/components/layout/PageSkeletons";
 import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
+
+const CommandPalette = lazyWithRetry(() => import("@/components/layout/CommandPalette"));
+
+const BugReportDialog = lazyWithRetry(() => import("@/components/BugReportDialog"));
 import { getSafeMatchMedia, isBrowser } from "@/lib/envUtils";
 
 // Eagerly load Index for LCP
@@ -222,7 +222,7 @@ function AppRoutes() {
                 <Route path="/job/:id" element={<Suspense fallback={<DetailSkeleton />}><JobDetailPage /></Suspense>} />
                 <Route path="/application/:id" element={<Suspense fallback={<DetailSkeleton />}><ApplicationTrackerPage /></Suspense>} />
                  <Route path="/notifications" element={<Suspense fallback={<NotificationsSkeleton />}><NotificationsPage /></Suspense>} />
-                 <Route path="/portfolio" element={<Suspense fallback={<PortfolioEditorSkeleton />}><PortfolioEditorPage /></Suspense>} className="bg-inherit" />
+                 <Route path="/portfolio" element={<Suspense fallback={<PortfolioEditorSkeleton />}><PortfolioEditorPage /></Suspense>} />
                  
                  <Route path="/cover-letters" element={<Suspense fallback={<CoverLettersSkeleton />}><CoverLettersPage /></Suspense>} />
                 <Route path="/cover-letter/new" element={<Suspense fallback={<DetailSkeleton />}><CoverLetterNewPage /></Suspense>} />

@@ -92,7 +92,6 @@ export async function exchangeToken(kindeToken: string): Promise<void> {
       if (!res.ok) {
         const text = await res.text();
         console.error('[SupabaseBridge] Token exchange failed:', res.status, text);
-        console.log('[SupabaseBridge] Error path taken: AUTH_REJECTION');
         try {
           const errBody = JSON.parse(text);
           state.lastError = { type: BridgeErrorType.AUTH_REJECTION, code: errBody.code || 'UNKNOWN', message: errBody.message || text };
@@ -109,14 +108,11 @@ export async function exchangeToken(kindeToken: string): Promise<void> {
       state.userId = data.userId;
       state.expiresAt = data.expiresAt;
       persistState(state);
-      console.log('[SupabaseBridge] Token exchanged successfully, userId:', data.userId);
     } catch (err) {
       console.error('[SupabaseBridge] Token exchange error:', err);
       if (err instanceof TypeError && err.message.includes('fetch')) {
-        console.log('[SupabaseBridge] Error path taken: OFFLINE_NETWORK');
         state.lastError = { type: BridgeErrorType.OFFLINE_NETWORK, code: 'OFFLINE', message: 'Network disconnected' };
       } else {
-        console.log('[SupabaseBridge] Error path taken: UNKNOWN');
         state.lastError = { type: BridgeErrorType.UNKNOWN, code: 'UNKNOWN', message: String(err) };
       }
     } finally {
@@ -189,7 +185,6 @@ export function clearBridge(): void {
   exchangePromise = null;
   _getKindeTokenFn = null;
   try { localStorage.removeItem(STORAGE_KEY); } catch {}
-  console.log('[SupabaseBridge] Cleared');
 }
 
 /**

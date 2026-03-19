@@ -14,7 +14,6 @@ import { AppLogo } from '@/components/brand/AppLogo';
 import { ResumeListCard } from '@/components/dashboard/ResumeListCard';
 import { ResumeGroup, organizeResumeHierarchy } from '@/components/dashboard/ResumeGroup';
 import { EmptyState } from '@/components/dashboard/EmptyState';
-import { ActionCard } from '@/components/home/ActionCard';
 import { SkeletonCardList } from '@/components/ui/skeleton-card';
 import { DashboardStats } from '@/components/dashboard/DashboardStats';
 import { QuickActionChips } from '@/components/dashboard/QuickActionChips';
