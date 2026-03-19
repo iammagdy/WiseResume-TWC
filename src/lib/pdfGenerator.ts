@@ -8,7 +8,7 @@ import { extractResumeText, renderTextLayerForPage } from '@/lib/pdfTextLayer';
 
 /** Typed error class for programmatic handling of PDF generation failures. */
 export class PdfGenerationError extends Error {
-  code: 'EMPTY_CANVAS' | 'MISSING_ELEMENT' | 'CAPTURE_FAILED' | 'UNKNOWN';
+  code: 'EMPTY_CANVAS' | 'MISSING_ELEMENT' | 'CAPTURE_FAILED' | 'TRUNCATED_CANVAS' | 'UNKNOWN';
   constructor(message: string, code: PdfGenerationError['code'] = 'UNKNOWN') {
     super(message);
     this.name = 'PdfGenerationError';
@@ -299,9 +299,10 @@ export async function captureTemplateAsCanvas(
 
   const expectedHeight = sourceElement.scrollHeight * scale;
   if (canvas.height < expectedHeight * 0.5) {
-    console.warn(
-      `[PDF] Canvas height (${canvas.height}px) is much smaller than expected (${expectedHeight}px). ` +
-      `Source element scrollHeight: ${sourceElement.scrollHeight}px. This may cause truncated pages.`
+    throw new PdfGenerationError(
+      `Canvas capture is truncated (got ${canvas.height}px, expected ~${expectedHeight}px). ` +
+      `The resume preview may be off-screen or clipped.`,
+      'TRUNCATED_CANVAS'
     );
   }
 
@@ -334,7 +335,10 @@ export async function generatePDFPages(
       canvas.height - sourceY
     );
 
-    if (sourceH <= 0) continue;
+    if (sourceH <= 0) {
+      console.warn(`[PDF] Page ${pageNum + 1} crop height is zero — stopping page loop early.`);
+      break;
+    }
 
     const cropCanvas = document.createElement('canvas');
     cropCanvas.width = canvas.width;
@@ -438,7 +442,14 @@ function snapBreaksToContent(
 
   if (!sectionBounds.length && !entryBounds.length) return fixedBreaks;
 
-  const maxShift = sourceHeightPerPage * 0.30;
+  // Validate that layout is available — off-screen elements return all-zero rects
+  const hasValidLayout = sectionBounds.some(b => b.bottom > 0) || entryBounds.some(b => b.bottom > 0);
+  if (!hasValidLayout) {
+    console.warn('[PDF] All element rects are zero — element may be off-screen. Using fixed-interval breaks.');
+    return fixedBreaks;
+  }
+
+  const maxShift = Math.min(sourceHeightPerPage * 0.30, 200); // hard cap at 200px
   const HEADING_GUARD = 60; // px — protect section headings from orphaning
 
   // --- Sequential break processing: each break is relative to the previous ---
@@ -475,6 +486,8 @@ function snapBreaksToContent(
     // --- Entry is taller than one page — find best internal break point ---
 
     // Tier 2: find a [data-break-child] boundary inside the oversized block
+    // Widen search range proportionally for tall entries so we don't miss the nearest boundary
+    const entryMaxShift = Math.max(maxShift, hitHeight * 0.15);
     const markedChildren = hit.el.querySelectorAll('[data-break-child]');
     if (markedChildren.length > 0) {
       let bestSnap = breakY;
@@ -483,7 +496,7 @@ function snapBreaksToContent(
         const cr = child.getBoundingClientRect();
         const childTop = cr.top - sourceRect.top;
         const dist = Math.abs(childTop - breakY);
-        if (dist < bestDist && dist <= maxShift) {
+        if (dist < bestDist && dist <= entryMaxShift) {
           bestDist = dist;
           bestSnap = childTop;
         }
@@ -500,7 +513,7 @@ function snapBreaksToContent(
         const cr = child.getBoundingClientRect();
         const childTop = cr.top - sourceRect.top;
         const dist = Math.abs(childTop - breakY);
-        if (dist < bestDist && dist <= maxShift) {
+        if (dist < bestDist && dist <= entryMaxShift) {
           bestDist = dist;
           bestSnap = childTop;
         }
@@ -522,7 +535,8 @@ function snapBreaksToContent(
     // Don't exceed total content height
     if (nextBreak >= totalHeight) break;
 
-    nextBreak = snapOne(nextBreak);
+    nextBreak = Math.max(snapOne(nextBreak), prevBreak + HEADING_GUARD);
+    if (nextBreak >= totalHeight) break;
     result.push(nextBreak);
     prevBreak = nextBreak;
   }

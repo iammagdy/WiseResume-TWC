@@ -82,7 +82,7 @@ async function downloadNativeShare(
   try {
     const newTab = window.open(url, '_blank');
     if (newTab) {
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000); // 5 minutes for large PDFs
       return { success: true, method: 'open' };
     }
   } catch {
@@ -122,8 +122,8 @@ async function downloadIOS(
   try {
     const newTab = window.open(url, '_blank');
     if (newTab) {
-      // Revoke after a delay to let the tab load
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      // Revoke after a delay to let the tab load — 5 minutes for large PDFs on slow connections
+      setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000);
       return { success: true, method: 'open' };
     }
   } catch {
@@ -157,12 +157,12 @@ function downloadMobile(blob: Blob, fileName: string): DownloadResult {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000); // 5 minutes for large PDFs
     return { success: true, method: 'anchor' };
   } catch {
     // Fallback to window.open if anchor fails
     window.open(url, '_blank');
-    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000); // 5 minutes for large PDFs
     return { success: true, method: 'open' };
   }
 }

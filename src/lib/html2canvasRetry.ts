@@ -23,8 +23,8 @@ export function tagSvgDimensions(container: HTMLElement): () => void {
     const h = rect.height / scaleY;
     if (w > 0) svg.setAttribute('data-pdf-w', String(w));
     if (h > 0) svg.setAttribute('data-pdf-h', String(h));
-    const color = getComputedStyle(svg).color;
-    if (color) svg.setAttribute('data-pdf-color', color);
+    const color = getComputedStyle(svg).color || 'rgb(0, 0, 0)';
+    svg.setAttribute('data-pdf-color', color); // always set, guaranteed non-empty
   });
   return () => {
     svgs.forEach((svg) => {
@@ -66,11 +66,9 @@ export function convertSvgsToImages(clonedDoc: Document): void {
 
     let serialized = new XMLSerializer().serializeToString(svg);
 
-    // Resolve currentColor to actual computed color
-    const taggedColor = svg.getAttribute('data-pdf-color');
-    if (taggedColor) {
-      serialized = serialized.replace(/currentColor/g, taggedColor);
-    }
+    // Resolve currentColor to actual computed color (fallback to black)
+    const taggedColor = svg.getAttribute('data-pdf-color') || 'rgb(0, 0, 0)';
+    serialized = serialized.replace(/currentColor/g, taggedColor);
 
     const dataUri =
       'data:image/svg+xml;base64,' +
