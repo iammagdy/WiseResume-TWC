@@ -41,6 +41,7 @@ import { AppIcon } from '@/components/brand/AppIcon';
 import { AITrustBadge } from '@/components/ui/AITrustBadge';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useResumeStore } from '@/store/resumeStore';
+import { useShallow } from 'zustand/react/shallow';
 
 interface AgenticChatSheetProps {
   open: boolean;
@@ -241,7 +242,7 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
   const navigate = useNavigate();
   const location = useLocation();
   const { data: allResumes = [] } = useResumes();
-  const { currentResume, setCurrentResume, setCurrentResumeId } = useResumeStore();
+  const { currentResume, setCurrentResume, setCurrentResumeId } = useResumeStore(useShallow((s) => ({ currentResume: s.currentResume, setCurrentResume: s.setCurrentResume, setCurrentResumeId: s.setCurrentResumeId })));
   const [activeContext, setActiveContext] = useState(() => detectContextFromRoute(location.pathname));
   const {
     messages,

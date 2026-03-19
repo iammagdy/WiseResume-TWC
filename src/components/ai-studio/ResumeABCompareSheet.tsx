@@ -158,7 +158,7 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
         <SheetHeader className="shrink-0">
           <div className="flex items-center gap-2">
             {step === 'results' && (
-              <Button variant="ghost" size="icon" className="shrink-0 min-h-[44px] min-w-[44px]" onClick={() => { haptics.light(); resetState(); }}>
+              <Button variant="ghost" size="icon" className="shrink-0 min-h-[44px] min-w-[44px]" onClick={() => { haptics.light(); resetState(); }} aria-label="Go back">
                 <ArrowLeft className="w-5 h-5" />
               </Button>
             )}

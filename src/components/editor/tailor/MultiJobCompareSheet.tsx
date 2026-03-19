@@ -1,4 +1,5 @@
  import { useState, useCallback } from 'react';
+ import { useShallow } from 'zustand/react/shallow';
  import { motion, AnimatePresence } from 'framer-motion';
  import useEmblaCarousel from 'embla-carousel-react';
  import { 
@@ -35,7 +36,13 @@
      removeJobFromComparison,
      applySelectedJob,
      clearComparison
-   } = useResumeStore();
+   } = useResumeStore(useShallow((s) => ({
+     currentComparison: s.currentComparison,
+     selectBestJob: s.selectBestJob,
+     removeJobFromComparison: s.removeJobFromComparison,
+     applySelectedJob: s.applySelectedJob,
+     clearComparison: s.clearComparison,
+   })));
  
    const [activeTab, setActiveTab] = useState<string>('cards');
    const [selectedIndex, setSelectedIndex] = useState(0);
@@ -139,6 +146,7 @@
                   variant="ghost"
                   className="h-8 w-8"
                   onClick={handleClose}
+                  aria-label="Close dialog"
                 >
                   <X className="w-4 h-4" />
                 </Button>
@@ -190,6 +198,7 @@
                        size="icon"
                        className="absolute left-0 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-background/90 shadow-lg z-10"
                        onClick={scrollPrev}
+                       aria-label="Previous job"
                      >
                        <ChevronLeft className="w-5 h-5" />
                      </Button>
@@ -198,6 +207,7 @@
                        size="icon"
                        className="absolute right-0 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-background/90 shadow-lg z-10"
                        onClick={scrollNext}
+                       aria-label="Next job"
                      >
                        <ChevronRight className="w-5 h-5" />
                      </Button>

@@ -61,14 +61,14 @@ export function StatusBar({
 
       {/* Copy */}
       {actualPortfolioUrl && (
-        <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={onCopyUrl}>
+        <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={onCopyUrl} aria-label="Copy portfolio URL">
           {copied ? <Check className="w-3.5 h-3.5 text-primary" /> : <Copy className="w-3.5 h-3.5" />}
         </Button>
       )}
 
       {/* QR */}
       {actualPortfolioUrl && (
-        <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={onOpenQR}>
+        <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={onOpenQR} aria-label="Open QR code">
           <QrCode className="w-3.5 h-3.5" />
         </Button>
       )}

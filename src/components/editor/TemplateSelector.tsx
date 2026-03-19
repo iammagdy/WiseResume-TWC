@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { useShallow } from 'zustand/react/shallow';
 import { Check, FileText, AlertTriangle, Sparkles, Star, Info } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
@@ -26,7 +27,12 @@ const CAREER_LEVEL_RECOMMENDATIONS: Record<CareerLevel, TemplateId[]> = {
 
 
 export function TemplateSelector({ open, onOpenChange, onTemplateApplied }: TemplateSelectorProps) {
-  const { selectedTemplate, setSelectedTemplate, updateResume, currentResume } = useResumeStore();
+  const { selectedTemplate, setSelectedTemplate, updateResume, currentResume } = useResumeStore(useShallow((s) => ({
+    selectedTemplate: s.selectedTemplate,
+    setSelectedTemplate: s.setSelectedTemplate,
+    updateResume: s.updateResume,
+    currentResume: s.currentResume,
+  })));
   const { user } = useAuth();
   const { profile } = useProfile(user?.id);
 

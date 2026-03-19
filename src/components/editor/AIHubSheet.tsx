@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { JobMatchScore } from '@/types/resume';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
+import { useShallow } from 'zustand/react/shallow';
 import { AICostBadge } from '@/components/ai/AICostBadge';
 
 interface AIActionTileProps {
@@ -104,7 +105,7 @@ export function AIHubSheet({
   onRecruiterSim,
   onTemplateAdvisor,
 }: AIHubSheetProps) {
-  const { currentComparison } = useResumeStore();
+  const { currentComparison } = useResumeStore(useShallow((s) => ({ currentComparison: s.currentComparison })));
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

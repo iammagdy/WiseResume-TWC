@@ -13,6 +13,8 @@ import { useResumes } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
+import { DetailSkeleton } from '@/components/layout/PageSkeletons';
+
 export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -25,7 +27,7 @@ export default function JobDetailPage() {
 
   // Auth guard handled by ProtectedRoute
   // Suspense fallback already shows DetailSkeleton; avoid double skeleton
-  if (isLoading) return null;
+  if (isLoading) return <DetailSkeleton />;
   if (!job) return (
     <div className="flex-1 flex flex-col items-center justify-center p-6">
       <Briefcase className="w-12 h-12 text-muted-foreground/30 mb-3" />

@@ -1,4 +1,3 @@
-import html2canvas from 'html2canvas';
 import { Capacitor } from '@capacitor/core';
 
 /**
@@ -109,6 +108,7 @@ export async function captureWithRetry(
   baseOptions: Record<string, unknown> = {},
   maxAttempts = 3,
 ): Promise<HTMLCanvasElement> {
+  const { default: html2canvasFn } = await import('html2canvas');
   const isNative = Capacitor.isNativePlatform();
   const timeouts = isNative ? [10_000, 18_000, 28_000] : [8_000, 15_000, 25_000];
 
@@ -148,7 +148,7 @@ export async function captureWithRetry(
 
     try {
       const canvas = await Promise.race([
-        html2canvas(element, opts as Parameters<typeof html2canvas>[1]),
+        html2canvasFn(element, opts as any),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('Canvas capture timed out')), timeouts[attempt]),
         ),

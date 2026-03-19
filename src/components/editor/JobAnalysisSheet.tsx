@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { motion } from 'framer-motion';
 import { Target, Sparkles, AlertCircle, CheckCircle, TrendingUp } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
@@ -37,7 +38,17 @@ export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) 
     setGapAnalysis,
     isAnalyzing,
     setIsAnalyzing 
-  } = useResumeStore();
+  } = useResumeStore(useShallow((s) => ({
+    currentResume: s.currentResume,
+    jobDescription: s.jobDescription,
+    setJobDescription: s.setJobDescription,
+    matchScore: s.matchScore,
+    setMatchScore: s.setMatchScore,
+    gapAnalysis: s.gapAnalysis,
+    setGapAnalysis: s.setGapAnalysis,
+    isAnalyzing: s.isAnalyzing,
+    setIsAnalyzing: s.setIsAnalyzing,
+  })));
 
   const [isToastShown, setIsToastShown] = useState(false);
 

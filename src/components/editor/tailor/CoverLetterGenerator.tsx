@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { FileText, Copy, Check, Download, Sparkles, History, Edit3, Eye, X, Circle } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -98,7 +99,13 @@ export function CoverLetterGenerator({
     coverLetterHistory,
     deleteCoverLetterHistoryEntry,
     clearCoverLetterHistory,
-  } = useResumeStore();
+  } = useResumeStore(useShallow((s) => ({
+    setGeneratedCoverLetter: s.setGeneratedCoverLetter,
+    addCoverLetterHistory: s.addCoverLetterHistory,
+    coverLetterHistory: s.coverLetterHistory,
+    deleteCoverLetterHistoryEntry: s.deleteCoverLetterHistoryEntry,
+    clearCoverLetterHistory: s.clearCoverLetterHistory,
+  })));
 
   const handleGenerate = async () => {
     if (!resume || !jobDescription) {

@@ -97,7 +97,7 @@ export function SaveJobSheet({ open, onOpenChange }: Props) {
           
           <div className="flex gap-2">
             <Input placeholder="Source URL" value={sourceUrl} onChange={e => setSourceUrl(e.target.value)} className="flex-1" type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
-            <Button variant="outline" size="icon" onClick={handlePasteUrl} className="shrink-0 min-w-[48px] min-h-[48px]">
+            <Button variant="outline" size="icon" onClick={handlePasteUrl} className="shrink-0 min-w-[48px] min-h-[48px]" aria-label="Paste URL">
               <ClipboardPaste className="w-4 h-4" />
             </Button>
           </div>

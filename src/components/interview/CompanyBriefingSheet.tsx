@@ -106,16 +106,16 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
           <div className="flex items-center gap-2">
             {briefing && (
               <>
-                <Button variant="ghost" size="icon" onClick={handleDownloadPDF} className="h-9 w-9" title="Download PDF">
+                <Button variant="ghost" size="icon" onClick={handleDownloadPDF} className="h-9 w-9" title="Download PDF" aria-label="Download PDF">
                   <Download className="w-4 h-4" />
                 </Button>
-                <Button variant="ghost" size="icon" onClick={handleCopy} className="h-9 w-9" title="Copy to clipboard">
+                <Button variant="ghost" size="icon" onClick={handleCopy} className="h-9 w-9" title="Copy to clipboard" aria-label="Copy to clipboard">
                   <Copy className="w-4 h-4" />
                 </Button>
               </>
             )}
             <DrawerClose asChild>
-              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleClose}>
+              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={handleClose} aria-label="Close dialog">
                 <X className="w-4 h-4" />
               </Button>
             </DrawerClose>

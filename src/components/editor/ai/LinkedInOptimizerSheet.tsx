@@ -25,6 +25,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
+import { useShallow } from 'zustand/react/shallow';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
@@ -108,7 +109,7 @@ function buildAllContentText(result: LinkedInResult, name: string): string {
 }
 
 export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizerSheetProps) {
-  const { currentResume } = useResumeStore();
+  const currentResume = useResumeStore((s) => s.currentResume);
   const [isLoading, setIsLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState<RegionOption>('global');

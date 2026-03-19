@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
+import { useShallow } from 'zustand/react/shallow';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
@@ -69,7 +70,7 @@ interface OnePageResult {
 type ViewState = 'preview' | 'analyzing' | 'results';
 
 export function OnePageWizardSheet({ open, onOpenChange, onExportOnePage }: OnePageWizardSheetProps) {
-  const { currentResume, updateResume } = useResumeStore();
+  const { currentResume, updateResume } = useResumeStore(useShallow((s) => ({ currentResume: s.currentResume, updateResume: s.updateResume })));
   const [viewState, setViewState] = useState<ViewState>('preview');
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<OnePageResult | null>(null);
