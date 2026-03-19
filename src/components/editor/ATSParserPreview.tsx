@@ -97,7 +97,7 @@ export const ATSParserPreview = memo(function ATSParserPreview({ onClose, classN
   }
 
   const passCount = checks.filter(c => c.status === 'pass').length;
-  const score = Math.round((passCount / checks.length) * 100);
+  const score = parsed.score ?? Math.round((passCount / checks.length) * 100);
 
   return (
     <div className={cn('flex flex-col h-full bg-muted/20', className)}>
@@ -144,6 +144,18 @@ export const ATSParserPreview = memo(function ATSParserPreview({ onClose, classN
                   <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
                   <span>{issue}</span>
                 </div>
+              ))}
+            </div>
+          )}
+
+          {/* Formatting warnings */}
+          {parsed.formattingWarnings && parsed.formattingWarnings.length > 0 && (
+            <div className="mt-2 mb-4 space-y-1">
+              {parsed.formattingWarnings.map((warning, i) => (
+                <p key={i} className="text-[10px] text-warning flex items-start gap-1.5">
+                  <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />
+                  {warning}
+                </p>
               ))}
             </div>
           )}

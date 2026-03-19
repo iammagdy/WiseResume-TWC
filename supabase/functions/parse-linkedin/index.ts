@@ -47,8 +47,15 @@ serve(async (req) => {
 
     if (isUrlOnly) {
       return new Response(
-        JSON.stringify({ error: "Please paste the full profile content, not just the URL." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({
+          error: 'URL_ONLY_REJECTED',
+          message:
+            "We can't fetch LinkedIn profiles directly due to access restrictions. " +
+            "To import your LinkedIn data: open your LinkedIn profile in a browser, " +
+            "press Ctrl+A (or Cmd+A on Mac) to select all text on the page, copy it, " +
+            "and paste the full text into this field.",
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -57,7 +64,11 @@ serve(async (req) => {
 IMPORTANT: If the input is ONLY a URL, return EMPTY arrays and null summary. Do NOT make up data.
 Only extract data explicitly present in the text. Never fabricate data.
 
-Extract: Summary/About, Experience, Education, Skills. For dates, use "Jan 2020" or "2020". Mark current positions.`;
+Extract: Summary/About, Experience, Education, Skills. For dates, use "Jan 2020" or "2020". Mark current positions.
+
+For the experience section: if a person held multiple roles at the same company (progressive promotion, e.g., "Software Engineer → Senior Engineer → Staff Engineer at Google"), return EACH role as a SEPARATE experience entry with the SAME company name. Do not merge multiple roles into one entry.
+
+Extract certifications from the "Licenses & Certifications" section, volunteering from the "Volunteer Experience" section, languages from the "Languages" section, and projects from the "Projects" section. If any of these sections are not present in the provided text, return an empty array for that field.`;
 
     const aiResponse = await callAI({
       model: 'google/gemini-2.5-flash',
@@ -107,6 +118,59 @@ Extract: Summary/About, Experience, Education, Skills. For dates, use "Jan 2020"
                   },
                 },
                 skills: { type: "array", items: { type: "string" } },
+                certifications: {
+                  type: 'array',
+                  description: 'Certifications and licenses from the "Licenses & Certifications" section',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      name: { type: 'string', description: 'Name of the certification' },
+                      organization: { type: 'string', description: 'Issuing organization' },
+                      date: { type: 'string', description: 'Issue date e.g. "Mar 2023"' },
+                    },
+                    required: ['name'],
+                  },
+                },
+                volunteering: {
+                  type: 'array',
+                  description: 'Volunteer experience entries',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      role: { type: 'string', description: 'Volunteer role or title' },
+                      organization: { type: 'string', description: 'Organization name' },
+                      startDate: { type: 'string' },
+                      endDate: { type: 'string' },
+                      description: { type: 'string' },
+                    },
+                    required: ['role', 'organization'],
+                  },
+                },
+                languages: {
+                  type: 'array',
+                  description: 'Languages listed in the Languages section',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      language: { type: 'string', description: 'Language name' },
+                      proficiency: { type: 'string', description: 'Proficiency level e.g. Native, Fluent, Professional, Elementary' },
+                    },
+                    required: ['language'],
+                  },
+                },
+                projects: {
+                  type: 'array',
+                  description: 'Projects listed on the profile',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      name: { type: 'string', description: 'Project name' },
+                      description: { type: 'string' },
+                      url: { type: 'string', description: 'Project URL if listed' },
+                    },
+                    required: ['name'],
+                  },
+                },
               },
               required: ["summary", "experience", "education", "skills"],
             },

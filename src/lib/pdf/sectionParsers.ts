@@ -2,12 +2,24 @@ import { ResumeData, Experience, Education, Certification } from '@/types/resume
 import { v4 as uuidv4 } from 'uuid';
 
 // Section heading patterns - expanded for international CVs
-const SECTION_PATTERNS = {
-  summary: /^(summary|objective|profile|about\s*me|professional\s*summary|career\s*objective)$/i,
-  experience: /^(experience|work\s*experience|employment|work\s*history|professional\s*experience|projects?)$/i,
-  education: /^(education|academic|qualifications|academic\s*background|schooling)$/i,
-  skills: /^(skills|technical\s*skills|core\s*competencies|technologies|expertise|proficiencies|languages?|soft\s*skills|hard\s*skills)$/i,
-  certifications: /^(certifications?|certificates?|licenses?|credentials?|professional\s*certifications?|training|courses?)$/i,
+const SECTION_PATTERNS: Record<string, RegExp> = {
+  summary: /^(summary|objective|profile|about\s*me|professional\s*summary|career\s*objective|career\s*summary|executive\s*summary|personal\s*statement|professional\s*profile|highlights|at\s*a\s*glance)$/i,
+
+  experience: /^(experience|work\s*experience|employment|work\s*history|professional\s*experience|career\s*history|employment\s*history|professional\s*background|career\s*background|relevant\s*experience|internship\s*experience|research\s*experience|consulting\s*experience|freelance\s*work|contract\s*work|projects?)$/i,
+
+  education: /^(education|academic|qualifications|academic\s*background|schooling|degrees?|educational\s*background|formal\s*education|academic\s*history)$/i,
+
+  skills: /^(skills|technical\s*skills|core\s*competencies|technologies|expertise|proficiencies|soft\s*skills|hard\s*skills|key\s*skills|core\s*skills|areas\s*of\s*expertise|competencies|technical\s*proficiencies|tools?\s*(?:&|and)\s*technologies|programming\s*languages?)$/i,
+
+  certifications: /^(certifications?|certificates?|licenses?|credentials?|professional\s*certifications?|training|courses?|professional\s*development|continuing\s*education|accreditations?)$/i,
+
+  awards: /^(awards?|honors?|achievements?|accomplishments?|recognition|awards?\s*(?:&|and)\s*honors?)$/i,
+
+  projects: /^(projects?|personal\s*projects?|side\s*projects?|open\s*source|portfolio)$/i,
+
+  volunteering: /^(volunteer(?:ing)?|community\s*service|civic\s*engagement|community\s*involvement)$/i,
+
+  languages: /^(languages?\s*(?:spoken)?|language\s*skills|spoken\s*languages?)$/i,
 };
 
 // Pre-calculate entries to avoid repeated allocation in loop
@@ -19,7 +31,12 @@ interface SectionBlocks {
   education: string[];
   skills: string[];
   certifications: string[];
+  awards: string[];
+  projects: string[];
+  volunteering: string[];
+  languages: string[];
   header: string[];
+  unrecognized: string[];
 }
 
 /**
@@ -76,7 +93,12 @@ function extractSections(lines: string[]): SectionBlocks {
     education: [],
     skills: [],
     certifications: [],
+    awards: [],
+    projects: [],
+    volunteering: [],
+    languages: [],
     header: [],
+    unrecognized: [],
   };
 
   let currentSection: keyof SectionBlocks = 'header';
@@ -94,9 +116,22 @@ function extractSections(lines: string[]): SectionBlocks {
     }
 
     if (foundSection) {
-      currentSection = foundSection;
+      currentSection = foundSection as keyof SectionBlocks;
       // Don't add the heading itself to content
     } else {
+      // Check if this line looks like an unrecognized section heading
+      // (all-caps short line, or line ending with colon) to avoid silently
+      // appending unknown section content to the previous section
+      const looksLikeHeading =
+        cleanLine.length > 2 &&
+        cleanLine.length < 60 &&
+        (
+          /^[A-Z][A-Z\s&/()-]{2,}$/.test(cleanLine) ||
+          line.trim().endsWith(':')
+        );
+      if (looksLikeHeading && currentSection !== 'unrecognized') {
+        currentSection = 'unrecognized';
+      }
       sections[currentSection].push(line);
     }
   }
@@ -193,6 +228,10 @@ function extractContactInfo(text: string): ResumeData['contactInfo'] {
 /**
  * Parse experience section into structured entries.
  */
+const JOB_TITLE_KEYWORDS = /\b(architect|attorney|accountant|auditor|administrator|analyst|associate|consultant|coordinator|counselor|designer|developer|director|engineer|executive|intern|lecturer|manager|nurse|officer|president|principal|professor|researcher|scientist|specialist|supervisor|technician|therapist|trainer|lead|senior|junior|vp|vice\s*president|cto|ceo|coo|cfo|head\s*of)\b/i;
+
+const COMPANY_SUFFIX = /\b(Inc\.?|Ltd\.?|LLC|Corp\.?|Co\.?|Group|Holdings|International|Solutions|Services|Technologies|Consulting|Associates|Partners|Foundation|Institute|University|College|Hospital|Medical|Agency|Bureau|Department|Ministry)\b/i;
+
 function parseExperienceSection(lines: string[]): Experience[] {
   if (lines.length === 0) return [];
 
@@ -213,9 +252,21 @@ function parseExperienceSection(lines: string[]): Experience[] {
     let company = headerLines[0] || 'Company';
     let position = headerLines[1] || '';
 
-    // If position looks more like a company, swap them
-    if (position && !company.match(/developer|engineer|manager|director|analyst|specialist|lead|senior|junior/i) &&
-      position.match(/developer|engineer|manager|director|analyst|specialist|lead|senior|junior/i)) {
+    // Swap if position looks more like a job title than company
+    if (
+      position &&
+      !JOB_TITLE_KEYWORDS.test(company) &&
+      JOB_TITLE_KEYWORDS.test(position)
+    ) {
+      [company, position] = [position, company];
+    }
+
+    // Secondary check: if company line matches a company suffix but position doesn't, swap
+    if (
+      position &&
+      COMPANY_SUFFIX.test(position) &&
+      !COMPANY_SUFFIX.test(company)
+    ) {
       [company, position] = [position, company];
     }
 
@@ -226,8 +277,7 @@ function parseExperienceSection(lines: string[]): Experience[] {
       company = parts[1];
     } else if (!position && company.includes(' - ')) {
       const parts = company.split(' - ');
-      // The part with job title keywords is likely the position
-      if (parts[0].match(/developer|engineer|manager|director|analyst/i)) {
+      if (JOB_TITLE_KEYWORDS.test(parts[0])) {
         position = parts[0];
         company = parts[1];
       } else {
@@ -293,8 +343,11 @@ function parseEducationSection(lines: string[]): Education[] {
 /**
  * Parse skills section into array of skills.
  */
-function parseSkillsSection(lines: string[]): string[] {
-  const fullText = lines.join(' ');
+export function parseSkillsSection(lines: string[]): string[] {
+  // Strip category label patterns like "Frontend:", "Backend:", "Languages:"
+  // These are common in formatted resumes: "Frontend: HTML | CSS | React"
+  const cleanedLines = lines.map(l => l.replace(/^[A-Za-z\s/&]+:\s*/, ''));
+  const fullText = cleanedLines.join(' ');
 
   // Split by common delimiters
   const skills = fullText
@@ -303,7 +356,7 @@ function parseSkillsSection(lines: string[]): string[] {
     .filter(s => {
       // Filter out junk
       return s.length > 1 &&
-        s.length < 50 &&
+        s.length < 80 &&           // raised from 50 to 80
         !s.match(/^\d+$/) &&
         !s.match(/^(and|or|the|a|an)$/i);
     })
@@ -343,6 +396,16 @@ function parseCertificationsSection(lines: string[]): Certification[] {
   return certifications;
 }
 
+/** Only treat an ALL-CAPS line as a block boundary if a date appears within the next 3 lines.
+ *  This prevents company names written in all-caps from splitting an experience entry in half. */
+function looksLikeBlockHeader(line: string, nextLines: string[]): boolean {
+  if (!/^[A-Z][A-Z0-9 &,./()-]{2,}$/.test(line)) return false;
+  if (line.split(/\s+/).length > 5) return false;
+  const nearby = nextLines.slice(0, 3).join(' ');
+  return /\b(19|20)\d{2}\b/.test(nearby) ||
+    /(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)/i.test(nearby);
+}
+
 /**
  * Split lines into blocks separated by blank lines or certain patterns.
  */
@@ -350,7 +413,8 @@ function splitIntoBlocks(lines: string[]): string[][] {
   const blocks: string[][] = [];
   let currentBlock: string[] = [];
 
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     // Start new block on empty line or line that looks like a new entry (starts with date or bullet)
     // Block-start triggers: blank line, date prefixes (short + full month names), standalone year,
     // bullet glyphs (including em-dash, arrows, numbered items), or an ALL-CAPS short header line
@@ -359,7 +423,7 @@ function splitIntoBlocks(lines: string[]): string[][] {
       /^\d{4}\s*[-–—]/.test(line) ||
       /^(?:•|►|▪|▸|→|–|—|\*)\s/.test(line) ||
       /^\d+[.)]\s/.test(line) ||
-      (/^[A-Z][A-Z0-9 &,./()-]{2,}$/.test(line) && line.split(/\s+/).length <= 5);
+      looksLikeBlockHeader(line, lines.slice(i + 1));
 
     if (isBlockStart) {
       if (currentBlock.length > 0) {
@@ -383,28 +447,44 @@ function splitIntoBlocks(lines: string[]): string[][] {
 
 const MONTHS_PATTERN = 'Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?';
 
-// Pattern: "Month Year - Month Year" or "Month Year - Present"
-const RANGE_PATTERN = new RegExp(
+// Branch 1 (original): "Month Year – Month Year/Present" or "YYYY – Month Year/Present"
+const RANGE_FULL = new RegExp(
   `((?:${MONTHS_PATTERN})\\s*\\d{4}|\\d{4})\\s*[-–—to]+\\s*((?:${MONTHS_PATTERN})\\s*\\d{4}|\\d{4}|Present|Current|Now)`,
   'i'
 );
+
+// Branch 2: MM/YYYY – MM/YYYY or MM/YYYY – Present
+const RANGE_SLASH = /(\d{1,2}\/\d{4})\s*[-–—to]+\s*(\d{1,2}\/\d{4}|Present|Current|Now)/i;
+
+// Branch 3: YYYY–YYYY with no spaces (em-dash or en-dash directly touching digits)
+const RANGE_YEAR_COMPACT = /\b(\d{4})\s*[-–—]\s*(\d{4}|Present|Current|Now)\b/i;
+
+// Branch 4: Single 4-digit year (used for graduation years in education)
+const SINGLE_YEAR = /\b((?:19|20)\d{2})\b/;
 
 /**
  * Extract date range from text.
  * // Exported for testing purposes
  */
 export function extractDateRange(text: string): { startDate: string; endDate: string; current: boolean } {
-  const match = text.match(RANGE_PATTERN);
+  // Try each pattern branch in priority order
+  for (const pattern of [RANGE_FULL, RANGE_SLASH, RANGE_YEAR_COMPACT]) {
+    const match = text.match(pattern);
+    if (match) {
+      const endStr = match[2].toLowerCase();
+      const isCurrent = ['present', 'current', 'now'].some(p => endStr.includes(p));
+      return {
+        startDate: match[1],
+        endDate: isCurrent ? '' : match[2],
+        current: isCurrent,
+      };
+    }
+  }
 
-  if (match) {
-    const endStr = match[2].toLowerCase();
-    const isCurrent = ['present', 'current', 'now'].some(p => endStr.includes(p));
-
-    return {
-      startDate: match[1],
-      endDate: isCurrent ? '' : match[2],
-      current: isCurrent,
-    };
+  // Single year fallback — used for graduation year on education entries
+  const single = text.match(SINGLE_YEAR);
+  if (single) {
+    return { startDate: '', endDate: single[1], current: false };
   }
 
   return { startDate: '', endDate: '', current: false };

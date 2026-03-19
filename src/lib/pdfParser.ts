@@ -30,6 +30,8 @@ export interface ParseResult {
   data?: ResumeData;
   needsOCR: boolean;
   pageCount: number;
+  parseStatus: 'success' | 'partial' | 'failed';
+  parseWarnings: string[];
 }
 
 /**
@@ -133,6 +135,8 @@ export async function parseResumePDF(file: File): Promise<ParseResult> {
       success: false,
       needsOCR: true,
       pageCount: extraction.pageCount,
+      parseStatus: 'failed',
+      parseWarnings: ['PDF contains no selectable text — OCR is required to read this file.'],
     };
   }
   
@@ -145,12 +149,20 @@ export async function parseResumePDF(file: File): Promise<ParseResult> {
   
   // Parse into structured data using AI
   const data = await parseTextWithAI(textWithHints);
-  
+
+  // Determine parse quality
+  const extractionSummary = getExtractionSummary(data);
+  const parseStatus: 'success' | 'partial' | 'failed' =
+    extractionSummary.isEmpty ? 'failed' : extractionSummary.isPartial ? 'partial' : 'success';
+  const parseWarnings: string[] = (parseStatus !== 'success') ? [extractionSummary.summary] : [];
+
   return {
     success: true,
     data,
     needsOCR: false,
     pageCount: extraction.pageCount,
+    parseStatus,
+    parseWarnings,
   };
 }
 
@@ -160,17 +172,39 @@ export async function parseResumePDF(file: File): Promise<ParseResult> {
  * 
  * @param file - The PDF file to parse
  * @param onProgress - Optional callback for OCR progress updates
- * @returns Structured resume data
+ * @returns Structured resume data with parse status
  */
 export async function parseResumePDFWithOCR(
   file: File,
   onProgress?: OCRProgressCallback
-): Promise<ResumeData> {
+): Promise<{ data: ResumeData; parseStatus: 'success' | 'partial' | 'failed'; parseWarnings: string[] }> {
   // Extract text using OCR
   const text = await extractTextWithOCR(file, onProgress);
-  
+
+  // Confidence gate: if OCR produced near-nothing, do not waste AI credits
+  const { computeTextConfidence } = await import('./pdf/textPreprocessor');
+  const { confidence } = computeTextConfidence(text);
+
+  if (confidence < 0.25) {
+    const emptyResume = parseResumeText(''); // returns an empty ResumeData skeleton
+    return {
+      data: emptyResume,
+      parseStatus: 'failed',
+      parseWarnings: [
+        `Image quality too low to extract text reliably (confidence: ${Math.round(confidence * 100)}%). ` +
+        'Please upload a clearer scan or a PDF with selectable text.'
+      ],
+    };
+  }
+
   // Parse into structured data using AI
-  return parseTextWithAI(text);
+  const data = await parseTextWithAI(text);
+  const summary = getExtractionSummary(data);
+  const parseStatus: 'success' | 'partial' | 'failed' =
+    summary.isEmpty ? 'failed' : summary.isPartial ? 'partial' : 'success';
+  const parseWarnings: string[] = (parseStatus !== 'success') ? [summary.summary] : [];
+
+  return { data, parseStatus, parseWarnings };
 }
 
 /**

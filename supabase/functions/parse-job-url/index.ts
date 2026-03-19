@@ -6,6 +6,7 @@ import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 
 // ============= SECURITY: Domain Whitelist =============
 const ALLOWED_DOMAINS = new Set([
+  // Major job boards
   'linkedin.com',
   'www.linkedin.com',
   'indeed.com',
@@ -20,15 +21,6 @@ const ALLOWED_DOMAINS = new Set([
   'www.careerbuilder.com',
   'ziprecruiter.com',
   'www.ziprecruiter.com',
-  'lever.co',
-  'jobs.lever.co',
-  'greenhouse.io',
-  'boards.greenhouse.io',
-  'workday.com',
-  'myworkdayjobs.com',
-  'jobs.ashbyhq.com',
-  'angel.co',
-  'wellfound.com',
   'simplyhired.com',
   'www.simplyhired.com',
   'reed.co.uk',
@@ -39,11 +31,31 @@ const ALLOWED_DOMAINS = new Set([
   'www.naukri.com',
   'bayt.com',
   'www.bayt.com',
-  'remoteco.com',
   'remote.co',
   'weworkremotely.com',
   'flexjobs.com',
   'www.flexjobs.com',
+  // ATS platforms (exact domains + subdomains covered by ATS_SUBDOMAINS below)
+  'greenhouse.io',
+  'boards.greenhouse.io',
+  'lever.co',
+  'jobs.lever.co',
+  'workable.com',
+  'ashbyhq.com',
+  'jobs.ashbyhq.com',
+  'smartrecruiters.com',
+  'recruitee.com',
+  'breezy.hr',
+  'workday.com',
+  'myworkdayjobs.com',
+  // Startup / tech job boards
+  'wellfound.com',
+  'angel.co',
+  'himalayas.app',
+  'remotive.com',
+  'arc.dev',
+  'ycombinator.com',
+  'workatastartup.com',
 ]);
 
 // ============= SECURITY: Private IP Range Detection =============
@@ -112,20 +124,27 @@ function validateJobUrl(urlString: string): { valid: boolean; error?: string; ur
   const fullDomain = hostname;
   
   // Check if domain or subdomain is in whitelist
-  const isAllowed = ALLOWED_DOMAINS.has(fullDomain) || 
-                    ALLOWED_DOMAINS.has(baseDomain) ||
-                    // Allow subdomains of whitelisted domains
-                    Array.from(ALLOWED_DOMAINS).some(allowed => 
-                      fullDomain.endsWith('.' + allowed) || fullDomain === allowed
-                    );
-  
-  if (!isAllowed) {
-    return { 
-      valid: false, 
-      error: `Domain "${hostname}" is not in the allowed list. Supported job sites: LinkedIn, Indeed, Glassdoor, Dice, Monster, CareerBuilder, ZipRecruiter, Lever, Greenhouse, Workday, AngelList/Wellfound, SimplyHired, Reed, Seek, Naukri, Bayt, Remote.co, WeWorkRemotely, FlexJobs` 
+  const isAllowed =
+    ALLOWED_DOMAINS.has(fullDomain) ||
+    ALLOWED_DOMAINS.has(baseDomain) ||
+    Array.from(ALLOWED_DOMAINS).some(allowed =>
+      fullDomain.endsWith('.' + allowed) || fullDomain === allowed
+    );
+
+  const ATS_SUBDOMAINS = [
+    'greenhouse.io', 'lever.co', 'workable.com', 'ashbyhq.com', 'smartrecruiters.com'
+  ];
+  const isAllowedAtsSub = ATS_SUBDOMAINS.some(d => hostname.endsWith('.' + d) || hostname === d);
+
+  if (!isAllowed && !isAllowedAtsSub) {
+    return {
+      valid: false,
+      errorCode: 'DOMAIN_NOT_ALLOWED',
+      error: `We can't fetch job listings from "${hostname}" directly. ` +
+        'Please copy the job description text and paste it using the "Paste job description" option instead.',
     };
   }
-  
+
   return { valid: true, url: parsedUrl };
 }
 
@@ -169,7 +188,10 @@ serve(async (req) => {
     if (!validation.valid || !validation.url) {
       console.log('URL validation failed:', validation.error, 'URL:', url.substring(0, 100));
       return new Response(
-        JSON.stringify({ error: validation.error }),
+        JSON.stringify({
+          error: (validation as any).errorCode ?? 'INVALID_URL',
+          message: validation.error,
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

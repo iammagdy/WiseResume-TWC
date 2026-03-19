@@ -13,21 +13,93 @@ export interface ATSParsedResult {
   sections: ATSParsedSection[];
   totalWords: number;
   detectedKeywords: string[];
+  matchedKeywords: string[];
+  missingKeywords: string[];
+  score: number;
   issues: string[];
+  formattingWarnings: string[];
 }
 
 function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
-function extractKeywordsFromSkills(skills: string[]): string[] {
-  return skills.map(s => s.trim()).filter(Boolean);
+// Common English stop words — filtered from keyword extraction
+const STOP_WORDS = new Set([
+  'the','a','an','and','or','of','in','to','for','with','on','at','by','as',
+  'is','are','was','were','be','been','being','have','has','had','do','does',
+  'did','will','would','could','should','may','might','shall','can','need',
+  'must','that','this','these','those','it','its','i','me','my','we','our',
+  'you','your','from','not','no','so','if','then','than','also','just','more',
+  'very','about','up','out','all','into','over','after','any','only','other',
+  'new','some','well','way','each','their','they','he','she','his','her',
+]);
+
+/** Extract all meaningful keywords from the full resume (all sections, not just skills) */
+function extractAllResumeKeywords(resume: ResumeData): Set<string> {
+  const allText = [
+    resume.summary || '',
+    resume.contactInfo?.fullName || '',
+    ...(resume.experience || []).flatMap(e => [
+      e.position || '',
+      e.company || '',
+      e.description || '',
+      ...(e.achievements || []),
+      ...(e.responsibilities || []),
+    ]),
+    ...(resume.education || []).flatMap(e => [
+      e.degree || '',
+      e.field || '',
+      e.institution || '',
+    ]),
+    ...(resume.skills || []),
+    ...(resume.certifications || []).map(c => c.name || ''),
+    ...(resume.projects || []).flatMap(p => [p.name || '', p.description || '']),
+    ...(resume.awards || []).map(a => a.title || ''),
+    ...(resume.volunteering || []).flatMap(v => [v.role || '', v.organization || '']),
+  ].join(' ');
+
+  return new Set(
+    allText
+      .toLowerCase()
+      .split(/[\s,.|•·;:()\[\]'"\/\\+\-]+/)
+      .filter(w => w.length >= 3 && !STOP_WORDS.has(w))
+  );
 }
 
-export function simulateATSParsing(resume: ResumeData): ATSParsedResult {
+/** Extract unique keywords from a job description string */
+function extractJDKeywords(jd: string): string[] {
+  return [
+    ...new Set(
+      jd
+        .toLowerCase()
+        .split(/[\s,.|•·;:()\[\]'"\/\\+\-]+/)
+        .filter((w: string) => w.length >= 3 && !STOP_WORDS.has(w))
+    ),
+  ];
+}
+
+export function simulateATSParsing(
+  resume: ResumeData,
+  jobDescription?: string,
+  formattingSignals?: { isMultiColumn?: boolean; confidence?: number }
+): ATSParsedResult {
   const sections: ATSParsedSection[] = [];
   const globalIssues: string[] = [];
   let totalWords = 0;
+
+  // ── Formatting warnings ──
+  const formattingWarnings: string[] = [];
+  if (formattingSignals?.isMultiColumn) {
+    formattingWarnings.push(
+      'Two-column layout detected — some ATS systems read columns left-to-right across both columns, garbling your content. Consider a single-column layout when submitting to ATS portals.'
+    );
+  }
+  if (formattingSignals?.confidence !== undefined && formattingSignals.confidence < 0.5) {
+    formattingWarnings.push(
+      'Low text extraction confidence — your resume may contain images, text boxes, or non-standard fonts that ATS systems cannot read reliably.'
+    );
+  }
 
   // ── Contact ──
   const ci = resume.contactInfo;
@@ -58,7 +130,15 @@ export function simulateATSParsing(resume: ResumeData): ATSParsedResult {
   const summaryWords = countWords(summary);
   const summaryIssues: string[] = [];
   if (summaryWords < 20) summaryIssues.push('Summary too short — aim for 50+ words');
-  if (/\b(I|me|my|mine|myself)\b/i.test(summary)) summaryIssues.push('Contains first-person pronouns');
+  // Check for first-person pronouns used in sentence context (not just as part of a word/name)
+  // Pattern 1: pronoun at start of sentence or after a period
+  // Pattern 2: "I" directly followed by a verb (strong signal of narrative writing)
+  if (
+    /(?:^|\.\s+|\n)\s*(?:I|me|my|mine|myself)\b/i.test(summary) ||
+    /\bI\s+(?:am|was|have|had|led|managed|built|developed|designed|created|worked|helped|grew|increased|reduced|achieved)\b/i.test(summary)
+  ) {
+    summaryIssues.push("Contains first-person pronouns (e.g., 'I', 'my') — rephrase in third person or remove the subject entirely");
+  }
 
   sections.push({
     id: 'summary',
@@ -153,10 +233,42 @@ export function simulateATSParsing(resume: ResumeData): ATSParsedResult {
 
   // Totals
   totalWords = sections.reduce((sum, s) => sum + s.wordCount, 0);
-  const detectedKeywords = extractKeywordsFromSkills(resume.skills);
+
+  // Keywords from all resume text (used for detectedKeywords regardless of JD)
+  const allResumeKeywords = extractAllResumeKeywords(resume);
+  const detectedKeywords = Array.from(allResumeKeywords);
+
+  // Scoring and keyword matching
+  let score = 0;
+  let matchedKeywords: string[] = [];
+  let missingKeywords: string[] = [];
+
+  if (jobDescription && jobDescription.trim().length > 0) {
+    // Job description provided: compute keyword match percentage
+    const jdKws = extractJDKeywords(jobDescription);
+    matchedKeywords = jdKws.filter(k => allResumeKeywords.has(k));
+    missingKeywords = jdKws.filter(k => !allResumeKeywords.has(k)).slice(0, 20);
+    score = jdKws.length > 0
+      ? Math.min(100, Math.round((matchedKeywords.length / jdKws.length) * 100))
+      : 0;
+  } else {
+    // No job description: compute structural completeness score
+    const keyIds = ['contact', 'summary', 'experience', 'education', 'skills'];
+    const detected = sections.filter(s => keyIds.includes(s.id) && s.status === 'detected').length;
+    score = Math.round((detected / keyIds.length) * 100);
+  }
 
   // Global issues
   if (totalWords < 200) globalIssues.push('Resume has fewer than 200 words — may appear incomplete to ATS');
 
-  return { sections, totalWords, detectedKeywords, issues: globalIssues };
+  return {
+    sections,
+    totalWords,
+    detectedKeywords,
+    matchedKeywords,
+    missingKeywords,
+    score,
+    issues: globalIssues,
+    formattingWarnings,
+  };
 }
