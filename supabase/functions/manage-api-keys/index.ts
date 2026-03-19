@@ -1,7 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders } from '../_shared/cors.ts';
+import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 
-const ENCRYPTION_SECRET = Deno.env.get('API_KEY_ENCRYPTION_SECRET') || '';
+const ENCRYPTION_SECRET = Deno.env.get('API_KEY_ENCRYPTION_SECRET');
+if (!ENCRYPTION_SECRET) throw new Error('API_KEY_ENCRYPTION_SECRET env var is required');
 
 async function getEncryptionKey(): Promise<CryptoKey> {
   const encoder = new TextEncoder();
@@ -32,15 +34,6 @@ async function encrypt(plaintext: string): Promise<string> {
   return btoa(String.fromCharCode(...combined));
 }
 
-/** Decode JWT payload without verifying signature */
-function decodeJwtPayload(token: string): Record<string, unknown> {
-  const parts = token.split('.');
-  if (parts.length !== 3) throw new Error('Invalid token');
-  const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-  const json = atob(b64.padEnd(b64.length + (4 - b64.length % 4) % 4, '='));
-  return JSON.parse(json);
-}
-
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') {
@@ -48,30 +41,15 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-
-    let claims: Record<string, unknown>;
+    let userId: string;
+    let supabase: any;
     try {
-      claims = decodeJwtPayload(token);
-    } catch {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      const auth = await requireAuth(req);
+      userId = auth.userId;
+      supabase = auth.client;
+    } catch (authErr) {
+      return authErrorResponse(authErr, req.headers.get('origin'));
     }
-
-    const userId = claims['sub'] as string;
-    if (!userId) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    // Use service role client for DB operations against external project.
-    const supabase = createClient(
-      Deno.env.get('EXT_SUPABASE_URL') || Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('EXT_SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_ANON_KEY')!,
-    );
 
     // All requests come via POST (supabase.functions.invoke always uses POST)
     // Route by `action` field in body: 'save' | 'delete' | 'get'
@@ -83,7 +61,7 @@ Deno.serve(async (req) => {
       if (action === 'get') {
         const { data, error } = await supabase
           .from('user_api_keys')
-          .select('provider, key_tier, created_at, updated_at')
+          .select('provider, key_tier, model, created_at, updated_at')
           .eq('user_id', userId);
 
         if (error) throw error;
@@ -134,7 +112,7 @@ Deno.serve(async (req) => {
     if (req.method === 'GET') {
       const { data, error } = await supabase
         .from('user_api_keys')
-        .select('provider, key_tier, created_at, updated_at')
+        .select('provider, key_tier, model, created_at, updated_at')
         .eq('user_id', userId);
 
       if (error) throw error;

@@ -86,9 +86,10 @@ function mapModelForGemini(model: string): string {
 
 // --- Server-side key retrieval ---
 
-const ENCRYPTION_SECRET = Deno.env.get('API_KEY_ENCRYPTION_SECRET') || '';
+const ENCRYPTION_SECRET = Deno.env.get('API_KEY_ENCRYPTION_SECRET');
 
 async function getDecryptionKey(): Promise<CryptoKey> {
+  if (!ENCRYPTION_SECRET) throw new Error('API_KEY_ENCRYPTION_SECRET env var is required');
   const encoder = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
     'raw',

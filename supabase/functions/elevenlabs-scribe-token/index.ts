@@ -3,7 +3,8 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 
 // Mirrors the AES-GCM decrypt from manage-api-keys/index.ts
-const ENCRYPTION_SECRET = Deno.env.get('API_KEY_ENCRYPTION_SECRET') ?? 'fallback-secret-change-me';
+const ENCRYPTION_SECRET = Deno.env.get('API_KEY_ENCRYPTION_SECRET');
+if (!ENCRYPTION_SECRET) throw new Error('API_KEY_ENCRYPTION_SECRET env var is required');
 
 async function getEncryptionKey(): Promise<CryptoKey> {
   const keyMaterial = await crypto.subtle.importKey(

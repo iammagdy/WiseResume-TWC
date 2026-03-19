@@ -20,12 +20,17 @@ export const getCorsHeaders = (origin?: string | null) => {
   const isNativeApp = !origin || origin === 'null';
   const isAllowed = isNativeApp || isLocalhost || (origin && origins.includes(origin));
 
-  // For allowed origins, echo back the actual origin. For unknown origins, use wildcard.
-  const resolvedOrigin = isAllowed && origin ? origin : '*';
-
-  return {
-    'Access-Control-Allow-Origin': resolvedOrigin,
+  const headers: Record<string, string> = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
   };
+
+  if (isAllowed) {
+    if (origin && origin !== 'null') {
+      headers['Access-Control-Allow-Origin'] = origin;
+    }
+    // Native apps (no Origin / 'null' origin) don't need the ACAO header — webviews don't enforce CORS
+  }
+
+  return headers;
 };

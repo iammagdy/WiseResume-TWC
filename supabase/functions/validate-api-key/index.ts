@@ -5,6 +5,49 @@ function isOllamaCloud(url: string): boolean {
   return /ollama\.com/i.test(url);
 }
 
+function isPrivateUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+
+    // Exact matches
+    if (
+      hostname === 'localhost' ||
+      hostname === '0.0.0.0' ||
+      hostname === '::1' ||
+      hostname === '127.0.0.1' // Caught by regex too, but fast path
+    ) {
+      return true;
+    }
+
+    // IP ranges
+    if (
+      /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) || // 127.x.x.x loopback
+      /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||  // 10.x.x.x private
+      /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||     // 192.168.x.x private
+      /^169\.254\.\d{1,3}\.\d{1,3}$/.test(hostname) ||     // 169.254.x.x link-local APIPA
+      /^fc00:/.test(hostname) ||                           // IPv6 private/unique local
+      /^fe80:/.test(hostname)                              // IPv6 link-local
+    ) {
+      return true;
+    }
+
+    // 172.16.x.x - 172.31.x.x private
+    const match172 = /^172\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/.exec(hostname);
+    if (match172) {
+      const secondOctet = parseInt(match172[1], 10);
+      if (secondOctet >= 16 && secondOctet <= 31) {
+        return true;
+      }
+    }
+
+    return false;
+  } catch {
+    // Unparseable URLs are effectively blocked/invalid
+    return true;
+  }
+}
+
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') {
@@ -39,6 +82,12 @@ Deno.serve(async (req) => {
       }
 
       const cleanUrl = baseUrl.replace(/\/+$/, '');
+      if (isPrivateUrl(cleanUrl)) {
+        return new Response(JSON.stringify({ status: 400, isValid: false, error: 'Invalid base URL: private or reserved addresses are not allowed.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
       const useNativeApi = isOllamaCloud(cleanUrl);
       
       const reqHeaders: Record<string, string> = {};
