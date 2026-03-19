@@ -200,7 +200,10 @@ export default function PreviewPage() {
     const tryExport = async (): Promise<void> => {
       try {
         const { generatePDF, generateCoverLetterPDF, generateCombinedPDF, generateOnePagePDF } = await import('@/lib/pdfGenerator');
-        const baseName = customFileName || currentResume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Document';
+        const sanitized = customFileName
+          ? customFileName.replace(/[/\\:*?"<>|]/g, '').trim().slice(0, 100)
+          : '';
+        const baseName = (sanitized.length >= 3 ? sanitized : null) || currentResume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Document';
         const pdfOptions = { showPageNumbers, pageNumberFormat: 'full' as const, showBranding };
 
         // DOCX export path
@@ -394,6 +397,8 @@ export default function PreviewPage() {
         'Empty canvas captured. Ensure the resume preview is visible.' :
         isPdfError && error.code === 'MISSING_ELEMENT' ?
         'Resume template not found. Please go back and try again.' :
+        isPdfError && error.code === 'TRUNCATED_CANVAS' ?
+        'Resume content was partially captured. Scroll the preview into view and try again.' :
         'Failed to generate PDF.';
 
         if (attempt < MAX_RETRIES && isPdfError && error.code !== 'MISSING_ELEMENT') {
