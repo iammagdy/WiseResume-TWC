@@ -43,7 +43,7 @@ export function PortfolioHistorySheet({ open, onOpenChange, userId, onRestore, i
               </div>
               <h2 className="font-semibold">Revision History</h2>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="rounded-full w-8 h-8">
+            <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="rounded-full w-8 h-8" aria-label="Close history">
               <X className="w-4 h-4 text-muted-foreground" />
             </Button>
           </div>

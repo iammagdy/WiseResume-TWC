@@ -77,6 +77,7 @@ export function TestItem({ test, result, isExpanded, onRun, onToggleExpand }: Te
                 size="icon"
                 className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity bg-background/50 backdrop-blur-sm"
                 onClick={handleCopy}
+                aria-label="Copy to clipboard"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
               </Button>

@@ -53,7 +53,7 @@ export function ProjectAIQuestionsDialog({
               </p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} className="min-w-[44px] min-h-[44px]">
+          <Button variant="ghost" size="icon" onClick={onClose} className="min-w-[44px] min-h-[44px]" aria-label="Close dialog">
             <X className="w-5 h-5" />
           </Button>
         </div>

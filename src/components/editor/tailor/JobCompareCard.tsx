@@ -73,6 +73,7 @@
            size="icon"
            className="absolute top-3 left-3 min-h-[44px] min-w-[44px] rounded-full bg-muted/80"
            onClick={handleRemove}
+           aria-label="Remove job from comparison"
          >
            <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
          </Button>

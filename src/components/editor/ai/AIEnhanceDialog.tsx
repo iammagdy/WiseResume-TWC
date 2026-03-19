@@ -47,7 +47,7 @@ export function AIEnhanceDialog({
                 <AIProviderVia className="mt-0.5" />
               </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={onDiscard} className="min-w-[44px] min-h-[44px]">
+            <Button variant="ghost" size="icon" onClick={onDiscard} className="min-w-[44px] min-h-[44px]" aria-label="Close dialog">
               <X className="w-5 h-5" />
             </Button>
           </div>

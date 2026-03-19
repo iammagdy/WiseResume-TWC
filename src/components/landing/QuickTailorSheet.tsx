@@ -246,7 +246,7 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
         {/* Header with step dots + back button */}
         <div className="flex items-center px-4 pt-4 pb-0">
           {step !== 'select-resume' && step !== 'processing' && (
-            <Button variant="ghost" size="icon" onClick={goBack} className="mr-2">
+            <Button variant="ghost" size="icon" onClick={goBack} className="mr-2" aria-label="Go back">
               <ArrowLeft className="w-5 h-5" />
             </Button>
           )}

@@ -15,6 +15,8 @@ import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { PortfolioEditorSkeleton } from '@/components/layout/PageSkeletons';
 
+import { useNavigate } from 'react-router-dom';
+import { UnsavedChangesDialog } from '@/components/editor/UnsavedChangesDialog';
 import { getPortfolioUrl } from '@/lib/portfolioUrl';
 import { openExternal } from '@/lib/openExternal';
 import { getSafeMatchMedia } from '@/lib/envUtils';
@@ -92,6 +94,30 @@ export default function PortfolioEditorPage() {
   const [portfolioSummary, setPortfolioSummary] = useState('');
   const [activeTab, setActiveTab] = useState<'setup' | 'content' | 'design' | 'more'>('setup');
 
+  // ── Unsaved changes tracking ──
+  const [lastSavedSnapshot, setLastSavedSnapshot] = useState<string>('');
+  const [pendingNavPath, setPendingNavPath] = useState<string | null>(null);
+  const [isSavingBeforeLeave, setIsSavingBeforeLeave] = useState(false);
+  const navigate = useNavigate();
+
+  const getCurrentSnapshot = useCallback(() => {
+    return JSON.stringify({
+      username, bio, portfolioEnabled, githubUrl, websiteUrl, twitterUrl,
+      linkedinUrl, contactEmail, selectedTheme, sections, metaTitle,
+      metaDescription, portfolioStyle, portfolioLayout, portfolioAccentColor,
+      portfolioFont, openToWork, availabilityHeadline, syncMode,
+      caseStudies, services, testimonials, highlights, portfolioSummary,
+      selectedResumeId,
+    });
+  }, [
+    username, bio, portfolioEnabled, githubUrl, websiteUrl, twitterUrl,
+    linkedinUrl, contactEmail, selectedTheme, sections, metaTitle,
+    metaDescription, portfolioStyle, portfolioLayout, portfolioAccentColor,
+    portfolioFont, openToWork, availabilityHeadline, syncMode,
+    caseStudies, services, testimonials, highlights, portfolioSummary,
+    selectedResumeId,
+  ]);
+
   const tabIndexMap = { setup: 0, content: 1, design: 2, more: 3 } as const;
   const directionRef = useRef(0);
   const prevTabRef = useRef(activeTab);
@@ -102,7 +128,7 @@ export default function PortfolioEditorPage() {
     prevTabRef.current = tab;
     haptics.light();
     setActiveTab(tab);
-  }, []);
+  }, [tabIndexMap]);
 
   const usernameCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -136,6 +162,36 @@ export default function PortfolioEditorPage() {
       setPortfolioSummary(extras.portfolioSummary as string || '');
     }
   }, [profile]);
+
+  // Capture snapshot after profile syncs to local state
+  useEffect(() => {
+    if (profile && !lastSavedSnapshot) {
+      // Delay by 1 tick so all setState calls from the profile sync effect have flushed
+      const id = requestAnimationFrame(() => setLastSavedSnapshot(getCurrentSnapshot()));
+      return () => cancelAnimationFrame(id);
+    }
+  }, [profile, lastSavedSnapshot, getCurrentSnapshot]);
+
+  // Browser close/refresh warning
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (lastSavedSnapshot && getCurrentSnapshot() !== lastSavedSnapshot) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [lastSavedSnapshot, getCurrentSnapshot]);
+
+  // In-app navigation guard
+  const handleNavigateAway = useCallback((path: string) => {
+    if (lastSavedSnapshot && getCurrentSnapshot() !== lastSavedSnapshot) {
+      setPendingNavPath(path);
+    } else {
+      navigate(path);
+    }
+  }, [lastSavedSnapshot, getCurrentSnapshot, navigate]);
 
   // Init selectedResumeId
   useEffect(() => {
@@ -344,6 +400,8 @@ export default function PortfolioEditorPage() {
         });
       }
 
+      setLastSavedSnapshot(getCurrentSnapshot());
+
       // Invalidate public portfolio cache to reflect changes immediately
       queryClient.invalidateQueries({ queryKey: ['public-portfolio'] });
       if (overrides?.portfolioEnabled !== undefined) {
@@ -364,6 +422,21 @@ export default function PortfolioEditorPage() {
       }
     } finally {
       setSavingPortfolio(false);
+    }
+  };
+
+  const handleSaveAndLeave = async () => {
+    if (!pendingNavPath) return;
+    setIsSavingBeforeLeave(true);
+    try {
+      await handleSave();
+      const path = pendingNavPath;
+      setPendingNavPath(null);
+      navigate(path);
+    } catch {
+      setPendingNavPath(null);
+    } finally {
+      setIsSavingBeforeLeave(false);
     }
   };
 
@@ -438,7 +511,13 @@ export default function PortfolioEditorPage() {
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-background">
       {/* Header */}
       <div className="shrink-0 flex items-center gap-3 px-4 h-14 pt-safe border-b border-border glass-header backdrop-blur-md">
-        <BackButton />
+        <BackButton onBeforeBack={() => {
+          if (lastSavedSnapshot && getCurrentSnapshot() !== lastSavedSnapshot) {
+            handleNavigateAway('/dashboard');
+            return true;
+          }
+          return false;
+        }} />
         <h1 className="text-page-title leading-tight flex-1">Portfolio</h1>
       </div>
 
@@ -632,6 +711,17 @@ export default function PortfolioEditorPage() {
         isRestoring={isRestoringHistory}
       />
       
+      <UnsavedChangesDialog
+        open={pendingNavPath !== null}
+        isSaving={isSavingBeforeLeave}
+        onSaveAndLeave={handleSaveAndLeave}
+        onDiscard={() => {
+          const path = pendingNavPath;
+          setPendingNavPath(null);
+          if (path) navigate(path);
+        }}
+        onCancel={() => setPendingNavPath(null)}
+      />
     </div>);
 
 }

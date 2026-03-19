@@ -22,6 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
+import { useShallow } from 'zustand/react/shallow';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
@@ -234,7 +235,7 @@ function applySectionText(
 }
 
 export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
-  const { currentResume, updateResume } = useResumeStore();
+  const { currentResume, updateResume } = useResumeStore(useShallow((s) => ({ currentResume: s.currentResume, updateResume: s.updateResume })));
   const [viewState, setViewState] = useState<ViewState>('input');
   const [inputText, setInputText] = useState('');
   const [selectedTone, setSelectedTone] = useState<ToneOption>('professional');

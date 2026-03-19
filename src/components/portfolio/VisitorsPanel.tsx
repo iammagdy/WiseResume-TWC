@@ -388,7 +388,7 @@ function ShortLinkRow({
         <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
           {link.click_count} clicks
         </Badge>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopy} title="Copy link">
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopy} title="Copy link" aria-label="Copy short link">
           {copied ? <Check className="w-3 h-3 text-primary" /> : <Copy className="w-3 h-3" />}
         </Button>
         <Button
@@ -398,6 +398,7 @@ function ShortLinkRow({
           onClick={handleDelete}
           disabled={isPending}
           title="Delete link"
+          aria-label="Delete short link"
         >
           {isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
         </Button>

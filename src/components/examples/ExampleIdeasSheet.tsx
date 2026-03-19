@@ -78,6 +78,7 @@ export function ExampleIdeasSheet({ example, open, onOpenChange }: Props) {
                         size="icon"
                         className="w-9 h-9 active:scale-95"
                         onClick={() => handleCopy(phrase)}
+                        aria-label="Copy phrase"
                       >
                         <Copy className="w-3.5 h-3.5" />
                       </Button>
@@ -86,6 +87,7 @@ export function ExampleIdeasSheet({ example, open, onOpenChange }: Props) {
                         size="icon"
                         className={`w-9 h-9 active:scale-95 ${favorites.includes(phrase) ? 'text-primary' : ''}`}
                         onClick={() => handleSave(phrase)}
+                        aria-label="Save phrase"
                       >
                         <Bookmark className="w-3.5 h-3.5" />
                       </Button>

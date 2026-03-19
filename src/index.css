@@ -2260,3 +2260,18 @@ button,
 .pf-preview-reset * {
   font-family: inherit !important;
 }
+
+/* ── A11y: Global focus-visible ring for keyboard navigation ───────── */
+@layer base {
+  :focus-visible {
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 2px;
+  }
+}
+
+/* ── A11y: Ensure placeholder text meets WCAG 4.5:1 contrast ──────── */
+@layer base {
+  ::placeholder {
+    opacity: 0.75;
+  }
+}

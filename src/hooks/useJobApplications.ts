@@ -43,6 +43,8 @@ export function useJobApplications(statusFilter?: ApplicationStatus) {
       return (data || []) as unknown as JobApplication[];
     },
     enabled: !!user,
+    staleTime: 5 * 60 * 1000,  // 5 minutes — don't refetch on every mount
+    gcTime: 10 * 60 * 1000,    // 10 minutes — keep in cache after unmount
   });
 }
 
@@ -62,6 +64,8 @@ export function usePendingReminders() {
     },
     enabled: !!user,
     refetchInterval: 60000,
+    staleTime: 2 * 60 * 1000,  // 2 minutes
+    gcTime: 5 * 60 * 1000,
   });
 }
 
