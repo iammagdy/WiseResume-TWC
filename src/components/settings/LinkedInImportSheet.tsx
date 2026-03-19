@@ -218,7 +218,8 @@ export function LinkedInImportSheet({
       const parseResult = await parseResumePDF(file);
       let resumeData = parseResult.data;
       if (parseResult.needsOCR) {
-        resumeData = await parseResumePDFWithOCR(file);
+        const ocrResult = await parseResumePDFWithOCR(file);
+        resumeData = ocrResult.data;
       }
       if (!resumeData) {
         throw new Error('Could not extract content from this PDF');

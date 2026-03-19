@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, FileText } from 'lucide-react';
+import { Upload, FileText, AlertTriangle } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 // mammoth is dynamically imported when needed (see handleWordFile)
 import { useResumeStore } from '@/store/resumeStore';
@@ -77,6 +77,10 @@ export default function UploadPage() {
   const [validationResumeData, setValidationResumeData] = useState<ResumeData | null>(null);
   const [validationSections, setValidationSections] = useState<SelectedSections | null>(null);
 
+  // Parse recovery banner state
+  const [showParseRecoveryBanner, setShowParseRecoveryBanner] = useState(false);
+  const [parseRecoveryWarnings, setParseRecoveryWarnings] = useState<string[]>([]);
+
   // Get accept string based on file type
   function getAcceptString(type: FileType): string {
     switch (type) {
@@ -98,8 +102,14 @@ export default function UploadPage() {
         setOcrProgress({ page: progress.page, total: progress.total, status: progress.status });
       };
       
-      const resumeData = await parseResumePDFWithOCR(pendingFile, progressCallback);
+      const { data: resumeData, parseStatus: ocrStatus, parseWarnings: ocrWarnings } =
+        await parseResumePDFWithOCR(pendingFile, progressCallback);
       const extraction = getExtractionSummary(resumeData);
+
+      if (ocrStatus !== 'success') {
+        setParseRecoveryWarnings(ocrWarnings);
+        setShowParseRecoveryBanner(true);
+      }
       
       // If user is authenticated, save to cloud
       if (user) {
@@ -576,6 +586,11 @@ export default function UploadPage() {
       const resumeData = result.data!;
       const extraction = getExtractionSummary(resumeData);
 
+      if (result.parseStatus !== 'success') {
+        setParseRecoveryWarnings(result.parseWarnings);
+        setShowParseRecoveryBanner(true);
+      }
+
       if (extraction.isEmpty) {
         // Show error recovery UI instead of just a toast
         setErrorType('NO_TEXT');
@@ -702,6 +717,32 @@ export default function UploadPage() {
           <h1 className="text-page-title truncate">Upload Resume</h1>
         </div>
       </header>
+      {showParseRecoveryBanner && (
+        <div className="mx-4 mt-4 p-4 rounded-lg bg-destructive/10 border border-destructive/20 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <h4 className="font-semibold text-sm text-foreground mb-1">We had trouble reading your document</h4>
+            <p className="text-sm text-muted-foreground mb-3">{parseRecoveryWarnings.join(' ')}</p>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-muted transition-colors"
+                onClick={() => {
+                  setShowParseRecoveryBanner(false);
+                  navigate('/upload');
+                }}
+              >
+                Try a different file
+              </button>
+              <button
+                className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                onClick={() => setShowParseRecoveryBanner(false)}
+              >
+                Fill in manually
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="flex-1 flex flex-col px-4 py-6 overflow-y-auto">
         <AnimatePresence mode="wait">
           {showErrorRecovery ? (

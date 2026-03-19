@@ -3,6 +3,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, toUserError, sanitizeInputText } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { decodeJwtPayload } from "../_shared/authMiddleware.ts";
+import { localParseResume } from "./localParser.ts";
 
 const MAX_TEXT_LENGTH = 100 * 1024;
 
@@ -354,76 +355,86 @@ serve(async (req) => {
 
     let processedText = text;
     if (quality.score < 0.6 && quality.issues.some(i => ['high_gibberish', 'unusual_word_lengths', 'very_short'].includes(i))) {
-      processedText = await cleanTextWithAI(text, userId);
-    }
-
-    // Pass 1: Main structured extraction
-    const aiResponse = await callAI({
-      model: 'google/gemini-2.5-flash',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Parse the following resume text:\n\n${sanitizeInputText(processedText, 100000)}` },
-      ],
-      tools: [parseResumeTool],
-      toolChoice: { type: 'function', function: { name: 'parse_resume' } },
-      userId,
-    });
-
-    const toolCall = aiResponse.toolCalls?.[0];
-    if (!toolCall || toolCall.function.name !== 'parse_resume') {
-      return new Response(
-        JSON.stringify({ error: 'AI returned unexpected response format' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    let parsedData = JSON.parse(toolCall.function.arguments);
-
-    // Phase 4: Check completeness and retry if needed
-    const firstPassConfidence = computeFieldConfidence(parsedData);
-    console.log(`📊 Pass 1 completeness: ${firstPassConfidence.completeness}%`);
-
-    if (firstPassConfidence.completeness < 40) {
-      console.log('🔄 Low completeness, attempting pass 2...');
       try {
-        // Build a focused retry prompt listing missing fields
-        const missingFields = Object.entries(firstPassConfidence.fieldConfidence)
-          .filter(([_, score]) => score < 0.5)
-          .map(([field]) => field);
-
-        const retryResponse = await callAI({
-          model: 'google/gemini-2.5-flash',
-          messages: [
-            { role: 'system', content: retryPrompt },
-            {
-              role: 'user',
-              content: `The first extraction missed these fields: ${missingFields.join(', ')}.\n\nPlease re-extract from this resume text:\n\n${sanitizeInputText(processedText, 100000)}`,
-            },
-          ],
-          tools: [parseResumeTool],
-          toolChoice: { type: 'function', function: { name: 'parse_resume' } },
-          userId,
-        });
-
-        const retryCall = retryResponse.toolCalls?.[0];
-        if (retryCall?.function.name === 'parse_resume') {
-          const retryData = JSON.parse(retryCall.function.arguments);
-          // Merge: prefer pass 2 values for missing fields only
-          parsedData = mergeParseResults(parsedData, retryData, firstPassConfidence.fieldConfidence);
-          console.log('✅ Pass 2 merge complete');
-        }
-      } catch (retryError) {
-        console.warn('Pass 2 failed, using pass 1 results:', retryError);
+        processedText = await cleanTextWithAI(text, userId);
+      } catch (cleanErr) {
+        console.warn('[parse-resume] Text cleaning pre-pass failed — continuing with raw text:', cleanErr);
+        processedText = text;
       }
     }
 
-    // Post-processing validation: fix misclassified fields
-    parsedData = validateAndFixFields(parsedData);
+    // Pass 1: Main structured extraction
+    let parsedResume: any = null;
+    let parseStatus: 'success' | 'partial' | 'failed' = 'success';
+    let fallbackMode = false;
+
+    try {
+      const aiResponse = await callAI({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Parse the following resume text:\n\n${sanitizeInputText(processedText, 100000)}` },
+        ],
+        tools: [parseResumeTool],
+        toolChoice: { type: 'function', function: { name: 'parse_resume' } },
+        userId,
+      });
+
+      const toolCall = aiResponse.toolCalls?.[0];
+      if (!toolCall || toolCall.function.name !== 'parse_resume') {
+        // Throw so the catch block can engage the localParseResume fallback
+        const unexpectedErr: any = new Error('AI returned unexpected response format');
+        unexpectedErr.status = 503;
+        throw unexpectedErr;
+      }
+
+      parsedResume = JSON.parse(toolCall.function.arguments);
+
+      // Phase 4: Check completeness and retry if needed
+      const firstPassConfidence = computeFieldConfidence(parsedResume);
+      console.log(`📊 Pass 1 completeness: ${firstPassConfidence.completeness}%`);
+
+      if (firstPassConfidence.completeness < 40) {
+        console.log('🔄 Low completeness, attempting pass 2...');
+        try {
+          // Build a focused retry prompt listing missing fields
+          const missingFields = Object.entries(firstPassConfidence.fieldConfidence)
+            .filter(([_, score]) => score < 0.5)
+            .map(([field]) => field);
+
+          const retryResponse = await callAI({
+            model: 'google/gemini-2.5-flash',
+            messages: [
+              { role: 'system', content: retryPrompt },
+              {
+                role: 'user',
+                content: `The first extraction missed these fields: ${missingFields.join(', ')}.\n\nPlease re-extract from this resume text:\n\n${sanitizeInputText(processedText, 100000)}`,
+              },
+            ],
+            tools: [parseResumeTool],
+            toolChoice: { type: 'function', function: { name: 'parse_resume' } },
+            userId,
+          });
+
+          const retryCall = retryResponse.toolCalls?.[0];
+          if (retryCall?.function.name === 'parse_resume') {
+            const retryData = JSON.parse(retryCall.function.arguments);
+            // Merge: prefer pass 2 values for missing fields only
+            parsedResume = mergeParseResults(parsedResume, retryData, firstPassConfidence.fieldConfidence);
+            console.log('✅ Pass 2 merge complete');
+          }
+        } catch (retryError) {
+          console.warn('Pass 2 failed, using pass 1 results:', retryError);
+        }
+      }
+
+      // Post-processing validation: fix misclassified fields
+      parsedResume = validateAndFixFields(parsedResume);
 
     const generateId = () => crypto.randomUUID();
 
     // Validate name — only reject truly invalid patterns, trust AI for everything else
-    let fullName = parsedData.contactInfo.fullName?.trim() || '';
+    let fullName = parsedResume.contactInfo.fullName?.trim() || '';
     const invalidNamePatterns = /^(contact|summary|profile|resume|cv|about|personal|objective|experience|education|skills|hire me|get in touch|references|certifications?|projects?|awards?|publications?|volunteering|hobbies|languages?|interests?)/i;
     const looksLikeEmail = fullName.includes('@');
     const looksLikeUrl = /https?:|www\.|\.com|\.linkedin/i.test(fullName);
@@ -446,7 +457,7 @@ serve(async (req) => {
     }
 
     // Normalize phone number
-    let phone = parsedData.contactInfo.phone?.trim() || '';
+    let phone = parsedResume.contactInfo.phone?.trim() || '';
     if (phone) {
       const digitsOnly = phone.replace(/[^\d+]/g, '');
       if (digitsOnly.length >= 10 && !/[\s\-()]/.test(phone)) {
@@ -468,14 +479,14 @@ serve(async (req) => {
     const resumeData = {
       contactInfo: {
         fullName,
-        email: parsedData.contactInfo.email || '',
+        email: parsedResume.contactInfo.email || '',
         phone,
-        location: parsedData.contactInfo.location || '',
-        linkedin: parsedData.contactInfo.linkedin || undefined,
-        portfolio: parsedData.contactInfo.portfolio || undefined,
+        location: parsedResume.contactInfo.location || '',
+        linkedin: parsedResume.contactInfo.linkedin || undefined,
+        portfolio: parsedResume.contactInfo.portfolio || undefined,
       },
-      summary: parsedData.summary || '',
-      experience: (parsedData.experience || []).map((exp: any) => ({
+      summary: parsedResume.summary || '',
+      experience: (parsedResume.experience || []).map((exp: any) => ({
         id: generateId(),
         company: exp.company || '',
         position: exp.position || '',
@@ -487,7 +498,7 @@ serve(async (req) => {
         responsibilities: exp.responsibilities || [],
         isProject: exp.isProject === true,
       })),
-      education: (parsedData.education || []).map((edu: any) => ({
+      education: (parsedResume.education || []).map((edu: any) => ({
         id: generateId(),
         institution: edu.institution || '',
         degree: edu.degree || '',
@@ -496,8 +507,8 @@ serve(async (req) => {
         endDate: edu.endDate || '',
         gpa: edu.gpa || undefined,
       })),
-      skills: parsedData.skills || [],
-      certifications: (parsedData.certifications || []).map((cert: any) => ({
+      skills: parsedResume.skills || [],
+      certifications: (parsedResume.certifications || []).map((cert: any) => ({
         id: generateId(),
         name: cert.name || '',
         issuer: cert.issuer || '',
@@ -505,14 +516,14 @@ serve(async (req) => {
         expiryDate: cert.expiryDate || undefined,
         credentialId: cert.credentialId || undefined,
       })),
-      awards: (parsedData.awards || []).map((award: any) => ({
+      awards: (parsedResume.awards || []).map((award: any) => ({
         id: generateId(),
         title: award.title || '',
         issuer: award.issuer || '',
         date: award.date || '',
         description: award.description || '',
       })),
-      publications: (parsedData.publications || []).map((pub: any) => ({
+      publications: (parsedResume.publications || []).map((pub: any) => ({
         id: generateId(),
         title: pub.title || '',
         publisher: pub.publisher || '',
@@ -520,7 +531,7 @@ serve(async (req) => {
         url: pub.url || undefined,
         description: pub.description || '',
       })),
-      volunteering: (parsedData.volunteering || []).map((vol: any) => ({
+      volunteering: (parsedResume.volunteering || []).map((vol: any) => ({
         id: generateId(),
         organization: vol.organization || '',
         role: vol.role || '',
@@ -529,7 +540,7 @@ serve(async (req) => {
         current: vol.current || false,
         description: vol.description || '',
       })),
-      hobbies: parsedData.hobbies || [],
+      hobbies: parsedResume.hobbies || [],
     };
 
     // Final confidence scoring
@@ -549,6 +560,8 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       ...resumeData,
+      parseStatus,
+      fallbackMode,
       _meta: {
         completeness: finalConfidence.completeness,
         fieldConfidence: finalConfidence.fieldConfidence,
@@ -559,6 +572,87 @@ serve(async (req) => {
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+    } catch (err: any) {
+      const httpStatus = err?.status ?? err?.statusCode ?? 0;
+
+      if (httpStatus === 429) {
+        // Rate limited — tell client to retry
+        return new Response(
+          JSON.stringify({
+            error: 'RATE_LIMITED',
+            message: 'AI service is temporarily busy. Please wait 30 seconds and try again.',
+            retryAfter: 30,
+          }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (httpStatus === 503 || httpStatus === 500 || httpStatus === 0) {
+        // Service unavailable or network error — fall back to local parser
+        console.warn('[parse-resume] Gemini unavailable (status:', httpStatus, '), falling back to local regex parser');
+        const fallbackResume = localParseResume(processedText);
+        parseStatus = 'partial';
+        fallbackMode = true;
+
+        const fallbackGenerateId = () => crypto.randomUUID();
+        const fallbackResumeData = {
+          contactInfo: {
+            fullName: fallbackResume.contactInfo.fullName,
+            email: fallbackResume.contactInfo.email,
+            phone: fallbackResume.contactInfo.phone,
+            location: fallbackResume.contactInfo.location,
+            linkedin: fallbackResume.contactInfo.linkedin || undefined,
+            portfolio: undefined,
+          },
+          summary: fallbackResume.summary,
+          experience: (fallbackResume.experience || []).map((exp: any) => ({
+            id: fallbackGenerateId(),
+            company: exp.company || '',
+            position: exp.position || '',
+            startDate: exp.startDate || '',
+            endDate: exp.endDate || '',
+            current: exp.current || false,
+            description: exp.description || '',
+            achievements: exp.achievements || [],
+            responsibilities: [],
+            isProject: false,
+          })),
+          education: (fallbackResume.education || []).map((edu: any) => ({
+            id: fallbackGenerateId(),
+            institution: edu.institution || '',
+            degree: edu.degree || '',
+            field: edu.field || '',
+            startDate: edu.startDate || '',
+            endDate: edu.endDate || '',
+            gpa: undefined,
+          })),
+          skills: fallbackResume.skills || [],
+          certifications: (fallbackResume.certifications || []).map((cert: any) => ({
+            id: fallbackGenerateId(),
+            name: cert.name || '',
+            issuer: cert.issuer || '',
+            date: cert.date || '',
+            expiryDate: undefined,
+            credentialId: undefined,
+          })),
+          awards: [],
+          publications: [],
+          volunteering: [],
+          hobbies: [],
+        };
+
+        return new Response(JSON.stringify({
+          ...fallbackResumeData,
+          parseStatus,
+          fallbackMode,
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } else {
+        // Unknown error — propagate
+        throw err;
+      }
+    }
   } catch (error) {
     console.error('parse-resume error:', error);
     const userError = toUserError(error);
