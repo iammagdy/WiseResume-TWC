@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
-import { requireAuth, authErrorResponse, decodeJwtPayload } from '../_shared/authMiddleware.ts';
+import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 
 serve(async (req) => {
   const origin = req.headers.get('origin');
@@ -13,14 +13,14 @@ serve(async (req) => {
   try {
     const { userId, client } = await requireAuth(req);
 
-    // Extract kinde_sub from JWT claims if present
-    const authHeader = req.headers.get('Authorization') || '';
-    const token = authHeader.replace('Bearer ', '');
+    // Extract kinde_sub from JWT claims — signature already verified by requireAuth above
     let kindeSub: string | null = null;
     try {
-      const claims = decodeJwtPayload(token);
+      const token = (req.headers.get('Authorization') || '').replace('Bearer ', '');
+      const b64 = token.split('.')[1]?.replace(/-/g, '+').replace(/_/g, '/') || '';
+      const claims = JSON.parse(atob(b64.padEnd(b64.length + (4 - b64.length % 4) % 4, '=')));
       kindeSub = (claims.kinde_sub as string) || null;
-    } catch { /* ignore */ }
+    } catch { /* ignore — kinde_sub is optional */ }
 
     // Fetch profile and preferences in parallel
     const [profileResult, prefsResult] = await Promise.all([

@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getUserKeyFromDB } from "../_shared/aiClient.ts";
 import { getCorsHeaders } from '../_shared/cors.ts';
-import { decodeJwtPayload } from '../_shared/authMiddleware.ts';
+import { requireAuth } from '../_shared/authMiddleware.ts';
 import { checkRateLimit } from '../_shared/rateLimiter.ts';
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
@@ -17,22 +17,18 @@ serve(async (req) => {
 
   try {
     // Resolve user's Gemini key server-side from DB (if authenticated)
+    // Auth is optional — unauthenticated requests fall through to the global env key
     let geminiKey: string | undefined;
-    const authHeader = req.headers.get('Authorization');
-    if (authHeader?.startsWith('Bearer ')) {
+    if (req.headers.get('Authorization')?.startsWith('Bearer ')) {
       try {
-        const token = authHeader.replace('Bearer ', '');
-        const claims = decodeJwtPayload(token);
-        const userId = claims['sub'] as string;
-        if (userId) {
-          const { allowed } = await checkRateLimit(userId, { actionType: 'health_check', maxRequests: 20, windowSeconds: 60 });
-          if (!allowed) {
-            return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: corsHeaders });
-          }
-          geminiKey = await getUserKeyFromDB(userId, 'gemini');
+        const { userId } = await requireAuth(req);
+        const { allowed } = await checkRateLimit(userId, { actionType: 'health_check', maxRequests: 20, windowSeconds: 60 });
+        if (!allowed) {
+          return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: corsHeaders });
         }
+        geminiKey = await getUserKeyFromDB(userId, 'gemini');
       } catch {
-        // If token decode fails, fall through to env var check
+        // Invalid or missing JWT — fall through to global env key
       }
     }
 

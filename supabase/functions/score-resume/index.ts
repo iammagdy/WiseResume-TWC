@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { requireAuth, decodeJwtPayload } from "../_shared/authMiddleware.ts";
+import { requireAuth } from "../_shared/authMiddleware.ts";
 import {
   scoreContactCompleteness,
   scoreSectionStructure,
