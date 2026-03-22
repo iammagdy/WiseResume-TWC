@@ -4,6 +4,12 @@ import "./mocks/browser";
 import "./mocks/supabase";
 import "./mocks/sonner";
 import "./mocks/haptics";
+import "./mocks/auth";
+import "./mocks/router";
+import "./mocks/aiAction";
+import "./mocks/agenticChat";
+import "./mocks/zustandStores";
+import "./mocks/fetch";
 import * as framerMotionMock from "./mocks/framer-motion";
 
 vi.mock("framer-motion", () => framerMotionMock);
@@ -33,4 +39,8 @@ if (typeof global !== "undefined") {
     unobserve: vi.fn(),
     disconnect: vi.fn(),
   }));
+
+  // Speech API stubs for voice/interview tests
+  vi.stubGlobal("SpeechRecognition", vi.fn());
+  vi.stubGlobal("webkitSpeechRecognition", vi.fn());
 }
