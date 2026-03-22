@@ -45,3 +45,26 @@ export const useAnimation = () => ({
 });
 export const useInView = () => [vi.fn(), true];
 export const LayoutGroup = ({ children }: any) => children;
+export const LazyMotion = ({ children }: any) => children;
+export const domAnimation = {};
+export const domMax = {};
+export const useMotionValue = vi.fn(() => ({ get: () => 0, set: vi.fn(), onChange: vi.fn() }));
+export const useMotionTemplate = vi.fn(() => ({ get: () => "" }));
+export const useAnimate = vi.fn(() => [vi.fn(), {}]);
+export const stagger = vi.fn(() => 0);
+export const m = {
+  div: mockComponent("div"),
+  span: mockComponent("span"),
+  section: mockComponent("section"),
+  p: mockComponent("p"),
+  h1: mockComponent("h1"),
+  h2: mockComponent("h2"),
+  h3: mockComponent("h3"),
+  button: mockComponent("button"),
+  a: mockComponent("a"),
+  nav: mockComponent("nav"),
+  img: mockComponent("img"),
+  li: mockComponent("li"),
+  ul: mockComponent("ul"),
+  ol: mockComponent("ol"),
+};

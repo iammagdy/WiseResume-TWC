@@ -40,5 +40,8 @@ src/types/supabase.ts
 events.json
 .bfg-report/
  
- # Test coverage
+# Test coverage
 coverage/
+
+# TestSprite runtime config (contains credentials)
+testsprite_tests/tmp/config.json
