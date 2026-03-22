@@ -30,6 +30,7 @@ const mockResumeStore = {
   selectedTemplate: "modern" as const,
   tailorHistory: [],
   tailorHistoryByResume: {},
+  coverLetterHistory: [],
   generatedCoverLetter: null,
   setCurrentResume: vi.fn(),
   setCurrentResumeId: vi.fn(),
@@ -41,8 +42,13 @@ const mockResumeStore = {
   setSelectedTemplate: vi.fn(),
   addTailorHistory: vi.fn(),
   clearTailorHistory: vi.fn(),
+  addCoverLetterHistory: vi.fn(),
+  deleteCoverLetterHistoryEntry: vi.fn(),
+  clearCoverLetterHistory: vi.fn(),
   setGeneratedCoverLetter: vi.fn(),
   saveResume: vi.fn().mockResolvedValue(undefined),
+  multiJobComparisons: [],
+  setMultiJobComparisons: vi.fn(),
 };
 
 // Mock useSettingsStore
@@ -73,25 +79,40 @@ const mockOfflineSyncStore = {
   clearAll: vi.fn(),
 };
 
+const useResumeStoreFn = vi.fn((selector?: (s: typeof mockResumeStore) => unknown) =>
+  selector ? selector(mockResumeStore) : mockResumeStore
+);
+(useResumeStoreFn as any).getState = () => mockResumeStore;
+(useResumeStoreFn as any).setState = vi.fn();
+(useResumeStoreFn as any).subscribe = vi.fn(() => () => {});
+
 vi.mock("@/store/resumeStore", () => ({
-  useResumeStore: vi.fn((selector?: (s: typeof mockResumeStore) => unknown) =>
-    selector ? selector(mockResumeStore) : mockResumeStore
-  ),
+  useResumeStore: useResumeStoreFn,
   useResumeStoreHydration: vi.fn(() => true),
-  subscribeToHydration: vi.fn(),
+  subscribeToHydration: vi.fn(() => () => {}),
   getResumeStoreHasHydrated: vi.fn(() => true),
 }));
 
+const useSettingsStoreFn = vi.fn((selector?: (s: typeof mockSettingsStore) => unknown) =>
+  selector ? selector(mockSettingsStore) : mockSettingsStore
+);
+(useSettingsStoreFn as any).getState = () => mockSettingsStore;
+(useSettingsStoreFn as any).setState = vi.fn();
+(useSettingsStoreFn as any).subscribe = vi.fn(() => () => {});
+
 vi.mock("@/store/settingsStore", () => ({
-  useSettingsStore: vi.fn((selector?: (s: typeof mockSettingsStore) => unknown) =>
-    selector ? selector(mockSettingsStore) : mockSettingsStore
-  ),
+  useSettingsStore: useSettingsStoreFn,
 }));
 
+const useOfflineSyncStoreFn = vi.fn((selector?: (s: typeof mockOfflineSyncStore) => unknown) =>
+  selector ? selector(mockOfflineSyncStore) : mockOfflineSyncStore
+);
+(useOfflineSyncStoreFn as any).getState = () => mockOfflineSyncStore;
+(useOfflineSyncStoreFn as any).setState = vi.fn();
+(useOfflineSyncStoreFn as any).subscribe = vi.fn(() => () => {});
+
 vi.mock("@/store/offlineSyncStore", () => ({
-  useOfflineSyncStore: vi.fn((selector?: (s: typeof mockOfflineSyncStore) => unknown) =>
-    selector ? selector(mockOfflineSyncStore) : mockOfflineSyncStore
-  ),
+  useOfflineSyncStore: useOfflineSyncStoreFn,
 }));
 
 export { mockResumeStore, mockSettingsStore, mockOfflineSyncStore };
