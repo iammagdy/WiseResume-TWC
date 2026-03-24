@@ -635,9 +635,28 @@ serve(async (req) => {
             expiryDate: undefined,
             credentialId: undefined,
           })),
-          awards: [],
+          awards: (fallbackResume.awards || []).map((a: any) => ({
+            id: fallbackGenerateId(),
+            title: a.title || '',
+            issuer: a.issuer || '',
+            date: a.date || '',
+          })),
+          projects: (fallbackResume.projects || []).map((p: any) => ({
+            id: fallbackGenerateId(),
+            name: p.name || '',
+            description: p.description || '',
+          })),
+          volunteering: (fallbackResume.volunteering || []).map((v: any) => ({
+            id: fallbackGenerateId(),
+            organization: v.organization || '',
+            role: v.role || '',
+          })),
+          languages: (fallbackResume.languages || []).map((l: any) => ({
+            id: fallbackGenerateId(),
+            name: l.name || '',
+            proficiency: l.proficiency || 'professional',
+          })),
           publications: [],
-          volunteering: [],
           hobbies: [],
         };
 

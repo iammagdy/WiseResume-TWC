@@ -8,7 +8,7 @@ import { SectionId } from '@/types/resume';
 
 /** Typed error class for programmatic handling of PDF generation failures. */
 export class PdfGenerationError extends Error {
-  code: 'EMPTY_CANVAS' | 'MISSING_ELEMENT' | 'CAPTURE_FAILED' | 'UNKNOWN';
+  code: 'EMPTY_CANVAS' | 'MISSING_ELEMENT' | 'CAPTURE_FAILED' | 'TRUNCATED_CANVAS' | 'UNKNOWN';
   constructor(message: string, code: PdfGenerationError['code'] = 'UNKNOWN') {
     super(message);
     this.name = 'PdfGenerationError';

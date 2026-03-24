@@ -54,11 +54,21 @@ export function parseResumeText(text: string): ResumeData {
   const contactInfo = extractContactInfo(sections.header.join('\n'));
 
   // Parse each section
-  const summary = sections.summary.join(' ').trim();
+  let summary = sections.summary.join(' ').trim();
   const experience = parseExperienceSection(sections.experience);
   const education = parseEducationSection(sections.education);
   const skills = parseSkillsSection(sections.skills);
   const certifications = parseCertificationsSection(sections.certifications);
+  const awards = parseAwardsSection(sections.awards);
+  const projects = parseProjectsSection(sections.projects);
+  const volunteering = parseVolunteeringSection(sections.volunteering);
+  const languages = parseLanguagesSection(sections.languages);
+
+  // Append unrecognized content to summary to prevent data loss in local fallback
+  if (sections.unrecognized.length > 0) {
+    const unrecognizedText = sections.unrecognized.join('\n');
+    summary += (summary ? '\n\n' : '') + '[Unrecognized Content]\n' + unrecognizedText;
+  }
 
   return {
     contactInfo,
@@ -67,6 +77,10 @@ export function parseResumeText(text: string): ResumeData {
     education,
     skills,
     certifications,
+    awards,
+    projects,
+    volunteering,
+    languages,
     templateId: 'modern',
   };
 }
@@ -394,6 +408,76 @@ function parseCertificationsSection(lines: string[]): Certification[] {
   }
 
   return certifications;
+}
+
+/**
+ * Parse awards section into structured entries.
+ */
+function parseAwardsSection(lines: string[]): any[] {
+  if (lines.length === 0) return [];
+  return lines.slice(0, 8).map(line => ({
+    id: uuidv4(),
+    title: line.trim().slice(0, 150),
+    issuer: '',
+    date: line.match(/\b(20\d{2}|19\d{2})\b/)?.[0] || '',
+  }));
+}
+
+/**
+ * Parse projects section into structured entries.
+ */
+function parseProjectsSection(lines: string[]): any[] {
+  if (lines.length === 0) return [];
+  const blocks = splitIntoBlocks(lines);
+  return blocks.slice(0, 5).map(block => ({
+    id: uuidv4(),
+    name: block[0] || 'Untitled Project',
+    description: block.slice(1).join(' ').slice(0, 500),
+    role: '',
+    startDate: '',
+    endDate: '',
+    technologies: [],
+  }));
+}
+
+/**
+ * Parse volunteering section into structured entries.
+ */
+function parseVolunteeringSection(lines: string[]): any[] {
+  if (lines.length === 0) return [];
+  const blocks = splitIntoBlocks(lines);
+  return blocks.slice(0, 5).map(block => ({
+    id: uuidv4(),
+    role: block[1] || 'Volunteer',
+    organization: block[0] || 'Organization',
+    startDate: '',
+    endDate: '',
+    description: block.slice(2).join(' ').slice(0, 500),
+  }));
+}
+
+/**
+ * Parse languages section into structured entries.
+ */
+function parseLanguagesSection(lines: string[]): any[] {
+  const fullText = lines.join(' ');
+  const languageParts = fullText.split(/[,;|•]/).map(s => s.trim()).filter(s => s.length > 2);
+  
+  return languageParts.slice(0, 10).map(part => {
+    const proficiencyMatch = part.match(/\((native|fluent|professional|basic|elementary|limited|full|bilingual|working|professional\s*working)\)/i);
+    const proficiency = proficiencyMatch ? proficiencyMatch[1].toLowerCase() : 'professional';
+    
+    // Clean name
+    const name = part.replace(/\(.*\)/, '').trim();
+    
+    return {
+      id: uuidv4(),
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      proficiency: proficiency.includes('native') ? 'native' : 
+                   proficiency.includes('fluent') ? 'fluent' : 
+                   proficiency.includes('basic') || proficiency.includes('elementary') ? 'basic' : 'professional'
+    };
+  });
 }
 
 /** Only treat an ALL-CAPS line as a block boundary if a date appears within the next 3 lines.

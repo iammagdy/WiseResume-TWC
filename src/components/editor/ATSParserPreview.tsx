@@ -76,11 +76,14 @@ function ParsedSectionBlock({ section, index }: { section: ATSParsedSection; ind
 }
 
 export const ATSParserPreview = memo(function ATSParserPreview({ onClose, className }: ATSParserPreviewProps) {
-  const currentResume = useResumeStore(useShallow(s => s.currentResume));
+  const { currentResume, jobDescription } = useResumeStore(useShallow(s => ({
+    currentResume: s.currentResume,
+    jobDescription: s.jobDescription,
+  })));
 
   const parsed = useMemo(
-    () => currentResume ? simulateATSParsing(currentResume) : null,
-    [currentResume]
+    () => currentResume ? simulateATSParsing(currentResume, jobDescription) : null,
+    [currentResume, jobDescription]
   );
 
   const checks = useMemo(
@@ -159,6 +162,66 @@ export const ATSParserPreview = memo(function ATSParserPreview({ onClose, classN
               ))}
             </div>
           )}
+
+          {/* Keyword Matching Output */}
+          <div className="mt-4 mb-4 space-y-3">
+            {jobDescription && jobDescription.trim().length > 0 ? (
+              <>
+                {parsed.missingKeywords && parsed.missingKeywords.length > 0 && (
+                  <div>
+                    <h4 className="font-mono text-[10px] font-bold uppercase tracking-wider text-destructive mb-1.5 flex items-center gap-1">
+                      <XCircle className="w-3 h-3" /> Missing Job Keywords
+                    </h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {parsed.missingKeywords.map((kw, i) => (
+                        <span key={i} className="px-2 py-0.5 bg-destructive/10 text-destructive rounded-full font-mono text-[9px] border border-destructive/20 whitespace-nowrap">
+                          {kw}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {parsed.matchedKeywords && parsed.matchedKeywords.length > 0 && (
+                  <div>
+                    <h4 className="font-mono text-[10px] font-bold uppercase tracking-wider text-success mb-1.5 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> Matched Job Keywords
+                    </h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {parsed.matchedKeywords.map((kw, i) => (
+                        <span key={i} className="px-2 py-0.5 bg-success/10 text-success rounded-full font-mono text-[9px] border border-success/20 whitespace-nowrap">
+                          {kw}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div>
+                <h4 className="font-mono text-[10px] font-bold uppercase tracking-wider text-primary mb-1.5 flex items-center gap-1">
+                  <ScanSearch className="w-3 h-3" /> Extracted Resume Keywords
+                </h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {parsed.detectedKeywords.slice(0, 30).map((kw, i) => (
+                    <span key={i} className="px-2 py-0.5 bg-primary/10 text-primary rounded-full font-mono text-[9px] border border-primary/20 whitespace-nowrap">
+                      {kw}
+                    </span>
+                  ))}
+                  {parsed.detectedKeywords.length === 0 && (
+                    <span className="text-[10px] text-muted-foreground italic">No significant keywords detected.</span>
+                  )}
+                  {parsed.detectedKeywords.length > 30 && (
+                    <span className="text-[9px] text-muted-foreground self-center">+{parsed.detectedKeywords.length - 30} more</span>
+                  )}
+                </div>
+                <p className="text-[9px] text-muted-foreground mt-2 leading-tight flex items-center gap-1">
+                  <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
+                  Paste a Job Description in the Tailor tab to see specific matching.
+                </p>
+              </div>
+            )}
+          </div>
 
           {/* ATS Checks */}
           <div className="border-t border-border pt-3 mt-2">

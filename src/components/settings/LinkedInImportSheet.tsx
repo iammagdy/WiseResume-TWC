@@ -15,7 +15,11 @@ import {
   Upload,
   User,
   Wand2,
-  SkipForward
+  SkipForward,
+  ShieldCheck,
+  Globe,
+  Award,
+  FileBarChart
 } from 'lucide-react';
 import { parseResumePDF, parseResumePDFWithOCR } from '@/lib/pdfParser';
 import {
@@ -55,6 +59,27 @@ interface LinkedInData {
     description?: string;
   }>;
   skills: string[];
+  certifications?: Array<{
+    name: string;
+    organization: string;
+    date: string;
+  }>;
+  volunteering?: Array<{
+    role: string;
+    organization: string;
+    startDate: string;
+    endDate: string;
+    description: string;
+  }>;
+  languages?: Array<{
+    language: string;
+    proficiency: string;
+  }>;
+  projects?: Array<{
+    name: string;
+    description: string;
+    url?: string;
+  }>;
 }
 
 interface LinkedInImportSheetProps {
@@ -124,6 +149,10 @@ export function LinkedInImportSheet({
     experience: true,
     education: true,
     skills: true,
+    certifications: true,
+    volunteering: true,
+    languages: true,
+    projects: true,
   });
   const [error, setError] = useState<string | null>(null);
   const [uploadingPdf, setUploadingPdf] = useState(false);
@@ -168,6 +197,10 @@ export function LinkedInImportSheet({
         ...(stepResult.experience?.length ? { experience: [...(prev.experience || []), ...stepResult.experience] } : {}),
         ...(stepResult.education?.length ? { education: [...(prev.education || []), ...stepResult.education] } : {}),
         ...(stepResult.skills?.length ? { skills: [...new Set([...(prev.skills || []), ...stepResult.skills])] } : {}),
+        ...(stepResult.certifications?.length ? { certifications: [...(prev.certifications || []), ...stepResult.certifications] } : {}),
+        ...(stepResult.volunteering?.length ? { volunteering: [...(prev.volunteering || []), ...stepResult.volunteering] } : {}),
+        ...(stepResult.languages?.length ? { languages: [...(prev.languages || []), ...stepResult.languages] } : {}),
+        ...(stepResult.projects?.length ? { projects: [...(prev.projects || []), ...stepResult.projects] } : {}),
       }));
     }
 
@@ -218,8 +251,8 @@ export function LinkedInImportSheet({
       const parseResult = await parseResumePDF(file);
       let resumeData = parseResult.data;
       if (parseResult.needsOCR) {
-        const ocrResult = await parseResumePDFWithOCR(file);
-        resumeData = ocrResult.data;
+        const { data: ocrData } = await parseResumePDFWithOCR(file);
+        resumeData = ocrData;
       }
       if (!resumeData) {
         throw new Error('Could not extract content from this PDF');
@@ -246,6 +279,27 @@ export function LinkedInImportSheet({
           endYear: edu.endDate || '',
         })),
         skills: resumeData.skills || [],
+        certifications: (resumeData.certifications || []).map(c => ({
+          name: c.name,
+          organization: c.issuer,
+          date: c.date,
+        })),
+        volunteering: (resumeData.volunteering || []).map(v => ({
+          role: v.role,
+          organization: v.organization,
+          startDate: v.startDate,
+          endDate: v.endDate,
+          description: v.description,
+        })),
+        languages: (resumeData.languages || []).map(l => ({
+          language: l.name,
+          proficiency: l.proficiency,
+        })),
+        projects: (resumeData.projects || []).map(p => ({
+          name: p.name,
+          description: p.description,
+          url: p.url,
+        })),
       };
 
       setAccumulatedData(linkedInData);
@@ -278,6 +332,10 @@ export function LinkedInImportSheet({
     if (selectedSections.experience && data.experience?.length) importData.experience = data.experience;
     if (selectedSections.education && data.education?.length) importData.education = data.education;
     if (selectedSections.skills && data.skills?.length) importData.skills = data.skills;
+    if (selectedSections.certifications && data.certifications?.length) importData.certifications = data.certifications;
+    if (selectedSections.volunteering && data.volunteering?.length) importData.volunteering = data.volunteering;
+    if (selectedSections.languages && data.languages?.length) importData.languages = data.languages;
+    if (selectedSections.projects && data.projects?.length) importData.projects = data.projects;
 
     setTimeout(() => {
       onImport(importData);
@@ -299,7 +357,16 @@ export function LinkedInImportSheet({
     setStepResult(null);
     setActiveGuideStep(0);
     setError(null);
-    setSelectedSections({ summary: true, experience: true, education: true, skills: true });
+    setSelectedSections({ 
+      summary: true, 
+      experience: true, 
+      education: true, 
+      skills: true,
+      certifications: true,
+      volunteering: true,
+      languages: true,
+      projects: true,
+    });
   };
 
   const toggleSection = (section: keyof typeof selectedSections) => {
@@ -312,6 +379,10 @@ export function LinkedInImportSheet({
     if (selectedSections.experience && accumulatedData?.experience?.length) count++;
     if (selectedSections.education && accumulatedData?.education?.length) count++;
     if (selectedSections.skills && accumulatedData?.skills?.length) count++;
+    if (selectedSections.certifications && accumulatedData?.certifications?.length) count++;
+    if (selectedSections.volunteering && accumulatedData?.volunteering?.length) count++;
+    if (selectedSections.languages && accumulatedData?.languages?.length) count++;
+    if (selectedSections.projects && accumulatedData?.projects?.length) count++;
     return count;
   };
 
@@ -743,6 +814,72 @@ export function LinkedInImportSheet({
                         <div className="flex flex-wrap gap-1.5">
                           {accumulatedData.skills.slice(0, 8).map((skill, i) => <Badge key={i} variant="outline" className="text-xs">{skill}</Badge>)}
                           {accumulatedData.skills.length > 8 && <Badge variant="outline" className="text-xs text-muted-foreground">+{accumulatedData.skills.length - 8} more</Badge>}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+                
+                {accumulatedData.certifications && accumulatedData.certifications.length > 0 && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
+                    className={`p-4 rounded-xl border transition-colors ${selectedSections.certifications ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                    <div className="flex items-start gap-3">
+                      <Checkbox checked={selectedSections.certifications} onCheckedChange={() => toggleSection('certifications')} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2"><ShieldCheck className="w-4 h-4 text-primary" /><span className="font-medium text-sm">Certifications</span><Badge variant="secondary" className="text-xs">{accumulatedData.certifications.length} entries</Badge></div>
+                        <div className="space-y-1">
+                          {accumulatedData.certifications.slice(0, 2).map((cert, i) => (
+                            <div key={i} className="text-sm text-muted-foreground"><span className="font-medium text-foreground">{cert.name}</span> by {cert.organization}</div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {accumulatedData.projects && accumulatedData.projects.length > 0 && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
+                    className={`p-4 rounded-xl border transition-colors ${selectedSections.projects ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                    <div className="flex items-start gap-3">
+                      <Checkbox checked={selectedSections.projects} onCheckedChange={() => toggleSection('projects')} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2"><FileBarChart className="w-4 h-4 text-primary" /><span className="font-medium text-sm">Projects</span><Badge variant="secondary" className="text-xs">{accumulatedData.projects.length} items</Badge></div>
+                        <div className="space-y-1">
+                          {accumulatedData.projects.slice(0, 2).map((proj, i) => (
+                            <div key={i} className="text-sm text-muted-foreground"><span className="font-medium text-foreground">{proj.name}</span></div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {accumulatedData.languages && accumulatedData.languages.length > 0 && (
+                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.55 }}
+                    className={`p-4 rounded-xl border transition-colors ${selectedSections.languages ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                    <div className="flex items-start gap-3">
+                      <Checkbox checked={selectedSections.languages} onCheckedChange={() => toggleSection('languages')} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2"><Globe className="w-4 h-4 text-primary" /><span className="font-medium text-sm">Languages</span><Badge variant="secondary" className="text-xs">{accumulatedData.languages.length} languages</Badge></div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {accumulatedData.languages.map((l, i) => <Badge key={i} variant="outline" className="text-xs">{l.language}: {l.proficiency}</Badge>)}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {accumulatedData.volunteering && accumulatedData.volunteering.length > 0 && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}
+                    className={`p-4 rounded-xl border transition-colors ${selectedSections.volunteering ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                    <div className="flex items-start gap-3">
+                      <Checkbox checked={selectedSections.volunteering} onCheckedChange={() => toggleSection('volunteering')} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2"><Award className="w-4 h-4 text-primary" /><span className="font-medium text-sm">Volunteering</span><Badge variant="secondary" className="text-xs">{accumulatedData.volunteering.length} entries</Badge></div>
+                        <div className="space-y-1">
+                          {accumulatedData.volunteering.slice(0, 2).map((v, i) => (
+                            <div key={i} className="text-sm text-muted-foreground"><span className="font-medium text-foreground">{v.role}</span> at {v.organization}</div>
+                          ))}
                         </div>
                       </div>
                     </div>
