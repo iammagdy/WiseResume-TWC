@@ -131,17 +131,43 @@ serve(async (req) => {
     console.log(`[token-exchange] Creating shadow user — id=${supabaseUserId}, email=${email || '(empty)'}, target=${extUrl}`);
 
     // Create shadow user in auth.users so FK constraints are satisfied
+    let targetEmail = email || `${kindeSub}@kinde.placeholder`;
     const { data: createUserData, error: createUserError } = await serviceClient.auth.admin.createUser({
       id: supabaseUserId,
-      email: email || `${kindeSub}@kinde.placeholder`,
+      email: targetEmail,
       email_confirm: true,
     });
 
     if (createUserError) {
       const msg = createUserError.message?.toLowerCase() || '';
       const isAlreadyExists = msg.includes('already') || msg.includes('duplicate') || msg.includes('exists');
+      
       if (isAlreadyExists) {
         console.log(`[token-exchange] Shadow user already exists (expected): ${createUserError.message}`);
+        
+        // Verify user actually exists with our target ID.
+        // If it doesn't, this means there's an email collision with a legacy account.
+        const { data: existingUser, error: getUserErr } = await serviceClient.auth.admin.getUserById(supabaseUserId);
+        
+        if (getUserErr || !existingUser?.user) {
+          console.warn(`[token-exchange] User ID collision check failed: User does NOT exist with ID ${supabaseUserId}. Likely email collision. Retrying with placeholder.`);
+          targetEmail = `${supabaseUserId}@collision.kinde.placeholder`;
+          
+          const { error: retryError } = await serviceClient.auth.admin.createUser({
+            id: supabaseUserId,
+            email: targetEmail,
+            email_confirm: true,
+          });
+          
+          if (retryError) {
+            console.error(`[token-exchange] Retry createUser FAILED: status=${retryError.status}, message=${retryError.message}`);
+            logExchange(serviceClient, kindeSub, supabaseUserId, 'error', 'SHADOW_USER_FAILED');
+            return errorResponse('SHADOW_USER_FAILED', 'Could not create or verify shadow user account', 500, corsHeaders);
+          }
+          console.log(`[token-exchange] Shadow user created successfully on retry: id=${supabaseUserId}`);
+        } else {
+          console.log(`[token-exchange] getUserById confirmed user exists despite createUser error`);
+        }
       } else {
         console.error(`[token-exchange] createUser FAILED: status=${createUserError.status}, message=${createUserError.message}`);
         // Verify user actually exists before proceeding
