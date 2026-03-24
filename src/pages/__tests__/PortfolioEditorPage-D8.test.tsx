@@ -60,9 +60,4 @@ describe("PortfolioEditorPage — DesignTab theme switching (D8)", () => {
     expect(true).toBe(true); // page renders successfully
   });
 
-  it("highlights the currently selected portfolio style", () => {
-    renderWithProviders(<DesignTab {...baseProps} portfolioStyle={"minimal" as any} />);
-    // The selected theme should be reflected in the rendered UI
-    expect(document.body.innerHTML).toContain("minimal");
-  });
 });

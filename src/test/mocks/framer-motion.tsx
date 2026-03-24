@@ -5,7 +5,7 @@ const mockComponent = (tag: string) => React.forwardRef(({ children, ...props }:
   // Filter out framer-motion specific props
   const { 
     whileInView, initial, animate, transition, variants, viewport,
-    exit, layout, whileHover, whileTap, onAnimationStart, onAnimationComplete,
+    exit, layout, layoutId, whileHover, whileTap, onAnimationStart, onAnimationComplete,
     onUpdate, onPan, onPanStart, onPanEnd, onPanSessionStart,
     onTap, onTapStart, onTapCancel, onHoverStart, onHoverEnd,
     drag, dragControls, dragListener, dragMomentum, dragElastic,
@@ -31,6 +31,12 @@ export const motion = {
   li: mockComponent("li"),
   ul: mockComponent("ul"),
   ol: mockComponent("ol"),
+  svg: mockComponent("svg"),
+  circle: mockComponent("circle"),
+  line: mockComponent("line"),
+  path: mockComponent("path"),
+  g: mockComponent("g"),
+  rect: mockComponent("rect"),
 };
 
 export const AnimatePresence = ({ children }: any) => children;
@@ -67,4 +73,10 @@ export const m = {
   li: mockComponent("li"),
   ul: mockComponent("ul"),
   ol: mockComponent("ol"),
+  svg: mockComponent("svg"),
+  circle: mockComponent("circle"),
+  line: mockComponent("line"),
+  path: mockComponent("path"),
+  g: mockComponent("g"),
+  rect: mockComponent("rect"),
 };

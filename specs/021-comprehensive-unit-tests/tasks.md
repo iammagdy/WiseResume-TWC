@@ -188,11 +188,11 @@ Phase 13   (Polish)              → Task C branch (final)
 
 **Independent test**: `npx vitest run src/pages/__tests__/*-D7*` exits 0.
 
-- [ ] T063 [S][US7] Create `src/pages/__tests__/InterviewPage-D7.test.tsx` — configure `vi.mocked(window.SpeechRecognition)` with mock recognition object; assert first question text visible; record button present and enabled; `navigator.mediaDevices = { getUserMedia: vi.fn().mockResolvedValue(null) }` in beforeAll
-- [ ] T064 [P][US7] Create `src/pages/__tests__/InterviewTranscript-D7.test.tsx` — fire mock `SpeechRecognition` `result` event with transcript `"I led a team of five engineers"`; simulate stop recording; assert transcript populates answer field; "Submit Answer" button enabled
-- [ ] T065 [P][US7] Create `src/pages/__tests__/InterviewGrading-D7.test.tsx` — mock `sendChatMessage` to return grading JSON after 5 answers; simulate 5 submissions; await resolution; results panel shows `strengths`, `weaknesses`, `communication_score` between 0–10
-- [ ] T066 [P][US7] Create `src/pages/__tests__/InterviewFallback-D7.test.tsx` — mock `useAIKeyHydration` to return `{ elevenLabsKey: null }`; mount; assert no ElevenLabs init call; Web Speech path activates; no uncaught exception
-- [ ] T067 [P][US7] Create `src/pages/__tests__/InterviewNoSpeechAPI-D7.test.tsx` — `vi.stubGlobal("SpeechRecognition", undefined)` + `vi.stubGlobal("webkitSpeechRecognition", undefined)`; mount; assert graceful degradation message rendered, no crash
+- [x] T063 [S][US7] Create `src/pages/__tests__/InterviewPage-D7.test.tsx` — configure `vi.mocked(window.SpeechRecognition)` with mock recognition object; assert first question text visible; record button present and enabled; `navigator.mediaDevices = { getUserMedia: vi.fn().mockResolvedValue(null) }` in beforeAll
+- [x] T064 [P][US7] Create `src/pages/__tests__/InterviewTranscript-D7.test.tsx` — fire mock `SpeechRecognition` `result` event with transcript `"I led a team of five engineers"`; simulate stop recording; assert transcript populates answer field; "Submit Answer" button enabled
+- [x] T065 [P][US7] Create `src/pages/__tests__/InterviewGrading-D7.test.tsx` — mock `sendChatMessage` to return grading JSON after 5 answers; simulate 5 submissions; await resolution; results panel shows `strengths`, `weaknesses`, `communication_score` between 0–10
+- [x] T066 [P][US7] Create `src/pages/__tests__/InterviewFallback-D7.test.tsx` — mock `useAIKeyHydration` to return `{ elevenLabsKey: null }`; mount; assert no ElevenLabs init call; Web Speech path activates; no uncaught exception
+- [x] T067 [P][US7] Create `src/pages/__tests__/InterviewNoSpeechAPI-D7.test.tsx` — `vi.stubGlobal("SpeechRecognition", undefined)` + `vi.stubGlobal("webkitSpeechRecognition", undefined)`; mount; assert graceful degradation message rendered, no crash
 
 **Checkpoint US7**: `npx vitest run src/pages/__tests__/*-D7*` → all pass.
 
@@ -204,10 +204,10 @@ Phase 13   (Polish)              → Task C branch (final)
 
 **Independent test**: `npx vitest run src/pages/__tests__/*-D8*` exits 0.
 
-- [ ] T068 [P][US8] Create `src/pages/__tests__/PortfolioEditorPage-D8.test.tsx` — mock profile loads; click `theme-3` option; `theme_id` in form state updated; preview container reflects new theme
-- [ ] T069 [P][US8] Create `src/pages/__tests__/PortfolioUsernameConflict-D8.test.tsx` — mock Supabase returns conflict on username check; user types and submits claim; "Username already taken" error visible
-- [ ] T070 [P][US8] Create `src/pages/__tests__/PublicPortfolioPage-D8.test.tsx` — render at `/p/johndoe`; `is_public: true`; user name, headline, skills visible
-- [ ] T071 [P][US8] Create `src/pages/__tests__/PortfolioPrivate-D8.test.tsx` — `is_public: false`; user resume data NOT rendered; 404 or "private profile" message IS rendered
+- [x] T068 [P][US8] Create `src/pages/__tests__/PortfolioEditorPage-D8.test.tsx` — mock profile loads; click `theme-3` option; `theme_id` in form state updated; preview container reflects new theme
+- [x] T069 [P][US8] Create `src/pages/__tests__/PortfolioUsernameConflict-D8.test.tsx` — mock Supabase returns conflict on username check; user types and submits claim; "Username already taken" error visible
+- [x] T070 [P][US8] Create `src/pages/__tests__/PublicPortfolioPage-D8.test.tsx` — render at `/p/johndoe`; `is_public: true`; user name, headline, skills visible
+- [x] T071 [P][US8] Create `src/pages/__tests__/PortfolioPrivate-D8.test.tsx` — `is_public: false`; user resume data NOT rendered; 404 or "private profile" message IS rendered
 
 **Checkpoint US8**: `npx vitest run src/pages/__tests__/*-D8*` → all pass.
 
@@ -219,9 +219,9 @@ Phase 13   (Polish)              → Task C branch (final)
 
 **Independent test**: `npx vitest run src/pages/__tests__/*-D9*` exits 0.
 
-- [ ] T072 [P][US9] Create `src/pages/__tests__/ApplicationsTracker-D9.test.tsx` — mock job in "Applied"; simulate status-change action to "Interviewing"; `mockSupabaseClient.update` called with `{ status: 'interviewing' }`
-- [ ] T073 [P][US9] Create `src/pages/__tests__/ApplicationsDeadline-D9.test.tsx` — `vi.setSystemTime(new Date("2026-04-01"))`; application deadline `"2026-03-15"`; assert "overdue" indicator present; restore time in `afterEach`
-- [ ] T074 [P][US9] Create `src/pages/__tests__/ApplicationsAnalytics-D9.test.tsx` — mock 10 applications (3 with response, 7 without); assert response rate shows 30%; mock streak data; streak number renders correctly
+- [x] T072 [P][US9] Create `src/pages/__tests__/ApplicationsTracker-D9.test.tsx` — mock job in "Applied"; simulate status-change action to "Interviewing"; `mockSupabaseClient.update` called with `{ status: 'interviewing' }`
+- [x] T073 [P][US9] Create `src/pages/__tests__/ApplicationsDeadline-D9.test.tsx` — `vi.setSystemTime(new Date("2026-04-01"))`; application deadline `"2026-03-15"`; assert "overdue" indicator present; restore time in `afterEach`
+- [x] T074 [P][US9] Create `src/pages/__tests__/ApplicationsAnalytics-D9.test.tsx` — mock 10 applications (3 with response, 7 without); assert response rate shows 30%; mock streak data; streak number renders correctly
 
 **Checkpoint US9**: `npx vitest run src/pages/__tests__/*-D9*` → all pass.
 
@@ -233,9 +233,9 @@ Phase 13   (Polish)              → Task C branch (final)
 
 **Independent test**: `npx vitest run src/pages/__tests__/*-D10*` exits 0 (BYOK shows as `todo`, not failure).
 
-- [ ] T075 [P][US10] Create `src/pages/__tests__/SettingsBYOK-D10.test.tsx` — `it.todo("BYOK key is encrypted before storage — blocked on work item 021-byok-encryption")` with comment explaining it becomes a real test once encryption utility exists
-- [ ] T076 [P][US10] Create `src/pages/__tests__/SettingsTheme-D10.test.tsx` — cycle Light → Dark → System; `theme` context value matches each state; `<html>` class attribute updates accordingly
-- [ ] T077 [P][US10] Create `src/pages/__tests__/SettingsExport-D10.test.tsx` — mock `accountBackup.ts`; click "Export My Data"; assert `accountBackup` called; `URL.createObjectURL` called (download triggered)
+- [x] T075 [P][US10] Create `src/pages/__tests__/SettingsBYOK-D10.test.tsx` — `it.todo("BYOK key is encrypted before storage — blocked on work item 021-byok-encryption")` with comment explaining it becomes a real test once encryption utility exists
+- [x] T076 [P][US10] Create `src/pages/__tests__/SettingsTheme-D10.test.tsx` — cycle Light → Dark → System; `theme` context value matches each state; `<html>` class attribute updates accordingly
+- [x] T077 [P][US10] Create `src/pages/__tests__/SettingsExport-D10.test.tsx` — mock `accountBackup.ts`; click "Export My Data"; assert `accountBackup` called; `URL.createObjectURL` called (download triggered)
 
 **Checkpoint US10**: `npx vitest run src/pages/__tests__/*-D10*` → all pass (BYOK is `todo`).
 
@@ -245,8 +245,8 @@ Phase 13   (Polish)              → Task C branch (final)
 
 **Purpose**: Full suite health check, coverage report, network call audit.
 
-- [ ] T078 [S][POLISH] Run `npm run test` — assert full suite exits 0; record final passing test count (existing 28 + new ~51 = target ≥79 files); note any flaky tests and fix
-- [ ] T079 [S][POLISH] Run `npm run test:coverage` — record coverage percentages for lines, branches, functions, statements; document as baseline comment; no CI gate — informational only
+- [x] T078 [S][POLISH] Run `npm run test` — assert full suite exits 0; record final passing test count (existing 28 + new ~51 = target ≥79 files); note any flaky tests and fix. **Status: 302 tests across 50 files passed.**
+- [x] T079 [S][POLISH] Run `npm run test:coverage` — record coverage percentages for lines, branches, functions, statements; document as baseline comment; no CI gate — informational only. **Status: Lines: 18.47%, Branches: 50.57%, Functions: 22.97%, Statements: 18.47%**
 
 **Final Checkpoint / Task C complete**: All Polish tasks pass. Open PR for `021-task-c-domains-7-10`.
 

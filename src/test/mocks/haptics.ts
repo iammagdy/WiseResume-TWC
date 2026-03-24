@@ -7,6 +7,7 @@ export const haptics = {
   success: vi.fn(),
   warning: vi.fn(),
   error: vi.fn(),
+  selection: vi.fn(),
 };
 
 vi.mock("@/lib/haptics", () => ({
