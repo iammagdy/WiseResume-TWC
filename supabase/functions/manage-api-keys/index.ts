@@ -34,6 +34,12 @@ async function encrypt(plaintext: string): Promise<string> {
   return btoa(String.fromCharCode(...combined));
 }
 
+function normalizeOptionalString(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') {
@@ -86,7 +92,13 @@ Deno.serve(async (req) => {
       }
 
       // ===== SAVE (default): upsert a provider's key =====
-      const { provider, apiKey, keyTier, tier, baseUrl, base_url, model } = body;
+      const { provider, apiKey, keyTier, baseUrl, base_url, model } = body;
+      // Backward compatibility: older clients may still send `tier` instead of `keyTier`.
+      // Keep this fallback until all active clients are migrated.
+      const keyTierTrimmed = normalizeOptionalString(keyTier) || '';
+      const tierFallbackTrimmed = normalizeOptionalString(body.tier) || '';
+      const normalizedKeyTier = keyTierTrimmed || tierFallbackTrimmed || 'unknown';
+      const normalizedModel = normalizeOptionalString(model);
       if (!provider || !apiKey) {
         return new Response(JSON.stringify({ error: 'provider and apiKey are required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
@@ -97,16 +109,16 @@ Deno.serve(async (req) => {
         user_id: userId,
         provider,
         encrypted_key: encryptedKey,
-        key_tier: keyTier || tier || 'unknown',
+        key_tier: normalizedKeyTier,
       };
       if (provider === 'ollama') {
-        const resolvedBaseUrl = typeof baseUrl === 'string' ? baseUrl : base_url;
-        upsertData.base_url = typeof resolvedBaseUrl === 'string' && resolvedBaseUrl.trim() ? resolvedBaseUrl.trim() : null;
-        upsertData.model = typeof model === 'string' && model.trim() ? model.trim() : null;
+        const resolvedBaseUrl = baseUrl || base_url;
+        upsertData.base_url = normalizeOptionalString(resolvedBaseUrl);
+        upsertData.model = normalizedModel;
       } else if (provider === 'gemini') {
         // Keep selected Gemini model persisted for future calls/preferences
         upsertData.base_url = null;
-        upsertData.model = typeof model === 'string' && model.trim() ? model.trim() : null;
+        upsertData.model = normalizedModel;
       } else {
         upsertData.base_url = null;
         upsertData.model = null;
