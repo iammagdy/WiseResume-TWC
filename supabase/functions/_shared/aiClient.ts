@@ -67,12 +67,12 @@ export interface AIError {
 
 // Model mapping for direct Gemini calls
 const MODEL_MAPPING: Record<string, string> = {
+  'google/gemini-2.5-flash': 'gemini-2.5-flash',
+  'google/gemini-2.5-pro': 'gemini-2.5-pro',
   'google/gemini-2.0-flash': 'gemini-2.0-flash',
   'google/gemini-2.0-pro': 'gemini-2.0-pro',
   'google/gemini-1.5-flash': 'gemini-1.5-flash',
   'google/gemini-1.5-pro': 'gemini-1.5-pro',
-  'google/gemini-2.5-flash': 'gemini-2.0-flash', // Compatibility/Typo fix
-  'google/gemini-2.5-pro': 'gemini-2.0-pro', // Compatibility/Typo fix
 };
 
 function mapModelForGemini(model: string): string {
@@ -316,7 +316,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
 
 const RETRY_DELAYS = [1000, 2000, 4000];
 const RETRY_TIMEOUTS = [30_000, 45_000, 55_000];
-const FALLBACK_MODEL = 'google/gemini-2.5-flash-lite';
+const FALLBACK_MODEL = 'google/gemini-2.0-flash-lite';
 
 function isRetryableError(error: unknown): boolean {
   if (error instanceof DOMException && error.name === 'AbortError') return true;
