@@ -33,9 +33,11 @@ import {
 } from '@/components/ui/alert-dialog';
 
 
+import { ProfileSkeleton } from '@/components/profile/ProfileSkeleton';
+
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user, supabaseReady } = useAuth();
   const { profile, loading: profileLoading, updateProfile } = useProfile(user?.id, user);
   const { data: resumes = [] } = useResumes();
   const { data: applications = [] } = useJobApplications();
@@ -45,17 +47,11 @@ export default function ProfilePage() {
   const [backupOpen, setBackupOpen] = useState(false);
   const [linkedinOpen, setLinkedinOpen] = useState(false);
   const [draftWarningOpen, setDraftWarningOpen] = useState(false);
-  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
   const [isNavigatingToOnboarding, setIsNavigatingToOnboarding] = useState(false);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setLoadingTimedOut(true), 8000);
-    return () => clearTimeout(timer);
-  }, []);
+  const isLoading = !supabaseReady || (profileLoading && !profile);
 
-  const isLoading = !loadingTimedOut && (authLoading || !profile && profileLoading);
-
-  if (isLoading) return null;
+  if (isLoading) return <ProfileSkeleton />;
   if (!user) return null;
 
   const completion = calculateProfileCompletion(profile);
@@ -94,7 +90,7 @@ export default function ProfilePage() {
     if (navigator.share) {
       try {
         await navigator.share({ title: `${profile?.fullName || 'My'} Portfolio`, url });
-      } catch {}
+      } catch { /* Sharing failed or cancelled */ }
     } else {
       await navigator.clipboard.writeText(url);
       toast.success('Portfolio URL copied!');

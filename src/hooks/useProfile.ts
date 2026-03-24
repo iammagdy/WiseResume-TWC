@@ -34,7 +34,7 @@ export interface PortfolioExtras {
 
 import { PortfolioSections } from '@/components/portfolio/editor/ContentVisibilitySection';
 
-interface Profile {
+export interface Profile {
   fullName: string | null;
   avatarUrl: string | null;
   jobTitle: string | null;

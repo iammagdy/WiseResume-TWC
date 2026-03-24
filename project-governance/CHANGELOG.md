@@ -2,6 +2,40 @@
 
 Local changelog tracking WiseResume changes.
 
+## 2026-03-24
+
+### PARSING-ATS-AUDIT
+- **Summary**: Implemented the Parsing & ATS Simulation Audit (Spec-020). Refined PDF parsing heuristics for international formats, synchronized edge function fallback parsers, and overhauled the ATS user feedback UI.
+- **Parsing**: Expanded `SECTION_PATTERNS` to support new section headers (e.g., "Work History", "Career Summary"). Resolved ALL-CAPS splitting issues for experience fields. Improved date range extraction to support single-year and varied date formats. Fully synchronized the edge function `localParser.ts` to capture Awards, Projects, Volunteering, and Languages during AI outages.
+- **ATS Simulation**: Updated `simulateATSParsing` to compute overall scores (0-100), extract detailed `matchedKeywords` and `missingKeywords` directly from a Job Description, and supply `formattingWarnings` for two-column layouts and low OCR confidence.
+- **UI/UX**: Rendered the missing and matched keywords inside `ATSParserPreview.tsx`. Added a "Resume Keywords Found" section visible even without a Job Description, using enhanced bento-style chip components for a premium aesthetic. Added recovery UI banners in `UploadPage.tsx` tied to `parseStatus`.
+- **LinkedIn Import**: Expanded edge function parsing support to include certifications, volunteering, languages, and projects. Improved rejection message for URL-only pasting.
+- **Resilience**: Wrapped Gemini text-cleaning requests in try/catch to maintain fallback extraction capability even when the AI service is unreachable, utilizing the newly synchronized local RegExp parser (`localParser.ts`).
+- **Tests**: Verified implementation via `sectionParsers.test.ts` and `atsParser-D1.test.ts` (100% pass rate). Finalized all documentation in `parsing_audit_walkthrough.md`.
+
+## 2026-03-22
+
+### API-BUGFIXES-UX
+- **Summary**: Executed the `api/bugfixes-ux` phase, addressing critical bugs in authentication resilience, active resume state management, connection banner precision, deep analysis tool feedback, and PDF export integrity.
+- **Active State**: Fixed active resume recognition, eliminating the "Create a resume first" interstitial after creation/duplication.
+- **Resilience**: Implemented differentiated error logging in `SupabaseBridge` for network vs. auth failures.
+- **PDF Integrity**: Hardened PDF export integrity by fixing `Uint8Array` byte-leakage in combined PDF generation and resolved SharedArrayBuffer TypeScript lints.
+- **UI/UX**: Added backdrop-blur-md glassmorphism to Job Analysis and Export sheets and refactored Preview Page layout to prevent FAB overlap.
+- **Verification**: `npm run build` and `npm run test` (301/302) verified across all domains.
+
+## 2026-03-17
+
+### COMPREHENSIVE-UNIT-TESTS
+- **Summary**: Implemented a robust, 302-test suite covering all 10 product domains (D1â€“D10) as part of spec-021. This provides the stable testing foundation required for upcoming parsing and AI audits.
+- **AI & Logic**: Validated `useAgenticChat`, `useAIPrompts`, and `useAITailor` hooks including streaming and error states.
+- **Editor & State**: Full coverage for `resumeStore` persistence, hydration, and complex CV manipulation logic.
+- **Authentication**: Verified `AuthContext` token bridge readiness, Kindeâ€“Supabase exchange flows, and protected route redirection.
+- **Parsing**: Stabilized regex-based parsing for sections and dates; added stubs for future ATS simulation enhancements.
+- **Domains (D7â€“D10)**: Completed the final phase (Task C) covering Interview (voice/simulator), Portfolio (visibility/chat), Applications Tracker, and Settings (BYOK/Theme).
+- **Environment**: Configured Vitest for stable path resolution within the nested repo structure. Updated `framer-motion` and `haptics` mocks.
+- **Files**: `src/pages/__tests__/*`, `src/hooks/__tests__/*`, `src/lib/__tests__/*`, `src/test/setup.ts`, `vitest.config.ts`, `src/test/mocks/*`
+- **Results**: `npm run test` â€” 302/302 passing across 50 files. Coverage established as baseline for future feature work.
+
 ## 2026-03-15
 
 ### SECURITY-AUDIT-FIXES

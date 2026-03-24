@@ -28,6 +28,7 @@ import { useBiometricLock } from '@/hooks/useBiometricLock';
 import { toast } from 'sonner';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { BackButton } from '@/components/ui/BackButton';
+import { SettingsSkeleton } from '@/components/layout/PageSkeletons';
 import { useIsDark } from '@/hooks/useIsDark';
 import { getChangelog } from '@/hooks/useChangelogBadge';
 import developerPhoto from '@/assets/developer-photo.png';
@@ -78,7 +79,7 @@ function SectionHeader({ icon: Icon, label, badge }: {icon: React.ElementType;la
 export default function SettingsPage() {
   const navigate = useNavigate();
   const isDark = useIsDark();
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, supabaseReady, signOut } = useAuth();
   const { profile, updateProfile } = useProfile(user?.id, user);
   const { data: resumes = [] } = useResumes();
   const { currentResumeId } = useResumeStore();
@@ -141,7 +142,7 @@ export default function SettingsPage() {
       toast.error('Failed to load changelog. Please check your connection.');
     }).
     finally(() => setChangelogLoading(false));
-  }, [changelogOpen]);
+  }, [changelogOpen, changelogData.length]);
 
   const appVersion = changelogData[0]?.version || 'v2.0.0';
 
@@ -218,7 +219,9 @@ export default function SettingsPage() {
   const handleDataDeleted = useCallback(async () => {
     try {
       await signOut();
-    } catch {}
+    } catch {
+      /* Ignorable error during biometric or data deletion flow */
+    }
     toast.success('All data deleted');
     window.location.replace('/');
   }, [signOut]);
@@ -231,12 +234,12 @@ export default function SettingsPage() {
     };
     haptics.light();
     if (navigator.share) {
-      try {await navigator.share(shareData);} catch {}
+      try { await navigator.share(shareData); } catch { /* User cancelled or sharing failed */ }
     } else {
       try {
         await navigator.clipboard.writeText(shareData.url);
         toast.success('Link copied to clipboard');
-      } catch {}
+      } catch { /* Clipboard access denied or failed */ }
     }
   }, []);
 
@@ -269,8 +272,8 @@ export default function SettingsPage() {
 
   const displayName = profile?.fullName || user?.email || 'User';
 
-  // Suspense fallback already shows SettingsSkeleton; avoid double skeleton
-  if (loading) return null;
+  // Use standard skeleton for loading (D-2)
+  if (loading || !supabaseReady) return <SettingsSkeleton />;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">

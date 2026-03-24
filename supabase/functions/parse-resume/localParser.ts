@@ -1,4 +1,6 @@
 // Minimal ResumeData shape — mirrors src/types/resume.ts
+// WARNING: If you add top-level required fields to ResumeData in src/types/resume.ts,
+// you MUST add them here and provide fallback assignments in localParseResume to prevent UI crashes.
 interface MinimalResumeData {
   contactInfo: {
     fullName: string;
@@ -33,6 +35,10 @@ interface MinimalResumeData {
     issuer: string;
     date: string;
   }>;
+  awards: Array<{ id: string; title: string; issuer: string; date: string }>;
+  projects: Array<{ id: string; name: string; description: string }>;
+  volunteering: Array<{ id: string; organization: string; role: string }>;
+  languages: Array<{ id: string; name: string; proficiency: string }>;
   templateId: string;
 }
 
@@ -66,10 +72,15 @@ export function localParseResume(text: string): MinimalResumeData {
     education: /^(education|academic|qualifications|degrees?)$/i,
     skills: /^(skills|technical\s*skills|core\s*competencies|key\s*skills)$/i,
     certifications: /^(certifications?|certificates?|licenses?)$/i,
+    awards: /^(awards?|honors?|achievements?|recognition)$/i,
+    projects: /^(projects?|personal\s*projects|academic\s*projects)$/i,
+    volunteering: /^(volunteering|volunteer\s*experience|community\s*service)$/i,
+    languages: /^(languages?|linguistic\s*skills)$/i,
   };
 
   const buckets: Record<string, string[]> = {
-    summary: [], experience: [], education: [], skills: [], certifications: [], header: [],
+    summary: [], experience: [], education: [], skills: [], certifications: [], 
+    awards: [], projects: [], volunteering: [], languages: [], header: [],
   };
   let current = 'header';
 
@@ -142,6 +153,27 @@ export function localParseResume(text: string): MinimalResumeData {
     education,
     skills: skills.slice(0, 40),
     certifications,
+    awards: buckets.awards.slice(0, 5).map(l => ({
+      id: crypto.randomUUID(),
+      title: l.slice(0, 150),
+      issuer: '',
+      date: l.match(/\b(20\d{2}|19\d{2})\b/)?.[0] || '',
+    })),
+    projects: buckets.projects.slice(0, 5).map(l => ({
+      id: crypto.randomUUID(),
+      name: l.slice(0, 100),
+      description: '',
+    })),
+    volunteering: buckets.volunteering.slice(0, 5).map(l => ({
+      id: crypto.randomUUID(),
+      organization: l.slice(0, 150),
+      role: '',
+    })),
+    languages: buckets.languages.join(' ').split(/[,;|•]/).map(s => s.trim()).filter(s => s.length > 2).slice(0, 10).map(l => ({
+      id: crypto.randomUUID(),
+      name: l.charAt(0).toUpperCase() + l.slice(1),
+      proficiency: 'professional',
+    })),
     templateId: 'modern',
   };
 }

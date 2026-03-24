@@ -98,6 +98,7 @@ export async function exchangeToken(kindeToken: string): Promise<void> {
         } catch {
           state.lastError = { type: BridgeErrorType.AUTH_REJECTION, code: 'UNKNOWN', message: text };
         }
+        console.log(`[SupabaseBridge] Error categorized as: ${state.lastError.type} (${state.lastError.code})`);
         return;
       }
       // Clear any previous error on success
@@ -115,6 +116,7 @@ export async function exchangeToken(kindeToken: string): Promise<void> {
       } else {
         state.lastError = { type: BridgeErrorType.UNKNOWN, code: 'UNKNOWN', message: String(err) };
       }
+      console.log(`[SupabaseBridge] Error categorized as: ${state.lastError.type}`);
       exchangePromise = null;
       throw err;
     } finally {

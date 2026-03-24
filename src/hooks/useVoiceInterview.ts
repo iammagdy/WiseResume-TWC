@@ -68,10 +68,12 @@ let sharedAudioContext: AudioContext | null = null;
 
 function getAudioContext(): AudioContext | null {
   if (!sharedAudioContext) {
-    const ContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+    const ContextClass = (window as unknown as { AudioContext: typeof AudioContext; webkitAudioContext: typeof AudioContext }).AudioContext || 
+                         (window as unknown as { AudioContext: typeof AudioContext; webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (ContextClass) sharedAudioContext = new ContextClass();
   } else if (sharedAudioContext.state === 'closed') {
-    const ContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+    const ContextClass = (window as unknown as { AudioContext: typeof AudioContext; webkitAudioContext: typeof AudioContext }).AudioContext || 
+                         (window as unknown as { AudioContext: typeof AudioContext; webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (ContextClass) sharedAudioContext = new ContextClass();
   }
   return sharedAudioContext;

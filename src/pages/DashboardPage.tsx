@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense,
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LazyMotion, domAnimation, m as motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { DashboardSkeleton } from '@/components/layout/PageSkeletons';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import useEmblaCarousel from 'embla-carousel-react';
 import { SortOption, CategoryFilter, ScoreFilter } from '@/components/dashboard/ResumeFilters';
@@ -56,14 +57,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 function DashboardPageContent() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, supabaseReady, signOut } = useAuth();
   const { isMigrating } = useGuestMigration(null);
-  const { data: resumes, isLoading: resumesLoading, isError: resumesError, refetch } = useResumes();
+  const { 
+    data: resumes = [], 
+    isLoading: resumesLoading, 
+    isInitialLoading: resumesInitialLoading,
+    error: resumesError,
+    refetch 
+  } = useResumes();
   const { deleteResume, deleteMultipleResumes, duplicateResume, updateResume } = useResumeMutations();
+
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
   const { scoreResume, getCachedScore, scoringId } = useResumeScore();
   const { profile } = useProfile(user?.id, user);
@@ -98,13 +107,16 @@ function DashboardPageContent() {
   const [showTrustBanner, setShowTrustBanner] = useState(() => {
     const visitCount = parseInt(localStorage.getItem('wr-trust-banner-visits') || '0', 10);
     if (visitCount >= 3 || localStorage.getItem('wr-trust-banner-seen')) return false;
-    try { localStorage.setItem('wr-trust-banner-visits', String(visitCount + 1)); } catch { }
+    try { localStorage.setItem('wr-trust-banner-visits', String(visitCount + 1)); } catch { /* localStorage full or disabled */ }
     return true;
   });
   const [profilePulseSeen, setProfilePulseSeen] = useState(() => !!localStorage.getItem('wr-profile-pulse-seen'));
   const [showFeatureMap, setShowFeatureMap] = useState(false);
-  
-  
+  const { isOnline } = useNetworkStatus();
+  const isOffline = !isOnline;
+
+  // embla hook MUST be before any early returns (guards)
+  const [emblaRef, emblaApi] = useEmblaCarousel({ skipSnaps: false, containScroll: false });
 
   // Pagination: render at most PAGE_SIZE items initially, reveal more on demand
   const PAGE_SIZE = 10;
@@ -113,9 +125,6 @@ function DashboardPageContent() {
 
   // Track session count for progressive disclosure
   useEffect(() => { trackSession(); }, []);
-
-  // Embla carousel for swipeable tabs
-  const [emblaRef, emblaApi] = useEmblaCarousel({ skipSnaps: false, containScroll: false });
 
   // Sync tab → carousel
   useEffect(() => {
@@ -220,7 +229,7 @@ function DashboardPageContent() {
         // Yield to main thread between scores to avoid jank on low-end devices
         await new Promise<void>(r =>
           'requestIdleCallback' in window
-            ? (window as any).requestIdleCallback(r)
+            ? (window as unknown as { requestIdleCallback: (cb: () => void) => void }).requestIdleCallback(r)
             : setTimeout(r, 50)
         );
         if (cancelled) break;
@@ -437,7 +446,6 @@ function DashboardPageContent() {
     setShowBulkDeleteConfirm(false);
   }, [selectedIds, deleteMultipleResumes, exitSelectionMode]);
 
-  const isLoading = authLoading || resumesLoading;
   const hasResumes = filteredResumes && filteredResumes.length > 0;
 
   const itemVariants = {
@@ -453,8 +461,31 @@ function DashboardPageContent() {
 
   // Auth guard handled by ProtectedRoute
 
-  // Suspense fallback already shows DashboardSkeleton; avoid double skeleton
-  if (authLoading) return null;
+  // Consider it loading if the bridge isn't ready OR the initial query is in flight (D-2)
+  const isLoading = !supabaseReady || (resumesInitialLoading && resumes.length === 0);
+
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
+
+  // Only show error if we're online and the fetch actually failed after the bridge was ready
+  if (resumesError && !isOffline && supabaseReady) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
+        <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center text-destructive">
+          <AlertCircle className="w-8 h-8" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold">Something went wrong</h2>
+          <p className="text-muted-foreground max-w-xs mx-auto">We couldn't load your resumes. Please check your connection and try again.</p>
+        </div>
+        <Button onClick={() => refetch()} variant="outline" className="gap-2">
+          <RefreshCw className="w-4 h-4" />
+          Retry
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col">

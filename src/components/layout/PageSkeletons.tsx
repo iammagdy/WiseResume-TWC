@@ -138,28 +138,58 @@ export function EditorSkeleton() {
 
 export function SettingsSkeleton() {
   return (
-    <div className="flex-1 flex flex-col animate-pulse">
-      {/* Header */}
-      <header className="pt-safe pt-4 pb-3 px-4 border-b border-border">
-        <div className="h-7 w-24 bg-muted rounded" />
+    <div className="flex-1 flex flex-col overflow-hidden animate-pulse">
+      {/* Header Skeleton */}
+      <header className="pt-safe sticky top-0 z-10 pb-1 px-4 glass-header backdrop-blur-xl bg-background/80">
+        <div className="flex items-center gap-3 py-2">
+          <div className="w-10 h-10 rounded-full bg-muted" />
+          <div className="h-8 w-32 bg-muted rounded-lg" />
+        </div>
+
+        {/* Section index chips skeleton */}
+        <div className="flex gap-2 py-2 overflow-hidden">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="h-9 w-24 rounded-full bg-muted flex-shrink-0" />
+          ))}
+        </div>
       </header>
-      
-      {/* Profile Card */}
-      <div className="px-4 py-4">
-        <div className="flex items-center gap-4 p-4 rounded-xl bg-card border border-border">
-          <div className="w-14 h-14 rounded-full bg-muted" />
+
+      {/* Content Skeleton */}
+      <div className="px-5 py-4 space-y-8 overflow-y-auto">
+        {/* Profile Card Skeleton */}
+        <div className="w-full flex items-center gap-4 p-4 rounded-2xl border border-white/5 bg-muted/20">
+          <div className="h-14 w-14 rounded-full bg-muted" />
           <div className="flex-1 space-y-2">
             <div className="h-5 w-32 bg-muted rounded" />
-            <div className="h-4 w-24 bg-muted rounded" />
+            <div className="h-4 w-48 bg-muted rounded" />
           </div>
         </div>
-      </div>
-      
-      {/* Setting Rows */}
-      <div className="px-4 space-y-4">
-        <div className="h-16 bg-muted rounded-xl" />
-        <div className="h-16 bg-muted rounded-xl" />
-        <div className="h-16 bg-muted rounded-xl" />
+
+        {/* Settings Section Skeletons */}
+        {[1, 2, 3].map((section) => (
+          <div key={section} className="space-y-4 px-1">
+            <div className="p-4 rounded-2xl border border-white/10 bg-muted/10 space-y-6">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-5 rounded-full bg-primary" />
+                  <div className="h-5 w-24 bg-muted rounded" />
+                </div>
+                <div className="h-3 w-48 bg-muted rounded" />
+              </div>
+              
+              <div className="space-y-4">
+                {[1, 2, 3].map((row) => (
+                  <div key={row} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-5 h-5 rounded bg-muted" />
+                      <div className="h-4 w-32 bg-muted rounded" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -207,18 +237,43 @@ export function UploadSkeleton() {
 
 export function InterviewSkeleton() {
   return (
-    <div className="flex-1 flex flex-col animate-pulse">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 pt-3 pb-2">
-        <div className="w-5 h-5 bg-muted rounded" />
-        <div className="h-6 w-40 bg-muted rounded" />
+    <div className="flex-1 flex flex-col animate-pulse bg-background h-screen overflow-hidden">
+      {/* Premium glassmorphism header */}
+      <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border/20 bg-card/50 backdrop-blur-xl">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-muted" />
+          <div className="h-6 w-32 bg-muted rounded" />
+        </div>
+        <div className="w-20 h-8 rounded-full bg-muted" />
       </div>
-      
-      {/* Content */}
-      <div className="flex-1 px-4 py-6 space-y-4">
-        <div className="h-24 bg-muted rounded-xl" />
-        <div className="h-24 bg-muted rounded-xl" />
-        <div className="h-16 bg-muted rounded-xl" />
+
+      {/* Progress indicator */}
+      <div className="w-full h-[3px] bg-muted/30" />
+
+      {/* Transcript area */}
+      <div className="flex-1 px-4 py-4 space-y-4 max-w-4xl mx-auto w-full overflow-hidden">
+        <div className="flex justify-start">
+          <div className="max-w-[80%] h-16 w-64 bg-muted rounded-2xl rounded-bl-md" />
+        </div>
+        <div className="flex justify-end">
+          <div className="max-w-[70%] h-12 w-48 bg-muted rounded-2xl rounded-br-md" />
+        </div>
+        <div className="flex justify-start">
+          <div className="max-w-[80%] h-20 w-72 bg-muted rounded-2xl rounded-bl-md" />
+        </div>
+      </div>
+
+      {/* Controls */}
+      <div className="shrink-0 border-t border-border/20 bg-card/80 px-4 py-8 space-y-6">
+        <div className="flex items-center justify-center gap-12">
+          <div className="w-12 h-12 rounded-full bg-muted" />
+          <div className="w-20 h-20 rounded-full bg-muted" />
+          <div className="w-12 h-12 rounded-full bg-muted" />
+        </div>
+        <div className="flex justify-between items-center px-2">
+          <div className="h-10 w-24 bg-muted rounded-xl" />
+          <div className="h-10 w-32 bg-muted rounded-xl" />
+        </div>
       </div>
     </div>
   );
