@@ -187,6 +187,8 @@ export function useResumeMutations() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
+      // Set the newly created resume as the active one
+      useResumeStore.getState().setCurrentResumeId(data.id);
       toast.success('Resume created');
     },
     onError: (error) => {
@@ -342,6 +344,8 @@ export function useResumeMutations() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
+      // Set the newly duplicated resume as the active one
+      useResumeStore.getState().setCurrentResumeId(data.id);
       toast.success('Resume duplicated');
     },
     onError: (error) => {

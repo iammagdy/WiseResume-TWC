@@ -21,6 +21,7 @@ import { haptics } from '@/lib/haptics';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { 
+  Profile,
   CareerLevel,
   INDUSTRY_OPTIONS, 
   CAREER_LEVEL_OPTIONS,
@@ -34,40 +35,6 @@ import { useResumeStore } from '@/store/resumeStore';
 import { useResumes } from '@/hooks/useResumes';
 import { Experience, Education } from '@/types/resume';
 import { v4 as uuidv4 } from 'uuid';
-
-interface Profile {
-  fullName: string | null;
-  avatarUrl: string | null;
-  jobTitle: string | null;
-  industry: string | null;
-  careerLevel: CareerLevel | null;
-  location: string | null;
-  linkedinUrl: string | null;
-  profileCompleted: boolean;
-  // Extended fields needed by calculateProfileCompletion
-  username?: string | null;
-  portfolioBio?: string | null;
-  portfolioEnabled?: boolean;
-  portfolioResumeId?: string | null;
-  githubUrl?: string | null;
-  websiteUrl?: string | null;
-  twitterUrl?: string | null;
-  contactEmail?: string | null;
-  theme?: string | null;
-  phoneNumber?: string | null;
-  portfolioSections?: Record<string, boolean> | null;
-  portfolioMetaTitle?: string | null;
-  portfolioMetaDescription?: string | null;
-  views?: number;
-  portfolioStyle?: string | null;
-  portfolioLayout?: string | null;
-  portfolioAccentColor?: string | null;
-  portfolioFont?: string | null;
-  openToWork?: boolean;
-  availabilityHeadline?: string | null;
-  portfolioExtras?: PortfolioExtras;
-  portfolioSyncMode?: 'auto' | 'locked';
-}
 
 interface EditProfileSheetProps {
   open: boolean;

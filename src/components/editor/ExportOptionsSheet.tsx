@@ -133,7 +133,7 @@ export function ExportOptionsSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-auto max-h-[85vh] rounded-t-3xl">
+      <SheetContent side="bottom" className="h-auto max-h-[85vh] rounded-t-3xl backdrop-blur-md bg-background/80">
         <SheetHeader className="pb-4 shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <Download className="w-5 h-5 text-primary" />

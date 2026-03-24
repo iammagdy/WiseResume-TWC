@@ -6,9 +6,12 @@ import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent } from "@testing-library/react";
 import { renderWithProviders } from "@/test/renderWithProviders";
+import { ThemeToggle } from "@/components/settings/ThemeToggle";
 
 // Override settingsStore mock to include theme + setTheme
-const mockSetTheme = vi.fn();
+const { mockSetTheme } = vi.hoisted(() => ({
+  mockSetTheme: vi.fn(),
+}));
 vi.mock("@/store/settingsStore", () => {
   const store = {
     theme: "light" as "light" | "dark" | "system",
@@ -40,9 +43,6 @@ vi.mock("@/store/settingsStore", () => {
   return { useSettingsStore: fn };
 });
 
-// Test ThemeToggle component which is the authoritative UI for theme switching
-import { ThemeToggle } from "@/components/settings/ThemeToggle";
-
 describe("SettingsTheme (D10) — theme cycle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -56,20 +56,20 @@ describe("SettingsTheme (D10) — theme cycle", () => {
 
   it("calls setTheme('dark') when Dark button is clicked", () => {
     renderWithProviders(<ThemeToggle />);
-    fireEvent.click(screen.getByText("Dark"));
+    fireEvent.click(screen.getByRole("button", { name: /dark/i }));
     expect(mockSetTheme).toHaveBeenCalledWith("dark");
   });
 
-  it("calls setTheme('light') when Light button is clicked", () => {
+  it("calls setTheme('system') when Auto button is clicked", () => {
     renderWithProviders(<ThemeToggle />);
-    fireEvent.click(screen.getByText("Light"));
-    expect(mockSetTheme).toHaveBeenCalledWith("light");
+    fireEvent.click(screen.getByRole("button", { name: /auto/i }));
+    expect(mockSetTheme).toHaveBeenCalledWith("system");
   });
 
   it("does not call setTheme when clicking the already-active theme", () => {
     // theme is 'light' by default — clicking Light again should not call setTheme
     renderWithProviders(<ThemeToggle />);
-    fireEvent.click(screen.getByText("Light"));
+    fireEvent.click(screen.getByRole("button", { name: /light/i }));
     // The toggle guards against same-value changes
     expect(mockSetTheme).not.toHaveBeenCalledWith("light");
   });

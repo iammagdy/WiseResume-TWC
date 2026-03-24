@@ -1,0 +1,1309 @@
+
+[1m[46m RUN [49m[22m [36mv3.2.4 [39m[90mM:/Repo/wiseresume-74945019/wiseresume-74945019[39m
+
+[90mstderr[2m | src/pages/__tests__/ApplicationsTracker-D9.test.tsx[2m > [22m[2mApplicationsTracker (D9) — status transitions[2m > [22m[2mrenders the applications page without crashing
+[22m[39mError: Uncaught [Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:284:17[90m)[39m
+    at Object.useSetMasterCV [as get] [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:330:16[90m)[39m
+    at ResumeListSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\ResumeListSheet.tsx:36:23[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m {
+  codeFrame: [32m'vi\x1B[33m.\x1B[39m\x1B[34mmock\x1B[39m(\x1B[35mimport\x1B[39m(\x1B[32m"@/hooks/useResumes"\x1B[39m)\x1B[33m,\x1B[39m \x1B[35masync\x1B[39m (importOriginal) \x1B[33m=>\x1B[39m {\n'[39m +
+    [32m'  \x1B[35mconst\x1B[39m actual \x1B[33m=\x1B[39m \x1B[35mawait\x1B[39m \x1B[34mimportOriginal\x1B[39m()\n'[39m +
+    [32m'  \x1B[35mreturn\x1B[39m {\n'[39m +
+    [32m'    \x1B[33m...\x1B[39mactual\x1B[33m,\x1B[39m\n'[39m +
+    [32m'    \x1B[90m// your mocked methods\x1B[39m\n'[39m +
+    [32m'  }\n'[39m +
+    [32m'})'[39m
+}
+Error: Uncaught [TypeError: Cannot read properties of undefined (reading 'isPending')]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) TypeError: Cannot read properties of undefined (reading 'isPending')
+    at SaveJobSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\SaveJobSheet.tsx:119:24[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m
+    at HTMLUnknownElementImpl._dispatch [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:233:9[90m)[39m
+    at HTMLUnknownElementImpl.dispatchEvent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:104:17[90m)[39m
+Error: Uncaught [Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:284:17[90m)[39m
+    at Object.useSetMasterCV [as get] [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:330:16[90m)[39m
+    at ResumeListSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\ResumeListSheet.tsx:36:23[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m {
+  codeFrame: [32m'vi\x1B[33m.\x1B[39m\x1B[34mmock\x1B[39m(\x1B[35mimport\x1B[39m(\x1B[32m"@/hooks/useResumes"\x1B[39m)\x1B[33m,\x1B[39m \x1B[35masync\x1B[39m (importOriginal) \x1B[33m=>\x1B[39m {\n'[39m +
+    [32m'  \x1B[35mconst\x1B[39m actual \x1B[33m=\x1B[39m \x1B[35mawait\x1B[39m \x1B[34mimportOriginal\x1B[39m()\n'[39m +
+    [32m'  \x1B[35mreturn\x1B[39m {\n'[39m +
+    [32m'    \x1B[33m...\x1B[39mactual\x1B[33m,\x1B[39m\n'[39m +
+    [32m'    \x1B[90m// your mocked methods\x1B[39m\n'[39m +
+    [32m'  }\n'[39m +
+    [32m'})'[39m
+}
+Error: Uncaught [TypeError: Cannot read properties of undefined (reading 'isPending')]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) TypeError: Cannot read properties of undefined (reading 'isPending')
+    at SaveJobSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\SaveJobSheet.tsx:119:24[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m
+    at HTMLUnknownElementImpl._dispatch [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:233:9[90m)[39m
+    at HTMLUnknownElementImpl.dispatchEvent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:104:17[90m)[39m
+The above error occurred in the <ResumeListSheet> component:
+
+    at ResumeListSheet (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\components\applications\ResumeListSheet.tsx:23:28)
+    at div
+    at ApplicationsPage (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\pages\ApplicationsPage.tsx:253:47)
+    at Router (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1207:17)
+    at MemoryRouter (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1101:7)
+    at QueryClientProvider (file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:20:3)
+    at AllProviders (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:26:25)
+    at wrapper (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:56:21)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+The above error occurred in the <SaveJobSheet> component:
+
+    at SaveJobSheet (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\components\applications\SaveJobSheet.tsx:23:25)
+    at div
+    at ApplicationsPage (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\pages\ApplicationsPage.tsx:253:47)
+    at Router (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1207:17)
+    at MemoryRouter (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1101:7)
+    at QueryClientProvider (file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:20:3)
+    at AllProviders (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:26:25)
+    at wrapper (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:56:21)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+
+[90mstderr[2m | src/pages/__tests__/ApplicationsDeadline-D9.test.tsx[2m > [22m[2mApplicationsDeadline (D9) — overdue indicators[2m > [22m[2mrenders without crashing with a past-deadline application
+[22m[39mError: Uncaught [Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:284:17[90m)[39m
+    at Object.useSetMasterCV [as get] [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:330:16[90m)[39m
+    at ResumeListSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\ResumeListSheet.tsx:36:23[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m {
+  codeFrame: [32m'vi\x1B[33m.\x1B[39m\x1B[34mmock\x1B[39m(\x1B[35mimport\x1B[39m(\x1B[32m"@/hooks/useResumes"\x1B[39m)\x1B[33m,\x1B[39m \x1B[35masync\x1B[39m (importOriginal) \x1B[33m=>\x1B[39m {\n'[39m +
+    [32m'  \x1B[35mconst\x1B[39m actual \x1B[33m=\x1B[39m \x1B[35mawait\x1B[39m \x1B[34mimportOriginal\x1B[39m()\n'[39m +
+    [32m'  \x1B[35mreturn\x1B[39m {\n'[39m +
+    [32m'    \x1B[33m...\x1B[39mactual\x1B[33m,\x1B[39m\n'[39m +
+    [32m'    \x1B[90m// your mocked methods\x1B[39m\n'[39m +
+    [32m'  }\n'[39m +
+    [32m'})'[39m
+}
+Error: Uncaught [TypeError: Cannot read properties of undefined (reading 'isPending')]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) TypeError: Cannot read properties of undefined (reading 'isPending')
+    at SaveJobSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\SaveJobSheet.tsx:119:24[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m
+    at HTMLUnknownElementImpl._dispatch [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:233:9[90m)[39m
+    at HTMLUnknownElementImpl.dispatchEvent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:104:17[90m)[39m
+Error: Uncaught [Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:284:17[90m)[39m
+    at Object.useSetMasterCV [as get] [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:330:16[90m)[39m
+    at ResumeListSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\ResumeListSheet.tsx:36:23[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m {
+  codeFrame: [32m'vi\x1B[33m.\x1B[39m\x1B[34mmock\x1B[39m(\x1B[35mimport\x1B[39m(\x1B[32m"@/hooks/useResumes"\x1B[39m)\x1B[33m,\x1B[39m \x1B[35masync\x1B[39m (importOriginal) \x1B[33m=>\x1B[39m {\n'[39m +
+    [32m'  \x1B[35mconst\x1B[39m actual \x1B[33m=\x1B[39m \x1B[35mawait\x1B[39m \x1B[34mimportOriginal\x1B[39m()\n'[39m +
+    [32m'  \x1B[35mreturn\x1B[39m {\n'[39m +
+    [32m'    \x1B[33m...\x1B[39mactual\x1B[33m,\x1B[39m\n'[39m +
+    [32m'    \x1B[90m// your mocked methods\x1B[39m\n'[39m +
+    [32m'  }\n'[39m +
+    [32m'})'[39m
+}
+Error: Uncaught [TypeError: Cannot read properties of undefined (reading 'isPending')]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) TypeError: Cannot read properties of undefined (reading 'isPending')
+    at SaveJobSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\SaveJobSheet.tsx:119:24[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m
+    at HTMLUnknownElementImpl._dispatch [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:233:9[90m)[39m
+    at HTMLUnknownElementImpl.dispatchEvent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:104:17[90m)[39m
+The above error occurred in the <ResumeListSheet> component:
+
+    at ResumeListSheet (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\components\applications\ResumeListSheet.tsx:23:28)
+    at div
+    at ApplicationsPage (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\pages\ApplicationsPage.tsx:253:47)
+    at Router (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1207:17)
+    at MemoryRouter (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1101:7)
+    at QueryClientProvider (file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:20:3)
+    at AllProviders (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:26:25)
+    at wrapper (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:56:21)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+The above error occurred in the <SaveJobSheet> component:
+
+    at SaveJobSheet (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\components\applications\SaveJobSheet.tsx:23:25)
+    at div
+    at ApplicationsPage (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\pages\ApplicationsPage.tsx:253:47)
+    at Router (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1207:17)
+    at MemoryRouter (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1101:7)
+    at QueryClientProvider (file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:20:3)
+    at AllProviders (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:26:25)
+    at wrapper (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:56:21)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+
+[90mstderr[2m | src/pages/__tests__/ApplicationsTracker-D9.test.tsx[2m > [22m[2mApplicationsTracker (D9) — status transitions[2m > [22m[2mshows the tracked application company name
+[22m[39mError: Uncaught [Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:284:17[90m)[39m
+    at Object.useSetMasterCV [as get] [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:330:16[90m)[39m
+    at ResumeListSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\ResumeListSheet.tsx:36:23[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m {
+  codeFrame: [32m'vi\x1B[33m.\x1B[39m\x1B[34mmock\x1B[39m(\x1B[35mimport\x1B[39m(\x1B[32m"@/hooks/useResumes"\x1B[39m)\x1B[33m,\x1B[39m \x1B[35masync\x1B[39m (importOriginal) \x1B[33m=>\x1B[39m {\n'[39m +
+    [32m'  \x1B[35mconst\x1B[39m actual \x1B[33m=\x1B[39m \x1B[35mawait\x1B[39m \x1B[34mimportOriginal\x1B[39m()\n'[39m +
+    [32m'  \x1B[35mreturn\x1B[39m {\n'[39m +
+    [32m'    \x1B[33m...\x1B[39mactual\x1B[33m,\x1B[39m\n'[39m +
+    [32m'    \x1B[90m// your mocked methods\x1B[39m\n'[39m +
+    [32m'  }\n'[39m +
+    [32m'})'[39m
+}
+Error: Uncaught [TypeError: Cannot read properties of undefined (reading 'isPending')]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) TypeError: Cannot read properties of undefined (reading 'isPending')
+    at SaveJobSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\SaveJobSheet.tsx:119:24[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m
+    at HTMLUnknownElementImpl._dispatch [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:233:9[90m)[39m
+    at HTMLUnknownElementImpl.dispatchEvent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:104:17[90m)[39m
+Error: Uncaught [Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:284:17[90m)[39m
+    at Object.useSetMasterCV [as get] [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:330:16[90m)[39m
+    at ResumeListSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\ResumeListSheet.tsx:36:23[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m {
+  codeFrame: [32m'vi\x1B[33m.\x1B[39m\x1B[34mmock\x1B[39m(\x1B[35mimport\x1B[39m(\x1B[32m"@/hooks/useResumes"\x1B[39m)\x1B[33m,\x1B[39m \x1B[35masync\x1B[39m (importOriginal) \x1B[33m=>\x1B[39m {\n'[39m +
+    [32m'  \x1B[35mconst\x1B[39m actual \x1B[33m=\x1B[39m \x1B[35mawait\x1B[39m \x1B[34mimportOriginal\x1B[39m()\n'[39m +
+    [32m'  \x1B[35mreturn\x1B[39m {\n'[39m +
+    [32m'    \x1B[33m...\x1B[39mactual\x1B[33m,\x1B[39m\n'[39m +
+    [32m'    \x1B[90m// your mocked methods\x1B[39m\n'[39m +
+    [32m'  }\n'[39m +
+    [32m'})'[39m
+}
+Error: Uncaught [TypeError: Cannot read properties of undefined (reading 'isPending')]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) TypeError: Cannot read properties of undefined (reading 'isPending')
+    at SaveJobSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\SaveJobSheet.tsx:119:24[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m
+    at HTMLUnknownElementImpl._dispatch [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:233:9[90m)[39m
+    at HTMLUnknownElementImpl.dispatchEvent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:104:17[90m)[39m
+The above error occurred in the <ResumeListSheet> component:
+
+    at ResumeListSheet (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\components\applications\ResumeListSheet.tsx:23:28)
+    at div
+    at ApplicationsPage (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\pages\ApplicationsPage.tsx:253:47)
+    at Router (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1207:17)
+    at MemoryRouter (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1101:7)
+    at QueryClientProvider (file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:20:3)
+    at AllProviders (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:26:25)
+    at wrapper (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:56:21)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+The above error occurred in the <SaveJobSheet> component:
+
+    at SaveJobSheet (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\components\applications\SaveJobSheet.tsx:23:25)
+    at div
+    at ApplicationsPage (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\pages\ApplicationsPage.tsx:253:47)
+    at Router (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1207:17)
+    at MemoryRouter (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1101:7)
+    at QueryClientProvider (file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:20:3)
+    at AllProviders (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:26:25)
+    at wrapper (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:56:21)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+
+ [31m×[39m src/pages/__tests__/ApplicationsTracker-D9.test.tsx[2m > [22mApplicationsTracker (D9) — status transitions[2m > [22mrenders the applications page without crashing[32m 96[2mms[22m[39m
+[31m   → [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+[39m
+[90mstderr[2m | src/pages/__tests__/ApplicationsAnalytics-D9.test.tsx[2m > [22m[2mApplicationsAnalytics (D9) — stats display[2m > [22m[2mrenders without crashing with 10 applications
+[22m[39mError: Uncaught [Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:284:17[90m)[39m
+    at Object.useSetMasterCV [as get] [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:330:16[90m)[39m
+    at ResumeListSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\ResumeListSheet.tsx:36:23[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m {
+  codeFrame: [32m'vi\x1B[33m.\x1B[39m\x1B[34mmock\x1B[39m(\x1B[35mimport\x1B[39m(\x1B[32m"@/hooks/useResumes"\x1B[39m)\x1B[33m,\x1B[39m \x1B[35masync\x1B[39m (importOriginal) \x1B[33m=>\x1B[39m {\n'[39m +
+    [32m'  \x1B[35mconst\x1B[39m actual \x1B[33m=\x1B[39m \x1B[35mawait\x1B[39m \x1B[34mimportOriginal\x1B[39m()\n'[39m +
+    [32m'  \x1B[35mreturn\x1B[39m {\n'[39m +
+    [32m'    \x1B[33m...\x1B[39mactual\x1B[33m,\x1B[39m\n'[39m +
+    [32m'    \x1B[90m// your mocked methods\x1B[39m\n'[39m +
+    [32m'  }\n'[39m +
+    [32m'})'[39m
+}
+Error: Uncaught [TypeError: Cannot read properties of undefined (reading 'isPending')]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) TypeError: Cannot read properties of undefined (reading 'isPending')
+    at SaveJobSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\SaveJobSheet.tsx:119:24[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m
+    at HTMLUnknownElementImpl._dispatch [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:233:9[90m)[39m
+    at HTMLUnknownElementImpl.dispatchEvent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:104:17[90m)[39m
+Error: Uncaught [Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:284:17[90m)[39m
+    at Object.useSetMasterCV [as get] [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:330:16[90m)[39m
+    at ResumeListSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\ResumeListSheet.tsx:36:23[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m {
+  codeFrame: [32m'vi\x1B[33m.\x1B[39m\x1B[34mmock\x1B[39m(\x1B[35mimport\x1B[39m(\x1B[32m"@/hooks/useResumes"\x1B[39m)\x1B[33m,\x1B[39m \x1B[35masync\x1B[39m (importOriginal) \x1B[33m=>\x1B[39m {\n'[39m +
+    [32m'  \x1B[35mconst\x1B[39m actual \x1B[33m=\x1B[39m \x1B[35mawait\x1B[39m \x1B[34mimportOriginal\x1B[39m()\n'[39m +
+    [32m'  \x1B[35mreturn\x1B[39m {\n'[39m +
+    [32m'    \x1B[33m...\x1B[39mactual\x1B[33m,\x1B[39m\n'[39m +
+    [32m'    \x1B[90m// your mocked methods\x1B[39m\n'[39m +
+    [32m'  }\n'[39m +
+    [32m'})'[39m
+}
+Error: Uncaught [TypeError: Cannot read properties of undefined (reading 'isPending')]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) TypeError: Cannot read properties of undefined (reading 'isPending')
+    at SaveJobSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\SaveJobSheet.tsx:119:24[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m
+    at HTMLUnknownElementImpl._dispatch [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:233:9[90m)[39m
+    at HTMLUnknownElementImpl.dispatchEvent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:104:17[90m)[39m
+The above error occurred in the <ResumeListSheet> component:
+
+    at ResumeListSheet (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\components\applications\ResumeListSheet.tsx:23:28)
+    at div
+    at ApplicationsPage (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\pages\ApplicationsPage.tsx:253:47)
+    at Router (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1207:17)
+    at MemoryRouter (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1101:7)
+    at QueryClientProvider (file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:20:3)
+    at AllProviders (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:26:25)
+    at wrapper (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:56:21)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+The above error occurred in the <SaveJobSheet> component:
+
+    at SaveJobSheet (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\components\applications\SaveJobSheet.tsx:23:25)
+    at div
+    at ApplicationsPage (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\pages\ApplicationsPage.tsx:253:47)
+    at Router (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1207:17)
+    at MemoryRouter (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1101:7)
+    at QueryClientProvider (file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:20:3)
+    at AllProviders (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:26:25)
+    at wrapper (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:56:21)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+
+[90mstderr[2m | src/pages/__tests__/ApplicationsDeadline-D9.test.tsx[2m > [22m[2mApplicationsDeadline (D9) — overdue indicators[2m > [22m[2mshows the application or page content (not a blank screen)
+[22m[39mError: Uncaught [Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:284:17[90m)[39m
+    at Object.useSetMasterCV [as get] [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:330:16[90m)[39m
+    at ResumeListSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\ResumeListSheet.tsx:36:23[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m {
+  codeFrame: [32m'vi\x1B[33m.\x1B[39m\x1B[34mmock\x1B[39m(\x1B[35mimport\x1B[39m(\x1B[32m"@/hooks/useResumes"\x1B[39m)\x1B[33m,\x1B[39m \x1B[35masync\x1B[39m (importOriginal) \x1B[33m=>\x1B[39m {\n'[39m +
+    [32m'  \x1B[35mconst\x1B[39m actual \x1B[33m=\x1B[39m \x1B[35mawait\x1B[39m \x1B[34mimportOriginal\x1B[39m()\n'[39m +
+    [32m'  \x1B[35mreturn\x1B[39m {\n'[39m +
+    [32m'    \x1B[33m...\x1B[39mactual\x1B[33m,\x1B[39m\n'[39m +
+    [32m'    \x1B[90m// your mocked methods\x1B[39m\n'[39m +
+    [32m'  }\n'[39m +
+    [32m'})'[39m
+}
+Error: Uncaught [TypeError: Cannot read properties of undefined (reading 'isPending')]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) TypeError: Cannot read properties of undefined (reading 'isPending')
+    at SaveJobSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\SaveJobSheet.tsx:119:24[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m
+    at HTMLUnknownElementImpl._dispatch [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:233:9[90m)[39m
+    at HTMLUnknownElementImpl.dispatchEvent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:104:17[90m)[39m
+Error: Uncaught [Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:284:17[90m)[39m
+    at Object.useSetMasterCV [as get] [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:330:16[90m)[39m
+    at ResumeListSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\ResumeListSheet.tsx:36:23[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m {
+  codeFrame: [32m'vi\x1B[33m.\x1B[39m\x1B[34mmock\x1B[39m(\x1B[35mimport\x1B[39m(\x1B[32m"@/hooks/useResumes"\x1B[39m)\x1B[33m,\x1B[39m \x1B[35masync\x1B[39m (importOriginal) \x1B[33m=>\x1B[39m {\n'[39m +
+    [32m'  \x1B[35mconst\x1B[39m actual \x1B[33m=\x1B[39m \x1B[35mawait\x1B[39m \x1B[34mimportOriginal\x1B[39m()\n'[39m +
+    [32m'  \x1B[35mreturn\x1B[39m {\n'[39m +
+    [32m'    \x1B[33m...\x1B[39mactual\x1B[33m,\x1B[39m\n'[39m +
+    [32m'    \x1B[90m// your mocked methods\x1B[39m\n'[39m +
+    [32m'  }\n'[39m +
+    [32m'})'[39m
+}
+Error: Uncaught [TypeError: Cannot read properties of undefined (reading 'isPending')]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) TypeError: Cannot read properties of undefined (reading 'isPending')
+    at SaveJobSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\SaveJobSheet.tsx:119:24[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m
+    at HTMLUnknownElementImpl._dispatch [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:233:9[90m)[39m
+    at HTMLUnknownElementImpl.dispatchEvent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:104:17[90m)[39m
+The above error occurred in the <ResumeListSheet> component:
+
+    at ResumeListSheet (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\components\applications\ResumeListSheet.tsx:23:28)
+    at div
+    at ApplicationsPage (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\pages\ApplicationsPage.tsx:253:47)
+    at Router (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1207:17)
+    at MemoryRouter (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1101:7)
+    at QueryClientProvider (file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:20:3)
+    at AllProviders (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:26:25)
+    at wrapper (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:56:21)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+The above error occurred in the <SaveJobSheet> component:
+
+    at SaveJobSheet (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\components\applications\SaveJobSheet.tsx:23:25)
+    at div
+    at ApplicationsPage (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\pages\ApplicationsPage.tsx:253:47)
+    at Router (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1207:17)
+    at MemoryRouter (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1101:7)
+    at QueryClientProvider (file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:20:3)
+    at AllProviders (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:26:25)
+    at wrapper (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:56:21)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+
+[90mstderr[2m | src/pages/__tests__/ApplicationsTracker-D9.test.tsx[2m > [22m[2mApplicationsTracker (D9) — status transitions[2m > [22m[2mrenders an Add Application button or FAB
+[22m[39mError: Uncaught [Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:284:17[90m)[39m
+    at Object.useSetMasterCV [as get] [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:330:16[90m)[39m
+    at ResumeListSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\ResumeListSheet.tsx:36:23[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m {
+  codeFrame: [32m'vi\x1B[33m.\x1B[39m\x1B[34mmock\x1B[39m(\x1B[35mimport\x1B[39m(\x1B[32m"@/hooks/useResumes"\x1B[39m)\x1B[33m,\x1B[39m \x1B[35masync\x1B[39m (importOriginal) \x1B[33m=>\x1B[39m {\n'[39m +
+    [32m'  \x1B[35mconst\x1B[39m actual \x1B[33m=\x1B[39m \x1B[35mawait\x1B[39m \x1B[34mimportOriginal\x1B[39m()\n'[39m +
+    [32m'  \x1B[35mreturn\x1B[39m {\n'[39m +
+    [32m'    \x1B[33m...\x1B[39mactual\x1B[33m,\x1B[39m\n'[39m +
+    [32m'    \x1B[90m// your mocked methods\x1B[39m\n'[39m +
+    [32m'  }\n'[39m +
+    [32m'})'[39m
+}
+Error: Uncaught [TypeError: Cannot read properties of undefined (reading 'isPending')]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) TypeError: Cannot read properties of undefined (reading 'isPending')
+    at SaveJobSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\SaveJobSheet.tsx:119:24[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m
+    at HTMLUnknownElementImpl._dispatch [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:233:9[90m)[39m
+    at HTMLUnknownElementImpl.dispatchEvent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:104:17[90m)[39m
+Error: Uncaught [Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:284:17[90m)[39m
+    at Object.useSetMasterCV [as get] [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:330:16[90m)[39m
+    at ResumeListSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\ResumeListSheet.tsx:36:23[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m {
+  codeFrame: [32m'vi\x1B[33m.\x1B[39m\x1B[34mmock\x1B[39m(\x1B[35mimport\x1B[39m(\x1B[32m"@/hooks/useResumes"\x1B[39m)\x1B[33m,\x1B[39m \x1B[35masync\x1B[39m (importOriginal) \x1B[33m=>\x1B[39m {\n'[39m +
+    [32m'  \x1B[35mconst\x1B[39m actual \x1B[33m=\x1B[39m \x1B[35mawait\x1B[39m \x1B[34mimportOriginal\x1B[39m()\n'[39m +
+    [32m'  \x1B[35mreturn\x1B[39m {\n'[39m +
+    [32m'    \x1B[33m...\x1B[39mactual\x1B[33m,\x1B[39m\n'[39m +
+    [32m'    \x1B[90m// your mocked methods\x1B[39m\n'[39m +
+    [32m'  }\n'[39m +
+    [32m'})'[39m
+}
+Error: Uncaught [TypeError: Cannot read properties of undefined (reading 'isPending')]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) TypeError: Cannot read properties of undefined (reading 'isPending')
+    at SaveJobSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\SaveJobSheet.tsx:119:24[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m
+    at HTMLUnknownElementImpl._dispatch [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:233:9[90m)[39m
+    at HTMLUnknownElementImpl.dispatchEvent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:104:17[90m)[39m
+The above error occurred in the <ResumeListSheet> component:
+
+    at ResumeListSheet (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\components\applications\ResumeListSheet.tsx:23:28)
+    at div
+    at ApplicationsPage (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\pages\ApplicationsPage.tsx:253:47)
+    at Router (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1207:17)
+    at MemoryRouter (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1101:7)
+    at QueryClientProvider (file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:20:3)
+    at AllProviders (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:26:25)
+    at wrapper (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:56:21)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+The above error occurred in the <SaveJobSheet> component:
+
+    at SaveJobSheet (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\components\applications\SaveJobSheet.tsx:23:25)
+    at div
+    at ApplicationsPage (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\pages\ApplicationsPage.tsx:253:47)
+    at Router (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1207:17)
+    at MemoryRouter (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1101:7)
+    at QueryClientProvider (file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:20:3)
+    at AllProviders (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:26:25)
+    at wrapper (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:56:21)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+
+ [31m×[39m src/pages/__tests__/ApplicationsTracker-D9.test.tsx[2m > [22mApplicationsTracker (D9) — status transitions[2m > [22mshows the tracked application company name[32m 36[2mms[22m[39m
+[31m   → [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+[39m
+ [31m×[39m src/pages/__tests__/ApplicationsTracker-D9.test.tsx[2m > [22mApplicationsTracker (D9) — status transitions[2m > [22mrenders an Add Application button or FAB[32m 34[2mms[22m[39m
+[31m   → [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+[39m
+[90mstderr[2m | src/pages/__tests__/ApplicationsDeadline-D9.test.tsx[2m > [22m[2mApplicationsDeadline (D9) — overdue indicators[2m > [22m[2mrenders the tracked application entry
+[22m[39mError: Uncaught [Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:284:17[90m)[39m
+    at Object.useSetMasterCV [as get] [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:330:16[90m)[39m
+    at ResumeListSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\ResumeListSheet.tsx:36:23[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m {
+  codeFrame: [32m'vi\x1B[33m.\x1B[39m\x1B[34mmock\x1B[39m(\x1B[35mimport\x1B[39m(\x1B[32m"@/hooks/useResumes"\x1B[39m)\x1B[33m,\x1B[39m \x1B[35masync\x1B[39m (importOriginal) \x1B[33m=>\x1B[39m {\n'[39m +
+    [32m'  \x1B[35mconst\x1B[39m actual \x1B[33m=\x1B[39m \x1B[35mawait\x1B[39m \x1B[34mimportOriginal\x1B[39m()\n'[39m +
+    [32m'  \x1B[35mreturn\x1B[39m {\n'[39m +
+    [32m'    \x1B[33m...\x1B[39mactual\x1B[33m,\x1B[39m\n'[39m +
+    [32m'    \x1B[90m// your mocked methods\x1B[39m\n'[39m +
+    [32m'  }\n'[39m +
+    [32m'})'[39m
+}
+Error: Uncaught [TypeError: Cannot read properties of undefined (reading 'isPending')]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) TypeError: Cannot read properties of undefined (reading 'isPending')
+    at SaveJobSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\SaveJobSheet.tsx:119:24[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m
+    at HTMLUnknownElementImpl._dispatch [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:233:9[90m)[39m
+    at HTMLUnknownElementImpl.dispatchEvent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:104:17[90m)[39m
+Error: Uncaught [Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:284:17[90m)[39m
+    at Object.useSetMasterCV [as get] [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:330:16[90m)[39m
+    at ResumeListSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\ResumeListSheet.tsx:36:23[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m {
+  codeFrame: [32m'vi\x1B[33m.\x1B[39m\x1B[34mmock\x1B[39m(\x1B[35mimport\x1B[39m(\x1B[32m"@/hooks/useResumes"\x1B[39m)\x1B[33m,\x1B[39m \x1B[35masync\x1B[39m (importOriginal) \x1B[33m=>\x1B[39m {\n'[39m +
+    [32m'  \x1B[35mconst\x1B[39m actual \x1B[33m=\x1B[39m \x1B[35mawait\x1B[39m \x1B[34mimportOriginal\x1B[39m()\n'[39m +
+    [32m'  \x1B[35mreturn\x1B[39m {\n'[39m +
+    [32m'    \x1B[33m...\x1B[39mactual\x1B[33m,\x1B[39m\n'[39m +
+    [32m'    \x1B[90m// your mocked methods\x1B[39m\n'[39m +
+    [32m'  }\n'[39m +
+    [32m'})'[39m
+}
+Error: Uncaught [TypeError: Cannot read properties of undefined (reading 'isPending')]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) TypeError: Cannot read properties of undefined (reading 'isPending')
+    at SaveJobSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\SaveJobSheet.tsx:119:24[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m
+    at HTMLUnknownElementImpl._dispatch [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:233:9[90m)[39m
+    at HTMLUnknownElementImpl.dispatchEvent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:104:17[90m)[39m
+The above error occurred in the <ResumeListSheet> component:
+
+    at ResumeListSheet (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\components\applications\ResumeListSheet.tsx:23:28)
+    at div
+    at ApplicationsPage (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\pages\ApplicationsPage.tsx:253:47)
+    at Router (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1207:17)
+    at MemoryRouter (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1101:7)
+    at QueryClientProvider (file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:20:3)
+    at AllProviders (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:26:25)
+    at wrapper (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:56:21)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+The above error occurred in the <SaveJobSheet> component:
+
+    at SaveJobSheet (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\components\applications\SaveJobSheet.tsx:23:25)
+    at div
+    at ApplicationsPage (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\pages\ApplicationsPage.tsx:253:47)
+    at Router (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1207:17)
+    at MemoryRouter (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1101:7)
+    at QueryClientProvider (file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:20:3)
+    at AllProviders (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:26:25)
+    at wrapper (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:56:21)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+
+ [31m×[39m src/pages/__tests__/ApplicationsDeadline-D9.test.tsx[2m > [22mApplicationsDeadline (D9) — overdue indicators[2m > [22mrenders without crashing with a past-deadline application[32m 107[2mms[22m[39m
+[31m   → [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+[39m
+ [31m×[39m src/pages/__tests__/ApplicationsDeadline-D9.test.tsx[2m > [22mApplicationsDeadline (D9) — overdue indicators[2m > [22mshows the application or page content (not a blank screen)[32m 41[2mms[22m[39m
+[31m   → [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+[39m
+ [31m×[39m src/pages/__tests__/ApplicationsDeadline-D9.test.tsx[2m > [22mApplicationsDeadline (D9) — overdue indicators[2m > [22mrenders the tracked application entry[32m 36[2mms[22m[39m
+[31m   → [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+[39m
+[90mstderr[2m | src/pages/__tests__/ApplicationsAnalytics-D9.test.tsx[2m > [22m[2mApplicationsAnalytics (D9) — stats display[2m > [22m[2mrenders page content (not blank)
+[22m[39mError: Uncaught [Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:284:17[90m)[39m
+    at Object.useSetMasterCV [as get] [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:330:16[90m)[39m
+    at ResumeListSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\ResumeListSheet.tsx:36:23[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m {
+  codeFrame: [32m'vi\x1B[33m.\x1B[39m\x1B[34mmock\x1B[39m(\x1B[35mimport\x1B[39m(\x1B[32m"@/hooks/useResumes"\x1B[39m)\x1B[33m,\x1B[39m \x1B[35masync\x1B[39m (importOriginal) \x1B[33m=>\x1B[39m {\n'[39m +
+    [32m'  \x1B[35mconst\x1B[39m actual \x1B[33m=\x1B[39m \x1B[35mawait\x1B[39m \x1B[34mimportOriginal\x1B[39m()\n'[39m +
+    [32m'  \x1B[35mreturn\x1B[39m {\n'[39m +
+    [32m'    \x1B[33m...\x1B[39mactual\x1B[33m,\x1B[39m\n'[39m +
+    [32m'    \x1B[90m// your mocked methods\x1B[39m\n'[39m +
+    [32m'  }\n'[39m +
+    [32m'})'[39m
+}
+Error: Uncaught [TypeError: Cannot read properties of undefined (reading 'isPending')]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) TypeError: Cannot read properties of undefined (reading 'isPending')
+    at SaveJobSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\SaveJobSheet.tsx:119:24[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m
+    at HTMLUnknownElementImpl._dispatch [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:233:9[90m)[39m
+    at HTMLUnknownElementImpl.dispatchEvent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:104:17[90m)[39m
+Error: Uncaught [Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:284:17[90m)[39m
+    at Object.useSetMasterCV [as get] [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:330:16[90m)[39m
+    at ResumeListSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\ResumeListSheet.tsx:36:23[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m {
+  codeFrame: [32m'vi\x1B[33m.\x1B[39m\x1B[34mmock\x1B[39m(\x1B[35mimport\x1B[39m(\x1B[32m"@/hooks/useResumes"\x1B[39m)\x1B[33m,\x1B[39m \x1B[35masync\x1B[39m (importOriginal) \x1B[33m=>\x1B[39m {\n'[39m +
+    [32m'  \x1B[35mconst\x1B[39m actual \x1B[33m=\x1B[39m \x1B[35mawait\x1B[39m \x1B[34mimportOriginal\x1B[39m()\n'[39m +
+    [32m'  \x1B[35mreturn\x1B[39m {\n'[39m +
+    [32m'    \x1B[33m...\x1B[39mactual\x1B[33m,\x1B[39m\n'[39m +
+    [32m'    \x1B[90m// your mocked methods\x1B[39m\n'[39m +
+    [32m'  }\n'[39m +
+    [32m'})'[39m
+}
+Error: Uncaught [TypeError: Cannot read properties of undefined (reading 'isPending')]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) TypeError: Cannot read properties of undefined (reading 'isPending')
+    at SaveJobSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\SaveJobSheet.tsx:119:24[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m
+    at HTMLUnknownElementImpl._dispatch [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:233:9[90m)[39m
+    at HTMLUnknownElementImpl.dispatchEvent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:104:17[90m)[39m
+The above error occurred in the <ResumeListSheet> component:
+
+    at ResumeListSheet (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\components\applications\ResumeListSheet.tsx:23:28)
+    at div
+    at ApplicationsPage (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\pages\ApplicationsPage.tsx:253:47)
+    at Router (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1207:17)
+    at MemoryRouter (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1101:7)
+    at QueryClientProvider (file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:20:3)
+    at AllProviders (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:26:25)
+    at wrapper (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:56:21)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+The above error occurred in the <SaveJobSheet> component:
+
+    at SaveJobSheet (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\components\applications\SaveJobSheet.tsx:23:25)
+    at div
+    at ApplicationsPage (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\pages\ApplicationsPage.tsx:253:47)
+    at Router (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1207:17)
+    at MemoryRouter (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1101:7)
+    at QueryClientProvider (file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:20:3)
+    at AllProviders (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:26:25)
+    at wrapper (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:56:21)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+
+[90mstderr[2m | src/pages/__tests__/ApplicationsAnalytics-D9.test.tsx[2m > [22m[2mApplicationsAnalytics (D9) — stats display[2m > [22m[2mrenders some UI even with mixed application statuses
+[22m[39mError: Uncaught [Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:284:17[90m)[39m
+    at Object.useSetMasterCV [as get] [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:330:16[90m)[39m
+    at ResumeListSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\ResumeListSheet.tsx:36:23[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m {
+  codeFrame: [32m'vi\x1B[33m.\x1B[39m\x1B[34mmock\x1B[39m(\x1B[35mimport\x1B[39m(\x1B[32m"@/hooks/useResumes"\x1B[39m)\x1B[33m,\x1B[39m \x1B[35masync\x1B[39m (importOriginal) \x1B[33m=>\x1B[39m {\n'[39m +
+    [32m'  \x1B[35mconst\x1B[39m actual \x1B[33m=\x1B[39m \x1B[35mawait\x1B[39m \x1B[34mimportOriginal\x1B[39m()\n'[39m +
+    [32m'  \x1B[35mreturn\x1B[39m {\n'[39m +
+    [32m'    \x1B[33m...\x1B[39mactual\x1B[33m,\x1B[39m\n'[39m +
+    [32m'    \x1B[90m// your mocked methods\x1B[39m\n'[39m +
+    [32m'  }\n'[39m +
+    [32m'})'[39m
+}
+Error: Uncaught [TypeError: Cannot read properties of undefined (reading 'isPending')]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) TypeError: Cannot read properties of undefined (reading 'isPending')
+    at SaveJobSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\SaveJobSheet.tsx:119:24[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m
+    at HTMLUnknownElementImpl._dispatch [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:233:9[90m)[39m
+    at HTMLUnknownElementImpl.dispatchEvent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:104:17[90m)[39m
+Error: Uncaught [Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) Error: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+    at VitestMocker.createError [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:284:17[90m)[39m
+    at Object.useSetMasterCV [as get] [90m(file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/[39mnode_modules/[4mvitest[24m/dist/chunks/execute.B7h3T_Hc.js:330:16[90m)[39m
+    at ResumeListSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\ResumeListSheet.tsx:36:23[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m {
+  codeFrame: [32m'vi\x1B[33m.\x1B[39m\x1B[34mmock\x1B[39m(\x1B[35mimport\x1B[39m(\x1B[32m"@/hooks/useResumes"\x1B[39m)\x1B[33m,\x1B[39m \x1B[35masync\x1B[39m (importOriginal) \x1B[33m=>\x1B[39m {\n'[39m +
+    [32m'  \x1B[35mconst\x1B[39m actual \x1B[33m=\x1B[39m \x1B[35mawait\x1B[39m \x1B[34mimportOriginal\x1B[39m()\n'[39m +
+    [32m'  \x1B[35mreturn\x1B[39m {\n'[39m +
+    [32m'    \x1B[33m...\x1B[39mactual\x1B[33m,\x1B[39m\n'[39m +
+    [32m'    \x1B[90m// your mocked methods\x1B[39m\n'[39m +
+    [32m'  }\n'[39m +
+    [32m'})'[39m
+}
+Error: Uncaught [TypeError: Cannot read properties of undefined (reading 'isPending')]
+    at reportException (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:66:24)
+    at innerInvokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:353:9)
+    at invokeEventListeners (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:286:3)
+    at HTMLUnknownElementImpl._dispatch (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:233:9)
+    at HTMLUnknownElementImpl.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:104:17)
+    at HTMLUnknownElement.dispatchEvent (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\jsdom\lib\jsdom\living\generated\EventTarget.js:241:34)
+    at Object.invokeGuardedCallbackDev (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4213:16)
+    at invokeGuardedCallback (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+    at beginWork$1 (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:27490:7)
+    at performUnitOfWork (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-dom\cjs\react-dom.development.js:26599:12) TypeError: Cannot read properties of undefined (reading 'isPending')
+    at SaveJobSheet [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39msrc\components\applications\SaveJobSheet.tsx:119:24[90m)[39m
+    at renderWithHooks [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:15486:18[90m)[39m
+    at mountIndeterminateComponent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:20103:13[90m)[39m
+    at beginWork [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:21626:16[90m)[39m
+    at HTMLUnknownElement.callCallback [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mreact-dom[24m\cjs\react-dom.development.js:4164:14[90m)[39m
+    at HTMLUnknownElement.callTheUserObjectsOperation [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\generated\EventListener.js:26:30[90m)[39m
+    at innerInvokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:350:25[90m)[39m
+    at invokeEventListeners [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:286:3[90m)[39m
+    at HTMLUnknownElementImpl._dispatch [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:233:9[90m)[39m
+    at HTMLUnknownElementImpl.dispatchEvent [90m(M:\Repo\wiseresume-74945019\wiseresume-74945019\[39mnode_modules\[4mjsdom[24m\lib\jsdom\living\events\EventTarget-impl.js:104:17[90m)[39m
+The above error occurred in the <ResumeListSheet> component:
+
+    at ResumeListSheet (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\components\applications\ResumeListSheet.tsx:23:28)
+    at div
+    at ApplicationsPage (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\pages\ApplicationsPage.tsx:253:47)
+    at Router (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1207:17)
+    at MemoryRouter (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1101:7)
+    at QueryClientProvider (file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:20:3)
+    at AllProviders (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:26:25)
+    at wrapper (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:56:21)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+The above error occurred in the <SaveJobSheet> component:
+
+    at SaveJobSheet (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\components\applications\SaveJobSheet.tsx:23:25)
+    at div
+    at ApplicationsPage (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\pages\ApplicationsPage.tsx:253:47)
+    at Router (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1207:17)
+    at MemoryRouter (M:\Repo\wiseresume-74945019\wiseresume-74945019\node_modules\react-router\dist\umd\react-router.development.js:1101:7)
+    at QueryClientProvider (file:///M:/Repo/wiseresume-74945019/wiseresume-74945019/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js:20:3)
+    at AllProviders (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:26:25)
+    at wrapper (M:\Repo\wiseresume-74945019\wiseresume-74945019\src\test\renderWithProviders.tsx:56:21)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+
+ [31m×[39m src/pages/__tests__/ApplicationsAnalytics-D9.test.tsx[2m > [22mApplicationsAnalytics (D9) — stats display[2m > [22mrenders without crashing with 10 applications[32m 140[2mms[22m[39m
+[31m   → [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+[39m
+ [31m×[39m src/pages/__tests__/ApplicationsAnalytics-D9.test.tsx[2m > [22mApplicationsAnalytics (D9) — stats display[2m > [22mrenders page content (not blank)[32m 93[2mms[22m[39m
+[31m   → [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+[39m
+ [31m×[39m src/pages/__tests__/ApplicationsAnalytics-D9.test.tsx[2m > [22mApplicationsAnalytics (D9) — stats display[2m > [22mrenders some UI even with mixed application statuses[32m 70[2mms[22m[39m
+[31m   → [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 9 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/pages/__tests__/ApplicationsAnalytics-D9.test.tsx[2m > [22mApplicationsAnalytics (D9) — stats display[2m > [22mrenders without crashing with 10 applications
+[41m[1m FAIL [22m[49m src/pages/__tests__/ApplicationsAnalytics-D9.test.tsx[2m > [22mApplicationsAnalytics (D9) — stats display[2m > [22mrenders page content (not blank)
+[41m[1m FAIL [22m[49m src/pages/__tests__/ApplicationsAnalytics-D9.test.tsx[2m > [22mApplicationsAnalytics (D9) — stats display[2m > [22mrenders some UI even with mixed application statuses
+[41m[1m FAIL [22m[49m src/pages/__tests__/ApplicationsDeadline-D9.test.tsx[2m > [22mApplicationsDeadline (D9) — overdue indicators[2m > [22mrenders without crashing with a past-deadline application
+[41m[1m FAIL [22m[49m src/pages/__tests__/ApplicationsDeadline-D9.test.tsx[2m > [22mApplicationsDeadline (D9) — overdue indicators[2m > [22mshows the application or page content (not a blank screen)
+[41m[1m FAIL [22m[49m src/pages/__tests__/ApplicationsDeadline-D9.test.tsx[2m > [22mApplicationsDeadline (D9) — overdue indicators[2m > [22mrenders the tracked application entry
+[41m[1m FAIL [22m[49m src/pages/__tests__/ApplicationsTracker-D9.test.tsx[2m > [22mApplicationsTracker (D9) — status transitions[2m > [22mrenders the applications page without crashing
+[41m[1m FAIL [22m[49m src/pages/__tests__/ApplicationsTracker-D9.test.tsx[2m > [22mApplicationsTracker (D9) — status transitions[2m > [22mshows the tracked application company name
+[41m[1m FAIL [22m[49m src/pages/__tests__/ApplicationsTracker-D9.test.tsx[2m > [22mApplicationsTracker (D9) — status transitions[2m > [22mrenders an Add Application button or FAB
+[31m[1mError[22m: [vitest] No "useSetMasterCV" export is defined on the "@/hooks/useResumes" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+[39m
+vi[33m.[39m[34mmock[39m([35mimport[39m([32m"@/hooks/useResumes"[39m)[33m,[39m [35masync[39m (importOriginal) [33m=>[39m {
+  [35mconst[39m actual [33m=[39m [35mawait[39m [34mimportOriginal[39m()
+  [35mreturn[39m {
+    [33m...[39mactual[33m,[39m
+    [90m// your mocked methods[39m
+  }
+})
+
+[36m [2m❯[22m ResumeListSheet src/components/applications/ResumeListSheet.tsx:[2m36:23[22m[39m
+    [90m 34| [39m  [35mconst[39m navigate [33m=[39m [34museNavigate[39m()[33m;[39m
+    [90m 35| [39m  [35mconst[39m { data[33m:[39m resumes [33m=[39m [][33m,[39m isLoading } [33m=[39m [34museResumes[39m()[33m;[39m
+    [90m 36| [39m  [35mconst[39m setMasterCV [33m=[39m [34museSetMasterCV[39m()[33m;[39m
+    [90m   | [39m                      [31m^[39m
+    [90m 37| [39m  [35mconst[39m { duplicateResume } [33m=[39m [34museResumeMutations[39m()[33m;[39m
+    [90m 38| [39m
+[90m [2m❯[22m renderWithHooks node_modules/react-dom/cjs/react-dom.development.js:[2m15486:18[22m[39m
+[90m [2m❯[22m mountIndeterminateComponent node_modules/react-dom/cjs/react-dom.development.js:[2m20103:13[22m[39m
+[90m [2m❯[22m beginWork node_modules/react-dom/cjs/react-dom.development.js:[2m21626:16[22m[39m
+[90m [2m❯[22m beginWork$1 node_modules/react-dom/cjs/react-dom.development.js:[2m27465:14[22m[39m
+[90m [2m❯[22m performUnitOfWork node_modules/react-dom/cjs/react-dom.development.js:[2m26599:12[22m[39m
+[90m [2m❯[22m workLoopSync node_modules/react-dom/cjs/react-dom.development.js:[2m26505:5[22m[39m
+[90m [2m❯[22m renderRootSync node_modules/react-dom/cjs/react-dom.development.js:[2m26473:7[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/9]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m3 failed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[31m9 failed[39m[22m[90m (9)[39m
+[2m   Start at [22m 17:54:47
+[2m   Duration [22m 3.19s[2m (transform 387ms, setup 819ms, collect 3.29s, tests 659ms, environment 1.89s, prepare 1.39s)[22m
+

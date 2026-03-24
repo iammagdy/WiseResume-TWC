@@ -21,7 +21,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
+import { InterviewSkeleton } from '@/components/layout/PageSkeletons';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
@@ -35,7 +35,7 @@ function InterviewPageContent() {
     return () => { activityTracker.setActiveFeature(null); };
   }, []);
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading, supabaseReady } = useAuth();
   const { currentResume } = useResumeStore();
   const hydrated = useResumeStoreHydration();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -247,10 +247,6 @@ function InterviewPageContent() {
     }
   }, [summary, sessionSaved, user, transcript, elapsedSeconds, saveSession, parsedSummary]);
 
-  // Show loading while store hydrates
-  if (!hydrated) {
-    return <PageLoadingSpinner />;
-  }
 
   // Block navigation during an active interview
   const blocker = useBlocker(
@@ -270,6 +266,11 @@ function InterviewPageContent() {
       blocker.reset();
     }
   }, [showEndConfirm, blocker]);
+
+  // Show loading while auth or store hydrates (D-2)
+  if (loading || !supabaseReady || !hydrated) {
+    return <InterviewSkeleton />;
+  }
 
   // Empty state — no resume loaded
   if (!hasValidResume) {
@@ -361,7 +362,11 @@ function InterviewPageContent() {
             voiceGender={voiceGender}
             onVoiceGenderChange={setVoiceGender}
             onStart={handleSetupStart}
-            resumeData={currentResume ? { summary: currentResume.summary ?? undefined, experience: currentResume.experience as any, skills: currentResume.skills as any } : undefined}
+            resumeData={currentResume ? { 
+              summary: currentResume.summary ?? undefined, 
+              experience: currentResume.experience, 
+              skills: currentResume.skills 
+            } : undefined}
           />
         </div>
         <InterviewHistorySheet open={showHistory} onOpenChange={setShowHistory} />

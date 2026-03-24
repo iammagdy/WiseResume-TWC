@@ -48,7 +48,7 @@ vi.mock("@/hooks/useJobApplications", () => ({
 
 vi.mock("@/hooks/useJobs", () => ({
   useJobs: vi.fn(() => ({ data: [], isLoading: false })),
-  useJobMutations: vi.fn(() => ({ create: vi.fn() })),
+  useJobMutations: vi.fn(() => ({ createJob: { isPending: false, mutate: vi.fn() } })),
 }));
 
 vi.mock("@/hooks/useNotifications", () => ({
@@ -78,6 +78,7 @@ vi.mock("@/hooks/useResumes", () => ({
   useResumeMutations: vi.fn(() => ({ createResume: vi.fn(), updateResume: vi.fn(), deleteResume: vi.fn() })),
   dbToResumeData: vi.fn((d: any) => d),
   resumeDataToDb: vi.fn((r: any) => r),
+  useSetMasterCV: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
 
 vi.mock("@/lib/haptics", () => ({
