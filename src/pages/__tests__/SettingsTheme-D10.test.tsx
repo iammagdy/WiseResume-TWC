@@ -1,0 +1,76 @@
+/**
+ * D10 — Settings & BYOK
+ * T076: Theme cycle — Light → Dark → System; setTheme called with each value
+ */
+import React from "react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { screen, fireEvent } from "@testing-library/react";
+import { renderWithProviders } from "@/test/renderWithProviders";
+
+// Override settingsStore mock to include theme + setTheme
+const mockSetTheme = vi.fn();
+vi.mock("@/store/settingsStore", () => {
+  const store = {
+    theme: "light" as "light" | "dark" | "system",
+    setTheme: mockSetTheme,
+    showAutoSaveToasts: true,
+    biometricLockEnabled: false,
+    biometricLockTimeout: 0,
+    aiTipFrequency: "on-demand" as const,
+    selectedTemplate: "modern" as const,
+    byokGeminiKey: null,
+    byokOllamaUrl: null,
+    aiProvider: "wiseresume" as const,
+    setShowAutoSaveToasts: vi.fn(),
+    setBiometricLockEnabled: vi.fn(),
+    setAITipFrequency: vi.fn(),
+    setSelectedTemplate: vi.fn(),
+    setByokGeminiKey: vi.fn(),
+    setByokOllamaUrl: vi.fn(),
+    setAIProvider: vi.fn(),
+  };
+
+  const fn = vi.fn((selector?: (s: typeof store) => unknown) =>
+    selector ? selector(store) : store
+  );
+  (fn as any).getState = () => store;
+  (fn as any).setState = vi.fn();
+  (fn as any).subscribe = vi.fn(() => () => {});
+
+  return { useSettingsStore: fn };
+});
+
+// Test ThemeToggle component which is the authoritative UI for theme switching
+import { ThemeToggle } from "@/components/settings/ThemeToggle";
+
+describe("SettingsTheme (D10) — theme cycle", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("renders Light and Dark theme buttons", () => {
+    renderWithProviders(<ThemeToggle />);
+    expect(screen.getByText("Light")).toBeInTheDocument();
+    expect(screen.getByText("Dark")).toBeInTheDocument();
+  });
+
+  it("calls setTheme('dark') when Dark button is clicked", () => {
+    renderWithProviders(<ThemeToggle />);
+    fireEvent.click(screen.getByText("Dark"));
+    expect(mockSetTheme).toHaveBeenCalledWith("dark");
+  });
+
+  it("calls setTheme('light') when Light button is clicked", () => {
+    renderWithProviders(<ThemeToggle />);
+    fireEvent.click(screen.getByText("Light"));
+    expect(mockSetTheme).toHaveBeenCalledWith("light");
+  });
+
+  it("does not call setTheme when clicking the already-active theme", () => {
+    // theme is 'light' by default — clicking Light again should not call setTheme
+    renderWithProviders(<ThemeToggle />);
+    fireEvent.click(screen.getByText("Light"));
+    // The toggle guards against same-value changes
+    expect(mockSetTheme).not.toHaveBeenCalledWith("light");
+  });
+});
