@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
       if (action === 'get') {
         const { data, error } = await supabase
           .from('user_api_keys')
-          .select('provider, key_tier, model, created_at, updated_at')
+          .select('provider, key_tier, base_url, model, created_at, updated_at')
           .eq('user_id', userId);
 
         if (error) throw error;
@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
       }
 
       // ===== SAVE (default): upsert a provider's key =====
-      const { provider, apiKey, keyTier, baseUrl, model } = body;
+      const { provider, apiKey, keyTier, tier, baseUrl, base_url, model } = body;
       if (!provider || !apiKey) {
         return new Response(JSON.stringify({ error: 'provider and apiKey are required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
@@ -97,8 +97,20 @@ Deno.serve(async (req) => {
         user_id: userId,
         provider,
         encrypted_key: encryptedKey,
-        key_tier: keyTier || 'unknown',
+        key_tier: keyTier || tier || 'unknown',
       };
+      if (provider === 'ollama') {
+        const resolvedBaseUrl = typeof baseUrl === 'string' ? baseUrl : base_url;
+        upsertData.base_url = typeof resolvedBaseUrl === 'string' && resolvedBaseUrl.trim() ? resolvedBaseUrl.trim() : null;
+        upsertData.model = typeof model === 'string' && model.trim() ? model.trim() : null;
+      } else if (provider === 'gemini') {
+        // Keep selected Gemini model persisted for future calls/preferences
+        upsertData.base_url = null;
+        upsertData.model = typeof model === 'string' && model.trim() ? model.trim() : null;
+      } else {
+        upsertData.base_url = null;
+        upsertData.model = null;
+      }
 
       const { error } = await supabase
         .from('user_api_keys')
@@ -112,7 +124,7 @@ Deno.serve(async (req) => {
     if (req.method === 'GET') {
       const { data, error } = await supabase
         .from('user_api_keys')
-        .select('provider, key_tier, model, created_at, updated_at')
+        .select('provider, key_tier, base_url, model, created_at, updated_at')
         .eq('user_id', userId);
 
       if (error) throw error;

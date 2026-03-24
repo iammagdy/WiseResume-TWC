@@ -155,14 +155,14 @@ export async function getUserKeyAndUrlFromDB(userId: string, provider: string): 
 
     const { data, error } = await supabase
       .from('user_api_keys')
-      .select('encrypted_key')
+      .select('encrypted_key, base_url, model')
       .eq('user_id', userId)
       .eq('provider', provider)
       .maybeSingle();
 
     if (error || !data?.encrypted_key) return undefined;
     const key = await decryptKey(data.encrypted_key);
-    return { key, baseUrl: null, model: null };
+    return { key, baseUrl: data.base_url ?? null, model: data.model ?? null };
   } catch (err) {
     console.warn('[aiClient] Failed to fetch user key from DB:', err);
     return undefined;
