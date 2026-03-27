@@ -2,9 +2,8 @@
  * ┌──────────────────────────────────────────────────────────┐
  * │  SINGLE-PROJECT ARCHITECTURE                             │
  * │                                                          │
- * │  Project:  jnsfmkzgxsviuthaqlyy                         │
- * │  URL: https://jnsfmkzgxsviuthaqlyy.supabase.co          │
  * │  Purpose: Database, RLS, Edge Functions — everything     │
+ * │  Configure via VITE_SUPABASE_URL env var                 │
  * └──────────────────────────────────────────────────────────┘
  */
 const envUrl = import.meta.env.VITE_SUPABASE_URL;
