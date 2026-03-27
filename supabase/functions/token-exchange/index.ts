@@ -35,7 +35,8 @@ async function getKindeJWKS(): Promise<jose.JSONWebKeySet> {
   if (cachedJWKS && Date.now() - jwksCachedAt < JWKS_CACHE_MS) {
     return cachedJWKS;
   }
-  const kindeDomain = Deno.env.get('KINDE_DOMAIN') || 'https://thewisecloud.kinde.com';
+  const kindeDomain = Deno.env.get('KINDE_DOMAIN');
+  if (!kindeDomain) throw new Error('KINDE_DOMAIN env var is required');
   const res = await fetch(`${kindeDomain}/.well-known/jwks`);
   if (!res.ok) throw new Error(`Failed to fetch JWKS: ${res.status}`);
   cachedJWKS = await res.json();
@@ -97,7 +98,8 @@ serve(async (req) => {
     const jwks = await getKindeJWKS();
     const keySet = jose.createLocalJWKSet(jwks);
 
-    const kindeDomain = Deno.env.get('KINDE_DOMAIN') || 'https://thewisecloud.kinde.com';
+    const kindeDomain = Deno.env.get('KINDE_DOMAIN');
+    if (!kindeDomain) throw new Error('KINDE_DOMAIN env var is required');
     let payload: jose.JWTPayload;
     try {
       const result = await jose.jwtVerify(kindeToken, keySet, {
