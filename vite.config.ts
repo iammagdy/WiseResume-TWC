@@ -8,14 +8,9 @@ import { VitePWA } from "vite-plugin-pwa";
 export default defineConfig(({ mode }) => ({
   base: '/',
   server: {
-    host: "::",
-    port: 3000,
-    allowedHosts: [
-      'app-deploy-test-2.cluster-5.preview.emergentcf.cloud',
-      '.preview.emergentcf.cloud',
-      '.preview.emergentagent.com',
-      'localhost'
-    ],
+    host: "0.0.0.0",
+    port: 5000,
+    allowedHosts: true,
     hmr: {
       overlay: false,
     },
