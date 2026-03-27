@@ -35,7 +35,8 @@ async function getKindeJWKS(): Promise<jose.JSONWebKeySet> {
   if (cachedJWKS && Date.now() - jwksCachedAt < JWKS_CACHE_MS) {
     return cachedJWKS;
   }
-  const res = await fetch('https://thewisecloud.kinde.com/.well-known/jwks');
+  const kindeDomain = Deno.env.get('KINDE_DOMAIN') || 'https://thewisecloud.kinde.com';
+  const res = await fetch(`${kindeDomain}/.well-known/jwks`);
   if (!res.ok) throw new Error(`Failed to fetch JWKS: ${res.status}`);
   cachedJWKS = await res.json();
   jwksCachedAt = Date.now();
@@ -96,10 +97,11 @@ serve(async (req) => {
     const jwks = await getKindeJWKS();
     const keySet = jose.createLocalJWKSet(jwks);
 
+    const kindeDomain = Deno.env.get('KINDE_DOMAIN') || 'https://thewisecloud.kinde.com';
     let payload: jose.JWTPayload;
     try {
       const result = await jose.jwtVerify(kindeToken, keySet, {
-        issuer: 'https://thewisecloud.kinde.com',
+        issuer: kindeDomain,
       });
       payload = result.payload;
     } catch (verifyErr) {

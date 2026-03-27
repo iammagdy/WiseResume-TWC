@@ -16,13 +16,18 @@ export default function AuthCallbackPage() {
     }
   }, [isLoading, isAuthenticated]);
 
-  // Safety net: if Kinde never resolves, force redirect after 8s
+  // Safety net: if Kinde never resolves, redirect after 8s.
+  // Send to dashboard only if authenticated, otherwise back to login.
   useEffect(() => {
     const timer = setTimeout(() => {
-      window.location.replace('/dashboard');
+      if (isAuthenticated) {
+        window.location.replace('/dashboard');
+      } else {
+        window.location.replace('/auth?mode=login');
+      }
     }, 8000);
     return () => clearTimeout(timer);
-  }, []);
+  }, [isAuthenticated]);
 
   return (
     <div style={{

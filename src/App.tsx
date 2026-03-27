@@ -304,8 +304,8 @@ const App = () => {
             <Toaster />
              <BrowserRouter>
                <KindeProvider
-              clientId="629174acb2874e6bbf53cd4a95497425"
-              domain="https://thewisecloud.kinde.com"
+              clientId={import.meta.env.VITE_KINDE_CLIENT_ID}
+              domain={import.meta.env.VITE_KINDE_DOMAIN}
               redirectUri={window.location.origin + '/auth/callback'}
               logoutUri={window.location.origin}>
               
