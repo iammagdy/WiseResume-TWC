@@ -1,18 +1,25 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import { AppIcon } from '@/components/brand/AppIcon';
 
+const shimmerKeyframes = `
+  @keyframes wr-shimmer {
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+  }
+`;
+
 function AnimatedDots() {
   return (
     <div className="flex items-center gap-[6px]">
       {[0, 1, 2].map((i) => (
         <motion.span
           key={i}
-          className="block w-[5px] h-[5px] rounded-full bg-primary/70"
+          className="block w-[6px] h-[6px] rounded-full bg-primary/70"
           animate={{ opacity: [0.2, 1, 0.2], y: [0, -5, 0] }}
           transition={{
             duration: 0.9,
             repeat: Infinity,
-            delay: i * 0.16,
+            delay: i * 0.18,
             ease: 'easeInOut',
           }}
         />
@@ -35,6 +42,9 @@ export function PageLoadingSpinner() {
 
   return (
     <div className="fixed inset-0 bg-background flex flex-col items-center justify-center gap-8">
+      <style>{shimmerKeyframes}</style>
+
+      {/* Arc ring + logo */}
       <div className="relative w-28 h-28 flex items-center justify-center">
 
         {/* Ambient glow — breathes slowly behind the logo */}
@@ -94,11 +104,17 @@ export function PageLoadingSpinner() {
         transition={{ duration: 0.45, delay: 0.25, ease: 'easeOut' }}
       >
         <span
-          className="text-[15px] font-semibold tracking-widest bg-clip-text text-transparent"
           style={{
+            fontSize: 14,
+            fontWeight: 700,
+            letterSpacing: '0.22em',
             backgroundImage:
-              'linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary) / 0.65), hsl(var(--primary)))',
+              'linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary) / 0.55), hsl(var(--primary)))',
             backgroundSize: '200% auto',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            animation: 'wr-shimmer 2.5s linear infinite',
           }}
         >
           WISERESUME
