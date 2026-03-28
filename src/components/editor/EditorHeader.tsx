@@ -1,4 +1,4 @@
-import { ArrowLeft, MessageSquare, LayoutGrid, Palette, PanelLeftClose, PanelLeft, Clock, Undo2, Redo2 } from 'lucide-react';
+import { ArrowLeft, MessageSquare, LayoutGrid, Palette, PanelLeftClose, PanelLeft, Clock, Undo2, Redo2, Download, Loader2 } from 'lucide-react';
 import { OfflineIndicator } from '@/components/editor/OfflineIndicator';
 import { cn } from '@/lib/utils';
 import haptics from '@/lib/haptics';
@@ -14,6 +14,7 @@ export interface EditorHeaderProps {
   currentResumeId: string | null;
   showPreview: boolean;
   templateBtnSeen: boolean;
+  isQuickDownloading?: boolean;
   onBack: () => void;
   onTitleClick: () => void;
   onUndo: () => void;
@@ -24,6 +25,7 @@ export interface EditorHeaderProps {
   onTogglePreview: () => void;
   onOpenChat: () => void;
   onTemplateBtnSeen: () => void;
+  onDownload: () => void;
 }
 
 export function EditorHeader({
@@ -37,6 +39,7 @@ export function EditorHeader({
   currentResumeId,
   showPreview,
   templateBtnSeen,
+  isQuickDownloading = false,
   onBack,
   onTitleClick,
   onUndo,
@@ -47,6 +50,7 @@ export function EditorHeader({
   onTogglePreview,
   onOpenChat,
   onTemplateBtnSeen,
+  onDownload,
 }: EditorHeaderProps) {
   return (
     <header className="editor-header shrink-0 sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe transition-all duration-200">
@@ -139,6 +143,16 @@ export function EditorHeader({
             {showPreview ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeft className="w-5 h-5" />}
             <span className="text-[9px] font-medium leading-none">{showPreview ? 'Hide' : 'Live'}</span>
           </button>
+          {/* Download shortcut */}
+          <button
+            onClick={() => { onDownload(); haptics.light(); }}
+            disabled={isQuickDownloading}
+            className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 hover:bg-muted text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="Download resume as PDF"
+          >
+            {isQuickDownloading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
+            <span className="text-[9px] font-medium leading-none">Download</span>
+          </button>
           <button
             onClick={onOpenChat}
             className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 -mr-2 bg-primary/10 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_28px_-4px_hsl(var(--primary)/0.5)] hover:bg-primary/15 active:scale-95"
@@ -161,6 +175,16 @@ export function EditorHeader({
             {!templateBtnSeen && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary animate-[ping_1.5s_ease-out_3]" />}
             <LayoutGrid className={`w-5 h-5 ${templateBtnSeen ? 'text-muted-foreground' : 'text-primary'}`} />
             <span className={`text-[9px] font-medium leading-none ${templateBtnSeen ? 'text-muted-foreground' : 'text-primary'}`}>Template</span>
+          </button>
+          {/* Mobile download button */}
+          <button
+            onClick={() => { haptics.light(); onDownload(); }}
+            disabled={isQuickDownloading}
+            className="rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-muted hover:bg-muted/80 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="Download resume as PDF"
+          >
+            {isQuickDownloading ? <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /> : <Download className="w-5 h-5 text-muted-foreground" />}
+            <span className="text-[9px] font-medium leading-none text-muted-foreground">PDF</span>
           </button>
           <button
             onClick={() => { haptics.light(); onOpenChat(); }}

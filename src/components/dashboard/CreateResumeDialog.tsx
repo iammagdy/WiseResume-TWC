@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useResumeMutations, DatabaseResume, dbToResumeData } from '@/hooks/useResumes';
 import haptics from '@/lib/haptics';
 import { useResumeStore } from '@/store/resumeStore';
@@ -38,6 +39,15 @@ interface CreateResumeDialogProps {
 }
 
 type CreateMode = 'blank' | 'upload' | 'duplicate' | 'tailored';
+type ExperienceLevel = 'student' | 'early' | 'mid' | 'senior' | 'career-change';
+
+const EXPERIENCE_LEVELS: { value: ExperienceLevel; label: string; description: string }[] = [
+  { value: 'student', label: 'Student', description: 'Currently in school or recently graduated' },
+  { value: 'early', label: 'Early Career', description: '0–3 years of professional experience' },
+  { value: 'mid', label: 'Mid-Level', description: '3–8 years of professional experience' },
+  { value: 'senior', label: 'Senior', description: '8+ years or leadership/specialist role' },
+  { value: 'career-change', label: 'Career Change', description: 'Transitioning to a new field' },
+];
 
 export function CreateResumeDialog({
   open,
@@ -57,6 +67,16 @@ export function CreateResumeDialog({
   const [selectedResumeId, setSelectedResumeId] = useState<string>('');
   const [isCreating, setIsCreating] = useState(false);
 
+  // Guided intake state for "Start from Scratch"
+  const [blankStep, setBlankStep] = useState<'intake' | 'title'>('intake');
+  const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel | ''>('');
+  const [intakeJobTitle, setIntakeJobTitle] = useState('');
+
+  // Tailored form extra fields
+  const [tailoredJobTitle, setTailoredJobTitle] = useState('');
+  const [tailoredCompany, setTailoredCompany] = useState('');
+  const [tailoredJobDescription, setTailoredJobDescription] = useState('');
+
   // Auto-set mode to tailored when parentResumeId is provided
   useEffect(() => {
     if (parentResumeId && open) {
@@ -64,6 +84,8 @@ export function CreateResumeDialog({
       const parentResume = existingResumes.find(r => r.id === parentResumeId);
       if (parentResume) {
         setTitle(`${parentResume.title} - Tailored`);
+        setTailoredJobTitle(parentResume.target_job_title || '');
+        setTailoredCompany(parentResume.target_company || '');
       }
     }
   }, [parentResumeId, open, existingResumes]);
@@ -86,7 +108,11 @@ export function CreateResumeDialog({
         templateId: defaultTemplateId || 'modern',
       });
       onOpenChange(false);
-      navigate('/editor');
+      // Pass intake params so EditorPage can apply section ordering and queue summary stub
+      const guestParams = new URLSearchParams();
+      guestParams.set('experienceLevel', experienceLevel || 'mid');
+      if (intakeJobTitle.trim()) guestParams.set('intakeJobTitle', intakeJobTitle.trim());
+      navigate(`/editor?${guestParams.toString()}`);
       return;
     }
 
@@ -110,6 +136,17 @@ export function CreateResumeDialog({
         },
         title: title.trim(),
       });
+
+      // Persist target job title and experience level via customization JSON column
+      if (intakeJobTitle.trim() || experienceLevel) {
+        await supabase
+          .from('resumes')
+          .update({
+            target_job_title: intakeJobTitle.trim() || null,
+            customization: { experienceLevel: experienceLevel || null },
+          })
+          .eq('id', newResume.id);
+      }
       
       setCurrentResumeId(newResume.id);
       setCurrentResume({
@@ -124,7 +161,11 @@ export function CreateResumeDialog({
       });
       
       onOpenChange(false);
-      navigate('/editor');
+      // Navigate with experience level so the editor can reorder sections
+      const params = new URLSearchParams();
+      params.set('experienceLevel', experienceLevel || 'mid');
+      if (intakeJobTitle.trim()) params.set('intakeJobTitle', intakeJobTitle.trim());
+      navigate(`/editor?${params.toString()}`);
     } catch (error) {
       console.error(error);
     } finally {
@@ -180,7 +221,13 @@ export function CreateResumeDialog({
     
     setIsCreating(true);
     try {
-      // Create a copy with parent_resume_id set
+      // Create a copy with parent_resume_id set, including new job-targeting fields
+      // Build customization payload storing job description for persistence
+      const customizationData: Record<string, unknown> = {};
+      if (tailoredJobDescription.trim()) {
+        customizationData.jobDescription = tailoredJobDescription.trim();
+      }
+
       const { data: newResume, error } = await supabase
         .from('resumes')
         .insert({
@@ -193,15 +240,21 @@ export function CreateResumeDialog({
           skills: parentResume.skills as unknown as Json,
           certifications: parentResume.certifications as unknown as Json,
           template_id: parentResume.template_id,
-          target_job_title: parentResume.target_job_title,
-          target_company: parentResume.target_company,
+          target_job_title: tailoredJobTitle.trim() || parentResume.target_job_title || null,
+          target_company: tailoredCompany.trim() || parentResume.target_company || null,
           parent_resume_id: parentResumeId,
           is_primary: false,
+          customization: Object.keys(customizationData).length > 0 ? customizationData as unknown as Json : null,
         })
         .select()
         .single();
 
       if (error) throw error;
+
+      // If a job description was provided, seed the store so TailorSheet has it pre-filled
+      if (tailoredJobDescription.trim()) {
+        useResumeStore.getState().setJobDescription(tailoredJobDescription.trim());
+      }
 
       setCurrentResumeId(newResume.id);
       setCurrentResume({
@@ -216,7 +269,8 @@ export function CreateResumeDialog({
       });
       
       onOpenChange(false);
-      navigate('/editor');
+      // If job description supplied, open tailor sheet immediately
+      navigate(tailoredJobDescription.trim() ? '/editor?openTailor=1' : '/editor');
     } catch (error) {
       console.error(error);
     } finally {
@@ -228,7 +282,26 @@ export function CreateResumeDialog({
     setMode(null);
     setTitle('');
     setSelectedResumeId('');
+    setBlankStep('intake');
+    setExperienceLevel('');
+    setIntakeJobTitle('');
+    setTailoredJobTitle('');
+    setTailoredCompany('');
+    setTailoredJobDescription('');
     onOpenChange(false);
+  };
+
+  const handleBlankBack = () => {
+    if (blankStep === 'title') {
+      setBlankStep('intake');
+    } else {
+      setMode(null);
+    }
+  };
+
+  const handleIntakeContinue = () => {
+    if (!experienceLevel) return;
+    setBlankStep('title');
   };
 
   return (
@@ -243,7 +316,7 @@ export function CreateResumeDialog({
           <div className="space-y-3 py-4">
             <motion.button
               whileTap={{ scale: 0.98 }}
-              onClick={() => { haptics.light(); setMode('blank'); }}
+              onClick={() => { haptics.light(); setMode('blank'); setBlankStep('intake'); }}
               className="w-full flex items-center gap-4 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 transition-all touch-manipulation"
             >
               <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -288,8 +361,67 @@ export function CreateResumeDialog({
               </motion.button>
             )}
           </div>
-        ) : mode === 'blank' ? (
-          /* Blank Resume Form */
+        ) : mode === 'blank' && blankStep === 'intake' ? (
+          /* Guided Intake Step */
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>What's your experience level?</Label>
+              <div className="space-y-2">
+                {EXPERIENCE_LEVELS.map((level) => (
+                  <button
+                    key={level.value}
+                    onClick={() => setExperienceLevel(level.value)}
+                    className={`w-full flex items-start gap-3 p-3 rounded-lg border text-left transition-all touch-manipulation ${
+                      experienceLevel === level.value
+                        ? 'border-primary bg-primary/5 text-primary'
+                        : 'border-border hover:border-primary/40 hover:bg-muted/50'
+                    }`}
+                  >
+                    <span className={`mt-0.5 w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors ${
+                      experienceLevel === level.value ? 'border-primary' : 'border-muted-foreground/40'
+                    }`}>
+                      {experienceLevel === level.value && (
+                        <span className="w-2 h-2 rounded-full bg-primary block" />
+                      )}
+                    </span>
+                    <div>
+                      <p className="font-medium text-sm">{level.label}</p>
+                      <p className="text-xs text-muted-foreground">{level.description}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="intake-job-title">Target job title <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Input
+                id="intake-job-title"
+                placeholder="e.g., Software Engineer, Product Manager"
+                value={intakeJobTitle}
+                onChange={(e) => setIntakeJobTitle(e.target.value)}
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setMode(null)}
+                className="flex-1"
+              >
+                Back
+              </Button>
+              <Button
+                onClick={handleIntakeContinue}
+                disabled={!experienceLevel}
+                className="flex-1 gradient-primary"
+              >
+                Continue
+              </Button>
+            </div>
+          </div>
+        ) : mode === 'blank' && blankStep === 'title' ? (
+          /* Title Step */
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="title">Resume Title</Label>
@@ -299,6 +431,7 @@ export function CreateResumeDialog({
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 autoFocus
+                onKeyDown={(e) => { if (e.key === 'Enter' && title.trim()) handleStartBlank(); }}
               />
               <p className="text-xs text-muted-foreground">
                 Give your resume a name to identify it later
@@ -308,7 +441,7 @@ export function CreateResumeDialog({
             <div className="flex gap-3">
               <Button
                 variant="outline"
-                onClick={() => setMode(null)}
+                onClick={handleBlankBack}
                 className="flex-1"
               >
                 Back
@@ -385,6 +518,42 @@ export function CreateResumeDialog({
               />
               <p className="text-xs text-muted-foreground">
                 Give this tailored version a descriptive name
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tailored-job-title">Target Job Title</Label>
+              <Input
+                id="tailored-job-title"
+                placeholder="e.g., Senior Software Engineer"
+                value={tailoredJobTitle}
+                onChange={(e) => setTailoredJobTitle(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tailored-company">Target Company</Label>
+              <Input
+                id="tailored-company"
+                placeholder="e.g., Google"
+                value={tailoredCompany}
+                onChange={(e) => setTailoredCompany(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tailored-jd">
+                Job Description <span className="text-muted-foreground font-normal">(optional)</span>
+              </Label>
+              <Textarea
+                id="tailored-jd"
+                placeholder="Paste the job description here to enable AI tailoring..."
+                value={tailoredJobDescription}
+                onChange={(e) => setTailoredJobDescription(e.target.value)}
+                className="min-h-[100px] resize-none text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Adding a job description opens AI tailoring automatically
               </p>
             </div>
 

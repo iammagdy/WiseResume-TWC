@@ -1,4 +1,4 @@
-import { useState, memo } from 'react';
+import { useState, memo, useEffect } from 'react';
 import { TextareaFormField } from '@/components/ui/form-field';
 import { useResumeStore } from '@/store/resumeStore';
 import { FileText, Sparkles, ChevronDown } from 'lucide-react';
@@ -15,6 +15,8 @@ export const SummarySection = memo(function SummarySection() {
   const summary = useResumeStore(state => state.currentResume?.summary);
   const updateResume = useResumeStore(state => state.updateResume);
   const currentResume = useResumeStore(state => state.currentResume);
+  const pendingSummaryGeneration = useResumeStore(state => state.pendingSummaryGeneration);
+  const setPendingSummaryGeneration = useResumeStore(state => state.setPendingSummaryGeneration);
   const [showDialog, setShowDialog] = useState(false);
   const [touched, setTouched] = useState(false);
   const [started, setStarted] = useState(false);
@@ -30,6 +32,26 @@ export const SummarySection = memo(function SummarySection() {
   const { getNudgeForSection, dismissNudge } = useResumeNudges({
     resume: currentResume,
   });
+
+  // Auto-trigger AI summary generation when flagged by guided intake
+  useEffect(() => {
+    if (!pendingSummaryGeneration || !currentResume) return;
+    const isEmpty = !currentResume.summary || currentResume.summary.trim() === '';
+    if (!isEmpty) {
+      // Summary already exists — clear the flag without generating
+      setPendingSummaryGeneration(false);
+      return;
+    }
+    // Queue generation after a short delay to let the editor fully mount
+    const timer = setTimeout(async () => {
+      setPendingSummaryGeneration(false);
+      setStarted(true);
+      const enhanceResult = await enhance('generate' as ActionType, currentResume.summary || '', currentResume);
+      if (enhanceResult) setShowDialog(true);
+    }, 800);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingSummaryGeneration, currentResume?.id]);
 
   if (!currentResume || summary === undefined) return null;
 

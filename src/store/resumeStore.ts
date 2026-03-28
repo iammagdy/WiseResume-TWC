@@ -41,6 +41,11 @@ interface ResumeState {
   pendingTailorSections: TailorSectionId[];
   pendingTailorIntensity: TailorIntensity;
   pendingTailorJobUrl: string | null;
+
+  // Guided intake: signals SummarySection to auto-trigger AI generation on next mount
+  pendingSummaryGeneration: boolean;
+  setPendingSummaryGeneration: (pending: boolean) => void;
+
   setCurrentResume: (resume: ResumeData | null) => void;
   setCurrentResumeId: (id: string | null) => void;
   setIsSaving: (saving: boolean) => void;
@@ -129,6 +134,9 @@ export const useResumeStore = create<ResumeState>()(
       pendingTailorSections: ['summary', 'skills', 'experience', 'education', 'projects', 'certifications'],
       pendingTailorIntensity: 'moderate' as TailorIntensity,
       pendingTailorJobUrl: null,
+      pendingSummaryGeneration: false,
+
+      setPendingSummaryGeneration: (pending) => set({ pendingSummaryGeneration: pending }),
 
       setCurrentResume: (resume) => set({ currentResume: resume }),
       setCurrentResumeId: (id) => set({ currentResumeId: id }),
@@ -355,6 +363,7 @@ export const useResumeStore = create<ResumeState>()(
         pendingTailorSections: ['summary', 'skills', 'experience', 'education', 'projects', 'certifications'],
         pendingTailorIntensity: 'moderate' as TailorIntensity,
         pendingTailorJobUrl: null,
+        pendingSummaryGeneration: false,
       }),
     }),
     {

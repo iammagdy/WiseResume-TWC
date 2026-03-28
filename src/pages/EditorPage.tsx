@@ -163,6 +163,8 @@ export default function EditorPage() {
   const [showContentLibrary, setShowContentLibrary] = useState(false);
   const [showCustomize, setShowCustomize] = useState(false);
   const [activeTab, setActiveTab] = useState('contact');
+  // experience level determines section order: 'student' puts education before experience
+  const [educationFirst, setEducationFirst] = useState(false);
   const [showAIIntro, setShowAIIntro] = useState(false);
   const [showApplyPrompt, setShowApplyPrompt] = useState(false);
   const [lastAppliedJobInfo, setLastAppliedJobInfo] = useState<{ title: string; company: string; resumeId?: string; jobUrl?: string } | null>(null);
@@ -214,6 +216,40 @@ export default function EditorPage() {
       setSearchParams(searchParams, { replace: true });
     }
   }, [searchParams, setSearchParams]);
+
+  // Handle guided intake params: ?experienceLevel= reorders sections; ?intakeJobTitle= queues summary stub
+  useEffect(() => {
+    const level = searchParams.get('experienceLevel');
+    const intakeJobTitle = searchParams.get('intakeJobTitle');
+    if (level) {
+      // Students: education before experience in stepper
+      setEducationFirst(level === 'student');
+      // Navigate to summary and queue AI generation so the stub is produced automatically
+      setActiveTab('summary');
+      // If a job title was provided, seed it as job description context for AI tailoring
+      if (intakeJobTitle) {
+        useResumeStore.getState().setJobDescription(intakeJobTitle);
+      }
+      // Signal SummarySection to auto-trigger AI generation on mount
+      useResumeStore.getState().setPendingSummaryGeneration(true);
+      // Clean params
+      searchParams.delete('experienceLevel');
+      searchParams.delete('intakeJobTitle');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  // Derive section order from persisted customization.experienceLevel when editor opens
+  useEffect(() => {
+    if (!resumeFromDb) return;
+    // Only apply if no URL param already set it (URL param takes precedence on fresh create)
+    const customization = resumeFromDb.customization as Record<string, unknown> | null | undefined;
+    const persistedLevel = customization?.experienceLevel;
+    if (persistedLevel && !searchParams.get('experienceLevel')) {
+      setEducationFirst(persistedLevel === 'student');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resumeFromDb?.id]);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -395,14 +431,23 @@ export default function EditorPage() {
 
 
   // Memoize steps array – dynamically includes optional sections that have data
+  // Education comes before Experience for students; otherwise standard order
   const steps = useMemo(() => {
-    const base = [
-      { id: 'contact', label: 'Contact' },
-      { id: 'summary', label: 'Summary' },
-      { id: 'experience', label: 'Experience' },
-      { id: 'education', label: 'Education' },
-      { id: 'skills', label: 'Skills' },
-    ];
+    const base = educationFirst
+      ? [
+          { id: 'contact', label: 'Contact' },
+          { id: 'summary', label: 'Summary' },
+          { id: 'education', label: 'Education' },
+          { id: 'experience', label: 'Experience' },
+          { id: 'skills', label: 'Skills' },
+        ]
+      : [
+          { id: 'contact', label: 'Contact' },
+          { id: 'summary', label: 'Summary' },
+          { id: 'experience', label: 'Experience' },
+          { id: 'education', label: 'Education' },
+          { id: 'skills', label: 'Skills' },
+        ];
     if (currentResume) {
       const MORE_SECTION_META: Record<string, string> = {
         awards: 'Awards', projects: 'Projects', certifications: 'Certifications',
@@ -418,7 +463,7 @@ export default function EditorPage() {
     }
     base.push({ id: 'more', label: 'More' });
     return base;
-  }, [currentResume]);
+  }, [currentResume, educationFirst]);
 
   // Hook 3: section scores, completion status, celebration toasts, and confetti
   const { sectionScores, overallScore, localHealthScore, sectionStatus, justCompletedStep } = useEditorSectionScores(currentResume);
@@ -589,6 +634,8 @@ export default function EditorPage() {
         onTogglePreview={() => setShowPreview(v => { const next = !v; localStorage.setItem('wr-live-preview', String(next)); return next; })}
         onOpenChat={() => setShowChat(true)}
         onTemplateBtnSeen={() => { if (!templateBtnSeen) { localStorage.setItem('template_btn_seen', 'true'); setTemplateBtnSeen(true); } setShowTemplates(true); }}
+        onDownload={handleQuickDownload}
+        isQuickDownloading={isQuickDownloading}
       />
 
 
