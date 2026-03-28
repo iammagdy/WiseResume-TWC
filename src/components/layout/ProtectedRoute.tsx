@@ -11,7 +11,7 @@ export function ProtectedRoute() {
   // Listen for unexpected session expiry and redirect with reason param
   useEffect(() => {
     const handleSessionExpired = () => {
-      navigate('/auth?reason=session_expired', { replace: true });
+      navigate('/auth?mode=login&reason=session_expired', { replace: true });
     };
     window.addEventListener('app:session-expired', handleSessionExpired);
     return () => window.removeEventListener('app:session-expired', handleSessionExpired);
@@ -28,12 +28,14 @@ export function ProtectedRoute() {
     </div>
   );
   if (!isAuthenticated) {
-    // Preserve intended destination so auth can redirect back
+    // Preserve intended destination so auth can redirect back after login.
+    // Always pass mode=login so AuthPage knows to trigger sign-in (not sign-up)
+    // and does NOT mistake this for a post-signout redirect.
     const intendedPath = location.pathname + location.search;
     const redirectParam = intendedPath !== '/' && intendedPath !== '/dashboard'
-      ? `?redirect=${encodeURIComponent(intendedPath)}`
+      ? `&redirect=${encodeURIComponent(intendedPath)}`
       : '';
-    return <Navigate to={`/auth${redirectParam}`} replace />;
+    return <Navigate to={`/auth?mode=login${redirectParam}`} replace />;
   }
   return <Outlet />;
 }

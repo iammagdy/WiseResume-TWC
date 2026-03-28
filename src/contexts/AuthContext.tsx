@@ -155,12 +155,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearBridge();
     setBridgeReady(false);
     setBridgeFailed(false);
+    useSettingsStore.getState().resetSettings();
     try {
       await kindeLogout();
     } catch (e) {
       console.error('Kinde sign-out failed:', e);
     }
-    useSettingsStore.getState().resetSettings();
+    // Ensure the user lands on the landing page regardless of whether
+    // Kinde's post-logout redirect succeeds (it fails in dev/Replit because
+    // the dev domain is not in Kinde's allowed logout redirect URIs).
+    window.location.replace('/');
   }, [kindeLogout]);
 
   const value = useMemo<AuthContextType>(() => ({
