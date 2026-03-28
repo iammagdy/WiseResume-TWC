@@ -48,29 +48,36 @@ export default function OnboardingPage() {
     
     if (user?.id) {
       try {
-        const updates: Record<string, unknown> = {
+        const payload: Record<string, unknown> = {
+          user_id: user.id,
           onboarding_completed: !skip,
         };
         
         if (!skip) {
-          if (name) updates.full_name = name;
-          if (dob) updates.date_of_birth = dob;
-          if (phone) updates.phone_number = phone;
-          if (referral) updates.referral_source = referral;
+          if (name) payload.full_name = name;
+          if (dob) payload.date_of_birth = dob;
+          if (phone) payload.phone_number = phone;
+          if (referral) payload.referral_source = referral;
           if (role) {
             const selectedRole = ROLE_OPTIONS.find(r => r.id === role);
-            if (selectedRole) updates.career_level = selectedRole.level;
+            if (selectedRole) payload.career_level = selectedRole.level;
           }
         }
         
-        await supabase
+        // upsert instead of update: creates the row if it doesn't exist yet
+        // (new users may not have a profile row when they first hit onboarding)
+        const { error } = await supabase
           .from('profiles')
-          .update(updates)
-          .eq('user_id', user.id);
-        // Invalidate profile cache so dashboard/profile show fresh data
-        queryClient.invalidateQueries({ queryKey: ['profile'] });
+          .upsert(payload as never, { onConflict: 'user_id' });
+
+        if (error) {
+          console.error('[Onboarding] Failed to save profile data:', error);
+        } else {
+          // Invalidate profile cache so dashboard/profile show fresh data
+          queryClient.invalidateQueries({ queryKey: ['profile'] });
+        }
       } catch (err) {
-        console.error('Failed to update onboarding status', err);
+        console.error('[Onboarding] Unexpected error saving onboarding status:', err);
       }
     }
     
