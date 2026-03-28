@@ -2,6 +2,14 @@
 
 Local changelog tracking WiseResume changes.
 
+## 2026-03-28 — v2.5.0
+
+### GITHUB-CONTRIBUTIONS-VISIBILITY
+- **Summary**: Fixed GitHub Projects not appearing in the public portfolio navigation strip and ensured contributions respect the section visibility toggle.
+- **Bug Fix**: Added `section-github` to `navSections` in `PublicPortfolioPage.tsx` so GitHub Projects appear as a nav pill when the user has cached GitHub project data and the section is enabled.
+- **Bug Fix**: `PublicSections.tsx` now checks `profile.portfolioSections?.githubProjects !== false` before rendering the GitHub Projects section, making the visibility toggle in the portfolio editor take effect on the public page.
+- **Version**: Bumped app version from `2.4.0` to `2.5.0`.
+
 ## 2026-03-24
 
 ### PARSING-ATS-AUDIT

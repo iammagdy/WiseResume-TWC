@@ -97,7 +97,8 @@ export const PublicSections = ({
   const hasExperience = validExperience.length > 0;
   const hasCaseStudies = profile.caseStudies && profile.caseStudies.length > 0;
   const hasProjects = resume.projects && resume.projects.length > 0;
-  const hasGithubProjects = profile.githubProjectsCache && profile.githubProjectsCache.length > 0;
+  const hasGithubProjects = profile.githubProjectsCache && profile.githubProjectsCache.length > 0
+    && profile.portfolioSections?.githubProjects !== false;
   const hasServices = profile.services && profile.services.length > 0;
   const hasTestimonials = testimonials.length > 0;
   const hasSkills = allSkills.length > 0;

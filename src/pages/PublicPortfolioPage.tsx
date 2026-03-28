@@ -251,6 +251,7 @@ function PublicPortfolioContent() {
   const navSections: { id: string; label: string }[] = [];
   if (show('experience') && validExperience.length > 0) navSections.push({ id: 'section-experience', label: 'Experience' });
   if (show('projects') && resume.projects?.length > 0) navSections.push({ id: 'section-projects', label: 'Projects' });
+  if (show('githubProjects') && profile.githubProjectsCache?.length > 0) navSections.push({ id: 'section-github', label: 'GitHub' });
   if (show('skills') && resume.skills?.length > 0) navSections.push({ id: 'section-skills', label: 'Skills' });
   if (show('education') && validEducation.length > 0) navSections.push({ id: 'section-education', label: 'Education' });
 
