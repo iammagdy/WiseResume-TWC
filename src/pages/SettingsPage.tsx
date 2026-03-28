@@ -79,7 +79,7 @@ function SectionHeader({ icon: Icon, label, badge }: {icon: React.ElementType;la
 export default function SettingsPage() {
   const navigate = useNavigate();
   const isDark = useIsDark();
-  const { user, loading, supabaseReady, signOut } = useAuth();
+  const { user, loading, supabaseSettled, signOut } = useAuth();
   const { profile, updateProfile } = useProfile(user?.id, user);
   const { data: resumes = [] } = useResumes();
   const { currentResumeId } = useResumeStore();
@@ -273,7 +273,7 @@ export default function SettingsPage() {
   const displayName = profile?.fullName || user?.email || 'User';
 
   // Use standard skeleton for loading (D-2)
-  if (loading || !supabaseReady) return <SettingsSkeleton />;
+  if (loading || !supabaseSettled) return <SettingsSkeleton />;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">

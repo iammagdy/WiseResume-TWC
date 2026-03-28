@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 
 export function ProtectedRoute() {
-  const { isAuthenticated, loading, supabaseReady } = useAuth();
+  const { isAuthenticated, loading, supabaseSettled } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -17,7 +17,7 @@ export function ProtectedRoute() {
     return () => window.removeEventListener('app:session-expired', handleSessionExpired);
   }, [navigate]);
 
-  if (loading || (isAuthenticated && !supabaseReady)) return (
+  if (loading || (isAuthenticated && !supabaseSettled)) return (
     <div className="min-h-[100dvh] bg-transparent p-4 space-y-4 animate-pulse">
       <div className="h-10 w-32 rounded-lg bg-muted" />
       <div className="h-6 w-48 rounded bg-muted" />

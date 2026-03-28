@@ -35,7 +35,7 @@ function InterviewPageContent() {
     return () => { activityTracker.setActiveFeature(null); };
   }, []);
   const navigate = useNavigate();
-  const { user, loading, supabaseReady } = useAuth();
+  const { user, loading, supabaseReady, supabaseSettled } = useAuth();
   const { currentResume } = useResumeStore();
   const hydrated = useResumeStoreHydration();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -268,7 +268,7 @@ function InterviewPageContent() {
   }, [showEndConfirm, blocker]);
 
   // Show loading while auth or store hydrates (D-2)
-  if (loading || !supabaseReady || !hydrated) {
+  if (loading || !supabaseSettled || !hydrated) {
     return <InterviewSkeleton />;
   }
 
