@@ -18,6 +18,13 @@ export interface AuthContextType {
   isAuthenticated: boolean;
   /** Whether the Supabase token bridge is ready (data queries will work) */
   supabaseReady: boolean;
+  /**
+   * True once the bridge exchange has resolved — either successfully
+   * (supabaseReady=true) or with a definitive failure (supabaseReady=false).
+   * Use this instead of supabaseReady to unblock UI that should show even
+   * when Supabase is unavailable (e.g. dev environments without the bridge).
+   */
+  supabaseSettled: boolean;
   /** Raw Kinde user object for advanced usage */
   kindeUser: ReturnType<typeof useKindeAuth>['user'];
   /** Get the current Kinde access token */
@@ -48,6 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const [splashHidden, setSplashHidden] = useState(false);
   const [bridgeReady, setBridgeReady] = useState(false);
+  const [bridgeFailed, setBridgeFailed] = useState(false);
 
   const loading = kindeLoading;
   const isAuthenticated = kindeAuthenticated;
@@ -92,12 +100,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         await exchangeToken(kindeToken);
         if (!cancelled) {
-          setBridgeReady(isReady());
-          // Register the getter so the bridge can auto-refresh
-          setKindeTokenGetter(getKindeToken);
+          const ready = isReady();
+          setBridgeReady(ready);
+          if (ready) {
+            // Register the getter so the bridge can auto-refresh
+            setKindeTokenGetter(getKindeToken);
+          } else {
+            // Exchange resolved but produced no token — definitively failed
+            console.warn('[AuthContext] Bridge settled with no token — degraded mode (UI will still show)');
+            setBridgeFailed(true);
+          }
         }
       } catch (err) {
         console.error('[AuthContext] Bridge exchange failed:', err);
+        if (!cancelled) setBridgeFailed(true);
       }
     })();
 
@@ -138,6 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     logAudit('auth', 'signed_out');
     clearBridge();
     setBridgeReady(false);
+    setBridgeFailed(false);
     try {
       await kindeLogout();
     } catch (e) {
@@ -152,9 +169,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut,
     isAuthenticated,
     supabaseReady: bridgeReady,
+    supabaseSettled: bridgeReady || bridgeFailed,
     kindeUser: kindeUser ?? null,
     getKindeToken,
-  }), [user, loading, signOut, isAuthenticated, bridgeReady, kindeUser, getKindeToken]);
+  }), [user, loading, signOut, isAuthenticated, bridgeReady, bridgeFailed, kindeUser, getKindeToken]);
 
   return (
     <AuthContext.Provider value={value}>
