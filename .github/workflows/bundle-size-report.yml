@@ -1,0 +1,58 @@
+name: Bundle Size Report
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: >
+          📊 BUNDLE SIZE REPORT — Builds the app and reports how large each
+          JavaScript and CSS file is. A large bundle means the app takes
+          longer to load for users. Use this after adding new features or
+          packages to make sure the app has not gotten too heavy. As a rule
+          of thumb, the total JS should stay under 1 MB. Takes about 2
+          minutes. Leave this field as-is and click "Run workflow" to proceed.
+        type: string
+        required: false
+        default: 'Yes, generate the bundle size report'
+
+jobs:
+  bundle-size:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+
+      - name: Report bundle sizes
+        run: |
+          echo "=== JavaScript files (largest first) ==="
+          find dist/assets -name "*.js" -exec ls -lh {} \; 2>/dev/null \
+            | awk '{print $5, $9}' | sort -rh || echo "No JS files found"
+
+          echo ""
+          echo "=== CSS files ==="
+          find dist/assets -name "*.css" -exec ls -lh {} \; 2>/dev/null \
+            | awk '{print $5, $9}' | sort -rh || echo "No CSS files found"
+
+          echo ""
+          echo "=== Total dist folder size ==="
+          du -sh dist/
+
+          echo ""
+          echo "=== Total JS size ==="
+          find dist/assets -name "*.js" -exec du -cb {} \; 2>/dev/null \
+            | tail -1 | awk '{print $1/1024/1024 " MB total JS"}' || echo "N/A"

@@ -1,0 +1,33 @@
+name: Run Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: >
+          🧪 RUN TESTS — Runs all automated unit tests in the codebase and
+          shows you a pass/fail report. Use this before a release or after
+          making big changes to make sure nothing is broken. Takes about
+          1-2 minutes. Leave this field as-is and click "Run workflow" to proceed.
+        type: string
+        required: false
+        default: 'Yes, run the tests'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests with coverage
+        run: npm run test:coverage

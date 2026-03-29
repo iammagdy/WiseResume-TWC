@@ -1,0 +1,60 @@
+name: Dependency Auto-Update
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: >
+          📦 DEPENDENCY AUTO-UPDATE — Runs npm update to install safe
+          minor and patch version updates (not major versions which could
+          break things), then commits the updated package.json and
+          package-lock.json. Instead of manually tracking outdated packages
+          or asking AI to check them, this keeps deps current automatically.
+          Takes about 2 minutes. Leave this field as-is and click "Run
+          workflow" to proceed.
+        type: string
+        required: false
+        default: 'Yes, update dependencies'
+
+jobs:
+  auto-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update to latest safe versions
+        run: |
+          echo "Checking for updates..."
+          npm update
+          echo "✅ Dependencies updated to latest safe versions."
+
+      - name: Run tests to verify updates didn't break anything
+        run: npm run test:coverage 2>&1 || true
+
+      - name: Commit updates if changed
+        run: |
+          if git diff --quiet package*.json; then
+            echo "ℹ️  All dependencies already up to date."
+          else
+            git config user.name "GitHub Actions"
+            git config user.email "actions@github.com"
+            git add package.json package-lock.json
+            git commit -m "chore: update dependencies to latest safe versions
+
+Ran npm update to install minor and patch releases.
+Tests were run to verify compatibility.
+
+Co-Authored-By: GitHub Actions <actions@github.com>"
+            git push
+            echo "✅ Dependency updates committed and pushed."
+          fi

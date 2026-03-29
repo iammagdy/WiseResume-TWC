@@ -1,0 +1,35 @@
+name: Dead Code Finder
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: >
+          🧽 DEAD CODE FINDER — Scans the codebase for unused files,
+          components, and exports that are no longer needed. Vibe coding
+          tends to leave leftover code behind over time — this finds it so
+          you can clean up and keep the project lean. It does not delete
+          anything — it just reports what it finds. Takes about 1 minute.
+          Leave this field as-is and click "Run workflow" to proceed.
+        type: string
+        required: false
+        default: 'Yes, find dead code'
+
+jobs:
+  dead-code:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run dead code analysis
+        run: npx knip --reporter compact || true

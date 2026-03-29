@@ -1,0 +1,49 @@
+name: Smoke Test (Production Health Check)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: >
+          💨 SMOKE TEST — Quickly checks that the live website and Supabase
+          AI health endpoint are responding correctly. Think of it as a
+          "is everything still alive?" check after a deployment. It does not
+          test every feature — just the most critical parts. Takes a few
+          seconds. Leave this field as-is and click "Run workflow" to proceed.
+        type: string
+        required: false
+        default: 'Yes, run the smoke test'
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check live website is reachable
+        run: |
+          echo "Checking live website..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://thewise.cloud/resume/)
+          echo "Website status: $STATUS"
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
+            echo "✅ Website is up."
+          else
+            echo "❌ Website returned status $STATUS"
+            exit 1
+          fi
+
+      - name: Check Supabase AI health endpoint
+        run: |
+          echo "Checking AI health endpoint..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X POST "${{ secrets.VITE_SUPABASE_URL }}/functions/v1/ai-health" \
+            -H "apikey: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}" \
+            -H "Content-Type: application/json")
+          STATUS=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -1)
+          echo "AI health status: $STATUS"
+          echo "Response: $BODY"
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 500 ]; then
+            echo "✅ Supabase is reachable."
+          else
+            echo "❌ Supabase returned status $STATUS"
+            exit 1
+          fi

@@ -1,0 +1,71 @@
+name: AI Credits Overview
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: >
+          💳 AI CREDITS OVERVIEW — Queries the database and shows a summary
+          of AI credit usage across all your users: how many credits were
+          used today, which users are close to their daily limit, and how
+          many users are on BYOK (their own API key). Useful for monitoring
+          costs and catching unusual usage spikes. Requires
+          SUPABASE_SERVICE_ROLE_KEY secret. Takes a few seconds. Leave this
+          field as-is and click "Run workflow" to proceed.
+        type: string
+        required: false
+        default: 'Yes, show AI credits overview'
+
+jobs:
+  credits-overview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch AI credits data from Supabase
+        run: |
+          BASE_URL="${{ secrets.VITE_SUPABASE_URL }}"
+          KEY="${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
+          TODAY=$(date -u +"%Y-%m-%d")
+
+          echo "============================================"
+          echo "         AI CREDITS OVERVIEW"
+          echo "         Date: $TODAY"
+          echo "============================================"
+          echo ""
+
+          # Fetch today's credit usage
+          RESPONSE=$(curl -s \
+            "$BASE_URL/rest/v1/ai_credits?select=user_id,daily_usage,daily_limit,usage_date&usage_date=eq.$TODAY" \
+            -H "apikey: $KEY" \
+            -H "Authorization: Bearer $KEY")
+
+          echo "$RESPONSE" | python3 -c "
+          import sys, json
+
+          try:
+            data = json.load(sys.stdin)
+          except:
+            print('  ⚠️  Could not fetch credit data.')
+            sys.exit(0)
+
+          if not data:
+            print('  ℹ️  No AI credit usage recorded today yet.')
+            sys.exit(0)
+
+          total_used = sum(d.get('daily_usage', 0) for d in data)
+          total_limit = sum(d.get('daily_limit', 20) for d in data)
+          active_users = len(data)
+
+          near_limit = [d for d in data if d.get('daily_usage', 0) >= (d.get('daily_limit', 20) * 0.8)]
+          at_limit = [d for d in data if d.get('daily_usage', 0) >= d.get('daily_limit', 20)]
+
+          print(f'  🤖 Total AI calls today     : {total_used}')
+          print(f'  👥 Users who used AI today  : {active_users}')
+          print(f'  ⚠️  Users near their limit   : {len(near_limit)}')
+          print(f'  🚫 Users at limit (blocked) : {len(at_limit)}')
+          print(f'  📊 Avg calls per user       : {round(total_used/active_users, 1) if active_users else 0}')
+          " 2>/dev/null || echo "  ⚠️  Could not parse response — check SUPABASE_SERVICE_ROLE_KEY secret."
+
+          echo ""
+          echo "  For full details visit:"
+          echo "  https://supabase.com/dashboard/project/jnsfmkzgxsviuthaqlyy/editor"
+          echo "============================================"

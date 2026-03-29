@@ -48,13 +48,23 @@ export const edgeFunctions = {
       try {
         let result = await doInvoke(getToken());
 
-        // On 401, try refreshing the bridge token once and retry
+        // On 401, try refreshing the bridge token once and retry.
+        // Guard: only treat it as an auth error if the response body looks like one —
+        // some edge functions return 401 for non-auth reasons (e.g. invalid AI key).
         if (result.response.status === 401) {
-          const refreshed = await refreshTokenIfNeeded();
-          if (refreshed) {
-            result = await doInvoke(getToken());
-          } else {
-            dispatchSessionExpiredOnce();
+          const looksLikeAuthError =
+            !result.text ||
+            result.text.includes('Unauthorized') ||
+            result.text.includes('Missing authorization') ||
+            result.text.includes('invalid signature') ||
+            result.text.includes('jwt');
+          if (looksLikeAuthError) {
+            const refreshed = await refreshTokenIfNeeded();
+            if (refreshed) {
+              result = await doInvoke(getToken());
+            } else {
+              dispatchSessionExpiredOnce();
+            }
           }
         }
 
