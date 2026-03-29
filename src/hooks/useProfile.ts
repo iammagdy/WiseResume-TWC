@@ -308,7 +308,7 @@ export function useProfile(userId: string | undefined, user?: KindeAppUser | nul
     queryKey: ['profile', userId],
     queryFn: () => fetchProfile(userId!, user),
     enabled: !!userId,
-    staleTime: 0,
+    staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     retry: 2,
     retryDelay: (attemptIndex: number) => Math.min(1000 * 2 ** attemptIndex, 5000),

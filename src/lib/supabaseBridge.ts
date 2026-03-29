@@ -80,14 +80,22 @@ export async function exchangeToken(kindeToken: string): Promise<void> {
   exchangePromise = (async () => {
     try {
       const url = `${EDGE_FUNCTIONS_URL}/functions/v1/token-exchange`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${kindeToken}`,
-          'apikey': EDGE_FUNCTIONS_ANON_KEY,
-        },
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      let res: Response;
+      try {
+        res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${kindeToken}`,
+            'apikey': EDGE_FUNCTIONS_ANON_KEY,
+          },
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!res.ok) {
         const text = await res.text();

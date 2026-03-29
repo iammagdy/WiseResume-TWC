@@ -461,8 +461,7 @@ function DashboardPageContent() {
 
   // Auth guard handled by ProtectedRoute
 
-  // Consider it loading if the bridge isn't ready OR the initial query is in flight (D-2)
-  const isLoading = !supabaseSettled || (resumesInitialLoading && resumes.length === 0);
+  const isLoading = !supabaseSettled;
 
   if (isLoading) {
     return <DashboardSkeleton />;
