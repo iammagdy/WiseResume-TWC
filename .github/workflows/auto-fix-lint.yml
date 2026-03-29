@@ -1,0 +1,55 @@
+name: Auto-Fix Lint Errors
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: >
+          🔧 AUTO-FIX LINT ERRORS — Runs ESLint with the --fix flag to
+          automatically fix all fixable linting errors (semicolons, spacing,
+          indentation, etc.), then commits the changes. Instead of asking AI
+          to fix lint errors one by one, this fixes them all at once. Takes
+          about 1 minute. Leave this field as-is and click "Run workflow"
+          to proceed.
+        type: string
+        required: false
+        default: 'Yes, fix lint errors'
+
+jobs:
+  auto-fix-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint --fix
+        run: |
+          echo "Running ESLint with --fix..."
+          npx eslint src --ext .ts,.tsx --fix || true
+          echo "✅ Lint fixes applied."
+
+      - name: Commit fixes if changed
+        run: |
+          if git diff --quiet; then
+            echo "ℹ️  No lint issues found — code is already clean."
+          else
+            git config user.name "GitHub Actions"
+            git config user.email "actions@github.com"
+            git add src/
+            git commit -m "chore: auto-fix lint errors
+
+Fixed by ESLint --fix via GitHub Actions.
+
+Co-Authored-By: GitHub Actions <actions@github.com>"
+            git push
+            echo "✅ Lint fixes committed and pushed."
+          fi

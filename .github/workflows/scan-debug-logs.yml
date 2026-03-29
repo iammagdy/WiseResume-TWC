@@ -1,0 +1,47 @@
+name: Scan for Debug Logs
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: >
+          🐛 SCAN FOR DEBUG LOGS — Finds all console.log, console.warn,
+          console.error, and debugger statements left in the code. Instead of
+          asking AI to clean up debug logs, this finds them all instantly. Use
+          before a production release. Takes a few seconds. Leave this field
+          as-is and click "Run workflow" to proceed.
+        type: string
+        required: false
+        default: 'Yes, scan for debug logs'
+
+jobs:
+  scan-logs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Find all console statements and debugger
+        run: |
+          echo "============================================"
+          echo "       DEBUG LOGS & DEBUGGER STATEMENTS"
+          echo "============================================"
+          echo ""
+
+          LOGS=$(grep -r "console\.\(log\|warn\|error\|debug\)\|debugger" src/ --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" -n 2>/dev/null || true)
+
+          if [ -z "$LOGS" ]; then
+            echo "  ✅ No debug logs found — production ready!"
+          else
+            echo "  Found debug statements to remove:"
+            echo ""
+            echo "$LOGS" | while read -r line; do
+              echo "  🐛 $line"
+            done
+            echo ""
+            COUNT=$(echo "$LOGS" | wc -l)
+            echo "  Total: $COUNT debug statements"
+          fi
+
+          echo ""
+          echo "============================================"

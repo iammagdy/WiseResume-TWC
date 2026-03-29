@@ -1,0 +1,90 @@
+name: AI Commit Message Checker
+
+on:
+  workflow_dispatch:
+    inputs:
+      how_many:
+        description: >
+          ✏️ AI COMMIT MESSAGE CHECKER — Reviews your recent commit messages
+          using GitHub Models (free AI, no platform tokens needed) and flags
+          any that are vague, unclear, or don't follow best practices. Helps
+          keep your git history clean and maintainable. Type how many recent
+          commits to check (default 10). Takes about 1 minute.
+        type: string
+        required: false
+        default: '10'
+
+jobs:
+  check-messages:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get recent commit messages
+        id: messages
+        run: |
+          COUNT="${{ inputs.how_many }}"
+          if ! [[ "$COUNT" =~ ^[0-9]+$ ]]; then
+            COUNT=10
+          fi
+          MESSAGES=$(git log -"$COUNT" --pretty=format:"%h | %s" --no-decorate)
+          echo "messages<<EOF" >> $GITHUB_OUTPUT
+          echo "$MESSAGES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Review commit messages with AI
+        id: review
+        run: |
+          MESSAGES='${{ steps.messages.outputs.messages }}'
+
+          RESPONSE=$(curl -s -X POST \
+            "https://models.inference.ai.azure.com/chat/completions" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d @- << 'EOF'
+          {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "system",
+                "content": "You are a git expert. Review commit messages for clarity, specificity, and best practices. Flag messages that are vague ('fix stuff', 'update'), too generic ('changes'), or don't explain the WHY. Be constructive."
+              },
+              {
+                "role": "user",
+                "content": "Review these commit messages and flag any that could be improved:\n\n$MESSAGES"
+              }
+            ],
+            "temperature": 0.7,
+            "max_tokens": 500
+          }
+          EOF
+          )
+
+          REVIEW=$(echo "$RESPONSE" | python3 -c "import sys,json; data=json.load(sys.stdin); print(data['choices'][0]['message']['content'])" 2>/dev/null || echo "Review generation failed")
+
+          echo "review<<EOF" >> $GITHUB_OUTPUT
+          echo "$REVIEW" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Display results
+        run: |
+          echo "============================================"
+          echo "      COMMIT MESSAGE QUALITY REVIEW"
+          echo "============================================"
+          echo ""
+          echo "${{ steps.review.outputs.review }}"
+          echo ""
+          echo "============================================"
+          echo "Good commit messages:"
+          echo "  ✅ 'Add user authentication with Kinde'"
+          echo "  ✅ 'Fix resume upload timeout issue'"
+          echo "  ✅ 'Improve AI response caching performance'"
+          echo ""
+          echo "Bad commit messages:"
+          echo "  ❌ 'fix stuff'"
+          echo "  ❌ 'updates'"
+          echo "  ❌ 'changes'"
+          echo "============================================"
