@@ -1,0 +1,45 @@
+name: What Changed (Recent Changelog)
+
+on:
+  workflow_dispatch:
+    inputs:
+      how_many:
+        description: >
+          📋 WHAT CHANGED — Shows a human-readable summary of recent changes
+          to the codebase. Great for when you come back after a few days and
+          can't remember what was shipped, or want a quick overview before a
+          deployment. Type how many recent commits to show (default is 20).
+          Takes a few seconds.
+        type: string
+        required: false
+        default: '20'
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Show recent changes
+        run: |
+          COUNT="${{ inputs.how_many }}"
+          if ! [[ "$COUNT" =~ ^[0-9]+$ ]]; then
+            COUNT=20
+          fi
+
+          echo "============================================"
+          echo "     RECENT CHANGES (last $COUNT commits)"
+          echo "============================================"
+          echo ""
+
+          git log -"$COUNT" --pretty=format:"📌 %s%n   👤 %an  |  🕐 %ar%n   🔗 Commit: %h%n" \
+            --no-merges
+          echo ""
+          echo "============================================"
+          echo "Total commits in repo: $(git rev-list --count HEAD)"
+          echo "Current branch: $(git branch --show-current)"
+          echo "Latest commit:  $(git log -1 --format='%h — %s')"
+          echo "============================================"
