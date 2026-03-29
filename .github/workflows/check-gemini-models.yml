@@ -1,0 +1,84 @@
+name: Check Which Gemini Models Work
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: >
+          🧠 CHECK GEMINI MODELS — Tests multiple Gemini model names against
+          your WISE_AI_API_KEY and reports which ones are accessible and
+          which ones return errors. Run this when AI features break and you
+          need to find out which models are still available with your key.
+          Requires WISE_AI_API_KEY secret. Takes about 30 seconds. Leave
+          this field as-is and click "Run workflow" to proceed.
+        type: string
+        required: false
+        default: 'Yes, check Gemini models'
+
+jobs:
+  check-models:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test Gemini model availability
+        run: |
+          echo "============================================"
+          echo "       GEMINI MODEL AVAILABILITY"
+          echo "============================================"
+          echo ""
+
+          if [ -z "$WISE_AI_API_KEY" ]; then
+            echo "  ❌ WISE_AI_API_KEY is not set in GitHub secrets."
+            exit 1
+          fi
+
+          check_model() {
+            local model=$1
+            local status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+              "https://generativelanguage.googleapis.com/v1beta/models/${model}?key=${WISE_AI_API_KEY}")
+
+            if [ "$status" = "200" ]; then
+              echo "  ✅ $model — Available"
+            elif [ "$status" = "404" ]; then
+              echo "  ❌ $model — Not found / deprecated"
+            elif [ "$status" = "400" ] || [ "$status" = "403" ]; then
+              echo "  🔒 $model — Access denied (key may not have permission)"
+            elif [ "$status" = "429" ]; then
+              echo "  ⚠️  $model — Rate limited (model exists but quota hit)"
+            else
+              echo "  ⚠️  $model — Status $status"
+            fi
+          }
+
+          echo "  Testing current models in use:"
+          echo "  ─────────────────────────────"
+          check_model "gemini-3-flash-preview"
+
+          echo ""
+          echo "  Testing Gemini 2.5 models:"
+          echo "  ─────────────────────────────"
+          check_model "gemini-2.5-flash"
+          check_model "gemini-2.5-pro"
+          check_model "gemini-2.5-flash-preview-04-17"
+
+          echo ""
+          echo "  Testing Gemini 2.0 models:"
+          echo "  ─────────────────────────────"
+          check_model "gemini-2.0-flash"
+          check_model "gemini-2.0-flash-lite"
+          check_model "gemini-2.0-flash-001"
+
+          echo ""
+          echo "  Testing Gemini 1.5 models:"
+          echo "  ─────────────────────────────"
+          check_model "gemini-1.5-flash"
+          check_model "gemini-1.5-pro"
+
+          echo ""
+          echo "============================================"
+          echo "  ✅ = Safe to use in edge functions"
+          echo "  ❌ = Do not use — will cause failures"
+          echo "  🔒 = Key permission issue"
+          echo "  ⚠️  = Exists but may be unreliable"
+          echo "============================================"
+        env:
+          WISE_AI_API_KEY: ${{ secrets.WISE_AI_API_KEY }}

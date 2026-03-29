@@ -1,0 +1,92 @@
+name: Active Users Stats
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: >
+          👥 ACTIVE USERS STATS — Queries your Supabase database and shows
+          how many total users you have, how many signed up this week and
+          this month, and how many are using their own AI key (BYOK) vs
+          your credits. Good to check periodically to understand your
+          growth. Requires SUPABASE_ACCESS_TOKEN and SUPABASE_SERVICE_ROLE_KEY
+          secrets. Takes a few seconds. Leave this field as-is and click
+          "Run workflow" to proceed.
+        type: string
+        required: false
+        default: 'Yes, show user stats'
+
+jobs:
+  user-stats:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch user stats from Supabase
+        run: |
+          echo "============================================"
+          echo "           ACTIVE USERS STATS"
+          echo "============================================"
+          echo ""
+
+          BASE_URL="${{ secrets.VITE_SUPABASE_URL }}"
+          KEY="${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
+
+          # Total users
+          TOTAL=$(curl -s \
+            "$BASE_URL/rest/v1/profiles?select=count" \
+            -H "apikey: $KEY" \
+            -H "Authorization: Bearer $KEY" \
+            -H "Prefer: count=exact" \
+            -I 2>/dev/null | grep -i "content-range" | grep -oP '\d+$' || echo "N/A")
+
+          # Signups this week
+          WEEK_START=$(date -u -d "7 days ago" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || \
+            date -u -v-7d +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "")
+
+          THIS_WEEK="N/A"
+          THIS_MONTH="N/A"
+          if [ -n "$WEEK_START" ]; then
+            THIS_WEEK=$(curl -s \
+              "$BASE_URL/rest/v1/profiles?select=count&created_at=gte.$WEEK_START" \
+              -H "apikey: $KEY" \
+              -H "Authorization: Bearer $KEY" \
+              -H "Prefer: count=exact" \
+              -I 2>/dev/null | grep -i "content-range" | grep -oP '\d+$' || echo "N/A")
+
+            MONTH_START=$(date -u -d "30 days ago" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || \
+              date -u -v-30d +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "")
+            if [ -n "$MONTH_START" ]; then
+              THIS_MONTH=$(curl -s \
+                "$BASE_URL/rest/v1/profiles?select=count&created_at=gte.$MONTH_START" \
+                -H "apikey: $KEY" \
+                -H "Authorization: Bearer $KEY" \
+                -H "Prefer: count=exact" \
+                -I 2>/dev/null | grep -i "content-range" | grep -oP '\d+$' || echo "N/A")
+            fi
+          fi
+
+          # BYOK users
+          BYOK=$(curl -s \
+            "$BASE_URL/rest/v1/user_preferences?select=count&ai_provider=neq.wiseresume&ai_provider=not.is.null" \
+            -H "apikey: $KEY" \
+            -H "Authorization: Bearer $KEY" \
+            -H "Prefer: count=exact" \
+            -I 2>/dev/null | grep -i "content-range" | grep -oP '\d+$' || echo "N/A")
+
+          # AI credits used today
+          TODAY=$(date -u +"%Y-%m-%d")
+          CREDITS_TODAY=$(curl -s \
+            "$BASE_URL/rest/v1/ai_credits?select=daily_usage&usage_date=eq.$TODAY" \
+            -H "apikey: $KEY" \
+            -H "Authorization: Bearer $KEY" 2>/dev/null | \
+            python3 -c "import sys,json; data=json.load(sys.stdin); print(sum(d.get('daily_usage',0) for d in data))" 2>/dev/null || echo "N/A")
+
+          echo "  👥 Total users          : $TOTAL"
+          echo "  📅 New this week        : $THIS_WEEK"
+          echo "  📆 New this month       : $THIS_MONTH"
+          echo "  🔑 Using own AI key     : $BYOK"
+          echo "  🤖 AI credits used today: $CREDITS_TODAY"
+          echo ""
+          echo "============================================"
+          echo "For more details, visit Supabase dashboard:"
+          echo "https://supabase.com/dashboard/project/jnsfmkzgxsviuthaqlyy"
+          echo "============================================"

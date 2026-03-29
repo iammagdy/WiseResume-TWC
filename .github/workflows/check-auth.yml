@@ -1,0 +1,83 @@
+name: Check Auth is Working
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: >
+          🔐 CHECK AUTH — Tests whether your Kinde login and Supabase token
+          exchange are reachable and responding correctly. Run this when users
+          report they cannot log in, sessions keep expiring, or the app shows
+          auth errors. It checks the Kinde auth server and the Supabase
+          token-exchange edge function. Requires VITE_KINDE_DOMAIN and
+          VITE_SUPABASE_URL secrets. Takes a few seconds. Leave this field
+          as-is and click "Run workflow" to proceed.
+        type: string
+        required: false
+        default: 'Yes, check auth'
+
+jobs:
+  check-auth:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Kinde auth server is reachable
+        run: |
+          echo "============================================"
+          echo "          AUTH HEALTH CHECK"
+          echo "============================================"
+          echo ""
+
+          KINDE_DOMAIN="${{ secrets.VITE_KINDE_DOMAIN }}"
+
+          if [ -z "$KINDE_DOMAIN" ]; then
+            echo "  ⚠️  VITE_KINDE_DOMAIN secret is not set."
+            echo "     Add it in: Settings → Secrets and variables → Actions"
+            KINDE_DOMAIN="https://thewise.kinde.com"
+            echo "     Trying default: $KINDE_DOMAIN"
+          fi
+
+          echo "  Checking Kinde auth server..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+            "$KINDE_DOMAIN/.well-known/openid-configuration")
+
+          if [ "$STATUS" = "200" ]; then
+            echo "  ✅ Kinde auth server is UP (status $STATUS)"
+          else
+            echo "  ❌ Kinde auth server returned status $STATUS"
+            echo "     This may explain login issues."
+          fi
+
+          echo ""
+          echo "  Checking Kinde JWKS endpoint (used for token verification)..."
+          STATUS2=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+            "$KINDE_DOMAIN/.well-known/jwks")
+
+          if [ "$STATUS2" = "200" ]; then
+            echo "  ✅ Kinde JWKS endpoint is UP (status $STATUS2)"
+          else
+            echo "  ❌ Kinde JWKS returned status $STATUS2"
+          fi
+
+          echo ""
+          echo "  Checking Supabase token-exchange edge function..."
+          STATUS3=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+            -X POST "${{ secrets.VITE_SUPABASE_URL }}/functions/v1/token-exchange" \
+            -H "apikey: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+
+          if [ "$STATUS3" = "400" ] || [ "$STATUS3" = "401" ] || [ "$STATUS3" = "200" ]; then
+            echo "  ✅ token-exchange function is reachable (status $STATUS3)"
+            echo "     A 400/401 here is normal — it means the function is up"
+            echo "     but rejected the empty test request, which is expected."
+          elif [ "$STATUS3" = "404" ]; then
+            echo "  ❌ token-exchange function not found (404)"
+            echo "     Try redeploying edge functions."
+          else
+            echo "  ⚠️  token-exchange returned status $STATUS3"
+          fi
+
+          echo ""
+          echo "============================================"
+        env:
+          VITE_KINDE_DOMAIN: ${{ secrets.VITE_KINDE_DOMAIN }}
