@@ -53,6 +53,25 @@ export function DevKitRunner() {
   };
 
   /**
+   * Returns a developer-friendly message when the raw error text signals a
+   * missing or invalid server-side AI API key, so that the Dev Kit shows
+   * a clear next step instead of a cryptic "Invalid API key" label.
+   */
+  const friendlyAIKeyError = (raw: string): string | null => {
+    const s = raw.toLowerCase();
+    if (
+      s.includes('invalid_key') ||
+      s.includes('invalid api key') ||
+      s.includes('no ai api key') ||
+      s.includes('wise_ai_api_key') ||
+      s.includes('api key not configured')
+    ) {
+      return 'WISE_AI_API_KEY not set or invalid — configure it in Supabase → Project Settings → Edge Function Secrets';
+    }
+    return null;
+  };
+
+  /**
    * strictInvoke: Helper to enforce US1-FR-DK-002. Wrapped in useCallback so useMemo
    * dependency on strictInvoke is stable and doesn't cause infinite re-creation of tests[].
    */
@@ -69,22 +88,27 @@ export function DevKitRunner() {
         // Strict Error: Edge function returned an error object
         if (error) {
           const status = (error as any).status || 500;
+          const rawMsg = (error as any).message || JSON.stringify(error);
+          const friendly = friendlyAIKeyError(rawMsg);
           return {
             status: 'error',
             httpStatus: status,
-            error: (error as any).message || JSON.stringify(error),
+            error: rawMsg,
             durationMs,
-            summary: `Edge Function Error (HTTP ${status})`,
+            summary: friendly ?? `Edge Function Error (HTTP ${status})`,
           };
         }
 
         // Strict Error: Data payload contains an 'error' field (US1-FR-DK-002)
         if (data && typeof data === 'object' && (data as any).error) {
+          const rawErr = String((data as any).error);
+          const rawMsg = String((data as any).message || rawErr);
+          const friendly = friendlyAIKeyError(rawErr) || friendlyAIKeyError(rawMsg);
           return {
             status: 'error',
             data,
             durationMs,
-            summary: `Success response with Error field: ${(data as any).error}`,
+            summary: friendly ?? `Success response with Error field: ${rawErr}`,
           };
         }
 
@@ -94,11 +118,13 @@ export function DevKitRunner() {
       // Handle raw responses or direct DB queries
       return { status: 'success', data: res, durationMs, summary: 'OK' };
     } catch (err: any) {
+      const rawMsg = err.message || String(err);
+      const friendly = friendlyAIKeyError(rawMsg);
       return {
         status: 'error',
-        error: err.message || String(err),
+        error: rawMsg,
         durationMs: Date.now() - start,
-        summary: `Execution Error: ${err.message || 'Unknown'}`,
+        summary: friendly ?? `Execution Error: ${rawMsg || 'Unknown'}`,
       };
     }
   }, []);

@@ -97,7 +97,7 @@ serve(async (req) => {
     // Resolve user keys
     let userGeminiKey: string | undefined;
     let ollamaConfig: { key: string; baseUrl: string | null; model: string | null } | undefined;
-    let testModel = 'google/gemini-2.5-flash';
+    let testModel = 'google/gemini-2.0-flash';
 
     if (preferredProvider === 'gemini') {
       userGeminiKey = await getUserKeyFromDB(userId, 'gemini');
