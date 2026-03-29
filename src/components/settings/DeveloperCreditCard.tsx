@@ -53,8 +53,9 @@ export function DeveloperCreditCard({
       className="dev-card-wrapper"
       initial={{ opacity: 0, y: 30, scale: 0.97 }}
       whileInView={{ opacity: 1, y: 0, scale: 1 }}
-      viewport={{ once: true, amount: 0.3 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}>
+      viewport={{ once: true, amount: 0.3, margin: "200px 0px 0px 0px" }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+      style={{ willChange: "transform" }}>
       
       {/* Sparkle elements */}
       <div className="dev-sparkles">

@@ -145,7 +145,8 @@ const ElectricBorder: React.FC<ElectricBorderProps> = ({
       const rect = container.getBoundingClientRect();
       const width = rect.width + borderOffset * 2;
       const height = rect.height + borderOffset * 2;
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      // Cap DPR at 1.5 to halve canvas pixel count on high-density screens
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       canvas.width = width * dpr;
       canvas.height = height * dpr;
       canvas.style.width = `${width}px`;
@@ -162,7 +163,7 @@ const ElectricBorder: React.FC<ElectricBorderProps> = ({
       timeRef.current += deltaTime * speed;
       lastFrameTimeRef.current = currentTime;
 
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.scale(dpr, dpr);
@@ -195,8 +196,40 @@ const ElectricBorder: React.FC<ElectricBorderProps> = ({
       }
       ctx.closePath();
       ctx.stroke();
+      // Only schedule the next frame if still visible
+      if (animationRef.current !== null) {
+        animationRef.current = requestAnimationFrame(drawElectricBorder);
+      }
+    };
+
+    const startLoop = () => {
+      if (animationRef.current !== null) return;
+      lastFrameTimeRef.current = performance.now();
+      // Use a sentinel value of 0 temporarily; reassign after rAF call
+      animationRef.current = 0;
       animationRef.current = requestAnimationFrame(drawElectricBorder);
     };
+
+    const stopLoop = () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+      // null signals "stopped" to the draw function
+      animationRef.current = null;
+    };
+
+    // Pause the canvas loop when off-screen, resume when visible
+    const intersectionObserver = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          startLoop();
+        } else {
+          stopLoop();
+        }
+      },
+      { threshold: 0 }
+    );
+    intersectionObserver.observe(container);
 
     const resizeObserver = new ResizeObserver(() => {
       const newSize = updateSize();
@@ -204,10 +237,10 @@ const ElectricBorder: React.FC<ElectricBorderProps> = ({
       height = newSize.height;
     });
     resizeObserver.observe(container);
-    animationRef.current = requestAnimationFrame(drawElectricBorder);
 
     return () => {
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+      stopLoop();
+      intersectionObserver.disconnect();
       resizeObserver.disconnect();
     };
   }, [color, speed, chaos, borderRadius, octavedNoise, getRoundedRectPoint]);
