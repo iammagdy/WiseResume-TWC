@@ -141,9 +141,57 @@ export function getNextMissingField(profile: Partial<Profile> | null): { field: 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function fetchProfile(userId: string, user?: KindeAppUser | null): Promise<Profile> {
+  // Resolve the effective Supabase UUID: prefer the bridged ID from the token exchange,
+  // fall back to userId only when it's already a valid UUID (e.g. on first render after
+  // bridge settles and AuthContext has updated user.id to the UUID).
+  const effectiveId: string | null = getUserId() || (UUID_REGEX.test(userId) ? userId : null);
+
+  // If we don't have a valid UUID yet (bridge hasn't settled), return the in-memory
+  // default profile without hitting Supabase — the query will retry once the key changes.
+  if (!effectiveId) {
+    return {
+      fullName: user?.name || null,
+      avatarUrl: null,
+      jobTitle: null,
+      industry: null,
+      careerLevel: null,
+      location: null,
+      linkedinUrl: null,
+      profileCompleted: false,
+      username: null,
+      portfolioBio: null,
+      portfolioEnabled: false,
+      portfolioResumeId: null,
+      githubUrl: null,
+      websiteUrl: null,
+      twitterUrl: null,
+      contactEmail: null,
+      theme: null,
+      phoneNumber: null,
+      portfolioSections: null,
+      portfolioMetaTitle: null,
+      portfolioMetaDescription: null,
+      views: 0,
+      portfolioStyle: null,
+      portfolioLayout: null,
+      portfolioAccentColor: null,
+      portfolioFont: null,
+      openToWork: false,
+      availabilityHeadline: null,
+      portfolioExtras: {},
+      portfolioSyncMode: 'auto',
+      loginStreak: 1,
+      lastLoginDate: null,
+      digestEnabled: true,
+      hiredAt: null,
+      updatedAt: null,
+    };
+  }
+
   const { data, error } = await supabase
     .from('profiles')
     .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed, username, portfolio_bio, portfolio_enabled, portfolio_resume_id, github_url, website_url, twitter_url, contact_email, portfolio_theme, phone_number, portfolio_sections, portfolio_meta_title, portfolio_meta_description, views, portfolio_style, portfolio_layout, portfolio_accent_color, portfolio_font, open_to_work, availability_headline, portfolio_extras, portfolio_sync_mode, login_streak, last_login_date, digest_enabled, hired_at, updated_at')
+    .eq('user_id', effectiveId)
     .maybeSingle();
 
   if (error) {
@@ -235,18 +283,15 @@ async function fetchProfile(userId: string, user?: KindeAppUser | null): Promise
     updatedAt: null,
   };
 
-  // Create the row via upsert — use the bridged Supabase UUID; skip if not yet available
-  const bridgedIdForCreate = getUserId() || (UUID_REGEX.test(userId) ? userId : null);
-  if (bridgedIdForCreate) {
-    await supabase.from('profiles').upsert(
-      {
-        user_id: bridgedIdForCreate,
-        full_name: defaultFullName,
-        avatar_url: defaultAvatarUrl,
-      },
-      { onConflict: 'user_id' }
-    );
-  }
+  // Create the row via upsert — effectiveId is guaranteed non-null here (early return above)
+  await supabase.from('profiles').upsert(
+    {
+      user_id: effectiveId,
+      full_name: defaultFullName,
+      avatar_url: defaultAvatarUrl,
+    },
+    { onConflict: 'user_id' }
+  );
 
   return defaultProfile;
 }

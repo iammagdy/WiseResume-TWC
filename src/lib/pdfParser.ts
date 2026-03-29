@@ -146,8 +146,14 @@ export async function parseResumePDF(file: File): Promise<ParseResult> {
   const hints = extractContactHints(cleanedText);
   const textWithHints = hints ? cleanedText + hints : cleanedText;
   
-  // Parse into structured data using AI
-  const data = await parseTextWithAI(textWithHints);
+  // Parse into structured data using AI; fall back to local parser on any failure
+  let data: ResumeData;
+  try {
+    data = await parseTextWithAI(textWithHints);
+  } catch {
+    console.warn('AI parsing failed in parseResumePDF — falling back to local parser');
+    data = parseResumeText(textWithHints);
+  }
 
   // Determine parse quality
   const extractionSummary = getExtractionSummary(data);
@@ -196,8 +202,14 @@ export async function parseResumePDFWithOCR(
     };
   }
 
-  // Parse into structured data using AI
-  const data = await parseTextWithAI(text);
+  // Parse into structured data using AI; fall back to local parser on any failure
+  let data: ResumeData;
+  try {
+    data = await parseTextWithAI(text);
+  } catch {
+    console.warn('AI parsing failed in parseResumePDFWithOCR — falling back to local parser');
+    data = parseResumeText(text);
+  }
   const summary = getExtractionSummary(data);
   const parseStatus: 'success' | 'partial' | 'failed' =
     summary.isEmpty ? 'failed' : summary.isPartial ? 'partial' : 'success';
