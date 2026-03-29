@@ -1,0 +1,77 @@
+name: Rollback Frontend
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: >
+          ⏪ ROLLBACK FRONTEND — Deploys a previous version of the website
+          if the latest deployment broke something. Paste the commit SHA
+          (the short code like "a1b2c3d") of the last known working version.
+          You can find this in GitHub under Commits history. Leave empty to
+          roll back to the commit just before the current one. This will
+          overwrite the live website with the older version.
+        type: string
+        required: false
+        default: ''
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 10
+
+      - name: Determine rollback target
+        run: |
+          TARGET="${{ inputs.commit_sha }}"
+          if [ -z "$TARGET" ]; then
+            TARGET=$(git log --skip=1 -1 --format="%H")
+            echo "No commit specified — rolling back to previous commit: ${TARGET:0:7}"
+          else
+            echo "Rolling back to specified commit: ${TARGET:0:7}"
+          fi
+          echo "ROLLBACK_SHA=$TARGET" >> $GITHUB_ENV
+
+      - name: Checkout rollback target
+        run: |
+          git checkout ${{ env.ROLLBACK_SHA }}
+          echo "✅ Checked out commit: ${ROLLBACK_SHA:0:7}"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build previous version
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+
+      - name: Write version file (rollback marker)
+        run: |
+          echo "{
+            \"commit\": \"${{ env.ROLLBACK_SHA }}\",
+            \"shortCommit\": \"${ROLLBACK_SHA:0:7}\",
+            \"deployedAt\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\",
+            \"deployedBy\": \"${{ github.actor }} (ROLLBACK)\"
+          }" > dist/version.json
+
+      - name: Deploy rollback to Hostinger via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: 82.29.154.120
+          username: u966279061.thewise.cloud
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          port: 21
+          local-dir: ./dist/
+          server-dir: /public_html/resume/
+          dangerous-clean-slate: true
