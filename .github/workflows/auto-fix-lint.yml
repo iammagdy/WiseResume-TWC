@@ -45,11 +45,7 @@ jobs:
             git config user.name "GitHub Actions"
             git config user.email "actions@github.com"
             git add src/
-            git commit -m "chore: auto-fix lint errors
-
-Fixed by ESLint --fix via GitHub Actions.
-
-Co-Authored-By: GitHub Actions <actions@github.com>"
+            git commit -m "chore: auto-fix lint errors"
             git push
             echo "✅ Lint fixes committed and pushed."
           fi
