@@ -2,6 +2,7 @@ import { useCallback, useRef, useEffect } from 'react';
 import type { KindeAppUser } from '@/contexts/AuthContext';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { getUserId } from '@/lib/supabaseBridge';
 
 export type CareerLevel = 'entry' | 'mid' | 'senior' | 'executive';
 
@@ -140,12 +141,6 @@ export function getNextMissingField(profile: Partial<Profile> | null): { field: 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function fetchProfile(userId: string, user?: KindeAppUser | null): Promise<Profile> {
-  // Guard: never send a non-UUID to Postgres — it would throw 22P02
-  if (!UUID_REGEX.test(userId)) {
-    console.warn('[useProfile] Non-UUID userId blocked:', userId);
-    throw new Error('Invalid user ID format');
-  }
-
   const { data, error } = await supabase
     .from('profiles')
     .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed, username, portfolio_bio, portfolio_enabled, portfolio_resume_id, github_url, website_url, twitter_url, contact_email, portfolio_theme, phone_number, portfolio_sections, portfolio_meta_title, portfolio_meta_description, views, portfolio_style, portfolio_layout, portfolio_accent_color, portfolio_font, open_to_work, availability_headline, portfolio_extras, portfolio_sync_mode, login_streak, last_login_date, digest_enabled, hired_at, updated_at')
@@ -240,15 +235,18 @@ async function fetchProfile(userId: string, user?: KindeAppUser | null): Promise
     updatedAt: null,
   };
 
-  // Create the row via upsert
-  await supabase.from('profiles').upsert(
-    {
-      user_id: userId,
-      full_name: defaultFullName,
-      avatar_url: defaultAvatarUrl,
-    },
-    { onConflict: 'user_id' }
-  );
+  // Create the row via upsert — use the bridged Supabase UUID; skip if not yet available
+  const bridgedIdForCreate = getUserId() || (UUID_REGEX.test(userId) ? userId : null);
+  if (bridgedIdForCreate) {
+    await supabase.from('profiles').upsert(
+      {
+        user_id: bridgedIdForCreate,
+        full_name: defaultFullName,
+        avatar_url: defaultAvatarUrl,
+      },
+      { onConflict: 'user_id' }
+    );
+  }
 
   return defaultProfile;
 }
@@ -273,13 +271,14 @@ export function useProfile(userId: string | undefined, user?: KindeAppUser | nul
 
   const updateMutation = useMutation({
     mutationFn: async (updates: Partial<Profile>) => {
-      if (!userId) throw new Error('No user ID');
-      // Guard: never write a non-UUID as user_id — would violate FK / throw 22P02
-      if (!UUID_REGEX.test(userId)) throw new Error(`Invalid user ID: ${userId}`);
+      // Prefer the bridged Supabase UUID; fall back to userId only if it's already a valid UUID
+      const bridgedId = getUserId();
+      const effectiveId: string | null = bridgedId || (userId && UUID_REGEX.test(userId) ? userId : null);
+      if (!effectiveId) throw new Error('Profile save unavailable — app is still initializing');
 
       // Only send the fields that are explicitly in `updates` — prevents data races
       // on concurrent saves and avoids overwriting stale fallback values.
-      const dbUpdates: Record<string, unknown> = { user_id: userId };
+      const dbUpdates: Record<string, unknown> = { user_id: effectiveId };
 
       if (updates.fullName !== undefined) dbUpdates.full_name = updates.fullName;
       if (updates.avatarUrl !== undefined) dbUpdates.avatar_url = updates.avatarUrl;

@@ -185,9 +185,9 @@ export default function SettingsPage() {
     el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  // Auth provider detection — Kinde is now the only provider
+  // Auth provider detection — display login method, not the underlying vendor
   const authProvider = 'kinde';
-  const providerLabel = 'Kinde';
+  const providerLabel = 'Email';
   const ProviderIcon = Mail;
 
   // --- Handlers ---

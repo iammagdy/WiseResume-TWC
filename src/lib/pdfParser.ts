@@ -80,21 +80,20 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
       return parseResumeText(text);
     }
     
-    console.error('AI parsing error:', error);
-    
     // Re-throw rate limit and payment errors
     if (error instanceof Error && 
         (error.message.includes('Rate limit') || error.message.includes('credits'))) {
       throw error;
     }
     
-    // Detect CORS / network failures and throw explicit error instead of silent fallback
+    // Log network/CORS failures — but still fall back to local parser
     if (error instanceof TypeError && (error.message === 'Failed to fetch' || error.message.includes('NetworkError'))) {
-      console.error('AI parser unreachable (likely CORS or network issue)');
-      throw new Error('AI_UNREACHABLE');
+      console.warn('AI parser unreachable (CORS or network issue) — using local fallback parser');
+    } else {
+      console.error('AI parsing error:', error);
     }
     
-    // Fall back to local regex parsing only for non-network parse failures
+    // Fall back to local regex parsing for all non-billing failures
     if (import.meta.env.DEV) console.log('Using fallback local parser...');
     return parseResumeText(text);
   } finally {
