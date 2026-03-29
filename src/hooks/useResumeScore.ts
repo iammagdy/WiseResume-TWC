@@ -52,7 +52,8 @@ async function invokeScoreResume(resume: ResumeData): Promise<{ data: any; laten
   const token = await getSupabaseToken();
 
   if (!token) {
-    throw Object.assign(new Error('Not authenticated. Please sign in again.'), { isAuth: true });
+    // Bridge token not ready — silently skip scoring rather than showing a false session-expired error
+    throw Object.assign(new Error('Scoring skipped: bridge token not available'), { isSkip: true });
   }
 
   const { EDGE_FUNCTIONS_URL: supabaseUrl, EDGE_FUNCTIONS_ANON_KEY: anonKey } = await import('@/lib/supabaseConstants');
@@ -156,6 +157,10 @@ export function useResumeScore() {
       useATSScoreHistoryStore.getState().addScore(resumeId, score);
       return score;
     } catch (err: any) {
+      if (err.isSkip) {
+        console.warn('[ScoreResume] Skipped: bridge token not available');
+        return null;
+      }
       useAIHealthStore.getState().recordFailure(err.isRateLimit ? 429 : err.isAuth ? 401 : 0);
       console.error('[ScoreResume] Final failure:', err);
 

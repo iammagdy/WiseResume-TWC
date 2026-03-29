@@ -93,6 +93,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     let cancelled = false;
 
+    // Always register the getter unconditionally so refreshTokenIfNeeded() always
+    // has a callable getter, even if the initial token fetch returns null.
+    setKindeTokenGetter(getKindeToken);
+
     (async () => {
       try {
         const kindeToken = await getKindeToken();
@@ -102,10 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!cancelled) {
           const ready = isReady();
           setBridgeReady(ready);
-          if (ready) {
-            // Register the getter so the bridge can auto-refresh
-            setKindeTokenGetter(getKindeToken);
-          } else {
+          if (!ready) {
             // Exchange resolved but produced no token — definitively failed
             console.warn('[AuthContext] Bridge settled with no token — degraded mode (UI will still show)');
             setBridgeFailed(true);

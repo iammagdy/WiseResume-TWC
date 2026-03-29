@@ -18,8 +18,8 @@ import { handleAIError } from './aiProvider';
 export { PDFParseError, estimateOCRTime };
 export type { ExtractionResult, OCRProgressCallback };
 
-/** Timeout for AI parsing requests (120 seconds - increased for complex PDFs) */
-const PARSE_TIMEOUT = 120000;
+/** Timeout for AI parsing requests (20 seconds - falls back to local parser quickly) */
+const PARSE_TIMEOUT = 20000;
 
 /**
  * Result from initial PDF parsing attempt.
@@ -76,7 +76,7 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
   } catch (error) {
     // Handle timeout specifically
     if (error instanceof Error && error.name === 'AbortError') {
-      console.warn('AI parsing timed out after 120s, falling back to local parser');
+      console.warn('AI parsing timed out after 20s, falling back to local parser');
       return parseResumeText(text);
     }
     

@@ -10,6 +10,17 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabaseConstants';
 import { getToken, refreshTokenIfNeeded } from '@/lib/supabaseBridge';
 
+const SESSION_EXPIRED_DEBOUNCE_MS = 60_000;
+let lastSessionExpiredAt = 0;
+
+function dispatchSessionExpiredOnce() {
+  const now = Date.now();
+  if (now - lastSessionExpiredAt > SESSION_EXPIRED_DEBOUNCE_MS) {
+    lastSessionExpiredAt = now;
+    window.dispatchEvent(new CustomEvent('app:session-expired'));
+  }
+}
+
 /**
  * Create a Supabase client that injects the bridge token on every request.
  * Automatically retries once on 401 after refreshing the bridge token.
@@ -39,8 +50,8 @@ export const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON
         if (refreshed) {
           return doFetch(getToken());
         }
-        // Dispatch session expired event for UI handling
-        window.dispatchEvent(new CustomEvent('app:session-expired'));
+        // Dispatch session expired event for UI handling (debounced to avoid storms)
+        dispatchSessionExpiredOnce();
       }
 
       return response;
