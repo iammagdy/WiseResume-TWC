@@ -1,8 +1,32 @@
 [
   {
+    "version": "v2.5.0",
+    "date": "Mar 29, 2026",
+    "latest": true,
+    "summary": "A behind-the-scenes reliability update — uploading your resume, saving your profile, and testing your AI connection all work more smoothly now.",
+    "items": [
+      {
+        "title": "Resume upload no longer gets stuck",
+        "description": "If the AI was slow or temporarily unreachable while you uploaded a PDF, the upload would sometimes fail completely. It now always finishes — using a built-in fallback to pull your information even without AI, so you never lose your upload."
+      },
+      {
+        "title": "Profile changes now save properly",
+        "description": "Your name, job title, location, and other profile details weren't always saving correctly. This is now fixed — hit Save and your changes stick right away."
+      },
+      {
+        "title": "Small label fix in Settings",
+        "description": "The sign-in method in your Account settings was showing 'Kinde' (our auth system's name) instead of 'Email'. It now correctly says 'Email' — much clearer."
+      },
+      {
+        "title": "AI connection test works again",
+        "description": "The 'Test AI Connection' button in Settings was returning a 'Model not found' error for WiseResume AI users. That's fixed — the test now connects cleanly and confirms your AI is working."
+      }
+    ]
+  },
+  {
     "version": "v2.4.0",
     "date": "Mar 7, 2026",
-    "latest": true,
+    "latest": false,
     "summary": "The home screen now knows who you are — returning users get a personalised quick-launch hub, while new visitors see a clean, focused app-store-style landing page.",
     "items": [
       {
