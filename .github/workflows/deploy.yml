@@ -2,6 +2,16 @@ name: Deploy to Hostinger
 
 on:
   workflow_dispatch:
+    inputs:
+      confirm:
+        description: >
+          🌐 DEPLOY FRONTEND — Builds the WiseResume web app and uploads it
+          to the live website (Hostinger). Use this after you make changes to
+          the UI, pages, or any frontend code. Takes about 2-3 minutes.
+          Leave this field as-is and click "Run workflow" to proceed.
+        type: string
+        required: false
+        default: 'Yes, deploy the frontend'
 
 jobs:
   build-and-deploy:

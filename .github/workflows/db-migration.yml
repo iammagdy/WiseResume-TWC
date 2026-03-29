@@ -1,0 +1,35 @@
+name: Run Database Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: >
+          🗄️ DATABASE MIGRATION — Applies any pending database schema changes
+          (new tables, columns, indexes) to the live Supabase database. Only
+          run this when you have new migration files to apply. This action
+          modifies the production database — double-check your migration
+          files before running. Requires SUPABASE_ACCESS_TOKEN and
+          SUPABASE_DB_PASSWORD secrets to be set. Takes about 1 minute.
+          Leave this field as-is and click "Run workflow" to proceed.
+        type: string
+        required: false
+        default: 'Yes, apply database migrations'
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Apply database migrations
+        run: supabase db push --project-ref jnsfmkzgxsviuthaqlyy
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
