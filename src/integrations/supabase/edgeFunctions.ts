@@ -1,5 +1,6 @@
 import { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY } from '@/lib/supabaseConstants';
 import { getToken, refreshTokenIfNeeded } from '@/lib/supabaseBridge';
+import { dispatchSessionExpiredOnce } from './sessionExpired';
 
 /**
  * Authenticated edge function client.
@@ -53,7 +54,7 @@ export const edgeFunctions = {
           if (refreshed) {
             result = await doInvoke(getToken());
           } else {
-            window.dispatchEvent(new CustomEvent('app:session-expired'));
+            dispatchSessionExpiredOnce();
           }
         }
 

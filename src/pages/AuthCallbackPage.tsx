@@ -21,7 +21,7 @@ export default function AuthCallbackPage() {
       if (isAuthenticated) {
         window.location.replace('/dashboard');
       } else {
-        window.location.replace('/auth?mode=login');
+        window.location.replace('/');
       }
     }, 8000);
     return () => clearTimeout(timer);

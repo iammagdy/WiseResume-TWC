@@ -9,17 +9,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabaseConstants';
 import { getToken, refreshTokenIfNeeded } from '@/lib/supabaseBridge';
-
-const SESSION_EXPIRED_DEBOUNCE_MS = 60_000;
-let lastSessionExpiredAt = 0;
-
-function dispatchSessionExpiredOnce() {
-  const now = Date.now();
-  if (now - lastSessionExpiredAt > SESSION_EXPIRED_DEBOUNCE_MS) {
-    lastSessionExpiredAt = now;
-    window.dispatchEvent(new CustomEvent('app:session-expired'));
-  }
-}
+import { dispatchSessionExpiredOnce } from './sessionExpired';
 
 /**
  * Create a Supabase client that injects the bridge token on every request.

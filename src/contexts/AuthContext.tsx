@@ -155,7 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     logAudit('auth', 'signed_out');
     clearBridge();
     setBridgeReady(false);
-    setBridgeFailed(false);
+    setBridgeFailed(true);
     useSettingsStore.getState().resetSettings();
     try {
       await kindeLogout();

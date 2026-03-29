@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Navigate, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -7,10 +7,17 @@ export function ProtectedRoute() {
   const { isAuthenticated, loading, supabaseSettled } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const isAuthenticatedRef = useRef(isAuthenticated);
+
+  useEffect(() => {
+    isAuthenticatedRef.current = isAuthenticated;
+  }, [isAuthenticated]);
 
   // Listen for unexpected session expiry and redirect with reason param
+  // Skip navigation if the user is already not-authenticated (signing out)
   useEffect(() => {
     const handleSessionExpired = () => {
+      if (!isAuthenticatedRef.current) return;
       navigate('/auth?mode=login&reason=session_expired', { replace: true });
     };
     window.addEventListener('app:session-expired', handleSessionExpired);
