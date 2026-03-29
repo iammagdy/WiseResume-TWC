@@ -49,12 +49,7 @@ jobs:
             git config user.name "GitHub Actions"
             git config user.email "actions@github.com"
             git add package.json package-lock.json
-            git commit -m "chore: update dependencies to latest safe versions
-
-Ran npm update to install minor and patch releases.
-Tests were run to verify compatibility.
-
-Co-Authored-By: GitHub Actions <actions@github.com>"
+            git commit -m "chore: update dependencies to latest safe versions"
             git push
             echo "✅ Dependency updates committed and pushed."
           fi
