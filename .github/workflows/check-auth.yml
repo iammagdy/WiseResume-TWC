@@ -1,4 +1,4 @@
-name: Check Auth is Working
+name: Check: Login System (Kinde + Supabase)
 
 on:
   workflow_dispatch:

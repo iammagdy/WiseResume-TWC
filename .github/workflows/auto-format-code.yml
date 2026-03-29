@@ -1,4 +1,4 @@
-name: Auto-Format Code (Prettier)
+name: Fix: Auto-Format Code (Prettier)
 
 on:
   workflow_dispatch:

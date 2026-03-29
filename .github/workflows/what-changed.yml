@@ -1,4 +1,4 @@
-name: What Changed (Recent Changelog)
+name: AI: Recent Changes Summary
 
 on:
   workflow_dispatch:

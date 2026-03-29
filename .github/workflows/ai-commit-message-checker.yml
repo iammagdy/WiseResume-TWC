@@ -1,4 +1,4 @@
-name: AI Commit Message Checker
+name: AI: Check Commit Messages
 
 on:
   workflow_dispatch:

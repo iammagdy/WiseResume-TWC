@@ -1,4 +1,4 @@
-name: Database Backup
+name: Fix: Backup Database
 
 on:
   workflow_dispatch:

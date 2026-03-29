@@ -1,4 +1,4 @@
-name: Test All AI Functions
+name: Check: AI Features (End-to-End Test)
 
 on:
   workflow_dispatch:

@@ -1,4 +1,4 @@
-name: Smoke Test (Production Health Check)
+name: Check: Site is Live (Smoke Test)
 
 on:
   workflow_dispatch:

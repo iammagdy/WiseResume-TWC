@@ -1,4 +1,4 @@
-name: Run Tests
+name: Check: Run All Tests
 
 on:
   workflow_dispatch:

@@ -1,4 +1,4 @@
-name: Check AI Key is Valid
+name: Check: AI Key (Gemini)
 
 on:
   workflow_dispatch:

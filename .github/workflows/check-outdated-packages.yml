@@ -1,4 +1,4 @@
-name: Check Outdated Packages
+name: Check: Outdated Packages
 
 on:
   workflow_dispatch:

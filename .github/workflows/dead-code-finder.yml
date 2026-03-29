@@ -1,4 +1,4 @@
-name: Dead Code Finder
+name: Check: Unused Code
 
 on:
   workflow_dispatch:

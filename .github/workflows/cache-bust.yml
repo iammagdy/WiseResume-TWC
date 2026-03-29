@@ -1,4 +1,4 @@
-name: Purge Cache
+name: Fix: Clear Cache (Supabase)
 
 on:
   workflow_dispatch:

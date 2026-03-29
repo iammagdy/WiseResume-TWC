@@ -1,4 +1,4 @@
-name: Edge Function Logs
+name: Check: Edge Function Logs (Supabase)
 
 on:
   workflow_dispatch:

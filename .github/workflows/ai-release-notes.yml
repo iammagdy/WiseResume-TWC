@@ -1,4 +1,4 @@
-name: AI Release Notes Generator
+name: AI: Generate Release Notes
 
 on:
   workflow_dispatch:

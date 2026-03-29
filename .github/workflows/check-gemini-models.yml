@@ -1,4 +1,4 @@
-name: Check Which Gemini Models Work
+name: Check: Available Gemini Models
 
 on:
   workflow_dispatch:

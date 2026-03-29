@@ -1,4 +1,4 @@
-name: Find All TODOs & FIXMEs
+name: Check: Unfinished Tasks (TODOs)
 
 on:
   workflow_dispatch:

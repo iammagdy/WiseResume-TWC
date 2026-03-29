@@ -1,4 +1,4 @@
-name: Active Users Stats
+name: Check: Active Users Stats
 
 on:
   workflow_dispatch:

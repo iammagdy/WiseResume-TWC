@@ -1,4 +1,4 @@
-name: Auto-Fix Lint Errors
+name: Fix: Auto-Fix Lint Errors
 
 on:
   workflow_dispatch:

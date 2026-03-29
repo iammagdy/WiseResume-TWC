@@ -1,4 +1,4 @@
-name: Lighthouse Performance Check
+name: Check: Website Performance (Lighthouse)
 
 on:
   workflow_dispatch:

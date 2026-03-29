@@ -1,4 +1,4 @@
-name: TypeScript Type Check
+name: Check: TypeScript Types
 
 on:
   workflow_dispatch:

@@ -1,4 +1,4 @@
-name: Bundle Size Report
+name: Check: Bundle Size
 
 on:
   workflow_dispatch:

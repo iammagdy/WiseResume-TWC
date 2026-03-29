@@ -1,4 +1,4 @@
-name: Build Check
+name: Check: Build (No Deploy)
 
 on:
   workflow_dispatch:

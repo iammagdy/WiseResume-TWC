@@ -1,4 +1,4 @@
-name: Scan for Debug Logs
+name: Check: Debug Logs in Code
 
 on:
   workflow_dispatch:

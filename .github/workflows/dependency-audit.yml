@@ -1,4 +1,4 @@
-name: Dependency Security Audit
+name: Check: Dependency Security Audit
 
 on:
   workflow_dispatch:

@@ -1,4 +1,4 @@
-name: AI Credits Overview
+name: Check: AI Credits Overview
 
 on:
   workflow_dispatch:

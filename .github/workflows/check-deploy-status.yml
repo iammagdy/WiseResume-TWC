@@ -1,4 +1,4 @@
-name: Check Deploy Status
+name: Check: Is Website Up to Date?
 
 on:
   workflow_dispatch:

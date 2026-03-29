@@ -1,4 +1,4 @@
-name: AI Code Review (GitHub Models)
+name: AI: Code Review
 
 on:
   workflow_dispatch:

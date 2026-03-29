@@ -1,4 +1,4 @@
-name: Screenshot Live Site
+name: Check: Screenshot Live Site
 
 on:
   workflow_dispatch:

@@ -1,4 +1,4 @@
-name: Unit Tests
+name: Check: Unit Tests
 
 on:
   push:

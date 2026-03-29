@@ -1,4 +1,4 @@
-name: Supabase Usage Monitor
+name: Check: Supabase Usage
 
 on:
   workflow_dispatch:

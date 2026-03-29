@@ -1,4 +1,4 @@
-name: Dependency Auto-Update
+name: Fix: Update Dependencies
 
 on:
   workflow_dispatch:

@@ -1,4 +1,4 @@
-name: AI "What's New for Users"
+name: "AI: What's New for Users"
 
 on:
   workflow_dispatch:
