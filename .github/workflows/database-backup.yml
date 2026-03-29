@@ -1,0 +1,49 @@
+name: Database Backup
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: >
+          💾 DATABASE BACKUP — Creates a full snapshot of your Supabase
+          database and saves it as a downloadable file in this Action run
+          (called an artifact). The file is kept for 30 days. Run this
+          BEFORE applying any database migration as a safety net — if the
+          migration goes wrong, you have a backup to restore from. Requires
+          SUPABASE_ACCESS_TOKEN and SUPABASE_DB_PASSWORD secrets. Takes
+          about 1-2 minutes. Leave this field as-is and click "Run workflow"
+          to proceed.
+        type: string
+        required: false
+        default: 'Yes, create a database backup'
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Dump database
+        run: |
+          echo "Creating database backup..."
+          supabase db dump \
+            --project-ref jnsfmkzgxsviuthaqlyy \
+            --file backup.sql
+          echo "✅ Backup created."
+          echo "File size: $(du -sh backup.sql | cut -f1)"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+      - name: Upload backup as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: database-backup-${{ github.run_number }}-${{ github.run_id }}
+          path: backup.sql
+          retention-days: 30

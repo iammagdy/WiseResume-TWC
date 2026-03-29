@@ -1,0 +1,40 @@
+name: Edge Function Logs
+
+on:
+  workflow_dispatch:
+    inputs:
+      function_name:
+        description: >
+          📋 EDGE FUNCTION LOGS — Fetches recent logs from your Supabase edge
+          functions so you can debug issues without opening the Supabase
+          dashboard. Type the name of the function you want to inspect
+          (e.g. tailor-resume, agentic-chat, enhance-section). Leave empty
+          to fetch logs for all functions. Requires SUPABASE_ACCESS_TOKEN
+          secret. Takes a few seconds.
+        type: string
+        required: false
+        default: ''
+
+jobs:
+  logs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Fetch edge function logs
+        run: |
+          FUNCTION="${{ inputs.function_name }}"
+          if [ -n "$FUNCTION" ]; then
+            echo "=== Logs for function: $FUNCTION ==="
+            supabase functions logs "$FUNCTION" \
+              --project-ref jnsfmkzgxsviuthaqlyy
+          else
+            echo "=== Logs for all edge functions ==="
+            supabase functions logs \
+              --project-ref jnsfmkzgxsviuthaqlyy
+          fi
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
