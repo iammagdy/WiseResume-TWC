@@ -125,13 +125,12 @@ export async function exchangeToken(kindeToken: string): Promise<void> {
         state.lastError = { type: BridgeErrorType.UNKNOWN, code: 'UNKNOWN', message: String(err) };
       }
       console.log(`[SupabaseBridge] Error categorized as: ${state.lastError.type}`);
-      exchangePromise = null;
       throw err;
     } finally {
-      // Handled above or on success
-      if (state.supabaseToken) {
-        exchangePromise = null;
-      }
+      // Always clear the in-flight promise so the next call starts a fresh exchange.
+      // Previously this was only cleared on success (supabaseToken truthy) which
+      // caused a stale resolved-promise leak on AUTH_REJECTION paths.
+      exchangePromise = null;
     }
   })();
 

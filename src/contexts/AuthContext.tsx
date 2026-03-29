@@ -82,20 +82,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kindeUser, bridgeReady]);
 
-  // Exchange Kinde token for Supabase JWT when user is authenticated
+  // Exchange Kinde token for Supabase JWT when user is authenticated.
+  // NOTE: We intentionally do NOT gate on kindeLoading here. In some environments
+  // (e.g. Replit dev) Kinde's session verification can take 30–60 s while
+  // kindeAuthenticated/kindeUser are already available. Waiting would block the
+  // bridge — and therefore the whole UI — for that entire duration.
   useEffect(() => {
-    if (!kindeAuthenticated || !kindeUser || kindeLoading) {
-      // If Kinde is down or loading, we preserve the cached bridge locally
-      // so the user can still access Supabase functionality offline/if Kinde is unreachable.
+    // Always register the getter so refreshTokenIfNeeded() can call it at any time.
+    setKindeTokenGetter(getKindeToken);
+
+    if (!kindeAuthenticated || !kindeUser) {
+      // Not authenticated yet — use any cached bridge token to stay unblocked.
       if (isReady()) setBridgeReady(true);
       return;
     }
 
     let cancelled = false;
-
-    // Always register the getter unconditionally so refreshTokenIfNeeded() always
-    // has a callable getter, even if the initial token fetch returns null.
-    setKindeTokenGetter(getKindeToken);
 
     // Immediately unblock the UI if a valid cached token already exists.
     // The async IIFE below still runs to refresh the token in the background.
@@ -103,8 +105,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     (async () => {
       try {
-        const kindeToken = await getKindeToken();
-        if (!kindeToken || cancelled) return;
+        // Apply a short timeout to the Kinde token getter. In some environments
+        // (e.g. Replit dev) the Kinde SDK can hang for 30–60 s while it makes
+        // a background network call to verify the session. If it hangs, we
+        // immediately settle as "failed" so the UI shows instead of blocking.
+        const kindeToken = await Promise.race([
+          getKindeToken(),
+          new Promise<null>(resolve => setTimeout(() => resolve(null), 5000)),
+        ]);
+        if (cancelled) return;
+        if (!kindeToken) {
+          console.warn('[AuthContext] Kinde token unavailable (timed out or null) — degraded mode');
+          setBridgeFailed(true);
+          return;
+        }
 
         await exchangeToken(kindeToken);
         if (!cancelled) {
@@ -123,7 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
 
     return () => { cancelled = true; };
-  }, [kindeAuthenticated, kindeUser, kindeLoading, getKindeToken]);
+  }, [kindeAuthenticated, kindeUser, getKindeToken]);
 
   // Refresh bridge token every 50 minutes
   useEffect(() => {
