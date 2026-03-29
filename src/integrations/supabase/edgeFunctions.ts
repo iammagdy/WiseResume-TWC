@@ -47,13 +47,24 @@ export const edgeFunctions = {
       try {
         let result = await doInvoke(getToken());
 
-        // On 401, try refreshing the bridge token once and retry
+        // On 401, try refreshing the bridge token once and retry.
+        // Guard: skip the retry if the body indicates an app-layer error (e.g. invalid AI key)
+        // rather than a genuine JWT expiry — those return 422 after the aiClient fix, but this
+        // check also covers any edge function that still returns 401 for non-auth reasons.
         if (result.response.status === 401) {
-          const refreshed = await refreshTokenIfNeeded();
-          if (refreshed) {
-            result = await doInvoke(getToken());
-          } else {
-            window.dispatchEvent(new CustomEvent('app:session-expired'));
+          const looksLikeAuthError =
+            !result.text ||
+            result.text.includes('Unauthorized') ||
+            result.text.includes('Missing authorization') ||
+            result.text.includes('invalid signature') ||
+            result.text.includes('jwt');
+          if (looksLikeAuthError) {
+            const refreshed = await refreshTokenIfNeeded();
+            if (refreshed) {
+              result = await doInvoke(getToken());
+            } else {
+              window.dispatchEvent(new CustomEvent('app:session-expired'));
+            }
           }
         }
 

@@ -363,7 +363,7 @@ Deno.serve(async (req: Request) => {
 
     // Call AI with tools
     const aiResponse = await callAI({
-      model: 'google/gemini-2.0-flash',
+      model: 'google/gemini-3-flash-preview',
       messages,
       tools: TOOLS as any[],
       temperature: 0.7,

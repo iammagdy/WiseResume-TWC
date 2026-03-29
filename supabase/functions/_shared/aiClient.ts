@@ -67,6 +67,7 @@ export interface AIError {
 
 // Model mapping for direct Gemini calls
 const MODEL_MAPPING: Record<string, string> = {
+  'google/gemini-3-flash-preview': 'gemini-3-flash-preview',
   'google/gemini-2.5-flash': 'gemini-2.5-flash',
   'google/gemini-2.5-pro': 'gemini-2.5-pro',
   'google/gemini-2.0-flash': 'gemini-2.0-flash',
@@ -316,7 +317,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
 
 const RETRY_DELAYS = [1000, 2000, 4000];
 const RETRY_TIMEOUTS = [30_000, 45_000, 55_000];
-const FALLBACK_MODEL = 'google/gemini-2.0-flash-lite';
+const FALLBACK_MODEL = 'google/gemini-3-flash-preview';
 
 function isRetryableError(error: unknown): boolean {
   if (error instanceof DOMException && error.name === 'AbortError') return true;
@@ -463,7 +464,7 @@ async function callOllamaDirect(
     } catch {}
 
     if (response.status === 401 || response.status === 403) {
-      throw createAIError('invalid_key', 'Invalid Ollama API key. Please check your settings.', 401);
+      throw createAIError('invalid_key', 'Invalid Ollama API key. Please check your settings.', 422);
     }
     if (response.status === 429) {
       throw createAIError('rate_limit', 'Ollama rate limit reached. Please wait.', 429);
@@ -576,7 +577,7 @@ function handleGeminiError(status: number, errorText: string): never {
   }
 
   if (status === 401 || status === 403) {
-    throw createAIError('invalid_key', 'Invalid Gemini API key. Please check your settings.', 401);
+    throw createAIError('invalid_key', 'Invalid Gemini API key. Please check your settings.', 422);
   }
   if (status === 404) {
     throw createAIError('unknown', `Model not found: ${errorMessage}. Check your selected model in AI Settings.`, 404);

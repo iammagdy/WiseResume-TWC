@@ -116,7 +116,7 @@ ${jobDescription}
 Write a ${validTone} cover letter with a professional header containing actual contact details.`;
 
     const aiResponse = await callAIWithRetry({
-      model: 'google/gemini-2.5-flash',
+      model: 'google/gemini-3-flash-preview',
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
