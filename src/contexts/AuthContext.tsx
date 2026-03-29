@@ -97,6 +97,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // has a callable getter, even if the initial token fetch returns null.
     setKindeTokenGetter(getKindeToken);
 
+    // Immediately unblock the UI if a valid cached token already exists.
+    // The async IIFE below still runs to refresh the token in the background.
+    if (isReady()) setBridgeReady(true);
+
     (async () => {
       try {
         const kindeToken = await getKindeToken();
@@ -155,8 +159,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     logAudit('auth', 'signed_out');
     clearBridge();
     setBridgeReady(false);
-    setBridgeFailed(true);
-    useSettingsStore.getState().resetSettings();
+    setBridgeFailed(false);
+    useSettingsStore.getState().resetUserSettings();
     try {
       await kindeLogout();
     } catch (e) {

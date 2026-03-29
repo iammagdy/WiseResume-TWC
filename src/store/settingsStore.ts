@@ -112,6 +112,7 @@ interface SettingsState {
   setOllamaKeyValidated: (validated: boolean) => void;
   
   resetSettings: () => void;
+  resetUserSettings: () => void;
 }
 
 const defaultSettings = {
@@ -223,6 +224,18 @@ export const useSettingsStore = create<SettingsState>()(
       setOllamaKeyValidated: (validated) => set({ ollamaKeyValidated: validated }),
       
       resetSettings: () => set(defaultSettings),
+
+      resetUserSettings: () => set((state) => ({
+        ...defaultSettings,
+        // Preserve one-time flags that are device/user experience state,
+        // not account-specific data. These should never reset on sign-out.
+        hasSeenSplash: state.hasSeenSplash,
+        hasSeenAIIntro: state.hasSeenAIIntro,
+        hasSeenPreviewHint: state.hasSeenPreviewHint,
+        hasSeenTailorHint: state.hasSeenTailorHint,
+        hasSeenInterviewHint: state.hasSeenInterviewHint,
+        hasSeenAIStudioTour: state.hasSeenAIStudioTour,
+      })),
     }),
     {
       name: 'wiseresume-settings',
