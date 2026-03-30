@@ -234,13 +234,15 @@ export function getExtractionSummary(data: ResumeData): {
     skillsCount: number;
   };
 } {
+  // Defensive access — AI or fallback parser may return incomplete structures
+  const contact = data?.contactInfo ?? {};
   const counts = {
-    hasName: !!data.contactInfo.fullName,
-    hasEmail: !!data.contactInfo.email,
-    hasPhone: !!data.contactInfo.phone,
-    experienceCount: data.experience.length,
-    educationCount: data.education.length,
-    skillsCount: data.skills.length,
+    hasName: !!(contact as any).fullName,
+    hasEmail: !!(contact as any).email,
+    hasPhone: !!(contact as any).phone,
+    experienceCount: (data?.experience ?? []).length,
+    educationCount: (data?.education ?? []).length,
+    skillsCount: (data?.skills ?? []).length,
   };
 
   const hasContact = counts.hasName || counts.hasEmail || counts.hasPhone;

@@ -28,7 +28,7 @@ export function UploadProgressSteps({ currentStep, fileName }: UploadProgressSte
 
   return (
     <motion.div
-      className="flex flex-col items-center w-full max-w-[280px]"
+      className="flex flex-col items-center w-full max-w-[280px] bg-background/75 backdrop-blur-md rounded-2xl px-6 py-6"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
