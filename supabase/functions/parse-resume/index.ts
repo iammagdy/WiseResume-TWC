@@ -587,8 +587,9 @@ serve(async (req) => {
         );
       }
 
-      if (httpStatus === 503 || httpStatus === 500 || httpStatus === 0) {
-        // Service unavailable or network error — fall back to local parser
+      if (httpStatus === 503 || httpStatus === 500 || httpStatus === 0 ||
+          httpStatus === 401 || httpStatus === 403 || httpStatus === 404) {
+        // Service unavailable, auth/model error, or network error — fall back to local parser
         console.warn('[parse-resume] Gemini unavailable (status:', httpStatus, '), falling back to local regex parser');
         const fallbackResume = localParseResume(processedText);
         parseStatus = 'partial';

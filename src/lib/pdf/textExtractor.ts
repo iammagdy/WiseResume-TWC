@@ -85,16 +85,28 @@ export async function extractTextFromPDF(file: File): Promise<ExtractionResult> 
         'PASSWORD_PROTECTED'
       );
     }
-    if (errorMessage.includes('Invalid PDF')) {
+    if (
+      errorMessage.includes('Invalid PDF') ||
+      errorName === 'UnknownErrorException' ||
+      errorName === 'MissingPDFException' ||
+      errorName === 'FormatError'
+    ) {
       throw new PDFParseError(
         'This PDF appears to be corrupted or invalid.',
         'CORRUPTED'
       );
     }
-    throw new PDFParseError(
-      'Failed to read this PDF file.',
-      'UNKNOWN'
-    );
+    // Worker initialization may fail on mobile (memory pressure, CSP, Service Worker
+    // conflicts). Retry once with the worker disabled before giving up.
+    console.warn('[textExtractor] PDF.js worker failed, retrying without worker:', errorName || errorMessage);
+    try {
+      pdf = await pdfjsLib.getDocument({ data: arrayBuffer, disableWorker: true }).promise;
+    } catch (retryError) {
+      throw new PDFParseError(
+        'Failed to read this PDF file.',
+        'UNKNOWN'
+      );
+    }
   }
 
   const pageTexts: string[] = [];
