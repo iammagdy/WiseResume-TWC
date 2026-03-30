@@ -64,7 +64,7 @@ export function EditorHeader({
             <ArrowLeft className="w-5 h-5" />
           </button>
           <button
-            className="flex items-center gap-1 min-w-0 max-w-[40vw] sm:max-w-[55vw] cursor-pointer hover:text-primary/80 transition-colors active:scale-95 touch-manipulation"
+            className="flex items-center gap-1 min-w-0 max-w-[55vw] sm:max-w-[60vw] cursor-pointer hover:text-primary/80 transition-colors active:scale-95 touch-manipulation"
             title={resumeTitle || 'Edit Resume'}
             onClick={onTitleClick}
             aria-label="Switch resume"
@@ -166,36 +166,33 @@ export function EditorHeader({
           </button>
         </div>
         {/* Mobile-only: consolidated tools trigger */}
-        <div className="flex items-center gap-1 md:hidden">
+        <div className="flex items-center gap-0.5 md:hidden">
           <button
             onClick={() => { haptics.light(); onTemplateBtnSeen(); onChangeTemplate(); }}
-            className="relative rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-muted hover:bg-muted/80 touch-manipulation"
+            className="relative rounded-full min-w-[40px] min-h-[40px] flex items-center justify-center active:scale-95 bg-muted hover:bg-muted/80 touch-manipulation"
             aria-label="Change template"
           >
             {!templateBtnSeen && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary animate-[ping_1.5s_ease-out_3]" />}
             <LayoutGrid className={`w-5 h-5 ${templateBtnSeen ? 'text-muted-foreground' : 'text-primary'}`} />
-            <span className={`text-[9px] font-medium leading-none ${templateBtnSeen ? 'text-muted-foreground' : 'text-primary'}`}>Template</span>
           </button>
           {/* Mobile download button */}
           <button
             onClick={() => { haptics.light(); onDownload(); }}
             disabled={isQuickDownloading}
-            className="rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-muted hover:bg-muted/80 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rounded-full min-w-[40px] min-h-[40px] flex items-center justify-center active:scale-95 bg-muted hover:bg-muted/80 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Download resume as PDF"
           >
             {isQuickDownloading ? <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /> : <Download className="w-5 h-5 text-muted-foreground" />}
-            <span className="text-[9px] font-medium leading-none text-muted-foreground">PDF</span>
           </button>
           <button
             onClick={() => { haptics.light(); onOpenChat(); }}
-            className="rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-primary/10 hover:bg-primary/15 touch-manipulation"
+            className="rounded-full min-w-[40px] min-h-[40px] flex items-center justify-center active:scale-95 bg-primary/10 hover:bg-primary/15 touch-manipulation"
             aria-label="Open Wise AI Chat"
           >
             <span className="relative">
               <MessageSquare className="w-5 h-5 text-primary" />
               <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary" />
             </span>
-            <span className="text-[9px] font-medium leading-none text-primary">Chat</span>
           </button>
         </div>
       </div>

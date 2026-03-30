@@ -448,7 +448,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     const maxLen = variant === 'original' ? 300 : 500;
     return (
       <div className={cn(
-        "p-2.5 rounded-lg text-xs max-h-32 overflow-y-auto whitespace-pre-wrap",
+        "p-2.5 rounded-lg text-xs whitespace-pre-wrap",
         variant === 'original' ? "bg-muted/50 line-through opacity-60" : "bg-primary/5 border border-primary/20"
       )}>
         {text.slice(0, maxLen)}{text.length > maxLen ? '…' : ''}

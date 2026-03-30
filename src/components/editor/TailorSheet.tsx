@@ -1240,18 +1240,18 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
 
         {/* Sticky CTA Footer */}
         {tailorResult && !isTailoring && (
-          <div className="shrink-0 border-t border-border bg-background/80 backdrop-blur-md px-4 py-3 pb-safe">
+          <div className="shrink-0 border-t border-border bg-background/80 backdrop-blur-md px-4 py-2 pb-safe [@media(max-height:700px)]:py-1.5">
             <div className="flex gap-3">
               <Button
                 variant="outline"
-                className="flex-1 min-h-[44px] active:scale-95 transition-transform"
+                className="flex-1 min-h-[44px] [@media(max-height:700px)]:min-h-[36px] active:scale-95 transition-transform"
                 onClick={() => { haptics.warning(); handleRevert(); }}
               >
                 <Undo2 className="w-4 h-4 mr-2" />
                 Discard
               </Button>
               <Button
-                className="flex-1 gradient-primary min-h-[44px] active:scale-95 transition-transform"
+                className="flex-1 gradient-primary min-h-[44px] [@media(max-height:700px)]:min-h-[36px] active:scale-95 transition-transform"
                 onClick={() => { haptics.success(); handleApplyChanges(); }}
                 disabled={enabledSections.length === 0 || isApplying}
               >
@@ -1264,7 +1264,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
               </Button>
             </div>
             {effectiveScore && (
-              <p className="text-xs text-center text-muted-foreground mt-2">
+              <p className="text-xs text-center text-muted-foreground mt-1.5 [@media(max-height:700px)]:hidden">
                 Applying {enabledSections.length} sections → Score: {effectiveScore}% • New tailored copy will be created
               </p>
             )}

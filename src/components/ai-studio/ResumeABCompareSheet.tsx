@@ -226,10 +226,19 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
               <p className="text-sm text-muted-foreground text-center animate-pulse">Scoring both resumes...</p>
               <div className="grid grid-cols-2 gap-4">
                 {[0, 1].map(i => (
-                  <div key={i} className="space-y-3 p-3 rounded-xl glass-surface border border-border/30">
+                  <div key={i} className="space-y-3 p-3 rounded-xl glass-surface border border-border/30 min-h-[160px]">
                     <Skeleton className="h-4 w-24" />
                     <Skeleton className="h-16 w-16 rounded-full mx-auto" />
                     {[0, 1, 2].map(j => <Skeleton key={j} className="h-3 w-full" />)}
+                  </div>
+                ))}
+              </div>
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-32" />
+                {[0, 1, 2, 3].map(j => (
+                  <div key={j} className="space-y-1">
+                    <Skeleton className="h-3 w-28" />
+                    <Skeleton className="h-2 w-full" />
                   </div>
                 ))}
               </div>
