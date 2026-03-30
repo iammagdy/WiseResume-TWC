@@ -8,8 +8,9 @@ interface GenerateParams {
   jobDescription?: string;
   resumeData?: {
     summary?: string;
-    experience?: Array<{ position?: string; company?: string }>;
+    experience?: Array<{ position?: string; company?: string; startDate?: string; endDate?: string }>;
     skills?: Array<{ name?: string; skill?: string } | string>;
+    education?: Array<{ degree?: string; institution?: string; school?: string }>;
   };
 }
 

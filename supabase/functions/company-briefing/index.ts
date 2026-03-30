@@ -3,14 +3,19 @@ import { callAIWithRetry, sanitizeInputText, toUserError } from '../_shared/aiCl
 import { checkRateLimit, recordUsage } from '../_shared/rateLimiter.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 
-const JD_SYSTEM_PROMPT = `You are an expert career research analyst. Given a job description and optionally a candidate's resume data, generate a comprehensive company research briefing.
+const JD_SYSTEM_PROMPT = `You are an expert career research analyst and personal career coach. Given a job description and a candidate's resume data, generate a comprehensive company research briefing that is tightly personalised to THIS specific candidate.
 
-Your briefing must be practical, specific, and actionable. Infer company details from the job description when explicit information is unavailable. Focus on insights that would help a candidate prepare for an interview.
+Your briefing must be practical, specific, and actionable. Infer company details from the job description when explicit information is unavailable. Focus on insights that would help THIS candidate prepare for an interview.
+
+CANDIDATE PERSONALISATION RULES (apply to every section):
+- Talking points: Each point MUST explicitly reference the candidate's own job titles, skills, or projects and explain why that background maps to the company's needs. Write as a career coach advising this specific person (e.g. "Your experience leading X directly aligns with their initiative Y — lead with that").
+- Questions to ask: Calibrate each question to the candidate's seniority level and career trajectory inferred from their resume. A senior engineer's questions differ from a junior's; a career-switcher's questions differ from a specialist's.
+- Culture signals: Where a culture signal is directly relevant to something in the candidate's background or stated preferences, call it out explicitly (e.g. "You have worked remotely — note they are hybrid, which may be an adjustment").
+- Overall tone: Sound like a sharp personal career coach giving bespoke advice, NOT a generic company Wikipedia page. Every insight should feel written specifically for this person.
 
 IMPORTANT: All information must be grounded in the job description content. Do not fabricate specific news events or people's names — instead provide role-based insights (e.g. "Engineering Manager for this team" rather than inventing a name).`;
 
-const COMPANY_SYSTEM_PROMPT = `You are an elite corporate research analyst performing deep-dive company intelligence.
-Given a company name, produce a thorough, accurate, and detailed company research briefing.
+const COMPANY_SYSTEM_PROMPT = `You are an elite corporate research analyst AND personal career coach. Given a company name and a candidate's resume data, produce a thorough, accurate, and deeply personalised company research briefing for THIS specific candidate.
 
 Your research must include:
 - Verified facts about the company (founding, HQ, size, mission, revenue if public)
@@ -19,8 +24,14 @@ Your research must include:
 - Actual competitors in their market
 - Workplace culture based on publicly available information (Glassdoor themes, employer brand)
 - Key leadership roles and their strategic context
-- Actionable talking points for someone interviewing there
-- Smart questions a candidate should ask
+- Personalised talking points that explicitly reference the candidate's background
+- Smart questions calibrated to the candidate's seniority and career goals
+
+CANDIDATE PERSONALISATION RULES (apply to every section):
+- Talking points: Each point MUST explicitly cite the candidate's own job titles, skills, or projects and explain why that background maps to the company. Write as a career coach advising this specific person (e.g. "Your background in X is directly relevant to their focus on Y — highlight this"). Do NOT write generic interview tips.
+- Questions to ask: Calibrate every question to the candidate's seniority level and career stage inferred from their resume. A first-time manager asks different questions than a VP; a career-switcher asks different questions than a domain expert.
+- Culture signals: When a culture signal has direct relevance to the candidate's background, preferences, or working style (as evidenced by their resume), note it explicitly.
+- Overall tone: Sound like a sharp personal career coach giving bespoke, actionable advice — not a company Wikipedia page. Every insight should feel written specifically for this candidate.
 
 CRITICAL RULES:
 - Be specific and factual. Do NOT generate generic business advice.
@@ -189,18 +200,36 @@ Deno.serve(async (req) => {
 
     if (resumeData) {
       const parts: string[] = [];
-      if (resumeData.summary) parts.push(`Summary: ${resumeData.summary}`);
+      if (resumeData.summary) parts.push(`Professional Summary: ${resumeData.summary}`);
       if (resumeData.experience?.length) {
-        parts.push('Experience: ' + resumeData.experience.map((e: any) => `${e.position || ''} at ${e.company || ''}`).join('; '));
+        const expLines = resumeData.experience.map((e: any) => {
+          const parts: string[] = [];
+          if (e.position) parts.push(e.position);
+          if (e.company) parts.push(`at ${e.company}`);
+          if (e.startDate || e.endDate) parts.push(`(${[e.startDate, e.endDate].filter(Boolean).join(' – ')})`);
+          return parts.join(' ');
+        }).filter(Boolean);
+        if (expLines.length) parts.push('Work Experience:\n' + expLines.map(l => `  - ${l}`).join('\n'));
       }
       if (resumeData.skills?.length) {
         const skillNames = resumeData.skills.map((s: any) => typeof s === 'string' ? s : s.name || s.skill || '').filter(Boolean);
-        parts.push('Skills: ' + skillNames.join(', '));
+        if (skillNames.length) parts.push('Skills: ' + skillNames.join(', '));
+      }
+      if (resumeData.education?.length) {
+        const eduLines = resumeData.education.map((ed: any) => {
+          const parts: string[] = [];
+          if (ed.degree) parts.push(ed.degree);
+          if (ed.institution || ed.school) parts.push(`from ${ed.institution || ed.school}`);
+          return parts.join(' ');
+        }).filter(Boolean);
+        if (eduLines.length) parts.push('Education:\n' + eduLines.map(l => `  - ${l}`).join('\n'));
       }
       const resumeContext = sanitizeInputText(parts.join('\n'), 3000);
       if (resumeContext) {
-        userPrompt += `\n\nCandidate Resume:\n${resumeContext}`;
+        userPrompt += `\n\nCANDIDATE BACKGROUND (use this to personalise every section of the briefing):\n${resumeContext}`;
       }
+    } else {
+      userPrompt += '\n\n(No candidate resume provided — generate general insights without personalisation.)';
     }
 
     const aiResponse = await callAIWithRetry({

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Building2, Newspaper, Heart, Users, MessageSquareQuote, HelpCircle,
   Copy, X, Sparkles, Download, Search, FileText, Cpu, Star,
-  Swords, ShoppingBag, ArrowRight,
+  Swords, ShoppingBag, ArrowRight, Zap,
 } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerClose } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
@@ -28,8 +28,9 @@ interface CompanyBriefingSheetProps {
   jobDescription: string;
   resumeData?: {
     summary?: string;
-    experience?: Array<{ position?: string; company?: string }>;
+    experience?: Array<{ position?: string; company?: string; startDate?: string; endDate?: string }>;
     skills?: Array<{ name?: string; skill?: string } | string>;
+    education?: Array<{ degree?: string; institution?: string; school?: string }>;
   };
 }
 
@@ -484,14 +485,60 @@ function BriefingContent({ briefing }: { briefing: CompanyBriefing }) {
     ),
   });
 
+  const topTalkingPoints = briefing.talkingPoints.slice(0, 3);
+  const topQuestions = briefing.questionsToAsk.slice(0, 2);
+
   return (
     <div className="space-y-3">
+      {/* For Your Interview — quick-glance card */}
+      {(topTalkingPoints.length > 0 || topQuestions.length > 0) && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0 }}
+          className="p-4 rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent shadow-[0_0_20px_hsl(var(--primary)/0.12)] space-y-3"
+        >
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-primary fill-primary/20" />
+            <h3 className="text-sm font-bold text-primary">For Your Interview</h3>
+          </div>
+
+          {topTalkingPoints.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Top Talking Points</p>
+              <ul className="space-y-1.5">
+                {topTalkingPoints.map((t, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm">
+                    <MessageSquareQuote className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
+                    <span className="text-foreground leading-snug">{t.point}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {topQuestions.length > 0 && (
+            <div className="space-y-1.5 pt-1 border-t border-primary/20">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Questions to Ask</p>
+              <ul className="space-y-1.5">
+                {topQuestions.map((q, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm">
+                    <HelpCircle className="w-3.5 h-3.5 text-indigo-500 mt-0.5 shrink-0" />
+                    <span className="text-foreground leading-snug">"{q.question}"</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </motion.div>
+      )}
+
       {sections.map((section, i) => (
         <motion.div
           key={section.title}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: i * 0.05 }}
+          transition={{ delay: (i + 1) * 0.05 }}
           className={cn(
             'p-4 rounded-2xl border bg-card/60 space-y-3 border-l-4',
             section.highlight
