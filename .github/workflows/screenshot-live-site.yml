@@ -23,7 +23,7 @@ jobs:
       - name: Install Playwright dependencies
         run: |
           npx playwright install chromium --with-deps 2>&1 | tail -5
-        npm install playwright
+                  npm install playwright
 
       - name: Take screenshot of live site
         run: |
