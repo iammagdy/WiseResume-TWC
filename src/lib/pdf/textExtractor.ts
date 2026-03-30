@@ -99,18 +99,34 @@ export async function extractTextFromPDF(file: File): Promise<ExtractionResult> 
 
   const pageTexts: string[] = [];
   const debugPages: Array<{ page: number; rawItems: number; extractedChars: number }> = [];
+  const pageCount = pdf.numPages;
 
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const textContent = await page.getTextContent({ includeMarkedContent: false } as any);
-    const rawItems = Array.isArray((textContent as any)?.items) ? (textContent as any).items.length : 0;
-    const pageText = reconstructPageText((textContent as any).items as any[]);
-    debugPages.push({ page: i, rawItems, extractedChars: pageText.length });
-    pageTexts.push(pageText);
+  try {
+    for (let i = 1; i <= pageCount; i++) {
+      const page = await pdf.getPage(i);
+      // getTextContent options vary across pdfjs versions — use a plain object and cast
+      const textContent = await page.getTextContent({ includeMarkedContent: false } as Parameters<typeof page.getTextContent>[0]);
+      const rawItems = Array.isArray((textContent as any)?.items) ? (textContent as any).items.length : 0;
+      const pageText = reconstructPageText((textContent as any).items as any[]);
+      debugPages.push({ page: i, rawItems, extractedChars: pageText.length });
+      pageTexts.push(pageText);
+    }
+  } catch (pageError: unknown) {
+    // If page-level extraction fails (e.g. unsupported PDF feature or API mismatch),
+    // treat as corrupted rather than surfacing a raw TypeError to the user.
+    console.error('[textExtractor] Page text extraction failed:', pageError);
+    if (pageTexts.length === 0) {
+      // No pages extracted at all — treat as corrupted
+      throw new PDFParseError(
+        'Failed to read the content of this PDF. It may use unsupported features.',
+        'CORRUPTED'
+      );
+    }
+    // Partial extraction — continue with what we have
+    console.warn(`[textExtractor] Partial extraction: got ${pageTexts.length}/${pageCount} pages`);
   }
 
   const fullText = pageTexts.join('\n\n');
-  const pageCount = pdf.numPages;
 
   // Check if we got meaningful text
   const cleanedText = fullText.replace(/\s+/g, ' ').trim();

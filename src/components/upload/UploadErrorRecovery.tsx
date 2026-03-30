@@ -98,7 +98,7 @@ export function UploadErrorRecovery({
 
   return (
     <motion.div
-      className="flex flex-col items-center text-center p-6"
+      className="flex flex-col items-center text-center p-6 bg-background/80 backdrop-blur-md rounded-2xl border border-border/40"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
     >

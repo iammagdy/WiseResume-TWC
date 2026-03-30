@@ -791,7 +791,7 @@ export default function UploadPage() {
                 {isProcessing ? (
                   <UploadProgressSteps currentStep={parseStep} fileName={fileName ?? undefined} />
                 ) : (
-                  <>
+                  <div className="flex flex-col items-center bg-background/70 backdrop-blur-md rounded-2xl px-6 py-7 w-full max-w-xs">
                     <motion.div
                       className="w-20 h-20 rounded-full gradient-primary flex items-center justify-center mb-5"
                       animate={isDragging ? { scale: 1.1 } : { scale: 1 }}
@@ -818,7 +818,7 @@ export default function UploadPage() {
                       <FileText className="w-4 h-4" />
                       <span>PDF, Word, Image, JSON, HTML • max 10MB</span>
                     </div>
-                  </>
+                  </div>
                 )}
               </UploadZone>
 
