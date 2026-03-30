@@ -83,7 +83,9 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
       const a = document.createElement('a');
       a.href = url;
       a.download = `${briefing.companySnapshot.name.replace(/\s+/g, '_')}_Briefing.pdf`;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
       toast.success('PDF downloaded');
     } catch {

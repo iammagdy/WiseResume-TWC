@@ -324,5 +324,5 @@ export async function generateCompanyBriefingPDF(briefing: CompanyBriefing, user
   drawFooters(ctx);
 
   const pdfBytes = await doc.save();
-  return new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
+  return new Blob([pdfBytes], { type: 'application/pdf' });
 }

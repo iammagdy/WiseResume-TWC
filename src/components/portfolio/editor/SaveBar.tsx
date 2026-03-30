@@ -49,7 +49,7 @@ export function SaveBar({ onSave, saving, disabled, portfolioEnabled, onPortfoli
         <Button
           onClick={onSave}
           disabled={saving}
-          className="flex-1 h-11 min-h-[44px] rounded-xl active:scale-95 touch-manipulation mx-[50px] my-0 pr-0 ml-0 mr-[80px] text-center pl-0">
+          className="flex-1 h-11 min-h-[44px] rounded-xl active:scale-95 touch-manipulation">
           
             {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             Save Portfolio
