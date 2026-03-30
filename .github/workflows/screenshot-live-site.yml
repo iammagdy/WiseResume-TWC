@@ -5,7 +5,7 @@ on:
     inputs:
       confirm:
         description: >
-          📸 SCREENSHOT LIVE SITE — Takes an automatic screenshot of your
+          📸 SCREENSHOT LIVE SITE – Takes an automatic screenshot of your
           live website and saves it as a downloadable image (artifact). Use
           this after a deployment to visually confirm the site looks correct
           without opening a browser. The screenshot file is kept for 7 days
@@ -20,10 +20,13 @@ jobs:
   screenshot:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Install Playwright dependencies
         run: |
+          npm install playwright
           npx playwright install chromium --with-deps 2>&1 | tail -5
-                            npm install playwright
 
       - name: Take screenshot of live site
         run: |
