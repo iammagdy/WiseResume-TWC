@@ -55,21 +55,33 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding }
     return () => clearInterval(interval);
   }, [tipPaused]);
 
-  const motionProps = shouldReduceMotion
-    ? { initial: undefined, animate: undefined, variants: undefined }
-    : {};
-
   return (
     <motion.div
       initial={shouldReduceMotion ? undefined : 'hidden'}
       animate={shouldReduceMotion ? undefined : 'visible'}
       variants={shouldReduceMotion ? undefined : containerVariants}
-      className="flex-1 flex flex-col items-center justify-center px-6 py-8 text-center"
+      className="relative flex-1 flex flex-col items-center justify-center px-6 py-8 text-center"
     >
-      {/* Animated Floating Icon */}
+      {/* Ambient glow behind main content */}
+      <div
+        className="pointer-events-none absolute inset-0 flex items-center justify-center"
+        aria-hidden="true"
+      >
+        <div
+          className="w-72 h-72 rounded-full"
+          style={{
+            background: 'radial-gradient(circle, hsl(var(--primary) / 0.08) 0%, transparent 70%)',
+          }}
+        />
+      </div>
+
+      {/* Title block — glass container */}
       <motion.div
         variants={shouldReduceMotion ? undefined : itemVariants}
+        className="glass-elevated rounded-2xl px-6 py-6 w-full max-w-xs mb-5 border border-primary/20 relative"
+        style={{ boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.15), inset 0 1px 0 hsl(var(--foreground) / 0.05)' }}
       >
+        {/* Animated Floating Icon */}
         <motion.div
           initial={shouldReduceMotion ? undefined : { scale: 0.8, y: 8 }}
           animate={shouldReduceMotion ? undefined : { scale: 1, y: 0 }}
@@ -77,38 +89,34 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding }
             scale: { delay: 0.1, type: 'spring', stiffness: 200 },
             y: { duration: 0.6, ease: 'easeOut' },
           }}
-          className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center mb-5 relative"
+          className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center mx-auto mb-4 relative"
           style={{ boxShadow: '0 20px 40px -10px hsl(var(--primary) / 0.4)' }}
         >
           <FileText className="w-8 h-8 text-primary-foreground" />
         </motion.div>
-      </motion.div>
 
-      <motion.div variants={shouldReduceMotion ? undefined : itemVariants}>
         <h2 className="text-2xl font-semibold mb-1">No Resumes Yet</h2>
-      </motion.div>
 
-      {/* Clickable steps subtitle */}
-      <motion.div variants={shouldReduceMotion ? undefined : itemVariants}>
+        {/* Clickable steps subtitle */}
         {onStartOnboarding ? (
           <button
             onClick={onStartOnboarding}
-            className="text-muted-foreground mb-6 max-w-sm text-sm underline decoration-dashed underline-offset-4 hover:text-foreground transition-colors"
+            className="text-muted-foreground max-w-sm text-sm underline decoration-dashed underline-offset-4 hover:text-foreground transition-colors"
             aria-label="Start onboarding tour"
           >
             Get started in 3 simple steps
           </button>
         ) : (
-          <p className="text-muted-foreground mb-6 max-w-sm text-sm">
+          <p className="text-muted-foreground max-w-sm text-sm">
             Get started in 3 simple steps
           </p>
         )}
       </motion.div>
 
-      {/* How it works steps with dotted connectors */}
+      {/* How it works steps — glass card */}
       <motion.div
         variants={shouldReduceMotion ? undefined : itemVariants}
-        className="flex flex-col w-full max-w-xs mb-6"
+        className="bg-card/60 backdrop-blur-xl border border-border/40 rounded-2xl px-5 py-4 w-full max-w-xs mb-5"
       >
         {steps.map((step, i) => (
           <div key={step.label}>
@@ -132,9 +140,9 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding }
       {/* Template preview row */}
       <motion.div
         variants={shouldReduceMotion ? undefined : itemVariants}
-        className="flex gap-4 overflow-x-auto scrollbar-hide snap-x mb-6 w-full max-w-xs justify-center"
+        className="flex gap-4 overflow-x-auto scrollbar-hide snap-x mb-5 w-full max-w-xs justify-center"
       >
-        {templatePreviews.map((tpl, i) => (
+        {templatePreviews.map((tpl) => (
           <motion.button
             key={tpl.id}
             onClick={onCreateNew}
@@ -147,7 +155,7 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding }
               </Badge>
             )}
             <div
-              className="w-[96px] rounded-xl border border-border bg-card overflow-hidden transition-all duration-200 group-hover:scale-105 group-hover:shadow-xl group-active:scale-95"
+              className="w-[96px] rounded-xl border border-border/40 bg-card/80 backdrop-blur-sm overflow-hidden transition-all duration-200 group-hover:scale-105 group-hover:shadow-[0_0_20px_hsl(var(--primary)/0.2)] group-active:scale-95"
               style={{ aspectRatio: '8.5/11' }}
             >
               <div className="h-3 w-full" style={{ backgroundColor: tpl.headerColor }} />
@@ -204,7 +212,7 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding }
       {/* Tips Carousel */}
       <motion.div
         variants={shouldReduceMotion ? undefined : itemVariants}
-        className="mt-6 w-full max-w-xs"
+        className="mt-5 w-full max-w-xs"
         onMouseEnter={() => setTipPaused(true)}
         onMouseLeave={() => setTipPaused(false)}
         onTouchStart={() => setTipPaused(true)}
