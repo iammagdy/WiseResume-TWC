@@ -1,8 +1,28 @@
 [
   {
+    "version": "v2.5.1",
+    "date": "Mar 30, 2026",
+    "latest": true,
+    "summary": "A quick stability and polish update — the Interview Prep page no longer crashes, and the empty dashboard now shows real previews of your future resume.",
+    "items": [
+      {
+        "title": "Interview Prep page no longer crashes on open",
+        "description": "Navigating to Interview Prep was crashing the entire page every time due to a router incompatibility in the back-navigation guard. It's now fixed — the page opens reliably and the back button still works as expected."
+      },
+      {
+        "title": "Microphone test error no longer silently fails",
+        "description": "In the Interview Setup screen, if the microphone permission check encountered an error it would fail silently with no feedback. It now correctly shows a toast notification explaining what went wrong."
+      },
+      {
+        "title": "Empty dashboard shows real template previews",
+        "description": "When you haven't created a resume yet, the dashboard's 'No Resumes Yet' screen previously showed placeholder bars that looked nothing like actual templates. It now shows properly scaled-down previews of the Modern, Classic, and Minimal templates — exactly as they appear in the app."
+      }
+    ]
+  },
+  {
     "version": "v2.5.0",
     "date": "Mar 29, 2026",
-    "latest": true,
+    "latest": false,
     "summary": "A behind-the-scenes reliability update — uploading your resume, saving your profile, and testing your AI connection all work more smoothly now.",
     "items": [
       {
