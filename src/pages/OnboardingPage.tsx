@@ -1,71 +1,74 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Sparkles, Target, Briefcase, BookOpen, Compass } from 'lucide-react';
+import {
+  ArrowLeft, ArrowRight, Sparkles, Target, Briefcase, BookOpen,
+  MapPin, Linkedin, CheckCircle2, ChevronRight,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { Input } from '@/components/ui/input';
+import { getUserId } from '@/lib/supabaseBridge';
 import { useQueryClient } from '@tanstack/react-query';
+import { INDUSTRY_OPTIONS } from '@/hooks/useProfile';
 
 const ONBOARDING_KEY = 'wr-onboarding-completed';
 const TOTAL_STEPS = 6;
 
-const REFERRAL_OPTIONS = ['Word of Mouth', 'Social Media', 'AI Search', 'Other'];
-
-const ROLE_OPTIONS = [
-  { id: 'job-seeker', label: 'Job Seeker', icon: Target, description: 'Actively looking for new opportunities', level: 'mid' },
-  { id: 'hr', label: 'HR / Recruiter', icon: Briefcase, description: 'Hiring or reviewing candidates', level: 'senior' },
-  { id: 'student', label: 'Student', icon: BookOpen, description: 'Preparing for internships or graduation', level: 'entry' },
-  { id: 'exploring', label: 'Just Exploring', icon: Compass, description: 'Checking out what WiseResume can do', level: 'mid' }
+// Career level options matching the DB enum exactly
+const CAREER_LEVELS = [
+  { value: 'Entry', label: 'Entry Level', years: '0–2 years' },
+  { value: 'Mid', label: 'Mid Level', years: '3–5 years' },
+  { value: 'Senior', label: 'Senior', years: '6–10 years' },
+  { value: 'Lead', label: 'Lead / Manager', years: '8–12 years' },
+  { value: 'Executive', label: 'Executive', years: '10+ years' },
 ];
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  
+
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
-  const [dob, setDob] = useState('');
-  const [phone, setPhone] = useState('');
-  const [referral, setReferral] = useState<string | null>(null);
-  const [role, setRole] = useState<string | null>(null);
+  const [jobTitle, setJobTitle] = useState('');
+  const [industry, setIndustry] = useState<string | null>(null);
+  const [careerLevel, setCareerLevel] = useState<string | null>(null);
+  const [location, setLocation] = useState('');
+  const [linkedinUrl, setLinkedinUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // Fast path: localStorage already marked complete
     if (localStorage.getItem(ONBOARDING_KEY) === 'true') {
       navigate('/dashboard', { replace: true });
-      return;
     }
   }, [navigate]);
 
   const markCompleted = async (skip: boolean = false) => {
     setIsSubmitting(true);
-    
-    if (user?.id) {
+
+    // Use the Supabase bridge UUID — falls back to user.id only if it's already a UUID
+    const effectiveId = getUserId() || user?.id;
+
+    if (effectiveId) {
       try {
         const payload: Record<string, unknown> = {
-          user_id: user.id,
+          user_id: effectiveId,
           onboarding_completed: !skip,
         };
-        
+
         if (!skip) {
           if (name) payload.full_name = name;
-          if (dob) payload.date_of_birth = dob;
-          if (phone) payload.phone_number = phone;
-          if (referral) payload.referral_source = referral;
-          if (role) {
-            const selectedRole = ROLE_OPTIONS.find(r => r.id === role);
-            if (selectedRole) payload.career_level = selectedRole.level;
-          }
+          if (jobTitle) payload.job_title = jobTitle;
+          if (industry) payload.industry = industry;
+          if (careerLevel) payload.career_level = careerLevel; // already capitalized to match DB enum
+          if (location) payload.location = location;
+          if (linkedinUrl) payload.linkedin_url = linkedinUrl;
         }
-        
-        // upsert instead of update: creates the row if it doesn't exist yet
-        // (new users may not have a profile row when they first hit onboarding)
+
         const { error } = await supabase
           .from('profiles')
           .upsert(payload as never, { onConflict: 'user_id' });
@@ -73,25 +76,22 @@ export default function OnboardingPage() {
         if (error) {
           console.error('[Onboarding] Failed to save profile data:', error);
         } else {
-          // Invalidate profile cache so dashboard/profile show fresh data
           queryClient.invalidateQueries({ queryKey: ['profile'] });
         }
       } catch (err) {
         console.error('[Onboarding] Unexpected error saving onboarding status:', err);
       }
     }
-    
-    // Only set the local storage flag if they completed it. If they skip, they get the dashboard banner.
+
     if (!skip) {
       localStorage.setItem(ONBOARDING_KEY, 'true');
     }
-    
+
     setIsSubmitting(false);
     navigate('/dashboard', { replace: true });
   };
 
   const handleSkip = () => markCompleted(true);
-
   const handleNext = () => {
     if (step === TOTAL_STEPS - 1) {
       markCompleted(false);
@@ -99,245 +99,366 @@ export default function OnboardingPage() {
     }
     setStep(s => s + 1);
   };
-
   const handleBack = () => {
     if (step > 0) setStep(s => s - 1);
   };
 
+  // Steps 0–3 count for user-facing progress; 4 & 5 are completion screens
   const progress = ((step + 1) / TOTAL_STEPS) * 100;
 
-  const canProceed = step === 0 || step === 4 || step === 5
-    || (step === 1 && name.trim().length > 0)
-    || (step === 2 && referral !== null)
-    || (step === 3 && role !== null);
+  const canProceed =
+    step === 0 ||
+    step === 4 ||
+    step === 5 ||
+    (step === 1 && name.trim().length > 0) ||
+    step === 2 ||
+    step === 3;
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, scale: 0.98 }} 
-      animate={{ opacity: 1, scale: 1 }} 
-      transition={{ duration: 0.4, ease: "easeOut" }}
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
       className="flex flex-col min-h-[100dvh] bg-background"
     >
-      {/* Header */}
+      {/* ── Header ── */}
       <div className="shrink-0 px-4 pt-safe">
-        <div className="flex items-center justify-between h-14">
-          <div className="w-20">
-            {step > 0 && (
-              <Button variant="ghost" size="sm" onClick={handleBack} aria-label="Go back" disabled={isSubmitting}>
-                <ArrowLeft className="w-4 h-4 mr-1" /> Back
-              </Button>
-            )}
-          </div>
-          <Button variant="ghost" size="sm" onClick={handleSkip} className="text-muted-foreground" disabled={isSubmitting}>
+        <div className="flex items-center justify-end h-14">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleSkip}
+            className="text-muted-foreground hover:text-foreground"
+            disabled={isSubmitting}
+          >
             Skip
           </Button>
         </div>
-        <Progress value={progress} className="h-1.5 mb-4" />
+
+        {/* Progress bar + step label */}
+        <div className="space-y-1.5 mb-4">
+          <Progress value={progress} className="h-1.5" />
+          {step > 0 && step < 4 && (
+            <p className="text-xs text-muted-foreground text-right">
+              Step {step} of 3
+            </p>
+          )}
+        </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 pb-safe">
+      {/* ── Scrollable content ── */}
+      <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center px-6 pb-4">
         <AnimatePresence mode="wait">
           <motion.div
             key={step}
             initial={{ opacity: 0, x: 40 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -40 }}
-            transition={{ duration: 0.25 }}
-            className="w-full max-w-md flex flex-col items-center text-center"
+            transition={{ duration: 0.22 }}
+            className="w-full max-w-md"
           >
-            {/* Step 0: Welcome */}
+            {/* ── Step 0: Welcome ── */}
             {step === 0 && (
-              <>
+              <div className="flex flex-col items-center text-center py-8">
                 <motion.div
-                  initial={{ scale: 0.8, opacity: 0 }}
+                  initial={{ scale: 0.7, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  transition={{ delay: 0.1, type: 'spring', stiffness: 200 }}
-                  className="mb-6"
+                  transition={{ delay: 0.1, type: 'spring', stiffness: 220, damping: 14 }}
+                  className="mb-8 relative"
                 >
-                  <AppIcon size={96} />
+                  {/* Gradient ring */}
+                  <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-primary/30 to-primary/5 blur-xl scale-125" />
+                  <div className="relative">
+                    <AppIcon size={100} />
+                  </div>
                 </motion.div>
-                <h1 className="text-2xl font-bold text-foreground mb-2">Welcome to WiseResume</h1>
-                <p className="text-muted-foreground">Your AI-powered career companion. Let's set up your profile.</p>
-              </>
+                <h1 className="text-3xl font-bold text-foreground mb-3 tracking-tight">
+                  Welcome to WiseResume
+                </h1>
+                <p className="text-muted-foreground text-base leading-relaxed max-w-xs">
+                  Your AI-powered career companion. Let's set up your profile in&nbsp;
+                  <span className="text-foreground font-medium">3 quick steps</span>.
+                </p>
+
+                <div className="mt-10 w-full space-y-3 text-left">
+                  {[
+                    { icon: Target, text: 'Build a standout resume with AI' },
+                    { icon: Briefcase, text: 'Practice interviews and get feedback' },
+                    { icon: Sparkles, text: 'Create a public portfolio in one click' },
+                  ].map(({ icon: Icon, text }) => (
+                    <div key={text} className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-card border border-border/50">
+                      <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                        <Icon className="w-4 h-4 text-primary" />
+                      </div>
+                      <span className="text-sm font-medium text-foreground">{text}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
-            {/* Step 1: About You */}
+            {/* ── Step 1: Professional Identity ── */}
             {step === 1 && (
-              <>
-                <h2 className="text-xl font-bold text-foreground mb-2">About You</h2>
-                <p className="text-muted-foreground mb-6">Tell us a bit about yourself. This will also help us fulfill your portfolio data.</p>
-                <div className="w-full space-y-4 text-left">
+              <div className="py-4">
+                <div className="mb-8">
+                  <h2 className="text-2xl font-bold text-foreground mb-2 tracking-tight">
+                    Who are you professionally?
+                  </h2>
+                  <p className="text-muted-foreground">
+                    This goes straight into your profile and resume.
+                  </p>
+                </div>
+
+                <div className="space-y-5">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium">Full Name</label>
-                    <Input 
-                      value={name} 
-                      onChange={(e) => setName(e.target.value)} 
+                    <label className="text-sm font-semibold text-foreground">
+                      Full Name <span className="text-primary">*</span>
+                    </label>
+                    <Input
+                      value={name}
+                      onChange={e => setName(e.target.value)}
                       placeholder="Jane Doe"
+                      autoFocus
+                      className="h-12 rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-foreground">
+                      Job Title <span className="text-muted-foreground font-normal">(optional)</span>
+                    </label>
+                    <Input
+                      value={jobTitle}
+                      onChange={e => setJobTitle(e.target.value)}
+                      placeholder="e.g. Frontend Engineer, Product Manager"
+                      className="h-12 rounded-xl"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Step 2: Background ── */}
+            {step === 2 && (
+              <div className="py-4">
+                <div className="mb-8">
+                  <h2 className="text-2xl font-bold text-foreground mb-2 tracking-tight">
+                    Your background
+                  </h2>
+                  <p className="text-muted-foreground">
+                    Helps us tailor job matches and AI suggestions.
+                  </p>
+                </div>
+
+                {/* Industry pills */}
+                <div className="space-y-3 mb-6">
+                  <label className="text-sm font-semibold text-foreground">Industry</label>
+                  <div className="flex flex-wrap gap-2">
+                    {INDUSTRY_OPTIONS.map(opt => (
+                      <button
+                        key={opt}
+                        onClick={() => setIndustry(industry === opt ? null : opt)}
+                        className={`px-3.5 py-2 rounded-full border text-sm font-medium transition-all ${
+                          industry === opt
+                            ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                            : 'border-border bg-card hover:border-primary/50 text-foreground'
+                        }`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Career level cards */}
+                <div className="space-y-3">
+                  <label className="text-sm font-semibold text-foreground">Experience Level</label>
+                  <div className="space-y-2">
+                    {CAREER_LEVELS.map(lvl => (
+                      <button
+                        key={lvl.value}
+                        onClick={() => setCareerLevel(careerLevel === lvl.value ? null : lvl.value)}
+                        className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border transition-all text-left ${
+                          careerLevel === lvl.value
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border bg-card hover:border-primary/40'
+                        }`}
+                      >
+                        <div>
+                          <p className="font-semibold text-sm text-foreground">{lvl.label}</p>
+                          <p className="text-xs text-muted-foreground">{lvl.years}</p>
+                        </div>
+                        {careerLevel === lvl.value && (
+                          <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Step 3: Find You Online ── */}
+            {step === 3 && (
+              <div className="py-4">
+                <div className="mb-8">
+                  <h2 className="text-2xl font-bold text-foreground mb-2 tracking-tight">
+                    Where are you based?
+                  </h2>
+                  <p className="text-muted-foreground">
+                    Optional — shown on your portfolio and used for local job filters.
+                  </p>
+                </div>
+
+                <div className="space-y-5">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-muted-foreground" /> Location
+                    </label>
+                    <Input
+                      value={location}
+                      onChange={e => setLocation(e.target.value)}
+                      placeholder="e.g. San Francisco, CA"
+                      className="h-12 rounded-xl"
                       autoFocus
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium">Date of Birth</label>
-                    <Input 
-                      type="date"
-                      value={dob} 
-                      onChange={(e) => setDob(e.target.value)} 
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium">Phone Number</label>
-                    <Input 
-                      type="tel"
-                      value={phone} 
-                      onChange={(e) => setPhone(e.target.value)} 
-                      placeholder="+1 (555) 000-0000"
+                    <label className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                      <Linkedin className="w-3.5 h-3.5 text-muted-foreground" /> LinkedIn URL
+                    </label>
+                    <Input
+                      value={linkedinUrl}
+                      onChange={e => setLinkedinUrl(e.target.value)}
+                      placeholder="https://linkedin.com/in/yourname"
+                      type="url"
+                      className="h-12 rounded-xl"
                     />
                   </div>
                 </div>
-              </>
+
+                <p className="text-xs text-muted-foreground mt-5 text-center">
+                  You can always update these in Settings.
+                </p>
+              </div>
             )}
 
-            {/* Step 2: Referral */}
-            {step === 2 && (
-              <>
-                <h2 className="text-xl font-bold text-foreground mb-2">How did you hear about us?</h2>
-                <p className="text-muted-foreground mb-6">This helps us improve WiseResume</p>
-                <div className="w-full flex flex-wrap justify-center gap-3">
-                  {REFERRAL_OPTIONS.map(opt => (
-                    <button
-                      key={opt}
-                      onClick={() => setReferral(opt)}
-                      className={`px-4 py-2.5 rounded-full border-2 text-sm font-medium transition-all ${
-                        referral === opt
-                          ? 'border-primary bg-primary text-primary-foreground'
-                          : 'border-border bg-background hover:border-primary/40'
-                      }`}
-                    >
-                      {opt}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* Step 3: Role */}
-            {step === 3 && (
-              <>
-                <h2 className="text-xl font-bold text-foreground mb-2">What brings you here?</h2>
-                <p className="text-muted-foreground mb-6">We'll tailor the experience for you</p>
-                <div className="w-full space-y-3">
-                  {ROLE_OPTIONS.map(r => (
-                    <button
-                      key={r.id}
-                      onClick={() => setRole(r.id)}
-                      className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 text-left transition-all touch-manipulation active:scale-[0.98] ${
-                        role === r.id
-                          ? 'border-primary bg-primary/10'
-                          : 'border-border hover:border-primary/40'
-                      }`}
-                    >
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                        <r.icon className="w-5 h-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-foreground">{r.label}</p>
-                        <p className="text-sm text-muted-foreground">{r.description}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* Step 4: Done */}
+            {/* ── Step 4: Celebration ── */}
             {step === 4 && (
-              <>
+              <div className="flex flex-col items-center text-center py-8">
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  transition={{ type: 'spring', stiffness: 300, delay: 0.1 }}
-                  className="mb-4"
+                  transition={{ type: 'spring', stiffness: 280, damping: 16, delay: 0.05 }}
+                  className="mb-6"
                 >
-                  <div className="w-20 h-20 rounded-full bg-success/15 flex items-center justify-center">
-                    <Sparkles className="w-10 h-10 text-success" />
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center">
+                    <Sparkles className="w-12 h-12 text-primary" />
                   </div>
                 </motion.div>
-                <h2 className="text-2xl font-bold text-foreground mb-2">Profile Complete! 🎉</h2>
-                <p className="text-muted-foreground mb-6">You're all set up. Let's discover what you can do next.</p>
-              </>
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <h2 className="text-3xl font-bold text-foreground mb-3 tracking-tight">
+                    You're all set{name ? `, ${name.split(' ')[0]}` : ''}!
+                  </h2>
+                  <p className="text-muted-foreground max-w-xs mx-auto">
+                    Your profile is ready. Here's what you can do next.
+                  </p>
+                </motion.div>
+              </div>
             )}
 
-            {/* Step 5: What's Next */}
+            {/* ── Step 5: What's Next ── */}
             {step === 5 && (
-              <>
-                <h2 className="text-2xl font-bold text-foreground mb-4">What's Next?</h2>
-                <p className="text-muted-foreground mb-6">Explore AI Studio tools to land your next role.</p>
-                <div className="w-full space-y-4 text-left">
-                  <div className="p-4 border rounded-xl bg-card">
-                    <h3 className="font-semibold mb-1 flex items-center gap-2">
-                      <Target className="w-4 h-4 text-primary" /> Create a Resume First
-                    </h3>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Before using the interview practice or portfolio builder, you'll need a resume in your account.
-                    </p>
-                    <Button variant="outline" size="sm" onClick={() => { markCompleted(false); navigate('/ai-studio'); }}>
-                      Go to AI Studio
-                    </Button>
-                  </div>
-
-                  <div className="p-4 border rounded-xl bg-card">
-                    <h3 className="font-semibold mb-1 flex items-center gap-2">
-                      <Briefcase className="w-4 h-4 text-primary" /> AI Interview Practice
-                    </h3>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Practice answering questions out loud with our AI interviewer. Get instant feedback and scoring.
-                    </p>
-                    <Button variant="outline" size="sm" onClick={() => { markCompleted(false); navigate('/interview'); }}>
-                      Try Interview Practice
-                    </Button>
-                  </div>
-
-                  <div className="p-4 border rounded-xl bg-card">
-                    <h3 className="font-semibold mb-1 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-primary" /> Build Your Portfolio
-                    </h3>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Turn your resume into a beautiful web portfolio in one click. Customize it and share with recruiters.
-                    </p>
-                    <Button variant="outline" size="sm" onClick={() => { markCompleted(false); navigate('/portfolio'); }}>
-                      Open Portfolio Editor
-                    </Button>
-                  </div>
+              <div className="py-4">
+                <div className="mb-6 text-center">
+                  <h2 className="text-2xl font-bold text-foreground mb-2 tracking-tight">
+                    Start strong
+                  </h2>
+                  <p className="text-muted-foreground text-sm">
+                    Pick where you want to begin.
+                  </p>
                 </div>
-              </>
+
+                <div className="space-y-3">
+                  {[
+                    {
+                      icon: Target,
+                      title: 'Build your resume',
+                      description: 'Import or create an AI-polished resume in minutes.',
+                      action: () => { markCompleted(false); navigate('/ai-studio'); },
+                    },
+                    {
+                      icon: BookOpen,
+                      title: 'Practice interviews',
+                      description: 'Answer questions with our AI coach and get instant scoring.',
+                      action: () => { markCompleted(false); navigate('/interview'); },
+                    },
+                    {
+                      icon: Sparkles,
+                      title: 'Launch your portfolio',
+                      description: 'Turn your resume into a shareable web portfolio in one click.',
+                      action: () => { markCompleted(false); navigate('/portfolio'); },
+                    },
+                  ].map(({ icon: Icon, title, description, action }) => (
+                    <button
+                      key={title}
+                      onClick={action}
+                      disabled={isSubmitting}
+                      className="w-full flex items-center gap-4 p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:bg-primary/5 transition-all text-left group"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
+                        <Icon className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm text-foreground">{title}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
           </motion.div>
         </AnimatePresence>
       </div>
 
-      {/* Footer */}
-      <div className="shrink-0 px-6 pb-6 pb-safe">
-        {step < TOTAL_STEPS - 1 ? (
-          <Button
-            onClick={handleNext}
-            disabled={!canProceed || isSubmitting}
-            className="w-full h-12 text-base rounded-xl"
-            size="lg"
-          >
-            {isSubmitting ? 'Saving...' : 'Continue'}
-            {!isSubmitting && <ArrowRight className="w-4 h-4 ml-2" />}
-          </Button>
-        ) : (
-          <Button
-            onClick={() => markCompleted(false)}
-            disabled={isSubmitting}
-            className="w-full h-12 text-base rounded-xl"
-            size="lg"
-          >
-            {isSubmitting ? 'Saving...' : 'Go to Dashboard'}
-          </Button>
-        )}
+      {/* ── Sticky footer with Back + Next ── */}
+      <div className="shrink-0 px-6 py-4 border-t border-border/40 bg-background/90 backdrop-blur-sm pb-safe">
+        <div className="flex gap-3 max-w-md mx-auto">
+          {step > 0 && step < TOTAL_STEPS - 1 && (
+            <Button
+              variant="outline"
+              onClick={handleBack}
+              disabled={isSubmitting}
+              className="flex-1 h-12 rounded-xl"
+            >
+              <ArrowLeft className="w-4 h-4 mr-1.5" />
+              Back
+            </Button>
+          )}
+          {step < TOTAL_STEPS - 1 ? (
+            <Button
+              onClick={handleNext}
+              disabled={!canProceed || isSubmitting}
+              className="flex-[2] h-12 text-base rounded-xl"
+            >
+              {isSubmitting ? 'Saving…' : 'Continue'}
+              {!isSubmitting && <ArrowRight className="w-4 h-4 ml-1.5" />}
+            </Button>
+          ) : (
+            <Button
+              onClick={() => markCompleted(false)}
+              disabled={isSubmitting}
+              className="flex-1 h-12 text-base rounded-xl"
+            >
+              {isSubmitting ? 'Saving…' : 'Go to Dashboard'}
+            </Button>
+          )}
+        </div>
       </div>
     </motion.div>
   );
