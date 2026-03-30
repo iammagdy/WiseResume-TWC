@@ -83,7 +83,7 @@ export function AppShell() {
           {(() => {
             const pageTitle = getPageTitle(location.pathname);
             return pageTitle && pageTitle !== 'Home' ? (
-              <span className="ml-2 text-xs text-muted-foreground font-medium">
+              <span className="ml-2 min-w-0 truncate text-xs text-muted-foreground font-medium">
                 / {pageTitle}
               </span>
             ) : null;

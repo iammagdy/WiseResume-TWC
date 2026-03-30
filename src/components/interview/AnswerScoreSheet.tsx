@@ -94,7 +94,8 @@ export function AnswerScoreSheet({ score, onDismiss }: AnswerScoreSheetProps) {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: '100%', opacity: 0 }}
           transition={{ type: 'spring', damping: 28, stiffness: 350 }}
-          className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-safe"
+          className="fixed left-0 right-0 z-50 px-4 pb-safe"
+          style={{ bottom: 'calc(4.5rem + env(safe-area-inset-bottom))' }}
           onClick={cancelAutoDismiss}
         >
           <div className="max-w-lg mx-auto rounded-t-3xl bg-card/95 backdrop-blur-2xl border border-border/40 shadow-[0_-10px_50px_hsl(var(--primary)/0.15)] p-6 space-y-5">

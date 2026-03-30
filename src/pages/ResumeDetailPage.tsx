@@ -170,21 +170,21 @@ export default function ResumeDetailPage() {
       {/* Header with overflow menu */}
       <div className="shrink-0 flex items-center gap-3 px-4 h-14 border-b border-border glass-elevated backdrop-blur-md">
         <BackButton />
-        <h1 className="text-lg font-bold text-foreground truncate flex-1">{dbResume.title}</h1>
+        <h1 className="text-lg font-bold text-foreground truncate flex-1 min-w-0">{dbResume.title}</h1>
         {isMaster && (
           <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 gap-1 border-primary/30 text-primary shrink-0">
             <Crown className="w-3 h-3" />
-            Master
+            <span className="hidden sm:inline">Master</span>
           </Badge>
         )}
         {isTailored && (
-          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 gap-1 shrink-0">
+          <Badge variant="secondary" className="hidden sm:flex text-[10px] px-1.5 py-0 h-5 gap-1 shrink-0">
             <GitBranch className="w-3 h-3" />
             Tailored
           </Badge>
         )}
         {tailoredCount > 0 && !isTailored && (
-          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 shrink-0">
+          <Badge variant="secondary" className="hidden sm:flex text-[10px] px-1.5 py-0 h-5 shrink-0">
             {tailoredCount} tailored
           </Badge>
         )}
@@ -217,6 +217,22 @@ export default function ResumeDetailPage() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 max-w-3xl mx-auto w-full">
+        {/* Mobile-only badge row — secondary badges hidden from header on small screens */}
+        {(isTailored || (tailoredCount > 0 && !isTailored)) && (
+          <div className="flex sm:hidden flex-wrap gap-2">
+            {isTailored && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 gap-1">
+                <GitBranch className="w-3 h-3" />
+                Tailored
+              </Badge>
+            )}
+            {tailoredCount > 0 && !isTailored && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5">
+                {tailoredCount} tailored
+              </Badge>
+            )}
+          </div>
+        )}
         {/* Tailored Context */}
         {isTailored && (dbResume.target_job_title || dbResume.target_company) && (
           <div className="glass-elevated rounded-2xl p-4 border border-primary/20">

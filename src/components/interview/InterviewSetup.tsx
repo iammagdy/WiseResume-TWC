@@ -124,7 +124,7 @@ export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAv
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex flex-col gap-6 px-4 py-6 max-w-lg mx-auto"
+      className="flex flex-col gap-6 px-4 py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] max-w-lg mx-auto"
     >
       {/* Premium glowing orb header */}
       <div className="text-center space-y-4">
