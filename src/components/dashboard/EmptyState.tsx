@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { FileText, Plus, Sparkles, Download, Upload, ArrowRight, LayoutGrid, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { TemplateId, ResumeData } from '@/types/resume';
+import { templateComponents } from '@/components/editor/TemplateThumbnail';
+import { sampleResumeData } from '@/lib/templateData';
 
 interface EmptyStateProps {
   onCreateNew: () => void;
@@ -16,10 +19,10 @@ const steps = [
   { icon: Download, label: 'Download PDF', description: 'Export an ATS-ready resume instantly' },
 ];
 
-const templatePreviews = [
-  { id: 'modern', name: 'Modern', headerColor: 'hsl(var(--primary))', popular: true },
-  { id: 'classic', name: 'Classic', headerColor: 'hsl(var(--foreground))', popular: false },
-  { id: 'minimal', name: 'Minimal', headerColor: 'hsl(var(--muted-foreground))', popular: false },
+const templatePreviews: Array<{ id: TemplateId; name: string; popular: boolean }> = [
+  { id: 'modern', name: 'Modern', popular: true },
+  { id: 'classic', name: 'Classic', popular: false },
+  { id: 'minimal', name: 'Minimal', popular: false },
 ];
 
 const carouselTips = [
@@ -41,12 +44,52 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] as const } },
 };
 
+function MiniTemplateThumbnail({ templateId }: { templateId: TemplateId }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.165);
+
+  useEffect(() => {
+    const update = () => {
+      if (containerRef.current) {
+        setScale(containerRef.current.offsetWidth / 612);
+      }
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    if (containerRef.current) ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  const TemplateComponent = templateComponents[templateId];
+  if (!TemplateComponent) return null;
+
+  return (
+    <div
+      ref={containerRef}
+      className="w-full h-full overflow-hidden bg-white rounded-xl"
+    >
+      <Suspense fallback={<div className="w-full h-full bg-gray-100 animate-pulse rounded-xl" />}>
+        <div
+          style={{
+            transform: `scale(${scale})`,
+            transformOrigin: 'top left',
+            width: '612px',
+            height: '792px',
+            pointerEvents: 'none',
+          }}
+        >
+          <TemplateComponent resume={sampleResumeData as ResumeData} />
+        </div>
+      </Suspense>
+    </div>
+  );
+}
+
 export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding }: EmptyStateProps) {
   const shouldReduceMotion = useReducedMotion();
   const [activeTipIndex, setActiveTipIndex] = useState(0);
   const [tipPaused, setTipPaused] = useState(false);
 
-  // Auto-cycle tips carousel
   useEffect(() => {
     if (tipPaused) return;
     const interval = setInterval(() => {
@@ -62,16 +105,11 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding }
       variants={shouldReduceMotion ? undefined : containerVariants}
       className="relative flex-1 flex flex-col items-center justify-center px-6 py-8 text-center"
     >
-      {/* Ambient glow behind main content */}
-      <div
-        className="pointer-events-none absolute inset-0 flex items-center justify-center"
-        aria-hidden="true"
-      >
+      {/* Ambient glow */}
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden="true">
         <div
           className="w-72 h-72 rounded-full"
-          style={{
-            background: 'radial-gradient(circle, hsl(var(--primary) / 0.08) 0%, transparent 70%)',
-          }}
+          style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.08) 0%, transparent 70%)' }}
         />
       </div>
 
@@ -81,7 +119,6 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding }
         className="glass-elevated rounded-2xl px-6 py-6 w-full max-w-xs mb-5 border border-primary/20 relative"
         style={{ boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.15), inset 0 1px 0 hsl(var(--foreground) / 0.05)' }}
       >
-        {/* Animated Floating Icon */}
         <motion.div
           initial={shouldReduceMotion ? undefined : { scale: 0.8, y: 8 }}
           animate={shouldReduceMotion ? undefined : { scale: 1, y: 0 }}
@@ -97,7 +134,6 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding }
 
         <h2 className="text-2xl font-semibold mb-1">No Resumes Yet</h2>
 
-        {/* Clickable steps subtitle */}
         {onStartOnboarding ? (
           <button
             onClick={onStartOnboarding}
@@ -129,7 +165,6 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding }
                 <p className="text-xs text-muted-foreground">{step.description}</p>
               </div>
             </div>
-            {/* Dotted connector line */}
             {i < steps.length - 1 && (
               <div className="ml-[18px] h-3 border-l-2 border-dashed border-primary/20" />
             )}
@@ -137,10 +172,10 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding }
         ))}
       </motion.div>
 
-      {/* Template preview row */}
+      {/* Real template preview row */}
       <motion.div
         variants={shouldReduceMotion ? undefined : itemVariants}
-        className="flex gap-4 overflow-x-auto scrollbar-hide snap-x mb-5 w-full max-w-xs justify-center"
+        className="flex gap-3 overflow-x-auto scrollbar-hide snap-x mb-5 w-full max-w-xs justify-center"
       >
         {templatePreviews.map((tpl) => (
           <motion.button
@@ -148,28 +183,20 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding }
             onClick={onCreateNew}
             className="flex flex-col items-center gap-1.5 snap-center flex-shrink-0 group relative"
             aria-label={`Create resume with ${tpl.name} template`}
+            whileTap={{ scale: 0.95 }}
           >
             {tpl.popular && (
-              <Badge className="absolute -top-2 left-1/2 -translate-x-1/2 z-10 text-[8px] px-1.5 py-0 h-4 bg-primary text-primary-foreground">
+              <Badge className="absolute -top-2 left-1/2 -translate-x-1/2 z-10 text-[8px] px-1.5 py-0 h-4 bg-primary text-primary-foreground pointer-events-none">
                 Popular
               </Badge>
             )}
             <div
-              className="w-[96px] rounded-xl border border-border/40 bg-card/80 backdrop-blur-sm overflow-hidden transition-all duration-200 group-hover:scale-105 group-hover:shadow-[0_0_20px_hsl(var(--primary)/0.2)] group-active:scale-95"
-              style={{ aspectRatio: '8.5/11' }}
+              className="rounded-xl overflow-hidden border border-border/50 transition-all duration-200 group-hover:scale-105 group-hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)] group-hover:border-primary/40 group-active:scale-95"
+              style={{ width: '96px', aspectRatio: '8.5/11' }}
             >
-              <div className="h-3 w-full" style={{ backgroundColor: tpl.headerColor }} />
-              <div className="p-2 space-y-1.5">
-                <div className="h-1.5 w-3/4 rounded-full bg-muted-foreground/20" />
-                <div className="h-1 w-full rounded-full bg-muted-foreground/10" />
-                <div className="h-1 w-full rounded-full bg-muted-foreground/10" />
-                <div className="h-1 w-5/6 rounded-full bg-muted-foreground/10" />
-                <div className="h-1.5 w-2/3 rounded-full bg-muted-foreground/20 mt-2" />
-                <div className="h-1 w-full rounded-full bg-muted-foreground/10" />
-                <div className="h-1 w-4/5 rounded-full bg-muted-foreground/10" />
-              </div>
+              <MiniTemplateThumbnail templateId={tpl.id} />
             </div>
-            <span className="text-[10px] text-muted-foreground font-medium">{tpl.name}</span>
+            <span className="text-[10px] text-muted-foreground font-medium group-hover:text-foreground transition-colors">{tpl.name}</span>
           </motion.button>
         ))}
       </motion.div>
@@ -235,7 +262,6 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding }
             </motion.p>
           </AnimatePresence>
         </div>
-        {/* Navigation dots */}
         <div className="flex justify-center gap-1.5 mt-2">
           {carouselTips.map((_, i) => (
             <button
