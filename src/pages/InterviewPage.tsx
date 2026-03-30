@@ -16,7 +16,6 @@ import { InterviewStatsCard } from '@/components/interview/InterviewStatsCard';
 import { useVoiceInterview } from '@/hooks/useVoiceInterview';
 import { useSaveInterviewSession } from '@/hooks/useInterviewHistory';
 import { useResumeStore, useResumeStoreHydration } from '@/store/resumeStore';
-import { useBlocker } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Button } from '@/components/ui/button';
@@ -248,24 +247,7 @@ function InterviewPageContent() {
   }, [summary, sessionSaved, user, transcript, elapsedSeconds, saveSession, parsedSummary]);
 
 
-  // Block navigation during an active interview
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      isStarted && phase === 'active' && currentLocation.pathname !== nextLocation.pathname
-  );
-
-  useEffect(() => {
-    if (blocker.state === 'blocked') {
-      setShowEndConfirm(true);
-    }
-  }, [blocker.state]);
-
-  // When showEndConfirm is closed and blocker is still active, cancel it
-  useEffect(() => {
-    if (!showEndConfirm && blocker.state === 'blocked') {
-      blocker.reset();
-    }
-  }, [showEndConfirm, blocker]);
+  const backTriggeredRef = useRef(false);
 
   // Show loading while auth or store hydrates (D-2)
   if (loading || !supabaseSettled || !hydrated) {
@@ -381,7 +363,7 @@ function InterviewPageContent() {
       {/* Premium glassmorphism header */}
       <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border/20 bg-card/50 backdrop-blur-xl">
         <div className="flex items-center gap-3">
-          <BackButton onBeforeBack={() => { setShowEndConfirm(true); return true; }} />
+          <BackButton onBeforeBack={() => { backTriggeredRef.current = true; setShowEndConfirm(true); return true; }} />
           <div className="flex items-center gap-2">
             <motion.div
               animate={{ rotate: [0, 10, -10, 0] }}
@@ -603,7 +585,7 @@ function InterviewPageContent() {
           <Button
             variant="destructive"
             size="sm"
-            onClick={() => setShowEndConfirm(true)}
+            onClick={() => { backTriggeredRef.current = false; setShowEndConfirm(true); }}
             disabled={status === 'thinking'}
             className="shadow-[0_0_15px_hsl(var(--destructive)/0.3)] min-h-[44px]"
           >
@@ -617,7 +599,7 @@ function InterviewPageContent() {
       <AnswerScoreSheet score={latestScore} onDismiss={dismissScore} />
 
       {/* End interview confirmation sheet */}
-      <Sheet open={showEndConfirm} onOpenChange={setShowEndConfirm}>
+      <Sheet open={showEndConfirm} onOpenChange={(open) => { if (!open) backTriggeredRef.current = false; setShowEndConfirm(open); }}>
         <SheetContent side="bottom" hideCloseButton className="px-6 pb-8">
           <SheetTitle className="text-lg font-bold text-foreground text-center">End Interview?</SheetTitle>
           <SheetDescription className="text-sm text-muted-foreground text-center mt-1">
@@ -630,8 +612,9 @@ function InterviewPageContent() {
               onClick={() => {
                 setShowEndConfirm(false);
                 endInterview();
-                if (blocker.state === 'blocked') {
-                  blocker.proceed();
+                if (backTriggeredRef.current) {
+                  backTriggeredRef.current = false;
+                  navigate(-1);
                 }
               }}
             >
@@ -642,9 +625,7 @@ function InterviewPageContent() {
               className="w-full py-3 rounded-xl font-medium bg-muted/50 min-h-[48px]"
               onClick={() => {
                 setShowEndConfirm(false);
-                if (blocker.state === 'blocked') {
-                  blocker.reset();
-                }
+                backTriggeredRef.current = false;
               }}
             >
               Keep Going
