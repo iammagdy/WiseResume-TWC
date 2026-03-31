@@ -82,9 +82,9 @@ export function UploadErrorRecovery({
         };
       default:
         return {
-          icon: <FileWarning className="w-8 h-8 text-muted-foreground" />,
-          title: "Something went wrong",
-          description: "We couldn't process this PDF. Please try a different file.",
+          icon: <FileWarning className="w-8 h-8 text-destructive" />,
+          title: "This PDF couldn't be read",
+          description: "The file may be corrupted, use an unsupported format, or be incompatible with this browser. Try re-exporting it or use a different file.",
         };
     }
   };

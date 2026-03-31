@@ -140,11 +140,23 @@ export async function parseResumePDF(file: File): Promise<ParseResult> {
   }
   
   // Preprocess text to clean extraction artifacts
-  const cleanedText = preprocessResumeText(extraction.text, extraction.pageTexts);
-  
+  let cleanedText: string;
+  try {
+    cleanedText = preprocessResumeText(extraction.text, extraction.pageTexts);
+  } catch {
+    console.warn('[pdfParser] preprocessResumeText failed, using raw text');
+    cleanedText = extraction.text;
+  }
+
   // Append contact info hints to help AI
-  const hints = extractContactHints(cleanedText);
-  const textWithHints = hints ? cleanedText + hints : cleanedText;
+  let textWithHints: string;
+  try {
+    const hints = extractContactHints(cleanedText);
+    textWithHints = hints ? cleanedText + hints : cleanedText;
+  } catch {
+    console.warn('[pdfParser] extractContactHints failed, skipping hints');
+    textWithHints = cleanedText;
+  }
   
   // Parse into structured data using AI; fall back to local parser on any failure
   let data: ResumeData;
