@@ -98,9 +98,13 @@ export async function extractTextFromPDF(file: File): Promise<ExtractionResult> 
     }
     // Worker initialization may fail on mobile (memory pressure, CSP, Service Worker
     // conflicts). Retry once with the worker disabled before giving up.
+    // IMPORTANT: Re-read the file here — the first getDocument() call transfers
+    // ownership of the ArrayBuffer to the worker thread, emptying the original.
+    // Reusing the same `arrayBuffer` variable would fail with an UNKNOWN error.
     console.warn('[textExtractor] PDF.js worker failed, retrying without worker:', errorName || errorMessage);
     try {
-      pdf = await pdfjsLib.getDocument({ data: arrayBuffer, disableWorker: true }).promise;
+      const retryBuffer = await file.arrayBuffer();
+      pdf = await pdfjsLib.getDocument({ data: retryBuffer, disableWorker: true }).promise;
     } catch (retryError) {
       throw new PDFParseError(
         'Failed to read this PDF file.',
