@@ -1,8 +1,4 @@
 import * as pdfjsLib from 'pdfjs-dist';
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-
-// Configure PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 interface TextItem {
   str: string;
@@ -72,9 +68,12 @@ export interface ExtractionResult {
 export async function extractTextFromPDF(file: File): Promise<ExtractionResult> {
   const arrayBuffer = await file.arrayBuffer();
 
+  // Always run without the web worker — it's only a performance optimisation and
+  // frequently fails in production (CSP headers, Service Worker conflicts, stale
+  // cached worker file). For 1–5 page resume PDFs the difference is imperceptible.
   let pdf;
   try {
-    pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    pdf = await pdfjsLib.getDocument({ data: arrayBuffer, disableWorker: true }).promise;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : '';
     const errorName = error instanceof Error ? error.name : '';
@@ -85,55 +84,12 @@ export async function extractTextFromPDF(file: File): Promise<ExtractionResult> 
         'PASSWORD_PROTECTED'
       );
     }
-    if (
-      errorMessage.includes('Invalid PDF') ||
-      errorMessage.includes('invalid pdf') ||
-      errorMessage.includes('UnexpectedFamilyTokenException') ||
-      errorMessage.includes('XRef') ||
-      errorMessage.includes('stream') ||
-      errorName === 'UnknownErrorException' ||
-      errorName === 'MissingPDFException' ||
-      errorName === 'FormatError' ||
-      errorName === 'XRefParseException' ||
-      errorName === 'InvalidPDFException'
-    ) {
-      throw new PDFParseError(
-        'This PDF appears to be corrupted or invalid.',
-        'CORRUPTED'
-      );
-    }
-    // Worker initialization may fail on mobile (memory pressure, CSP, Service Worker
-    // conflicts). Retry once with the worker disabled before giving up.
-    // IMPORTANT: Re-read the file here — the first getDocument() call transfers
-    // ownership of the ArrayBuffer to the worker thread, emptying the original.
-    // Reusing the same `arrayBuffer` variable would fail with an UNKNOWN error.
-    console.warn('[textExtractor] PDF.js worker failed, retrying without worker:', errorName || errorMessage);
-    try {
-      const retryBuffer = await file.arrayBuffer();
-      pdf = await pdfjsLib.getDocument({ data: retryBuffer, disableWorker: true }).promise;
-    } catch (retryError: unknown) {
-      const retryMsg = retryError instanceof Error ? retryError.message : '';
-      const retryName = retryError instanceof Error ? retryError.name : '';
-      // If the retry also fails due to PDF corruption/format issues, report CORRUPTED
-      if (
-        retryMsg.includes('Invalid PDF') ||
-        retryMsg.includes('invalid pdf') ||
-        retryMsg.includes('XRef') ||
-        retryName === 'UnknownErrorException' ||
-        retryName === 'MissingPDFException' ||
-        retryName === 'FormatError' ||
-        retryName === 'InvalidPDFException'
-      ) {
-        throw new PDFParseError(
-          'This PDF appears to be corrupted or invalid.',
-          'CORRUPTED'
-        );
-      }
-      throw new PDFParseError(
-        'Failed to read this PDF. It may be corrupted or use an unsupported format.',
-        'CORRUPTED'
-      );
-    }
+    // Any other load failure means the file itself is unreadable.
+    console.error('[textExtractor] getDocument failed:', errorName || errorMessage);
+    throw new PDFParseError(
+      'This PDF appears to be corrupted or invalid.',
+      'CORRUPTED'
+    );
   }
 
   const pageTexts: string[] = [];
