@@ -87,9 +87,15 @@ export async function extractTextFromPDF(file: File): Promise<ExtractionResult> 
     }
     if (
       errorMessage.includes('Invalid PDF') ||
+      errorMessage.includes('invalid pdf') ||
+      errorMessage.includes('UnexpectedFamilyTokenException') ||
+      errorMessage.includes('XRef') ||
+      errorMessage.includes('stream') ||
       errorName === 'UnknownErrorException' ||
       errorName === 'MissingPDFException' ||
-      errorName === 'FormatError'
+      errorName === 'FormatError' ||
+      errorName === 'XRefParseException' ||
+      errorName === 'InvalidPDFException'
     ) {
       throw new PDFParseError(
         'This PDF appears to be corrupted or invalid.',
@@ -105,10 +111,27 @@ export async function extractTextFromPDF(file: File): Promise<ExtractionResult> 
     try {
       const retryBuffer = await file.arrayBuffer();
       pdf = await pdfjsLib.getDocument({ data: retryBuffer, disableWorker: true }).promise;
-    } catch (retryError) {
+    } catch (retryError: unknown) {
+      const retryMsg = retryError instanceof Error ? retryError.message : '';
+      const retryName = retryError instanceof Error ? retryError.name : '';
+      // If the retry also fails due to PDF corruption/format issues, report CORRUPTED
+      if (
+        retryMsg.includes('Invalid PDF') ||
+        retryMsg.includes('invalid pdf') ||
+        retryMsg.includes('XRef') ||
+        retryName === 'UnknownErrorException' ||
+        retryName === 'MissingPDFException' ||
+        retryName === 'FormatError' ||
+        retryName === 'InvalidPDFException'
+      ) {
+        throw new PDFParseError(
+          'This PDF appears to be corrupted or invalid.',
+          'CORRUPTED'
+        );
+      }
       throw new PDFParseError(
-        'Failed to read this PDF file.',
-        'UNKNOWN'
+        'Failed to read this PDF. It may be corrupted or use an unsupported format.',
+        'CORRUPTED'
       );
     }
   }
