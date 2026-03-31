@@ -140,8 +140,9 @@ export async function extractTextFromPDF(file: File): Promise<ExtractionResult> 
   const debugPages: Array<{ page: number; rawItems: number; extractedChars: number }> = [];
   const pageCount = pdf.numPages;
 
-  try {
-    for (let i = 1; i <= pageCount; i++) {
+  // Process pages individually so a single bad page doesn't abort the whole extraction.
+  for (let i = 1; i <= pageCount; i++) {
+    try {
       const page = await pdf.getPage(i);
       // getTextContent options vary across pdfjs versions — use a plain object and cast
       const textContent = await page.getTextContent({ includeMarkedContent: false } as Parameters<typeof page.getTextContent>[0]);
@@ -149,20 +150,25 @@ export async function extractTextFromPDF(file: File): Promise<ExtractionResult> 
       const pageText = reconstructPageText((textContent as any).items as any[]);
       debugPages.push({ page: i, rawItems, extractedChars: pageText.length });
       pageTexts.push(pageText);
+    } catch (pageError: unknown) {
+      console.warn(`[textExtractor] Page ${i} text extraction failed:`, pageError);
+      pageTexts.push('');
+      debugPages.push({ page: i, rawItems: 0, extractedChars: 0 });
     }
-  } catch (pageError: unknown) {
-    // If page-level extraction fails (e.g. unsupported PDF feature or API mismatch),
-    // treat as corrupted rather than surfacing a raw TypeError to the user.
-    console.error('[textExtractor] Page text extraction failed:', pageError);
-    if (pageTexts.length === 0) {
-      // No pages extracted at all — treat as corrupted
-      throw new PDFParseError(
-        'Failed to read the content of this PDF. It may use unsupported features.',
-        'CORRUPTED'
-      );
-    }
-    // Partial extraction — continue with what we have
-    console.warn(`[textExtractor] Partial extraction: got ${pageTexts.length}/${pageCount} pages`);
+  }
+
+  // If every page failed text extraction, route to OCR instead of showing an error.
+  // The PDF loaded successfully so pdfjs can likely still render it for OCR.
+  if (pageTexts.every(t => !t.trim())) {
+    console.warn('[textExtractor] All pages failed text extraction — routing to OCR', { pageCount, debugPages });
+    return {
+      text: '',
+      method: 'text',
+      pageCount,
+      needsOCR: true,
+      confidence: 0,
+      qualityIssues: ['text extraction failed for all pages'],
+    };
   }
 
   const fullText = pageTexts.join('\n\n');
