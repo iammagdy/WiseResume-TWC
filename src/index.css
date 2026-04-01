@@ -640,7 +640,7 @@ button,
 
   /* Safe area padding for Android navigation bar */
   .pb-safe {
-    padding-bottom: max(8px, env(safe-area-inset-bottom));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
 
   .pt-safe {

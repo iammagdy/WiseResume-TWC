@@ -119,10 +119,10 @@ export default function OnboardingPage() {
       initial={{ opacity: 0, scale: 0.98 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.4, ease: 'easeOut' }}
-      className="flex flex-col min-h-[100dvh] bg-background"
+      className="flex flex-col h-[100dvh] overflow-hidden bg-background"
     >
       {/* ── Header ── */}
-      <div className="shrink-0 px-4 pt-safe">
+      <div className="shrink-0 px-4 sm:px-6 pt-safe">
         <div className="flex items-center justify-end h-14">
           <Button
             variant="ghost"
@@ -147,7 +147,7 @@ export default function OnboardingPage() {
       </div>
 
       {/* ── Scrollable content ── */}
-      <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center px-6 pb-4">
+      <div className="flex-1 overflow-y-auto flex flex-col items-center justify-start px-4 sm:px-6 pb-4">
         <AnimatePresence mode="wait">
           <motion.div
             key={step}
@@ -155,11 +155,11 @@ export default function OnboardingPage() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -40 }}
             transition={{ duration: 0.22 }}
-            className="w-full max-w-md"
+            className="w-full max-w-md flex-1 flex flex-col"
           >
             {/* ── Step 0: Welcome ── */}
             {step === 0 && (
-              <div className="flex flex-col items-center text-center py-8">
+              <div className="flex flex-col items-center text-center py-8 flex-1 justify-center">
                 <motion.div
                   initial={{ scale: 0.7, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
@@ -172,7 +172,7 @@ export default function OnboardingPage() {
                     <AppIcon size={100} />
                   </div>
                 </motion.div>
-                <h1 className="text-3xl font-bold text-foreground mb-3 tracking-tight">
+                <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-3 tracking-tight">
                   Welcome to WiseResume
                 </h1>
                 <p className="text-muted-foreground text-base leading-relaxed max-w-xs">
@@ -272,7 +272,7 @@ export default function OnboardingPage() {
                 {/* Career level cards */}
                 <div className="space-y-3">
                   <label className="text-sm font-semibold text-foreground">Experience Level</label>
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                     {CAREER_LEVELS.map(lvl => (
                       <button
                         key={lvl.value}
@@ -344,7 +344,7 @@ export default function OnboardingPage() {
 
             {/* ── Step 4: Celebration ── */}
             {step === 4 && (
-              <div className="flex flex-col items-center text-center py-8">
+              <div className="flex flex-col items-center text-center py-8 flex-1 justify-center">
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
@@ -427,7 +427,7 @@ export default function OnboardingPage() {
       </div>
 
       {/* ── Sticky footer with Back + Next ── */}
-      <div className="shrink-0 px-6 py-4 border-t border-border/40 bg-background/90 backdrop-blur-sm pb-safe">
+      <div className="shrink-0 px-4 sm:px-6 pt-4 border-t border-border/40 bg-background/90 backdrop-blur-sm pb-safe">
         <div className="flex gap-3 max-w-md mx-auto">
           {step > 0 && step < TOTAL_STEPS - 1 && (
             <Button
