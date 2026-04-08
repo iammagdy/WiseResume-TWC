@@ -30,6 +30,8 @@ export function useAIKeyHydration() {
         store.setOllamaKeyValidated(false);
         store.setOllamaBaseUrl('');
         store.setOllamaModel('');
+        store.setOpenrouterKeyValidated(false);
+        store.setOpenrouterModel('');
         store.setAIProvider('wiseresume');
 
         // Hydrate keys from manage-api-keys
@@ -57,6 +59,10 @@ export function useAIKeyHydration() {
               store.setGeminiKeyValidated(true);
               if (key.model) store.setGeminiModel(key.model);
             }
+            if (key.provider === 'openrouter') {
+              store.setOpenrouterModel(key.model || '');
+              store.setOpenrouterKeyValidated(true);
+            }
           }
         }
 
@@ -68,7 +74,7 @@ export function useAIKeyHydration() {
           .maybeSingle();
 
         if (prefs?.ai_provider && prefs.ai_provider !== 'wiseresume') {
-          store.setAIProvider(prefs.ai_provider as 'gemini' | 'ollama' | 'wiseresume');
+          store.setAIProvider(prefs.ai_provider as 'gemini' | 'ollama' | 'openrouter' | 'wiseresume');
         } else if (prefs?.ai_provider === 'wiseresume') {
           const currentLocal = store.aiProvider;
           if (currentLocal === 'wiseresume') {

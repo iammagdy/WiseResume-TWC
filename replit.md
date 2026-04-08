@@ -34,6 +34,9 @@ All AI calls route through Vertex AI Express (`aiplatform.googleapis.com`).
 - **Env var**: `VERTEX_API_KEY` (primary), `WISE_AI_API_KEY` (legacy fallback), `GEMINI_API_KEY` (legacy fallback)
 - **Set in**: Supabase → Project Settings → Edge Function Secrets
 - **Central client**: `supabase/functions/_shared/aiClient.ts` — `callGeminiDirect` converts OpenAI-style messages to native Gemini format, `parseVertexResponse` converts back to internal `AIResponse`
+- **BYOK Providers**: `AIProvider = 'wiseresume' | 'gemini' | 'ollama' | 'openrouter'`
+  - **OpenRouter**: BYOK via `https://openrouter.ai/api/v1/chat/completions` (OpenAI-compatible, Bearer auth). Model list from `GET /api/v1/models`. `callOpenRouterDirect` in aiClient.ts handles routing. Stored in `user_api_keys` table with `provider='openrouter'`.
+  - **Priority order in `callAI`**: OpenRouter BYOK → Ollama BYOK → Gemini BYOK → Vertex AI default → legacy fallback
 
 ## Dev Server
 - Host: `0.0.0.0`

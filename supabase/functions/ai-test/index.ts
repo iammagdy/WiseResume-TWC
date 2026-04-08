@@ -41,7 +41,7 @@ serve(async (req) => {
       .eq('user_id', userId)
       .maybeSingle();
 
-    const preferredProvider = (prefs?.ai_provider as 'gemini' | 'ollama' | 'wiseresume') || 'wiseresume';
+    const preferredProvider = (prefs?.ai_provider as 'gemini' | 'ollama' | 'openrouter' | 'wiseresume') || 'wiseresume';
 
     // ===== Cooldown Check for WiseResume AI =====
     if (preferredProvider === 'wiseresume') {
@@ -109,6 +109,7 @@ serve(async (req) => {
       wiseresume: "Hello! I'm Wise Resume AI",
       gemini: "Hello! I'm Gemini AI",
       ollama: "Hello! I'm Ollama AI",
+      openrouter: "Hello! I'm OpenRouter AI",
     };
     const expectedGreeting = identityMap[preferredProvider] || identityMap.wiseresume;
 

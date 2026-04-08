@@ -7,7 +7,7 @@ export interface AIHealthData {
   status: AIHealthStatus;
   latencyMs: number | null;
   lastChecked: Date | null;
-  provider: 'wiseresume' | 'gemini' | 'ollama';
+  provider: 'wiseresume' | 'gemini' | 'ollama' | 'openrouter';
   errorCode: number | null;
 }
 
@@ -17,8 +17,10 @@ export function useAIHealth() {
   const geminiApiKey = useSettingsStore((s) => s.geminiApiKey);
   const geminiKeyValidated = useSettingsStore((s) => s.geminiKeyValidated);
   const ollamaKeyValidated = useSettingsStore((s) => s.ollamaKeyValidated);
+  const openrouterKeyValidated = useSettingsStore((s) => s.openrouterKeyValidated);
 
-  const provider: 'wiseresume' | 'gemini' | 'ollama' =
+  const provider: 'wiseresume' | 'gemini' | 'ollama' | 'openrouter' =
+    aiProvider === 'openrouter' && openrouterKeyValidated ? 'openrouter' :
     aiProvider === 'ollama' && ollamaKeyValidated ? 'ollama' :
     aiProvider === 'gemini' && geminiKeyValidated ? 'gemini' : 'wiseresume';
 

@@ -34,7 +34,7 @@ export interface AICallOptions {
   /** Override default timeout in ms */
   timeout?: number;
   /** Preferred AI provider — if omitted, read from user_preferences table */
-  preferredProvider?: 'gemini' | 'ollama' | 'wiseresume';
+  preferredProvider?: 'gemini' | 'ollama' | 'openrouter' | 'wiseresume';
 }
 
 export interface AIResponse {
@@ -207,11 +207,14 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
 
   let userGeminiKey: string | undefined;
   let userOllamaData: { key: string; baseUrl: string | null; model: string | null } | undefined;
+  let userOpenRouterData: { key: string; baseUrl: string | null; model: string | null } | undefined;
   if (userId) {
     const preferredProvider = options.preferredProvider || await getUserPreferredProvider(userId);
     
     if (preferredProvider === 'ollama') {
       userOllamaData = await getUserKeyAndUrlFromDB(userId, 'ollama');
+    } else if (preferredProvider === 'openrouter') {
+      userOpenRouterData = await getUserKeyAndUrlFromDB(userId, 'openrouter');
     } else if (preferredProvider === 'gemini') {
       userGeminiKey = await getUserKeyFromDB(userId);
     } else {
@@ -224,7 +227,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
 
   const globalGeminiKey = Deno.env.get('GEMINI_API_KEY');
 
-  if (!defaultKey && !userGeminiKey && !userOllamaData && !globalGeminiKey) {
+  if (!defaultKey && !userGeminiKey && !userOllamaData && !userOpenRouterData && !globalGeminiKey) {
     console.error('[AI] No API key available');
     throw createAIError('invalid_key', 'No AI API key configured. Please add your API key in Settings.', 500);
   }
@@ -233,6 +236,32 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
+    // Priority 0: User BYOK OpenRouter key
+    if (userOpenRouterData) {
+      const orModel = userOpenRouterData.model || model;
+      if (!orModel) {
+        throw createAIError('invalid_key', 'No OpenRouter model selected. Please choose a model in AI Settings.', 400);
+      }
+      console.log('[AI] Using user BYOK OpenRouter key, model:', orModel);
+      try {
+        const res = await callOpenRouterDirect(userOpenRouterData.key, orModel, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+        return { ...res, providerUsed: 'openrouter' };
+      } catch (err) {
+        console.warn('[AI] OpenRouter BYOK failed, falling back to Vertex AI:', err instanceof Error ? err.message : err);
+        if (defaultKey) {
+          const fallbackController = new AbortController();
+          const fallbackTimeout = setTimeout(() => fallbackController.abort(), timeout);
+          try {
+            const res = await callGeminiDirect(defaultKey, model, messages, temperature, maxTokens, tools, toolChoice, fallbackController.signal);
+            return { ...res, fallbackUsed: true, fallbackReason: 'openrouter_error', providerUsed: 'wiseresume_fallback' };
+          } finally {
+            clearTimeout(fallbackTimeout);
+          }
+        }
+        throw err;
+      }
+    }
+
     // Priority 1: User BYOK Ollama key — use stored model name
     if (userOllamaData && userOllamaData.baseUrl) {
       const ollamaModel = userOllamaData.model;
@@ -486,6 +515,64 @@ async function callOllamaDirect(
     };
   }
 
+  return parseOpenAIResponse(data);
+}
+
+/**
+ * Calls OpenRouter API (OpenAI-compatible endpoint)
+ */
+async function callOpenRouterDirect(
+  apiKey: string,
+  model: string,
+  messages: AIMessage[],
+  temperature: number,
+  maxTokens?: number,
+  tools?: AITool[],
+  toolChoice?: { type: 'function'; function: { name: string } } | 'auto',
+  signal?: AbortSignal
+): Promise<AIResponse> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${apiKey}`,
+  };
+
+  const body: Record<string, unknown> = { model, messages, temperature };
+  if (maxTokens) body.max_tokens = maxTokens;
+  if (tools && tools.length > 0) {
+    body.tools = tools;
+    if (toolChoice) body.tool_choice = toolChoice;
+  }
+
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+    signal,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('OpenRouter API error:', response.status, errorText);
+
+    let errorMessage = 'OpenRouter request failed';
+    try {
+      const parsed = JSON.parse(errorText);
+      errorMessage = parsed.error?.message || parsed.error || errorMessage;
+    } catch {}
+
+    if (response.status === 401 || response.status === 403) {
+      throw createAIError('invalid_key', 'Invalid OpenRouter API key. Please check your settings.', 422);
+    }
+    if (response.status === 429) {
+      throw createAIError('rate_limit', 'OpenRouter rate limit reached. Please wait.', 429);
+    }
+    if (response.status === 402) {
+      throw createAIError('payment_required', 'OpenRouter credits exhausted. Please add credits.', 402);
+    }
+    throw createAIError('unknown', errorMessage, response.status);
+  }
+
+  const data = await response.json();
   return parseOpenAIResponse(data);
 }
 

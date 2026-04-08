@@ -73,7 +73,7 @@ export function AIHealthBadge() {
             <div>
               <span className="block text-foreground/50">Configured</span>
               <span className="font-medium text-foreground">
-                {provider === 'wiseresume' ? 'WiseResume AI' : provider === 'ollama' ? 'Ollama' : 'Gemini'}
+                {provider === 'wiseresume' ? 'WiseResume AI' : provider === 'ollama' ? 'Ollama' : provider === 'openrouter' ? 'OpenRouter' : 'Gemini'}
               </span>
             </div>
             <div className="col-span-2">

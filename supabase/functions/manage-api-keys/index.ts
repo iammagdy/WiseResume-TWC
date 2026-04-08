@@ -91,10 +91,25 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
+      // ===== UPDATE_MODEL: update only the model field without touching the encrypted key =====
+      if (action === 'update_model') {
+        const { provider, model } = body;
+        if (!provider) {
+          return new Response(JSON.stringify({ error: 'provider is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const normalizedModel = normalizeOptionalString(model);
+        const { error } = await supabase
+          .from('user_api_keys')
+          .update({ model: normalizedModel })
+          .eq('user_id', userId)
+          .eq('provider', provider);
+
+        if (error) throw error;
+        return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
       // ===== SAVE (default): upsert a provider's key =====
       const { provider, apiKey, keyTier, baseUrl, base_url, model } = body;
-      // Backward compatibility: older clients may still send `tier` instead of `keyTier`.
-      // Keep this fallback until all active clients are migrated.
       const keyTierTrimmed = normalizeOptionalString(keyTier) || '';
       const tierFallbackTrimmed = normalizeOptionalString(body.tier) || '';
       const normalizedKeyTier = keyTierTrimmed || tierFallbackTrimmed || 'unknown';
@@ -116,7 +131,9 @@ Deno.serve(async (req) => {
         upsertData.base_url = normalizeOptionalString(resolvedBaseUrl);
         upsertData.model = normalizedModel;
       } else if (provider === 'gemini') {
-        // Keep selected Gemini model persisted for future calls/preferences
+        upsertData.base_url = null;
+        upsertData.model = normalizedModel;
+      } else if (provider === 'openrouter') {
         upsertData.base_url = null;
         upsertData.model = normalizedModel;
       } else {

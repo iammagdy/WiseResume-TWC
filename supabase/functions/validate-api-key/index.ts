@@ -57,19 +57,106 @@ Deno.serve(async (req) => {
   try {
     const { userId, client } = await requireAuth(req);
 
-    const { apiKey, provider, baseUrl, model } = await req.json();
+    const { apiKey, provider, baseUrl, model, modelsOnly } = await req.json();
     
-    // Ollama may have empty API key (some setups don't need auth)
-    if (provider !== 'ollama' && (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length < 10)) {
+    // Ollama may have empty API key; OpenRouter model refresh may send placeholder
+    if (provider !== 'ollama' && provider !== 'openrouter' && (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length < 10)) {
       return new Response(JSON.stringify({ isValid: false, error: 'Invalid API key format' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    if (provider !== 'gemini' && provider !== 'ollama') {
+    if (provider !== 'gemini' && provider !== 'ollama' && provider !== 'openrouter') {
       return new Response(JSON.stringify({ isValid: false, error: 'Unsupported provider' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    // ===== OpenRouter validation =====
+    if (provider === 'openrouter') {
+      const orKey = (apiKey || '').trim();
+
+      // Model list refresh mode: fetch public models list without key validation
+      if (modelsOnly) {
+        try {
+          const modelsResponse = await fetch('https://openrouter.ai/api/v1/models');
+          if (modelsResponse.ok) {
+            const modelsData = await modelsResponse.json();
+            const availableModels: string[] = (modelsData.data || []).map((m: any) => m.id).slice(0, 200);
+            return new Response(JSON.stringify({ isValid: true, tier: 'paid', availableModels }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        } catch {}
+        return new Response(JSON.stringify({ isValid: true, tier: 'paid', availableModels: [] }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      try {
+        const modelsResponse = await fetch('https://openrouter.ai/api/v1/models', {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${orKey}` },
+        });
+
+        if (!modelsResponse.ok) {
+          const status = modelsResponse.status;
+          const errText = await modelsResponse.text();
+          if (status === 401 || status === 403) {
+            return new Response(JSON.stringify({ isValid: false, error: 'Invalid OpenRouter API key' }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          return new Response(JSON.stringify({ isValid: false, error: `OpenRouter validation failed: HTTP ${status} - ${errText.slice(0, 150)}` }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        const modelsData = await modelsResponse.json();
+        const availableModels: string[] = (modelsData.data || []).map((m: any) => m.id).slice(0, 200);
+
+        console.log(`[validate] OpenRouter: found ${availableModels.length} models`);
+
+        const testModel = model || (availableModels.includes('google/gemini-2.5-flash') ? 'google/gemini-2.5-flash' : availableModels[0]);
+        if (testModel) {
+          const completionResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${orKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: testModel,
+              messages: [{ role: 'user', content: 'Say OK' }],
+              max_tokens: 5,
+              temperature: 0,
+            }),
+          });
+
+          if (!completionResponse.ok) {
+            const cStatus = completionResponse.status;
+            const errText = await completionResponse.text();
+            if (cStatus === 401 || cStatus === 403) {
+              return new Response(JSON.stringify({ isValid: false, error: 'Invalid OpenRouter API key' }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              });
+            }
+            return new Response(JSON.stringify({ isValid: false, error: `Key valid but model "${testModel}" failed: HTTP ${cStatus} - ${errText.slice(0, 150)}` }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          await completionResponse.json();
+        }
+
+        return new Response(JSON.stringify({ isValid: true, tier: 'paid', availableModels }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (fetchErr) {
+        console.error('[validate] OpenRouter fetch error:', fetchErr);
+        return new Response(JSON.stringify({ isValid: false, error: 'Cannot connect to OpenRouter. Check your API key.' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     // ===== Ollama validation =====

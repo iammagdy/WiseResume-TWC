@@ -26,7 +26,7 @@ export function getAIProviderInfo(): {
   isCustomKey: boolean;
   tier: 'default' | 'free' | 'paid';
 } {
-  const { aiProvider, geminiKeyTier, geminiKeyValidated, ollamaKeyValidated } = useSettingsStore.getState();
+  const { aiProvider, geminiKeyTier, geminiKeyValidated, ollamaKeyValidated, openrouterKeyValidated } = useSettingsStore.getState();
   
   if (aiProvider === 'wiseresume') {
     return { name: 'WiseResume AI', isCustomKey: false, tier: 'default' };
@@ -37,6 +37,14 @@ export function getAIProviderInfo(): {
       name: ollamaKeyValidated ? 'Ollama' : 'Ollama (Not Configured)',
       isCustomKey: true,
       tier: ollamaKeyValidated ? 'paid' : 'free',
+    };
+  }
+
+  if (aiProvider === 'openrouter') {
+    return {
+      name: openrouterKeyValidated ? 'OpenRouter' : 'OpenRouter (Not Configured)',
+      isCustomKey: true,
+      tier: openrouterKeyValidated ? 'paid' : 'free',
     };
   }
   

@@ -90,6 +90,12 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       setOllamaModel,
       ollamaKeyValidated,
       setOllamaKeyValidated,
+      openrouterApiKey,
+      setOpenrouterApiKey,
+      openrouterModel,
+      setOpenrouterModel,
+      openrouterKeyValidated,
+      setOpenrouterKeyValidated,
     } = useSettingsStore();
 
     const [showKey, setShowKey] = useState(false);
@@ -109,6 +115,15 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     const [showOllamaKey, setShowOllamaKey] = useState(false);
     const [isValidatingOllama, setIsValidatingOllama] = useState(false);
     const [ollamaAvailableModels, setOllamaAvailableModels] = useState<string[]>([]);
+
+    const [openrouterKeyInput, setOpenrouterKeyInput] = useState(openrouterApiKey);
+    const [openrouterModelInput, setOpenrouterModelInput] = useState(openrouterModel);
+    const [showOpenrouterKey, setShowOpenrouterKey] = useState(false);
+    const [isValidatingOpenrouter, setIsValidatingOpenrouter] = useState(false);
+    const [openrouterAvailableModels, setOpenrouterAvailableModels] = useState<string[]>([]);
+    const [openrouterConnectedAt, setOpenrouterConnectedAt] = useState<string | null>(null);
+    const [openrouterMaskedKey, setOpenrouterMaskedKey] = useState('');
+    const [openrouterModelSearch, setOpenrouterModelSearch] = useState('');
 
     // Test connection state
     const [isTesting, setIsTesting] = useState(false);
@@ -138,7 +153,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       return `${key.slice(0, 4)}...${key.slice(-4)}`;
     };
 
-    const safeProvider = (['wiseresume', 'gemini', 'ollama'] as const).includes(aiProvider as any) 
+    const safeProvider = (['wiseresume', 'gemini', 'ollama', 'openrouter'] as const).includes(aiProvider as any) 
       ? aiProvider 
       : 'wiseresume';
 
@@ -266,6 +281,30 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
               setGeminiModel(key.model);
             }
           }
+          if (key.provider === 'openrouter') {
+            if (key.updated_at || key.created_at) setOpenrouterConnectedAt(key.updated_at || key.created_at || null);
+            if (key.model) {
+              setOpenrouterModelInput(key.model);
+              setOpenrouterModel(key.model);
+            }
+            if (!openrouterKeyValidated) {
+              setOpenrouterKeyValidated(true);
+              setAIProvider('openrouter');
+            }
+            try {
+              const { data: valResult } = await edgeFunctions.functions.invoke('validate-api-key', {
+                body: {
+                  provider: 'openrouter',
+                  modelsOnly: true,
+                },
+              });
+              if (valResult?.availableModels?.length) {
+                setOpenrouterAvailableModels(valResult.availableModels);
+              }
+            } catch {
+              // Silently fail
+            }
+          }
         }
       }).catch(() => {});
 
@@ -282,9 +321,12 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
         const correctedUrl = ollamaBaseUrl?.replace(/api\.ollama\.com/i, 'ollama.com') || '';
         if (correctedUrl) setOllamaUrlInput(correctedUrl);
         if (ollamaModel) setOllamaModelInput(ollamaModel);
+        setOpenrouterKeyInput(openrouterApiKey);
+        if (openrouterApiKey) setOpenrouterMaskedKey(maskKey(openrouterApiKey));
+        if (openrouterModel) setOpenrouterModelInput(openrouterModel);
         setTestResult(null);
       }
-    }, [open, geminiApiKey, ollamaApiKey, ollamaBaseUrl, ollamaModel]);
+    }, [open, geminiApiKey, ollamaApiKey, ollamaBaseUrl, ollamaModel, openrouterApiKey, openrouterModel]);
 
     // Track original provider on sheet open for revert-on-close
     const originalProviderRef = useRef<AIProvider>(aiProvider);
@@ -304,6 +346,9 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
         if (current.aiProvider === 'ollama' && !current.ollamaKeyValidated) {
           current.setAIProvider(originalProviderRef.current === 'ollama' ? 'wiseresume' : originalProviderRef.current);
         }
+        if (current.aiProvider === 'openrouter' && !current.openrouterKeyValidated) {
+          current.setAIProvider(originalProviderRef.current === 'openrouter' ? 'wiseresume' : originalProviderRef.current);
+        }
       }
     }, [open]);
 
@@ -315,7 +360,8 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       // Only persist to DB if the provider is wiseresume (no key needed) or already validated
       const shouldPersist = value === 'wiseresume' ||
         (value === 'gemini' && geminiKeyValidated) ||
-        (value === 'ollama' && ollamaKeyValidated);
+        (value === 'ollama' && ollamaKeyValidated) ||
+        (value === 'openrouter' && openrouterKeyValidated);
 
       if (shouldPersist) {
         try {
@@ -336,6 +382,9 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
         setOllamaUrlInput('https://ollama.com');
         setOllamaModelInput('');
         toast.info('Enter your Ollama details below to connect');
+      }
+      if (value === 'openrouter' && !openrouterKeyValidated) {
+        toast.info('Add your OpenRouter API key below to connect');
       }
     };
 
@@ -517,6 +566,108 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       }
     };
 
+    const handleValidateOpenrouter = async () => {
+      if (!openrouterKeyInput.trim()) {
+        toast.error('Please enter an OpenRouter API key');
+        return;
+      }
+
+      setIsValidatingOpenrouter(true);
+      haptics.light();
+
+      try {
+        const { data: validationResult, error: validationError } = await edgeFunctions.functions.invoke('validate-api-key', {
+          body: {
+            apiKey: openrouterKeyInput.trim(),
+            provider: 'openrouter',
+            model: openrouterModelInput.trim() || undefined,
+          },
+        });
+
+        if (validationError) {
+          haptics.error();
+          toast.error('Failed to validate key. Please try again.');
+          setOpenrouterKeyValidated(false);
+          setIsValidatingOpenrouter(false);
+          return;
+        }
+
+        if (validationResult?.isValid) {
+          const models = validationResult.availableModels || [];
+          setOpenrouterAvailableModels(models);
+
+          const selectedModel = openrouterModelInput.trim();
+          let modelToSave = selectedModel;
+          if (!modelToSave || (models.length > 0 && !models.includes(modelToSave))) {
+            modelToSave = models.includes('google/gemini-2.5-flash') ? 'google/gemini-2.5-flash' : models[0] || '';
+          }
+          setOpenrouterModelInput(modelToSave);
+
+          const { error: saveError } = await edgeFunctions.functions.invoke('manage-api-keys', {
+            body: {
+              action: 'save',
+              provider: 'openrouter',
+              apiKey: openrouterKeyInput.trim(),
+              keyTier: 'paid',
+              model: modelToSave,
+            },
+          });
+
+          if (saveError) {
+            toast.error('Key validated but failed to save. Please try again.');
+            setIsValidatingOpenrouter(false);
+            return;
+          }
+
+          setOpenrouterApiKey(maskKey(openrouterKeyInput.trim()));
+          setOpenrouterMaskedKey(maskKey(openrouterKeyInput.trim()));
+          setOpenrouterModel(modelToSave);
+          setOpenrouterKeyValidated(true);
+          setOpenrouterConnectedAt(new Date().toISOString());
+          setAIProvider('openrouter');
+          try {
+            const uid = getUserId();
+            if (uid) {
+              await supabase.from('user_preferences').update({ ai_provider: 'openrouter' }).eq('user_id', uid);
+            }
+          } catch {}
+          logAudit('api_key', 'key_saved', { provider: 'openrouter', model: modelToSave });
+          resetFallbackToast();
+          haptics.success();
+          toast.success(`OpenRouter connected! ${models.length} model${models.length !== 1 ? 's' : ''} available.`);
+        } else {
+          haptics.error();
+          toast.error(validationResult?.error || 'Invalid API key');
+          setOpenrouterKeyValidated(false);
+        }
+      } catch (error) {
+        haptics.error();
+        toast.error('Failed to validate key. Please try again.');
+        setOpenrouterKeyValidated(false);
+      } finally {
+        setIsValidatingOpenrouter(false);
+      }
+    };
+
+    const handleClearOpenrouter = async () => {
+      haptics.light();
+      try {
+        await edgeFunctions.functions.invoke('manage-api-keys', { body: { action: 'delete', provider: 'openrouter' } });
+        logAudit('api_key', 'key_deleted', { provider: 'openrouter' });
+      } catch (e) {
+        console.error('Failed to delete OpenRouter key server-side:', e);
+      }
+      setOpenrouterKeyInput('');
+      setOpenrouterModelInput('');
+      setOpenrouterApiKey('');
+      setOpenrouterModel('');
+      setOpenrouterKeyValidated(false);
+      setOpenrouterAvailableModels([]);
+      setOpenrouterMaskedKey('');
+      setOpenrouterConnectedAt(null);
+      toast.success('OpenRouter API key removed');
+    };
+
     const handleClearOllama = async () => {
       haptics.light();
       try {
@@ -656,6 +807,10 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
         if (!ollamaKeyValidated) return <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">Not Set</Badge>;
         return <Badge className="text-[10px] px-1.5 py-0 bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Connected ✓</Badge>;
       }
+      if (provider === 'openrouter') {
+        if (!openrouterKeyValidated) return <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">Not Set</Badge>;
+        return <Badge className="text-[10px] px-1.5 py-0 bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Connected ✓</Badge>;
+      }
       return null;
     };
 
@@ -663,6 +818,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       if (provider === 'wiseresume') return <Zap className="w-4 h-4 text-primary" />;
       if (provider === 'gemini') return <Key className="w-4 h-4 text-blue-400" />;
       if (provider === 'ollama') return <Server className="w-4 h-4 text-green-400" />;
+      if (provider === 'openrouter') return <Brain className="w-4 h-4 text-purple-400" />;
       return null;
     };
 
@@ -670,6 +826,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       { id: 'wiseresume', label: 'WiseResume AI', desc: 'Built-in AI · No setup needed' },
       { id: 'gemini', label: 'Gemini API Key', desc: 'Your own Google AI Studio key' },
       { id: 'ollama', label: 'Ollama', desc: 'Cloud API or self-hosted' },
+      { id: 'openrouter', label: 'OpenRouter', desc: 'Access 200+ models with one key' },
     ];
 
     // ─── Connected State Card (read-only) ───
@@ -723,10 +880,8 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                 try {
                   await edgeFunctions.functions.invoke('manage-api-keys', {
                     body: {
-                      action: 'save',
+                      action: 'update_model',
                       provider: 'gemini',
-                      apiKey: geminiApiKey,
-                      tier: geminiKeyTier,
                       model: value,
                     },
                   });
@@ -815,11 +970,8 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                 try {
                   await edgeFunctions.functions.invoke('manage-api-keys', {
                     body: {
-                      action: 'save',
+                      action: 'update_model',
                       provider: 'ollama',
-                      apiKey: ollamaKeyInput.trim() || 'ollama-no-key',
-                      keyTier: 'paid',
-                      baseUrl: ollamaUrlInput.trim(),
                       model: value,
                     },
                   });
@@ -964,6 +1116,146 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       </div>
     );
 
+    const filteredOpenrouterModels = openrouterAvailableModels.filter(
+      (m) => !openrouterModelSearch || m.toLowerCase().includes(openrouterModelSearch.toLowerCase())
+    );
+
+    const OpenrouterConnectedCard = () => (
+      <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            <span className="text-sm font-medium text-emerald-400">Connected</span>
+          </div>
+          <Badge className="text-[10px] px-1.5 py-0 bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Active</Badge>
+        </div>
+
+        <div className="space-y-1 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <Key className="w-3 h-3 shrink-0" />
+            <span className="font-mono">{openrouterMaskedKey || maskKey(openrouterApiKey)}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Brain className="w-3 h-3 shrink-0" />
+            <span>Model: <span className="text-foreground font-medium">{openrouterModel || openrouterModelInput || 'Not selected'}</span></span>
+          </div>
+          {openrouterConnectedAt && (
+            <div className="flex items-center gap-2">
+              <Clock className="w-3 h-3 shrink-0" />
+              <span>Connected {formatDistanceToNow(new Date(openrouterConnectedAt), { addSuffix: true })}</span>
+            </div>
+          )}
+        </div>
+
+        {openrouterAvailableModels.length > 0 && (
+          <div className="space-y-1 pt-1">
+            <Label className="text-[11px] text-muted-foreground">
+              Model · {openrouterAvailableModels.length} available
+            </Label>
+            <Input
+              value={openrouterModelSearch}
+              onChange={(e) => setOpenrouterModelSearch(e.target.value)}
+              placeholder="Search models..."
+              className="h-7 text-xs mb-1"
+            />
+            <Select
+              value={openrouterModelInput}
+              onValueChange={async (value) => {
+                setOpenrouterModelInput(value);
+                setOpenrouterModel(value);
+                try {
+                  await edgeFunctions.functions.invoke('manage-api-keys', {
+                    body: {
+                      action: 'update_model',
+                      provider: 'openrouter',
+                      model: value,
+                    },
+                  });
+                  toast.success(`Model set to ${value}`);
+                } catch (e) {
+                  console.error('Failed to save model selection:', e);
+                  toast.error('Failed to save model selection');
+                }
+              }}
+            >
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder="Select a model" />
+              </SelectTrigger>
+              <SelectContent>
+                <ScrollArea className="max-h-[200px]">
+                  {filteredOpenrouterModels.slice(0, 50).map((model) => (
+                    <SelectItem key={model} value={model}>
+                      {model}
+                    </SelectItem>
+                  ))}
+                  {filteredOpenrouterModels.length > 50 && (
+                    <div className="px-2 py-1 text-[10px] text-muted-foreground">
+                      {filteredOpenrouterModels.length - 50} more — type to search
+                    </div>
+                  )}
+                </ScrollArea>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleClearOpenrouter}
+          className="w-full h-8 text-xs text-destructive hover:text-destructive border-destructive/20 hover:bg-destructive/10 gap-1.5"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          Delete Key & Disconnect
+        </Button>
+      </div>
+    );
+
+    const OpenrouterSetupForm = () => (
+      <div className="space-y-2">
+        <div className="relative">
+          <Input
+            type={showOpenrouterKey ? 'text' : 'password'}
+            value={openrouterKeyInput}
+            onChange={(e) => setOpenrouterKeyInput(e.target.value)}
+            placeholder="sk-or-v1-..."
+            className="pr-10 h-9 text-sm"
+          />
+          <button
+            type="button"
+            onClick={() => setShowOpenrouterKey(!showOpenrouterKey)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            {showOpenrouterKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+
+        <Button
+          size="sm"
+          onClick={handleValidateOpenrouter}
+          disabled={isValidatingOpenrouter || !openrouterKeyInput.trim()}
+          className="w-full h-8 text-xs"
+        >
+          {isValidatingOpenrouter ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+              Validating...
+            </>
+          ) : (
+            'Connect & Validate'
+          )}
+        </Button>
+
+        <button
+          onClick={() => openExternal('https://openrouter.ai/keys')}
+          className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+        >
+          <ExternalLink className="w-3 h-3" />
+          Get a key at OpenRouter
+        </button>
+      </div>
+    );
+
     return (
       <>
         <Sheet open={open} onOpenChange={onOpenChange}>
@@ -1071,6 +1363,38 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                         </AnimatePresence>
                       </motion.div>
                     )}
+
+                    {/* Expanded config for OpenRouter */}
+                    {safeProvider === p.id && p.id === 'openrouter' && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="ml-7 mt-1 mb-2 space-y-3 pl-3 border-l-2 border-primary/20"
+                      >
+                        <AnimatePresence mode="wait">
+                          {openrouterKeyValidated ? (
+                            <motion.div
+                              key="openrouter-connected"
+                              initial={{ opacity: 0, y: -8 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: 8 }}
+                            >
+                              <OpenrouterConnectedCard />
+                            </motion.div>
+                          ) : (
+                            <motion.div
+                              key="openrouter-setup"
+                              initial={{ opacity: 0, y: -8 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: 8 }}
+                            >
+                              <OpenrouterSetupForm />
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1149,6 +1473,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                             invalid_key: 'Gemini key is invalid',
                             model_not_found: 'Gemini model unavailable — fell back to WiseResume AI',
                             ollama_error: 'Ollama connection failed — fell back to WiseResume AI',
+                            openrouter_error: 'OpenRouter failed — fell back to WiseResume AI',
                           };
                           const reason = testResult.fallbackReason || '';
                           return reasonMap[reason] || (reason ? `Fallback used: ${reason}` : 'Fallback used');
@@ -1202,6 +1527,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                             wiseresume_fallback: '⚡ Fallback',
                             gemini_global: '🔵 Gemini',
                             emergent: '🟣 Emergent',
+                            openrouter: '🟣 OpenRouter',
                           };
                           const actionLabels: Record<string, string> = {
                             enhance: 'Enhance',
@@ -1280,8 +1606,8 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                       const meta = entry.metadata || {};
                       const provider = meta.provider || 'unknown';
                       const isSaved = entry.action === 'key_saved';
-                      const providerEmoji = provider === 'gemini' ? '🔵' : provider === 'ollama' ? '🟢' : provider === 'elevenlabs' ? '🟠' : '⚪';
-                      const providerName = provider === 'gemini' ? 'Gemini' : provider === 'ollama' ? 'Ollama' : provider === 'elevenlabs' ? 'ElevenLabs' : provider;
+                      const providerEmoji = provider === 'gemini' ? '🔵' : provider === 'ollama' ? '🟢' : provider === 'openrouter' ? '🟣' : provider === 'elevenlabs' ? '🟠' : '⚪';
+                      const providerName = provider === 'gemini' ? 'Gemini' : provider === 'ollama' ? 'Ollama' : provider === 'openrouter' ? 'OpenRouter' : provider === 'elevenlabs' ? 'ElevenLabs' : provider;
                       
                       return (
                         <div key={entry.id} className="flex items-start gap-3 px-3 py-2.5 rounded-lg bg-muted border border-border">

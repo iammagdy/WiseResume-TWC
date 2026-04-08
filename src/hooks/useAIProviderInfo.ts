@@ -20,6 +20,8 @@ export function useAIProviderInfo(): AIProviderInfo {
   const geminiKeyValidated = useSettingsStore((s) => s.geminiKeyValidated);
   const ollamaKeyValidated = useSettingsStore((s) => s.ollamaKeyValidated);
   const ollamaModel = useSettingsStore((s) => s.ollamaModel);
+  const openrouterKeyValidated = useSettingsStore((s) => s.openrouterKeyValidated);
+  const openrouterModel = useSettingsStore((s) => s.openrouterModel);
 
   if (aiProvider === 'wiseresume') {
     return {
@@ -41,6 +43,18 @@ export function useAIProviderInfo(): AIProviderInfo {
       tier: ollamaKeyValidated ? 'paid' : 'free',
       tierLabel: ollamaKeyValidated ? 'Connected' : 'Not Configured',
       isValidated: ollamaKeyValidated,
+    };
+  }
+
+  if (aiProvider === 'openrouter') {
+    const modelSuffix = openrouterKeyValidated && openrouterModel ? ` · ${openrouterModel}` : '';
+    return {
+      provider: 'openrouter',
+      name: `OpenRouter${modelSuffix}`,
+      isCustomKey: true,
+      tier: openrouterKeyValidated ? 'paid' : 'free',
+      tierLabel: openrouterKeyValidated ? 'Connected' : 'Not Configured',
+      isValidated: openrouterKeyValidated,
     };
   }
 

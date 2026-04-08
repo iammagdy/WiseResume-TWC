@@ -66,6 +66,7 @@ export function deriveLastProvider(lastProviderUsed: string | null): string {
     'gemini': 'Gemini BYOK',
     'gemini-byok': 'Gemini BYOK',
     'ollama': 'Ollama',
+    'openrouter': 'OpenRouter',
     'wiseresume_fallback': 'WiseResume (Fallback)',
     'deterministic': 'Local',
   };

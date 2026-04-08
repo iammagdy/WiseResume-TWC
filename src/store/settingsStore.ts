@@ -7,7 +7,7 @@ export type AutoSaveToastMode = 'always' | 'errors-only';
 export type AITipFrequency = 'daily' | 'weekly' | 'on-demand';
 
 // AI Provider types
-export type AIProvider = 'wiseresume' | 'gemini' | 'ollama';
+export type AIProvider = 'wiseresume' | 'gemini' | 'ollama' | 'openrouter';
 export type GeminiKeyTier = 'free' | 'paid' | 'unknown';
 
 interface GeminiDailyUsage {
@@ -70,6 +70,11 @@ interface SettingsState {
   ollamaModel: string;
   ollamaKeyValidated: boolean;
   
+  // OpenRouter Provider Settings (in-memory only, keys stored server-side)
+  openrouterApiKey: string;
+  openrouterModel: string;
+  openrouterKeyValidated: boolean;
+  
   // Actions
   setShowAutoSaveToasts: (value: boolean) => void;
   setAutoSaveToastMode: (mode: AutoSaveToastMode) => void;
@@ -110,6 +115,11 @@ interface SettingsState {
   setOllamaBaseUrl: (url: string) => void;
   setOllamaModel: (model: string) => void;
   setOllamaKeyValidated: (validated: boolean) => void;
+  
+  // OpenRouter Actions
+  setOpenrouterApiKey: (key: string) => void;
+  setOpenrouterModel: (model: string) => void;
+  setOpenrouterKeyValidated: (validated: boolean) => void;
   
   resetSettings: () => void;
   resetUserSettings: () => void;
@@ -155,6 +165,10 @@ const defaultSettings = {
   ollamaBaseUrl: '',
   ollamaModel: '',
   ollamaKeyValidated: false,
+  // OpenRouter defaults
+  openrouterApiKey: '',
+  openrouterModel: '',
+  openrouterKeyValidated: false,
 };
 
 // Helper to get Pacific midnight reset
@@ -223,6 +237,11 @@ export const useSettingsStore = create<SettingsState>()(
       setOllamaModel: (model) => set({ ollamaModel: model }),
       setOllamaKeyValidated: (validated) => set({ ollamaKeyValidated: validated }),
       
+      // OpenRouter Actions
+      setOpenrouterApiKey: (key) => set({ openrouterApiKey: key, openrouterKeyValidated: false }),
+      setOpenrouterModel: (model) => set({ openrouterModel: model }),
+      setOpenrouterKeyValidated: (validated) => set({ openrouterKeyValidated: validated }),
+      
       resetSettings: () => set(defaultSettings),
 
       resetUserSettings: () => set((state) => ({
@@ -242,7 +261,7 @@ export const useSettingsStore = create<SettingsState>()(
       partialize: (state) => {
         // Exclude sensitive keys from localStorage persistence
         // Keys are now stored server-side via manage-api-keys edge function
-        const { geminiApiKey, elevenlabsApiKey, ollamaApiKey, ...rest } = state;
+        const { geminiApiKey, elevenlabsApiKey, ollamaApiKey, openrouterApiKey, ...rest } = state;
         return rest;
       },
     }
