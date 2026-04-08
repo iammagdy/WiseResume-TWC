@@ -1,6 +1,7 @@
 import { useLocation, useOutlet } from 'react-router-dom';
 import { useRef, useEffect, useState, lazy, Suspense } from 'react';
-import { Sparkles, X } from 'lucide-react';
+import { Sparkles, X, Sun, Moon } from 'lucide-react';
+import { useTheme } from '@/hooks/use-theme';
 
 import { BottomTabBar } from './BottomTabBar';
 import { DesktopNav } from './DesktopNav';
@@ -25,6 +26,7 @@ const TAB_ROUTES = ['/dashboard', '/upload', '/settings', '/interview', '/editor
 export function AppShell() {
   const location = useLocation();
   const currentOutlet = useOutlet();
+  const { isDark, toggleTheme } = useTheme();
   const showBottomNav = TAB_ROUTES.some(r => location.pathname.startsWith(r));
   const isEditorRoute = location.pathname.startsWith('/editor') || location.pathname.startsWith('/preview');
   const isRootRoute = shouldExitOnBack(location.pathname);
@@ -84,6 +86,15 @@ export function AppShell() {
               </span>
             ) : null;
           })()}
+          <div className="ml-auto">
+            <button
+              onClick={toggleTheme}
+              className="flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors active:scale-95 touch-manipulation"
+              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+          </div>
         </header>
       )}
       {showBottomNav && <DesktopNav />}
