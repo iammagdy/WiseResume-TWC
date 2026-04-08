@@ -49,7 +49,7 @@ export default function NotificationsPage() {
     if (filter === 'unread') return !n.is_read;
     if (filter === 'applications') return n.type === 'application';
     return n.type === 'system';
-  });
+  }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   const handleClick = (n: Notification) => {
     if (!n.is_read) markAsRead.mutate(n.id);
