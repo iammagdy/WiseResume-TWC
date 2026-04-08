@@ -57,20 +57,21 @@ function errorResponse(
   );
 }
 
-/** Fire-and-forget audit log insert */
-function logExchange(
+async function logExchange(
   serviceClient: ReturnType<typeof getServiceClient>,
   kindeSub: string,
   userId: string,
   status: 'success' | 'error',
   errorCode?: string,
-) {
-  serviceClient
-    .from('token_exchanges')
-    .insert({ kinde_sub: kindeSub, user_id: userId, status, error_code: errorCode || null })
-    .then(({ error }) => {
-      if (error) console.warn('[token-exchange] audit log insert failed:', error.message);
-    });
+): Promise<void> {
+  try {
+    const { error } = await serviceClient
+      .from('token_exchanges')
+      .insert({ kinde_sub: kindeSub, user_id: userId, status, error_code: errorCode || null });
+    if (error) console.warn('[token-exchange] audit log insert failed:', error.message);
+  } catch (e) {
+    console.warn('[token-exchange] audit log exception:', e);
+  }
 }
 
 serve(async (req) => {
@@ -109,7 +110,7 @@ serve(async (req) => {
     } catch (verifyErr) {
       console.error('[token-exchange] JWT verification failed:', verifyErr);
       const serviceClient = getServiceClient();
-      logExchange(serviceClient, kindeSub, supabaseUserId, 'error', 'INVALID_KINDE_TOKEN');
+      await logExchange(serviceClient, kindeSub, supabaseUserId, 'error', 'INVALID_KINDE_TOKEN');
       return errorResponse('INVALID_KINDE_TOKEN', 'Kinde token invalid or expired', 401, corsHeaders);
     }
 
@@ -117,7 +118,7 @@ serve(async (req) => {
     kindeSub = (payload.sub as string) || '';
     if (!kindeSub) {
       const serviceClient = getServiceClient();
-      logExchange(serviceClient, 'missing', supabaseUserId, 'error', 'MISSING_SUB_CLAIM');
+      await logExchange(serviceClient, 'missing', supabaseUserId, 'error', 'MISSING_SUB_CLAIM');
       return errorResponse('MISSING_SUB_CLAIM', 'Token missing sub claim', 401, corsHeaders);
     }
 
@@ -165,7 +166,7 @@ serve(async (req) => {
           
           if (retryError) {
             console.error(`[token-exchange] Retry createUser FAILED: status=${retryError.status}, message=${retryError.message}`);
-            logExchange(serviceClient, kindeSub, supabaseUserId, 'error', 'SHADOW_USER_FAILED');
+            await logExchange(serviceClient, kindeSub, supabaseUserId, 'error', 'SHADOW_USER_FAILED');
             return errorResponse('SHADOW_USER_FAILED', 'Could not create or verify shadow user account', 500, corsHeaders);
           }
           console.log(`[token-exchange] Shadow user created successfully on retry: id=${supabaseUserId}`);
@@ -178,7 +179,7 @@ serve(async (req) => {
         const { data: existingUser, error: getUserErr } = await serviceClient.auth.admin.getUserById(supabaseUserId);
         if (getUserErr || !existingUser?.user) {
           console.error(`[token-exchange] getUserById also failed — user does NOT exist in auth.users. Returning 500.`);
-          logExchange(serviceClient, kindeSub, supabaseUserId, 'error', 'SHADOW_USER_FAILED');
+          await logExchange(serviceClient, kindeSub, supabaseUserId, 'error', 'SHADOW_USER_FAILED');
           return errorResponse('SHADOW_USER_FAILED', 'Could not create or verify shadow user account', 500, corsHeaders);
         }
         console.log(`[token-exchange] getUserById confirmed user exists despite createUser error`);
@@ -194,7 +195,7 @@ serve(async (req) => {
     );
     if (profileError) {
       console.error(`[token-exchange] Profile upsert failed: ${profileError.message}`);
-      logExchange(serviceClient, kindeSub, supabaseUserId, 'error', 'PROFILE_UPSERT_FAILED');
+      await logExchange(serviceClient, kindeSub, supabaseUserId, 'error', 'PROFILE_UPSERT_FAILED');
       return errorResponse('PROFILE_UPSERT_FAILED', 'Could not create user profile', 500, corsHeaders);
     }
 
@@ -205,7 +206,7 @@ serve(async (req) => {
     );
     if (prefsError) {
       console.error(`[token-exchange] Preferences upsert failed: ${prefsError.message}`);
-      logExchange(serviceClient, kindeSub, supabaseUserId, 'error', 'PROFILE_UPSERT_FAILED');
+      await logExchange(serviceClient, kindeSub, supabaseUserId, 'error', 'PROFILE_UPSERT_FAILED');
       return errorResponse('PROFILE_UPSERT_FAILED', 'Could not create user preferences', 500, corsHeaders);
     }
 
@@ -213,7 +214,7 @@ serve(async (req) => {
     const jwtSecret = Deno.env.get('EXT_SUPABASE_JWT_SECRET') || Deno.env.get('SUPABASE_JWT_SECRET');
     if (!jwtSecret) {
       console.error('[token-exchange] SUPABASE_JWT_SECRET not configured');
-      logExchange(serviceClient, kindeSub, supabaseUserId, 'error', 'JWT_SECRET_MISSING');
+      await logExchange(serviceClient, kindeSub, supabaseUserId, 'error', 'JWT_SECRET_MISSING');
       return errorResponse('JWT_SECRET_MISSING', 'Server configuration error', 500, corsHeaders);
     }
 
@@ -235,7 +236,7 @@ serve(async (req) => {
       .sign(secret);
 
     // 7. Log success
-    logExchange(serviceClient, kindeSub, supabaseUserId, 'success');
+    await logExchange(serviceClient, kindeSub, supabaseUserId, 'success');
 
     // 8. Return the signed JWT
     return new Response(
@@ -246,7 +247,7 @@ serve(async (req) => {
     console.error('[token-exchange] Unexpected error:', err);
     try {
       const serviceClient = getServiceClient();
-      logExchange(serviceClient, kindeSub, supabaseUserId, 'error', 'INTERNAL_ERROR');
+      await logExchange(serviceClient, kindeSub, supabaseUserId, 'error', 'INTERNAL_ERROR');
     } catch { /* ignore audit failure */ }
     return errorResponse('INTERNAL_ERROR', 'Internal server error', 500, corsHeaders);
   }
