@@ -196,7 +196,6 @@ export default function AIStudioPage() {
   const [showEnhance, setShowEnhance] = useState(false);
   const [showABCompare, setShowABCompare] = useState(false);
   const [showCompanyBriefing, setShowCompanyBriefing] = useState(false);
-  const [stickyInput, setStickyInput] = useState('');
   const [searchParams, setSearchParams] = useSearchParams();
   const deepLinkHandled = useRef(false);
 
@@ -229,18 +228,8 @@ export default function AIStudioPage() {
     haptics.light();
     if (!user) {setShowChat(true);return;}
     if (!currentResumeId) {toast.info('Select a resume first to chat with Wise AI');return;}
-    setStickyInput(msg);
     setShowChat(true);
   }, [user, currentResumeId]);
-
-  const handleStickySubmit = useCallback(() => {
-    if (!stickyInput.trim()) return;
-    haptics.light();
-    if (!user) {setShowChat(true);setStickyInput('');return;}
-    if (!currentResumeId) {toast.info('Select a resume first to chat with Wise AI');return;}
-    setShowChat(true);
-    setStickyInput('');
-  }, [stickyInput, user, currentResumeId]);
 
   const [showResumePicker, setShowResumePicker] = useState(false);
   const pendingActionRef = useRef<(() => void) | null>(null);
