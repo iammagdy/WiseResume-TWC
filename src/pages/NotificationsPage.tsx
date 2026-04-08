@@ -64,24 +64,27 @@ export default function NotificationsPage() {
   ];
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 min-h-0 h-full overflow-y-auto overscroll-y-contain pb-6">
+    <div className="flex-1 min-h-0 h-full flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 flex items-center gap-3">
-        <BackButton />
-        <h1 className="text-lg font-bold flex-1">Notifications</h1>
-        <div className="flex items-center gap-1">
-          {notifications.some(n => !n.is_read) && (
-            <Button variant="ghost" size="sm" onClick={() => markAllAsRead.mutate()} className="gap-1 text-xs">
-              <CheckCheck className="w-3.5 h-3.5" /> Read all
-            </Button>
-          )}
-          {notifications.length > 0 && (
-            <Button variant="ghost" size="sm" onClick={() => setShowClearConfirm(true)} className="text-destructive gap-1 text-xs">
-              <Trash2 className="w-3.5 h-3.5" /> Clear
-            </Button>
-          )}
+      <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 pt-safe">
+        <div className="flex items-center gap-3">
+          <BackButton />
+          <Bell className="w-5 h-5 text-primary" />
+          <h1 className="text-page-title flex-1">Notifications</h1>
+          <div className="flex items-center gap-1">
+            {notifications.some(n => !n.is_read) && (
+              <Button variant="ghost" size="sm" onClick={() => markAllAsRead.mutate()} className="gap-1 text-xs">
+                <CheckCheck className="w-3.5 h-3.5" /> Read all
+              </Button>
+            )}
+            {notifications.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={() => setShowClearConfirm(true)} className="text-destructive gap-1 text-xs">
+                <Trash2 className="w-3.5 h-3.5" /> Clear
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
+      </header>
 
       {/* Filter Tabs */}
       <div className="px-4 pt-3 pb-1 flex gap-2">
@@ -156,6 +159,6 @@ export default function NotificationsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </motion.div>
+    </div>
   );
 }

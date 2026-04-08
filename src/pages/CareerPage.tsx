@@ -112,10 +112,8 @@ export default function CareerPage() {
       <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 pt-safe">
         <div className="flex items-center gap-3">
           <BackButton />
-          <div className="flex items-center gap-2 flex-1">
-            <TrendingUp className="w-5 h-5 text-primary" />
-            <h1 className="text-page-title">Career Plan</h1>
-          </div>
+          <TrendingUp className="w-5 h-5 text-primary" />
+          <h1 className="text-page-title flex-1">Career Plan</h1>
           {assessment && (
             <Button
               variant="ghost"
@@ -131,7 +129,7 @@ export default function CareerPage() {
       </header>
 
       <PullToRefresh onRefresh={handleRefresh} className="flex-1">
-        <div className="px-4 py-4 pb-safe space-y-4">
+        <div className="px-4 py-4 pb-safe space-y-4 max-w-3xl mx-auto w-full">
           {isLoading ? (
             <div className="space-y-4">
               <Skeleton className="h-32 rounded-2xl" />

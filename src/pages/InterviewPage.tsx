@@ -294,19 +294,19 @@ function InterviewPageContent() {
   if (phase === 'preview') {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex items-center gap-3 px-4 pt-3 pb-2">
-          <BackButton
-            onBeforeBack={() => {
-              setPendingJobDescription(undefined);
-              return true;
-            }}
-            className="text-foreground"
-          />
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-primary" />
-            <h1 className="text-lg font-bold text-foreground">Interview Preview</h1>
+        <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 pt-safe">
+          <div className="flex items-center gap-3">
+            <BackButton
+              onBeforeBack={() => {
+                setPendingJobDescription(undefined);
+                return true;
+              }}
+              className="text-foreground"
+            />
+            <Sparkles className="w-5 h-5 text-primary" />
+            <h1 className="text-page-title">Interview Preview</h1>
           </div>
-        </div>
+        </header>
         <div className="flex-1 overflow-y-auto">
           <InterviewPreview
             roleAnalysis={roleAnalysis}
@@ -322,19 +322,19 @@ function InterviewPageContent() {
   if (phase === 'setup') {
     return (
       <div className="flex-1 flex flex-col overflow-hidden h-full">
-        <div className="flex items-center gap-3 px-4 pt-3 pb-2">
-          <BackButton />
-          <div className="flex items-center gap-2 flex-1">
-            <Sparkles className="w-4 h-4 text-primary" />
-            <h1 className="text-lg font-bold text-foreground">Wise AI Interview</h1>
+        <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 pt-safe">
+          <div className="flex items-center gap-3">
+            <BackButton />
+            <Sparkles className="w-5 h-5 text-primary" />
+            <h1 className="text-page-title flex-1">Wise AI Interview</h1>
+            <button onClick={() => setShowTips(true)} className="touch-manipulation p-2 rounded-full hover:bg-muted active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center">
+              <Lightbulb className="w-5 h-5 text-muted-foreground" />
+            </button>
+            <button onClick={() => setShowHistory(true)} className="touch-manipulation p-2 rounded-full hover:bg-muted active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center">
+              <History className="w-5 h-5 text-muted-foreground" />
+            </button>
           </div>
-          <button onClick={() => setShowTips(true)} className="touch-manipulation p-2 rounded-full hover:bg-muted active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center">
-            <Lightbulb className="w-5 h-5 text-muted-foreground" />
-          </button>
-          <button onClick={() => setShowHistory(true)} className="touch-manipulation p-2 rounded-full hover:bg-muted active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center">
-            <History className="w-5 h-5 text-muted-foreground" />
-          </button>
-        </div>
+        </header>
         <div className="flex-1 overflow-y-auto">
           <InterviewStatsCard onViewHistory={() => setShowHistory(true)} />
           <InterviewSetup
@@ -361,30 +361,19 @@ function InterviewPageContent() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden h-full">
       {/* Active interview header */}
-      <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border bg-background/95 backdrop-blur-sm">
+      <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 pt-safe">
         <div className="flex items-center gap-3">
           <BackButton onBeforeBack={() => { backTriggeredRef.current = true; setShowEndConfirm(true); return true; }} />
-          <div className="flex items-center gap-2">
-            <motion.div
-              animate={{ rotate: [0, 10, -10, 0] }}
-              transition={{ duration: 3, repeat: Infinity }}
-            >
-              <Sparkles className="w-4 h-4 text-primary" />
-            </motion.div>
-            <h1 className="text-lg font-bold text-foreground">Wise AI</h1>
+          <Sparkles className="w-5 h-5 text-primary" />
+          <h1 className="text-page-title flex-1">Wise AI</h1>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/25">
+            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            <span className="text-xs font-mono font-semibold text-primary tabular-nums">
+              {mins}:{secs.toString().padStart(2, '0')}
+            </span>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/25 shadow-[0_0_10px_hsl(var(--primary)/0.1)]">
-          <motion.span
-            className="w-2 h-2 rounded-full bg-primary"
-            animate={{ scale: [1, 1.2, 1], opacity: [0.7, 1, 0.7] }}
-            transition={{ duration: 1.5, repeat: Infinity }}
-          />
-          <span className="text-xs font-mono font-semibold text-primary tabular-nums">
-            {mins}:{secs.toString().padStart(2, '0')}
-          </span>
-        </div>
-      </div>
+      </header>
 
       {/* Progress indicator */}
       {(() => {
