@@ -961,6 +961,7 @@ function DashboardPageContent() {
             existingResumes={resumes || []}
             parentResumeId={createTailoredParentId}
             defaultTemplateId={onboardingTemplateId}
+            onLinkedInImport={() => setShowLinkedInImport(true)}
           />
         )}
       </Suspense>

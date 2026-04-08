@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Upload, Copy, ArrowRight, GitBranch } from 'lucide-react';
+import { FileText, Upload, Copy, ArrowRight, GitBranch, Linkedin } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import {
@@ -36,6 +36,7 @@ interface CreateResumeDialogProps {
   existingResumes?: DatabaseResume[];
   parentResumeId?: string | null;
   defaultTemplateId?: string | null;
+  onLinkedInImport?: () => void;
 }
 
 type CreateMode = 'blank' | 'upload' | 'duplicate' | 'tailored';
@@ -55,6 +56,7 @@ export function CreateResumeDialog({
   existingResumes = [],
   parentResumeId,
   defaultTemplateId,
+  onLinkedInImport,
 }: CreateResumeDialogProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -343,6 +345,23 @@ export function CreateResumeDialog({
               </div>
               <ArrowRight className="w-5 h-5 text-muted-foreground" />
             </motion.button>
+
+            {onLinkedInImport && (
+              <motion.button
+                whileTap={{ scale: 0.98 }}
+                onClick={() => { haptics.light(); onOpenChange(false); onLinkedInImport(); }}
+                className="w-full flex items-center gap-4 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 transition-all touch-manipulation"
+              >
+                <div className="w-12 h-12 rounded-lg bg-[#0A66C2]/10 flex items-center justify-center">
+                  <Linkedin className="w-6 h-6 text-[#0A66C2]" />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="font-medium">Import from LinkedIn</p>
+                  <p className="text-sm text-muted-foreground">Pull your profile data with AI</p>
+                </div>
+                <ArrowRight className="w-5 h-5 text-muted-foreground" />
+              </motion.button>
+            )}
 
             {existingResumes.length > 0 && (
               <motion.button
