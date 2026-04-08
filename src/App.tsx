@@ -20,7 +20,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { RedirectJobRoute } from "@/components/layout/RedirectJobRoute";
 import { useAIKeyHydration } from "@/hooks/useAIKeyHydration";
-import { SkyWallpaper } from "@/components/ui/SkyWallpaper";
+
 import { KindeProvider } from "@kinde-oss/kinde-auth-react";
 import {
   DashboardSkeleton,
@@ -191,7 +191,6 @@ function AppRoutes() {
 
   return (
     <>
-        <SkyWallpaper />
         <Routes>
           {/* Public routes */}
           <Route path="/" element={<Index />} />

@@ -5,7 +5,7 @@ WiseResume is an AI-powered career management platform (PWA) that helps users bu
 
 ## Tech Stack
 - **Frontend**: React 18 + TypeScript 5 + Vite 5
-- **Styling**: Tailwind CSS, Radix UI, Framer Motion, GSAP
+- **Styling**: Tailwind CSS (Apple-inspired indigo+amber design system), Radix UI, Framer Motion
 - **State**: Zustand + TanStack Query (React Query)
 - **Auth**: Kinde Auth
 - **Database**: Supabase (PostgreSQL with RLS)
@@ -34,3 +34,16 @@ See `.env.example`. Key variables:
 
 ## Workflow
 - **Start application**: `npm run dev` on port 5000 (webview)
+
+## Design System (Phase 1 — Redesign)
+- **Primary**: Deep Indigo (HSL 239 84% 67%)
+- **Accent**: Warm Amber (HSL 38 92% 50%)
+- **Typography**: Inter only (no Space Grotesk)
+- **Surfaces**: Clean solid backgrounds, no glassmorphism/backdrop-filter
+- **Themes**: Light (#FFFFFF bg) + Dark (#111111 bg) with system option
+- **Theme hook**: `src/hooks/use-theme.ts` — exposes theme, setTheme, toggleTheme, isDark
+- **Theme detection**: `src/hooks/useIsDark.ts` — MutationObserver on `<html class>`
+- **Settings store**: `src/store/settingsStore.ts` — persists theme in localStorage key `wiseresume-settings`
+- **SkyWallpaper**: Removed (THREE.js/GSAP animated background)
+- **Glass classes**: Kept as compatibility aliases — now render as solid surfaces with subtle borders/shadows
+- **Portfolio CSS (pf-*)**: Untouched — used by public portfolio pages
