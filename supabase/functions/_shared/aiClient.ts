@@ -525,12 +525,20 @@ async function callGeminiDirect(
     if (msg.role === 'assistant' && msg.tool_calls) {
       return {
         role: 'model',
-        parts: msg.tool_calls.map((tc: any) => ({
-          functionCall: {
-            name: tc.function?.name || 'function',
-            args: JSON.parse(tc.function?.arguments || '{}'),
-          },
-        })),
+        parts: msg.tool_calls.map((tc: any) => {
+          let args: Record<string, unknown> = {};
+          try {
+            args = JSON.parse(tc.function?.arguments || '{}');
+          } catch {
+            args = { _raw: tc.function?.arguments || '' };
+          }
+          return {
+            functionCall: {
+              name: tc.function?.name || 'function',
+              args,
+            },
+          };
+        }),
       };
     }
     return {

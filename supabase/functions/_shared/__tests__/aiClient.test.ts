@@ -58,7 +58,7 @@ Deno.test("BYOK Edge Cases - AI Client", async (t) => {
           });
         },
         Error,
-        "Invalid Gemini API key. Please check your settings."
+        "Invalid API key. Please check your settings."
       );
     } finally {
       // Restore
