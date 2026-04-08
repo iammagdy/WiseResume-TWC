@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Bell, Briefcase, Settings, Trash2, CheckCheck } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { motion, AnimatePresence } from 'framer-motion';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, isToday, isYesterday, isThisWeek, format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { useNotifications, useNotificationMutations, Notification } from '@/hooks/useNotifications';
 import { useAuth } from '@/hooks/useAuth';
@@ -87,7 +87,7 @@ export default function NotificationsPage() {
       </header>
 
       {/* Filter Tabs */}
-      <div className="px-4 pt-3 pb-1 flex gap-2">
+      <div className="shrink-0 px-4 pt-3 pb-1 flex gap-2">
         {TABS.map(t => (
           <button
             key={t.key}
@@ -102,7 +102,7 @@ export default function NotificationsPage() {
       </div>
 
       {/* List */}
-      <div className="px-4 mt-2 space-y-2">
+      <div className="flex-1 overflow-y-auto overscroll-y-contain px-4 mt-2 pb-6 space-y-2">
         <AnimatePresence>
           {filtered.length === 0 ? (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-20 text-muted-foreground">
@@ -111,33 +111,53 @@ export default function NotificationsPage() {
               <p className="text-sm mt-1">You're all caught up!</p>
             </motion.div>
           ) : (
-            filtered.map(n => (
-              <motion.div
-                key={n.id}
-                layout
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, x: -100 }}
-                onClick={() => handleClick(n)}
-                className={`bg-card border border-border shadow-soft-sm rounded-xl p-4 flex items-start gap-3 cursor-pointer transition-colors ${
-                  !n.is_read ? 'border-l-2 border-l-primary' : 'opacity-70'
-                }`}
-              >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                  n.type === 'application' ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
-                }`}>
-                  {n.type === 'application' ? <Briefcase className="w-4 h-4" /> : <Settings className="w-4 h-4" />}
+            (() => {
+              const groups: { label: string; items: typeof filtered }[] = [];
+              filtered.forEach(n => {
+                const d = new Date(n.created_at);
+                let label = format(d, 'MMMM d, yyyy');
+                if (isToday(d)) label = 'Today';
+                else if (isYesterday(d)) label = 'Yesterday';
+                else if (isThisWeek(d)) label = format(d, 'EEEE');
+                const existing = groups.find(g => g.label === label);
+                if (existing) existing.items.push(n);
+                else groups.push({ label, items: [n] });
+              });
+              return groups.map(group => (
+                <div key={group.label}>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 pt-3 pb-2">{group.label}</p>
+                  <div className="space-y-2">
+                    {group.items.map(n => (
+                      <motion.div
+                        key={n.id}
+                        layout
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, x: -100 }}
+                        onClick={() => handleClick(n)}
+                        className={`bg-card border border-border shadow-soft-sm rounded-xl p-4 flex items-start gap-3 cursor-pointer transition-colors ${
+                          !n.is_read ? 'border-l-2 border-l-primary' : 'opacity-70'
+                        }`}
+                      >
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                          n.type === 'application' ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
+                        }`}>
+                          {n.type === 'application' ? <Briefcase className="w-4 h-4" /> : <Settings className="w-4 h-4" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold">{n.title}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{n.message}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                          </p>
+                        </div>
+                        {!n.is_read && <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />}
+                      </motion.div>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold">{n.title}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{n.message}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
-                  </p>
-                </div>
-                {!n.is_read && <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />}
-              </motion.div>
-            ))
+              ));
+            })()
           )}
         </AnimatePresence>
       </div>
