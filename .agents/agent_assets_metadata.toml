@@ -1,0 +1,182 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "nU-PzJUxYV0fBVyOZipje"
+uri = "file://screenshots/01-landing-page.jpg"
+type = "image"
+title = "01 - Landing Page"
+
+[[outputs]]
+id = "bu8efjTdl7n03pb9KdK9M"
+uri = "file://screenshots/02-auth-page.jpg"
+type = "image"
+title = "02 - Auth Page"
+
+[[outputs]]
+id = "VnyKccIJMGd8_7xRt6li7"
+uri = "file://screenshots/03-terms-of-service.jpg"
+type = "image"
+title = "03 - Terms of Service"
+
+[[outputs]]
+id = "9ZeM4rRIadcRwj_x5vM9o"
+uri = "file://screenshots/04-privacy-policy.jpg"
+type = "image"
+title = "04 - Privacy Policy"
+
+[[outputs]]
+id = "FfvUfLgjesN3gyZqgNvyU"
+uri = "file://screenshots/05-dashboard.jpg"
+type = "image"
+title = "05 - Dashboard"
+
+[[outputs]]
+id = "zAY1NV6Vgj-hvQjEVLa0D"
+uri = "file://screenshots/06-upload.jpg"
+type = "image"
+title = "06 - Upload Resume"
+
+[[outputs]]
+id = "caJ17rmTzeXxbbU6C2Zcf"
+uri = "file://screenshots/07-editor.jpg"
+type = "image"
+title = "07 - Editor"
+
+[[outputs]]
+id = "r7I9SkNQhmr3NIQ1FoQ4A"
+uri = "file://screenshots/08-templates.jpg"
+type = "image"
+title = "08 - Templates"
+
+[[outputs]]
+id = "-QxU-oGerMy8Rmvq_3cWv"
+uri = "file://screenshots/09-settings.jpg"
+type = "image"
+title = "09 - Settings"
+
+[[outputs]]
+id = "gfp7622p6kNNYXUwx19ev"
+uri = "file://screenshots/10-onboarding.jpg"
+type = "image"
+title = "10 - Onboarding"
+
+[[outputs]]
+id = "pbqGR_byViDAkN6h9HlOh"
+uri = "file://screenshots/11-interview.jpg"
+type = "image"
+title = "11 - Interview Prep"
+
+[[outputs]]
+id = "loZPYnDxLvJCIScq-9kdb"
+uri = "file://screenshots/12-applications.jpg"
+type = "image"
+title = "12 - Applications"
+
+[[outputs]]
+id = "Qbsq8iYXlMOSGy_nmHFb7"
+uri = "file://screenshots/13-career.jpg"
+type = "image"
+title = "13 - Career Plan"
+
+[[outputs]]
+id = "kmugbnhk6IlTEK_bSCUzd"
+uri = "file://screenshots/14-ai-studio.jpg"
+type = "image"
+title = "14 - AI Studio"
+
+[[outputs]]
+id = "RcOF17GOgwjqVrSsArdsC"
+uri = "file://screenshots/15-cover-letters.jpg"
+type = "image"
+title = "15 - Cover Letters"
+
+[[outputs]]
+id = "7WwFirRX4GGtuwmQ5oMYC"
+uri = "file://screenshots/16-cover-letter-new.jpg"
+type = "image"
+title = "16 - New Cover Letter"
+
+[[outputs]]
+id = "eZjLEfccdwNX0W4u5MjPM"
+uri = "file://screenshots/17-resignation-letters.jpg"
+type = "image"
+title = "17 - Resignation Letters"
+
+[[outputs]]
+id = "yWHaLCkOPtUzrFWqlEj9U"
+uri = "file://screenshots/18-portfolio-editor.jpg"
+type = "image"
+title = "18 - Portfolio Editor"
+
+[[outputs]]
+id = "BBAwx3l6GbG2OrqgpmKTp"
+uri = "file://screenshots/19-guides.jpg"
+type = "image"
+title = "19 - Guides"
+
+[[outputs]]
+id = "b2tnqBoqoDymVjKf6HzCe"
+uri = "file://screenshots/20-examples.jpg"
+type = "image"
+title = "20 - Examples"
+
+[[outputs]]
+id = "G3SSPGUQKH9x8oCi6cpa6"
+uri = "file://screenshots/21-profile.jpg"
+type = "image"
+title = "21 - Profile"
+
+[[outputs]]
+id = "1FFXVHGgPV2nYv9Vr2A2B"
+uri = "file://screenshots/22-analytics.jpg"
+type = "image"
+title = "22 - Analytics"
+
+[[outputs]]
+id = "TV4tUtGMwgv0up-ztZNxd"
+uri = "file://screenshots/23-help.jpg"
+type = "image"
+title = "23 - Help & FAQ"
+
+[[outputs]]
+id = "tdb_V2aEcbevNkqVXrzHN"
+uri = "file://screenshots/24-subscription.jpg"
+type = "image"
+title = "24 - Subscription"
+
+[[outputs]]
+id = "o17iGyI11livuHFaxGY9g"
+uri = "file://screenshots/25-notifications.jpg"
+type = "image"
+title = "25 - Notifications"
+
+[[outputs]]
+id = "1yKKrx0713wxJ2tWi3GrI"
+uri = "file://screenshots/26-referral.jpg"
+type = "image"
+title = "26 - Referral / Invite"
+
+[[outputs]]
+id = "nN6YHZZ0GawfZbIn_NCJ7"
+uri = "file://screenshots/27-achievements.jpg"
+type = "image"
+title = "27 - Achievements"
+
+[[outputs]]
+id = "xo-mfmTg2fUMRkRa8Ouuv"
+uri = "file://screenshots/28-resignation-letter-new.jpg"
+type = "image"
+title = "28 - New Resignation Letter"
+
+[[outputs]]
+id = "1KmrPtzctRqBKQG11_ZMz"
+uri = "file://screenshots/29-qr-code.jpg"
+type = "image"
+title = "29 - QR Code Generator"
+
+[[outputs]]
+id = "v4pa8QX6fFI7-SmFfiWv_"
+uri = "file://screenshots/30-not-found.jpg"
+type = "image"
+title = "30 - 404 Not Found"
