@@ -159,7 +159,7 @@ export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAv
             transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
           />
           {/* Center orb */}
-          <div className="absolute inset-5 rounded-full bg-gradient-to-br from-primary/40 to-primary/15 backdrop-blur-xl border border-primary/40 flex items-center justify-center shadow-[0_0_40px_hsl(var(--primary)/0.3)]">
+          <div className="absolute inset-5 rounded-full bg-gradient-to-br from-primary/40 to-primary/15 border border-primary/40 flex items-center justify-center shadow-[0_0_40px_hsl(var(--primary)/0.3)]">
             <motion.div
               animate={{ rotate: [0, 15, -15, 0] }}
               transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
@@ -188,7 +188,7 @@ export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAv
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="flex items-start gap-3 p-4 rounded-2xl bg-[hsl(45_90%_50%/0.1)] border border-[hsl(45_90%_50%/0.3)] text-foreground text-sm backdrop-blur-xl"
+          className="flex items-start gap-3 p-4 rounded-2xl bg-[hsl(45_90%_50%/0.1)] border border-[hsl(45_90%_50%/0.3)] text-foreground text-sm"
         >
           <Keyboard className="w-4 h-4 mt-0.5 shrink-0 text-[hsl(45_90%_50%)]" />
           <p>Voice input is not available on this device. You can type your answers during the interview using the text input button.</p>
@@ -199,7 +199,7 @@ export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAv
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="flex items-start gap-3 p-4 rounded-2xl bg-muted/40 border border-border/40 text-muted-foreground text-sm backdrop-blur-xl"
+          className="flex items-start gap-3 p-4 rounded-2xl bg-muted border border-border text-muted-foreground text-sm"
         >
           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
           <p>Microphone access is required for voice interviews. You can also use the text input fallback.</p>
@@ -210,7 +210,7 @@ export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAv
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="flex items-start gap-3 p-4 rounded-2xl bg-muted/40 border border-border/40 text-muted-foreground text-sm backdrop-blur-xl"
+          className="flex items-start gap-3 p-4 rounded-2xl bg-muted border border-border text-muted-foreground text-sm"
         >
           <FileText className="w-4 h-4 mt-0.5 shrink-0" />
           <p>No resume loaded. Wise AI will ask general questions. Load a resume for personalized questions.</p>
@@ -220,7 +220,7 @@ export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAv
       {/* Voice Gender Toggle */}
       <div className="space-y-2.5">
         <p className="text-sm font-semibold text-foreground">AI Voice</p>
-        <div className="flex rounded-2xl border border-border/40 bg-card/60 backdrop-blur-xl overflow-hidden shadow-[0_4px_20px_hsl(var(--primary)/0.05)]">
+        <div className="flex rounded-2xl border border-border bg-card overflow-hidden shadow-soft-sm">
           <button
             onClick={() => handleVoiceChange('female')}
             className={cn(
@@ -255,7 +255,7 @@ export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAv
             disabled={micTestStatus === 'testing'}
             className={cn(
               'flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all touch-manipulation w-full justify-center',
-              micTestStatus === 'idle' && 'bg-muted/40 border border-border/40 text-muted-foreground hover:border-primary/40 hover:text-foreground',
+              micTestStatus === 'idle' && 'bg-muted border border-border text-muted-foreground hover:border-primary/40 hover:text-foreground',
               micTestStatus === 'testing' && 'bg-primary/10 border border-primary/30 text-primary',
               micTestStatus === 'success' && 'bg-[hsl(142_70%_50%/0.1)] border border-[hsl(142_70%_50%/0.3)] text-[hsl(142_70%_50%)]',
               micTestStatus === 'failed' && 'bg-destructive/10 border border-destructive/30 text-destructive',
@@ -304,15 +304,15 @@ export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAv
             whileTap={{ scale: 0.97 }}
             onClick={() => handleModeChange('general')}
             className={cn(
-              'flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all touch-manipulation backdrop-blur-xl',
+              'flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all touch-manipulation',
               mode === 'general'
-                ? 'border-primary/60 bg-primary/15 shadow-[0_0_25px_hsl(var(--primary)/0.2)]'
-                : 'border-border/40 bg-card/60 hover:border-primary/40 hover:bg-primary/5'
+                ? 'border-primary/60 bg-primary/15 shadow-soft-sm'
+                : 'border-border bg-card hover:border-primary/40 hover:bg-primary/5'
             )}
           >
             <div className={cn(
               'p-2.5 rounded-xl transition-all',
-              mode === 'general' ? 'bg-primary/20' : 'bg-muted/40'
+              mode === 'general' ? 'bg-primary/20' : 'bg-muted'
             )}>
               <FileText className={cn('w-5 h-5', mode === 'general' ? 'text-primary' : 'text-muted-foreground')} />
             </div>
@@ -327,15 +327,15 @@ export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAv
             whileTap={{ scale: 0.97 }}
             onClick={() => handleModeChange('job-targeted')}
             className={cn(
-              'flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all touch-manipulation backdrop-blur-xl',
+              'flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all touch-manipulation',
               mode === 'job-targeted'
-                ? 'border-primary/60 bg-primary/15 shadow-[0_0_25px_hsl(var(--primary)/0.2)]'
-                : 'border-border/40 bg-card/60 hover:border-primary/40 hover:bg-primary/5'
+                ? 'border-primary/60 bg-primary/15 shadow-soft-sm'
+                : 'border-border bg-card hover:border-primary/40 hover:bg-primary/5'
             )}
           >
             <div className={cn(
               'p-2.5 rounded-xl transition-all',
-              mode === 'job-targeted' ? 'bg-primary/20' : 'bg-muted/40'
+              mode === 'job-targeted' ? 'bg-primary/20' : 'bg-muted'
             )}>
               <Briefcase className={cn('w-5 h-5', mode === 'job-targeted' ? 'text-primary' : 'text-muted-foreground')} />
             </div>
@@ -350,15 +350,15 @@ export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAv
             whileTap={{ scale: 0.97 }}
             onClick={() => handleModeChange('quick-practice')}
             className={cn(
-              'flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all touch-manipulation backdrop-blur-xl',
+              'flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all touch-manipulation',
               mode === 'quick-practice'
-                ? 'border-primary/60 bg-primary/15 shadow-[0_0_25px_hsl(var(--primary)/0.2)]'
-                : 'border-border/40 bg-card/60 hover:border-primary/40 hover:bg-primary/5'
+                ? 'border-primary/60 bg-primary/15 shadow-soft-sm'
+                : 'border-border bg-card hover:border-primary/40 hover:bg-primary/5'
             )}
           >
             <div className={cn(
               'p-2.5 rounded-xl transition-all',
-              mode === 'quick-practice' ? 'bg-primary/20' : 'bg-muted/40'
+              mode === 'quick-practice' ? 'bg-primary/20' : 'bg-muted'
             )}>
               <Rocket className={cn('w-5 h-5', mode === 'quick-practice' ? 'text-primary' : 'text-muted-foreground')} />
             </div>
@@ -383,7 +383,7 @@ export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAv
             value={jobDescription}
             onChange={(e) => { setJobDescription(e.target.value); setShowValidation(false); }}
             placeholder="Paste the job description here..."
-            className="min-h-[120px] resize-none bg-card/60 backdrop-blur-xl border-border/40 rounded-2xl focus:border-primary/50 focus:shadow-[0_0_15px_hsl(var(--primary)/0.1)]"
+            className="min-h-[120px] resize-none bg-card border-border rounded-2xl focus:border-primary/50 focus:shadow-soft-sm"
           />
           <AnimatePresence>
             {showValidation && !jobDescription.trim() && (

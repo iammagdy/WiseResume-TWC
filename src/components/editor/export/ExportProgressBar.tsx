@@ -32,7 +32,7 @@ export function ExportProgressBar({
   return (
     <>
       {isDownloadable && (
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-muted/50">
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-muted">
           <Label className="text-sm font-medium shrink-0">File name</Label>
           <Input
             value={customFileName}

@@ -329,7 +329,7 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
                               }}
                               className={cn(
                                 "w-full p-4 rounded-xl bg-card border border-border shadow-soft text-left flex items-center gap-3 touch-manipulation transition-all hover:scale-[1.01] active:scale-[0.98] cursor-pointer",
-                                isConfirming ? "border-destructive/50 bg-destructive/5" : "border-border/20"
+                                isConfirming ? "border-destructive/50 bg-destructive/5" : "border-border"
                               )}
                             >
                               <div className={cn(

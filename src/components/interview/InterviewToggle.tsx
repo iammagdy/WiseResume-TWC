@@ -206,12 +206,12 @@ export function InterviewToggle({ status, onPress, disabled, silenceDetected, au
         }
         className={cn(
           'relative z-10 w-[110px] h-[110px] rounded-full flex items-center justify-center',
-          'backdrop-blur-xl border-2 transition-all touch-manipulation',
+          'border-2 transition-all touch-manipulation',
           isListening && 'bg-primary/25 border-primary/50 shadow-[0_0_40px_hsl(var(--primary)/0.5)]',
-          isThinking && 'bg-muted/40 border-muted-foreground/25 cursor-wait',
+          isThinking && 'bg-muted border-muted-foreground/25 cursor-wait',
           isSpeaking && 'bg-[hsl(142_70%_50%/0.2)] border-[hsl(142_70%_50%/0.45)] shadow-[0_0_40px_hsl(142_70%_50%/0.35)]',
           isReady && 'bg-[hsl(45_90%_55%/0.2)] border-[hsl(45_90%_55%/0.5)] shadow-[0_0_40px_hsl(45_90%_55%/0.4)]',
-          isIdle && 'bg-card/50 border-border/60 hover:border-primary/50 hover:shadow-[0_0_25px_hsl(var(--primary)/0.25)]',
+          isIdle && 'bg-card border-border hover:border-primary/50 hover:shadow-soft',
           disabled && 'opacity-50 cursor-not-allowed'
         )}
       >

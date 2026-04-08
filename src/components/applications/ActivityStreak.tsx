@@ -70,7 +70,7 @@ export const ActivityStreak = memo(function ActivityStreak() {
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${streak > 0 ? 'bg-warning/15' : 'bg-muted/50'}`}>
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${streak > 0 ? 'bg-warning/15' : 'bg-muted'}`}>
             <Flame className={`w-5 h-5 ${streak > 0 ? 'text-warning' : 'text-muted-foreground'}`} />
           </div>
           <div>
@@ -97,7 +97,7 @@ export const ActivityStreak = memo(function ActivityStreak() {
               className={`w-8 h-8 rounded-lg transition-colors ${
                 d.active
                   ? 'bg-primary shadow-sm'
-                  : 'bg-muted/40 border border-border/30'
+                  : 'bg-muted border border-border'
               }`}
             />
             <span className="text-[10px] text-muted-foreground font-medium">{d.label}</span>

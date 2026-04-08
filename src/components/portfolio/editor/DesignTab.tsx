@@ -52,7 +52,7 @@ export function DesignTab(props: DesignTabProps) {
 
       {/* Accent Color */}
       <div className="space-y-2">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider border-t border-border/40 pt-3">
+        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider border-t border-border pt-3">
           <Palette className="w-3.5 h-3.5" />
           Accent Color
         </div>
@@ -91,7 +91,7 @@ export function DesignTab(props: DesignTabProps) {
 
       {/* Font Style */}
       <div className="space-y-2">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider border-t border-border/40 pt-3">
+        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider border-t border-border pt-3">
           <Type className="w-3.5 h-3.5" />
           Font Style
         </div>
@@ -117,7 +117,7 @@ export function DesignTab(props: DesignTabProps) {
 
       {/* Desktop Layout */}
       <div className="space-y-2">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider border-t border-border/40 pt-3">
+        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider border-t border-border pt-3">
           <Layout className="w-3.5 h-3.5" />
           Desktop Layout
         </div>
@@ -143,7 +143,7 @@ export function DesignTab(props: DesignTabProps) {
 
       {/* Page Color Mode */}
       <div className="space-y-2">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider border-t border-border/40 pt-3">
+        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider border-t border-border pt-3">
           <Eye className="w-3.5 h-3.5" />
           Page Color Mode
         </div>

@@ -80,7 +80,7 @@ export function ResumeFilters({
                 key={opt.value}
                 className={cn(
                   'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors touch-manipulation',
-                  sort === opt.value ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted/50'
+                  sort === opt.value ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted'
                 )}
                 onClick={() => {
                   haptics.light();
@@ -109,7 +109,7 @@ export function ResumeFilters({
                 'shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all touch-manipulation min-h-[44px]',
                 active
                   ? 'bg-primary/15 border-primary/40 text-primary'
-                  : 'bg-card border border-border text-muted-foreground hover:border-border/60'
+                  : 'bg-card border border-border text-muted-foreground hover:border-border'
               )}
               aria-pressed={active}
               aria-label={`Filter by ${chip.label} templates`}
@@ -130,7 +130,7 @@ export function ResumeFilters({
                 'shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all touch-manipulation min-h-[44px]',
                 active
                   ? `bg-primary/10 ${chip.color}`
-                  : 'bg-card border border-border text-muted-foreground hover:border-border/60'
+                  : 'bg-card border border-border text-muted-foreground hover:border-border'
               )}
               aria-pressed={active}
               aria-label={`Filter by ATS score ${chip.label}`}

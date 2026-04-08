@@ -33,7 +33,7 @@ export function InterviewPreview({ roleAnalysis, isLoading, onReady }: Interview
             animate={{ scale: [1, 1.3, 1], opacity: [0.4, 0.8, 0.4] }}
             transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
           />
-          <div className="absolute inset-3 rounded-full bg-card/60 backdrop-blur-sm border border-primary/30 flex items-center justify-center">
+          <div className="absolute inset-3 rounded-full bg-card border border-primary/30 flex items-center justify-center">
             <Loader2 className="w-7 h-7 text-primary animate-spin" />
           </div>
         </div>
@@ -89,7 +89,7 @@ export function InterviewPreview({ roleAnalysis, isLoading, onReady }: Interview
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1 }}
-                className="flex items-center gap-2.5 p-3 rounded-xl bg-card/60 backdrop-blur-sm border border-border/50"
+                className="flex items-center gap-2.5 p-3 rounded-xl bg-card border border-border"
               >
                 <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                   <Icon className="w-4 h-4 text-primary" />
@@ -102,7 +102,7 @@ export function InterviewPreview({ roleAnalysis, isLoading, onReady }: Interview
       </div>
 
       {/* Industry Insights */}
-      <div className="p-4 rounded-xl bg-card/60 backdrop-blur-sm border border-border/50 space-y-1.5">
+      <div className="p-4 rounded-xl bg-card border border-border space-y-1.5">
         <div className="flex items-center gap-1.5">
           <Target className="w-3.5 h-3.5 text-primary" />
           <span className="text-xs font-medium text-primary uppercase tracking-wide">Market Insight</span>

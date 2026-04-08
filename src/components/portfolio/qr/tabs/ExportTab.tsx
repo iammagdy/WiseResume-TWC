@@ -18,7 +18,7 @@ function SegmentedControl<T extends string>({
   onSelect: (v: T) => void;
 }) {
   return (
-    <div className="flex gap-1 rounded-xl bg-muted/50 p-1">
+    <div className="flex gap-1 rounded-xl bg-muted p-1">
       {options.map((o) => (
         <button
           key={o.id}
@@ -37,7 +37,7 @@ function SegmentedControl<T extends string>({
 export function ExportTab({ state, onChange, previewBg, onPreviewBgChange }: ExportTabProps) {
   return (
     <div className="space-y-4">
-      <div className="space-y-2 rounded-xl bg-card/30 p-3 border border-border/20">
+      <div className="space-y-2 rounded-xl bg-card p-3 border border-border">
         <span className="text-sm font-medium text-foreground/80">Format</span>
         <SegmentedControl<ExportFormat>
           options={[{ id: 'png', label: 'PNG' }, { id: 'svg', label: 'SVG' }]}
@@ -46,7 +46,7 @@ export function ExportTab({ state, onChange, previewBg, onPreviewBgChange }: Exp
         />
       </div>
 
-      <div className="space-y-2 rounded-xl bg-card/30 p-3 border border-border/20">
+      <div className="space-y-2 rounded-xl bg-card p-3 border border-border">
         <span className="text-sm font-medium text-foreground/80">Size</span>
         <SegmentedControl<string>
           options={[
@@ -59,7 +59,7 @@ export function ExportTab({ state, onChange, previewBg, onPreviewBgChange }: Exp
         />
       </div>
 
-      <div className="space-y-2 rounded-xl bg-card/30 p-3 border border-border/20">
+      <div className="space-y-2 rounded-xl bg-card p-3 border border-border">
         <span className="text-sm font-medium text-foreground/80">Preview Background</span>
         <SegmentedControl<'light' | 'dark'>
           options={[{ id: 'light', label: '☀️ Light' }, { id: 'dark', label: '🌙 Dark' }]}

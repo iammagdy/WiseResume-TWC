@@ -39,7 +39,7 @@ export const KeyboardShortcutsSheet = memo(function KeyboardShortcutsSheet({
           {shortcuts.map(({ keys, action }) => (
             <div
               key={keys}
-              className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-muted/30 min-h-[44px]"
+              className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-muted min-h-[44px]"
             >
               <span className="text-sm text-foreground">{action}</span>
               <kbd className="text-xs font-mono px-2 py-1 rounded-md bg-muted border border-border text-muted-foreground">

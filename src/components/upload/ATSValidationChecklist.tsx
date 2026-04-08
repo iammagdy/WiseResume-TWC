@@ -39,7 +39,7 @@ function CheckItem({ item, index }: { item: ATSCheckResult; index: number }) {
     >
       <Collapsible>
         <CollapsibleTrigger asChild>
-          <button className="w-full flex items-start gap-3 p-3 rounded-xl hover:bg-muted/50 active:scale-[0.99] transition-all touch-manipulation text-left min-h-[48px]">
+          <button className="w-full flex items-start gap-3 p-3 rounded-xl hover:bg-muted active:scale-[0.99] transition-all touch-manipulation text-left min-h-[48px]">
             <div className="pt-0.5">
               <StatusIcon status={item.status} />
             </div>
@@ -51,7 +51,7 @@ function CheckItem({ item, index }: { item: ATSCheckResult; index: number }) {
         </CollapsibleTrigger>
         {item.tip && (
           <CollapsibleContent>
-            <div className="ml-8 mr-3 mb-2 p-3 rounded-lg bg-muted/60 border border-border/50">
+            <div className="ml-8 mr-3 mb-2 p-3 rounded-lg bg-muted border border-border">
               <p className="text-xs text-muted-foreground leading-relaxed">{item.tip}</p>
             </div>
           </CollapsibleContent>

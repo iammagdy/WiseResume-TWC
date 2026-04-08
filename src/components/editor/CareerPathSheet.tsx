@@ -150,7 +150,7 @@ function SkillGapCard({ gap }: { gap: SkillGap }) {
         <p className="text-xs text-muted-foreground mt-0.5">{gap.suggestion}</p>
         <div className="flex flex-wrap gap-1 mt-1.5">
           {gap.forRoles.map((r) => (
-            <span key={r} className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
+            <span key={r} className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
               {r}
             </span>
           ))}
@@ -189,7 +189,7 @@ function IndustryCard({ alt }: { alt: IndustryAlternative }) {
         ))}
       </div>
       {alt.newSkillsNeeded.length > 0 && (
-        <div className="mt-2 pt-2 border-t border-border/30">
+        <div className="mt-2 pt-2 border-t border-border">
           <p className="text-[10px] text-muted-foreground mb-1">New skills needed:</p>
           <div className="flex flex-wrap gap-1">
             {alt.newSkillsNeeded.map((s) => (

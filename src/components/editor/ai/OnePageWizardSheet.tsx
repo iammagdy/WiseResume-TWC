@@ -191,7 +191,7 @@ export function OnePageWizardSheet({ open, onOpenChange, onExportOnePage }: OneP
                   </p>
                 </div>
 
-                <div className="p-4 rounded-xl bg-muted/50 border border-border space-y-4">
+                <div className="p-4 rounded-xl bg-muted border border-border space-y-4">
                   <h4 className="font-medium text-sm flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-primary" />
                     Smart Optimization Strategies
@@ -278,7 +278,7 @@ export function OnePageWizardSheet({ open, onOpenChange, onExportOnePage }: OneP
                 </div>
 
                 {/* Strategy */}
-                <div className="p-4 rounded-xl bg-muted/50 border border-border">
+                <div className="p-4 rounded-xl bg-muted border border-border">
                   <p className="text-sm font-medium mb-2 flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-primary" />
                     Optimization Strategy

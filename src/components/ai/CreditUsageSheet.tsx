@@ -158,7 +158,7 @@ export const CreditUsageSheet = memo(function CreditUsageSheet({
                 {credited.map((item, i) => (
                   <div
                     key={`c-${item.time}-${i}`}
-                    className="flex items-center justify-between px-3 py-2 rounded-xl bg-muted/30"
+                    className="flex items-center justify-between px-3 py-2 rounded-xl bg-muted"
                   >
                     <span className="text-sm font-medium">{item.label}</span>
                     <div className="flex items-center gap-3">

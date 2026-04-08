@@ -60,7 +60,7 @@ export const FileTypeSelector = forwardRef<HTMLDivElement, FileTypeSelectorProps
               <button
                 key={type}
                 onClick={() => handleSelect(type)}
-                className="flex items-center gap-4 p-4 min-h-[72px] rounded-2xl border border-border bg-card hover:bg-muted/50 active:scale-[0.98] transition-all touch-manipulation text-left"
+                className="flex items-center gap-4 p-4 min-h-[72px] rounded-2xl border border-border bg-card hover:bg-muted active:scale-[0.98] transition-all touch-manipulation text-left"
               >
                 <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center shrink-0">
                   <Icon className="w-6 h-6 text-primary-foreground" />

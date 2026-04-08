@@ -170,7 +170,7 @@ export function BoostAllExperienceSheet({ open, onOpenChange }: BoostAllExperien
                       <div className="space-y-1.5 pt-1">
                         <p className="text-xs font-medium text-muted-foreground">Description</p>
                         {origDesc && (
-                          <div className="rounded-lg bg-muted/50 p-2">
+                          <div className="rounded-lg bg-muted p-2">
                             <p className="text-xs text-muted-foreground line-through">{origDesc}</p>
                           </div>
                         )}
@@ -185,7 +185,7 @@ export function BoostAllExperienceSheet({ open, onOpenChange }: BoostAllExperien
                       <div className="space-y-1.5 pt-1">
                         <p className="text-xs font-medium text-muted-foreground">Bullet Points</p>
                         {origAch.length > 0 && (
-                          <div className="rounded-lg bg-muted/50 p-2 space-y-0.5">
+                          <div className="rounded-lg bg-muted p-2 space-y-0.5">
                             {origAch.map((a, i) => (
                               <p key={i} className="text-xs text-muted-foreground line-through">• {a}</p>
                             ))}

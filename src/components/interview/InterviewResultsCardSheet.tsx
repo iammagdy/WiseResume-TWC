@@ -299,7 +299,7 @@ export function InterviewResultsCardSheet({
         {/* Live preview */}
         <div
           ref={previewRef}
-          className="relative w-full overflow-hidden rounded-xl border border-border/40 bg-muted/30 flex items-center justify-center"
+          className="relative w-full overflow-hidden rounded-xl border border-border bg-muted flex items-center justify-center"
           style={{ height: 630 * previewScale + 24 }}
         >
           <div

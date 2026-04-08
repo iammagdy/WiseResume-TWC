@@ -305,7 +305,7 @@ function ThemeStoreCard({
       </div>
 
       {/* Info */}
-      <div className="p-2.5 bg-card border-t border-border/30">
+      <div className="p-2.5 bg-card border-t border-border">
         <p className="text-xs font-bold text-foreground truncate">{theme.name}</p>
         <p className="text-[10px] text-muted-foreground truncate mt-0.5">{theme.description}</p>
       </div>
@@ -349,7 +349,7 @@ export function ThemeStorePicker({ selectedThemeId, onSelectTheme, userAccent, u
             className={`shrink-0 text-[11px] font-semibold px-3 py-1.5 rounded-full transition-all active:scale-95 ${
               activeCategory === cat.id
                 ? 'bg-primary text-primary-foreground'
-                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                : 'bg-muted text-muted-foreground hover:bg-muted'
             }`}
           >
             {cat.label}

@@ -246,7 +246,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
             {/* Error details (collapsed by default) — hidden for chunk errors */}
             {!isChunkError && this.state.error && (
-              <details className="text-left bg-muted/50 rounded-lg p-4">
+              <details className="text-left bg-muted rounded-lg p-4">
                 <summary className="text-sm font-medium cursor-pointer text-muted-foreground">
                   Technical details
                 </summary>
@@ -329,7 +329,7 @@ export class ErrorBoundary extends Component<Props, State> {
                   </div>
                 ) : (
                   <>
-                    <div className="bg-muted/50 rounded-lg p-3">
+                    <div className="bg-muted rounded-lg p-3">
                       <p className="text-xs text-muted-foreground mb-1">Error detected:</p>
                       <p className="text-xs font-mono text-destructive truncate">
                         {this.state.error?.message || 'Unknown error'}
@@ -344,7 +344,7 @@ export class ErrorBoundary extends Component<Props, State> {
                         value={this.state.reportContext}
                         onChange={(e) => this.setState({ reportContext: e.target.value })}
                         placeholder="e.g. I was trying to sign up..."
-                        className="w-full h-20 bg-muted/30 border border-border rounded-lg p-3 text-sm text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-1 focus:ring-primary"
+                        className="w-full h-20 bg-muted border border-border rounded-lg p-3 text-sm text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-1 focus:ring-primary"
                       />
                     </div>
 

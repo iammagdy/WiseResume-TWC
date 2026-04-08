@@ -76,7 +76,7 @@ export const CoverLetterCard = memo(function CoverLetterCard({
       </div>
 
       <motion.div
-        className="relative bg-card border border-border shadow-soft p-4 touch-manipulation cursor-pointer active:bg-muted/30 transition-all"
+        className="relative bg-card border border-border shadow-soft p-4 touch-manipulation cursor-pointer active:bg-muted transition-all"
         style={{ x, touchAction: 'pan-y' }}
         drag="x"
         dragConstraints={{ left: -150, right: 150 }}

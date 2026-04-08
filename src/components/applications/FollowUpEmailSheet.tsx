@@ -101,7 +101,7 @@ export function FollowUpEmailSheet({ open, onOpenChange, company, jobTitle }: Fo
                 className={`shrink-0 px-3 py-2 rounded-xl text-xs font-semibold transition-all touch-manipulation min-h-[44px] ${
                   selectedTemplate === t.key
                     ? 'bg-primary/15 text-primary border border-primary/30'
-                    : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                    : 'bg-muted text-muted-foreground hover:bg-muted'
                 }`}
               >
                 <div>{t.label}</div>

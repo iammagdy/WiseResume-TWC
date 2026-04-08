@@ -92,7 +92,7 @@ export function ActivityTimeline() {
     return (
       <div className="space-y-3 px-1">
         {[1, 2, 3].map(i => (
-          <div key={i} className="h-20 rounded-2xl bg-muted/30 animate-pulse" />
+          <div key={i} className="h-20 rounded-2xl bg-muted animate-pulse" />
         ))}
       </div>
     );
@@ -192,7 +192,7 @@ export function ActivityTimeline() {
             {entry.url && (
               <button
                 onClick={e => { e.stopPropagation(); openExternal(entry.url!); }}
-                className="shrink-0 p-2 rounded-lg hover:bg-muted/50 text-muted-foreground touch-manipulation"
+                className="shrink-0 p-2 rounded-lg hover:bg-muted text-muted-foreground touch-manipulation"
               >
                 <ExternalLink className="w-4 h-4" />
               </button>

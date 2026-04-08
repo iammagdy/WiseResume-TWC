@@ -96,7 +96,7 @@ export function ContentTypeForm({ state, onChange }: ContentTypeFormProps) {
             className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-medium transition-all active:scale-95 touch-manipulation min-h-[44px] ${
               state.contentType === t.id
                 ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
-                : 'bg-muted/30 text-muted-foreground hover:bg-muted/50'
+                : 'bg-muted text-muted-foreground hover:bg-muted'
             }`}
           >
             <t.icon className="w-3.5 h-3.5" />

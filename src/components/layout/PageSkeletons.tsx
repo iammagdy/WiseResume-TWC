@@ -22,7 +22,7 @@ export function DashboardSkeleton() {
 
       {/* DashboardStats hero card */}
       <div className="px-4 pt-4 pb-3">
-        <div className="rounded-2xl border border-border/40 bg-muted/20 p-4 space-y-3">
+        <div className="rounded-2xl border border-border bg-muted/20 p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="w-36 h-6 rounded bg-muted" />
             <div className="w-16 h-5 rounded-full bg-muted" />
@@ -103,7 +103,7 @@ export function EditorSkeleton() {
   return (
     <div className="flex-1 flex flex-col animate-pulse min-h-[100dvh] bg-background">
       {/* Sticky header — matches EditorHeader height */}
-      <header className="sticky top-0 z-30 flex items-center gap-2 px-4 h-14 border-b border-border bg-background/80">
+      <header className="sticky top-0 z-30 flex items-center gap-2 px-4 h-14 border-b border-border bg-background">
         <div className="w-9 h-9 rounded-xl bg-muted shrink-0" />
         <div className="flex-1 h-5 rounded bg-muted max-w-[160px]" />
         <div className="ml-auto flex items-center gap-2">
@@ -199,7 +199,7 @@ export function PreviewSkeleton() {
   return (
     <div className="flex-1 flex flex-col animate-pulse">
       {/* Header bar — back button + title + action icons */}
-      <header className="flex items-center gap-2 px-4 h-14 border-b border-border bg-background/80 shrink-0">
+      <header className="flex items-center gap-2 px-4 h-14 border-b border-border bg-background shrink-0">
         <div className="w-9 h-9 rounded-xl bg-muted shrink-0" />
         <div className="flex-1 h-5 rounded bg-muted max-w-[140px]" />
         <div className="ml-auto flex items-center gap-2">
@@ -248,7 +248,7 @@ export function InterviewSkeleton() {
       </div>
 
       {/* Progress indicator */}
-      <div className="w-full h-[3px] bg-muted/30" />
+      <div className="w-full h-[3px] bg-muted" />
 
       {/* Transcript area */}
       <div className="flex-1 px-4 py-4 space-y-4 max-w-4xl mx-auto w-full overflow-hidden">
@@ -329,14 +329,14 @@ export function TemplateSkeleton() {
       <div className="h-px w-full bg-muted my-4" />
       <div className="h-4 w-24 bg-muted rounded" />
       <div className="space-y-2">
-        <div className="h-3 w-full bg-muted/60 rounded" />
-        <div className="h-3 w-5/6 bg-muted/60 rounded" />
-        <div className="h-3 w-4/6 bg-muted/60 rounded" />
+        <div className="h-3 w-full bg-muted rounded" />
+        <div className="h-3 w-5/6 bg-muted rounded" />
+        <div className="h-3 w-4/6 bg-muted rounded" />
       </div>
       <div className="h-4 w-28 bg-muted rounded mt-4" />
       <div className="space-y-2">
-        <div className="h-3 w-full bg-muted/60 rounded" />
-        <div className="h-3 w-3/4 bg-muted/60 rounded" />
+        <div className="h-3 w-full bg-muted rounded" />
+        <div className="h-3 w-3/4 bg-muted rounded" />
       </div>
     </div>
   );
@@ -355,12 +355,12 @@ export function ApplicationsSkeleton() {
           <div className="w-10 h-10 bg-muted rounded-xl" />
         </div>
       </header>
-      <div className="h-[2px] bg-muted/30" />
+      <div className="h-[2px] bg-muted" />
       <div className="px-4 py-4 space-y-4">
         {/* Tab bar */}
-        <div className="rounded-2xl bg-muted/30 p-1 flex gap-1">
+        <div className="rounded-2xl bg-muted p-1 flex gap-1">
           <div className="h-10 flex-1 bg-muted rounded-xl" />
-          <div className="h-10 flex-1 bg-muted/50 rounded-xl" />
+          <div className="h-10 flex-1 bg-muted rounded-xl" />
         </div>
         {/* Status chips */}
         <div className="flex gap-2 overflow-hidden">
@@ -527,7 +527,7 @@ export function PortfolioEditorSkeleton() {
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 pb-36">
         {/* Status bar */}
-        <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border/40 bg-muted/20">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-muted/20">
           <div className="h-5 w-12 bg-muted rounded-full" />
           <div className="h-4 flex-1 bg-muted rounded" />
           <div className="h-9 w-9 bg-muted rounded" />
@@ -536,14 +536,14 @@ export function PortfolioEditorSkeleton() {
         </div>
 
         {/* Live preview card */}
-        <div className="rounded-2xl border border-border/40 bg-muted/10 p-5 flex flex-col items-center gap-3">
+        <div className="rounded-2xl border border-border bg-muted/10 p-5 flex flex-col items-center gap-3">
           <div className="w-16 h-16 rounded-full bg-muted" />
           <div className="h-5 w-32 bg-muted rounded" />
           <div className="h-4 w-20 bg-muted rounded" />
         </div>
 
         {/* Tab row */}
-        <div className="flex gap-1.5 p-1 rounded-xl border border-border/30 bg-muted/10">
+        <div className="flex gap-1.5 p-1 rounded-xl border border-border bg-muted/10">
           {[1, 2, 3].map(i => (
             <div key={i} className="flex-1 h-11 bg-muted rounded-lg" />
           ))}
@@ -559,7 +559,7 @@ export function PortfolioEditorSkeleton() {
 
       {/* Sticky save bar */}
       <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-0 right-0 z-40 px-4 pb-2">
-        <div className="border border-border/40 rounded-2xl p-3 flex items-center gap-3 bg-muted/20">
+        <div className="border border-border rounded-2xl p-3 flex items-center gap-3 bg-muted/20">
           <div className="h-5 w-10 bg-muted rounded-full" />
           <div className="flex-1 h-11 bg-muted rounded-xl" />
         </div>

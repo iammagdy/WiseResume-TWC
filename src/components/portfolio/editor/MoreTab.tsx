@@ -143,7 +143,7 @@ export function MoreTab(props: MoreTabProps) {
           userId={userId}
           portfolioEnabled={portfolioEnabled}
         />
-        <div className="mt-4 pt-4 border-t border-border/50">
+        <div className="mt-4 pt-4 border-t border-border">
           <p className="text-[11px] text-muted-foreground mb-2">View and restore previous versions of your portfolio.</p>
           <Button variant="outline" size="sm" className="w-full text-xs" onClick={onOpenHistory}>
             <History className="w-3.5 h-3.5 mr-1.5" /> Revision History

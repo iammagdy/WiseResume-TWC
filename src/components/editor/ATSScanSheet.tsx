@@ -74,7 +74,7 @@ export const ATSScanSheet = memo(function ATSScanSheet({
                     onJumpToSection(section);
                     onOpenChange(false);
                   }}
-                  className="w-full flex items-center gap-3 rounded-xl px-3 py-3 bg-muted/30 active:scale-[0.98] touch-manipulation min-h-[44px]"
+                  className="w-full flex items-center gap-3 rounded-xl px-3 py-3 bg-muted active:scale-[0.98] touch-manipulation min-h-[44px]"
                 >
                   <span className="text-sm font-medium flex-1 text-left">{label}</span>
                   <Badge variant="glass" className="text-[10px]">

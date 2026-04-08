@@ -161,7 +161,7 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
     <>
       <div
         className={cn(
-          'relative flex items-center gap-0.5 p-1 rounded-xl bg-muted/60 backdrop-blur-sm',
+          'relative flex items-center gap-0.5 p-1 rounded-xl bg-muted backdrop-blur-sm',
           className
         )}
       >

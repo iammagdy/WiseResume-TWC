@@ -458,7 +458,7 @@ export function EditProfileSheet({
                 Basic Info
               </h3>
               
-              <div className="rounded-xl bg-card/50 border border-border overflow-hidden">
+              <div className="rounded-xl bg-card border border-border overflow-hidden">
                 <div className="p-4 space-y-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="fullName" className="text-xs text-muted-foreground">
@@ -549,7 +549,7 @@ export function EditProfileSheet({
                 Professional Details
               </h3>
               
-              <div className="rounded-xl bg-card/50 border border-border overflow-hidden">
+              <div className="rounded-xl bg-card border border-border overflow-hidden">
                 <div className="p-4 space-y-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="jobTitle" className="text-xs text-muted-foreground flex items-center gap-1.5">
@@ -623,7 +623,7 @@ export function EditProfileSheet({
               </div>
 
               {!masterCV ? (
-                <div className="rounded-xl bg-card/50 border border-border p-4 text-center">
+                <div className="rounded-xl bg-card border border-border p-4 text-center">
                   <p className="text-sm text-muted-foreground">No master CV set yet</p>
                   <p className="text-xs text-muted-foreground/70 mt-1">
                     Import or create a resume, then set it as your Master CV
@@ -633,7 +633,7 @@ export function EditProfileSheet({
                 <div className="space-y-2">
                   {/* Experience */}
                   <Collapsible>
-                    <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-xl bg-card/50 border border-border hover:border-border/60 transition-colors">
+                    <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-xl bg-card border border-border hover:border-border transition-colors">
                       <div className="flex items-center gap-2 text-sm font-medium">
                         <Briefcase className="w-4 h-4 text-primary" />
                         Experience
@@ -653,7 +653,7 @@ export function EditProfileSheet({
 
                   {/* Education */}
                   <Collapsible>
-                    <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-xl bg-card/50 border border-border hover:border-border/60 transition-colors">
+                    <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-xl bg-card border border-border hover:border-border transition-colors">
                       <div className="flex items-center gap-2 text-sm font-medium">
                         <GraduationCap className="w-4 h-4 text-primary" />
                         Education
@@ -673,7 +673,7 @@ export function EditProfileSheet({
 
                   {/* Skills */}
                   <Collapsible>
-                    <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-xl bg-card/50 border border-border hover:border-border/60 transition-colors">
+                    <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-xl bg-card border border-border hover:border-border transition-colors">
                       <div className="flex items-center gap-2 text-sm font-medium">
                         <Wrench className="w-4 h-4 text-primary" />
                         Skills

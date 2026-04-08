@@ -17,7 +17,7 @@ function AddButtonBar() {
 /* ── Shared: collapsed entry card ── */
 function CardPlaceholder() {
   return (
-    <div className="rounded-2xl border border-border/40 p-4 flex items-center gap-3">
+    <div className="rounded-2xl border border-border p-4 flex items-center gap-3">
       <Skeleton className="h-4 w-4 rounded shrink-0" />
       <div className="flex-1 space-y-2">
         <Skeleton className="h-4 w-2/3" />

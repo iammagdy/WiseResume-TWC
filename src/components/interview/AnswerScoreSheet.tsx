@@ -98,7 +98,7 @@ export function AnswerScoreSheet({ score, onDismiss }: AnswerScoreSheetProps) {
           style={{ bottom: 'calc(4.5rem + env(safe-area-inset-bottom))' }}
           onClick={cancelAutoDismiss}
         >
-          <div className="max-w-lg mx-auto rounded-t-3xl bg-card/95 backdrop-blur-2xl border border-border/40 shadow-[0_-10px_50px_hsl(var(--primary)/0.15)] p-6 space-y-5">
+          <div className="max-w-lg mx-auto rounded-t-3xl bg-card border border-border shadow-[0_-10px_50px_hsl(var(--primary)/0.15)] p-6 space-y-5">
             {/* Header */}
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2.5">
@@ -111,7 +111,7 @@ export function AnswerScoreSheet({ score, onDismiss }: AnswerScoreSheetProps) {
                 </motion.div>
                 <span className="text-sm font-bold text-foreground">Answer #{score.questionIndex}</span>
               </div>
-              <button onClick={onDismiss} className="p-1.5 touch-manipulation rounded-full hover:bg-muted/50 transition-colors">
+              <button onClick={onDismiss} className="p-1.5 touch-manipulation rounded-full hover:bg-muted transition-colors">
                 <X className="w-4 h-4 text-muted-foreground" />
               </button>
             </div>
@@ -146,7 +146,7 @@ export function AnswerScoreSheet({ score, onDismiss }: AnswerScoreSheetProps) {
                       exit={{ height: 0, opacity: 0 }}
                       className="overflow-hidden"
                     >
-                      <p className="text-sm text-muted-foreground leading-relaxed bg-muted/40 rounded-xl p-4 mt-2 border border-border/30">
+                      <p className="text-sm text-muted-foreground leading-relaxed bg-muted rounded-xl p-4 mt-2 border border-border">
                         "{score.improvedAnswer}"
                       </p>
                     </motion.div>

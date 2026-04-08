@@ -51,7 +51,7 @@ export function CoverLetterActionSheet({
               className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left transition-colors touch-manipulation active:scale-95 min-h-[48px] ${
                 action.destructive
                   ? 'text-destructive hover:bg-destructive/10'
-                  : 'text-foreground hover:bg-muted/50'
+                  : 'text-foreground hover:bg-muted'
               }`}
             >
               <action.icon className="w-5 h-5" />

@@ -100,7 +100,7 @@ export function DailyTipCard({ onVisibilityChange }: DailyTipCardProps) {
               <p className="text-[11px] text-foreground leading-relaxed line-clamp-1 flex-1 min-w-0">{tip}</p>
               <button
                 onClick={handleDismiss}
-                className="w-11 h-11 flex items-center justify-center rounded-lg hover:bg-muted/50 text-muted-foreground touch-manipulation flex-shrink-0"
+                className="w-11 h-11 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground touch-manipulation flex-shrink-0"
                 aria-label="Dismiss tip"
               >
                 <X className="w-4 h-4" />

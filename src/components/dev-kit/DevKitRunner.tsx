@@ -337,7 +337,7 @@ export function DevKitRunner() {
 
     return (
       <div key={section.id} className="space-y-3">
-        <div className="flex items-center justify-between border-b border-border/50 pb-2 px-1">
+        <div className="flex items-center justify-between border-b border-border pb-2 px-1">
           {/* Clickable section header to toggle collapse */}
           <button
             className="flex items-center gap-2 text-left group flex-1 min-w-0"
@@ -381,7 +381,7 @@ export function DevKitRunner() {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Sticky toolbar + FR-DK-011 smoke summary banner */}
-      <div className="sticky top-0 z-30 bg-background/98 dark:bg-background/80 backdrop-blur-md border-b border-border/50">
+      <div className="sticky top-0 z-30 bg-background/98 dark:bg-background backdrop-blur-sm border-b border-border">
         <div className="flex items-center justify-between py-4 px-1">
           <div className="flex items-center gap-3">
             <Button

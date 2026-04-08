@@ -50,7 +50,7 @@ function DetectedContextCard({
 }) {
   const CategoryIcon = categoryInfo.icon;
   return (
-    <div className="rounded-2xl bg-muted/50 border border-border/50 p-3 space-y-2">
+    <div className="rounded-2xl bg-muted border border-border p-3 space-y-2">
       <div className="flex items-center gap-2">
         <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
         <span className="text-xs font-medium text-foreground">{screenLabel}</span>

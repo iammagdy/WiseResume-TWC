@@ -118,7 +118,7 @@ export function FloatingPanelTrigger({
       ref={triggerRef}
       layoutId={`floating-panel-trigger-${uniqueId}`}
       className={cn(
-        "flex h-9 items-center border border-border/60 bg-background/80 backdrop-blur-md px-3 text-sm font-medium text-foreground rounded-lg",
+        "flex h-9 items-center border border-border bg-background/95 backdrop-blur-sm px-3 text-sm font-medium text-foreground rounded-lg",
         className
       )}
       style={{ borderRadius: 8 }}
@@ -190,7 +190,7 @@ export function FloatingPanelContent({
             ref={contentRef}
             layoutId={`floating-panel-${uniqueId}`}
             className={cn(
-              "fixed inset-x-4 bottom-4 z-50 overflow-hidden border border-border/40 bg-background/95 backdrop-blur-xl shadow-2xl outline-none rounded-xl sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-[400px]",
+              "fixed inset-x-4 bottom-4 z-50 overflow-hidden border border-border bg-background/95 backdrop-blur-sm shadow-2xl outline-none rounded-xl sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-[400px]",
               className
             )}
             style={{ borderRadius: 12 }}

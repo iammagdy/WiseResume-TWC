@@ -115,7 +115,7 @@ export function HiredCelebrationModal({ open, onClose, jobTitle, company, resume
         >
           {/* Backdrop */}
           <motion.div
-            className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+            className="absolute inset-0 bg-background backdrop-blur-sm"
             onClick={onClose}
           />
 
@@ -132,7 +132,7 @@ export function HiredCelebrationModal({ open, onClose, jobTitle, company, resume
             {/* Close */}
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 p-2 rounded-xl hover:bg-muted/50 min-w-[44px] min-h-[44px] flex items-center justify-center z-10"
+              className="absolute top-4 right-4 p-2 rounded-xl hover:bg-muted min-w-[44px] min-h-[44px] flex items-center justify-center z-10"
             >
               <X className="w-4 h-4" />
             </button>
@@ -158,7 +158,7 @@ export function HiredCelebrationModal({ open, onClose, jobTitle, company, resume
 
               <button
                 onClick={handleUpdateResume}
-                className="w-full flex items-center gap-3 p-4 rounded-2xl border border-border/50 hover:bg-muted/30 active:scale-95 transition-all text-left group"
+                className="w-full flex items-center gap-3 p-4 rounded-2xl border border-border hover:bg-muted active:scale-95 transition-all text-left group"
               >
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                   <RefreshCw className="w-5 h-5 text-primary" />
@@ -172,7 +172,7 @@ export function HiredCelebrationModal({ open, onClose, jobTitle, company, resume
 
               <button
                 onClick={handleTurnOffOpenToWork}
-                className="w-full flex items-center gap-3 p-4 rounded-2xl border border-border/50 hover:bg-muted/30 active:scale-95 transition-all text-left group"
+                className="w-full flex items-center gap-3 p-4 rounded-2xl border border-border hover:bg-muted active:scale-95 transition-all text-left group"
               >
                 <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center shrink-0">
                   <Globe className="w-5 h-5 text-secondary" />
@@ -186,7 +186,7 @@ export function HiredCelebrationModal({ open, onClose, jobTitle, company, resume
 
               <button
                 onClick={handleSetReminder}
-                className="w-full flex items-center gap-3 p-4 rounded-2xl border border-border/50 hover:bg-muted/30 active:scale-95 transition-all text-left group"
+                className="w-full flex items-center gap-3 p-4 rounded-2xl border border-border hover:bg-muted active:scale-95 transition-all text-left group"
               >
                 <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
                   <Bell className="w-5 h-5 text-accent-foreground" />

@@ -50,10 +50,10 @@ export function TranscriptBubble({ entry, isTyping }: TranscriptBubbleProps) {
         className={cn(
           'max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed',
           isSystemMessage
-            ? 'bg-muted/40 backdrop-blur-sm border border-border/40 text-muted-foreground rounded-br-md'
+            ? 'bg-muted border border-border text-muted-foreground rounded-br-md'
             : isUser
-              ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground rounded-br-md shadow-[0_4px_20px_hsl(var(--primary)/0.3)]'
-              : 'bg-card/90 backdrop-blur-md border border-border/40 text-foreground rounded-bl-md shadow-[0_4px_20px_hsl(var(--primary)/0.08)]'
+              ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground rounded-br-md shadow-soft'
+              : 'bg-card border border-border text-foreground rounded-bl-md shadow-soft-sm'
         )}
       >
         <div className="flex items-center justify-between gap-3 mb-1.5">
@@ -92,7 +92,7 @@ export function TypingBubble() {
       transition={{ duration: 0.2 }}
       className="flex w-full justify-start"
     >
-      <div className="max-w-[85%] rounded-2xl rounded-bl-md px-4 py-3 bg-card/90 backdrop-blur-md border border-border/40 shadow-[0_4px_20px_hsl(var(--primary)/0.08)]">
+      <div className="max-w-[85%] rounded-2xl rounded-bl-md px-4 py-3 bg-card border border-border shadow-soft-sm">
         <div className="flex items-center gap-1.5 mb-1.5">
           <motion.span
             animate={{ rotate: [0, 15, -15, 0] }}

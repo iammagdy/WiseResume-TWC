@@ -152,7 +152,7 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding }
       {/* How it works steps — glass card */}
       <motion.div
         variants={shouldReduceMotion ? undefined : itemVariants}
-        className="bg-card/60 backdrop-blur-xl border border-border/40 rounded-2xl px-5 py-4 w-full max-w-xs mb-5"
+        className="bg-card backdrop-blur-sm border border-border rounded-2xl px-5 py-4 w-full max-w-xs mb-5"
       >
         {steps.map((step, i) => (
           <div key={step.label}>
@@ -191,7 +191,7 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding }
               </Badge>
             )}
             <div
-              className="rounded-xl overflow-hidden border border-border/50 transition-all duration-200 group-hover:scale-105 group-hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)] group-hover:border-primary/40 group-active:scale-95"
+              className="rounded-xl overflow-hidden border border-border transition-all duration-200 group-hover:scale-105 group-hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)] group-hover:border-primary/40 group-active:scale-95"
               style={{ width: '96px', aspectRatio: '8.5/11' }}
             >
               <MiniTemplateThumbnail templateId={tpl.id} />

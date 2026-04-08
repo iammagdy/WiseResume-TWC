@@ -88,13 +88,13 @@ export function KeyboardToolbar() {
       style={{ bottom: 'var(--keyboard-height, 0px)' }}
     >
       {/* Quick-insert row */}
-      <div className="flex items-center gap-1.5 px-3 py-1.5 overflow-x-auto scrollbar-none border-b border-border/20">
+      <div className="flex items-center gap-1.5 px-3 py-1.5 overflow-x-auto scrollbar-none border-b border-border">
         {words.map(word => (
           <button
             key={word}
             type="button"
             onClick={() => handleQuickInsert(word + ' ')}
-            className="px-2.5 py-1 rounded-full text-xs font-medium bg-muted/60 text-foreground hover:bg-muted active:scale-95 transition-all touch-manipulation whitespace-nowrap min-h-[32px]"
+            className="px-2.5 py-1 rounded-full text-xs font-medium bg-muted text-foreground hover:bg-muted active:scale-95 transition-all touch-manipulation whitespace-nowrap min-h-[32px]"
           >
             {word}
           </button>

@@ -119,7 +119,7 @@ export function PortfolioActivityCard() {
       </div>
 
       {hasActivity && (
-        <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-border/30">
+        <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-border">
           <TrendingUp className="w-3.5 h-3.5 text-primary" />
           <span className="text-xs text-primary font-medium">View detailed analytics →</span>
         </div>

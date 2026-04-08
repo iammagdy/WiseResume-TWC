@@ -120,7 +120,7 @@ export const ContentLibrarySheet = memo(function ContentLibrarySheet({
               onClick={() => { haptics.selection(); setTab(t); }}
               className={cn(
                 'px-4 py-2 rounded-lg text-sm font-medium transition-all touch-manipulation active:scale-95',
-                tab === t ? 'bg-card border border-border shadow-soft text-foreground' : 'text-muted-foreground hover:bg-muted/50'
+                tab === t ? 'bg-card border border-border shadow-soft text-foreground' : 'text-muted-foreground hover:bg-muted'
               )}
             >
               {t === 'browse' ? 'Browse' : `Favorites (${favorites.length})`}
@@ -202,7 +202,7 @@ const PhraseCard = memo(function PhraseCard({ phrase, isFavorite, onInsert, onTo
       <div className="flex items-center gap-1 shrink-0">
         <button
           onClick={onToggleFavorite}
-          className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-muted/50 active:scale-95 transition-all touch-manipulation"
+          className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation"
           aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
         >
           <Star className={cn('w-4 h-4', isFavorite ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground')} />

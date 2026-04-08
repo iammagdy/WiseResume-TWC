@@ -32,7 +32,7 @@ const FRAME_STYLES: { id: FrameState['style']; label: string; icon: string }[] =
 
 export function FrameControls({ frame, onChange }: FrameControlsProps) {
   return (
-    <div className="space-y-3 rounded-xl bg-card/30 p-3 border border-border/20">
+    <div className="space-y-3 rounded-xl bg-card p-3 border border-border">
       <div className="flex items-center justify-between">
         <Label className="text-sm font-medium text-foreground/80">Frame</Label>
         <Switch
@@ -58,7 +58,7 @@ export function FrameControls({ frame, onChange }: FrameControlsProps) {
                 className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg text-xs transition-all active:scale-95 touch-manipulation min-h-[44px] ${
                   frame.style === s.id
                     ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
-                    : 'bg-muted/30 text-muted-foreground hover:bg-muted/50'
+                    : 'bg-muted text-muted-foreground hover:bg-muted'
                 }`}
               >
                 <span className="text-sm">{s.icon}</span>
@@ -69,13 +69,13 @@ export function FrameControls({ frame, onChange }: FrameControlsProps) {
 
           <div className="flex gap-4">
             <label className="flex items-center gap-2 cursor-pointer">
-              <div className="w-8 h-8 rounded-lg border border-border/40 relative overflow-hidden" style={{ backgroundColor: frame.color }}>
+              <div className="w-8 h-8 rounded-lg border border-border relative overflow-hidden" style={{ backgroundColor: frame.color }}>
                 <input type="color" value={frame.color} onChange={(e) => onChange({ color: e.target.value })} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
               </div>
               <span className="text-xs text-muted-foreground">Frame</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
-              <div className="w-8 h-8 rounded-lg border border-border/40 relative overflow-hidden" style={{ backgroundColor: frame.textColor }}>
+              <div className="w-8 h-8 rounded-lg border border-border relative overflow-hidden" style={{ backgroundColor: frame.textColor }}>
                 <input type="color" value={frame.textColor} onChange={(e) => onChange({ textColor: e.target.value })} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
               </div>
               <span className="text-xs text-muted-foreground">Text</span>

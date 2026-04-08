@@ -219,7 +219,7 @@
  
  function ScoreItem({ label, value, change }: { label: string; value: number; change: number }) {
    return (
-     <div className="p-2 rounded-lg bg-muted/50 text-center">
+     <div className="p-2 rounded-lg bg-muted text-center">
        <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
        <p className="font-semibold text-sm">
          {value}%

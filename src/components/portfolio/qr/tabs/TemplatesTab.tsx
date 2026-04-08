@@ -48,7 +48,7 @@ export function TemplatesTab({ state, onChange }: TemplatesTabProps) {
             className={`relative flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all active:scale-95 touch-manipulation min-h-[72px] ${
               state.templateId === t.id
                 ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
-                : 'border-border/40 bg-card/50 hover:bg-card/80'
+                : 'border-border bg-card hover:bg-card'
             }`}
           >
             <span className="text-xl">{t.emoji}</span>

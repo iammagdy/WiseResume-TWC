@@ -55,7 +55,7 @@ export function ResignationChecklist({ completedItems, onToggle }: ResignationCh
                 'w-full flex items-start gap-3 p-3 rounded-xl border transition-all touch-manipulation text-left active:scale-95',
                 isCompleted
                   ? 'bg-primary/5 border-primary/20'
-                  : 'bg-card/60 border-border/40 hover:border-primary/30'
+                  : 'bg-card border-border hover:border-primary/30'
               )}
             >
               <div className={cn(

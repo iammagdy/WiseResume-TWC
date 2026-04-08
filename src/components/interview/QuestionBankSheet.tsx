@@ -183,7 +183,7 @@ export function QuestionBankSheet({
                           initial={{ opacity: 0, y: 8 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: Math.min(i * 0.05, 0.2) }}
-                          className="rounded-2xl border border-border/60 overflow-hidden"
+                          className="rounded-2xl border border-border overflow-hidden"
                         >
                           <button
                             onClick={() => { setExpandedQ(isExpanded ? null : qId); haptics.light(); }}
@@ -209,7 +209,7 @@ export function QuestionBankSheet({
                                 exit={{ height: 0, opacity: 0 }}
                                 className="overflow-hidden"
                               >
-                                <div className="px-4 pb-4 space-y-3 border-t border-border/40 pt-3">
+                                <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
                                   <div>
                                     <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                                       Why they ask this

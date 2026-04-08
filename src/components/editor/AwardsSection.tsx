@@ -62,7 +62,7 @@ export const AwardsSection = memo(function AwardsSection() {
             <div key={award.id} className="rounded-xl border border-border overflow-hidden transition-all duration-200">
               <button
                 onClick={() => setExpandedId(expandedId === award.id ? null : award.id)}
-                className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors touch-manipulation active:bg-muted/70 min-h-[72px]"
+                className="w-full p-4 flex items-center justify-between hover:bg-muted transition-colors touch-manipulation active:bg-muted/70 min-h-[72px]"
               >
                 <DragHandle />
                 <div className="flex items-center gap-1 shrink-0">

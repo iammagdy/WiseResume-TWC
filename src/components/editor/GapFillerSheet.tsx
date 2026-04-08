@@ -230,7 +230,7 @@ export function GapFillerSheet({ isOpen, onClose, gap, experiences, onAddExperie
                     className={`flex items-center gap-2 p-3 rounded-xl border text-sm font-medium transition-all active:scale-95 min-h-[44px] ${
                       isSelected
                         ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border bg-card hover:bg-muted/50 text-foreground'
+                        : 'border-border bg-card hover:bg-muted text-foreground'
                     }`}
                   >
                     <Icon className="w-4 h-4 shrink-0" />
@@ -299,7 +299,7 @@ export function GapFillerSheet({ isOpen, onClose, gap, experiences, onAddExperie
                         className={`w-full text-left p-4 rounded-xl border transition-all active:scale-[0.98] ${
                           isSelected
                             ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
-                            : 'border-border bg-card hover:bg-muted/30'
+                            : 'border-border bg-card hover:bg-muted'
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2">

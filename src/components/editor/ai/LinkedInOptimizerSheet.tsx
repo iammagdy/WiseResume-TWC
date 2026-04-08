@@ -346,7 +346,7 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
                           'px-3 py-2 rounded-lg border text-sm transition-all flex items-center gap-2',
                           selectedRegion === region.id
                             ? 'border-primary bg-primary/10'
-                            : 'border-border bg-muted/50 hover:border-primary/50'
+                            : 'border-border bg-muted hover:border-primary/50'
                         )}
                       >
                         <span>{region.icon}</span>
@@ -356,7 +356,7 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
                   </div>
                 </div>
 
-                <div className="p-4 rounded-xl bg-muted/50 border border-border">
+                <div className="p-4 rounded-xl bg-muted border border-border">
                   <h4 className="font-medium text-sm mb-3">What you'll get:</h4>
                   <ul className="space-y-2 text-sm text-muted-foreground">
                     <li className="flex items-center gap-2">
@@ -402,7 +402,7 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
                     {result.headlines?.map((headline, i) => (
                       <div 
                         key={i}
-                        className="p-3 rounded-xl bg-muted/50 border border-border flex items-center justify-between gap-3"
+                        className="p-3 rounded-xl bg-muted border border-border flex items-center justify-between gap-3"
                       >
                         <p className="text-sm flex-1">{headline}</p>
                         <CopyButton text={headline} id={`headline-${i}`} />
@@ -423,7 +423,7 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
                             <Label className="text-sm">Short (~150 words)</Label>
                             <CopyButton text={result.aboutSections.short} id="about-short" />
                           </div>
-                          <div className="p-3 rounded-xl bg-muted/50 border border-border">
+                          <div className="p-3 rounded-xl bg-muted border border-border">
                             <p className="text-sm whitespace-pre-wrap">{result.aboutSections.short}</p>
                           </div>
                         </div>
@@ -433,7 +433,7 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
                             <Label className="text-sm">Medium (~300 words)</Label>
                             <CopyButton text={result.aboutSections.medium} id="about-medium" />
                           </div>
-                          <div className="p-3 rounded-xl bg-muted/50 border border-border">
+                          <div className="p-3 rounded-xl bg-muted border border-border">
                             <p className="text-sm whitespace-pre-wrap">{result.aboutSections.medium}</p>
                           </div>
                         </div>
@@ -443,7 +443,7 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
                             <Label className="text-sm">Long (~500 words)</Label>
                             <CopyButton text={result.aboutSections.long} id="about-long" />
                           </div>
-                          <div className="p-3 rounded-xl bg-muted/50 border border-border max-h-[200px] overflow-y-auto">
+                          <div className="p-3 rounded-xl bg-muted border border-border max-h-[200px] overflow-y-auto">
                             <p className="text-sm whitespace-pre-wrap">{result.aboutSections.long}</p>
                           </div>
                         </div>

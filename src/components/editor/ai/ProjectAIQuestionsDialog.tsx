@@ -33,7 +33,7 @@ export function ProjectAIQuestionsDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-background/80 backdrop-blur-sm p-4 animate-in fade-in-0 duration-200"
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-background backdrop-blur-sm p-4 animate-in fade-in-0 duration-200"
       onClick={onClose}
     >
       <div

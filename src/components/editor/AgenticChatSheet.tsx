@@ -119,7 +119,7 @@ function SuggestionCard({
         isResolved
           ? proposal.status === 'accepted'
             ? 'bg-success/5 border-success/20'
-            : 'bg-muted/50 border-muted'
+            : 'bg-muted border-muted'
           : 'bg-card border-border'
       )}
     >
@@ -347,7 +347,7 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
                       'flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors shrink-0 touch-manipulation',
                       isActive
                         ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted/60 text-muted-foreground hover:bg-muted'
+                        : 'bg-muted text-muted-foreground hover:bg-muted'
                     )}
                   >
                     <Icon className="w-3 h-3" />
@@ -379,7 +379,7 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
                       <button
                         key={s}
                         onClick={() => handleSuggestion(s)}
-                        className="w-full text-left text-sm px-4 py-3 rounded-xl border border-border/50 bg-card/50 hover:bg-primary/5 hover:border-primary/30 active:scale-[0.98] transition-all touch-manipulation flex items-center gap-3"
+                        className="w-full text-left text-sm px-4 py-3 rounded-xl border border-border bg-card hover:bg-primary/5 hover:border-primary/30 active:scale-[0.98] transition-all touch-manipulation flex items-center gap-3"
                       >
                         <Sparkles className="w-3.5 h-3.5 text-primary/50 shrink-0" />
                         <span>{s}</span>
@@ -433,7 +433,7 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
                                       'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs border transition-all touch-manipulation active:scale-95',
                                       currentResume?.id === r.id
                                         ? 'bg-primary/10 border-primary/30 text-primary font-medium'
-                                        : 'bg-card border-border/50 hover:border-primary/20 hover:bg-primary/5'
+                                        : 'bg-card border-border hover:border-primary/20 hover:bg-primary/5'
                                     )}
                                   >
                                     <FileText className="w-3 h-3 shrink-0" />
@@ -516,7 +516,7 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
                           key={r.id}
                           className={cn(
                             'w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors touch-manipulation text-left',
-                            currentResume?.id === r.id ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted/50'
+                            currentResume?.id === r.id ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted'
                           )}
                           onClick={() => handleSelectResume(r)}
                         >

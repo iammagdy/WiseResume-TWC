@@ -110,7 +110,7 @@ export const CustomizeSheet = memo(function CustomizeSheet({
                       onClick={() => update('accentColor', pal.color)}
                       className={cn(
                         'flex flex-col items-center gap-1.5 p-2 rounded-xl transition-all touch-manipulation active:scale-95',
-                        draft.accentColor === pal.color ? 'bg-card border border-border shadow-soft ring-2 ring-primary' : 'hover:bg-muted/50'
+                        draft.accentColor === pal.color ? 'bg-card border border-border shadow-soft ring-2 ring-primary' : 'hover:bg-muted'
                       )}
                     >
                       <div

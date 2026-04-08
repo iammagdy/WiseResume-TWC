@@ -103,7 +103,7 @@ export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) 
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
-      <SheetContent side="bottom" className="h-[90vh] backdrop-blur-md bg-background/80">
+      <SheetContent side="bottom" className="h-[90vh] backdrop-blur-sm bg-background">
         <SheetHeader className="pb-4 shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <Target className="w-5 h-5 text-primary" />

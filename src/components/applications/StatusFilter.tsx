@@ -37,7 +37,7 @@ export function StatusFilter({ value, onChange, counts }: StatusFilterProps) {
               i === STATUSES.length - 1 && 'mr-4',
               value === s.value
                 ? s.color
-                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                : 'bg-muted text-muted-foreground hover:bg-muted'
             )}
           >
             {s.label}

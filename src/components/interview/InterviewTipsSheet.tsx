@@ -23,7 +23,7 @@ export function InterviewTipsSheet({ open, onOpenChange }: InterviewTipsSheetPro
               <p><strong>Task:</strong> What was your responsibility? What problem needed solving?</p>
               <p><strong>Action:</strong> What specific steps did YOU take? Use "I" not "we".</p>
               <p><strong>Result:</strong> What was the outcome? Quantify with numbers when possible.</p>
-              <div className="bg-muted/30 rounded-lg p-3 mt-2">
+              <div className="bg-muted rounded-lg p-3 mt-2">
                 <p className="text-xs font-medium text-foreground mb-1">Example:</p>
                 <p className="text-xs italic">"When our team's deployment pipeline was causing 2-hour delays (S), I was tasked with optimizing it (T). I implemented CI/CD with GitHub Actions and parallel testing (A), reducing deployment time by 85% from 2 hours to 18 minutes (R)."</p>
               </div>
@@ -90,7 +90,7 @@ export function InterviewTipsSheet({ open, onOpenChange }: InterviewTipsSheetPro
           <AccordionItem value="thankyou">
             <AccordionTrigger className="text-sm font-semibold flex items-center justify-start gap-2 text-left"><Mail className="w-4 h-4 shrink-0 text-blue-400" /> Thank You Email Template</AccordionTrigger>
             <AccordionContent className="text-sm text-muted-foreground">
-              <div className="bg-muted/30 rounded-lg p-3 space-y-2">
+              <div className="bg-muted rounded-lg p-3 space-y-2">
                 <p><strong>Subject:</strong> Thank you — [Job Title] Interview</p>
                 <p>Dear [Interviewer Name],</p>
                 <p>Thank you for taking the time to speak with me today about the [Job Title] position. I really enjoyed learning more about [specific topic discussed].</p>

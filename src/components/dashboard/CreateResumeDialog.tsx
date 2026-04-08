@@ -374,7 +374,7 @@ export function CreateResumeDialog({
                     className={`w-full flex items-start gap-3 p-3 rounded-lg border text-left transition-all touch-manipulation ${
                       experienceLevel === level.value
                         ? 'border-primary bg-primary/5 text-primary'
-                        : 'border-border hover:border-primary/40 hover:bg-muted/50'
+                        : 'border-border hover:border-primary/40 hover:bg-muted'
                     }`}
                   >
                     <span className={`mt-0.5 w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors ${

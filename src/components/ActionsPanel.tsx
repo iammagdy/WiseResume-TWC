@@ -56,7 +56,7 @@ export function ActionsPanel({
           "w-[calc(100vw-2rem)] max-w-md",
           "max-h-[80dvh] overflow-y-auto",
           "pb-safe",
-          "backdrop-blur-xl bg-background/95 border-border/40"
+          "bg-background/95 backdrop-blur-sm border-border"
         )}
       >
         <FloatingPanelBody className="p-2 space-y-1">

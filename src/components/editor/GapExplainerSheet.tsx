@@ -174,7 +174,7 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
 
         <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-5">
           {/* Gap Info */}
-          <div className="p-3 rounded-lg bg-muted/50 border border-border">
+          <div className="p-3 rounded-lg bg-muted border border-border">
             <p className="text-sm text-muted-foreground">Employment Gap</p>
             <p className="font-semibold">{gapDateRange}</p>
             <p className="text-sm text-muted-foreground">{formatDuration(gap.months)}</p>
@@ -186,7 +186,7 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
             <div className="relative">
               <button
                 onClick={() => setShowReasonDropdown(!showReasonDropdown)}
-                className="w-full flex items-center justify-between p-3 rounded-xl border border-border bg-background text-left hover:bg-muted/50 transition-colors"
+                className="w-full flex items-center justify-between p-3 rounded-xl border border-border bg-background text-left hover:bg-muted transition-colors"
               >
                 <span className={selectedReason ? 'text-foreground' : 'text-muted-foreground'}>
                   {selectedReasonLabel || 'Select a reason...'}
@@ -209,7 +209,7 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
                           setSelectedReason(option.value);
                           setShowReasonDropdown(false);
                         }}
-                        className={`w-full px-4 py-3 text-left text-sm hover:bg-muted/50 transition-colors ${
+                        className={`w-full px-4 py-3 text-left text-sm hover:bg-muted transition-colors ${
                           selectedReason === option.value ? 'bg-primary/10 text-primary' : ''
                         }`}
                       >
@@ -306,7 +306,7 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
 
                 {/* Tips */}
                 {tips.length > 0 && (
-                  <div className="p-4 rounded-xl bg-muted/50 border border-border space-y-3">
+                  <div className="p-4 rounded-xl bg-muted border border-border space-y-3">
                     <Label className="flex items-center gap-2">
                       <Lightbulb className="w-4 h-4 text-amber-500" />
                       Interview Tips

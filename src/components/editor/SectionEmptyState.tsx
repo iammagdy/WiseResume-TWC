@@ -76,7 +76,7 @@ export const SectionEmptyState = memo(function SectionEmptyState({
             {showExample ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div className="mt-3 p-4 rounded-lg bg-muted/30 border border-border/50 text-left">
+            <div className="mt-3 p-4 rounded-lg bg-muted border border-border text-left">
               <p className="text-[11px] text-muted-foreground mb-2 font-semibold uppercase tracking-wider">Example</p>
               {exampleContent}
             </div>

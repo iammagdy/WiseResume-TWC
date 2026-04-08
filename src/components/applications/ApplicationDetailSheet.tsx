@@ -136,7 +136,7 @@ export function ApplicationDetailSheet({ application, open, onOpenChange }: Appl
 
           {/* Notes */}
           {application.notes && (
-            <div className="space-y-1 pt-2 border-t border-border/20">
+            <div className="space-y-1 pt-2 border-t border-border">
               <p className="text-xs font-medium text-muted-foreground">Notes</p>
               <p className="text-sm">{application.notes}</p>
             </div>

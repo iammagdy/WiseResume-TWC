@@ -24,7 +24,7 @@ export function PortfolioHistorySheet({ open, onOpenChange, userId, onRestore, i
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-background/80 backdrop-blur-sm pointer-events-auto"
+          className="absolute inset-0 bg-background backdrop-blur-sm pointer-events-auto"
           onClick={() => onOpenChange(false)}
         />
 

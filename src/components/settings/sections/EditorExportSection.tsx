@@ -30,7 +30,7 @@ export const EditorExportSection = memo(function EditorExportSection({
         <div className="rounded-2xl bg-card border border-border shadow-soft overflow-hidden">
             {/* PDF Export Settings - Collapsible */}
             <Collapsible open={pdfOpen} onOpenChange={setPdfOpen}>
-                <CollapsibleTrigger className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-muted/30 transition-colors touch-manipulation">
+                <CollapsibleTrigger className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-muted transition-colors touch-manipulation">
                     <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                         <Download className="w-4 h-4 text-primary" />
                     </div>
@@ -47,7 +47,7 @@ export const EditorExportSection = memo(function EditorExportSection({
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                     <div className="px-4 pb-4 space-y-3">
-                        <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
+                        <div className="flex items-center justify-between p-3 rounded-xl bg-muted">
                             <div className="space-y-0.5">
                                 <Label htmlFor="settings-page-numbers" className="text-sm font-medium">Show Page Numbers</Label>
                                 <p className="text-xs text-muted-foreground">Display in PDF footer</p>
@@ -62,7 +62,7 @@ export const EditorExportSection = memo(function EditorExportSection({
                             />
                         </div>
                         {pdfDefaults.showPageNumbers !== false && (
-                            <div className="p-3 rounded-xl bg-muted/50 space-y-2">
+                            <div className="p-3 rounded-xl bg-muted space-y-2">
                                 <Label className="text-sm font-medium">Format</Label>
                                 <div className="flex gap-2">
                                     <button
@@ -90,7 +90,7 @@ export const EditorExportSection = memo(function EditorExportSection({
                                 </div>
                             </div>
                         )}
-                        <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
+                        <div className="flex items-center justify-between p-3 rounded-xl bg-muted">
                             <div className="space-y-0.5">
                                 <Label htmlFor="settings-branding" className="text-sm font-medium flex items-center gap-1.5">
                                     <span className="text-primary">✦</span> WiseResume Badge
@@ -114,7 +114,7 @@ export const EditorExportSection = memo(function EditorExportSection({
 
             {/* Export Resumes - Collapsible */}
             <Collapsible open={exportOpen} onOpenChange={setExportOpen}>
-                <CollapsibleTrigger className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-muted/30 transition-colors touch-manipulation">
+                <CollapsibleTrigger className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-muted transition-colors touch-manipulation">
                     <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                         <Database className="w-4 h-4 text-primary" />
                     </div>

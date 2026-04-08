@@ -142,7 +142,7 @@ export const StepperNav = memo(function StepperNav({
                     <button
                       key={sec.id}
                       onClick={() => { onMoreSectionSelect?.(sec.id); setShowMoreSheet(false); haptics.light(); }}
-                      className="flex items-center gap-2.5 px-3 min-h-[48px] rounded-xl border border-border bg-card hover:bg-muted/50 active:scale-95 transition-transform touch-manipulation"
+                      className="flex items-center gap-2.5 px-3 min-h-[48px] rounded-xl border border-border bg-card hover:bg-muted active:scale-95 transition-transform touch-manipulation"
                     >
                       <SIcon className={cn('w-5 h-5 shrink-0', sec.color)} />
                       <span className="text-sm font-medium text-foreground truncate">{sec.label}</span>
@@ -259,7 +259,7 @@ export const StepperNav = memo(function StepperNav({
             <FloatingPanelTrigger title="Additional Sections" className="h-10 w-10 !px-0 justify-center rounded-full">
               <Plus className="w-5 h-5" />
             </FloatingPanelTrigger>
-            <FloatingPanelContent className="max-h-[80dvh] overflow-y-auto pb-safe backdrop-blur-xl bg-background/95">
+            <FloatingPanelContent className="max-h-[80dvh] overflow-y-auto pb-safe backdrop-blur-sm bg-background/95">
               <div className="px-4 pb-4">
                 <div className="grid grid-cols-2 gap-2">
                   {MORE_SECTIONS.map(sec => {
@@ -268,7 +268,7 @@ export const StepperNav = memo(function StepperNav({
                       <button
                         key={sec.id}
                         onClick={() => { onMoreSectionSelect(sec.id); haptics.light(); }}
-                        className="flex items-center gap-2.5 px-3 min-h-[44px] rounded-xl border border-border bg-card hover:bg-muted/50 active:scale-95 transition-transform touch-manipulation"
+                        className="flex items-center gap-2.5 px-3 min-h-[44px] rounded-xl border border-border bg-card hover:bg-muted active:scale-95 transition-transform touch-manipulation"
                       >
                         <SIcon className={cn('w-4 h-4 shrink-0', sec.color)} />
                         <span className="text-sm font-medium text-foreground truncate">{sec.label}</span>

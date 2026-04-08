@@ -224,7 +224,7 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
           setTipDismissed(true);
           localStorage.setItem(TIP_DISMISSED_KEY, '1');
         }}
-        className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-muted/50 text-muted-foreground min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
+        className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-muted text-muted-foreground min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
         aria-label="Dismiss">
         
         <X className="w-4 h-4" />

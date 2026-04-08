@@ -110,7 +110,7 @@ function getEngagementTier(seconds: number | null, sectionCount: number): Engage
   const total = timeScore + sectionScore;
   if (total >= 3) return { label: 'High', badgeClass: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20' };
   if (total >= 1) return { label: 'Med', badgeClass: 'text-amber-400 bg-amber-400/10 border-amber-400/20' };
-  return { label: 'Low', badgeClass: 'text-muted-foreground bg-muted/50 border-border/30' };
+  return { label: 'Low', badgeClass: 'text-muted-foreground bg-muted border-border' };
 }
 
 // ── Short link base URL ───────────────────────────────────────────────────────
@@ -146,7 +146,7 @@ function VisitCard({
   const remainingCount = sections.length - 3;
 
   return (
-    <div className="border-b border-border/40 last:border-0">
+    <div className="border-b border-border last:border-0">
       {/* Collapsed row — always visible */}
       <button
         className="w-full text-left py-3 group"
@@ -184,7 +184,7 @@ function VisitCard({
               Scrolled {sections.length} section{sections.length !== 1 ? 's' : ''}:
             </span>
             {previewSections.map((s, i) => (
-              <span key={i} className="text-[10px] bg-muted/60 px-1.5 py-0.5 rounded-md text-muted-foreground">
+              <span key={i} className="text-[10px] bg-muted px-1.5 py-0.5 rounded-md text-muted-foreground">
                 {s}
               </span>
             ))}
@@ -376,7 +376,7 @@ function ShortLinkRow({
   };
 
   return (
-    <div className="flex items-center gap-2 py-2.5 border-b border-border/40 last:border-0">
+    <div className="flex items-center gap-2 py-2.5 border-b border-border last:border-0">
       <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
         <Link2 className="w-3.5 h-3.5 text-primary" />
       </div>

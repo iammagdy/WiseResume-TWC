@@ -27,7 +27,7 @@ export function BackButton({ onBeforeBack, className, 'aria-label': ariaLabel = 
     <button
       onClick={handleClick}
       className={cn(
-        'p-2 -ml-2 rounded-xl hover:bg-muted/50 active:scale-95 transition-all touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center',
+        'p-2 -ml-2 rounded-xl hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center',
         className
       )}
       aria-label={ariaLabel}

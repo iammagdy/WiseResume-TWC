@@ -94,7 +94,7 @@ export function ResumeCard({
 
       {/* Main clickable area */}
       <button
-        className="w-full p-4 flex items-center gap-4 text-left touch-manipulation active:bg-muted/30 transition-colors relative z-10"
+        className="w-full p-4 flex items-center gap-4 text-left touch-manipulation active:bg-muted transition-colors relative z-10"
         onClick={handleContinue}
       >
         {/* Progress Ring instead of static icon */}
@@ -150,7 +150,7 @@ export function ResumeCard({
               <Button
                 variant="ghost"
                 size="icon"
-                className="min-w-[44px] min-h-[44px] h-9 w-9 rounded-full hover:bg-muted/50"
+                className="min-w-[44px] min-h-[44px] h-9 w-9 rounded-full hover:bg-muted"
                 onClick={(e) => { e.stopPropagation(); haptics.light(); }}
                 aria-label="More actions"
               >

@@ -50,7 +50,7 @@ export const AddSectionSheet = memo(function AddSectionSheet({ onSelectSection }
               className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border transition-all touch-manipulation active:scale-95 min-h-[100px] ${
                 active
                   ? 'border-primary/50 bg-primary/5'
-                  : 'border-border hover:border-primary/30 hover:bg-muted/50'
+                  : 'border-border hover:border-primary/30 hover:bg-muted'
               }`}
             >
               {active && (

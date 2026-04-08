@@ -95,7 +95,7 @@ export function ResumeListSheet({ open, onOpenChange, filter }: ResumeListSheetP
           {isLoading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-20 rounded-2xl bg-muted/30 animate-pulse" />
+                <div key={i} className="h-20 rounded-2xl bg-muted animate-pulse" />
               ))}
             </div>
           ) : filtered.length === 0 ? (
@@ -110,7 +110,7 @@ export function ResumeListSheet({ open, onOpenChange, filter }: ResumeListSheetP
               <div
                 key={resume.id}
                 onClick={() => handleTap(resume.id)}
-                className="w-full bg-card border border-border rounded-2xl p-4 text-left transition-all active:scale-[0.98] hover:border-border/40 flex items-start gap-3 cursor-pointer"
+                className="w-full bg-card border border-border rounded-2xl p-4 text-left transition-all active:scale-[0.98] hover:border-border flex items-start gap-3 cursor-pointer"
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -136,7 +136,7 @@ export function ResumeListSheet({ open, onOpenChange, filter }: ResumeListSheetP
                   {filter === 'originals' && !resume.is_primary && (
                     <button
                       onClick={(e) => handleSetMaster(resume.id, e)}
-                      className="shrink-0 text-[10px] text-muted-foreground hover:text-primary border border-border/30 rounded-lg px-2 py-1 transition-colors"
+                      className="shrink-0 text-[10px] text-muted-foreground hover:text-primary border border-border rounded-lg px-2 py-1 transition-colors"
                     >
                       Set as Master
                     </button>

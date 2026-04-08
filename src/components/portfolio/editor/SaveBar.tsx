@@ -13,7 +13,7 @@ export interface SaveBarProps {
 
 export function SaveBar({ onSave, saving, disabled, portfolioEnabled, onPortfolioEnabledChange }: SaveBarProps) {
   return (
-    <div className="shrink-0 px-4 py-3 pb-safe border-t border-border/30 bg-background">
+    <div className="shrink-0 px-4 py-3 pb-safe border-t border-border bg-background">
       <div className="flex items-center gap-3">
         {/* Publish toggle */}
         <div className="flex items-center gap-2 shrink-0">

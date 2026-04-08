@@ -65,7 +65,7 @@ export const CertificationsSection = memo(function CertificationsSection() {
             <div key={cert.id} className="rounded-xl border border-border overflow-hidden">
               <button
                 onClick={() => setExpandedId(expandedId === cert.id ? null : cert.id)}
-                className="w-full p-4 flex items-center justify-between hover:bg-muted/50 touch-manipulation active:bg-muted/70 min-h-[72px]"
+                className="w-full p-4 flex items-center justify-between hover:bg-muted touch-manipulation active:bg-muted/70 min-h-[72px]"
               >
                 <DragHandle />
                 <div className="flex items-center gap-1 shrink-0">

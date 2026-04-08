@@ -66,7 +66,7 @@ export function ContentVisibilitySection(props: ContentVisibilitySectionProps) {
       <SubSectionHeading icon={<Sparkles className="w-3.5 h-3.5" />} label="Content Sync Mode" />
       <p className="text-xs text-muted-foreground mb-2">Control how your portfolio content stays in sync with your resume.</p>
       <div className="space-y-2">
-        <button onClick={() => onSyncModeChange('auto')} className={`w-full flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${syncMode === 'auto' ? 'border-primary bg-primary/5' : 'border-border bg-card/50'}`}>
+        <button onClick={() => onSyncModeChange('auto')} className={`w-full flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${syncMode === 'auto' ? 'border-primary bg-primary/5' : 'border-border bg-card'}`}>
           <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${syncMode === 'auto' ? 'border-primary' : 'border-muted-foreground'}`}>
             {syncMode === 'auto' && <div className="w-2 h-2 rounded-full bg-primary" />}
           </div>
@@ -75,7 +75,7 @@ export function ContentVisibilitySection(props: ContentVisibilitySectionProps) {
             <p className="text-xs text-muted-foreground">Changes to your resumes automatically sync to this portfolio.</p>
           </div>
         </button>
-        <button onClick={() => onSyncModeChange('locked')} className={`w-full flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${syncMode === 'locked' ? 'border-primary bg-primary/5' : 'border-border bg-card/50'}`}>
+        <button onClick={() => onSyncModeChange('locked')} className={`w-full flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${syncMode === 'locked' ? 'border-primary bg-primary/5' : 'border-border bg-card'}`}>
           <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${syncMode === 'locked' ? 'border-primary' : 'border-muted-foreground'}`}>
             {syncMode === 'locked' && <div className="w-2 h-2 rounded-full bg-primary" />}
           </div>

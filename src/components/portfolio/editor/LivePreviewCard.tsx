@@ -40,7 +40,7 @@ export function LivePreviewCard({ avatarUrl, fullName, jobTitle, portfolioStyle,
 
   return (
     <div
-      className="relative rounded-xl overflow-hidden border border-border/50"
+      className="relative rounded-xl overflow-hidden border border-border"
       style={{ background: vars.bg, padding: '1rem', maxWidth: '100%' }}
     >
       <div

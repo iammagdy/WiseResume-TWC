@@ -139,7 +139,7 @@ export const AIAssistantBar = memo(function AIAssistantBar({
       : matchScore.overallScore >= 40
       ? 'bg-warning/10 border-warning/30'
       : 'bg-destructive/10 border-destructive/30'
-    : 'bg-muted/50';
+    : 'bg-muted';
 
   return (
     <div className={cn('mx-4 mb-2', className)}>
@@ -265,7 +265,7 @@ export const AIAssistantBar = memo(function AIAssistantBar({
               )}
 
               {jobDescription && (
-                <div className="p-3 rounded-xl bg-muted/30 border border-border">
+                <div className="p-3 rounded-xl bg-muted border border-border">
                   <p className="text-xs text-muted-foreground mb-1">Target Job</p>
                   <p className="text-sm line-clamp-2">{jobDescription}</p>
                 </div>
@@ -318,9 +318,9 @@ const SecondaryToolButton = memo(function SecondaryToolButton({
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-transparent hover:bg-muted/50 active:scale-95 transition-all touch-manipulation"
+      className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-transparent hover:bg-muted active:scale-95 transition-all touch-manipulation"
     >
-      <div className="w-10 h-10 rounded-full bg-muted/30 flex items-center justify-center">
+      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
         {icon}
       </div>
       <span className="text-[10px] text-muted-foreground font-medium">{label}</span>

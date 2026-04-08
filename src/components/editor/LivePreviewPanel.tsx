@@ -188,9 +188,9 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
   });
 
   return (
-    <div className={cn('flex flex-col h-full min-h-0 overflow-hidden bg-muted/30', className)}>
+    <div className={cn('flex flex-col h-full min-h-0 overflow-hidden bg-muted', className)}>
       {/* Toolbar */}
-      <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-background/80 backdrop-blur-sm pt-[env(safe-area-inset-top)]">
+      <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-background backdrop-blur-sm pt-[env(safe-area-inset-top)]">
         <div className="flex items-center gap-1">
           {/* Zoom controls */}
           {ZOOM_LEVELS.map(level => (

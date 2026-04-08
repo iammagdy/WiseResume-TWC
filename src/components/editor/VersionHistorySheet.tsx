@@ -107,7 +107,7 @@ export function VersionHistorySheet({ open, onOpenChange, resumeId, onCompare }:
             {isLoading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-16 rounded-xl bg-muted/30 animate-pulse" />
+                  <div key={i} className="h-16 rounded-xl bg-muted animate-pulse" />
                 ))}
               </div>
             ) : !versions?.length ? (

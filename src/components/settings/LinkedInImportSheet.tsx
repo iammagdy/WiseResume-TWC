@@ -466,7 +466,7 @@ export function LinkedInImportSheet({
                   }}
                 />
 
-                <div className="bg-muted/50 rounded-xl p-3 text-xs text-muted-foreground">
+                <div className="bg-muted rounded-xl p-3 text-xs text-muted-foreground">
                   <p className="font-medium text-foreground mb-1">💡 Tip: Export LinkedIn PDF</p>
                   <p>Open LinkedIn → Your profile → "More" button → "Save to PDF"</p>
                 </div>
@@ -511,7 +511,7 @@ export function LinkedInImportSheet({
                       <p className="text-xs text-muted-foreground">{currentGuide.description}</p>
                     </div>
                   </div>
-                  <div className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/50 text-xs text-muted-foreground">
+                  <div className="flex items-start gap-2 p-2.5 rounded-lg bg-muted text-xs text-muted-foreground">
                     <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0 mt-0.5" />
                     <span>{currentGuide.tip}</span>
                   </div>
@@ -669,7 +669,7 @@ export function LinkedInImportSheet({
 
                 {/* Empty result */}
                 {!stepResult.summary && !stepResult.experience?.length && !stepResult.education?.length && !stepResult.skills?.length && (
-                  <div className="p-4 rounded-xl bg-muted/50 text-center">
+                  <div className="p-4 rounded-xl bg-muted text-center">
                     <p className="text-sm text-muted-foreground">No data found for this section. You can skip or try again.</p>
                   </div>
                 )}
@@ -711,7 +711,7 @@ export function LinkedInImportSheet({
                         animate={{ opacity: index <= currentStep ? 1 : 0.4, x: 0 }}
                         transition={{ delay: index * 0.1 }}
                         className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                          isActive ? 'bg-primary/10' : isComplete ? 'bg-muted/50' : ''
+                          isActive ? 'bg-primary/10' : isComplete ? 'bg-muted' : ''
                         }`}
                       >
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -888,7 +888,7 @@ export function LinkedInImportSheet({
 
                 {/* Empty state */}
                 {!accumulatedData.summary && !accumulatedData.experience?.length && !accumulatedData.education?.length && !accumulatedData.skills?.length && (
-                  <div className="p-6 rounded-xl bg-muted/50 text-center space-y-2">
+                  <div className="p-6 rounded-xl bg-muted text-center space-y-2">
                     <p className="text-sm text-muted-foreground">No data was collected. Try going through the steps again.</p>
                     <Button variant="outline" size="sm" onClick={() => { setActiveGuideStep(0); setParseState('wizard'); }}>
                       Start Over

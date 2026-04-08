@@ -189,7 +189,7 @@ export function CompareSheet({
             >
               <Card>
                 <CollapsibleTrigger asChild>
-                  <CardHeader className="pb-2 cursor-pointer hover:bg-muted/50 transition-colors">
+                  <CardHeader className="pb-2 cursor-pointer hover:bg-muted transition-colors">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-sm">Summary</CardTitle>
                       <ChevronDown className={`w-4 h-4 transition-transform ${expandedSections.includes('summary') ? 'rotate-180' : ''}`} />
@@ -211,7 +211,7 @@ export function CompareSheet({
             >
               <Card>
                 <CollapsibleTrigger asChild>
-                  <CardHeader className="pb-2 cursor-pointer hover:bg-muted/50 transition-colors">
+                  <CardHeader className="pb-2 cursor-pointer hover:bg-muted transition-colors">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <CardTitle className="text-sm">Skills</CardTitle>
@@ -286,7 +286,7 @@ export function CompareSheet({
               >
                 <Card>
                   <CollapsibleTrigger asChild>
-                    <CardHeader className="pb-2 cursor-pointer hover:bg-muted/50 transition-colors">
+                    <CardHeader className="pb-2 cursor-pointer hover:bg-muted transition-colors">
                       <div className="flex items-center justify-between">
                         <div>
                           <CardTitle className="text-sm">{exp.position}</CardTitle>

@@ -115,7 +115,7 @@ export function EditorDemo() {
   return (
     <div ref={containerRef} className="flex flex-col items-center">
       {/* Phone frame */}
-      <div className="w-[260px] rounded-[28px] border-2 border-border/40 bg-card/80 backdrop-blur-sm shadow-xl overflow-hidden">
+      <div className="w-[260px] rounded-[28px] border-2 border-border bg-card backdrop-blur-sm shadow-xl overflow-hidden">
         {/* Status bar */}
         <div className="flex items-center justify-between px-5 pt-2 pb-1">
           <span className="text-[10px] text-muted-foreground font-medium">9:41</span>
@@ -127,7 +127,7 @@ export function EditorDemo() {
         </div>
 
       {/* Toolbar */}
-        <div className="flex items-center justify-between px-4 py-1.5 border-b border-border/20">
+        <div className="flex items-center justify-between px-4 py-1.5 border-b border-border">
           <div className="flex items-center gap-1.5">
             <span className="text-[11px] font-semibold text-foreground">Resume Editor</span>
             <span className="text-[8px] font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground uppercase tracking-wider">Example</span>
@@ -174,7 +174,7 @@ export function EditorDemo() {
               ? 'bg-success/8 border border-success/20'
               : aiActive
                 ? 'bg-primary/8 border border-primary/30'
-                : 'bg-muted/30 border border-border/20'
+                : 'bg-muted border border-border'
           }`}>
             <AnimatePresence mode="wait">
               {showAfter || prefersReducedMotion ? (

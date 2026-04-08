@@ -206,7 +206,7 @@ export function SectionChangeCard({
       <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
         <CollapsibleTrigger asChild>
           <button
-            className="w-full px-4 min-h-[44px] border-t border-border/50 bg-muted/30 hover:bg-muted/50 transition-colors flex items-center justify-center gap-2 text-xs text-muted-foreground active:scale-[0.98]"
+            className="w-full px-4 min-h-[44px] border-t border-border bg-muted hover:bg-muted transition-colors flex items-center justify-center gap-2 text-xs text-muted-foreground active:scale-[0.98]"
             aria-label={isExpanded ? `Hide ${title} changes` : `Preview ${title} changes`}
           >
             <Eye className="w-3 h-3" />
@@ -215,7 +215,7 @@ export function SectionChangeCard({
           </button>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <div className="px-4 py-3 border-t border-border/50 bg-muted/20 text-sm relative">
+          <div className="px-4 py-3 border-t border-border bg-muted/20 text-sm relative">
             {onEdit && !isEditing && (
               <button
                 onClick={handleStartEdit}

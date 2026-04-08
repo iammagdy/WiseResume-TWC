@@ -53,10 +53,10 @@ function SectionCard({ id, title, icon, count, preview, isSelected, isEmpty, onT
       animate={{ opacity: 1, y: 0 }}
       className={`relative rounded-2xl border transition-all active:scale-[0.98] ${
         isEmpty 
-          ? 'border-border/50 bg-muted/30 opacity-60' 
+          ? 'border-border bg-muted opacity-60' 
           : isSelected 
             ? 'border-primary/50 bg-primary/5' 
-            : 'border-border bg-card/50'
+            : 'border-border bg-card'
       }`}
     >
       <label className="flex items-start gap-3 p-4 cursor-pointer touch-manipulation min-h-[72px]">

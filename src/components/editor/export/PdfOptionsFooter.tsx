@@ -18,14 +18,14 @@ export function PdfOptionsFooter({ visible, showPageNumbers, showBranding, onPag
         visible ? 'opacity-100' : 'opacity-0 pointer-events-none h-0 overflow-hidden'
       )}
     >
-      <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50">
+      <div className="flex items-center justify-between p-4 rounded-xl bg-muted">
         <div className="space-y-0.5">
           <Label htmlFor="page-numbers" className="font-medium">Page Numbers</Label>
           <p className="text-xs text-muted-foreground">Show "Page X of Y" in footer</p>
         </div>
         <Switch id="page-numbers" checked={showPageNumbers} onCheckedChange={onPageNumbersChange} />
       </div>
-      <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50">
+      <div className="flex items-center justify-between p-4 rounded-xl bg-muted">
         <div className="space-y-0.5">
           <Label htmlFor="branding" className="font-medium flex items-center gap-1.5">
             <span className="text-primary">✦</span>

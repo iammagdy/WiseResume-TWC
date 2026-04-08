@@ -239,7 +239,7 @@ function BriefingLoadingProgress({ companyName }: { companyName?: string }) {
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="p-4 rounded-2xl border border-border/40 bg-card/60 space-y-3"
+        className="p-4 rounded-2xl border border-border bg-card space-y-3"
       >
         <div className="flex items-center gap-2">
           <motion.div
@@ -274,7 +274,7 @@ function BriefingLoadingProgress({ companyName }: { companyName?: string }) {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 + i * 0.08 }}
-          className="p-4 rounded-2xl border border-border/40 bg-card/60 space-y-3"
+          className="p-4 rounded-2xl border border-border bg-card space-y-3"
         >
           <div className="flex items-center gap-2">
             <Skeleton className="w-5 h-5 rounded" />
@@ -540,10 +540,10 @@ function BriefingContent({ briefing }: { briefing: CompanyBriefing }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: (i + 1) * 0.05 }}
           className={cn(
-            'p-4 rounded-2xl border bg-card/60 space-y-3 border-l-4',
+            'p-4 rounded-2xl border bg-card space-y-3 border-l-4',
             section.highlight
               ? 'border-primary/40 bg-primary/5 shadow-[0_0_15px_hsl(var(--primary)/0.1)]'
-              : 'border-border/40',
+              : 'border-border',
             section.accent,
           )}
         >

@@ -262,7 +262,7 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
                 </motion.div>
               )}
               {winner === 'tie' && (
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 border border-border/30">
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-muted border border-border">
                   <Trophy className="w-5 h-5 text-muted-foreground shrink-0" />
                   <p className="text-sm font-medium text-muted-foreground">Both resumes scored equally!</p>
                 </div>
@@ -281,7 +281,7 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
                     transition={{ delay: side === 'b' ? 0.1 : 0 }}
                     className={cn(
                       'p-3 rounded-xl bg-card border border-border transition-all',
-                      winner === side ? 'border-primary/40 ring-1 ring-primary/20' : 'border-border/30'
+                      winner === side ? 'border-primary/40 ring-1 ring-primary/20' : 'border-border'
                     )}
                   >
                     <p className="text-xs font-medium truncate mb-2 text-muted-foreground">{label}</p>
@@ -290,7 +290,7 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
                     </div>
                     <p className="text-[10px] text-center text-muted-foreground mb-1">ATS Score</p>
                     {match?.score && (
-                      <div className="mt-2 pt-2 border-t border-border/20 space-y-1">
+                      <div className="mt-2 pt-2 border-t border-border space-y-1">
                         <p className="text-[10px] font-medium text-muted-foreground">Job Match</p>
                         <div className="text-lg font-bold text-center">{match.score.overall}%</div>
                       </div>
@@ -312,13 +312,13 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
                         <span>{valA}% vs {valB}%</span>
                       </div>
                       <div className="flex gap-1 h-2">
-                        <div className="flex-1 bg-muted/30 rounded-full overflow-hidden">
+                        <div className="flex-1 bg-muted rounded-full overflow-hidden">
                           <div
                             className={cn('h-full rounded-full transition-all', valA >= valB ? 'bg-primary' : 'bg-muted-foreground/40')}
                             style={{ width: `${valA}%` }}
                           />
                         </div>
-                        <div className="flex-1 bg-muted/30 rounded-full overflow-hidden">
+                        <div className="flex-1 bg-muted rounded-full overflow-hidden">
                           <div
                             className={cn('h-full rounded-full transition-all', valB >= valA ? 'bg-primary' : 'bg-muted-foreground/40')}
                             style={{ width: `${valB}%` }}

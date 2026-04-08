@@ -98,7 +98,7 @@ export function UploadErrorRecovery({
 
   return (
     <motion.div
-      className="flex flex-col items-center text-center p-6 bg-background/80 backdrop-blur-md rounded-2xl border border-border/40"
+      className="flex flex-col items-center text-center p-6 bg-background rounded-2xl border border-border"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
     >
@@ -121,7 +121,7 @@ export function UploadErrorRecovery({
       {/* Partial Extraction Summary */}
       {errorType === 'PARTIAL_EXTRACTION' && extractedSections && (
         <motion.div
-          className="w-full p-4 rounded-xl bg-muted/50 border border-border mb-6"
+          className="w-full p-4 rounded-xl bg-muted border border-border mb-6"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
@@ -228,7 +228,7 @@ export function UploadErrorRecovery({
             Why did this happen?
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-3">
-            <div className="p-4 rounded-xl bg-muted/30 border border-border text-left text-sm text-muted-foreground space-y-2">
+            <div className="p-4 rounded-xl bg-muted border border-border text-left text-sm text-muted-foreground space-y-2">
               <p>PDFs can contain text in two ways:</p>
               <ul className="list-disc pl-4 space-y-1">
                 <li><strong>Text-based:</strong> The text is embedded and searchable. These work best!</li>

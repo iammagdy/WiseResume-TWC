@@ -103,7 +103,7 @@ export const ApplicationCard = memo(function ApplicationCard({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
-                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-muted/50 touch-manipulation"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-muted touch-manipulation"
                 aria-label="More options"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -173,7 +173,7 @@ export const ApplicationCard = memo(function ApplicationCard({
         )}
 
         {application.notes && (
-          <p className="text-xs text-muted-foreground line-clamp-2 pt-1 border-t border-border/20">
+          <p className="text-xs text-muted-foreground line-clamp-2 pt-1 border-t border-border">
             {application.notes}
           </p>
         )}

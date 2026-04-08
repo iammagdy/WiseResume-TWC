@@ -29,7 +29,7 @@ export function AIEnhanceDialog({
 
   return (
     <div
-        className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-background/80 backdrop-blur-sm p-4 animate-in fade-in-0 duration-200"
+        className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-background backdrop-blur-sm p-4 animate-in fade-in-0 duration-200"
         onClick={onDiscard}
       >
         <div
@@ -58,7 +58,7 @@ export function AIEnhanceDialog({
             <div className="space-y-3">
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-2">Original</p>
-                <div className="p-3 rounded-lg bg-muted/50 text-sm line-through opacity-60">
+                <div className="p-3 rounded-lg bg-muted text-sm line-through opacity-60">
                   {original || '(Empty)'}
                 </div>
               </div>

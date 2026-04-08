@@ -96,7 +96,7 @@ export const ExperienceItem = memo(function ExperienceItem({
   return (
     <div className="rounded-xl border border-border overflow-hidden transition-all duration-200">
       {/* Header - Always visible */}
-      <div className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors min-h-[80px] sm:min-h-[72px]">
+      <div className="w-full p-4 flex items-center justify-between hover:bg-muted transition-colors min-h-[80px] sm:min-h-[72px]">
         {/* Reorder arrows */}
         <div className="flex flex-col gap-0.5 mr-2 shrink-0">
           <button

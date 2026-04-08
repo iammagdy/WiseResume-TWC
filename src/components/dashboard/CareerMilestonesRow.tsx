@@ -22,7 +22,7 @@ function MilestoneBadge({ milestone }: { milestone: Milestone }) {
         className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all active:scale-95 min-w-[72px] ${
           milestone.earned
             ? 'bg-primary/10 border border-primary/20'
-            : 'bg-muted/30 border border-border/30 opacity-50 grayscale'
+            : 'bg-muted border border-border opacity-50 grayscale'
         }`}
         aria-label={milestone.label}
       >
@@ -49,7 +49,7 @@ function MilestoneBadge({ milestone }: { milestone: Milestone }) {
               )}
             </div>
             <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px]">
-              <div className="w-2 h-2 bg-card border-b border-r border-border/50 rotate-45 -translate-y-1" />
+              <div className="w-2 h-2 bg-card border-b border-r border-border rotate-45 -translate-y-1" />
             </div>
           </motion.div>
         )}

@@ -48,7 +48,7 @@ export function InterviewHistorySheet({ open, onOpenChange }: InterviewHistorySh
                 <motion.div
                   key={session.id}
                   layout
-                  className="bg-card/60 backdrop-blur-sm border border-border/40 rounded-xl overflow-hidden"
+                  className="bg-card border border-border rounded-xl overflow-hidden"
                 >
                   <button
                     onClick={() => { haptics.light(); setExpandedId(isExpanded ? null : session.id); }}

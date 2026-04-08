@@ -72,7 +72,7 @@ export function TemplateSelector({ open, onOpenChange, onTemplateApplied }: Temp
 
         <div className="flex-1 min-h-0 overflow-y-auto pb-4">
           {/* ATS Info Banner */}
-          <div className="mb-4 p-4 rounded-xl bg-muted/50 border border-border flex items-start gap-4">
+          <div className="mb-4 p-4 rounded-xl bg-muted border border-border flex items-start gap-4">
             <Sparkles className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
             <div className="text-sm">
               <p className="font-medium text-foreground mb-1">About ATS Compatibility</p>

@@ -42,7 +42,7 @@ export const SectionCard = memo(function SectionCard({ icon: Icon, title, tip, s
       {/* Tip pill - hidden when section is complete */}
       {tip && status !== 'complete' && (
         <div className="px-3 pb-1">
-          <span className="inline-block text-tiny text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-full">
+          <span className="inline-block text-tiny text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
             💡 {tip}
           </span>
         </div>

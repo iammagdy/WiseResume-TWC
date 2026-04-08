@@ -48,7 +48,7 @@ function OptionButton({ label, selected, onClick }: { label: string; selected: b
         'w-full min-h-[48px] px-4 py-3 rounded-xl text-sm font-medium transition-all active:scale-95 touch-manipulation text-left',
         selected
           ? 'bg-primary text-primary-foreground shadow-md'
-          : 'bg-input border border-border hover:bg-muted/50'
+          : 'bg-input border border-border hover:bg-muted'
       )}
     >
       {label}
@@ -64,7 +64,7 @@ function ChipButton({ label, selected, onClick }: { label: string; selected: boo
         'px-3 py-2 rounded-full text-xs font-medium transition-all active:scale-95 touch-manipulation',
         selected
           ? 'bg-primary text-primary-foreground'
-          : 'bg-input border border-border hover:bg-muted/50'
+          : 'bg-input border border-border hover:bg-muted'
       )}
     >
       {label}

@@ -118,7 +118,7 @@ export function DesktopNav() {
 
               active ?
               'bg-primary/10 text-primary' :
-              'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+              'text-muted-foreground hover:text-foreground hover:bg-muted'
               )}>
               
               <div className="relative">
@@ -154,7 +154,7 @@ export function DesktopNav() {
             haptics.selection();
             window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
           }}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted/50 text-sm transition-colors active:scale-95"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted text-sm transition-colors active:scale-95"
           aria-label="Search actions"
         >
           <Search className="w-3.5 h-3.5" />
@@ -166,7 +166,7 @@ export function DesktopNav() {
 
         <button
           onClick={() => { haptics.selection(); toggleTheme(); }}
-          className="flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors active:scale-95"
+          className="flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors active:scale-95"
           aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
         >
           {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}

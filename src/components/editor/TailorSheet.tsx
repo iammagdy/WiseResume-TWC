@@ -758,7 +758,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
               </div>
 
               {/* Manual Tabs */}
-              <div className="flex rounded-lg bg-muted/50 p-1 gap-1">
+              <div className="flex rounded-lg bg-muted p-1 gap-1">
                 {TAB_CONFIG.map(({ id, label, icon: Icon }) => (
                   <button
                     key={id}
@@ -1097,7 +1097,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
             <>
               {/* Resume Picker — shown when no resume is loaded */}
               {!currentResume && (
-                <div className="p-4 rounded-xl bg-muted/50 border border-border space-y-3">
+                <div className="p-4 rounded-xl bg-muted border border-border space-y-3">
                   <div className="flex items-center gap-2">
                     <FileText className="w-4 h-4 text-primary" />
                     <h4 className="font-semibold text-sm">Select a resume to tailor</h4>
@@ -1200,7 +1200,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
 
               {/* Tips - only show once per user */}
               {!tipsDismissed && (
-                <div className="p-4 rounded-xl bg-muted/50 border border-border relative">
+                <div className="p-4 rounded-xl bg-muted border border-border relative">
                   <button
                     onClick={() => {
                       localStorage.setItem('wr-tailor-tips-seen', 'true');
@@ -1240,7 +1240,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
 
         {/* Sticky CTA Footer */}
         {tailorResult && !isTailoring && (
-          <div className="shrink-0 border-t border-border bg-background/80 backdrop-blur-md px-4 py-2 pb-safe [@media(max-height:700px)]:py-1.5">
+          <div className="shrink-0 border-t border-border bg-background/95 backdrop-blur-sm px-4 py-2 pb-safe [@media(max-height:700px)]:py-1.5">
             <div className="flex gap-3">
               <Button
                 variant="outline"

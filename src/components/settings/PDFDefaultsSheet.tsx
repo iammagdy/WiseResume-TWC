@@ -36,7 +36,7 @@ export function PDFDefaultsSheet({
 
         <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-6">
           {/* Page numbers toggle */}
-          <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50">
+          <div className="flex items-center justify-between p-4 rounded-xl bg-muted">
             <div className="space-y-0.5">
               <Label htmlFor="default-page-numbers" className="font-medium">
                 Show Page Numbers
@@ -57,7 +57,7 @@ export function PDFDefaultsSheet({
 
           {/* Page number format */}
           {pdfDefaults.showPageNumbers !== false && (
-            <div className="p-4 rounded-xl bg-muted/50 space-y-3">
+            <div className="p-4 rounded-xl bg-muted space-y-3">
               <Label className="font-medium">Page Number Format</Label>
               <div className="flex gap-2">
                 <button
@@ -89,7 +89,7 @@ export function PDFDefaultsSheet({
           )}
 
           {/* Branding toggle */}
-          <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50">
+          <div className="flex items-center justify-between p-4 rounded-xl bg-muted">
             <div className="space-y-0.5">
               <Label htmlFor="default-branding" className="font-medium flex items-center gap-1.5">
                 <span className="text-primary">✦</span>

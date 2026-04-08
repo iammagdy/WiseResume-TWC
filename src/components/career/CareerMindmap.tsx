@@ -109,7 +109,7 @@ function RoleNode({
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ delay: 0.15 + branchIndex * 0.1 + index * 0.06, duration: 0.35, ease: 'easeOut' }}
       className={cn(
-        'relative rounded-2xl border backdrop-blur-md cursor-pointer',
+        'relative rounded-2xl border backdrop-blur-sm cursor-pointer',
         'bg-gradient-to-br', branchColor.bg, branchColor.border,
         'shadow-lg', branchColor.glow,
         'transition-shadow duration-200 active:scale-[0.97]',

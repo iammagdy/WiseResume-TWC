@@ -528,7 +528,7 @@ export function CareerCardSheet({
         <div className="flex-1 min-h-0 overflow-y-auto space-y-5 pt-2 pb-4 w-full px-2 sm:px-4">
 
           {/* Live preview */}
-          <div ref={previewWrapperRef} className="pf-card-flip-container w-full max-w-full mx-auto rounded-2xl border border-border/40 relative overflow-hidden"
+          <div ref={previewWrapperRef} className="pf-card-flip-container w-full max-w-full mx-auto rounded-2xl border border-border relative overflow-hidden"
             style={{ aspectRatio: '1200/630' }}
             onMouseMove={(e) => handlePointerMove(e.clientX, e.clientY)}
             onMouseLeave={handlePointerLeave}
@@ -648,7 +648,7 @@ export function CareerCardSheet({
                   onClick={() => { haptics.light(); handleVariantChange(v.id); }}
                   className={`h-12 rounded-xl border text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation ${variant === v.id
                       ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border/50 bg-card/50 text-muted-foreground hover:border-border'
+                      : 'border-border bg-card text-muted-foreground hover:border-border'
                     }`}
                 >
                   <span>{v.emoji}</span> {v.label}

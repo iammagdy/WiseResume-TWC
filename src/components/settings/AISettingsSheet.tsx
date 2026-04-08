@@ -754,7 +754,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
         )}
 
         {geminiKeyTier === 'free' && (
-          <div className="p-2 rounded-md bg-muted/50 text-xs">
+          <div className="p-2 rounded-md bg-muted text-xs">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Requests today</span>
               <span className="font-medium">{geminiDailyUsage.count}</span>
@@ -1234,7 +1234,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                           };
                           const actionLabel = actionLabels[log.action_type] || log.action_type.charAt(0).toUpperCase() + log.action_type.slice(1);
                           return (
-                            <div key={log.id} className="flex items-center justify-between px-2 py-1.5 rounded-md bg-muted/40 text-xs">
+                            <div key={log.id} className="flex items-center justify-between px-2 py-1.5 rounded-md bg-muted text-xs">
                               <div className="flex items-center gap-2">
                                 <span className="font-medium truncate max-w-[120px]">{actionLabel}</span>
                                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
@@ -1284,7 +1284,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                       const providerName = provider === 'gemini' ? 'Gemini' : provider === 'ollama' ? 'Ollama' : provider === 'elevenlabs' ? 'ElevenLabs' : provider;
                       
                       return (
-                        <div key={entry.id} className="flex items-start gap-3 px-3 py-2.5 rounded-lg bg-muted/40 border border-border/30">
+                        <div key={entry.id} className="flex items-start gap-3 px-3 py-2.5 rounded-lg bg-muted border border-border">
                           <span className="text-base mt-0.5">{providerEmoji}</span>
                           <div className="flex-1 min-w-0 space-y-0.5">
                             <div className="flex items-center gap-2">

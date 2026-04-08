@@ -64,7 +64,7 @@ export function ContentTab(props: ContentTabProps) {
           <button
             onClick={() => onSyncModeChange('auto')}
             className={`flex items-center gap-2 rounded-xl border p-3 text-left transition-all active:scale-[0.97] ${
-              syncMode === 'auto' ? 'border-primary bg-primary/5' : 'border-border bg-card/50'
+              syncMode === 'auto' ? 'border-primary bg-primary/5' : 'border-border bg-card'
             }`}
           >
             <RefreshCw className={`w-4 h-4 shrink-0 ${syncMode === 'auto' ? 'text-primary' : 'text-muted-foreground'}`} />
@@ -76,7 +76,7 @@ export function ContentTab(props: ContentTabProps) {
           <button
             onClick={handleSwitchToCustom}
             className={`flex items-center gap-2 rounded-xl border p-3 text-left transition-all active:scale-[0.97] ${
-              syncMode === 'locked' ? 'border-primary bg-primary/5' : 'border-border bg-card/50'
+              syncMode === 'locked' ? 'border-primary bg-primary/5' : 'border-border bg-card'
             }`}
           >
             <Lock className={`w-4 h-4 shrink-0 ${syncMode === 'locked' ? 'text-primary' : 'text-muted-foreground'}`} />
@@ -135,7 +135,7 @@ export function ContentTab(props: ContentTabProps) {
             <p className="text-[11px] text-muted-foreground mb-3">Showcase detailed project stories.</p>
             <div className="space-y-3">
               {caseStudies.map((cs, i) => (
-                <div key={cs.id} className="rounded-xl border border-border bg-card/50 p-3 space-y-2">
+                <div key={cs.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Project {i + 1}</span>
                     <button onClick={() => onCaseStudiesChange(caseStudies.filter(c => c.id !== cs.id))} className="text-muted-foreground hover:text-destructive transition-colors"><X className="w-4 h-4" /></button>
@@ -163,7 +163,7 @@ export function ContentTab(props: ContentTabProps) {
             <p className="text-[11px] text-muted-foreground mb-3">List what you offer.</p>
             <div className="space-y-3">
               {services.map((svc, i) => (
-                <div key={svc.id} className="rounded-xl border border-border bg-card/50 p-3 space-y-2">
+                <div key={svc.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Service {i + 1}</span>
                     <button onClick={() => onServicesChange(services.filter(s => s.id !== svc.id))} className="text-muted-foreground hover:text-destructive transition-colors"><X className="w-4 h-4" /></button>
@@ -197,7 +197,7 @@ export function ContentTab(props: ContentTabProps) {
             <p className="text-[11px] text-muted-foreground mb-3">Add quotes from colleagues or clients (max 3).</p>
             <div className="space-y-3">
               {testimonials.map((t, i) => (
-                <div key={t.id} className="rounded-xl border border-border bg-card/50 p-3 space-y-2">
+                <div key={t.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Testimonial {i + 1}</span>
                     <button onClick={() => onTestimonialsChange(testimonials.filter(x => x.id !== t.id))} className="text-muted-foreground hover:text-destructive transition-colors"><X className="w-4 h-4" /></button>
@@ -227,7 +227,7 @@ export function ContentTab(props: ContentTabProps) {
             <p className="text-[11px] text-muted-foreground mb-3">Showcase key numbers (max 3).</p>
             <div className="space-y-3">
               {highlights.map((h, i) => (
-                <div key={h.id} className="rounded-xl border border-border bg-card/50 p-3 space-y-2">
+                <div key={h.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Metric {i + 1}</span>
                     <button onClick={() => onHighlightsChange(highlights.filter(x => x.id !== h.id))} className="text-muted-foreground hover:text-destructive transition-colors"><X className="w-4 h-4" /></button>

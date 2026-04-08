@@ -23,7 +23,7 @@ export function CollapsibleCard({
     <div id={`section-${id}`} className="bg-card border border-border shadow-soft rounded-2xl overflow-hidden">
       <button
         onClick={() => toggleSection(id)}
-        className="w-full flex items-center justify-between p-4 text-left active:bg-muted/30 transition-colors"
+        className="w-full flex items-center justify-between p-4 text-left active:bg-muted transition-colors"
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <span className="text-primary shrink-0">{icon}</span>
@@ -64,7 +64,7 @@ export function CollapsibleCard({
 
 export function SubSectionHeading({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
-    <div className="flex items-center gap-2 pt-2 pb-1 border-t border-border/30 mt-2 first:mt-0 first:border-t-0 first:pt-0">
+    <div className="flex items-center gap-2 pt-2 pb-1 border-t border-border mt-2 first:mt-0 first:border-t-0 first:pt-0">
       <span className="text-muted-foreground">{icon}</span>
       <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</span>
     </div>

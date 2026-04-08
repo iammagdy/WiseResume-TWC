@@ -94,7 +94,7 @@ export function FloatingCreateButton({ onClick, onTailor, onAnalyzeJob, pulse = 
                 )}
                 onClick={() => handleAction(item.action)}
               >
-                <span className="text-xs font-medium text-foreground bg-popover/95 backdrop-blur-md px-3 py-1.5 rounded-full border border-border shadow-lg whitespace-nowrap">
+                <span className="text-xs font-medium text-foreground bg-popover/95 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border shadow-lg whitespace-nowrap">
                   {item.label}
                 </span>
                 <span className="w-12 h-12 rounded-full gradient-primary border border-primary/20 flex items-center justify-center shadow-lg">
@@ -114,7 +114,7 @@ export function FloatingCreateButton({ onClick, onTailor, onAnalyzeJob, pulse = 
           isMobile
             ? 'h-14 w-14 rounded-full'
             : 'h-14 px-5 rounded-full',
-          'gradient-primary backdrop-blur-md border border-primary/20 flex items-center justify-center gap-2 touch-manipulation',
+          'gradient-primary backdrop-blur-sm border border-primary/20 flex items-center justify-center gap-2 touch-manipulation',
           isLoading && 'pointer-events-none opacity-90'
         )}
         initial={{ scale: 0, opacity: 0 }}

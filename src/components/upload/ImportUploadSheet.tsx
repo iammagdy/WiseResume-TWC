@@ -43,7 +43,7 @@ function FormatPill({ type, icon, label, sublabel, isActive, onClick }: FormatPi
         "active:scale-95",
         isActive 
           ? "border-primary/60 bg-primary/10 text-primary" 
-          : "border-border/50 bg-card/30 text-muted-foreground hover:border-primary/30"
+          : "border-border bg-card text-muted-foreground hover:border-primary/30"
       )}
     >
       <div className="w-8 h-8 flex items-center justify-center">
@@ -120,7 +120,7 @@ export function ImportUploadSheet({
     <Sheet open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <SheetContent 
         side="bottom" 
-        className="h-auto max-h-[90vh] flex flex-col rounded-t-3xl border-t border-border/50 bg-gradient-to-b from-card to-background"
+        className="h-auto max-h-[90vh] flex flex-col rounded-t-3xl border-t border-border bg-gradient-to-b from-card to-background"
       >
         {/* Hidden file input */}
         <input
@@ -171,7 +171,7 @@ export function ImportUploadSheet({
             "relative rounded-2xl border-2 border-dashed p-8 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary",
             isDragging
               ? "border-primary bg-primary/10"
-              : "border-border/60 hover:border-primary/50 bg-card/30",
+              : "border-border hover:border-primary/50 bg-card",
             isProcessing && "pointer-events-none opacity-60"
           )}
           animate={isDragging ? { scale: 1.02 } : { scale: 1 }}
@@ -254,7 +254,7 @@ export function ImportUploadSheet({
         </div>
 
         {/* Privacy Badge */}
-        <div className="rounded-xl border border-border/50 bg-muted/30 p-4 mb-safe">
+        <div className="rounded-xl border border-border bg-muted p-4 mb-safe">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-xl bg-success/10 border border-success/30 flex items-center justify-center shrink-0">
               <Shield className="w-5 h-5 text-success" />

@@ -82,7 +82,7 @@ export function InterviewSummary({ summary, duration, scores, onRestart, onGoHom
         initial={reducedMotion ? false : { opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.2 }}
-        className="sticky top-0 z-50 flex items-center justify-between px-4 h-14 bg-background/80 backdrop-blur-md border-b border-border/20 print:hidden"
+        className="sticky top-0 z-50 flex items-center justify-between px-4 h-14 bg-background/95 backdrop-blur-sm border-b border-border print:hidden"
       >
         <button
           onClick={onGoHome}
@@ -134,7 +134,7 @@ export function InterviewSummary({ summary, duration, scores, onRestart, onGoHom
           </p>
         </div>
 
-        <div className="bg-card/60 backdrop-blur-sm border border-border/50 rounded-xl p-4 shadow-[0_0_20px_hsl(var(--primary)/0.05)]">
+        <div className="bg-card border border-border rounded-xl p-4 shadow-[0_0_20px_hsl(var(--primary)/0.05)]">
           <div className="prose prose-sm dark:prose-invert max-w-none [&_h1]:text-base [&_h1]:font-semibold [&_h1]:text-primary [&_h1]:mb-1 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:text-primary [&_h2]:mb-1 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:text-primary [&_h3]:mb-1 [&_h4]:text-sm [&_h4]:font-semibold [&_h4]:text-primary [&_h4]:mb-1 [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-foreground/80 [&_p]:mb-3 [&_ul]:ml-4 [&_ul]:list-disc [&_ol]:ml-4 [&_ol]:list-decimal [&_li]:text-sm [&_li]:text-foreground/80 [&_li]:mb-1 [&_strong]:text-foreground [&_strong]:font-semibold">
             <ReactMarkdown>{summary}</ReactMarkdown>
           </div>
@@ -151,7 +151,7 @@ export function InterviewSummary({ summary, duration, scores, onRestart, onGoHom
               {scores.map((s, i) => (
                 <div
                   key={i}
-                  className="bg-card/50 backdrop-blur-sm border border-border/40 rounded-xl overflow-hidden"
+                  className="bg-card border border-border rounded-xl overflow-hidden"
                 >
                   <button
                     onClick={() => setExpandedIndex(expandedIndex === i ? null : i)}
@@ -181,7 +181,7 @@ export function InterviewSummary({ summary, duration, scores, onRestart, onGoHom
                             <p className="text-xs text-muted-foreground">{s.tip}</p>
                           </div>
                           {s.improvedAnswer && (
-                            <div className="bg-muted/30 rounded-lg p-2.5 border border-border/30">
+                            <div className="bg-muted rounded-lg p-2.5 border border-border">
                               <p className="text-xs text-muted-foreground italic">"{s.improvedAnswer}"</p>
                             </div>
                           )}

@@ -190,7 +190,7 @@ export const SkillsSection = memo(function SkillsSection() {
       )}
 
       {/* Quick add common skills */}
-      <div className="p-4 rounded-xl bg-muted/50 border border-border">
+      <div className="p-4 rounded-xl bg-muted border border-border">
         <h4 className="font-semibold text-sm mb-3">Common Skills</h4>
         <div className="flex flex-wrap gap-1.5">
           {['JavaScript', 'Python', 'React', 'Node.js', 'SQL', 'AWS', 'Git', 'Agile', 'Leadership', 'Communication']

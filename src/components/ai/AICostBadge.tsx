@@ -13,7 +13,7 @@ export function AICostBadge({ operation, className }: AICostBadgeProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-muted/50 rounded-full px-2 py-0.5',
+        'inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-muted rounded-full px-2 py-0.5',
         className
       )}
     >

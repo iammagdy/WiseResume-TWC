@@ -36,7 +36,7 @@ export function PortfolioDemo() {
 
   return (
     <div ref={viewRef} className="flex flex-col items-center">
-      <div className="w-[260px] rounded-[28px] border-2 border-border/40 bg-card/80 backdrop-blur-sm shadow-xl overflow-hidden">
+      <div className="w-[260px] rounded-[28px] border-2 border-border bg-card backdrop-blur-sm shadow-xl overflow-hidden">
         <div className="flex items-center justify-between px-5 pt-2 pb-1">
           <span className="text-[10px] text-muted-foreground font-medium">9:41</span>
           <div className="flex items-center gap-1">
@@ -46,7 +46,7 @@ export function PortfolioDemo() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 px-4 py-1.5 border-b border-border/20">
+        <div className="flex items-center gap-2 px-4 py-1.5 border-b border-border">
           <Globe className="w-3 h-3 text-muted-foreground/50 flex-shrink-0" />
           <span className="text-[10px] text-muted-foreground/70 font-mono truncate">WiseResume/you</span>
         </div>
@@ -106,7 +106,7 @@ export function PortfolioDemo() {
                     initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: i * 0.1 }}
-                    className="flex items-center gap-2 rounded-lg px-2 py-1.5 bg-muted/30 border border-border/20"
+                    className="flex items-center gap-2 rounded-lg px-2 py-1.5 bg-muted border border-border"
                   >
                     <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: accent }} />
                     <span className="text-[9px] font-medium text-foreground/70">{label}</span>

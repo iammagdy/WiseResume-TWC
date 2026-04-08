@@ -126,7 +126,7 @@ export const ATSParserPreview = memo(function ATSParserPreview({ onClose, classN
       </div>
 
       {/* Stats bar */}
-      <div className="shrink-0 flex items-center gap-4 px-4 py-2 border-b border-border/50 text-[10px] text-muted-foreground">
+      <div className="shrink-0 flex items-center gap-4 px-4 py-2 border-b border-border text-[10px] text-muted-foreground">
         <span><FileText className="w-3 h-3 inline mr-1" />{parsed.totalWords} words</span>
         <span>{parsed.sections.length} sections</span>
         <span>{parsed.detectedKeywords.length} keywords</span>

@@ -153,7 +153,7 @@ export const ExperienceTimeline = memo(function ExperienceTimeline({ experiences
               transition={{ delay: index * 0.05, duration: 0.2 }}
               className={
                 segment.type === 'job'
-                  ? 'rounded-xl p-3 border-l-4 border-l-primary bg-primary/5 border border-border/50'
+                  ? 'rounded-xl p-3 border-l-4 border-l-primary bg-primary/5 border border-border'
                   : 'rounded-lg p-2.5 border-l-4 border-l-destructive/50 bg-destructive/5 border border-destructive/20'
               }
             >
@@ -199,7 +199,7 @@ export const ExperienceTimeline = memo(function ExperienceTimeline({ experiences
         </div>
       ) : (
         <div className="relative">
-          <div className="flex h-8 rounded-lg overflow-hidden bg-muted/50">
+          <div className="flex h-8 rounded-lg overflow-hidden bg-muted">
             {segments.map((segment, index) => (
               <motion.div
                 key={segment.id}

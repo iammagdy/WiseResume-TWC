@@ -257,7 +257,7 @@ export function QRGeneratorSheet({ open, onOpenChange, portfolioUrl, onShare }: 
         </div>
 
         {/* Sticky bottom bar */}
-        <div className="shrink-0 border-t border-border/20 bg-background/80 backdrop-blur-md px-4 py-3 pb-safe flex gap-2">
+        <div className="shrink-0 border-t border-border bg-background backdrop-blur-sm px-4 py-3 pb-safe flex gap-2">
           <Button
             variant="outline"
             className="flex-1 h-12 rounded-xl active:scale-95 touch-manipulation font-medium"

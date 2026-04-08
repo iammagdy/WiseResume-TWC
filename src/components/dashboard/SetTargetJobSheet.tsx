@@ -246,7 +246,7 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
                 )}
               </div>
             ) : (
-              <div className="p-4 rounded-xl bg-muted/50 border border-border/50 flex items-start gap-3">
+              <div className="p-4 rounded-xl bg-muted border border-border flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium">Score unavailable</p>

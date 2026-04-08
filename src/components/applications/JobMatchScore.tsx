@@ -64,7 +64,7 @@ export function JobMatchScore({ score, jobTitle }: Props) {
           </SheetHeader>
 
           <div className="space-y-4 mt-4 overflow-y-auto">
-            <div className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/50 text-xs text-muted-foreground">
+            <div className="flex items-start gap-2 p-2.5 rounded-lg bg-muted text-xs text-muted-foreground">
               <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
               <span>
                 {isAI

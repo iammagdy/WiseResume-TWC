@@ -56,7 +56,7 @@ export const SettingsRow = memo(function SettingsRow(props: SettingsRowProps) {
         }}
         className={cn(
           'flex items-center justify-between py-3.5 px-4 w-full min-h-[56px]',
-          'text-left hover:bg-muted/30 active:bg-muted/50 transition-colors touch-manipulation',
+          'text-left hover:bg-muted active:bg-muted transition-colors touch-manipulation',
           className
         )}
       >
@@ -103,7 +103,7 @@ export const SettingsRow = memo(function SettingsRow(props: SettingsRowProps) {
       }}
       className={cn(
         'flex items-center gap-3 py-3.5 px-4 w-full min-h-[56px]',
-        'text-left hover:bg-muted/30 active:bg-muted/50 transition-colors touch-manipulation',
+        'text-left hover:bg-muted active:bg-muted transition-colors touch-manipulation',
         props.destructive && 'text-destructive',
         className
       )}

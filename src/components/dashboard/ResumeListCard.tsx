@@ -209,7 +209,7 @@ export const ResumeListCard = memo(function ResumeListCard({
         }}
         className={cn(
           'relative bg-card border border-border shadow-soft p-4 touch-manipulation cursor-pointer min-h-[180px] sm:min-h-[120px]',
-          'active:bg-muted/30 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50'
+          'active:bg-muted transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50'
         )}
         style={{ x, touchAction: 'pan-y' }}
         drag="x"
@@ -372,15 +372,15 @@ export const ResumeListCard = memo(function ResumeListCard({
           {/* View & Edit */}
           <div className="mt-4 space-y-1">
             <p className="text-xs text-muted-foreground font-medium px-2 mb-1">View & Edit</p>
-            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted/50 active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); navigateToEditor(`/resume/${resume.id}`); }}>
+            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); navigateToEditor(`/resume/${resume.id}`); }}>
               <Eye className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Preview</span>
             </button>
             {onRename && (
-              <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted/50 active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); setTimeout(() => setIsRenaming(true), 350); }}>
+              <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); setTimeout(() => setIsRenaming(true), 350); }}>
                 <Pencil className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Rename</span>
               </button>
             )}
-            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted/50 active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); onEdit(resume.id); }}>
+            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); onEdit(resume.id); }}>
               <Edit2 className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Edit</span>
             </button>
           </div>
@@ -390,7 +390,7 @@ export const ResumeListCard = memo(function ResumeListCard({
           {/* Actions */}
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground font-medium px-2 mb-1">Actions</p>
-            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted/50 active:scale-95 touch-manipulation transition-colors" onClick={() => {
+            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors" onClick={() => {
               haptics.light(); setShowActionsSheet(false);
               // Load resume into store and navigate to preview for download
               const { setCurrentResumeId, setCurrentResume, setSelectedTemplate } = useResumeStore.getState();
@@ -401,7 +401,7 @@ export const ResumeListCard = memo(function ResumeListCard({
             }}>
               <Download className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Download PDF</span>
             </button>
-            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted/50 active:scale-95 touch-manipulation transition-colors" onClick={async () => {
+            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors" onClick={async () => {
               haptics.light(); setShowActionsSheet(false);
               try {
                 await navigator.clipboard.writeText(`${getAppUrl()}/resume/${resume.id}`);
@@ -410,11 +410,11 @@ export const ResumeListCard = memo(function ResumeListCard({
             }}>
               <Share2 className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Share</span>
             </button>
-            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted/50 active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); onDuplicate(resume.id); }}>
+            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); onDuplicate(resume.id); }}>
               <Copy className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Duplicate</span>
             </button>
             {onInterview && (
-              <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted/50 active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); onInterview(resume.id); }}>
+              <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); onInterview(resume.id); }}>
                 <Mic className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Practice Interview</span>
               </button>
             )}
@@ -425,7 +425,7 @@ export const ResumeListCard = memo(function ResumeListCard({
           {/* Manage */}
           <div className="space-y-1 pb-2">
             <p className="text-xs text-muted-foreground font-medium px-2 mb-1">Manage</p>
-            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted/50 active:scale-95 touch-manipulation transition-colors text-destructive" onClick={() => { haptics.warning(); setShowActionsSheet(false); onDelete(resume.id); }}>
+            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted active:scale-95 touch-manipulation transition-colors text-destructive" onClick={() => { haptics.warning(); setShowActionsSheet(false); onDelete(resume.id); }}>
               <Trash2 className="w-5 h-5" /><span className="text-sm">Delete</span>
             </button>
           </div>

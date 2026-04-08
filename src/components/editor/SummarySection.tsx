@@ -149,11 +149,11 @@ export const SummarySection = memo(function SummarySection() {
       />
 
       <Collapsible defaultOpen={!summary || summary.trim().length < 50}>
-        <CollapsibleTrigger className="flex items-center justify-between w-full p-4 rounded-xl bg-muted/50 border border-border group">
+        <CollapsibleTrigger className="flex items-center justify-between w-full p-4 rounded-xl bg-muted border border-border group">
           <h4 className="font-semibold text-sm">Tips for a great summary</h4>
           <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
         </CollapsibleTrigger>
-        <CollapsibleContent className="px-4 pb-4 rounded-b-xl bg-muted/50 border border-t-0 border-border">
+        <CollapsibleContent className="px-4 pb-4 rounded-b-xl bg-muted border border-t-0 border-border">
           <ul className="text-sm text-muted-foreground space-y-2 pt-3">
             <li>• Start with your years of experience and specialty</li>
             <li>• Include 2-3 key achievements with metrics</li>

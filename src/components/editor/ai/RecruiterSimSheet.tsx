@@ -243,7 +243,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
                   {RECRUITER_PERSONAS.map((persona) => (
                     <motion.button
                       key={persona.id}
-                      className="w-full p-4 rounded-2xl bg-muted/50 border border-border hover:border-primary/50 transition-all text-left flex items-center gap-4"
+                      className="w-full p-4 rounded-2xl bg-muted border border-border hover:border-primary/50 transition-all text-left flex items-center gap-4"
                       whileTap={{ scale: 0.98 }}
                       onClick={() => handleSelectPersona(persona)}
                     >
@@ -336,7 +336,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
                 </div>
 
                 {/* First Impression */}
-                <div className="p-4 rounded-2xl bg-muted/50 border border-border">
+                <div className="p-4 rounded-2xl bg-muted border border-border">
                   <p className="text-sm font-medium mb-2 flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-primary" />
                     First Impression
@@ -397,7 +397,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
                     Questions I'd Ask
                   </h4>
                   {analysis.questionsIdAsk?.map((q, i) => (
-                    <div key={i} className="p-4 rounded-xl bg-muted/50 border border-border">
+                    <div key={i} className="p-4 rounded-xl bg-muted border border-border">
                       <p className="font-medium text-sm mb-1">"{q.question}"</p>
                       <p className="text-xs text-muted-foreground mb-2">
                         Why: {q.concern}
@@ -432,7 +432,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
                 </div>
 
                 {/* Final Verdict */}
-                <div className="p-4 rounded-2xl bg-muted/50 border border-border">
+                <div className="p-4 rounded-2xl bg-muted border border-border">
                   <p className="text-sm font-medium mb-2">Final Verdict</p>
                   <p className="text-sm text-muted-foreground">{analysis.verdictReasoning}</p>
                 </div>

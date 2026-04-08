@@ -10,7 +10,7 @@ function ColorPicker({ label, value, onChangeColor }: { label: string; value: st
   return (
     <label className="flex items-center gap-3 cursor-pointer">
       <div
-        className="w-9 h-9 rounded-lg border border-border/40 shadow-sm shrink-0 relative overflow-hidden"
+        className="w-9 h-9 rounded-lg border border-border shadow-sm shrink-0 relative overflow-hidden"
         style={{ backgroundColor: value }}
       >
         <input
@@ -56,7 +56,7 @@ export function CustomizeTab({ state, onChange }: CustomizeTabProps) {
   return (
     <div className="space-y-4">
       {/* Colors */}
-      <div className="space-y-3 rounded-xl bg-card/30 p-3 border border-border/20">
+      <div className="space-y-3 rounded-xl bg-card p-3 border border-border">
         <span className="text-sm font-medium text-foreground/80">Colors</span>
         <div className="flex gap-6">
           <ColorPicker
@@ -79,7 +79,7 @@ export function CustomizeTab({ state, onChange }: CustomizeTabProps) {
               onChange({ gradient: { ...state.gradient, enabled: !state.gradient.enabled }, templateId: undefined });
             }}
             className={`w-full py-2 rounded-lg text-xs font-medium transition-all active:scale-95 touch-manipulation min-h-[36px] ${
-              state.gradient.enabled ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground'
+              state.gradient.enabled ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
             }`}
           >
             {state.gradient.enabled ? '✨ Gradient On' : 'Enable Gradient'}
@@ -103,7 +103,7 @@ export function CustomizeTab({ state, onChange }: CustomizeTabProps) {
       </div>
 
       {/* Module Shape */}
-      <div className="space-y-2 rounded-xl bg-card/30 p-3 border border-border/20">
+      <div className="space-y-2 rounded-xl bg-card p-3 border border-border">
         <span className="text-sm font-medium text-foreground/80">Module Shape</span>
         <div className="grid grid-cols-3 gap-1.5">
           {SHAPES.map((s) => (
@@ -117,7 +117,7 @@ export function CustomizeTab({ state, onChange }: CustomizeTabProps) {
               className={`flex flex-col items-center gap-1 py-2 rounded-lg text-xs transition-all active:scale-95 touch-manipulation min-h-[44px] ${
                 state.moduleStyle.shape === s.id
                   ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
-                  : 'bg-muted/30 text-muted-foreground hover:bg-muted/50'
+                  : 'bg-muted text-muted-foreground hover:bg-muted'
               }`}
             >
               <span className="text-sm">{s.icon}</span>
@@ -128,7 +128,7 @@ export function CustomizeTab({ state, onChange }: CustomizeTabProps) {
       </div>
 
       {/* Corner Style */}
-      <div className="space-y-3 rounded-xl bg-card/30 p-3 border border-border/20">
+      <div className="space-y-3 rounded-xl bg-card p-3 border border-border">
         <span className="text-sm font-medium text-foreground/80">Corner Style</span>
         
         <div className="space-y-2">
@@ -141,7 +141,7 @@ export function CustomizeTab({ state, onChange }: CustomizeTabProps) {
                 className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg text-xs transition-all active:scale-95 touch-manipulation min-h-[44px] ${
                   state.eyes.shape === s.id
                     ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
-                    : 'bg-muted/30 text-muted-foreground hover:bg-muted/50'
+                    : 'bg-muted text-muted-foreground hover:bg-muted'
                 }`}
               >
                 <span className="text-sm">{s.icon}</span>
@@ -161,7 +161,7 @@ export function CustomizeTab({ state, onChange }: CustomizeTabProps) {
                 className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg text-xs transition-all active:scale-95 touch-manipulation min-h-[44px] ${
                   state.eyes.innerShape === s.id
                     ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
-                    : 'bg-muted/30 text-muted-foreground hover:bg-muted/50'
+                    : 'bg-muted text-muted-foreground hover:bg-muted'
                 }`}
               >
                 <span className="text-sm">{s.icon}</span>

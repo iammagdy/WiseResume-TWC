@@ -88,7 +88,7 @@ export function ExampleDetailSheet({ example, open, onOpenChange, onUseTemplate,
         </div>
 
         {/* Bottom action bar */}
-        <div className="border-t border-border px-4 py-3 pb-safe flex gap-2 bg-background/80 backdrop-blur-sm">
+        <div className="border-t border-border px-4 py-3 pb-safe flex gap-2 bg-background backdrop-blur-sm">
           <Button
             variant="outline"
             className="flex-1 active:scale-95"

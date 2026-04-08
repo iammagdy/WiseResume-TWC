@@ -119,7 +119,7 @@ function ExperienceCard({ entry, variant }: { entry: any; variant: 'original' | 
   return (
     <div className={cn(
       "p-2.5 rounded-lg text-xs space-y-1",
-      variant === 'original' ? "bg-muted/50 opacity-70" : "bg-primary/5 border border-primary/20"
+      variant === 'original' ? "bg-muted opacity-70" : "bg-primary/5 border border-primary/20"
     )}>
       <p className="font-semibold">{pos}{comp ? ` at ${comp}` : ''}</p>
       {desc && <p className="text-muted-foreground line-clamp-2">{desc}</p>}
@@ -150,7 +150,7 @@ function EducationCard({ entry, variant }: { entry: any; variant: 'original' | '
   return (
     <div className={cn(
       "p-2.5 rounded-lg text-xs space-y-0.5",
-      variant === 'original' ? "bg-muted/50 opacity-70" : "bg-primary/5 border border-primary/20"
+      variant === 'original' ? "bg-muted opacity-70" : "bg-primary/5 border border-primary/20"
     )}>
       <p className="font-semibold">{degree}{field ? ` in ${field}` : ''}</p>
       {inst && <p className="text-muted-foreground">{inst}</p>}
@@ -449,7 +449,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     return (
       <div className={cn(
         "p-2.5 rounded-lg text-xs whitespace-pre-wrap",
-        variant === 'original' ? "bg-muted/50 line-through opacity-60" : "bg-primary/5 border border-primary/20"
+        variant === 'original' ? "bg-muted line-through opacity-60" : "bg-primary/5 border border-primary/20"
       )}>
         {text.slice(0, maxLen)}{text.length > maxLen ? '…' : ''}
       </div>
@@ -486,7 +486,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
                       'active:scale-95',
                       mode === m.id
                         ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-muted/30 border-border/50 text-muted-foreground hover:border-primary/30'
+                        : 'bg-muted border-border text-muted-foreground hover:border-primary/30'
                     )}
                   >
                     {m.label}
@@ -627,7 +627,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
                       </CollapsibleTrigger>
 
                       <CollapsibleContent>
-                        <div className="px-4 pb-4 space-y-3 border-t border-border/50 pt-3">
+                        <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
                           {r.warning && (
                             <div className="flex items-start gap-2 p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-xs text-yellow-700 dark:text-yellow-400">
                               <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />

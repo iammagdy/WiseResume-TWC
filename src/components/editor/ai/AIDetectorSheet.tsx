@@ -413,7 +413,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
                           'px-3 py-1.5 rounded-lg border text-sm transition-all',
                           selectedSection === section.id
                             ? 'border-primary bg-primary/10 font-medium'
-                            : 'border-border bg-muted/50 hover:border-primary/50'
+                            : 'border-border bg-muted hover:border-primary/50'
                         )}
                       >
                         {section.label}
@@ -459,7 +459,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
                           'p-3 rounded-xl border text-center transition-all',
                           selectedTone === tone.id
                             ? 'border-primary bg-primary/10'
-                            : 'border-border bg-muted/50 hover:border-primary/50'
+                            : 'border-border bg-muted hover:border-primary/50'
                         )}
                       >
                         <p className="font-medium text-sm">{tone.label}</p>
@@ -562,7 +562,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
                       <p className="text-sm whitespace-pre-wrap">{humanized.humanized}</p>
                     </div>
                     {humanized.changes && humanized.changes.length > 0 && (
-                      <div className="p-3 rounded-xl bg-muted/50 border border-border">
+                      <div className="p-3 rounded-xl bg-muted border border-border">
                         <p className="text-xs font-medium mb-2">Changes Made:</p>
                         <ul className="text-xs text-muted-foreground space-y-1">
                           {humanized.changes.map((change, i) => (

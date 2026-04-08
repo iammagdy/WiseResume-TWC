@@ -157,7 +157,7 @@ export const EducationSection = memo(function EducationSection() {
                 key={edu.id}
                 className="rounded-xl border border-border overflow-hidden transition-all duration-200"
               >
-                <div className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors min-h-[56px]">
+                <div className="w-full p-4 flex items-center justify-between hover:bg-muted transition-colors min-h-[56px]">
                   {/* Reorder arrows */}
                   <div className="flex flex-col gap-0.5 mr-2 shrink-0">
                     <button

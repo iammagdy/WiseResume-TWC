@@ -123,7 +123,7 @@ export function ShareSheet({
                 disabled={action.loading || action.disabled}
                 className={cn(
                   'w-full flex items-center gap-3 p-3.5 rounded-xl text-left transition-all touch-manipulation',
-                  'bg-card border border-border hover:bg-muted/50 active:scale-[0.98]',
+                  'bg-card border border-border hover:bg-muted active:scale-[0.98]',
                   'disabled:opacity-50 disabled:pointer-events-none',
                   'min-h-[52px]'
                 )}
@@ -148,7 +148,7 @@ export function ShareSheet({
                 onClick={() => { haptics.light(); setShowFeedback(true); onOpenChange(false); }}
                 className={cn(
                   'w-full flex items-center gap-3 p-3.5 rounded-xl text-left transition-all touch-manipulation',
-                  'bg-card border border-border hover:bg-muted/50 active:scale-[0.98]',
+                  'bg-card border border-border hover:bg-muted active:scale-[0.98]',
                   'min-h-[52px]'
                 )}
               >

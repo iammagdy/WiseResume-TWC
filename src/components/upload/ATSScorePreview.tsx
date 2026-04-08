@@ -40,7 +40,7 @@ export const ATSScorePreview = memo(function ATSScorePreview({ atsScore, isScori
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl border border-border bg-card/60 backdrop-blur-sm p-4 space-y-3"
+        className="rounded-2xl border border-border bg-card p-4 space-y-3"
       >
         <div className="flex items-center gap-3">
           <ScoreRing score={0} size={56} isLoading />
@@ -73,7 +73,7 @@ export const ATSScorePreview = memo(function ATSScorePreview({ atsScore, isScori
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl border border-border bg-card/60 backdrop-blur-sm p-4 space-y-3"
+      className="rounded-2xl border border-border bg-card p-4 space-y-3"
     >
       {/* Score header */}
       <div className="flex items-center gap-3">
@@ -123,7 +123,7 @@ export const ATSScorePreview = memo(function ATSScorePreview({ atsScore, isScori
 
       {/* Top improvement */}
       {atsScore.topImprovement && (
-        <p className="text-[11px] text-muted-foreground italic line-clamp-2 border-t border-border/50 pt-2">
+        <p className="text-[11px] text-muted-foreground italic line-clamp-2 border-t border-border pt-2">
           💡 {atsScore.topImprovement}
         </p>
       )}
