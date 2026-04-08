@@ -59,6 +59,12 @@ export function DevKitRunner() {
    */
   const friendlyAIKeyError = (raw: string): string | null => {
     const s = raw.toLowerCase();
+    if (s.includes('openrouter') && (s.includes('invalid_key') || s.includes('invalid api key') || s.includes('401'))) {
+      return 'OpenRouter API key is invalid or expired — update it in AI Settings';
+    }
+    if (s.includes('openrouter') && (s.includes('payment_required') || s.includes('402') || s.includes('insufficient credits'))) {
+      return 'OpenRouter account has insufficient credits — add funds at openrouter.ai';
+    }
     if (
       s.includes('invalid_key') ||
       s.includes('invalid api key') ||
