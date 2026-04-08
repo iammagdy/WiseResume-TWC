@@ -46,4 +46,20 @@ See `.env.example`. Key variables:
 - **Settings store**: `src/store/settingsStore.ts` — persists theme in localStorage key `wiseresume-settings`
 - **SkyWallpaper**: Removed (THREE.js/GSAP animated background)
 - **Glass classes**: Kept as compatibility aliases — now render as solid surfaces with subtle borders/shadows
+- **Shadow scale**: `shadow-soft-sm`, `shadow-soft`, `shadow-soft-md`, `shadow-soft-lg`, `shadow-soft-xl` via Tailwind config
 - **Portfolio CSS (pf-*)**: Untouched — used by public portfolio pages
+
+## UI Components (Phase 2 — Redesign)
+- **Buttons**: Clean solid fills, indigo primary, outline with border, no glow shadows
+- **Cards**: Solid bg-card with border-border + shadow-soft (no glass-elevated)
+- **Inputs/Textarea**: bg-input with border, indigo focus ring (ring-primary/20)
+- **Overlays** (Dialog, Sheet, Drawer, AlertDialog): Solid bg-background, shadow-soft-xl, bg-black/50 overlay
+- **Popover/Tooltip/Dropdown**: Solid bg-popover with border, shadow-soft-lg
+- **Tabs**: bg-muted container, active tab bg-background with shadow-soft-sm
+- **Select/Command**: Solid popover with rounded-lg items
+- **Checkbox/Radio/Toggle**: Indigo checked states, primary/20 focus rings
+- **Progress**: Clean bg-primary on bg-muted, no gradient/glow
+- **Skeleton**: Subtle foreground/5 shimmer
+- **DesktopNav**: Clean bg-background/95 + backdrop-blur-sm, theme toggle (Sun/Moon), h-14
+- **BottomTabBar**: bg-background/95, clean indigo active pill, no glass-surface
+- **AppShell**: bg-background (solid), no bg-transparent; mobile header bg-background

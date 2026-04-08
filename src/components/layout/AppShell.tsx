@@ -20,7 +20,6 @@ import { lazyWithRetry } from '@/lib/lazyWithRetry';
 const AgenticChatSheet = lazyWithRetry(() => import('@/components/editor/AgenticChatSheet').then(m => ({ default: m.AgenticChatSheet })));
 
 
-// Routes that show bottom nav
 const TAB_ROUTES = ['/dashboard', '/upload', '/settings', '/interview', '/editor', '/preview', '/applications', '/onboarding', '/profile', '/templates', '/resume', '/job', '/application', '/notifications', '/cover-letters', '/cover-letter', '/examples', '/career', '/resignation-letter', '/guides', '/ai-studio', '/portfolio', '/qr-code', '/qr-batch', '/qr-scan'];
 
 export function AppShell() {
@@ -34,7 +33,6 @@ export function AppShell() {
   const [wiseAIOpen, setWiseAIOpen] = useState(false);
   const [bridgeError, setBridgeError] = useState<{ type?: string; code: string; message: string } | null>(null);
 
-  // Check for bridge errors after route changes
   useEffect(() => {
     const err = getLastError();
     if (err) {
@@ -42,16 +40,14 @@ export function AppShell() {
     }
   }, [location.pathname]);
 
-  // Global keyboard awareness
   useKeyboardAwareScroll();
 
-  // Scroll to top on route change
   useEffect(() => {
     scrollRef.current?.scrollTo(0, 0);
   }, [location.pathname]);
 
   return (
-    <div className="h-[100dvh] overflow-hidden flex flex-col bg-transparent relative">
+    <div className="h-[100dvh] overflow-hidden flex flex-col bg-background relative">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:p-4 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:m-2"
@@ -78,8 +74,8 @@ export function AppShell() {
       )}
       {!isEditorRoute && <GuestSaveBanner />}
       {showBottomNav && !isEditorRoute && (
-        <header className="lg:hidden h-10 flex items-center px-edge pt-safe glass-surface border-b border-border/30 shrink-0">
-          <span className="text-sm font-bold text-primary">WiseResume</span>
+        <header className="lg:hidden h-12 flex items-center px-edge pt-safe bg-background border-b border-border shrink-0">
+          <span className="text-sm font-bold text-primary tracking-tight">WiseResume</span>
           {(() => {
             const pageTitle = getPageTitle(location.pathname);
             return pageTitle && pageTitle !== 'Home' ? (
@@ -122,11 +118,10 @@ export function AppShell() {
       </main>
       {showBottomNav && <BottomTabBar className="lg:hidden" />}
 
-      {/* Global floating Ask Wise AI button — mobile only, hidden on editor (has its own) */}
       {showBottomNav && !isEditorRoute && (
         <button
           onClick={() => setWiseAIOpen(true)}
-          className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 z-40 lg:hidden flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 active:scale-95 transition-transform touch-manipulation"
+          className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 z-40 lg:hidden flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-primary text-primary-foreground shadow-soft-lg active:scale-95 transition-transform touch-manipulation"
           aria-label="Ask Wise AI"
         >
           <Sparkles className="w-4 h-4" />
@@ -134,7 +129,6 @@ export function AppShell() {
         </button>
       )}
 
-      {/* Global Wise AI Chat Sheet */}
       {wiseAIOpen && (
         <Suspense fallback={null}>
           <AgenticChatSheet open={wiseAIOpen} onOpenChange={setWiseAIOpen} />
@@ -143,4 +137,3 @@ export function AppShell() {
     </div>
   );
 }
-

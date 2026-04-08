@@ -1,10 +1,11 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Globe, Home, BarChart3, Sparkles, MessageCircle, Settings } from 'lucide-react';
+import { FileText, Globe, Home, BarChart3, Sparkles, MessageCircle, Settings, Sun, Moon } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useChangelogBadge } from '@/hooks/useChangelogBadge';
+import { useTheme } from '@/hooks/use-theme';
 import { toast } from 'sonner';
 import { lazy, Suspense, useState, useRef, useEffect } from 'react';
 
@@ -60,11 +61,11 @@ export function DesktopNav() {
   const setCurrentResume = useResumeStore((s) => s.setCurrentResume);
   const { data: resumes } = useResumes({ select: (data) => data.slice(0, 1) });
   const { hasNew, markSeen } = useChangelogBadge();
+  const { isDark, toggleTheme } = useTheme();
   const [wiseAIOpen, setWiseAIOpen] = useState(false);
   const previousPathRef = useRef('/dashboard');
   const isOnSettings = location.pathname.startsWith('/settings');
 
-  // Track previous non-settings path
   useEffect(() => {
     if (!isOnSettings) {
       previousPathRef.current = location.pathname;
@@ -99,11 +100,10 @@ export function DesktopNav() {
 
   return (
     <nav
-      className="hidden lg:flex items-center gap-1 px-4 h-12 border-b border-border/50 glass-header shrink-0"
+      className="hidden lg:flex items-center gap-1 px-6 h-14 border-b border-border bg-background/95 backdrop-blur-sm shrink-0"
       aria-label="Main navigation">
       
-      {/* Brand mark */}
-      <span className="text-sm font-bold text-primary mr-3 select-none">WiseResume</span>
+      <span className="text-base font-bold text-primary mr-4 select-none tracking-tight">WiseResume</span>
 
       <div className="flex items-center gap-0.5">
         {tabs.map((tab) => {
@@ -114,12 +114,11 @@ export function DesktopNav() {
               key={tab.path}
               onClick={() => handleTabPress(tab)}
               aria-label={tab.label}
-              className={cn("relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all duration-200 touch-manipulation active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary text-base",
-
+              className={cn("relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 touch-manipulation active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
 
               active ?
               'bg-primary/10 text-primary' :
-              'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+              'text-muted-foreground hover:text-foreground hover:bg-muted/50'
               )}>
               
               <div className="relative">
@@ -134,13 +133,12 @@ export function DesktopNav() {
         })}
       </div>
 
-      {/* Settings tab — only visible on /settings */}
       {isOnSettings &&
       <button
         onClick={() => {haptics.selection();}}
         aria-label="Settings"
         className={cn(
-          'relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200',
+          'relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200',
           'touch-manipulation active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
           'bg-primary/10 text-primary'
         )}>
@@ -150,11 +148,18 @@ export function DesktopNav() {
         </button>
       }
 
-      {/* Ask Wise AI — desktop */}
-      <div className="ml-auto">
+      <div className="ml-auto flex items-center gap-2">
+        <button
+          onClick={() => { haptics.selection(); toggleTheme(); }}
+          className="flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors active:scale-95"
+          aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+        </button>
+
         <button
           onClick={() => {haptics.selection();setWiseAIOpen(true);}}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-colors active:scale-95"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary/10 text-primary text-sm font-medium hover:bg-primary/15 transition-colors active:scale-95"
           aria-label="Ask Wise AI">
           
           <MessageCircle className="w-4 h-4" />

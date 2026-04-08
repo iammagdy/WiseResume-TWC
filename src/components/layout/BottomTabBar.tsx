@@ -95,11 +95,9 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
   const pendingCount = useOfflineSyncStore(s => s.pendingChanges.length);
   const prefersReducedMotion = useReducedMotion();
 
-  // Career plan has incomplete skill gaps
   const hasCareerReminder = !!careerAssessment?.result?.skillGaps?.length &&
     careerAssessment.completed_milestones.filter((m: string) => m.startsWith('skill:')).length < careerAssessment.result.skillGaps.length;
 
-  // First-visit discovery dots — gated by progressive disclosure
   const showDots = shouldShowDiscovery('discovery-dots');
   const [discoveryDots, setDiscoveryDots] = useState(() => ({
     aiTools: showDots && !localStorage.getItem('wr-discovered-ai-tools'),
@@ -118,7 +116,6 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
     if (tab.path === '/dashboard') {
       markSeen();
     }
-    // Dismiss discovery dots
     if (tab.path === '/ai-studio' && discoveryDots.aiTools) {
       localStorage.setItem('wr-discovered-ai-tools', 'true');
       setDiscoveryDots(prev => ({ ...prev, aiTools: false }));
@@ -150,7 +147,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
   return (
     <nav
       className={cn(
-        "fixed bottom-0 left-0 right-0 z-50 bottom-tab-bar glass-surface border-t pb-safe shadow-[0_-4px_32px_-4px_hsl(var(--background)/0.8)] border border-border/20 rounded-t-2xl",
+        "fixed bottom-0 left-0 right-0 z-50 bottom-tab-bar bg-background/95 backdrop-blur-sm border-t border-border pb-safe rounded-t-2xl shadow-[0_-1px_3px_rgb(0_0_0/0.05)]",
         className
       )}
       aria-label="Main navigation"
@@ -177,11 +174,10 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                   'min-w-[52px] relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset'
                 )}
               >
-                {/* Sliding pill indicator */}
                 {active && (
                   <motion.div
                     layoutId="active-tab-pill"
-                    className="absolute inset-x-3 top-1 bottom-1 rounded-2xl border border-primary/10 bg-primary/5"
+                    className="absolute inset-x-3 top-1.5 bottom-1.5 rounded-xl bg-primary/8"
                     transition={springTransition}
                   />
                 )}
@@ -192,7 +188,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                       prefersReducedMotion
                         ? {}
                         : active
-                          ? { scale: [1, 1.2, 1] }
+                          ? { scale: [1, 1.15, 1] }
                           : { scale: 1 }
                     }
                     transition={
@@ -216,27 +212,26 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                       <div className="relative">
                         <Icon
                           className={cn(
-                            'w-6 h-6 sm:w-5 sm:h-5 transition-colors duration-200',
+                            'w-[22px] h-[22px] sm:w-5 sm:h-5 transition-colors duration-200',
                             active ? 'text-primary' : 'text-muted-foreground'
                           )}
                           aria-hidden="true"
                         />
                         {tab.path === '/dashboard' && hasNew && (
                           <span
-                            className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary border-2 border-background animate-pulse"
+                            className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary border-2 border-background"
                             aria-label="New updates available"
                           />
                         )}
                         {tab.path === '/dashboard' && pendingCount > 0 && (
                           <span
-                            className="absolute -top-1 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-warning text-warning-foreground text-[9px] font-bold flex items-center justify-center border border-background"
+                            className="absolute -top-1 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-amber-500 text-white text-[9px] font-bold flex items-center justify-center border border-background"
                             aria-label={`${pendingCount} changes waiting to sync`}
                             title={`${pendingCount} change${pendingCount > 1 ? 's' : ''} waiting to sync`}
                           >
                             {pendingCount}
                           </span>
                         )}
-                        {/* Discovery dots for first-time users */}
                         {tab.path === '/ai-studio' && discoveryDots.aiTools && !active && (
                           <span
                             className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary border-2 border-background animate-pulse"
@@ -263,7 +258,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                   <span
                     className={cn(
                       'text-[11px] whitespace-nowrap relative z-10 transition-colors duration-200',
-                      active ? 'text-primary font-bold' : 'text-muted-foreground font-medium'
+                      active ? 'text-primary font-semibold' : 'text-muted-foreground font-medium'
                     )}
                   >
                     {tab.label}

@@ -140,7 +140,7 @@ export function SettingsSkeleton() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden animate-pulse">
       {/* Header Skeleton */}
-      <header className="pt-safe sticky top-0 z-10 pb-1 px-4 glass-header backdrop-blur-xl bg-background/80">
+      <header className="pt-safe sticky top-0 z-10 pb-1 px-4 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="flex items-center gap-3 py-2">
           <div className="w-10 h-10 rounded-full bg-muted" />
           <div className="h-8 w-32 bg-muted rounded-lg" />
@@ -157,7 +157,7 @@ export function SettingsSkeleton() {
       {/* Content Skeleton */}
       <div className="px-5 py-4 space-y-8 overflow-y-auto">
         {/* Profile Card Skeleton */}
-        <div className="w-full flex items-center gap-4 p-4 rounded-2xl border border-white/5 bg-muted/20">
+        <div className="w-full flex items-center gap-4 p-4 rounded-2xl border border-border bg-muted/20">
           <div className="h-14 w-14 rounded-full bg-muted" />
           <div className="flex-1 space-y-2">
             <div className="h-5 w-32 bg-muted rounded" />
@@ -168,7 +168,7 @@ export function SettingsSkeleton() {
         {/* Settings Section Skeletons */}
         {[1, 2, 3].map((section) => (
           <div key={section} className="space-y-4 px-1">
-            <div className="p-4 rounded-2xl border border-white/10 bg-muted/10 space-y-6">
+            <div className="p-4 rounded-2xl border border-border bg-muted/10 space-y-6">
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <div className="w-1 h-5 rounded-full bg-primary" />
@@ -239,7 +239,7 @@ export function InterviewSkeleton() {
   return (
     <div className="flex-1 flex flex-col animate-pulse bg-background h-screen overflow-hidden">
       {/* Premium glassmorphism header */}
-      <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border/20 bg-card/50 backdrop-blur-xl">
+      <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border bg-background">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-muted" />
           <div className="h-6 w-32 bg-muted rounded" />
@@ -264,7 +264,7 @@ export function InterviewSkeleton() {
       </div>
 
       {/* Controls */}
-      <div className="shrink-0 border-t border-border/20 bg-card/80 px-4 py-8 space-y-6">
+      <div className="shrink-0 border-t border-border bg-background px-4 py-8 space-y-6">
         <div className="flex items-center justify-center gap-12">
           <div className="w-12 h-12 rounded-full bg-muted" />
           <div className="w-20 h-20 rounded-full bg-muted" />
@@ -345,7 +345,7 @@ export function TemplateSkeleton() {
 export function ApplicationsSkeleton() {
   return (
     <div className="flex-1 flex flex-col animate-pulse">
-      <header className="sticky top-0 z-10 glass-header px-4 py-3 pt-safe border-b border-border flex items-center justify-between">
+      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm px-4 py-3 pt-safe border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 bg-muted rounded" />
           <div className="h-6 w-28 bg-muted rounded" />
