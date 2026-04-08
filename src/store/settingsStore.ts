@@ -141,7 +141,7 @@ const defaultSettings = {
   hasSeenInterviewHint: false,
   hasSeenAIStudioTour: false,
   elevenlabsApiKey: '',
-  theme: 'dark' as 'light' | 'dark' | 'system',
+  theme: 'system' as 'light' | 'dark' | 'system',
   lastExportType: null as string | null,
   // AI Provider defaults
   aiProvider: 'wiseresume' as AIProvider,
