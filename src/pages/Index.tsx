@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Target, Wand2, Mic, User, LayoutDashboard, Settings, LogOut, Globe, ArrowRight, FileText, BarChart3, PenTool, CheckCircle2, Star } from 'lucide-react';
+import { Sparkles, Target, Wand2, Mic, User, LayoutDashboard, Settings, LogOut, Globe, ArrowRight, FileText, BarChart3, PenTool, CheckCircle2 } from 'lucide-react';
 import { Footer } from '@/components/landing/Footer';
 import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
 import { Button } from '@/components/ui/button';
@@ -37,7 +37,7 @@ const features = [
 const stats = [
   { value: '50K+', label: 'Resumes created' },
   { value: '92%', label: 'ATS pass rate' },
-  { value: '4.8', label: 'User rating', icon: Star },
+  { value: '4.8', label: 'User rating' },
   { value: '30s', label: 'Avg. tailor time' },
 ];
 
