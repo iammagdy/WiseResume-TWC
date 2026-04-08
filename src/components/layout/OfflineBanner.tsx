@@ -14,11 +14,11 @@ export function OfflineBanner() {
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: 'auto', opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
-          className="bg-warning/20 border-b border-warning/30 overflow-hidden"
+          className="bg-destructive/10 border-b border-destructive/20 overflow-hidden"
         >
           <div className="flex items-center justify-center gap-2 py-2 px-4">
-            <WifiOff className="w-4 h-4 text-warning" />
-            <span className="text-sm text-warning font-medium">
+            <WifiOff className="w-4 h-4 text-destructive" />
+            <span className="text-sm text-destructive font-medium">
               You're offline. Changes will sync when reconnected.
             </span>
           </div>

@@ -28,7 +28,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }}
       toastOptions={{
         classNames: {
-          toast: "toast-pill",
+          toast: "toast-pill bg-card border-border shadow-soft-lg text-foreground",
+          title: "text-foreground font-medium",
+          description: "text-muted-foreground",
         },
         duration: 3000,
       }}
