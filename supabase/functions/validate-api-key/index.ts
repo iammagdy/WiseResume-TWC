@@ -201,63 +201,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ===== Gemini validation =====
+    // ===== Gemini / Vertex AI validation =====
 
-    // Step 1: Validate by listing models via Vertex AI Express
-    const modelsResponse = await fetch(
-      `https://aiplatform.googleapis.com/v1/publishers/google/models?key=${apiKey.trim()}`,
-      { method: 'GET' }
-    );
+    const VERTEX_TEST_MODELS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.5-pro'];
+    const testModel = 'gemini-2.5-flash-lite';
 
-    if (!modelsResponse.ok) {
-      const status = modelsResponse.status;
-      if (status === 400 || status === 403) {
-        return new Response(JSON.stringify({ isValid: false, tier: 'unknown', error: 'Invalid API key' }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      return new Response(JSON.stringify({ isValid: false, tier: 'unknown', error: `Validation failed: ${status}` }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const modelsData = await modelsResponse.json();
-    const rawModels = modelsData.models || modelsData.publisherModels || [];
-    const allModels = rawModels
-      .filter((m: any) => {
-        if (m.supportedGenerationMethods?.includes('generateContent')) return true;
-        if (m.supportedActions) return m.supportedActions.some((a: any) => a === 'generateContent' || a.action === 'generateContent');
-        return true;
-      })
-      .map((m: any) => {
-        const name = m.name || m.modelId || '';
-        return name.replace(/^(models\/|publishers\/google\/models\/)/, '');
-      })
-      .filter((n: string) => n.length > 0);
-
-    // Filter to only useful generative models (exclude embedding, TTS, vision-only, etc.)
-    const GEMINI_MODEL_PREFIXES = ['gemini-'];
-    const EXCLUDED_SUFFIXES = ['-vision', '-embedding', '-aqa'];
-    const availableModels = allModels.filter((name: string) => {
-      const lower = name.toLowerCase();
-      if (!GEMINI_MODEL_PREFIXES.some(p => lower.startsWith(p))) return false;
-      if (EXCLUDED_SUFFIXES.some(s => lower.endsWith(s))) return false;
-      if (lower.includes('embedding') || lower.includes('tts') || lower.includes('imagen')) return false;
-      return true;
-    });
-
-    if (availableModels.length === 0) {
-      return new Response(JSON.stringify({ isValid: false, tier: 'unknown', error: 'No compatible models available' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Step 2: Detect tier via minimal request using a model we know exists
-    const testModel = availableModels.includes('gemini-2.5-flash') ? 'gemini-2.5-flash' 
-      : availableModels.includes('gemini-2.0-flash') ? 'gemini-2.0-flash'
-      : availableModels[0];
-
-    const tierResponse = await fetch(
+    // Step 1: Validate key with a minimal generateContent call
+    const testResponse = await fetch(
       `https://aiplatform.googleapis.com/v1/publishers/google/models/${testModel}:generateContent?key=${apiKey.trim()}`,
       {
         method: 'POST',
@@ -269,65 +219,43 @@ Deno.serve(async (req) => {
       }
     );
 
-    let tier: 'free' | 'paid' | 'unknown' = 'unknown';
-
-    // Log all response headers for debugging
-    const headerEntries: Record<string, string> = {};
-    tierResponse.headers.forEach((v, k) => { headerEntries[k] = v; });
-    console.log('[validate] Gemini tier response headers:', JSON.stringify(headerEntries));
-
-    // Check multiple rate limit headers for tier detection
-    const rateLimitHeader = tierResponse.headers.get('x-ratelimit-limit-requests')
-      || tierResponse.headers.get('x-ratelimit-limit-requests-per-model')
-      || tierResponse.headers.get('x-ratelimit-limit-requests-per-minute');
-
-    if (rateLimitHeader) {
-      const rpm = parseInt(rateLimitHeader, 10);
-      if (!isNaN(rpm)) {
-        tier = rpm < 100 ? 'free' : 'paid';
-        console.log(`[validate] Tier from RPM header: ${tier} (rpm=${rpm})`);
+    if (!testResponse.ok) {
+      const status = testResponse.status;
+      const errText = await testResponse.text();
+      const lower = errText.toLowerCase();
+      if (status === 400 && (lower.includes('api_key_invalid') || lower.includes('api key not valid'))) {
+        return new Response(JSON.stringify({ isValid: false, tier: 'unknown', error: 'Invalid API key' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
+      if (status === 401 || status === 403) {
+        return new Response(JSON.stringify({ isValid: false, tier: 'unknown', error: 'Invalid API key' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (status === 429) {
+        return new Response(JSON.stringify({ isValid: true, tier: 'free', availableModels: VERTEX_TEST_MODELS }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ isValid: false, tier: 'unknown', error: `Validation failed: ${status}` }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    // Check daily request limit header (free: ~1500, paid: ~10000+)
-    if (tier === 'unknown') {
-      const rpdHeader = tierResponse.headers.get('x-ratelimit-limit-requests-per-day');
-      if (rpdHeader) {
-        const rpd = parseInt(rpdHeader, 10);
-        if (!isNaN(rpd)) {
-          tier = rpd > 2000 ? 'paid' : 'free';
-          console.log(`[validate] Tier from RPD header: ${tier} (rpd=${rpd})`);
-        }
-      }
-    }
+    // Key is valid — consume response
+    await testResponse.json();
 
-    // Check remaining requests header
-    if (tier === 'unknown' && tierResponse.ok) {
-      const remaining = tierResponse.headers.get('x-ratelimit-remaining-requests');
-      if (remaining) {
-        const rem = parseInt(remaining, 10);
-        tier = rem < 50 ? 'free' : 'paid';
-        console.log(`[validate] Tier from remaining header: ${tier} (rem=${rem})`);
+    // Step 2: Probe available models
+    const availableModels: string[] = [];
+    for (const model of VERTEX_TEST_MODELS) {
+      if (model === testModel) {
+        availableModels.push(model);
+        continue;
       }
-    }
-
-    // If tier detection via a 429 error
-    if (tier === 'unknown' && tierResponse.status === 429) {
-      const errorBody = await tierResponse.json().catch(() => null);
-      const errorMsg = errorBody?.error?.message || '';
-      if (errorMsg.includes('free') || errorMsg.includes('RESOURCE_EXHAUSTED')) {
-        tier = 'free';
-        console.log('[validate] Tier from 429 error: free');
-      }
-    }
-
-    // RPM probe: if still unknown, make a rapid second call
-    // Free tier (2-15 RPM) will likely 429; paid tier won't
-    if (tier === 'unknown' && tierResponse.ok) {
-      console.log('[validate] Tier unknown, attempting RPM probe...');
       try {
-        const probeResponse = await fetch(
-          `https://aiplatform.googleapis.com/v1/publishers/google/models/${testModel}:generateContent?key=${apiKey.trim()}`,
+        const probeRes = await fetch(
+          `https://aiplatform.googleapis.com/v1/publishers/google/models/${model}:generateContent?key=${apiKey.trim()}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -337,18 +265,49 @@ Deno.serve(async (req) => {
             }),
           }
         );
-        if (probeResponse.ok) {
-          tier = 'paid';
-          console.log('[validate] RPM probe succeeded → paid');
-        } else if (probeResponse.status === 429) {
-          tier = 'free';
-          console.log('[validate] RPM probe 429 → free');
+        if (probeRes.ok) {
+          availableModels.push(model);
         }
-        // Consume body
-        await probeResponse.text();
-      } catch (probeErr) {
-        console.log('[validate] RPM probe error, leaving tier unknown');
+        await probeRes.text();
+      } catch {
+        // Skip unavailable models
       }
+    }
+
+    // Step 3: Tier detection via rate limit headers or RPM probe
+    let tier: 'free' | 'paid' | 'unknown' = 'unknown';
+
+    const headerEntries: Record<string, string> = {};
+    testResponse.headers.forEach((v, k) => { headerEntries[k] = v; });
+    console.log('[validate] Vertex AI response headers:', JSON.stringify(headerEntries));
+
+    const rateLimitHeader = testResponse.headers.get('x-ratelimit-limit-requests')
+      || testResponse.headers.get('x-ratelimit-limit-requests-per-model')
+      || testResponse.headers.get('x-ratelimit-limit-requests-per-minute');
+
+    if (rateLimitHeader) {
+      const rpm = parseInt(rateLimitHeader, 10);
+      if (!isNaN(rpm)) {
+        tier = rpm < 100 ? 'free' : 'paid';
+        console.log(`[validate] Tier from RPM header: ${tier} (rpm=${rpm})`);
+      }
+    }
+
+    if (tier === 'unknown') {
+      const rpdHeader = testResponse.headers.get('x-ratelimit-limit-requests-per-day');
+      if (rpdHeader) {
+        const rpd = parseInt(rpdHeader, 10);
+        if (!isNaN(rpd)) {
+          tier = rpd > 2000 ? 'paid' : 'free';
+          console.log(`[validate] Tier from RPD header: ${tier} (rpd=${rpd})`);
+        }
+      }
+    }
+
+    // Vertex AI Express keys are generally "paid" (pay-as-you-go)
+    if (tier === 'unknown') {
+      tier = 'paid';
+      console.log('[validate] Vertex AI key validated, defaulting to paid tier');
     }
 
     console.log(`[validate] Final tier: ${tier}`);

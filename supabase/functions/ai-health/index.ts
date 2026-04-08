@@ -41,8 +41,16 @@ serve(async (req) => {
       const timeoutId = setTimeout(() => controller.abort(), 10_000);
 
       const response = await fetch(
-        `https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.0-flash-lite?key=${geminiKey}`,
-        { method: 'GET', signal: controller.signal }
+        `https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash-lite:generateContent?key=${geminiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: 'Hi' }] }],
+            generationConfig: { maxOutputTokens: 1 },
+          }),
+          signal: controller.signal,
+        }
       );
 
       clearTimeout(timeoutId);

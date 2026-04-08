@@ -71,11 +71,11 @@ const MODEL_MAPPING: Record<string, string> = {
   'google/gemini-2.5-flash': 'gemini-2.5-flash',
   'google/gemini-2.5-pro': 'gemini-2.5-pro',
   'google/gemini-2.5-flash-lite': 'gemini-2.5-flash-lite',
-  'google/gemini-2.0-flash': 'gemini-2.0-flash',
-  'google/gemini-2.0-flash-lite': 'gemini-2.0-flash-lite',
-  'google/gemini-2.0-pro': 'gemini-2.0-pro',
-  'google/gemini-1.5-flash': 'gemini-1.5-flash',
-  'google/gemini-1.5-pro': 'gemini-1.5-pro',
+  'google/gemini-2.0-flash': 'gemini-2.5-flash',
+  'google/gemini-2.0-flash-lite': 'gemini-2.5-flash-lite',
+  'google/gemini-2.0-pro': 'gemini-2.5-pro',
+  'google/gemini-1.5-flash': 'gemini-2.5-flash',
+  'google/gemini-1.5-pro': 'gemini-2.5-pro',
 };
 
 function mapModelForGemini(model: string): string {
