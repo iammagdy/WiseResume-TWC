@@ -70,7 +70,7 @@ const MODEL_MAPPING: Record<string, string> = {
   'google/gemini-3-flash-preview': 'gemini-3-flash-preview',
   'google/gemini-2.5-flash': 'gemini-2.5-flash',
   'google/gemini-2.5-pro': 'gemini-2.5-pro',
-  'google/gemini-2.5-flash-lite': 'gemini-2.0-flash-lite',
+  'google/gemini-2.5-flash-lite': 'gemini-2.5-flash-lite',
   'google/gemini-2.0-flash': 'gemini-2.0-flash',
   'google/gemini-2.0-flash-lite': 'gemini-2.0-flash-lite',
   'google/gemini-2.0-pro': 'gemini-2.0-pro',

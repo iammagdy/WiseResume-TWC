@@ -222,9 +222,18 @@ Deno.serve(async (req) => {
     }
 
     const modelsData = await modelsResponse.json();
-    const allModels = modelsData.models
-      ?.filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
-      ?.map((m: any) => m.name.replace(/^(models\/|publishers\/google\/models\/)/, '')) || [];
+    const rawModels = modelsData.models || modelsData.publisherModels || [];
+    const allModels = rawModels
+      .filter((m: any) => {
+        if (m.supportedGenerationMethods?.includes('generateContent')) return true;
+        if (m.supportedActions) return m.supportedActions.some((a: any) => a === 'generateContent' || a.action === 'generateContent');
+        return true;
+      })
+      .map((m: any) => {
+        const name = m.name || m.modelId || '';
+        return name.replace(/^(models\/|publishers\/google\/models\/)/, '');
+      })
+      .filter((n: string) => n.length > 0);
 
     // Filter to only useful generative models (exclude embedding, TTS, vision-only, etc.)
     const GEMINI_MODEL_PREFIXES = ['gemini-'];
