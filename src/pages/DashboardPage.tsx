@@ -489,7 +489,7 @@ function DashboardPageContent() {
   return (
     <div className="flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-20 pt-safe pt-3 pb-2 px-4 flex items-center justify-between glass-header">
+      <header className="sticky top-0 z-20 pt-safe pt-3 pb-2 px-4 flex items-center justify-between bg-background/95 backdrop-blur-sm">
         <button onClick={() => navigate('/')} aria-label="Back to home" className="touch-manipulation">
           <AppLogo size="sm" showTagline={false} hideText />
         </button>
@@ -686,7 +686,7 @@ function DashboardPageContent() {
                     placeholder={`Search in ${activeTab === 'my-cvs' ? 'My CVs' : 'Tailored'}...`}
                     value={searchQuery}
                     onChange={(e) => handleSetSearchQuery(e.target.value)}
-                    className="pl-10 rounded-full h-10 sm:h-11 text-base glass-input"
+                    className="pl-10 rounded-full h-10 sm:h-11 text-base bg-input border border-border"
                   />
                 </div>
                 {!selectionMode && (
@@ -712,7 +712,7 @@ function DashboardPageContent() {
           {/* Selection toolbar */}
           {selectionMode && resumes && resumes.length > 0 && (
             <div className="px-4 pb-3">
-              <div className="flex items-center gap-2 rounded-xl glass-elevated px-3 py-2">
+              <div className="flex items-center gap-2 rounded-xl bg-card border border-border shadow-soft px-3 py-2">
                 <Button variant="ghost" size="sm" onClick={exitSelectionMode} className="min-w-[44px] min-h-[44px]" aria-label="Exit selection mode">
                   <X className="w-4 h-4" />
                 </Button>
@@ -913,7 +913,7 @@ function DashboardPageContent() {
                           >
                             {tailoredSlice.map((resume) => (
                               <motion.div key={resume.id} variants={itemVariants}>
-                                <div className="rounded-xl glass-elevated p-3 space-y-2">
+                                <div className="rounded-xl bg-card border border-border shadow-soft p-3 space-y-2">
                                   {(resume.target_job_title || resume.target_company) && (
                                     <div className="flex items-center gap-2 flex-wrap">
                                       <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">

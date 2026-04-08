@@ -168,7 +168,7 @@ export default function ResumeDetailPage() {
   return (
     <div className="flex-1 flex flex-col min-h-0">
       {/* Header with overflow menu */}
-      <div className="shrink-0 flex items-center gap-3 px-4 h-14 border-b border-border glass-elevated backdrop-blur-md">
+      <div className="shrink-0 flex items-center gap-3 px-4 h-14 border-b border-border bg-background/95 backdrop-blur-sm">
         <BackButton />
         <h1 className="text-lg font-bold text-foreground truncate flex-1 min-w-0">{dbResume.title}</h1>
         {isMaster && (
@@ -235,7 +235,7 @@ export default function ResumeDetailPage() {
         )}
         {/* Tailored Context */}
         {isTailored && (dbResume.target_job_title || dbResume.target_company) && (
-          <div className="glass-elevated rounded-2xl p-4 border border-primary/20">
+          <div className="bg-card border border-primary/20 shadow-soft rounded-2xl p-4">
             <p className="text-xs font-medium text-muted-foreground mb-1">Tailored for</p>
             <p className="text-sm font-semibold text-foreground">
               {dbResume.target_job_title}
@@ -251,7 +251,7 @@ export default function ResumeDetailPage() {
         )}
 
         {/* Hero Card: Thumbnail + ATS + Meta + Progress + Actions */}
-        <div className="glass-elevated rounded-2xl p-4 border border-border/20 space-y-4">
+        <div className="bg-card border border-border shadow-soft rounded-2xl p-4 space-y-4">
           {/* Top row: thumbnail + score + meta */}
           <div className="flex gap-4">
             <div className="w-[100px] shrink-0 rounded-xl overflow-hidden border border-border/50 shadow-sm">
@@ -372,7 +372,7 @@ export default function ResumeDetailPage() {
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={handleTailor}
-              className="flex items-center gap-3 p-3.5 rounded-2xl glass-elevated hover:border-primary/30 border border-border/20 transition-all touch-manipulation active:scale-[0.98] min-h-[56px]"
+              className="flex items-center gap-3 p-3.5 rounded-2xl bg-card hover:border-primary/30 border border-border shadow-soft-sm transition-all touch-manipulation active:scale-[0.98] min-h-[56px]"
               aria-label="Tailor resume"
             >
               <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -386,7 +386,7 @@ export default function ResumeDetailPage() {
 
             <button
               onClick={handleInterview}
-              className="flex items-center gap-3 p-3.5 rounded-2xl glass-elevated hover:border-primary/30 border border-border/20 transition-all touch-manipulation active:scale-[0.98] min-h-[56px]"
+              className="flex items-center gap-3 p-3.5 rounded-2xl bg-card hover:border-primary/30 border border-border shadow-soft-sm transition-all touch-manipulation active:scale-[0.98] min-h-[56px]"
               aria-label="Interview prep"
             >
               <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">

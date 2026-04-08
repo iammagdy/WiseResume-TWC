@@ -59,7 +59,7 @@ export default function TemplatesPage() {
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Header */}
-      <div className="shrink-0 flex items-center gap-3 px-4 h-14 pt-safe border-b border-border glass-header backdrop-blur-md">
+      <div className="shrink-0 flex items-center gap-3 px-4 h-14 pt-safe border-b border-border bg-background/95 backdrop-blur-sm">
         <BackButton />
         <h1 className="text-lg font-bold text-foreground">Templates</h1>
       </div>
@@ -73,7 +73,7 @@ export default function TemplatesPage() {
             className={`px-4 py-2.5 min-h-[44px] rounded-full text-sm font-medium whitespace-nowrap transition-all touch-manipulation active:scale-95 ${
               filter === chip.value
                 ? 'bg-primary text-primary-foreground'
-                : 'glass-elevated text-muted-foreground hover:text-foreground'
+                : 'bg-card border border-border text-muted-foreground hover:text-foreground'
             }`}
             aria-label={`Filter by ${chip.label}`}
           >

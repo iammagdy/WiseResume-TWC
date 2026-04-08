@@ -29,7 +29,6 @@ import { toast } from 'sonner';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { BackButton } from '@/components/ui/BackButton';
 import { SettingsSkeleton } from '@/components/layout/PageSkeletons';
-import { useIsDark } from '@/hooks/useIsDark';
 import { getChangelog } from '@/hooks/useChangelogBadge';
 import developerPhoto from '@/assets/developer-photo.png';
 
@@ -78,7 +77,6 @@ function SectionHeader({ icon: Icon, label, badge }: {icon: React.ElementType;la
 
 export default function SettingsPage() {
   const navigate = useNavigate();
-  const isDark = useIsDark();
   const { user, loading, supabaseSettled, signOut } = useAuth();
   const { profile, updateProfile } = useProfile(user?.id, user);
   const { data: resumes = [] } = useResumes();
@@ -279,7 +277,7 @@ export default function SettingsPage() {
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="pt-safe sticky top-0 z-10 pb-1 px-4 glass-header backdrop-blur-xl">
+        <header className="pt-safe sticky top-0 z-10 pb-1 px-4 bg-background/95 backdrop-blur-sm border-b border-border">
           <div className="flex items-center gap-3">
             <BackButton />
             <h1 className="text-page-title">Settings</h1>
@@ -321,7 +319,7 @@ export default function SettingsPage() {
           {/* Profile Section */}
           <button
             onClick={() => navigate('/profile')}
-            className="w-full flex items-center gap-4 p-4 rounded-2xl glass-elevated text-left active:scale-[0.98] transition-all touch-manipulation border-glow">
+            className="w-full flex items-center gap-4 p-4 rounded-2xl bg-card border border-border shadow-soft text-left active:scale-[0.98] transition-all touch-manipulation">
             
             <Avatar className="h-14 w-14">
               <AvatarImage src={profile?.avatarUrl} />
@@ -350,7 +348,7 @@ export default function SettingsPage() {
           {/* Account Section */}
           {user &&
             <div id="section-account" className="space-y-3 px-1">
-              <div className="p-4 rounded-2xl glass-elevated border border-white/10 space-y-4">
+              <div className="p-4 rounded-2xl bg-card border border-border shadow-soft space-y-4">
                 <div>
                   <SectionHeader icon={LogOut} label="Account" />
                   <p className="text-xs text-muted-foreground mt-1">Manage your account and data</p>
@@ -370,7 +368,7 @@ export default function SettingsPage() {
 
           {/* Appearance Section */}
           <div id="section-appearance" className="space-y-3 px-1">
-            <div className="p-4 rounded-2xl glass-elevated border border-white/10 space-y-4">
+            <div className="p-4 rounded-2xl bg-card border border-border shadow-soft space-y-4">
               <div>
                 <SectionHeader icon={Palette} label="Appearance" />
                 <p className="text-xs text-muted-foreground mt-1">Theme, language, and display preferences</p>
@@ -383,7 +381,7 @@ export default function SettingsPage() {
 
           {/* AI & Voice Section */}
           <div id="section-ai-voice" className="space-y-3 px-1">
-            <div className="p-4 rounded-2xl glass-elevated border border-white/10 space-y-4">
+            <div className="p-4 rounded-2xl bg-card border border-border shadow-soft space-y-4">
               <div>
                 <SectionHeader icon={Brain} label="AI & Voice" />
                 <p className="text-xs text-muted-foreground mt-1">Choose your AI engine and voice settings</p>
@@ -399,7 +397,7 @@ export default function SettingsPage() {
 
           {/* Editor & Export Section */}
           <div id="section-editor-export" className="space-y-3 px-1">
-            <div className="p-4 rounded-2xl glass-elevated border border-white/10 space-y-4">
+            <div className="p-4 rounded-2xl bg-card border border-border shadow-soft space-y-4">
               <div>
                 <SectionHeader icon={Download} label="Editor & Export" />
                 <p className="text-xs text-muted-foreground mt-1">PDF output and resume backup options</p>
@@ -416,7 +414,7 @@ export default function SettingsPage() {
 
           {/* Notifications Section */}
           <div id="section-notifications" className="space-y-3 px-1">
-            <div className="p-4 rounded-2xl glass-elevated border border-white/10 space-y-4">
+            <div className="p-4 rounded-2xl bg-card border border-border shadow-soft space-y-4">
               <div>
                 <SectionHeader icon={Bell} label="Notifications" />
                 <p className="text-xs text-muted-foreground mt-1">Control alerts and suggestion prompts</p>
@@ -429,7 +427,7 @@ export default function SettingsPage() {
 
           {/* Privacy Section */}
           <div id="section-privacy" className="space-y-3 px-1">
-            <div className="p-4 rounded-2xl glass-elevated border border-white/10 space-y-4">
+            <div className="p-4 rounded-2xl bg-card border border-border shadow-soft space-y-4">
               <div>
                 <SectionHeader icon={Shield} label="Privacy & Security" />
                 <p className="text-xs text-muted-foreground mt-1">Biometric lock, data protection, and privacy controls</p>
@@ -445,7 +443,7 @@ export default function SettingsPage() {
 
           {/* About Section */}
           <div id="section-about" className="space-y-3 px-1">
-            <div className="p-4 rounded-2xl glass-elevated border border-white/10 space-y-4">
+            <div className="p-4 rounded-2xl bg-card border border-border shadow-soft space-y-4">
               <div>
                 <SectionHeader icon={Info} label="About & Help" />
                 <p className="text-xs text-muted-foreground mt-1">App info, onboarding, and sharing</p>
@@ -489,8 +487,8 @@ export default function SettingsPage() {
 
           {/* Branded Footer */}
           <div className="pt-2 pb-10">
-            <div className="flex flex-col items-center gap-4 px-6 py-8 rounded-3xl glass-elevated border border-white/[0.08] shadow-xl w-full max-w-xs mx-auto">
-              <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-lg shadow-purple-500/30 ring-1 ring-white/10">
+            <div className="flex flex-col items-center gap-4 px-6 py-8 rounded-3xl bg-card border border-border shadow-soft-md w-full max-w-xs mx-auto">
+              <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-soft-lg">
                 <AppIcon size={56} showSparkle={false} className="w-full h-full" />
               </div>
               <div className="flex flex-col items-center gap-1.5">
@@ -505,9 +503,8 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={() => setChangelogOpen(true)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full border active:scale-95 transition text-sm text-muted-foreground font-medium touch-manipulation min-h-[44px] ${
-                isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-black/5 border-black/10 hover:bg-black/10'}`
-                }>
+                className="flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-muted/50 hover:bg-muted active:scale-95 transition text-sm text-muted-foreground font-medium touch-manipulation min-h-[44px]"
+                >
                 
                 <ScrollText className="w-4 h-4 text-purple-400" />
                 <span>Changelog</span>
@@ -707,7 +704,7 @@ function GuestCtaCard({ navigate }: {navigate: (path: string) => void;}) {
         initial={{ opacity: 1 }}
         exit={{ opacity: 0, height: 0, marginBottom: 0 }}
         transition={{ duration: 0.2 }}
-        className="rounded-2xl glass-elevated border-glow overflow-hidden relative">
+        className="rounded-2xl bg-card border border-border shadow-soft overflow-hidden relative">
         
           <button
           onClick={handleDismiss}
@@ -752,7 +749,7 @@ function GuestCtaCard({ navigate }: {navigate: (path: string) => void;}) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.2 }}
-        className="rounded-2xl glass-elevated overflow-hidden">
+        className="rounded-2xl bg-card border border-border shadow-soft overflow-hidden">
         
           <SettingsRow
           type="navigation"

@@ -120,7 +120,7 @@ export default function ProfilePage() {
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Header */}
-      <div className="shrink-0 flex items-center gap-3 px-4 h-14 pt-safe border-b border-border glass-header backdrop-blur-md">
+      <div className="shrink-0 flex items-center gap-3 px-4 h-14 pt-safe border-b border-border bg-background/95 backdrop-blur-sm">
         <BackButton />
         <h1 className="text-lg font-bold text-foreground">My Profile</h1>
       </div>
@@ -178,7 +178,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Profile Completion */}
-        <div className="glass-elevated rounded-2xl p-4 space-y-2">
+        <div className="bg-card border border-border shadow-soft rounded-2xl p-4 space-y-2">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-foreground">Profile Completion</h3>
             <span className="text-sm text-primary font-medium">{completion}%</span>
@@ -206,7 +206,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Portfolio Website Card */}
-        <div className="glass-elevated rounded-2xl p-4 space-y-3">
+        <div className="bg-card border border-border shadow-soft rounded-2xl p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -264,12 +264,12 @@ export default function ProfilePage() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="glass-elevated rounded-2xl p-4 text-center">
+          <div className="bg-card border border-border shadow-soft rounded-2xl p-4 text-center">
             <FileText className="w-6 h-6 text-primary mx-auto mb-1" />
             <p className="text-2xl font-bold text-foreground">{resumes.length}</p>
             <p className="text-xs text-muted-foreground">Resumes</p>
           </div>
-          <div className="glass-elevated rounded-2xl p-4 text-center">
+          <div className="bg-card border border-border shadow-soft rounded-2xl p-4 text-center">
             <Briefcase className="w-6 h-6 text-primary mx-auto mb-1" />
             <p className="text-2xl font-bold text-foreground">{applications.length}</p>
             <p className="text-xs text-muted-foreground">Applications</p>

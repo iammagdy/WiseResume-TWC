@@ -45,7 +45,7 @@ See `.env.example`. Key variables:
 - **Theme detection**: `src/hooks/useIsDark.ts` — MutationObserver on `<html class>`
 - **Settings store**: `src/store/settingsStore.ts` — persists theme in localStorage key `wiseresume-settings`
 - **SkyWallpaper**: Removed (THREE.js/GSAP animated background)
-- **Glass classes**: Kept as compatibility aliases — now render as solid surfaces with subtle borders/shadows
+- **Glass classes**: CSS compatibility aliases still defined; Phase 4 replaced all glass-* usage in 6 core pages with direct Tailwind classes (bg-card, bg-background/95, shadow-soft, etc.)
 - **Shadow scale**: `shadow-soft-sm`, `shadow-soft`, `shadow-soft-md`, `shadow-soft-lg`, `shadow-soft-xl` via Tailwind config
 - **Portfolio CSS (pf-*)**: Untouched — used by public portfolio pages
 
@@ -63,3 +63,12 @@ See `.env.example`. Key variables:
 - **DesktopNav**: Clean bg-background/95 + backdrop-blur-sm, theme toggle (Sun/Moon), h-14
 - **BottomTabBar**: bg-background/95, clean indigo active pill, no glass-surface
 - **AppShell**: bg-background (solid), no bg-transparent; mobile header bg-background
+
+## Core App Pages (Phase 4 — Redesign)
+- All glass-* classes replaced with direct Tailwind: bg-card, bg-background/95, shadow-soft, border-border
+- **Headers**: bg-background/95 backdrop-blur-sm border-b border-border (consistent across all pages)
+- **Cards/Sections**: bg-card border border-border shadow-soft rounded-2xl
+- **Inputs**: bg-input border border-border (no glass-input)
+- Removed: border-glow, border-white/*, shadow-purple-500/*, ring-white/* patterns
+- Pages updated: ProfilePage, SettingsPage, DashboardPage, SubscriptionPage, ResumeDetailPage, TemplatesPage
+- UploadPage, EditorPage, PreviewPage were already clean (no glass-* usage)

@@ -70,7 +70,7 @@ export default function SubscriptionPage() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <header className="pt-safe sticky top-0 z-10 pb-2 px-4 glass-header backdrop-blur-xl">
+      <header className="pt-safe sticky top-0 z-10 pb-2 px-4 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="flex items-center gap-3">
           <BackButton />
           <h1 className="text-page-title">Subscription</h1>
