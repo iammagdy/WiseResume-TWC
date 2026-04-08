@@ -224,10 +224,13 @@ export default function AIStudioPage() {
     setSearchParams({}, { replace: true });
   }, [searchParams, setSearchParams, navigate]);
 
+  const [chatInitialMessage, setChatInitialMessage] = useState('');
+
   const openChatWithMessage = useCallback((msg: string) => {
     haptics.light();
     if (!user) {setShowChat(true);return;}
     if (!currentResumeId) {toast.info('Select a resume first to chat with Wise AI');return;}
+    setChatInitialMessage(msg);
     setShowChat(true);
   }, [user, currentResumeId]);
 
@@ -550,7 +553,7 @@ export default function AIStudioPage() {
       {/* Sheets */}
       <ErrorBoundary>
         <Suspense fallback={null}>
-          {showChat && <AgenticChatSheet open={showChat} onOpenChange={setShowChat} />}
+          {showChat && <AgenticChatSheet open={showChat} onOpenChange={(o) => { setShowChat(o); if (!o) setChatInitialMessage(''); }} initialMessage={chatInitialMessage} />}
           {showTailor && <TailorSheet open={showTailor} onOpenChange={setShowTailor} />}
           {showJobSheet && <JobAnalysisSheet open={showJobSheet} onOpenChange={setShowJobSheet} />}
           {showRecruiterSim && <RecruiterSimSheet open={showRecruiterSim} onOpenChange={setShowRecruiterSim} />}

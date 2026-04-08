@@ -46,6 +46,7 @@ import { useShallow } from 'zustand/react/shallow';
 interface AgenticChatSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialMessage?: string;
 }
 
 const CONTEXT_FILTERS = [
@@ -237,7 +238,7 @@ function GuestShowcase({ onClose, onSignIn }: { onClose: () => void; onSignIn: (
   );
 }
 
-export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) {
+export function AgenticChatSheet({ open, onOpenChange, initialMessage }: AgenticChatSheetProps) {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -256,7 +257,12 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-detect context when route changes
+  useEffect(() => {
+    if (initialMessage && open) {
+      setInput(initialMessage);
+    }
+  }, [initialMessage, open]);
+
   useEffect(() => {
     setActiveContext(detectContextFromRoute(location.pathname));
   }, [location.pathname]);
