@@ -36,11 +36,6 @@ export default function AuthPage() {
   }, [isAuthenticated, authLoading, navigate, redirectTo]);
 
   useEffect(() => {
-    if (authLoading || isAuthenticated || mode) return;
-    navigate('/', { replace: true });
-  }, [authLoading, isAuthenticated, mode, navigate]);
-
-  useEffect(() => {
     if (authLoading || isAuthenticated || triggered.current || !mode) return;
     triggered.current = true;
 
