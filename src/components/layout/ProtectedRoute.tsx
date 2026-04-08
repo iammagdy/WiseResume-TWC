@@ -47,9 +47,6 @@ export function ProtectedRoute() {
     </div>
   );
   if (!isAuthenticated) {
-    // Preserve intended destination so auth can redirect back after login.
-    // Always pass mode=login so AuthPage knows to trigger sign-in (not sign-up)
-    // and does NOT mistake this for a post-signout redirect.
     const intendedPath = location.pathname + location.search;
     const redirectParam = intendedPath !== '/' && intendedPath !== '/dashboard'
       ? `&redirect=${encodeURIComponent(intendedPath)}`
