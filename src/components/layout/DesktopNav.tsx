@@ -7,7 +7,7 @@ import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useChangelogBadge } from '@/hooks/useChangelogBadge';
 import { useTheme } from '@/hooks/use-theme';
 import { toast } from 'sonner';
-import { lazy, Suspense, useState, useRef, useEffect, useCallback } from 'react';
+import { lazy, Suspense, useState, useRef, useEffect } from 'react';
 
 const AgenticChatSheet = lazy(() => import('@/components/editor/AgenticChatSheet').then((m) => ({ default: m.AgenticChatSheet })));
 
