@@ -387,6 +387,74 @@ const Index = () => {
         </section>
 
         <section className="px-4 sm:px-6 py-12">
+          <motion.div
+            className="text-center mb-10"
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-50px' }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+          >
+            <h2 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight mb-3">
+              Simple Pricing
+            </h2>
+            <p className="text-muted-foreground text-lg max-w-md mx-auto">
+              Start free, upgrade when you need more
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
+            <motion.div
+              className="rounded-2xl border border-border bg-card shadow-soft p-6 flex flex-col"
+              initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-20px' }}
+              transition={{ duration: 0.4, delay: 0.05, ease: 'easeOut' }}
+            >
+              <h3 className="text-lg font-bold text-foreground mb-1">Free</h3>
+              <p className="text-3xl font-bold text-foreground mb-1">$0<span className="text-sm font-normal text-muted-foreground">/mo</span></p>
+              <p className="text-sm text-muted-foreground mb-5">Perfect to get started</p>
+              <ul className="space-y-2.5 mb-6 flex-1">
+                {['1 resume', 'Basic AI suggestions', 'ATS score check', 'PDF export', 'Portfolio site'].map((item) => (
+                  <li key={item} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <Button variant="outline" size="lg" className="w-full h-11 rounded-xl" onClick={handleCTA}>
+                Get Started
+              </Button>
+            </motion.div>
+
+            <motion.div
+              className="rounded-2xl border-2 border-primary bg-card shadow-soft-lg p-6 flex flex-col relative"
+              initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-20px' }}
+              transition={{ duration: 0.4, delay: 0.1, ease: 'easeOut' }}
+            >
+              <span className="absolute -top-3 left-6 px-3 py-0.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold">
+                Popular
+              </span>
+              <h3 className="text-lg font-bold text-foreground mb-1">Pro</h3>
+              <p className="text-3xl font-bold text-foreground mb-1">$9<span className="text-sm font-normal text-muted-foreground">/mo</span></p>
+              <p className="text-sm text-muted-foreground mb-5">For serious job seekers</p>
+              <ul className="space-y-2.5 mb-6 flex-1">
+                {['Unlimited resumes', 'Advanced AI tools', 'Smart tailoring', 'Interview coaching', 'Cover letter generator', 'Application tracker', 'Priority support'].map((item) => (
+                  <li key={item} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <Button size="lg" className="w-full h-11 rounded-xl" onClick={handleCTA}>
+                Start Free Trial
+              </Button>
+            </motion.div>
+          </div>
+        </section>
+
+        <section className="px-4 sm:px-6 py-12">
           <div className="flex flex-col items-center text-center gap-5 p-8 rounded-2xl border border-border bg-card shadow-soft max-w-md mx-auto">
             <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
               <Sparkles className="w-6 h-6 text-primary" />
