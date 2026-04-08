@@ -655,7 +655,7 @@ function parseOpenAIResponse(data: any): AIResponse {
  * Handles errors from Vertex AI / Gemini API calls
  */
 function handleGeminiError(status: number, errorText: string): never {
-  console.error('Gemini API error:', status, errorText);
+  console.error('Vertex AI error:', status, errorText);
 
   let errorMessage = 'AI request failed';
   try {
@@ -665,8 +665,9 @@ function handleGeminiError(status: number, errorText: string): never {
     // Use raw error text
   }
 
-  if (status === 401 || status === 403) {
-    throw createAIError('invalid_key', 'Invalid Gemini API key. Please check your settings.', 422);
+  const lower = errorText.toLowerCase();
+  if (status === 401 || status === 403 || (status === 400 && (lower.includes('api_key_invalid') || lower.includes('permission_denied') || lower.includes('api key not valid')))) {
+    throw createAIError('invalid_key', 'Invalid API key. Please check your settings.', 422);
   }
   if (status === 404) {
     throw createAIError('unknown', `Model not found: ${errorMessage}. Check your selected model in AI Settings.`, 404);
