@@ -257,8 +257,6 @@ export default function ApplicationsPage() {
           </div>
         </div>
       </header>
-      {/* Gradient accent line */}
-      <div className="h-[2px] bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
 
       {/* All scrollable content inside PullToRefresh */}
       <PullToRefresh onRefresh={handleRefresh} className="flex-1">

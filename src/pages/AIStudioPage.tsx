@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, lazy, Suspense, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
   Sparkles,
   Wand2,
@@ -292,18 +291,14 @@ export default function AIStudioPage() {
   }, []);
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-28 sm:pb-20 lg:pb-6 pt-safe">
+    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-28 sm:pb-20 lg:pb-6">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="px-4 pt-4 pb-3 sm:pt-6 sm:pb-4">
-        
-        <h1 className="text-fluid-xl font-bold bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent animate-gradient-x pt-0 pb-0 ml-0">
-          Wise AI Studio
-        </h1>
-        <div className="flex items-center justify-between mt-2">
-          <AIEngineBadge showSettingsLink />
+      <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 pt-safe">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-primary" />
+            <h1 className="text-page-title">AI Studio</h1>
+          </div>
           <div className="flex items-center gap-2">
             <AIHealthBadge />
             <TooltipProvider>
@@ -316,19 +311,17 @@ export default function AIStudioPage() {
             </TooltipProvider>
           </div>
         </div>
-      </motion.div>
+        <div className="mt-1.5">
+          <AIEngineBadge showSettingsLink />
+        </div>
+      </header>
 
       {/* Resume Context Bar */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.05 }}
-        className="px-4 pb-[5px] pt-[5px]">
-        
+      <div className="px-4 py-2">
         {currentResumeId && resumeData ?
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border">
             <FileSearch className="w-4 h-4 text-primary shrink-0" />
-            <span className="text-[15px] sm:text-sm flex-1 break-words leading-snug" title={resumeData.title}>
+            <span className="text-sm flex-1 break-words leading-snug" title={resumeData.title}>
               Working on: <span className="font-medium">{resumeData.title}</span>
             </span>
             <Button variant="ghost" size="sm" className="shrink-0 min-h-[44px] text-xs text-primary" onClick={() => {
@@ -342,7 +335,6 @@ export default function AIStudioPage() {
               Change
             </Button>
           </div> :
-
         <div className="flex gap-2">
             <Button variant="outline" className="flex-1 justify-start gap-2" onClick={() => {
             if (allResumes && allResumes.length > 0) {
@@ -360,15 +352,10 @@ export default function AIStudioPage() {
             </Button>
           </div>
         }
-      </motion.div>
+      </div>
 
       {/* Wise AI Chat Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="px-4 pl-[16px] pb-[5px] pt-[5px]">
-        
+      <div className="px-4 pb-2">
         <div
           onClick={() => {
             haptics.light();
@@ -376,34 +363,31 @@ export default function AIStudioPage() {
             if (!currentResumeId) {toast.info('Select a resume first to chat with Wise AI');return;}
             setShowChat(true);
           }}
-          className={cn("w-full p-4 rounded-2xl bg-card border border-border shadow-soft border border-primary/20 hover:border-primary/40 active:scale-[0.98] transition-all touch-manipulation relative overflow-hidden cursor-pointer pb-0 pt-[8px]",
-
+          className={cn("w-full p-4 rounded-2xl bg-card border border-primary/20 shadow-soft hover:border-primary/40 active:scale-[0.98] transition-all touch-manipulation cursor-pointer",
           isFirstVisit && 'ring-2 ring-primary/40 animate-[pulse_1.5s_ease-in-out_3]'
           )}>
-          
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center">
+            <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center shrink-0">
               <Sparkles className="w-5 h-5 text-primary-foreground" />
             </div>
             <div className="text-left flex-1 min-w-0">
-              <p className="font-semibold text-sm">Need help tailoring, analyzing, or planning? Wise AI can do it all - tap Ask to chat now.
-
-              </p>
-              <p className="text-muted-foreground truncate mt-[5px] mb-0 pt-0 text-sm">{PLACEHOLDER_EXAMPLES[placeholderIdx]}</p>
+              <p className="font-semibold text-sm">Ask Wise AI anything about your resume</p>
+              <p className="text-muted-foreground truncate mt-1 text-sm">{PLACEHOLDER_EXAMPLES[placeholderIdx]}</p>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-            {SUGGESTIONS.slice(0, 3).map((s) => {}
-
-
-
-
-
-
-            )}
+          <div className="flex flex-wrap gap-2">
+            {SUGGESTIONS.slice(0, 3).map((s) => (
+              <button
+                key={s}
+                onClick={(e) => { e.stopPropagation(); openChatWithMessage(s); }}
+                className="px-3 py-1.5 rounded-full bg-primary/5 border border-primary/10 text-xs text-muted-foreground hover:bg-primary/10 transition-colors"
+              >
+                {s}
+              </button>
+            ))}
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* Recent Tools */}
       {recentTools.length > 0 &&
@@ -458,7 +442,7 @@ export default function AIStudioPage() {
               <button
                 key={tool.id}
                 onClick={() => handleToolAction(tool)}
-                className="gap-2.5 px-4 py-3 rounded-xl border border-primary/20 bg-primary/[0.03] hover:bg-primary/[0.06] active:scale-95 transition-all touch-manipulation shrink-0 min-h-[56px] pl-[5px] pt-[5px] pb-[5px] flex items-center justify-center pr-[16px]">
+                className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-primary/20 bg-primary/[0.03] hover:bg-primary/[0.06] active:scale-95 transition-all touch-manipulation shrink-0 min-h-[56px]">
                 
                   <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                     <tool.icon className={cn('w-4.5 h-4.5', tool.color)} />
@@ -488,24 +472,22 @@ export default function AIStudioPage() {
               <button
                 key={tool.id}
                 onClick={() => handleToolAction(tool)}
-                className={cn("p-3 bg-card border border-border active:scale-95 transition-all touch-manipulation min-h-[100px] relative pl-[5px] pt-[5px] pb-[5px] pr-[5px] ml-[9px] mt-0 mr-[9px] mb-0 flex-col flex items-center justify-center gap-0 text-center rounded-3xl",
-
+                className={cn("p-3 bg-card border active:scale-95 transition-all touch-manipulation min-h-[100px] relative flex flex-col items-center justify-center gap-1.5 text-center rounded-2xl",
                 isFeatured ?
-                'border-primary/20 shadow-[0_0_12px_-4px_hsl(var(--primary)/0.2)]' :
+                'border-primary/20 shadow-soft-sm' :
                 'border-border hover:border-primary/20'
                 )}>
-                
                   {isFeatured &&
                 <Badge variant="secondary" className="absolute top-1.5 right-1.5 text-[9px] px-1.5 py-0 h-4 font-medium">
                       Popular
                     </Badge>
                 }
-                  <div className="w-10 h-10 rounded-full bg-muted/30 flex items-center justify-center">
-                    <tool.icon className={cn('w-6 h-6', tool.color)} />
+                  <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
+                    <tool.icon className={cn('w-5 h-5', tool.color)} />
                   </div>
                   <div className="text-center">
-                    <span className="text-sm sm:text-xs font-medium block">{tool.label}</span>
-                    <span className="text-xs sm:text-[10px] text-muted-foreground leading-tight block">{tool.desc}</span>
+                    <span className="text-sm font-medium block">{tool.label}</span>
+                    <span className="text-xs text-muted-foreground leading-tight block">{tool.desc}</span>
                     <AICostBadge operation={tool.cost} className="mt-1" />
                   </div>
                   {tool.navigate &&
@@ -521,7 +503,7 @@ export default function AIStudioPage() {
       {/* Pro Tip - dismissible & rotating */}
       {!tipDismissed &&
       <div className="px-4 pb-6">
-          <div className="items-start gap-2 p-3 rounded-xl bg-primary/5 border border-primary/10 relative flex flex-row pt-0 pb-0 mt-0 mb-[20px]">
+          <div className="flex items-start gap-2 p-3 rounded-xl bg-primary/5 border border-primary/10 relative">
             <Lightbulb className="w-4 h-4 text-primary shrink-0 mt-0.5" />
             <p className="text-xs text-muted-foreground pr-6">
               <span className="text-foreground font-medium">Pro tip:</span> {PRO_TIPS[tipIdx]}
@@ -537,28 +519,6 @@ export default function AIStudioPage() {
         </div>
       }
 
-      {/* Sticky Mobile Chat Input */}
-      
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-      
 
       {/* Resume Picker Sheet */}
       {showResumePicker &&
