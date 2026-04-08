@@ -65,7 +65,7 @@ export default function JobDetailPage() {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 min-h-0 h-full overflow-y-auto overscroll-y-contain pb-6">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-card border border-border shadow-soft-sm border-b border-border/50 px-4 py-3 flex items-center gap-3">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 flex items-center gap-3">
         <button onClick={() => navigate('/applications')} className="p-2 -ml-2 rounded-xl hover:bg-muted/50 min-h-[44px] min-w-[44px] flex items-center justify-center">
           <ArrowLeft className="w-5 h-5" />
         </button>

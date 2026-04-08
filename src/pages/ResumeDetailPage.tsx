@@ -254,7 +254,7 @@ export default function ResumeDetailPage() {
         <div className="bg-card border border-border shadow-soft rounded-2xl p-4 space-y-4">
           {/* Top row: thumbnail + score + meta */}
           <div className="flex gap-4">
-            <div className="w-[100px] shrink-0 rounded-xl overflow-hidden border border-border/50 shadow-sm">
+            <div className="w-[100px] shrink-0 rounded-xl overflow-hidden border border-border shadow-sm">
               <TemplateThumbnail templateId={dbResume.template_id as TemplateId} resume={resumeData} />
             </div>
 

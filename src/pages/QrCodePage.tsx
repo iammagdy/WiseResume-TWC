@@ -44,7 +44,7 @@ const INNER_SHAPES: { id: 'square' | 'dot'; label: string }[] = [
 function ColorPicker({ label, value, onChange: onChangeColor }: { label: string; value: string; onChange: (c: string) => void }) {
   return (
     <label className="flex items-center gap-2 cursor-pointer">
-      <div className="w-8 h-8 rounded-lg border border-border/40 relative overflow-hidden shrink-0" style={{ backgroundColor: value }}>
+      <div className="w-8 h-8 rounded-lg border border-border relative overflow-hidden shrink-0" style={{ backgroundColor: value }}>
         <input type="color" value={value} onChange={(e) => onChangeColor(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
       </div>
       <span className="text-xs text-muted-foreground">{label}</span>
@@ -220,7 +220,7 @@ export default function QrCodePage() {
   return (
     <div className="flex-1 flex flex-col min-h-0 pb-20 lg:pb-6 pt-safe">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-border/30">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
         <Button variant="ghost" size="icon" onClick={() => navigate('/ai-studio')} className="shrink-0">
           <ArrowLeft className="w-5 h-5" />
         </Button>
@@ -310,10 +310,10 @@ export default function QrCodePage() {
                       onClick={() => applyPreset(p)}
                       className={cn(
                         'flex flex-col items-center gap-1 px-3 py-2 rounded-xl border shrink-0 transition-all active:scale-95 touch-manipulation min-w-[56px]',
-                        activePreset === p.id ? 'border-primary bg-primary/10 ring-1 ring-primary/30' : 'border-border/40 bg-card/50'
+                        activePreset === p.id ? 'border-primary bg-primary/10 ring-1 ring-primary/30' : 'border-border bg-card'
                       )}
                     >
-                      <div className="w-6 h-6 rounded-full border border-border/30" style={{ background: p.swatch }} />
+                      <div className="w-6 h-6 rounded-full border border-border" style={{ background: p.swatch }} />
                       <span className="text-[9px] font-medium text-foreground/70">{p.name}</span>
                     </button>
                   ))}
@@ -321,7 +321,7 @@ export default function QrCodePage() {
               </div>
 
               {/* Module shape */}
-              <div className="space-y-2 rounded-xl bg-card/30 p-3 border border-border/20">
+              <div className="space-y-2 rounded-xl bg-card p-3 border border-border">
                 <span className="text-sm font-medium text-foreground/80">Module Shape</span>
                 <div className="grid grid-cols-3 gap-1.5">
                   {SHAPES.map((s) => (
@@ -341,7 +341,7 @@ export default function QrCodePage() {
               </div>
 
               {/* Corners */}
-              <div className="space-y-3 rounded-xl bg-card/30 p-3 border border-border/20">
+              <div className="space-y-3 rounded-xl bg-card p-3 border border-border">
                 <span className="text-sm font-medium text-foreground/80">Corners</span>
                 <div className="flex gap-1.5">
                   {OUTER_SHAPES.map((s) => (
@@ -362,7 +362,7 @@ export default function QrCodePage() {
               </div>
 
               {/* Size & Margin */}
-              <div className="space-y-3 rounded-xl bg-card/30 p-3 border border-border/20">
+              <div className="space-y-3 rounded-xl bg-card p-3 border border-border">
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-xs text-muted-foreground">Export Size</span>
@@ -382,7 +382,7 @@ export default function QrCodePage() {
 
             {/* Colors tab */}
             <TabsContent value="colors" className="mt-0 space-y-4">
-              <div className="space-y-3 rounded-xl bg-card/30 p-3 border border-border/20">
+              <div className="space-y-3 rounded-xl bg-card p-3 border border-border">
                 <div className="flex gap-6">
                   <ColorPicker label="Foreground" value={fgColor} onChange={(c) => { setFgColor(c); setActivePreset(null); }} />
                   <ColorPicker label="Background" value={bgColor} onChange={(c) => { setBgColor(c); setActivePreset(null); }} />
@@ -432,13 +432,13 @@ export default function QrCodePage() {
             {/* Advanced tab */}
             <TabsContent value="advanced" className="mt-0 space-y-4">
               {/* Logo */}
-              <div className="space-y-3 rounded-xl bg-card/30 p-3 border border-border/20">
+              <div className="space-y-3 rounded-xl bg-card p-3 border border-border">
                 <span className="text-sm font-medium text-foreground/80">Logo Overlay</span>
                 <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
 
                 {logoDataUrl ? (
                   <div className="flex items-center gap-3">
-                    <img src={logoDataUrl} alt="Logo" className="w-10 h-10 rounded-lg object-contain border border-border/30" />
+                    <img src={logoDataUrl} alt="Logo" className="w-10 h-10 rounded-lg object-contain border border-border" />
                     <Button variant="ghost" size="sm" onClick={() => setLogoDataUrl('')} className="text-xs">
                       <X className="w-3.5 h-3.5 mr-1" /> Remove
                     </Button>
@@ -471,7 +471,7 @@ export default function QrCodePage() {
               </div>
 
               {/* Error Correction */}
-              <div className="space-y-2 rounded-xl bg-card/30 p-3 border border-border/20">
+              <div className="space-y-2 rounded-xl bg-card p-3 border border-border">
                 <span className="text-sm font-medium text-foreground/80">Error Correction</span>
                 <Select value={finalErrorLevel} onValueChange={(v) => setErrorLevel(v as ErrorCorrectionLevel)} disabled={!!logoDataUrl}>
                   <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
@@ -492,7 +492,7 @@ export default function QrCodePage() {
       </div>
 
       {/* Sticky bottom */}
-      <div className="fixed bottom-20 lg:bottom-0 left-0 right-0 border-t border-border/20 bg-background/80 backdrop-blur-md px-4 py-3 pb-safe flex gap-2 z-20">
+      <div className="fixed bottom-20 lg:bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur-sm px-4 py-3 pb-safe flex gap-2 z-20">
         <Button variant="outline" className="flex-1 h-12 rounded-xl active:scale-95 font-medium" onClick={handleCopy}>
           <Copy className="w-4 h-4 mr-2" /> Copy
         </Button>

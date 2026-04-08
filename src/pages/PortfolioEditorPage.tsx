@@ -550,7 +550,7 @@ export default function PortfolioEditorPage() {
         
 
         {/* Tab Row */}
-        <div className="flex gap-1.5 p-1 rounded-xl bg-card border border-border/30">
+        <div className="flex gap-1.5 p-1 rounded-xl bg-card border border-border">
           {([
           { id: 'setup', label: 'Setup' },
           { id: 'content', label: 'Content' },

@@ -129,7 +129,7 @@ export default function ReferralPage() {
         <section>
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Rewards</h2>
           <Card>
-            <CardContent className="p-0 divide-y divide-border/30">
+            <CardContent className="p-0 divide-y divide-border">
               {REWARDS.map((tier, i) => (
                 <div key={i} className="flex items-center gap-3 p-4">
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">

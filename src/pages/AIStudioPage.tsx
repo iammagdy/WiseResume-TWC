@@ -326,7 +326,7 @@ export default function AIStudioPage() {
         className="px-4 pb-[5px] pt-[5px]">
         
         {currentResumeId && resumeData ?
-        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border/50">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border">
             <FileSearch className="w-4 h-4 text-primary shrink-0" />
             <span className="text-[15px] sm:text-sm flex-1 break-words leading-snug" title={resumeData.title}>
               Working on: <span className="font-medium">{resumeData.title}</span>
@@ -417,7 +417,7 @@ export default function AIStudioPage() {
           <button
             key={tool.id}
             onClick={() => handleToolAction(tool)}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border/30 hover:border-primary/20 active:scale-95 transition-all touch-manipulation shrink-0">
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border hover:border-primary/20 active:scale-95 transition-all touch-manipulation shrink-0">
             
                 <tool.icon className={cn('w-4 h-4', tool.color)} />
                 <span className="text-sm font-medium whitespace-nowrap">{tool.label}</span>
@@ -492,7 +492,7 @@ export default function AIStudioPage() {
 
                 isFeatured ?
                 'border-primary/20 shadow-[0_0_12px_-4px_hsl(var(--primary)/0.2)]' :
-                'border-border/30 hover:border-primary/20'
+                'border-border hover:border-primary/20'
                 )}>
                 
                   {isFeatured &&
@@ -582,7 +582,7 @@ export default function AIStudioPage() {
                 pendingActionRef.current = null;
                 if (action) setTimeout(action, 100);
               }}
-              className="w-full text-left px-4 py-3 rounded-xl border border-border/50 hover:bg-muted/60 transition-colors">
+              className="w-full text-left px-4 py-3 rounded-xl border border-border hover:bg-muted/60 transition-colors">
               
                   <p className="font-medium text-sm truncate">{r.title}</p>
                   <p className="text-xs text-muted-foreground truncate mt-0.5">

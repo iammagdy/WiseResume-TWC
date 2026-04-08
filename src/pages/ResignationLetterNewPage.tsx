@@ -285,7 +285,7 @@ export default function ResignationLetterNewPage() {
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-5">
               <div className="space-y-3">
                 <label className="text-sm font-semibold text-foreground">Tone</label>
-                <div className="flex rounded-2xl border border-border/40 bg-card/60 backdrop-blur-xl overflow-hidden">
+                <div className="flex rounded-2xl border border-border bg-card overflow-hidden">
                   {TONE_LABELS.map((label, i) => (
                     <button
                       key={label}
@@ -295,7 +295,7 @@ export default function ResignationLetterNewPage() {
                         toneIndex === i
                           ? 'bg-primary/20 text-primary shadow-[inset_0_0_20px_hsl(var(--primary)/0.1)]'
                           : 'text-muted-foreground hover:text-foreground',
-                        i < TONE_LABELS.length - 1 && 'border-r border-border/30'
+                        i < TONE_LABELS.length - 1 && 'border-r border-border'
                       )}
                     >
                       {label}
@@ -317,7 +317,7 @@ export default function ResignationLetterNewPage() {
                         'flex flex-col p-3.5 rounded-xl border-2 transition-all touch-manipulation text-left',
                         templateStyle === t.value
                           ? 'border-primary/60 bg-primary/10'
-                          : 'border-border/40 bg-card/60'
+                          : 'border-border bg-card'
                       )}
                     >
                       <span className={cn('text-sm font-bold', templateStyle === t.value ? 'text-primary' : 'text-foreground')}>
@@ -347,7 +347,7 @@ export default function ResignationLetterNewPage() {
                       'w-full flex items-center gap-3 p-3.5 rounded-xl border transition-all touch-manipulation text-left active:scale-95',
                       selectedAdditions.includes(a.id)
                         ? 'border-primary/40 bg-primary/5'
-                        : 'border-border/40 bg-card/60'
+                        : 'border-border bg-card'
                     )}
                   >
                     <div className={cn(

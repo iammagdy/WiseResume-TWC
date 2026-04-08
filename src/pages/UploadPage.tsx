@@ -711,7 +711,7 @@ export default function UploadPage() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe">
+      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 pt-safe">
         <div className="flex items-center gap-3">
           <BackButton />
           <h1 className="text-page-title truncate">Upload Resume</h1>
@@ -791,7 +791,7 @@ export default function UploadPage() {
                 {isProcessing ? (
                   <UploadProgressSteps currentStep={parseStep} fileName={fileName ?? undefined} />
                 ) : (
-                  <div className="flex flex-col items-center bg-background/70 backdrop-blur-md rounded-2xl px-6 py-7 w-full max-w-xs">
+                  <div className="flex flex-col items-center bg-background rounded-2xl px-6 py-7 w-full max-w-xs">
                     <motion.div
                       className="w-20 h-20 rounded-full gradient-primary flex items-center justify-center mb-5"
                       animate={isDragging ? { scale: 1.1 } : { scale: 1 }}

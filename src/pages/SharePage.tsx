@@ -272,7 +272,7 @@ export default function SharePage() {
         </section>
       </main>
 
-      <footer className="border-t border-border/50 px-4 py-4 bg-card/50 backdrop-blur-sm">
+      <footer className="border-t border-border px-4 py-4 bg-background/95 backdrop-blur-sm">
         <div className="max-w-2xl mx-auto flex items-center gap-3">
           <a href="/" className="flex items-center gap-2 text-sm font-medium text-primary hover:underline flex-1">
             <Sparkles className="w-4 h-4" /> Create Your Own Resume

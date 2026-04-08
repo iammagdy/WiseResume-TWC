@@ -360,8 +360,8 @@ function InterviewPageContent() {
   // Active interview
   return (
     <div className="flex-1 flex flex-col overflow-hidden h-full">
-      {/* Premium glassmorphism header */}
-      <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border/20 bg-card/50 backdrop-blur-xl">
+      {/* Active interview header */}
+      <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border bg-background/95 backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <BackButton onBeforeBack={() => { backTriggeredRef.current = true; setShowEndConfirm(true); return true; }} />
           <div className="flex items-center gap-2">
@@ -475,7 +475,7 @@ function InterviewPageContent() {
       </div>
 
       {/* Controls */}
-      <div className="shrink-0 border-t border-border/20 bg-card/80 px-4 py-3 space-y-3 pb-safe max-h-[40vh] overflow-y-auto">
+      <div className="shrink-0 border-t border-border bg-background/95 backdrop-blur-sm px-4 py-3 space-y-3 pb-safe max-h-[40vh] overflow-y-auto">
         <div className="flex items-center justify-center gap-6 relative">
           {/* Replay button */}
           <motion.button
@@ -559,7 +559,7 @@ function InterviewPageContent() {
               placeholder="Type your answer..."
               onKeyDown={(e) => e.key === 'Enter' && handleSendText()}
               disabled={status === 'thinking'}
-              className="bg-card/60 backdrop-blur-sm border-border/40"
+              className="bg-card border-border"
             />
             <Button
               size="sm"

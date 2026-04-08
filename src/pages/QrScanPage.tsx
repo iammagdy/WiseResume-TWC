@@ -108,7 +108,7 @@ export default function QrScanPage() {
   return (
     <div className="flex-1 flex flex-col min-h-0 pb-20 lg:pb-6 pt-safe">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-border/30">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
         <Button variant="ghost" size="icon" onClick={() => navigate('/qr-code')} className="shrink-0">
           <ArrowLeft className="w-5 h-5" />
         </Button>
@@ -135,7 +135,7 @@ export default function QrScanPage() {
           onClick={() => fileRef.current?.click()}
           className={cn(
             'flex flex-col items-center justify-center gap-3 p-8 rounded-2xl border-2 border-dashed cursor-pointer transition-all touch-manipulation active:scale-[0.98]',
-            dragOver ? 'border-primary bg-primary/5' : 'border-border/40 bg-card/30 hover:border-primary/30'
+            dragOver ? 'border-primary bg-primary/5' : 'border-border bg-card hover:border-primary/30'
           )}
         >
           <div className={cn('w-14 h-14 rounded-full flex items-center justify-center', scanning ? 'animate-pulse bg-primary/20' : 'bg-muted/50')}>
@@ -176,7 +176,7 @@ export default function QrScanPage() {
               </a>
             )}
             {result.kind === 'wifi' && result.wifi && (
-              <div className="rounded-xl bg-card/50 border border-border/30 p-3 space-y-2">
+              <div className="rounded-xl bg-card border border-border p-3 space-y-2">
                 {[['SSID', result.wifi.ssid], ['Password', result.wifi.password], ['Encryption', result.wifi.encryption]].map(([k, v]) => (
                   <div key={k} className="flex justify-between text-sm">
                     <span className="text-muted-foreground">{k}</span>
@@ -186,10 +186,10 @@ export default function QrScanPage() {
               </div>
             )}
             {result.kind === 'vcard' && (
-              <pre className="text-xs bg-card/50 border border-border/30 rounded-xl p-3 overflow-x-auto whitespace-pre-wrap">{result.raw}</pre>
+              <pre className="text-xs bg-card border border-border rounded-xl p-3 overflow-x-auto whitespace-pre-wrap">{result.raw}</pre>
             )}
             {result.kind === 'text' && (
-              <p className="text-sm p-3 rounded-xl bg-card/50 border border-border/30">{result.raw}</p>
+              <p className="text-sm p-3 rounded-xl bg-card border border-border">{result.raw}</p>
             )}
 
             {/* Raw data + copy */}

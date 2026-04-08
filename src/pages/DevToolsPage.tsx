@@ -53,7 +53,7 @@ export default function DevToolsPage() {
   if (!unlocked) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 relative z-10">
-        <div className="w-full max-w-sm space-y-4 bg-card/60 backdrop-blur-xl border border-border/50 rounded-2xl p-8 shadow-2xl">
+        <div className="w-full max-w-sm space-y-4 bg-card border border-border rounded-2xl p-8 shadow-2xl">
           <div className="space-y-2 text-center">
             <h1 className="text-2xl font-bold text-foreground">Dev-Kit</h1>
             <p className="text-sm text-muted-foreground">Admin access required</p>
@@ -82,7 +82,7 @@ export default function DevToolsPage() {
   return (
     <div className="min-h-screen bg-background/40 backdrop-blur-sm relative z-10">
       <div className="max-w-3xl mx-auto px-4 py-8 pb-32 space-y-8">
-        <header className="flex items-center justify-between sticky top-0 py-4 bg-background/95 dark:bg-background/5 backdrop-blur-md z-40 px-2 rounded-xl mb-4 border border-border/50 shadow-sm">
+        <header className="flex items-center justify-between sticky top-0 py-4 bg-background/95 backdrop-blur-sm z-40 px-2 rounded-xl mb-4 border border-border shadow-sm">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="hover:bg-background/20 rounded-full h-10 w-10">
               <ArrowLeft className="w-6 h-6" />
@@ -96,7 +96,7 @@ export default function DevToolsPage() {
 
         <DevKitRunner />
         
-        <footer className="py-12 border-t border-border/30 text-center">
+        <footer className="py-12 border-t border-border text-center">
           <p className="text-xs text-muted-foreground/60 font-mono italic">
             v1.3.0 · Build ID: {new Date().toISOString().split('T')[0].replace(/-/g, '')}
           </p>

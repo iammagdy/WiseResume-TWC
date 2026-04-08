@@ -225,7 +225,7 @@ export default function ApplicationsPage() {
   return (
     <div className="flex-1 flex flex-col min-h-0 pb-4">
       {/* Header */}
-      <header className="shrink-0 sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe">
+      <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 pt-safe">
         <div className="flex items-center justify-between max-w-3xl mx-auto w-full">
           <div className="flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-primary" />
@@ -270,7 +270,7 @@ export default function ApplicationsPage() {
               key={t.key}
               onClick={() => {haptics.selection();setActiveTab(t.key);}}
               className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all min-h-[44px] flex-1 touch-manipulation active:scale-95 ${
-              activeTab === t.key ? 'bg-background text-foreground shadow-sm border border-border/50' : 'text-muted-foreground hover:text-foreground'}`
+              activeTab === t.key ? 'bg-background text-foreground shadow-sm border border-border' : 'text-muted-foreground hover:text-foreground'}`
               }>
               
                 {t.label}

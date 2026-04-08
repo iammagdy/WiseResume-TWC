@@ -122,7 +122,7 @@ export default function QrBatchPage() {
   return (
     <div className="flex-1 flex flex-col min-h-0 pb-20 lg:pb-6 pt-safe">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-border/30">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
         <Button variant="ghost" size="icon" onClick={() => navigate('/qr-code')} className="shrink-0">
           <ArrowLeft className="w-5 h-5" />
         </Button>
@@ -168,10 +168,10 @@ export default function QrBatchPage() {
                 onClick={() => { haptics.light(); setPreset(p); }}
                 className={cn(
                   'flex flex-col items-center gap-1 px-3 py-2 rounded-xl border shrink-0 transition-all active:scale-95 touch-manipulation min-w-[56px]',
-                  preset.id === p.id ? 'border-primary bg-primary/10 ring-1 ring-primary/30' : 'border-border/40 bg-card/50'
+                  preset.id === p.id ? 'border-primary bg-primary/10 ring-1 ring-primary/30' : 'border-border bg-card'
                 )}
               >
-                <div className="w-6 h-6 rounded-full border border-border/30" style={{ background: p.swatch }} />
+                <div className="w-6 h-6 rounded-full border border-border" style={{ background: p.swatch }} />
                 <span className="text-[9px] font-medium text-foreground/70">{p.name}</span>
               </button>
             ))}
@@ -180,14 +180,14 @@ export default function QrBatchPage() {
 
         {/* Controls */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2 rounded-xl bg-card/30 p-3 border border-border/20">
+          <div className="space-y-2 rounded-xl bg-card p-3 border border-border">
             <div className="flex justify-between">
               <span className="text-xs text-muted-foreground">Size</span>
               <span className="text-xs font-medium">{size}px</span>
             </div>
             <Slider value={[size]} onValueChange={([v]) => setSize(v)} min={200} max={1000} step={50} />
           </div>
-          <div className="space-y-2 rounded-xl bg-card/30 p-3 border border-border/20">
+          <div className="space-y-2 rounded-xl bg-card p-3 border border-border">
             <span className="text-xs text-muted-foreground">Error Correction</span>
             <Select value={errorLevel} onValueChange={(v) => setErrorLevel(v as ErrorCorrectionLevel)}>
               <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
@@ -211,7 +211,7 @@ export default function QrBatchPage() {
       </div>
 
       {/* Bottom action */}
-      <div className="fixed bottom-20 lg:bottom-0 left-0 right-0 border-t border-border/20 bg-background/80 backdrop-blur-md px-4 py-3 pb-safe z-20">
+      <div className="fixed bottom-20 lg:bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur-sm px-4 py-3 pb-safe z-20">
         <Button
           className="w-full h-12 rounded-xl active:scale-95 font-medium"
           disabled={entries.length === 0 || generating}

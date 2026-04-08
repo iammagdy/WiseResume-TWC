@@ -53,7 +53,7 @@ export function EditorHeader({
   onDownload,
 }: EditorHeaderProps) {
   return (
-    <header className="editor-header shrink-0 sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe transition-all duration-200">
+    <header className="editor-header shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 pt-safe transition-all duration-200">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1 sm:gap-2 min-w-0 flex-1">
           <button
