@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { LogIn, UserPlus } from 'lucide-react';
 
 import { useAuth } from '@/hooks/useAuth';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { OfflineBanner } from '@/components/layout/OfflineBanner';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,7 @@ export default function AuthPage() {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { login: kindeLogin, register: kindeRegister } = useKindeAuth();
   const { isDark, toggleTheme } = useTheme();
+  const triggered = useRef(false);
 
   const redirectTo = searchParams.get('redirect') || '/dashboard';
   const mode = searchParams.get('mode');
@@ -29,31 +31,46 @@ export default function AuthPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (!authLoading && isAuthenticated) {
-      navigate(redirectTo, { replace: true });
-    }
+    if (!isAuthenticated || authLoading) return;
+    navigate(redirectTo, { replace: true });
   }, [isAuthenticated, authLoading, navigate, redirectTo]);
 
-  const handleLogin = () => {
-    kindeLogin();
-  };
+  useEffect(() => {
+    if (authLoading || isAuthenticated || mode) return;
+    navigate('/', { replace: true });
+  }, [authLoading, isAuthenticated, mode, navigate]);
 
-  const handleRegister = () => {
-    kindeRegister();
-  };
+  useEffect(() => {
+    if (authLoading || isAuthenticated || triggered.current || !mode) return;
+    triggered.current = true;
+
+    if (mode === 'login') {
+      kindeLogin();
+    } else {
+      kindeRegister();
+    }
+  }, [authLoading, isAuthenticated, mode, kindeLogin, kindeRegister]);
 
   const handleAction = () => {
     if (activeTab === 'login') {
-      handleLogin();
+      kindeLogin();
     } else {
-      handleRegister();
+      kindeRegister();
     }
   };
 
-  if (authLoading) {
+  if (mode && triggered.current) {
     return (
-      <div className="min-h-[100dvh] bg-background flex items-center justify-center">
-        <AppIcon size={44} />
+      <div className="relative isolate min-h-[100dvh] flex flex-col overflow-hidden bg-background">
+        <OfflineBanner />
+        <div className="flex-1 flex flex-col items-center justify-center">
+          <div className="flex flex-col items-center gap-4 px-8 py-8 rounded-2xl bg-card border border-border shadow-soft-lg">
+            <MiniSpinner size={28} />
+            <p className="text-sm font-medium text-foreground">
+              {mode === 'login' ? 'Signing you in\u2026' : 'Creating your account\u2026'}
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
