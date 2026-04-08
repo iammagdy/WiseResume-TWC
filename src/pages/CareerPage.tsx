@@ -109,7 +109,7 @@ export default function CareerPage() {
   return (
     <div className="flex-1 flex flex-col min-h-0">
       {/* Header */}
-      <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border border-b border-border px-4 py-3 pt-safe">
+      <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 pt-safe">
         <div className="flex items-center gap-3">
           <BackButton />
           <div className="flex items-center gap-2 flex-1">
