@@ -26,24 +26,24 @@ export default function PrivacyPage() {
   );
 
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-40 glass-header border-b border-border/20 px-4 h-12 flex items-center gap-3">
+    <div className="min-h-screen bg-background">
+      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border px-4 h-12 flex items-center gap-3">
         <Link to="/">
           <Button variant="ghost" size="icon" className="w-9 h-9" aria-label="Go back">
             <ArrowLeft className="w-4 h-4" />
           </Button>
         </Link>
-        <h1 className="text-sm font-semibold">Privacy Policy</h1>
+        <h1 className="text-sm font-semibold text-foreground">Privacy Policy</h1>
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-8 pb-safe overflow-x-hidden">
-        <div className="glass-elevated rounded-3xl border border-white/10 p-6 sm:p-8 space-y-8 text-sm leading-relaxed shadow-2xl text-gray-800 dark:text-gray-100">
-          <div className="flex items-center gap-2 text-foreground pb-2 border-b border-white/5">
+        <div className="rounded-2xl border border-border bg-card shadow-soft p-6 sm:p-8 space-y-8 text-sm leading-relaxed text-foreground">
+          <div className="flex items-center gap-2 text-foreground pb-3 border-b border-border">
             <ShieldCheck className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-bold">Privacy Policy</h2>
           </div>
-          <p className="text-[10px] opacity-60 uppercase tracking-widest font-medium">Effective Date: February 20, 2026 · Last Updated: March 9, 2026</p>
-          <p className="text-base leading-relaxed text-foreground/90">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Effective Date: February 20, 2026 · Last Updated: March 9, 2026</p>
+          <p className="text-base leading-relaxed text-muted-foreground">
             Your privacy matters to us. This policy explains what data WiseResume collects, how we use it, and how we keep it safe. By using WiseResume, you agree to these practices.
           </p>
 
@@ -52,7 +52,7 @@ export default function PrivacyPage() {
               <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px]">1</span>
               What We Collect
             </h3>
-            <div className="space-y-4 pl-8 border-l border-white/5">
+            <div className="space-y-4 pl-8 border-l border-border text-muted-foreground">
               <p><strong className="text-foreground">Account Info:</strong> Your email, display name, and login credentials. If you sign in with Google or Apple, we receive your name and email from them — never your password.</p>
               <p><strong className="text-foreground">Your Content:</strong> Resumes, cover letters, portfolios, career assessments, and any other documents you create.</p>
               <p><strong className="text-foreground">Usage Data:</strong> Anonymized, aggregated analytics like feature usage and session length.</p>
@@ -65,7 +65,7 @@ export default function PrivacyPage() {
               <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px]">2</span>
               How We Use It
             </h3>
-            <div className="space-y-2 pl-8 border-l border-white/5">
+            <div className="space-y-2 pl-8 border-l border-border text-muted-foreground">
               <p>We use your data to:</p>
               <ul className="list-disc pl-5 space-y-1">
                 <li>Power your experience — resume building, AI writing, interview prep, job matching, and portfolios.</li>
@@ -76,12 +76,12 @@ export default function PrivacyPage() {
             </div>
           </section>
 
-          <section className="space-y-3 font-medium bg-primary/5 p-4 rounded-xl border border-primary/10">
-            <h3 className="text-foreground font-bold flex items-center gap-2 uppercase tracking-tight text-xs text-primary">
+          <section className="space-y-3 bg-primary/5 p-4 rounded-xl border border-primary/10">
+            <h3 className="text-primary font-bold flex items-center gap-2 uppercase tracking-tight text-xs">
               <Sparkles className="w-3 h-3" />
-              AI & Your Data
+              AI &amp; Your Data
             </h3>
-            <ul className="list-disc pl-5 space-y-2 mt-2">
+            <ul className="list-disc pl-5 space-y-2 mt-2 text-muted-foreground">
               <li><strong className="text-foreground">On-demand only:</strong> Your content is sent to AI models only when you request help. Nothing is retained after the response.</li>
               <li><strong className="text-foreground">No training:</strong> Your data is never used to train or improve any AI model — ours or anyone else's.</li>
               <li><strong className="text-foreground">No selling:</strong> We don't share your data with AI companies, data brokers, or third parties.</li>
@@ -93,7 +93,7 @@ export default function PrivacyPage() {
               <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px]">4</span>
               Security
             </h3>
-            <div className="space-y-2 pl-8 border-l border-white/5">
+            <div className="space-y-2 pl-8 border-l border-border text-muted-foreground">
               <p>We take security seriously:</p>
               <ul className="list-disc pl-5 space-y-1">
                 <li><strong className="text-foreground">Encrypted storage:</strong> All data at rest is encrypted with AES-256.</li>
@@ -109,7 +109,7 @@ export default function PrivacyPage() {
               <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px]">5</span>
               Sharing
             </h3>
-            <div className="space-y-2 pl-8 border-l border-white/5">
+            <div className="space-y-2 pl-8 border-l border-border text-muted-foreground">
               <p>We <strong className="text-foreground">don't</strong> sell, rent, or trade your data.</p>
               <p>Your documents are <strong className="text-foreground">private by default</strong>. They're only visible to you unless you share them via a link.</p>
             </div>
@@ -120,7 +120,7 @@ export default function PrivacyPage() {
               <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px]">6</span>
               Your Rights
             </h3>
-            <div className="space-y-2 pl-8 border-l border-white/5">
+            <div className="space-y-2 pl-8 border-l border-border text-muted-foreground">
               <p>No matter where you are, you can:</p>
               <ul className="list-disc pl-5 space-y-1">
                 <li><strong className="text-foreground">Access</strong> your data anytime.</li>
@@ -132,14 +132,14 @@ export default function PrivacyPage() {
             </div>
           </section>
 
-          <section ref={contactRef} className="pt-8 border-t border-white/5">
+          <section ref={contactRef} className="pt-8 border-t border-border">
             <h3 className="text-foreground font-semibold mb-2">Contact Our Team</h3>
-            <p>Questions about your data or this policy?</p>
+            <p className="text-muted-foreground">Questions about your data or this policy?</p>
             <div className="flex flex-wrap gap-2 mt-4">
               <Button
                 onClick={() => scrollAndOpenContact('privacy')}
                 variant="outline"
-                className="rounded-full h-11 px-6 shadow-lg shadow-primary/5"
+                className="rounded-full h-11 px-6"
               >
                 Privacy Team
               </Button>

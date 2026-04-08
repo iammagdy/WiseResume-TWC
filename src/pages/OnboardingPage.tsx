@@ -186,7 +186,7 @@ export default function OnboardingPage() {
                     { icon: Briefcase, text: 'Practice interviews and get feedback' },
                     { icon: Sparkles, text: 'Create a public portfolio in one click' },
                   ].map(({ icon: Icon, text }) => (
-                    <div key={text} className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-card border border-border/50">
+                    <div key={text} className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-card border border-border shadow-soft-sm">
                       <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                         <Icon className="w-4 h-4 text-primary" />
                       </div>
@@ -427,7 +427,7 @@ export default function OnboardingPage() {
       </div>
 
       {/* ── Sticky footer with Back + Next ── */}
-      <div className="shrink-0 px-4 sm:px-6 pt-4 border-t border-border/40 bg-background/90 backdrop-blur-sm pb-safe">
+      <div className="shrink-0 px-4 sm:px-6 pt-4 border-t border-border bg-background pb-safe">
         <div className="flex gap-3 max-w-md mx-auto">
           {step > 0 && step < TOTAL_STEPS - 1 && (
             <Button
