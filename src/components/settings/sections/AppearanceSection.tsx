@@ -14,7 +14,7 @@ export const AppearanceSection = memo(function AppearanceSection({ onLanguage }:
             <div className="p-4">
                 <ThemeToggle className="w-full justify-center" />
             </div>
-            <Separator className="bg-border/30" />
+            <Separator className="ml-[52px] bg-border/30" />
             <SettingsRow
                 type="navigation"
                 label="Language"

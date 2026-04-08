@@ -60,7 +60,7 @@ export const NotificationsSection = memo(function NotificationsSection() {
                     </div>
                 </div>
             )}
-            <Separator className="bg-border/30" />
+            <Separator className="ml-[52px] bg-border/30" />
             <SettingsRow
                 type="toggle"
                 label="AI Enhancement Tips"
@@ -90,7 +90,7 @@ export const NotificationsSection = memo(function NotificationsSection() {
                     </div>
                 </div>
             )}
-            <Separator className="bg-border/30" />
+            <Separator className="ml-[52px] bg-border/30" />
             {/* Quiet Hours */}
             <SettingsRow
                 type="toggle"

@@ -66,7 +66,7 @@ export const PrivacySection = memo(function PrivacySection({
                         />
                         {biometricLockEnabled && (
                             <>
-                                <Separator className="bg-border/30" />
+                                <Separator className="ml-[52px] bg-border/30" />
                                 <SettingsRow
                                     type="navigation"
                                     label="Require Authentication After"
@@ -80,7 +80,7 @@ export const PrivacySection = memo(function PrivacySection({
                                 />
                             </>
                         )}
-                        <Separator className="bg-border/30" />
+                        <Separator className="ml-[52px] bg-border/30" />
                     </>
                 ) : null}
 
@@ -93,7 +93,7 @@ export const PrivacySection = memo(function PrivacySection({
                     checked={localOnlyMode}
                     onCheckedChange={setLocalOnlyMode}
                 />
-                <Separator className="bg-border/30" />
+                <Separator className="ml-[52px] bg-border/30" />
                 <SettingsRow
                     type="toggle"
                     label="Usage Analytics"

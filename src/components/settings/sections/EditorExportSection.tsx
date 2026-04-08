@@ -110,7 +110,7 @@ export const EditorExportSection = memo(function EditorExportSection({
                 </CollapsibleContent>
             </Collapsible>
 
-            <Separator className="bg-border/30" />
+            <Separator className="ml-[52px] bg-border/30" />
 
             {/* Export Resumes - Collapsible */}
             <Collapsible open={exportOpen} onOpenChange={setExportOpen}>

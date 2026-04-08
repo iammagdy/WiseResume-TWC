@@ -33,7 +33,7 @@ export const AboutSection = memo(function AboutSection({
                     icon={<RotateCcw className="w-4 h-4" />}
                     onClick={onTakeTour}
                 />
-                <Separator className="bg-border/30" />
+                <Separator className="ml-[52px] bg-border/30" />
                 <SettingsRow
                     type="button"
                     label="Replay Splash Screen"
@@ -41,7 +41,7 @@ export const AboutSection = memo(function AboutSection({
                     icon={<Sparkles className="w-4 h-4" />}
                     onClick={onReplaySplash}
                 />
-                <Separator className="bg-border/30" />
+                <Separator className="ml-[52px] bg-border/30" />
                 <SettingsRow
                     type="button"
                     label="Rate WiseResume"
@@ -49,7 +49,7 @@ export const AboutSection = memo(function AboutSection({
                     icon={<Star className="w-4 h-4" />}
                     onClick={onRateApp}
                 />
-                <Separator className="bg-border/30" />
+                <Separator className="ml-[52px] bg-border/30" />
                 <SettingsRow
                     type="button"
                     label="Share WiseResume"
@@ -69,7 +69,7 @@ export const AboutSection = memo(function AboutSection({
                 />
                 {isSignedIn && (
                     <>
-                        <Separator className="bg-border/30" />
+                        <Separator className="ml-[52px] bg-border/30" />
                         <SettingsRow
                             type="button"
                             label="Report a Bug"
@@ -83,7 +83,7 @@ export const AboutSection = memo(function AboutSection({
                                 });
                             }}
                         />
-                        <Separator className="bg-border/30" />
+                        <Separator className="ml-[52px] bg-border/30" />
                         <SettingsRow
                             type="toggle"
                             label="Shake to Report Bug"

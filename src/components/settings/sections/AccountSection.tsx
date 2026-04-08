@@ -52,7 +52,7 @@ export const AccountSection = memo(function AccountSection({
                     icon={<HelpCircle className="w-4 h-4" />}
                     onClick={() => { haptics.light(); navigate('/help'); }}
                 />
-                <Separator className="bg-border/30" />
+                <Separator className="ml-[52px] bg-border/30" />
                 {/* Subscription */}
                 <SettingsRow
                     type="navigation"
@@ -61,7 +61,7 @@ export const AccountSection = memo(function AccountSection({
                     icon={<Crown className="w-4 h-4" />}
                     onClick={() => { haptics.light(); navigate('/subscription'); }}
                 />
-                <Separator className="bg-border/30" />
+                <Separator className="ml-[52px] bg-border/30" />
                 {/* Referral */}
                 <SettingsRow
                     type="navigation"
@@ -70,7 +70,7 @@ export const AccountSection = memo(function AccountSection({
                     icon={<Gift className="w-4 h-4" />}
                     onClick={() => { haptics.light(); navigate('/referral'); }}
                 />
-                <Separator className="bg-border/30" />
+                <Separator className="ml-[52px] bg-border/30" />
                 {/* Change Password - email users only */}
                 {authProvider === 'email' && (
                     <>
@@ -81,7 +81,7 @@ export const AccountSection = memo(function AccountSection({
                             icon={<KeyRound className="w-4 h-4" />}
                             onClick={onChangePassword}
                         />
-                        <Separator className="bg-border/30" />
+                        <Separator className="ml-[52px] bg-border/30" />
                     </>
                 )}
                 <SettingsRow
@@ -90,7 +90,7 @@ export const AccountSection = memo(function AccountSection({
                     icon={<LogOut className="w-4 h-4" />}
                     onClick={() => { haptics.medium(); onSignOut(); }}
                 />
-                <Separator className="bg-border/30" />
+                <Separator className="ml-[52px] bg-border/30" />
                 <SettingsRow
                     type="button"
                     label="Delete All Data"

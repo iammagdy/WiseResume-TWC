@@ -30,11 +30,11 @@ export const AIVoiceSection = memo(function AIVoiceSection({
                 icon={<Brain className="w-4 h-4" />}
                 onClick={onOpenAISettings}
             />
-            <Separator className="bg-border/30" />
+            <Separator className="ml-[52px] bg-border/30" />
             <Suspense fallback={null}>
                 <AICreditsRow onOpenAISettings={onOpenAISettings} />
             </Suspense>
-            <Separator className="bg-border/30" />
+            <Separator className="ml-[52px] bg-border/30" />
             <SettingsRow
                 type="navigation"
                 label="AI Professional Headshot"
@@ -43,7 +43,7 @@ export const AIVoiceSection = memo(function AIVoiceSection({
                 icon={<ScanFace className="w-4 h-4" />}
                 onClick={() => toast('AI Headshots are coming in the next update!', { icon: '📸' })}
             />
-            <Separator className="bg-border/30" />
+            <Separator className="ml-[52px] bg-border/30" />
 
             {elevenlabsApiKey ? (
                 <div className="flex items-center gap-3 px-4 py-3.5">
