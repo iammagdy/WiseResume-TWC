@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Globe, Home, BarChart3, Sparkles } from 'lucide-react';
+import { FileText, Globe, Home, BarChart3, Sparkles, Settings } from 'lucide-react';
 import { motion, useReducedMotion, LayoutGroup } from 'framer-motion';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -29,7 +29,6 @@ const tabs: TabItem[] = [
   label: 'Home',
   matchPaths: [
     '/dashboard',
-    '/settings',
     '/notifications',
     '/templates',
     '/examples',
@@ -75,6 +74,12 @@ const tabs: TabItem[] = [
   icon: Globe,
   label: 'Portfolio',
   matchPaths: ['/portfolio']
+},
+{
+  path: '/settings',
+  icon: Settings,
+  label: 'Settings',
+  matchPaths: ['/settings']
 }];
 
 

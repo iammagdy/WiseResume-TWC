@@ -15,32 +15,17 @@ export function MiniSpinner({ size = 16, className }: MiniSpinnerProps) {
       role="status"
       aria-label="Loading"
     >
-      {/* Outer ring - clockwise */}
       <span
         className="absolute inset-0 rounded-full"
         style={{
-          border: `${borderWidth}px solid hsl(var(--primary) / 0.15)`,
+          border: `${borderWidth}px solid hsl(var(--muted))`,
           borderTopColor: 'hsl(var(--primary))',
-          animation: 'mini-spin-cw 0.8s linear infinite',
-        }}
-      />
-      {/* Inner ring - counter-clockwise */}
-      <span
-        className="absolute rounded-full"
-        style={{
-          width: size * 0.6,
-          height: size * 0.6,
-          border: `${borderWidth}px solid hsl(var(--primary) / 0.1)`,
-          borderBottomColor: 'hsl(var(--primary) / 0.7)',
-          animation: 'mini-spin-ccw 0.6s linear infinite',
+          animation: 'mini-spin-cw 0.7s linear infinite',
         }}
       />
       <style>{`
         @keyframes mini-spin-cw {
           to { transform: rotate(360deg); }
-        }
-        @keyframes mini-spin-ccw {
-          to { transform: rotate(-360deg); }
         }
       `}</style>
     </span>
