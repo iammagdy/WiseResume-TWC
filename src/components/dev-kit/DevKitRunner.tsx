@@ -64,9 +64,10 @@ export function DevKitRunner() {
       s.includes('invalid api key') ||
       s.includes('no ai api key') ||
       s.includes('wise_ai_api_key') ||
+      s.includes('vertex_api_key') ||
       s.includes('api key not configured')
     ) {
-      return 'WISE_AI_API_KEY not set or invalid — configure it in Supabase → Project Settings → Edge Function Secrets';
+      return 'VERTEX_API_KEY not set or invalid — configure it in Supabase → Project Settings → Edge Function Secrets';
     }
     return null;
   };

@@ -325,9 +325,11 @@ serve(async (req) => {
     }
 
     // Log AI configuration for debugging
+    const VERTEX_KEY = Deno.env.get('VERTEX_API_KEY');
     const WISE_KEY = Deno.env.get('WISE_AI_API_KEY');
     const GEMINI_KEY = Deno.env.get('GEMINI_API_KEY');
     console.log('🔑 AI configuration:', {
+      hasVertexKey: !!VERTEX_KEY,
       hasWiseAIKey: !!WISE_KEY,
       hasGeminiKey: !!GEMINI_KEY,
       userId: userId.slice(0, 8),

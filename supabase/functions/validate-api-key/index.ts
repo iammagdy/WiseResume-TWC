@@ -203,9 +203,9 @@ Deno.serve(async (req) => {
 
     // ===== Gemini validation =====
 
-    // Step 1: Validate by listing models
+    // Step 1: Validate by listing models via Vertex AI Express
     const modelsResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey.trim()}`,
+      `https://aiplatform.googleapis.com/v1/publishers/google/models?key=${apiKey.trim()}`,
       { method: 'GET' }
     );
 
@@ -224,7 +224,7 @@ Deno.serve(async (req) => {
     const modelsData = await modelsResponse.json();
     const allModels = modelsData.models
       ?.filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
-      ?.map((m: any) => m.name.replace('models/', '')) || [];
+      ?.map((m: any) => m.name.replace(/^(models\/|publishers\/google\/models\/)/, '')) || [];
 
     // Filter to only useful generative models (exclude embedding, TTS, vision-only, etc.)
     const GEMINI_MODEL_PREFIXES = ['gemini-'];
@@ -249,7 +249,7 @@ Deno.serve(async (req) => {
       : availableModels[0];
 
     const tierResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${testModel}:generateContent?key=${apiKey.trim()}`,
+      `https://aiplatform.googleapis.com/v1/publishers/google/models/${testModel}:generateContent?key=${apiKey.trim()}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -318,7 +318,7 @@ Deno.serve(async (req) => {
       console.log('[validate] Tier unknown, attempting RPM probe...');
       try {
         const probeResponse = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${testModel}:generateContent?key=${apiKey.trim()}`,
+          `https://aiplatform.googleapis.com/v1/publishers/google/models/${testModel}:generateContent?key=${apiKey.trim()}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

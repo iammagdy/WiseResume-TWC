@@ -26,6 +26,15 @@ See `.env.example`. Key variables:
 - `VITE_SUPABASE_URL` - Supabase project URL
 - `VITE_SUPABASE_PUBLISHABLE_KEY` - Supabase anonymous key
 
+## AI Backend (Vertex AI Express)
+All AI calls route through Vertex AI Express (`aiplatform.googleapis.com`).
+- **Endpoint**: `https://aiplatform.googleapis.com/v1/publishers/google/models/{MODEL}:generateContent?key={KEY}`
+- **Auth**: API key via `?key=` query parameter (not Bearer header)
+- **Body format**: Native Gemini (`contents` / `role` / `parts` + `systemInstruction`)
+- **Env var**: `VERTEX_API_KEY` (primary), `WISE_AI_API_KEY` (legacy fallback), `GEMINI_API_KEY` (legacy fallback)
+- **Set in**: Supabase → Project Settings → Edge Function Secrets
+- **Central client**: `supabase/functions/_shared/aiClient.ts` — `callGeminiDirect` converts OpenAI-style messages to native Gemini format, `parseVertexResponse` converts back to internal `AIResponse`
+
 ## Dev Server
 - Host: `0.0.0.0`
 - Port: `5000`

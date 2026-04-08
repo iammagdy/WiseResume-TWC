@@ -64,8 +64,8 @@ serve(async (req) => {
   }
 
   try {
-    const WISE_AI_API_KEY = Deno.env.get("WISE_AI_API_KEY");
-    if (!WISE_AI_API_KEY) throw new Error("WISE_AI_API_KEY not configured");
+    const VERTEX_API_KEY = Deno.env.get("VERTEX_API_KEY") || Deno.env.get("WISE_AI_API_KEY") || Deno.env.get("GEMINI_API_KEY");
+    if (!VERTEX_API_KEY) throw new Error("VERTEX_API_KEY not configured");
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -89,22 +89,17 @@ serve(async (req) => {
       console.log(`Generating: ${item.name}...`);
 
       const aiResponse = await fetch(
-        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        `https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash:generateContent?key=${VERTEX_API_KEY}`,
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${WISE_AI_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash-image",
-            messages: [
-              {
-                role: "user",
-                content: item.prompt,
-              },
-            ],
-            modalities: ["image", "text"],
+            contents: [{ role: "user", parts: [{ text: item.prompt }] }],
+            generationConfig: {
+              responseModalities: ["TEXT", "IMAGE"],
+            },
           }),
         }
       );
@@ -116,8 +111,9 @@ serve(async (req) => {
       }
 
       const aiData = await aiResponse.json();
-      const imageData =
-        aiData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+      const parts = aiData.candidates?.[0]?.content?.parts || [];
+      const imagePart = parts.find((p: any) => p.inlineData);
+      const imageData = imagePart ? `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}` : null;
 
       if (!imageData) {
         console.error(`No image returned for ${item.name}`);

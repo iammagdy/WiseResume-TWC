@@ -38,10 +38,9 @@ Deno.test("BYOK Edge Cases - AI Client", async (t) => {
       return originalDenoEnvGet(key);
     };
 
-    // Mock fetch to simulate a 401 from Gemini
     globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
       const urlStr = input.toString();
-      if (urlStr.includes('generativelanguage.googleapis.com')) {
+      if (urlStr.includes('aiplatform.googleapis.com')) {
         return new Response(JSON.stringify({ error: { message: "API key not valid. Please pass a valid API key." } }), {
           status: 401,
           headers: new Headers({ "Content-Type": "application/json" })
@@ -76,8 +75,8 @@ Deno.test("BYOK Edge Cases - AI Client", async (t) => {
 
     globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
       return new Response(JSON.stringify({
-        choices: [{ message: { content: "Enhancement success" } }],
-        usage: { prompt_tokens: 10, completion_tokens: 5 }
+        candidates: [{ content: { parts: [{ text: "Enhancement success" }] } }],
+        usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5 }
       }), { status: 200, headers: new Headers({ "Content-Type": "application/json" }) });
     };
 

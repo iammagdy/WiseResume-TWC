@@ -1,6 +1,6 @@
 /**
  * Shared AI Client for Edge Functions
- * Routes AI requests to either the AI Gateway or Google Gemini directly
+ * Routes AI requests via Vertex AI Express (aiplatform.googleapis.com)
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -195,20 +195,19 @@ async function getUserPreferredProvider(userId: string): Promise<string | null> 
 }
 
 /**
- * Calls AI API using Wise AI (Gemini) as default or user BYOK keys.
- * Priority: BYOK Ollama → BYOK Gemini → Wise AI (WISE_AI_API_KEY) → GEMINI_API_KEY fallback
+ * Calls AI API using Vertex AI Express as default or user BYOK keys.
+ * Priority: BYOK Ollama → BYOK Gemini → Vertex AI (VERTEX_API_KEY) → legacy fallbacks
  */
 export async function callAI(options: AICallOptions): Promise<AIResponse> {
   const { model, messages, temperature = 0.7, maxTokens, tools, toolChoice, userId, timeout = 30_000 } = options;
 
-  // Wise AI default key (Gemini-direct)
+  const vertexKey = Deno.env.get('VERTEX_API_KEY');
   const wiseAIKey = Deno.env.get('WISE_AI_API_KEY');
+  const defaultKey = vertexKey || wiseAIKey;
 
-  // Resolve user BYOK keys only if userId provided
   let userGeminiKey: string | undefined;
   let userOllamaData: { key: string; baseUrl: string | null; model: string | null } | undefined;
   if (userId) {
-    // Read user's preferred provider from user_preferences table
     const preferredProvider = options.preferredProvider || await getUserPreferredProvider(userId);
     
     if (preferredProvider === 'ollama') {
@@ -216,17 +215,16 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
     } else if (preferredProvider === 'gemini') {
       userGeminiKey = await getUserKeyFromDB(userId);
     } else {
-      // No preference or 'wiseresume': skip BYOK, use Wise AI default
+      // No preference or 'wiseresume': skip BYOK, use default key
     }
   }
   if (!userGeminiKey && !userOllamaData && options.userGeminiKey) {
     userGeminiKey = options.userGeminiKey; // deprecated body param
   }
 
-  // Legacy fallback
   const globalGeminiKey = Deno.env.get('GEMINI_API_KEY');
 
-  if (!wiseAIKey && !userGeminiKey && !userOllamaData && !globalGeminiKey) {
+  if (!defaultKey && !userGeminiKey && !userOllamaData && !globalGeminiKey) {
     console.error('[AI] No API key available');
     throw createAIError('invalid_key', 'No AI API key configured. Please add your API key in Settings.', 500);
   }
@@ -246,12 +244,12 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
         const res = await callOllamaDirect(userOllamaData.key, userOllamaData.baseUrl, ollamaModel, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
         return { ...res, providerUsed: 'ollama' };
       } catch (err) {
-        console.warn('[AI] Ollama BYOK failed, falling back to Wise AI:', err instanceof Error ? err.message : err);
-        if (wiseAIKey) {
+        console.warn('[AI] Ollama BYOK failed, falling back to Vertex AI:', err instanceof Error ? err.message : err);
+        if (defaultKey) {
           const fallbackController = new AbortController();
           const fallbackTimeout = setTimeout(() => fallbackController.abort(), timeout);
           try {
-            const res = await callGeminiDirect(wiseAIKey, model, messages, temperature, maxTokens, tools, toolChoice, fallbackController.signal);
+            const res = await callGeminiDirect(defaultKey, model, messages, temperature, maxTokens, tools, toolChoice, fallbackController.signal);
             return { ...res, fallbackUsed: true, fallbackReason: 'ollama_error', providerUsed: 'wiseresume_fallback' };
           } finally {
             clearTimeout(fallbackTimeout);
@@ -269,17 +267,17 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
         return { ...res, providerUsed: 'gemini_byok' };
       } catch (err) {
         const errDetail = err instanceof Error ? `${err.message} (type=${(err as any)?.type}, status=${(err as any)?.status})` : String(err);
-        console.warn('[AI] Gemini BYOK failed, falling back to Wise AI:', errDetail);
+        console.warn('[AI] Gemini BYOK failed, falling back to Vertex AI:', errDetail);
         const fallbackReason = (err as any)?.type === 'quota_exceeded' ? 'quota_exceeded'
           : (err as any)?.type === 'invalid_key' ? 'invalid_key'
           : (err as any)?.type === 'rate_limit' ? 'rate_limit'
           : (err instanceof Error && err.message?.includes('not found')) ? 'model_not_found'
           : 'gemini_error';
-        if (wiseAIKey) {
+        if (defaultKey) {
           const fallbackController = new AbortController();
           const fallbackTimeout = setTimeout(() => fallbackController.abort(), timeout);
           try {
-            const res = await callGeminiDirect(wiseAIKey, model, messages, temperature, maxTokens, tools, toolChoice, fallbackController.signal);
+            const res = await callGeminiDirect(defaultKey, model, messages, temperature, maxTokens, tools, toolChoice, fallbackController.signal);
             return { ...res, fallbackUsed: true, fallbackReason, providerUsed: 'wiseresume_fallback' };
           } finally {
             clearTimeout(fallbackTimeout);
@@ -289,16 +287,16 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
       }
     }
 
-    // Priority 3: Wise AI default (WISE_AI_API_KEY → Gemini direct)
-    if (wiseAIKey) {
-      console.log('[AI] Using Wise AI (Gemini) for model:', model);
-      const res = await callGeminiDirect(wiseAIKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+    // Priority 3: Vertex AI default (VERTEX_API_KEY or WISE_AI_API_KEY)
+    if (defaultKey) {
+      console.log('[AI] Using Vertex AI for model:', model);
+      const res = await callGeminiDirect(defaultKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
       return { ...res, providerUsed: 'wiseresume' };
     }
 
     // Priority 4: Global GEMINI_API_KEY (legacy fallback)
     if (globalGeminiKey) {
-      console.log('[AI] Using global GEMINI_API_KEY for model:', model);
+      console.log('[AI] Using legacy GEMINI_API_KEY for model:', model);
       const res = await callGeminiDirect(globalGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
       return { ...res, providerUsed: 'gemini_global' };
     }
@@ -492,8 +490,8 @@ async function callOllamaDirect(
 }
 
 /**
- * Calls Google Gemini API directly
- * Uses the OpenAI-compatible endpoint for consistency
+ * Calls Vertex AI Express (aiplatform.googleapis.com) with native Gemini format.
+ * Converts OpenAI-style messages to native Gemini contents/systemInstruction.
  */
 async function callGeminiDirect(
   apiKey: string,
@@ -506,21 +504,79 @@ async function callGeminiDirect(
   signal?: AbortSignal
 ): Promise<AIResponse> {
   const geminiModel = mapModelForGemini(model);
-  console.log(`[AI] callGeminiDirect: input model="${model}" → mapped="${geminiModel}"`);
+  console.log(`[AI] callGeminiDirect (Vertex): input model="${model}" → mapped="${geminiModel}"`);
 
-  const body: Record<string, unknown> = { model: geminiModel, messages, temperature };
-  if (maxTokens) body.max_tokens = maxTokens;
-  if (tools && tools.length > 0) {
-    body.tools = tools;
-    if (toolChoice) body.tool_choice = toolChoice;
+  const systemMessages = messages.filter(m => m.role === 'system');
+  const nonSystemMessages = messages.filter(m => m.role !== 'system');
+
+  const contents = nonSystemMessages.map(m => {
+    const msg = m as any;
+    if (msg.role === 'function' || msg.role === 'tool') {
+      return {
+        role: 'user',
+        parts: [{
+          functionResponse: {
+            name: msg.name || 'function',
+            response: { content: msg.content },
+          },
+        }],
+      };
+    }
+    if (msg.role === 'assistant' && msg.tool_calls) {
+      return {
+        role: 'model',
+        parts: msg.tool_calls.map((tc: any) => ({
+          functionCall: {
+            name: tc.function?.name || 'function',
+            args: JSON.parse(tc.function?.arguments || '{}'),
+          },
+        })),
+      };
+    }
+    return {
+      role: msg.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: msg.content }],
+    };
+  });
+
+  const body: Record<string, unknown> = {
+    contents,
+    generationConfig: { temperature },
+  };
+
+  if (systemMessages.length > 0) {
+    body.systemInstruction = {
+      parts: [{ text: systemMessages.map(m => m.content).join('\n\n') }],
+    };
   }
 
-  const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+  if (maxTokens) {
+    (body.generationConfig as Record<string, unknown>).maxOutputTokens = maxTokens;
+  }
+
+  if (tools && tools.length > 0) {
+    body.tools = [{
+      functionDeclarations: tools.map(t => ({
+        name: t.function.name,
+        description: t.function.description,
+        parameters: t.function.parameters,
+      })),
+    }];
+    if (toolChoice && typeof toolChoice === 'object' && toolChoice.type === 'function') {
+      body.toolConfig = {
+        functionCallingConfig: {
+          mode: 'ANY',
+          allowedFunctionNames: [toolChoice.function.name],
+        },
+      };
+    }
+  }
+
+  const url = `https://aiplatform.googleapis.com/v1/publishers/google/models/${geminiModel}:generateContent?key=${apiKey}`;
+
+  const response = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
     signal,
   });
@@ -530,14 +586,45 @@ async function callGeminiDirect(
   }
 
   const data = await response.json();
-  return parseOpenAIResponse(data);
+  return parseVertexResponse(data);
 }
 
-// NOTE: callLovableGateway and callEmergentUniversal have been removed.
-// All default AI calls now go through callGeminiDirect using WISE_AI_API_KEY.
+/**
+ * Parses Vertex AI native response into our AIResponse type
+ */
+function parseVertexResponse(data: any): AIResponse {
+  const candidate = data.candidates?.[0];
+  if (!candidate) {
+    throw createAIError('unknown', 'No response from AI', 500);
+  }
+
+  const parts = candidate.content?.parts || [];
+  const textParts = parts.filter((p: any) => p.text).map((p: any) => p.text);
+  const functionCallParts = parts.filter((p: any) => p.functionCall);
+
+  const toolCalls = functionCallParts.length > 0
+    ? functionCallParts.map((p: any, i: number) => ({
+        id: `call_${i}`,
+        type: 'function' as const,
+        function: {
+          name: p.functionCall.name,
+          arguments: JSON.stringify(p.functionCall.args || {}),
+        },
+      }))
+    : undefined;
+
+  return {
+    content: textParts.length > 0 ? textParts.join('') : null,
+    toolCalls,
+    usage: data.usageMetadata ? {
+      promptTokens: data.usageMetadata.promptTokenCount || 0,
+      completionTokens: data.usageMetadata.candidatesTokenCount || 0,
+    } : undefined,
+  };
+}
 
 /**
- * Parses OpenAI-format response into our AIResponse type
+ * Parses OpenAI-format response into our AIResponse type (used by Ollama path)
  */
 function parseOpenAIResponse(data: any): AIResponse {
   const choice = data.choices?.[0];
@@ -565,7 +652,7 @@ function parseOpenAIResponse(data: any): AIResponse {
 }
 
 /**
- * Handles errors from direct Gemini API calls
+ * Handles errors from Vertex AI / Gemini API calls
  */
 function handleGeminiError(status: number, errorText: string): never {
   console.error('Gemini API error:', status, errorText);
