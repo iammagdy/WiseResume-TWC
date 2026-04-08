@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Target, Wand2, Mic, User, LayoutDashboard, Settings, LogOut, Globe, ArrowRight, FileText, BarChart3, PenTool, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Target, Wand2, Mic, User, LayoutDashboard, Settings, LogOut, Globe, ArrowRight, FileText, BarChart3, PenTool, CheckCircle2, Check } from 'lucide-react';
 import { Footer } from '@/components/landing/Footer';
 import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
 import { Button } from '@/components/ui/button';
@@ -34,12 +34,10 @@ const features = [
   { icon: BarChart3, title: 'Application Tracker', desc: 'Track all your job applications in one place with status updates and analytics.', color: 'text-pink-600 dark:text-pink-400', bg: 'bg-pink-500/10' },
 ];
 
-const stats = [
-  { value: '50K+', label: 'Resumes created' },
-  { value: '92%', label: 'ATS pass rate' },
-  { value: '4.8', label: 'User rating' },
-  { value: '30s', label: 'Avg. tailor time' },
-];
+const pricingFeatures = {
+  free: ['1 resume', 'Basic AI suggestions', 'ATS score check', 'PDF export', 'Portfolio site'],
+  pro: ['Unlimited resumes', 'Advanced AI tools', 'Smart tailoring', 'Interview coaching', 'Cover letter generator', 'Application tracker', 'Priority support'],
+};
 
 const Index = () => {
   const navigate = useNavigate();
@@ -126,13 +124,14 @@ const Index = () => {
         <div ref={progressRef} className="h-full bg-primary transition-[width] duration-75 ease-out" />
       </div>
 
+      {/* Sticky Header */}
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           scrolled ? 'bg-background/95 backdrop-blur-sm border-b border-border shadow-soft-sm' : 'bg-transparent'
         }`}
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
-        <div className="flex items-center justify-between px-4 sm:px-6 h-14 max-w-5xl mx-auto">
+        <div className="flex items-center justify-between px-4 sm:px-6 h-14 max-w-6xl mx-auto">
           <button
             onClick={() => { triggerHaptic.light(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
             className="flex items-center gap-2.5 touch-manipulation"
@@ -192,35 +191,34 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto w-full">
-        <section className="flex flex-col items-center text-center px-4 sm:px-6 pt-[calc(7rem+env(safe-area-inset-top))] pb-16">
-          <motion.div className="mb-8" {...fade(0)}>
-            <img
-              alt="WiseResume"
-              className="w-20 h-20 sm:w-24 sm:h-24 object-contain rounded-2xl shadow-soft-lg"
-              loading="eager"
-              src={themeLogo}
-            />
+      <main className="max-w-6xl mx-auto w-full">
+        {/* Hero Section — Clean, text-focused */}
+        <section className="flex flex-col items-center text-center px-4 sm:px-6 pt-[calc(7rem+env(safe-area-inset-top))] pb-12 sm:pb-16">
+          <motion.div className="mb-6" {...fade(0)}>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold border border-primary/20">
+              <Sparkles className="w-3 h-3" />
+              AI-Powered Career Platform
+            </span>
           </motion.div>
 
           <motion.h1
-            className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-[1.1] tracking-tight mb-4 max-w-3xl"
-            {...fade(0.1)}
+            className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-[1.08] tracking-tight mb-5 max-w-2xl"
+            {...fade(0.08)}
           >
-            Your AI-Powered{' '}
-            <span className="text-primary">Career Platform</span>
+            Land your dream job with a{' '}
+            <span className="text-primary">perfect resume</span>
           </motion.h1>
 
           <motion.p
-            className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-xl leading-relaxed"
-            {...fade(0.15)}
+            className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-lg leading-relaxed"
+            {...fade(0.14)}
           >
-            Build standout resumes, practice interviews, track applications, and launch your portfolio — all in one place.
+            Build, tailor, and optimize your resume with AI. Practice interviews, track applications, and create your portfolio — all in one place.
           </motion.p>
 
           <motion.div className="w-full flex flex-col items-center gap-4" {...fade(0.2)}>
             {isAuthenticated ? (
-              <div className="flex flex-col sm:flex-row gap-3 w-full max-w-md">
+              <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
                 <Button
                   size="lg"
                   onClick={() => { triggerHaptic.light(); navigate('/dashboard'); }}
@@ -240,7 +238,7 @@ const Index = () => {
                 </Button>
               </div>
             ) : (
-              <div className="flex flex-col sm:flex-row gap-3 w-full max-w-md">
+              <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
                 <Button
                   size="lg"
                   onClick={handleCTA}
@@ -261,7 +259,7 @@ const Index = () => {
             )}
           </motion.div>
 
-          <motion.div className="mt-6 flex items-center gap-4 sm:gap-6 text-sm text-muted-foreground flex-wrap justify-center" {...fade(0.25)}>
+          <motion.div className="mt-5 flex items-center gap-4 sm:gap-6 text-sm text-muted-foreground flex-wrap justify-center" {...fade(0.25)}>
             {['Free to start', 'No credit card', 'AI-powered'].map((item) => (
               <span key={item} className="flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-primary" />
@@ -271,27 +269,25 @@ const Index = () => {
           </motion.div>
         </section>
 
-        <section className="px-4 sm:px-6 py-12">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 max-w-3xl mx-auto">
-            {stats.map((stat, i) => (
-              <motion.div
-                key={stat.label}
-                className="flex flex-col items-center text-center"
-                initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-30px' }}
-                transition={{ duration: 0.4, delay: i * 0.08, ease: 'easeOut' }}
-              >
-                <span className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight">
-                  {stat.value}
-                </span>
-                <span className="text-sm text-muted-foreground mt-1">{stat.label}</span>
-              </motion.div>
+        {/* Social proof strip — compact, subtle */}
+        <section className="px-4 sm:px-6 pb-16">
+          <div className="flex items-center justify-center gap-6 sm:gap-10 flex-wrap">
+            {[
+              { value: '50K+', label: 'Resumes' },
+              { value: '92%', label: 'ATS pass rate' },
+              { value: '4.8★', label: 'Rating' },
+              { value: '30s', label: 'Avg. tailor' },
+            ].map((stat) => (
+              <div key={stat.label} className="flex items-baseline gap-1.5">
+                <span className="text-lg sm:text-xl font-bold text-foreground">{stat.value}</span>
+                <span className="text-xs text-muted-foreground">{stat.label}</span>
+              </div>
             ))}
           </div>
         </section>
 
-        <section className="px-4 sm:px-6 py-12">
+        {/* Product Demos */}
+        <section className="px-4 sm:px-6 pb-20">
           <motion.div
             className="text-center mb-10"
             initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
@@ -299,10 +295,10 @@ const Index = () => {
             viewport={{ once: true, margin: '-50px' }}
             transition={{ duration: 0.4, ease: 'easeOut' }}
           >
-            <h2 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight mb-3">
-              See It in Action
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight mb-2">
+              See it in action
             </h2>
-            <p className="text-muted-foreground text-lg max-w-md mx-auto">
+            <p className="text-muted-foreground max-w-md mx-auto">
               From AI resume writing to a shareable personal website
             </p>
           </motion.div>
@@ -350,43 +346,47 @@ const Index = () => {
           </div>
         </section>
 
-        <section className="px-4 sm:px-6 py-12">
+        {/* Features — Alternating left/right layout */}
+        <section className="px-4 sm:px-6 pb-20">
           <motion.div
-            className="text-center mb-10"
+            className="text-center mb-12"
             initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-50px' }}
             transition={{ duration: 0.4, ease: 'easeOut' }}
           >
-            <h2 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight mb-3">
-              Everything You Need
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight mb-2">
+              Everything you need
             </h2>
-            <p className="text-muted-foreground text-lg max-w-md mx-auto">
+            <p className="text-muted-foreground max-w-md mx-auto">
               One platform for your entire job search
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl mx-auto">
+          <div className="max-w-3xl mx-auto space-y-6">
             {features.map((f, i) => (
               <motion.div
                 key={f.title}
-                className="rounded-2xl border border-border bg-card shadow-soft p-5 hover:shadow-soft-md transition-shadow"
-                initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
+                className={`flex items-start gap-5 p-5 rounded-2xl border border-border bg-card shadow-soft ${i % 2 === 1 ? 'sm:flex-row-reverse sm:text-right' : ''}`}
+                initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: '-20px' }}
-                transition={{ duration: 0.4, delay: i * 0.06, ease: 'easeOut' }}
+                transition={{ duration: 0.4, delay: i * 0.04, ease: 'easeOut' }}
               >
-                <div className={`w-10 h-10 rounded-xl ${f.bg} flex items-center justify-center mb-3`}>
-                  <f.icon className={`w-5 h-5 ${f.color}`} />
+                <div className={`w-12 h-12 rounded-xl ${f.bg} flex items-center justify-center shrink-0`}>
+                  <f.icon className={`w-6 h-6 ${f.color}`} />
                 </div>
-                <h3 className="font-semibold text-foreground mb-1">{f.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-foreground text-lg mb-1">{f.title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
+                </div>
               </motion.div>
             ))}
           </div>
         </section>
 
-        <section className="px-4 sm:px-6 py-12">
+        {/* Pricing */}
+        <section className="px-4 sm:px-6 pb-20">
           <motion.div
             className="text-center mb-10"
             initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
@@ -394,29 +394,29 @@ const Index = () => {
             viewport={{ once: true, margin: '-50px' }}
             transition={{ duration: 0.4, ease: 'easeOut' }}
           >
-            <h2 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight mb-3">
-              Simple Pricing
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight mb-2">
+              Simple pricing
             </h2>
-            <p className="text-muted-foreground text-lg max-w-md mx-auto">
+            <p className="text-muted-foreground max-w-md mx-auto">
               Start free, upgrade when you need more
             </p>
           </motion.div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
             <motion.div
-              className="rounded-2xl border border-border bg-card shadow-soft p-6 flex flex-col"
+              className="rounded-2xl border border-border bg-card p-6 flex flex-col"
               initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-20px' }}
               transition={{ duration: 0.4, delay: 0.05, ease: 'easeOut' }}
             >
-              <h3 className="text-lg font-bold text-foreground mb-1">Free</h3>
+              <h3 className="text-base font-semibold text-foreground mb-1">Free</h3>
               <p className="text-3xl font-bold text-foreground mb-1">$0<span className="text-sm font-normal text-muted-foreground">/mo</span></p>
-              <p className="text-sm text-muted-foreground mb-5">Perfect to get started</p>
-              <ul className="space-y-2.5 mb-6 flex-1">
-                {['1 resume', 'Basic AI suggestions', 'ATS score check', 'PDF export', 'Portfolio site'].map((item) => (
-                  <li key={item} className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+              <p className="text-sm text-muted-foreground mb-6">Perfect to get started</p>
+              <ul className="space-y-3 mb-8 flex-1">
+                {pricingFeatures.free.map((item) => (
+                  <li key={item} className="flex items-center gap-2.5 text-sm text-foreground">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
                     {item}
                   </li>
                 ))}
@@ -427,7 +427,7 @@ const Index = () => {
             </motion.div>
 
             <motion.div
-              className="rounded-2xl border-2 border-primary bg-card shadow-soft-lg p-6 flex flex-col relative"
+              className="rounded-2xl border-2 border-primary bg-card p-6 flex flex-col relative"
               initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-20px' }}
@@ -436,13 +436,13 @@ const Index = () => {
               <span className="absolute -top-3 left-6 px-3 py-0.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold">
                 Popular
               </span>
-              <h3 className="text-lg font-bold text-foreground mb-1">Pro</h3>
+              <h3 className="text-base font-semibold text-foreground mb-1">Pro</h3>
               <p className="text-3xl font-bold text-foreground mb-1">$9<span className="text-sm font-normal text-muted-foreground">/mo</span></p>
-              <p className="text-sm text-muted-foreground mb-5">For serious job seekers</p>
-              <ul className="space-y-2.5 mb-6 flex-1">
-                {['Unlimited resumes', 'Advanced AI tools', 'Smart tailoring', 'Interview coaching', 'Cover letter generator', 'Application tracker', 'Priority support'].map((item) => (
-                  <li key={item} className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+              <p className="text-sm text-muted-foreground mb-6">For serious job seekers</p>
+              <ul className="space-y-3 mb-8 flex-1">
+                {pricingFeatures.pro.map((item) => (
+                  <li key={item} className="flex items-center gap-2.5 text-sm text-foreground">
+                    <Check className="w-4 h-4 text-primary shrink-0" />
                     {item}
                   </li>
                 ))}
@@ -454,28 +454,30 @@ const Index = () => {
           </div>
         </section>
 
-        <section className="px-4 sm:px-6 py-12">
-          <div className="flex flex-col items-center text-center gap-5 p-8 rounded-2xl border border-border bg-card shadow-soft max-w-md mx-auto">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+        {/* Install CTA */}
+        <section className="px-4 sm:px-6 pb-16">
+          <div className="flex flex-col sm:flex-row items-center gap-5 p-6 rounded-2xl border border-border bg-card max-w-lg mx-auto">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
               <Sparkles className="w-6 h-6 text-primary" />
             </div>
-            <div>
-              <h3 className="text-lg font-semibold text-foreground mb-1">Get the App</h3>
-              <p className="text-sm text-muted-foreground max-w-xs">
-                Install WiseResume for quick access — works like a native app, no app store needed.
+            <div className="flex-1 text-center sm:text-left">
+              <h3 className="text-base font-semibold text-foreground mb-0.5">Get the App</h3>
+              <p className="text-sm text-muted-foreground">
+                Install WiseResume for quick access — works like a native app.
               </p>
             </div>
-            <InstallButton className="w-full max-w-xs" />
+            <InstallButton className="w-full sm:w-auto" />
           </div>
         </section>
 
+        {/* Final CTA */}
         {!isAuthenticated && (
-          <section className="px-4 sm:px-6 py-16">
-            <div className="flex flex-col items-center text-center gap-6 max-w-lg mx-auto">
-              <h2 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight">
-                Ready to Land Your Dream Job?
+          <section className="px-4 sm:px-6 pb-20">
+            <div className="flex flex-col items-center text-center gap-5 max-w-lg mx-auto">
+              <h2 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
+                Ready to land your dream job?
               </h2>
-              <p className="text-lg text-muted-foreground">
+              <p className="text-base text-muted-foreground">
                 Join thousands of professionals building better resumes with AI.
               </p>
               <Button

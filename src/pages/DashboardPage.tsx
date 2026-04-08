@@ -4,7 +4,6 @@ import { LazyMotion, domAnimation, m as motion, AnimatePresence } from 'framer-m
 import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { DashboardSkeleton } from '@/components/layout/PageSkeletons';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import useEmblaCarousel from 'embla-carousel-react';
 import { SortOption, CategoryFilter, ScoreFilter } from '@/components/dashboard/ResumeFilters';
 import { templates } from '@/lib/templateData';
 import { Button } from '@/components/ui/button';
@@ -115,8 +114,6 @@ function DashboardPageContent() {
   const { isOnline } = useNetworkStatus();
   const isOffline = !isOnline;
 
-  // embla hook MUST be before any early returns (guards)
-  const [emblaRef, emblaApi] = useEmblaCarousel({ skipSnaps: false, containScroll: false });
 
   // Pagination: render at most PAGE_SIZE items initially, reveal more on demand
   const PAGE_SIZE = 10;
@@ -126,14 +123,6 @@ function DashboardPageContent() {
   // Track session count for progressive disclosure
   useEffect(() => { trackSession(); }, []);
 
-  // Sync tab → carousel
-  useEffect(() => {
-    if (!emblaApi) return;
-    const index = activeTab === 'my-cvs' ? 0 : 1;
-    if (emblaApi.selectedScrollSnap() !== index) {
-      emblaApi.scrollTo(index);
-    }
-  }, [activeTab, emblaApi]);
 
   // Persist helpers for sessionStorage sync (D-3)
   const handleSetActiveTab = useCallback((tab: string) => {
@@ -146,16 +135,6 @@ function DashboardPageContent() {
     setSearchQuery(q);
   }, []);
 
-  // Sync carousel → tab
-  useEffect(() => {
-    if (!emblaApi) return;
-    const onSelect = () => {
-      const index = emblaApi.selectedScrollSnap();
-      handleSetActiveTab(index === 0 ? 'my-cvs' : 'tailored');
-    };
-    emblaApi.on('select', onSelect);
-    return () => { emblaApi.off('select', onSelect); };
-  }, [emblaApi, handleSetActiveTab]);
 
   // Reset loading state when dialog opens
   useEffect(() => {
@@ -820,154 +799,147 @@ function DashboardPageContent() {
                   </TabsTrigger>
                 </TabsList>
 
-                {/* Swipeable tab panels via Embla */}
-                <div className="overflow-hidden" ref={emblaRef}>
-                  <div className="flex" style={{ touchAction: 'pan-y pinch-zoom' }}>
-                    {/* Slide 0: My CVs */}
-                    <div className="flex-[0_0_100%] min-w-0">
+                <TabsContent value="my-cvs" className="mt-0">
+                  <motion.div
+                    className="space-y-3 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0"
+                    initial="hidden"
+                    animate="visible"
+                    variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
+                  >
+                    {resumeHierarchy && (() => {
+                      const myCVsAll = [
+                        ...resumeHierarchy.masterResumes,
+                        ...resumeHierarchy.orphanTailored,
+                      ];
+                      const myCVsSlice = myCVsAll.slice(0, visibleMyCVs);
+                      const myCVsRemaining = myCVsAll.length - myCVsSlice.length;
+                      return (
+                        <>
+                          {myCVsSlice.map((resume) => {
+                            const isMaster = !resume.parent_resume_id;
+                            return (
+                              <motion.div key={resume.id} variants={itemVariants}>
+                                <ResumeListCard
+                                  resume={resume}
+                                  onEdit={handleEdit}
+                                  onDuplicate={handleDuplicate}
+                                  onDelete={handleDelete}
+                                  onRename={handleRename}
+                                  onInterview={handleInterview}
+                                  showMasterBadge={isMaster && !!resumeHierarchy.tailoredByParent[resume.id]?.length}
+                                  showTailoredBadge={!isMaster}
+                                  healthScore={healthScores[resume.id]}
+                                  isScoring={scoringId === resume.id}
+                                  selectionMode={selectionMode}
+                                  selected={selectedIds.has(resume.id)}
+                                  onToggleSelect={toggleSelection}
+                                />
+                              </motion.div>
+                            );
+                          })}
+                          {myCVsRemaining > 0 && (
+                            <div className="flex justify-center pt-2 pb-1 lg:col-span-full">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="rounded-full text-xs text-muted-foreground hover:text-foreground touch-manipulation min-h-[44px] gap-1.5"
+                                onClick={() => { haptics.light(); setVisibleMyCVs(v => v + PAGE_SIZE); }}
+                              >
+                                Load more ({myCVsRemaining})
+                              </Button>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </motion.div>
+                </TabsContent>
+
+                <TabsContent value="tailored" className="mt-0">
+                  {(() => {
+                    const allTailored = filteredResumes?.filter(r => r.parent_resume_id) || [];
+                    if (allTailored.length === 0) {
+                      return (
+                        <div className="flex flex-col items-center justify-center py-12 text-center">
+                          <Sparkles className="w-10 h-10 text-muted-foreground/40 mb-3" />
+                          <p className="text-sm text-muted-foreground">No tailored CVs yet</p>
+                          <p className="text-xs text-muted-foreground/70 mt-1 mb-3">Open any CV and use "Tailor for Job" to create one</p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5 active:scale-95 touch-manipulation"
+                            onClick={() => { haptics.light(); navigate('/ai-studio?tool=tailor'); }}
+                          >
+                            <Sparkles className="w-4 h-4" />
+                            Tailor a Resume
+                          </Button>
+                        </div>
+                      );
+                    }
+                    const tailoredSlice = allTailored.slice(0, visibleTailored);
+                    const tailoredRemaining = allTailored.length - tailoredSlice.length;
+                    return (
                       <motion.div
-                        className="space-y-4 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0"
+                        className="space-y-3"
                         initial="hidden"
                         animate="visible"
                         variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
                       >
-                        {resumeHierarchy && (() => {
-                          const myCVsAll = [
-                            ...resumeHierarchy.masterResumes,
-                            ...resumeHierarchy.orphanTailored,
-                          ];
-                          const myCVsSlice = myCVsAll.slice(0, visibleMyCVs);
-                          const myCVsRemaining = myCVsAll.length - myCVsSlice.length;
-                          return (
-                            <>
-                              {myCVsSlice.map((resume) => {
-                                const isMaster = !resume.parent_resume_id;
-                                return (
-                                  <motion.div key={resume.id} variants={itemVariants}>
-                                    <ResumeListCard
-                                      resume={resume}
-                                      onEdit={handleEdit}
-                                      onDuplicate={handleDuplicate}
-                                      onDelete={handleDelete}
-                                      onRename={handleRename}
-                                      onInterview={handleInterview}
-                                      showMasterBadge={isMaster && !!resumeHierarchy.tailoredByParent[resume.id]?.length}
-                                      showTailoredBadge={!isMaster}
-                                      healthScore={healthScores[resume.id]}
-                                      isScoring={scoringId === resume.id}
-                                      selectionMode={selectionMode}
-                                      selected={selectedIds.has(resume.id)}
-                                      onToggleSelect={toggleSelection}
-                                    />
-                                  </motion.div>
-                                );
-                              })}
-                              {myCVsRemaining > 0 && (
-                                <div className="flex justify-center pt-2 pb-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="rounded-full text-xs text-muted-foreground hover:text-foreground touch-manipulation min-h-[44px] gap-1.5"
-                                    onClick={() => { haptics.light(); setVisibleMyCVs(v => v + PAGE_SIZE); }}
-                                  >
-                                    Load more ({myCVsRemaining})
-                                  </Button>
+                        {tailoredSlice.map((resume) => (
+                          <motion.div key={resume.id} variants={itemVariants}>
+                            <div className="rounded-xl bg-card border border-border shadow-soft p-3 space-y-2">
+                              {(resume.target_job_title || resume.target_company) && (
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                    {[resume.target_job_title, resume.target_company].filter(Boolean).join(' @ ')}
+                                  </span>
+                                  {resume.job_url && (
+                                    <a
+                                      href={resume.job_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 text-xs text-primary/80 hover:text-primary transition-colors"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <ExternalLink className="w-3 h-3" />
+                                      View Job
+                                    </a>
+                                  )}
                                 </div>
                               )}
-                            </>
-                          );
-                        })()}
-                      </motion.div>
-                    </div>
-
-                    {/* Slide 1: Tailored */}
-                    <div className="flex-[0_0_100%] min-w-0">
-                      {(() => {
-                        const allTailored = filteredResumes?.filter(r => r.parent_resume_id) || [];
-                        if (allTailored.length === 0) {
-                          return (
-                            <div className="flex flex-col items-center justify-center py-12 text-center">
-                              <Sparkles className="w-10 h-10 text-muted-foreground/40 mb-3" />
-                              <p className="text-sm text-muted-foreground">No tailored CVs yet</p>
-                              <p className="text-xs text-muted-foreground/70 mt-1 mb-3">Open any CV and use "Tailor for Job" to create one</p>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="gap-1.5 active:scale-95 touch-manipulation"
-                                onClick={() => { haptics.light(); navigate('/ai-studio?tool=tailor'); }}
-                              >
-                                <Sparkles className="w-4 h-4" />
-                                Tailor a Resume
-                              </Button>
+                              <ResumeListCard
+                                resume={resume}
+                                onEdit={handleEdit}
+                                onDuplicate={handleDuplicate}
+                                onDelete={handleDelete}
+                                onRename={handleRename}
+                                onInterview={handleInterview}
+                                showTailoredBadge
+                                healthScore={healthScores[resume.id]}
+                                isScoring={scoringId === resume.id}
+                                selectionMode={selectionMode}
+                                selected={selectedIds.has(resume.id)}
+                                onToggleSelect={toggleSelection}
+                              />
                             </div>
-                          );
-                        }
-                        const tailoredSlice = allTailored.slice(0, visibleTailored);
-                        const tailoredRemaining = allTailored.length - tailoredSlice.length;
-                        return (
-                          <motion.div
-                            className="space-y-3"
-                            initial="hidden"
-                            animate="visible"
-                            variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
-                          >
-                            {tailoredSlice.map((resume) => (
-                              <motion.div key={resume.id} variants={itemVariants}>
-                                <div className="rounded-xl bg-card border border-border shadow-soft p-3 space-y-2">
-                                  {(resume.target_job_title || resume.target_company) && (
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                                        {[resume.target_job_title, resume.target_company].filter(Boolean).join(' @ ')}
-                                      </span>
-                                      {resume.job_url && (
-                                        <a
-                                          href={resume.job_url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="inline-flex items-center gap-1 text-xs text-primary/80 hover:text-primary transition-colors"
-                                          onClick={(e) => e.stopPropagation()}
-                                        >
-                                          <ExternalLink className="w-3 h-3" />
-                                          View Job
-                                        </a>
-                                      )}
-                                    </div>
-                                  )}
-                                  <ResumeListCard
-                                    resume={resume}
-                                    onEdit={handleEdit}
-                                    onDuplicate={handleDuplicate}
-                                    onDelete={handleDelete}
-                                    onRename={handleRename}
-                                    onInterview={handleInterview}
-                                    showTailoredBadge
-                                    healthScore={healthScores[resume.id]}
-                                    isScoring={scoringId === resume.id}
-                                    selectionMode={selectionMode}
-                                    selected={selectedIds.has(resume.id)}
-                                    onToggleSelect={toggleSelection}
-                                  />
-                                </div>
-                              </motion.div>
-                            ))}
-                            {tailoredRemaining > 0 && (
-                              <div className="flex justify-center pt-2 pb-1">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="rounded-full text-xs text-muted-foreground hover:text-foreground touch-manipulation min-h-[44px] gap-1.5"
-                                  onClick={() => { haptics.light(); setVisibleTailored(v => v + PAGE_SIZE); }}
-                                >
-                                  Load more ({tailoredRemaining})
-                                </Button>
-                              </div>
-                            )}
                           </motion.div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                </div>
+                        ))}
+                        {tailoredRemaining > 0 && (
+                          <div className="flex justify-center pt-2 pb-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="rounded-full text-xs text-muted-foreground hover:text-foreground touch-manipulation min-h-[44px] gap-1.5"
+                              onClick={() => { haptics.light(); setVisibleTailored(v => v + PAGE_SIZE); }}
+                            >
+                              Load more ({tailoredRemaining})
+                            </Button>
+                          </div>
+                        )}
+                      </motion.div>
+                    );
+                  })()}
+                </TabsContent>
               </Tabs>
             </div>
           )}

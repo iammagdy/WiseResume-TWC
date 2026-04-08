@@ -3,15 +3,12 @@ import { getAppUrl } from '@/lib/portfolioUrl';
 
 import { useNavigate } from 'react-router-dom';
 import {
-  LogOut, Info, ChevronRight, Download, Bell, Sparkles, Shield, Palette,
-  Brain, Chrome, Mail, ScrollText, X, Check } from
+  ChevronRight, ScrollText, X, Check } from
 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { openExternal } from '@/lib/openExternal';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from '@/components/ui/alert-dialog';
@@ -52,27 +49,12 @@ import { NotificationsSection } from '@/components/settings/sections/Notificatio
 import { PrivacySection } from '@/components/settings/sections/PrivacySection';
 import { AboutSection } from '@/components/settings/sections/AboutSection';
 
-// --- Section index chips ---
-const SECTIONS = [
-{ id: 'section-account', label: 'Account', icon: LogOut },
-{ id: 'section-appearance', label: 'Appearance', icon: Palette },
-{ id: 'section-ai-voice', label: 'AI & Voice', icon: Brain },
-{ id: 'section-editor-export', label: 'Editor', icon: Download },
-{ id: 'section-notifications', label: 'Notifications', icon: Bell },
-{ id: 'section-privacy', label: 'Privacy', icon: Shield },
-{ id: 'section-about', label: 'About', icon: Info }] as
-const;
-
-// --- Section header helper ---
-function SectionHeader({ icon: Icon, label, badge }: {icon: React.ElementType;label: string;badge?: React.ReactNode;}) {
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-label uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
-      <div className="w-1 h-5 rounded-full bg-primary/40" />
-      <Icon className="w-4 h-4 text-primary/60" />
-      {label}
-      {badge}
-    </h2>);
-
+    <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground px-4 mb-1.5">
+      {children}
+    </h2>
+  );
 }
 
 export default function SettingsPage() {
@@ -144,49 +126,7 @@ export default function SettingsPage() {
 
   const appVersion = changelogData[0]?.version || 'v2.0.0';
 
-  // --- Section index: active tracking ---
-  const [activeSection, setActiveSection] = useState<string>(SECTIONS[0].id);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    const observers: IntersectionObserver[] = [];
-    const visibleSections = new Map<string, boolean>();
-
-    SECTIONS.forEach(({ id }) => {
-      const el = container.querySelector(`#${id}`);
-      if (!el) return;
-      const obs = new IntersectionObserver(
-        ([entry]) => {
-          visibleSections.set(id, entry.isIntersecting);
-          for (const s of SECTIONS) {
-            if (visibleSections.get(s.id)) {
-              setActiveSection(s.id);
-              break;
-            }
-          }
-        },
-        { root: container, rootMargin: '-10% 0px -70% 0px', threshold: 0 }
-      );
-      obs.observe(el);
-      observers.push(obs);
-    });
-
-    return () => observers.forEach((o) => o.disconnect());
-  }, [user]);
-
-  const scrollToSection = (id: string) => {
-    haptics.light();
-    const container = scrollContainerRef.current;
-    const el = container?.querySelector(`#${id}`);
-    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
-  // Auth provider detection — display login method, not the underlying vendor
   const authProvider = 'kinde';
-  const providerLabel = 'Email';
-  const ProviderIcon = Mail;
 
   // --- Handlers ---
   const handleBiometricToggle = useCallback(async (enabled: boolean) => {
@@ -277,177 +217,110 @@ export default function SettingsPage() {
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="pt-safe sticky top-0 z-10 pb-1 px-4 bg-background/95 backdrop-blur-sm border-b border-border">
+        <header className="pt-safe sticky top-0 z-10 pb-2 px-4 bg-background/95 backdrop-blur-sm border-b border-border">
           <div className="flex items-center gap-3">
             <BackButton />
             <h1 className="text-page-title">Settings</h1>
           </div>
-
-          {/* Section index chips */}
-          <div className="relative">
-            <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-2 -mx-1 px-1">
-              {SECTIONS.map(({ id, label, icon: SIcon }) => {
-                if (id === 'section-account' && !user) return null;
-                const isActive = activeSection === id;
-                return (
-                  <button
-                    key={id}
-                    onClick={() => scrollToSection(id)}
-                    className={cn(
-                      'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all active:scale-95 touch-manipulation shrink-0 min-h-[44px]',
-                      isActive ?
-                      'bg-primary text-primary-foreground shadow-sm' :
-                      'bg-muted/60 text-muted-foreground hover:bg-muted'
-                    )}>
-                    
-                    <SIcon className="w-3 h-3" />
-                    {label}
-                  </button>);
-
-              })}
-            </div>
-            {/* Right-edge fade to hint horizontal scroll */}
-            <div className="absolute right-0 top-0 bottom-0 w-8 pointer-events-none bg-gradient-to-l from-background to-transparent" />
-          </div>
         </header>
 
         {/* Content */}
-        <div ref={scrollContainerRef} className="px-5 py-4 space-y-8 overflow-y-auto pb-24">
+        <div className="py-6 space-y-7 overflow-y-auto pb-24">
           {/* Guest CTA */}
-          {!user && <GuestCtaCard navigate={navigate} />}
+          {!user && <div className="px-4"><GuestCtaCard navigate={navigate} /></div>}
 
-          {/* Profile Section */}
-          <button
-            onClick={() => navigate('/profile')}
-            className="w-full flex items-center gap-4 p-4 rounded-2xl bg-card border border-border shadow-soft text-left active:scale-[0.98] transition-all touch-manipulation">
-            
-            <Avatar className="h-14 w-14">
-              <AvatarImage src={profile?.avatarUrl} />
-              <AvatarFallback className="bg-primary text-primary-foreground">
-                {getInitials()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium truncate">{displayName}</p>
-              {user?.email &&
-              <p className="text-sm text-muted-foreground truncate">{user.email}</p>
-              }
-              <div className="mt-1.5 flex items-center gap-1.5">
-                <Badge variant="secondary" className="text-[10px] px-2 py-0.5 gap-1 font-normal">
-                  <ProviderIcon className="w-3 h-3" />
-                  {providerLabel}
-                </Badge>
+          {/* Profile Card */}
+          <div className="px-4">
+            <button
+              onClick={() => navigate('/profile')}
+              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-card border border-border shadow-soft text-left active:scale-[0.98] transition-all touch-manipulation"
+            >
+              <Avatar className="h-14 w-14">
+                <AvatarImage src={profile?.avatarUrl} />
+                <AvatarFallback className="bg-primary text-primary-foreground">
+                  {getInitials()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-foreground truncate">{displayName}</p>
+                {user?.email && (
+                  <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+                )}
               </div>
-              <p className="mt-1.5 text-xs text-muted-foreground">View & edit profile</p>
-            </div>
-            <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-          </button>
+              <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+            </button>
+          </div>
 
-          <Separator className="opacity-10" />
-
-          {/* Account Section */}
-          {user &&
-            <div id="section-account" className="space-y-3 px-1">
-              <div className="p-4 rounded-2xl bg-card border border-border shadow-soft space-y-4">
-                <div>
-                  <SectionHeader icon={LogOut} label="Account" />
-                  <p className="text-xs text-muted-foreground mt-1">Manage your account and data</p>
-                </div>
+          {/* Account */}
+          {user && (
+            <div>
+              <SectionLabel>Account</SectionLabel>
+              <div className="mx-4">
                 <AccountSection
                   user={user}
                   authProvider={authProvider}
                   onChangePassword={handleChangePassword}
                   onSignOut={() => setSignOutConfirmOpen(true)}
-                  onDeleteData={() => setDeleteDialogOpen(true)} 
+                  onDeleteData={() => setDeleteDialogOpen(true)}
                 />
               </div>
             </div>
-          }
+          )}
 
-          <Separator className="opacity-10" />
-
-          {/* Appearance Section */}
-          <div id="section-appearance" className="space-y-3 px-1">
-            <div className="p-4 rounded-2xl bg-card border border-border shadow-soft space-y-4">
-              <div>
-                <SectionHeader icon={Palette} label="Appearance" />
-                <p className="text-xs text-muted-foreground mt-1">Theme, language, and display preferences</p>
-              </div>
+          {/* Appearance */}
+          <div>
+            <SectionLabel>Appearance</SectionLabel>
+            <div className="mx-4">
               <AppearanceSection onLanguage={handleLanguage} />
             </div>
           </div>
 
-          <Separator className="opacity-10" />
-
-          {/* AI & Voice Section */}
-          <div id="section-ai-voice" className="space-y-3 px-1">
-            <div className="p-4 rounded-2xl bg-card border border-border shadow-soft space-y-4">
-              <div>
-                <SectionHeader icon={Brain} label="AI & Voice" />
-                <p className="text-xs text-muted-foreground mt-1">Choose your AI engine and voice settings</p>
-              </div>
+          {/* AI & Voice */}
+          <div>
+            <SectionLabel>AI & Voice</SectionLabel>
+            <div className="mx-4">
               <AIVoiceSection
                 onOpenAISettings={() => setAISettingsOpen(true)}
-                onOpenElevenLabsKey={() => setElevenLabsKeyOpen(true)} 
+                onOpenElevenLabsKey={() => setElevenLabsKeyOpen(true)}
               />
             </div>
           </div>
 
-          <Separator className="opacity-10" />
-
-          {/* Editor & Export Section */}
-          <div id="section-editor-export" className="space-y-3 px-1">
-            <div className="p-4 rounded-2xl bg-card border border-border shadow-soft space-y-4">
-              <div>
-                <SectionHeader icon={Download} label="Editor & Export" />
-                <p className="text-xs text-muted-foreground mt-1">PDF output and resume backup options</p>
-              </div>
+          {/* Editor & Export */}
+          <div>
+            <SectionLabel>Editor & Export</SectionLabel>
+            <div className="mx-4">
               <EditorExportSection
                 isSignedIn={!!user}
                 onManageExports={() => setDataExportSheetOpen(true)}
-                onNavigateAuth={() => navigate('/auth')} 
+                onNavigateAuth={() => navigate('/auth')}
               />
             </div>
           </div>
 
-          <Separator className="opacity-10" />
-
-          {/* Notifications Section */}
-          <div id="section-notifications" className="space-y-3 px-1">
-            <div className="p-4 rounded-2xl bg-card border border-border shadow-soft space-y-4">
-              <div>
-                <SectionHeader icon={Bell} label="Notifications" />
-                <p className="text-xs text-muted-foreground mt-1">Control alerts and suggestion prompts</p>
-              </div>
+          {/* Notifications */}
+          <div>
+            <SectionLabel>Notifications</SectionLabel>
+            <div className="mx-4">
               <NotificationsSection />
             </div>
           </div>
 
-          <Separator className="opacity-10" />
-
-          {/* Privacy Section */}
-          <div id="section-privacy" className="space-y-3 px-1">
-            <div className="p-4 rounded-2xl bg-card border border-border shadow-soft space-y-4">
-              <div>
-                <SectionHeader icon={Shield} label="Privacy & Security" />
-                <p className="text-xs text-muted-foreground mt-1">Biometric lock, data protection, and privacy controls</p>
-              </div>
+          {/* Privacy & Security */}
+          <div>
+            <SectionLabel>Privacy & Security</SectionLabel>
+            <div className="mx-4">
               <PrivacySection
                 onOpenBiometricTimeout={() => setBiometricTimeoutOpen(true)}
-                onBiometricToggle={handleBiometricToggle} 
+                onBiometricToggle={handleBiometricToggle}
               />
             </div>
           </div>
 
-          <Separator className="opacity-10" />
-
-          {/* About Section */}
-          <div id="section-about" className="space-y-3 px-1">
-            <div className="p-4 rounded-2xl bg-card border border-border shadow-soft space-y-4">
-              <div>
-                <SectionHeader icon={Info} label="About & Help" />
-                <p className="text-xs text-muted-foreground mt-1">App info, onboarding, and sharing</p>
-              </div>
+          {/* About & Help */}
+          <div>
+            <SectionLabel>About & Help</SectionLabel>
+            <div className="mx-4">
               <AboutSection
                 isSignedIn={!!user}
                 onTakeTour={async () => {
@@ -468,32 +341,34 @@ export default function SettingsPage() {
                 }}
                 onRateApp={handleRateApp}
                 onShareApp={handleShareApp}
-                onOpenHelp={() => setHelpSheetOpen(true)} 
+                onOpenHelp={() => setHelpSheetOpen(true)}
               />
             </div>
           </div>
 
-          {/* Developer Credit Card */}
-          <Suspense fallback={null}>
-            <DeveloperCreditCard
-              name="Magdy Saber"
-              title="Creator & Developer"
-              avatarUrl={developerPhoto}
-              websiteUrl="https://magdysaber.com"
-              githubUrl="https://github.com/iammagdy"
-              onContactClick={() => openExternal('mailto:contact@magdysaber.com')} />
-            
-          </Suspense>
+          {/* Developer Credit */}
+          <div className="px-4">
+            <Suspense fallback={null}>
+              <DeveloperCreditCard
+                name="Magdy Saber"
+                title="Creator & Developer"
+                avatarUrl={developerPhoto}
+                websiteUrl="https://magdysaber.com"
+                githubUrl="https://github.com/iammagdy"
+                onContactClick={() => openExternal('mailto:contact@magdysaber.com')}
+              />
+            </Suspense>
+          </div>
 
-          {/* Branded Footer */}
+          {/* App Footer */}
           <div className="pt-2 pb-10">
-            <div className="flex flex-col items-center gap-4 px-6 py-8 rounded-3xl bg-card border border-border shadow-soft-md w-full max-w-xs mx-auto">
-              <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-soft-lg">
-                <AppIcon size={56} showSparkle={false} className="w-full h-full" />
+            <div className="flex flex-col items-center gap-3 px-6 py-6">
+              <div className="w-12 h-12 rounded-xl overflow-hidden shadow-soft">
+                <AppIcon size={48} showSparkle={false} className="w-full h-full" />
               </div>
-              <div className="flex flex-col items-center gap-1.5">
-                <h2 className="text-lg font-bold text-foreground tracking-tight">WiseResume</h2>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/25 text-xs font-mono font-medium text-gray-950">
+              <div className="flex flex-col items-center gap-1">
+                <h2 className="text-sm font-semibold text-foreground">WiseResume</h2>
+                <span className="text-xs text-muted-foreground font-mono">
                   {appVersion}
                 </span>
               </div>

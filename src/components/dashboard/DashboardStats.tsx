@@ -2,7 +2,6 @@ import { useMemo, useEffect, useState, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileText, Flame, AlertCircle, Lightbulb, X } from 'lucide-react';
 import { ResumeHealthScore } from '@/hooks/useResumeScore';
-import { Badge } from '@/components/ui/badge';
 import { DatabaseResume } from '@/hooks/useResumes';
 
 function useLoginStreak() {
@@ -76,7 +75,6 @@ export const DashboardStats = memo(function DashboardStats({ totalResumes, healt
     localStorage.setItem('wr-tip-dismissed', 'true');
   };
 
-  // Rotate subtitles every 4 seconds when empty state
   useEffect(() => {
     if (totalResumes > 0) return;
     const interval = setInterval(() => {
@@ -85,13 +83,10 @@ export const DashboardStats = memo(function DashboardStats({ totalResumes, healt
     return () => clearInterval(interval);
   }, [totalResumes]);
 
-  const { avgScore, bestScore } = useMemo(() => {
+  const avgScore = useMemo(() => {
     const scores = Object.values(healthScores).map(s => s.overallScore);
-    if (scores.length === 0) return { avgScore: 0, bestScore: 0 };
-    return {
-      avgScore: Math.round(scores.reduce((a, b) => a + b, 0) / scores.length),
-      bestScore: Math.max(...scores),
-    };
+    if (scores.length === 0) return 0;
+    return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
   }, [healthScores]);
 
   const greeting = useMemo(() => {
@@ -104,105 +99,85 @@ export const DashboardStats = memo(function DashboardStats({ totalResumes, healt
   const firstName = userName ? userName.split(' ')[0] : '';
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="px-4 pt-2 pb-2"
-    >
-      {/* Glass Hero Card */}
-      <div className="bg-card border border-border shadow-soft rounded-2xl p-4 relative overflow-hidden">
-        {/* Animated gradient border */}
-        <div className="absolute inset-0 rounded-2xl p-[1px] pointer-events-none">
-          <div
-            className="absolute inset-0 rounded-2xl opacity-30"
-            style={{
-              background: `conic-gradient(from 135deg, hsl(var(--primary)), hsl(var(--secondary)), hsl(var(--accent)), hsl(var(--primary)))`,
-              WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-              WebkitMaskComposite: 'xor',
-              maskComposite: 'exclude',
-              padding: '1px',
-            }}
-          />
-        </div>
-
-        {/* Content */}
-        <div className="relative z-10">
-          {/* Greeting - compact */}
-          <div className="flex items-center justify-between mb-1">
-            <h2 className="text-xl sm:text-lg font-semibold truncate">
-              {greeting}{firstName ? `, ${firstName}` : ''}{' '}
-              <span className="text-base">👋</span>
-            </h2>
-            {streak > 1 && (
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full bg-warning/10 border border-warning/20"
-              >
-                <Flame className="w-3.5 h-3.5 text-warning" />
-                <span className="text-xs font-bold text-warning">{streak}</span>
-              </motion.div>
-            )}
-          </div>
-
-          {/* Inline daily tip */}
-          {!tipDismissed && (
-            <div className="flex items-center gap-2 mt-1">
-              <Lightbulb className="w-3 h-3 text-warning shrink-0" />
-              <p className="text-[11px] text-muted-foreground truncate flex-1 min-w-0">{tip}</p>
-              <button
-                onClick={handleDismissTip}
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground touch-manipulation shrink-0"
-                aria-label="Dismiss tip"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </div>
-          )}
-
-          {/* Rotating motivational subtitle for empty state only */}
-          {totalResumes === 0 && (
-            <div className="h-6 mb-4 overflow-hidden mt-1">
-              <AnimatePresence mode="wait">
-                <motion.p
-                  key={subtitleIndex}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.3 }}
-                  className="text-sm text-muted-foreground"
-                >
-                  {motivationalSubtitles[subtitleIndex]}
-                </motion.p>
-              </AnimatePresence>
-            </div>
-          )}
-
-          {/* Stats Row - simplified inline badges */}
-          {totalResumes > 0 && (
-            <div className="flex flex-wrap items-center gap-2 mt-2">
-              <Badge variant="secondary" className="gap-1.5 px-3 py-1.5 text-sm font-medium">
-                <FileText className="w-3.5 h-3.5" />
-                {totalResumes} {totalResumes === 1 ? 'Resume' : 'Resumes'}
-              </Badge>
-              {resumes && resumes.length > 0 && (() => {
-                const oldest = resumes.reduce((a, b) =>
-                  new Date(a.updated_at) < new Date(b.updated_at) ? a : b
-                );
-                const daysSince = Math.floor((Date.now() - new Date(oldest.updated_at).getTime()) / 86_400_000);
-                if (daysSince < 30) return null;
-                return (
-                  <Badge variant="outline" className="gap-1.5 px-3 py-1.5 text-sm font-medium border-warning/40 text-warning">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    Resume {daysSince}d old
-                  </Badge>
-                );
-              })()}
-            </div>
-          )}
-        </div>
+    <div className="px-4 pt-3 pb-2">
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="text-2xl font-bold text-foreground truncate">
+          {greeting}{firstName ? `, ${firstName}` : ''}
+        </h2>
+        {streak > 1 && (
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full bg-warning/10 border border-warning/20"
+          >
+            <Flame className="w-3 h-3 text-warning" />
+            <span className="text-xs font-bold text-warning">{streak}</span>
+          </motion.div>
+        )}
       </div>
-    </motion.div>
+
+      {totalResumes === 0 && (
+        <div className="h-5 overflow-hidden mb-2">
+          <AnimatePresence mode="wait">
+            <motion.p
+              key={subtitleIndex}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.25 }}
+              className="text-sm text-muted-foreground"
+            >
+              {motivationalSubtitles[subtitleIndex]}
+            </motion.p>
+          </AnimatePresence>
+        </div>
+      )}
+
+      {totalResumes > 0 && (
+        <div className="flex items-center gap-4 mt-0.5 mb-1">
+          <div className="flex items-center gap-1.5">
+            <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">
+              {totalResumes} {totalResumes === 1 ? 'resume' : 'resumes'}
+            </span>
+          </div>
+          {avgScore > 0 && (
+            <div className="flex items-center gap-1.5">
+              <div className={`w-2 h-2 rounded-full ${avgScore >= 80 ? 'bg-emerald-500' : avgScore >= 50 ? 'bg-amber-500' : 'bg-red-500'}`} />
+              <span className="text-sm text-muted-foreground">
+                Avg. score {avgScore}%
+              </span>
+            </div>
+          )}
+          {resumes && resumes.length > 0 && (() => {
+            const oldest = resumes.reduce((a, b) =>
+              new Date(a.updated_at) < new Date(b.updated_at) ? a : b
+            );
+            const daysSince = Math.floor((Date.now() - new Date(oldest.updated_at).getTime()) / 86_400_000);
+            if (daysSince < 30) return null;
+            return (
+              <div className="flex items-center gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5 text-warning" />
+                <span className="text-sm text-warning">{daysSince}d old</span>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {!tipDismissed && (
+        <div className="flex items-center gap-2 mt-2 p-2.5 rounded-xl bg-card border border-border">
+          <Lightbulb className="w-3.5 h-3.5 text-warning shrink-0" />
+          <p className="text-xs text-muted-foreground flex-1 min-w-0 line-clamp-1">{tip}</p>
+          <button
+            onClick={handleDismissTip}
+            className="w-6 h-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground touch-manipulation shrink-0"
+            aria-label="Dismiss tip"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+    </div>
   );
 });

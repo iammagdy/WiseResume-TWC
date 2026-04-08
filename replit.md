@@ -47,6 +47,7 @@ See `.env.example`. Key variables:
 - **SkyWallpaper**: Removed (THREE.js/GSAP animated background)
 - **Glass classes**: CSS compatibility aliases still defined in index.css but no longer referenced. Phase 4 replaced all glass-* class names. Phase 5 completed full cleanup: removed bare `glass` class from all headers, replaced all semi-transparent surface patterns (bg-card/30-95, bg-muted/30-60, bg-background/70-80) with solid equivalents, replaced all backdrop-blur-xl/md/2xl with backdrop-blur-sm, replaced all semi-transparent borders (border-border/20-60) with solid border-border across 50+ pages and components including all interview, editor, upload, portfolio editor, dashboard, QR, landing, and utility components. Portfolio style name "glass-pro" (data value) and Badge variant="glass" (component variant) are intentionally preserved.
 - **Shadow scale**: `shadow-soft-sm`, `shadow-soft`, `shadow-soft-md`, `shadow-soft-lg`, `shadow-soft-xl` via Tailwind config
+- **Structural redesign (Task #24)**: Landing → Linear/Vercel style hero + alternating feature blocks + clean pricing; Dashboard → clean greeting header, simple TabsContent (Embla carousel removed), grid quick actions; Settings → Apple iOS style with uppercase section labels, removed section index chips, cleaner profile card
 - **Portfolio CSS (pf-*)**: Untouched — used by public portfolio pages
 
 ## UI Components (Phase 2 — Redesign)
