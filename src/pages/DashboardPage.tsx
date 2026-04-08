@@ -1071,10 +1071,21 @@ function DashboardPageContent() {
               };
               const { data: created, error } = await supabase.from('resumes').insert(newResume).select().single();
               if (created && !error) {
+                setCurrentResumeId(created.id);
+                setCurrentResume({
+                  id: created.id,
+                  contactInfo: contactInfo,
+                  summary: created.summary || '',
+                  experience: created.experience || [],
+                  education: created.education || [],
+                  skills: created.skills || [],
+                  certifications: [],
+                  templateId: created.template_id || 'modern',
+                });
                 haptics.success();
                 toast.success('Resume created from LinkedIn!');
                 refetch();
-                navigate(`/editor`);
+                navigate('/editor');
               }
             }}
             linkedinUsername={profile?.linkedinUrl?.replace(/.*linkedin\.com\/in\//, '').replace(/\/$/, '')}
