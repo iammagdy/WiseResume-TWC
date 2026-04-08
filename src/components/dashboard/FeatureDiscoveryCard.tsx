@@ -59,7 +59,7 @@ export function FeatureDiscoveryCard() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, height: 0 }}
-        className="glass-elevated rounded-2xl p-4 relative overflow-hidden"
+        className="bg-card border border-border shadow-soft rounded-2xl p-4 relative overflow-hidden"
       >
         <button
           onClick={() => {

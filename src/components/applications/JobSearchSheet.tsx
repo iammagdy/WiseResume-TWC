@@ -92,7 +92,7 @@ export function JobSearchSheet({ open, onOpenChange, filters, onFiltersChange }:
                     'px-3 py-2 rounded-full text-xs font-medium transition-all active:scale-95 touch-manipulation',
                     localFilters.jobTypes.includes(type)
                       ? 'bg-primary text-primary-foreground'
-                      : 'glass-input'
+                      : 'bg-input border border-border'
                   )}
                 >
                   {type}

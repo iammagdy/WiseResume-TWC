@@ -277,7 +277,7 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
                 <button
                   onClick={handleUploadClick}
                   disabled={isUploading}
-                  className="w-full p-5 rounded-2xl glass-elevated text-left flex items-center gap-4 touch-manipulation transition-all border-glow hover:scale-[1.01] active:scale-[0.98] disabled:opacity-50"
+                  className="w-full p-5 rounded-2xl bg-card border border-border shadow-soft text-left flex items-center gap-4 touch-manipulation transition-all hover:scale-[1.01] active:scale-[0.98] disabled:opacity-50"
                 >
                   <div className="w-14 h-14 rounded-xl gradient-primary flex items-center justify-center shrink-0 shadow-[0_0_24px_-4px_hsl(var(--primary)/0.4)]">
                     {isUploading ? <Loader2 className="w-7 h-7 text-primary-foreground animate-spin" /> : <Upload className="w-7 h-7 text-primary-foreground" />}
@@ -328,7 +328,7 @@ export function QuickTailorSheet({ open, onOpenChange }: QuickTailorSheetProps) 
                                 }
                               }}
                               className={cn(
-                                "w-full p-4 rounded-xl glass-elevated text-left flex items-center gap-3 touch-manipulation transition-all hover:scale-[1.01] active:scale-[0.98] border cursor-pointer",
+                                "w-full p-4 rounded-xl bg-card border border-border shadow-soft text-left flex items-center gap-3 touch-manipulation transition-all hover:scale-[1.01] active:scale-[0.98] cursor-pointer",
                                 isConfirming ? "border-destructive/50 bg-destructive/5" : "border-border/20"
                               )}
                             >

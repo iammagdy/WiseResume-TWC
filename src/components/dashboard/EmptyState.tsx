@@ -116,7 +116,7 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding }
       {/* Title block — glass container */}
       <motion.div
         variants={shouldReduceMotion ? undefined : itemVariants}
-        className="glass-elevated rounded-2xl px-6 py-6 w-full max-w-xs mb-5 border border-primary/20 relative"
+        className="bg-card border border-primary/20 shadow-soft rounded-2xl px-6 py-6 w-full max-w-xs mb-5 relative"
         style={{ boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.15), inset 0 1px 0 hsl(var(--foreground) / 0.05)' }}
       >
         <motion.div
@@ -245,7 +245,7 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding }
         onTouchStart={() => setTipPaused(true)}
         onTouchEnd={() => setTipPaused(false)}
       >
-        <div className="glass-surface rounded-xl p-3 min-h-[52px] flex items-center gap-2.5">
+        <div className="bg-card border border-border rounded-xl p-3 min-h-[52px] flex items-center gap-2.5">
           <div className="w-6 h-6 rounded-md bg-warning/10 flex items-center justify-center flex-shrink-0">
             <Lightbulb className="w-3.5 h-3.5 text-warning" />
           </div>

@@ -144,7 +144,7 @@ export const AIAssistantBar = memo(function AIAssistantBar({
   return (
     <div className={cn('mx-4 mb-2', className)}>
       <div
-        className="glass-elevated rounded-2xl overflow-hidden"
+        className="bg-card border border-border shadow-soft rounded-2xl overflow-hidden"
         style={{
           boxShadow: '0 -4px 32px -4px hsl(var(--primary) / 0.15), 0 0 0 1px hsl(var(--border) / 0.2)',
         }}
@@ -168,7 +168,7 @@ export const AIAssistantBar = memo(function AIAssistantBar({
                 haptics.light();
                 onChangeTemplate();
               }}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg glass-surface hover:border-primary/30 text-xs text-muted-foreground transition-all touch-manipulation"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-card border border-border hover:border-primary/30 text-xs text-muted-foreground transition-all touch-manipulation"
             >
               <Palette className="w-3.5 h-3.5" />
               <span className="max-w-[60px] truncate">{TEMPLATE_NAMES[currentTemplate]}</span>
@@ -293,7 +293,7 @@ const PrimaryActionButton = memo(function PrimaryActionButton({
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center gap-2 p-4 rounded-xl glass-elevated border border-transparent hover:border-primary/30 active:scale-[0.97] transition-all touch-manipulation"
+      className="flex flex-col items-center gap-2 p-4 rounded-xl bg-card border border-border shadow-soft hover:border-primary/30 active:scale-[0.97] transition-all touch-manipulation"
     >
       <div className={cn("w-12 h-12 rounded-full flex items-center justify-center", bgClass)}>
         <span className={colorClass}>{icon}</span>

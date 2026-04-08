@@ -111,7 +111,7 @@ export const DashboardStats = memo(function DashboardStats({ totalResumes, healt
       className="px-4 pt-2 pb-2"
     >
       {/* Glass Hero Card */}
-      <div className="glass-elevated rounded-2xl p-4 relative overflow-hidden">
+      <div className="bg-card border border-border shadow-soft rounded-2xl p-4 relative overflow-hidden">
         {/* Animated gradient border */}
         <div className="absolute inset-0 rounded-2xl p-[1px] pointer-events-none">
           <div

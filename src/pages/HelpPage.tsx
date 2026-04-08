@@ -65,7 +65,7 @@ export default function HelpPage() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <header className="pt-safe sticky top-0 z-10 pb-2 px-4 glass-header backdrop-blur-xl">
+      <header className="pt-safe sticky top-0 z-10 pb-2 px-4 bg-background/95 backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <BackButton />
           <h1 className="text-page-title">Help & FAQ</h1>
@@ -89,7 +89,7 @@ export default function HelpPage() {
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Frequently Asked Questions</h2>
           <Accordion type="multiple" className="space-y-2">
             {filtered.map((item, i) => (
-              <AccordionItem key={i} value={`faq-${i}`} className="rounded-2xl glass-elevated border-none px-4">
+              <AccordionItem key={i} value={`faq-${i}`} className="rounded-2xl bg-card shadow-soft border-none px-4">
                 <AccordionTrigger className="text-sm font-medium text-left py-4 hover:no-underline">{item.q}</AccordionTrigger>
                 <AccordionContent className="text-sm text-muted-foreground pb-4">{item.a}</AccordionContent>
               </AccordionItem>

@@ -188,7 +188,7 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
     return (
       <motion.button
         onClick={() => {haptics.light();step.action();}}
-        className="mx-4 mb-3 w-[calc(100%-2rem)] rounded-2xl glass-elevated p-4 text-left active:scale-[0.98] transition-transform touch-manipulation border-l-[3px] border-primary/40 bg-primary/[0.03] mt-[10px]"
+        className="mx-4 mb-3 w-[calc(100%-2rem)] rounded-2xl bg-card border border-border shadow-soft p-4 text-left active:scale-[0.98] transition-transform touch-manipulation border-l-[3px] border-l-primary/40 bg-primary/[0.03] mt-[10px]"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, delay: 0.1 }}>
@@ -217,7 +217,7 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mx-4 mb-3 rounded-2xl glass-elevated p-4 relative overflow-hidden">
+      className="mx-4 mb-3 rounded-2xl bg-card border border-border shadow-soft p-4 relative overflow-hidden">
       
       <button
         onClick={() => {

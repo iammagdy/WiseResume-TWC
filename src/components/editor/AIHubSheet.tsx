@@ -34,7 +34,7 @@ interface AIActionTileProps {
 function AIActionTile({ icon, title, subtitle, onClick, badge, badgeVariant = 'secondary' }: AIActionTileProps) {
   return (
     <motion.button
-      className="flex flex-col items-center justify-center p-4 rounded-2xl glass-elevated border-glow hover:scale-[1.02] transition-all touch-manipulation min-h-[100px] relative"
+      className="flex flex-col items-center justify-center p-4 rounded-2xl bg-card border border-border shadow-soft hover:scale-[1.02] transition-all touch-manipulation min-h-[100px] relative"
       whileTap={{ scale: 0.97 }}
       onClick={onClick}
     >
@@ -239,7 +239,7 @@ export function AIHubSheet({
           {/* Recent Job Description */}
           {jobDescription && (
             <motion.div
-              className="mt-4 p-3 rounded-xl glass-surface"
+              className="mt-4 p-3 rounded-xl bg-card border border-border"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.1 }}

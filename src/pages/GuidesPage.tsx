@@ -49,7 +49,7 @@ export default function GuidesPage() {
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Header */}
-      <header className="pt-safe pt-3 pb-2 px-4 flex items-center gap-3 glass-header">
+      <header className="pt-safe pt-3 pb-2 px-4 flex items-center gap-3 bg-background/95 backdrop-blur-sm border-b border-border">
         <BackButton />
         <h1 className="text-lg font-bold flex-1 min-w-0 truncate">Career Guides</h1>
       </header>
@@ -62,7 +62,7 @@ export default function GuidesPage() {
             placeholder="Search guides..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 rounded-full h-11 glass-input"
+            className="pl-10 rounded-full h-11 bg-input border border-border"
           />
         </div>
       </div>
@@ -73,7 +73,7 @@ export default function GuidesPage() {
           onClick={() => { setShowSaved(false); haptics.light(); }}
           className={cn(
             'px-4 py-2 rounded-full text-sm font-medium transition-all touch-manipulation active:scale-95 min-h-[44px]',
-            !showSaved ? 'bg-primary text-primary-foreground' : 'glass-surface text-muted-foreground'
+            !showSaved ? 'bg-primary text-primary-foreground' : 'bg-card border border-border text-muted-foreground'
           )}
         >
           <BookOpen className="w-4 h-4 inline mr-1.5 -mt-0.5" />Browse
@@ -82,7 +82,7 @@ export default function GuidesPage() {
           onClick={() => { setShowSaved(true); haptics.light(); }}
           className={cn(
             'px-4 py-2 rounded-full text-sm font-medium transition-all touch-manipulation active:scale-95 min-h-[44px]',
-            showSaved ? 'bg-primary text-primary-foreground' : 'glass-surface text-muted-foreground'
+            showSaved ? 'bg-primary text-primary-foreground' : 'bg-card border border-border text-muted-foreground'
           )}
         >
           <Bookmark className="w-4 h-4 inline mr-1.5 -mt-0.5" />Saved{bookmarkedSlugs.length > 0 && ` (${bookmarkedSlugs.length})`}
@@ -96,7 +96,7 @@ export default function GuidesPage() {
             onClick={() => { setActiveCategory('all'); haptics.light(); }}
             className={cn(
               'shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all touch-manipulation active:scale-95 min-h-[36px]',
-              activeCategory === 'all' ? 'bg-primary text-primary-foreground' : 'glass-surface text-muted-foreground'
+              activeCategory === 'all' ? 'bg-primary text-primary-foreground' : 'bg-card border border-border text-muted-foreground'
             )}
           >
             All
@@ -107,7 +107,7 @@ export default function GuidesPage() {
               onClick={() => { setActiveCategory(cat.id); haptics.light(); }}
               className={cn(
                 'shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all touch-manipulation active:scale-95 min-h-[36px]',
-                activeCategory === cat.id ? 'bg-primary text-primary-foreground' : 'glass-surface text-muted-foreground'
+                activeCategory === cat.id ? 'bg-primary text-primary-foreground' : 'bg-card border border-border text-muted-foreground'
               )}
             >
               {cat.label}
@@ -135,7 +135,7 @@ export default function GuidesPage() {
                 <button
                   key={guide.slug}
                   onClick={() => { haptics.light(); navigate(`/guides/${guide.slug}`); }}
-                  className="w-full text-left p-4 rounded-xl glass-surface transition-all active:scale-[0.98] touch-manipulation min-h-[52px]"
+                  className="w-full text-left p-4 rounded-xl bg-card border border-border transition-all active:scale-[0.98] touch-manipulation min-h-[52px]"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">

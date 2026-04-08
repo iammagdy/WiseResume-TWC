@@ -42,7 +42,7 @@ export function ExampleDetailSheet({ example, open, onOpenChange, onUseTemplate,
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Experience</h4>
               <div className="space-y-3">
                 {resumeData.experience.map(exp => (
-                  <div key={exp.id} className="glass-surface rounded-xl p-3">
+                  <div key={exp.id} className="bg-card border border-border rounded-xl p-3">
                     <p className="text-sm font-medium text-foreground">{exp.position}</p>
                     <p className="text-xs text-muted-foreground">{exp.company} · {exp.startDate} – {exp.current ? 'Present' : exp.endDate}</p>
                     {exp.achievements.length > 0 && (
@@ -67,7 +67,7 @@ export function ExampleDetailSheet({ example, open, onOpenChange, onUseTemplate,
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Skills</h4>
               <div className="flex flex-wrap gap-1.5">
                 {resumeData.skills.map((s, i) => (
-                  <span key={i} className="text-xs px-2.5 py-1 rounded-full glass-surface text-foreground">{s}</span>
+                  <span key={i} className="text-xs px-2.5 py-1 rounded-full bg-card border border-border text-foreground">{s}</span>
                 ))}
               </div>
             </section>

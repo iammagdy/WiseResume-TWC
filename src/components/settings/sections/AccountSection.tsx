@@ -43,7 +43,7 @@ export const AccountSection = memo(function AccountSection({
                 />
             </Suspense>
 
-            <div className="rounded-2xl glass-elevated overflow-hidden">
+            <div className="rounded-2xl bg-card border border-border shadow-soft overflow-hidden">
                 {/* Help */}
                 <SettingsRow
                     type="navigation"

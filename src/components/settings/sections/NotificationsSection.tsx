@@ -27,7 +27,7 @@ export const NotificationsSection = memo(function NotificationsSection() {
     } = useSettingsStore();
 
     return (
-        <div className="rounded-2xl glass-elevated overflow-hidden">
+        <div className="rounded-2xl bg-card border border-border shadow-soft overflow-hidden">
             <Suspense fallback={null}>
                 <PushNotificationSettings />
             </Suspense>

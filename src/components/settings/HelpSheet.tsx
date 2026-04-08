@@ -24,7 +24,7 @@ export function HelpSheet({ open, onOpenChange }: HelpSheetProps) {
             <SheetTitle>Get Help</SheetTitle>
             <SheetDescription>Docs, community, and feature requests</SheetDescription>
           </SheetHeader>
-          <div className="flex flex-col min-h-0 overflow-y-auto rounded-2xl glass-elevated">
+          <div className="flex flex-col min-h-0 overflow-y-auto rounded-2xl bg-card border border-border shadow-soft">
             <SettingsRow
               type="navigation"
               label="Documentation & FAQ"

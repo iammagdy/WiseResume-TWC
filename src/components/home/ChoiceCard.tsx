@@ -23,9 +23,9 @@ export function ChoiceCard({
     <motion.button
       style={{ touchAction: 'pan-y' }}
       className={cn(
-        'w-full p-5 rounded-2xl glass-elevated text-left',
+        'w-full p-5 rounded-2xl bg-card border border-border shadow-soft text-left',
         'flex items-center gap-4 touch-manipulation transition-all',
-        'border-glow hover:scale-[1.01] active:scale-[0.98]',
+        'hover:scale-[1.01] active:scale-[0.98]',
         className
       )}
       initial={{ opacity: 0, y: 20 }}

@@ -150,7 +150,7 @@ export function VersionCompareSheet({ open, onOpenChange, masterResume, tailored
           if (!origExp) return null;
           const descDiff = diffText(origExp.description || '', exp.description || '');
           return (
-            <div key={exp.id} className="mb-3 p-3 rounded-lg glass-surface">
+            <div key={exp.id} className="mb-3 p-3 rounded-lg bg-card border border-border">
               <p className="text-sm font-medium mb-1">{exp.position} @ {exp.company}</p>
               <DiffDisplay diffs={descDiff} />
             </div>

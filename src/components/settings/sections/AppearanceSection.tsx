@@ -10,7 +10,7 @@ interface AppearanceSectionProps {
 
 export const AppearanceSection = memo(function AppearanceSection({ onLanguage }: AppearanceSectionProps) {
     return (
-        <div className="rounded-2xl glass-elevated overflow-hidden">
+        <div className="rounded-2xl bg-card border border-border shadow-soft overflow-hidden">
             <div className="p-4">
                 <ThemeToggle className="w-full justify-center" />
             </div>

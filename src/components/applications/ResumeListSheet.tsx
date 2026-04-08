@@ -110,7 +110,7 @@ export function ResumeListSheet({ open, onOpenChange, filter }: ResumeListSheetP
               <div
                 key={resume.id}
                 onClick={() => handleTap(resume.id)}
-                className="w-full glass-surface rounded-2xl p-4 border border-border/20 text-left transition-all active:scale-[0.98] hover:border-border/40 flex items-start gap-3 cursor-pointer"
+                className="w-full bg-card border border-border rounded-2xl p-4 text-left transition-all active:scale-[0.98] hover:border-border/40 flex items-start gap-3 cursor-pointer"
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">

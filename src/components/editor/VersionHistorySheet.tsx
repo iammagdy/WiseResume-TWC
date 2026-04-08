@@ -132,7 +132,7 @@ export function VersionHistorySheet({ open, onOpenChange, resumeId, onCompare }:
                         : 'bg-muted-foreground/40'
                   )} />
 
-                  <div className="flex-1 flex items-center justify-between p-3 rounded-xl glass-surface border border-border/20">
+                  <div className="flex-1 flex items-center justify-between p-3 rounded-xl bg-card border border-border">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         {isManualCheckpoint(version.change_summary) && (

@@ -75,7 +75,7 @@ export default function ExamplesPage() {
   return (
     <div className="min-h-full flex flex-col">
       {/* Header */}
-      <header className="pt-safe pt-3 pb-2 px-4 flex items-center gap-3 glass-header">
+      <header className="pt-safe pt-3 pb-2 px-4 flex items-center gap-3 bg-background/95 backdrop-blur-sm border-b border-border">
         <BackButton />
         <h1 className="text-fluid-lg font-bold text-foreground">Resume Examples</h1>
       </header>
@@ -145,7 +145,7 @@ function FilterChip({ label, active, onTap }: { label: string; active: boolean; 
     <button
       onClick={() => { haptics.selection(); onTap(); }}
       className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors touch-manipulation active:scale-95
-        ${active ? 'bg-primary text-primary-foreground' : 'glass-surface text-muted-foreground'}`}
+        ${active ? 'bg-primary text-primary-foreground' : 'bg-card border border-border text-muted-foreground'}`}
       style={{ touchAction: 'pan-y' }}
     >
       {label}

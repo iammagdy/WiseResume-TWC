@@ -86,7 +86,7 @@ export const ApplicationCard = memo(function ApplicationCard({
   return (
     <>
       <div
-        className="glass-surface rounded-2xl p-4 border border-border/30 space-y-3 active:scale-[0.98] transition-transform touch-manipulation cursor-pointer"
+        className="bg-card border border-border rounded-2xl p-4 space-y-3 active:scale-[0.98] transition-transform touch-manipulation cursor-pointer"
         onClick={() => onTap?.(application)}
       >
         <div className="flex items-start justify-between gap-2">

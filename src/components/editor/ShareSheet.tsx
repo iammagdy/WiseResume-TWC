@@ -102,7 +102,7 @@ export function ShareSheet({
           </SheetHeader>
 
           {/* Resume info card */}
-          <div className="flex items-center gap-3 p-3 rounded-xl glass-surface mb-4">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border mb-4">
             <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
               <FileText className="w-5 h-5 text-primary" />
             </div>
@@ -123,7 +123,7 @@ export function ShareSheet({
                 disabled={action.loading || action.disabled}
                 className={cn(
                   'w-full flex items-center gap-3 p-3.5 rounded-xl text-left transition-all touch-manipulation',
-                  'glass-surface hover:bg-muted/50 active:scale-[0.98]',
+                  'bg-card border border-border hover:bg-muted/50 active:scale-[0.98]',
                   'disabled:opacity-50 disabled:pointer-events-none',
                   'min-h-[52px]'
                 )}
@@ -148,7 +148,7 @@ export function ShareSheet({
                 onClick={() => { haptics.light(); setShowFeedback(true); onOpenChange(false); }}
                 className={cn(
                   'w-full flex items-center gap-3 p-3.5 rounded-xl text-left transition-all touch-manipulation',
-                  'glass-surface hover:bg-muted/50 active:scale-[0.98]',
+                  'bg-card border border-border hover:bg-muted/50 active:scale-[0.98]',
                   'min-h-[52px]'
                 )}
               >

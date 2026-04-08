@@ -66,7 +66,7 @@ export const ActivityStreak = memo(function ActivityStreak() {
       initial={shouldReduceMotion ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
-      className="glass-elevated rounded-2xl p-4 border border-border/20"
+      className="bg-card border border-border shadow-soft rounded-2xl p-4"
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">

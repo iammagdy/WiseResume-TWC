@@ -25,7 +25,7 @@ export const AboutSection = memo(function AboutSection({
 }: AboutSectionProps) {
     return (
         <>
-            <div className="rounded-2xl glass-elevated overflow-hidden">
+            <div className="rounded-2xl bg-card border border-border shadow-soft overflow-hidden">
                 <SettingsRow
                     type="button"
                     label="Take Tour Again"
@@ -59,7 +59,7 @@ export const AboutSection = memo(function AboutSection({
                 />
             </div>
 
-            <div className="rounded-2xl glass-elevated overflow-hidden mt-3">
+            <div className="rounded-2xl bg-card border border-border shadow-soft overflow-hidden mt-3">
                 <SettingsRow
                     type="navigation"
                     label="Get Help"

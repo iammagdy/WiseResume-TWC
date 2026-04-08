@@ -36,7 +36,7 @@ export function JobActivityStatsCard({ stats, onOriginalsTap, onTailoredTap }: P
                   if (tile.key === 'originals') onOriginalsTap?.();
                   else onTailoredTap?.();
                 }}
-                className="glass-surface rounded-2xl p-4 min-h-[100px] border border-border/20 flex flex-col items-center gap-2 relative cursor-pointer transition-transform active:scale-[0.97] hover:border-border/40 touch-ripple"
+                className="bg-card border border-border rounded-2xl p-4 min-h-[100px] flex flex-col items-center gap-2 relative cursor-pointer transition-transform active:scale-[0.97] hover:border-border/40 touch-ripple"
               >
                 <ChevronRight className="absolute top-3 right-3 w-3.5 h-3.5 text-muted-foreground/40" />
                 <div className={`w-10 h-10 rounded-xl bg-muted/30 flex items-center justify-center ${tile.color}`}>
@@ -60,7 +60,7 @@ export function JobActivityStatsCard({ stats, onOriginalsTap, onTailoredTap }: P
               return (
                 <div
                   key={tile.key}
-                  className="glass-surface rounded-xl p-3 border border-border/20 flex flex-col items-center gap-1.5"
+                  className="bg-card border border-border rounded-xl p-3 flex flex-col items-center gap-1.5"
                 >
                   <div className={`w-8 h-8 rounded-lg bg-muted/30 flex items-center justify-center ${tile.color}`}>
                     <Icon className="w-4 h-4" />

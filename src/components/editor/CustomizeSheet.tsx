@@ -64,7 +64,7 @@ export const CustomizeSheet = memo(function CustomizeSheet({
         {/* Live preview */}
         <div className="px-4 pb-4">
           <div
-            className="w-full h-32 rounded-xl glass-surface border border-border/30 overflow-hidden flex items-center justify-center transition-all duration-300"
+            className="w-full h-32 rounded-xl bg-card border border-border overflow-hidden flex items-center justify-center transition-all duration-300"
             style={{
               fontFamily: draft.fontBody,
               backgroundColor: `${draft.accentColor}08`,
@@ -110,7 +110,7 @@ export const CustomizeSheet = memo(function CustomizeSheet({
                       onClick={() => update('accentColor', pal.color)}
                       className={cn(
                         'flex flex-col items-center gap-1.5 p-2 rounded-xl transition-all touch-manipulation active:scale-95',
-                        draft.accentColor === pal.color ? 'glass-elevated ring-2 ring-primary' : 'hover:bg-muted/50'
+                        draft.accentColor === pal.color ? 'bg-card border border-border shadow-soft ring-2 ring-primary' : 'hover:bg-muted/50'
                       )}
                     >
                       <div
@@ -260,14 +260,14 @@ interface SegmentedControlProps {
 
 const SegmentedControl = memo(function SegmentedControl({ options, labels, value, onChange }: SegmentedControlProps) {
   return (
-    <div className="flex rounded-xl glass-surface p-1 gap-1">
+    <div className="flex rounded-xl bg-muted p-1 gap-1">
       {options.map((opt, i) => (
         <button
           key={opt}
           onClick={() => { haptics.selection(); onChange(opt); }}
           className={cn(
             'flex-1 py-2 rounded-lg text-xs font-medium transition-all touch-manipulation active:scale-95',
-            value === opt ? 'glass-elevated text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            value === opt ? 'bg-card border border-border shadow-soft-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
           )}
         >
           {labels[i]}

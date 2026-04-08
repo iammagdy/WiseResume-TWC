@@ -203,7 +203,7 @@ export function GapFillerSheet({ isOpen, onClose, gap, experiences, onAddExperie
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <SheetContent side="bottom" className="glass-elevated rounded-t-3xl max-h-[85vh] overflow-y-auto pb-safe">
+      <SheetContent side="bottom" className="bg-card border border-border shadow-soft rounded-t-3xl max-h-[85vh] overflow-y-auto pb-safe">
         <SheetHeader className="text-left pb-4">
           <SheetTitle className="text-fluid-lg font-bold">Fill Employment Gap</SheetTitle>
           <p className="text-sm text-muted-foreground">
@@ -248,7 +248,7 @@ export function GapFillerSheet({ isOpen, onClose, gap, experiences, onAddExperie
               value={userDescription}
               onChange={(e) => setUserDescription(e.target.value)}
               placeholder="e.g., I worked as HR at Whitewell, or I served in the Navy..."
-              className="min-h-[80px] resize-none glass-input"
+              className="min-h-[80px] resize-none bg-input border border-border"
               maxLength={500}
             />
             <p className="text-xs text-muted-foreground mt-1 text-right">{userDescription.length}/500</p>

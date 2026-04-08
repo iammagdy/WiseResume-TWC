@@ -197,7 +197,7 @@ export default function ResignationLetterEditPage() {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col min-h-0 overflow-hidden">
-      <header className="sticky top-0 z-10 glass-header px-4 py-3 space-y-1">
+      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 space-y-1">
         <div className="flex items-center gap-3">
           <BackButton />
           <div className="flex-1 min-w-0">
@@ -225,7 +225,7 @@ export default function ResignationLetterEditPage() {
               autoFocus
             />
           ) : (
-            <div className="glass-elevated rounded-2xl p-5 text-sm whitespace-pre-wrap leading-relaxed min-h-[40vh]">
+            <div className="bg-card border border-border shadow-soft rounded-2xl p-5 text-sm whitespace-pre-wrap leading-relaxed min-h-[40vh]">
               {content}
             </div>
           )}
@@ -240,7 +240,7 @@ export default function ResignationLetterEditPage() {
 
       {/* Bottom Toolbar */}
       <div className="fixed bottom-20 left-0 right-0 z-40 px-4 pb-safe">
-        <div className="glass-header rounded-2xl p-2.5 flex gap-1.5">
+        <div className="bg-background/95 backdrop-blur-sm border-b border-border rounded-2xl p-2.5 flex gap-1.5">
           <Button variant="outline" size="sm" className="gap-1 flex-1 h-10" onClick={handleSave}>
             <Save className="w-4 h-4" /> Save
           </Button>

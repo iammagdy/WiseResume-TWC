@@ -36,7 +36,7 @@ export function PortfolioHistorySheet({ open, onOpenChange, userId, onRestore, i
           className="relative w-full max-w-lg bg-background border-t sm:border border-border sm:rounded-2xl shadow-2xl overflow-hidden pointer-events-auto sm:max-h-[85vh] max-h-[90vh] flex flex-col"
         >
           {/* Header */}
-          <div className="shrink-0 flex items-center justify-between p-4 border-b border-border/50 glass-header">
+          <div className="shrink-0 flex items-center justify-between p-4 border-b border-border bg-background/95 backdrop-blur-sm">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                 <History className="w-4 h-4 text-primary" />

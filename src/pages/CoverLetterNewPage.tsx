@@ -142,7 +142,7 @@ export default function CoverLetterNewPage() {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Header */}
-      <header className="sticky top-0 z-10 glass-header px-4 py-3 space-y-1">
+      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 space-y-1">
         <div className="flex items-center gap-3">
           <BackButton />
           <h1 className="text-lg font-bold flex-1">New Cover Letter</h1>
@@ -203,7 +203,7 @@ export default function CoverLetterNewPage() {
                     'flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors active:scale-95',
                     tone === t.value
                       ? 'gradient-primary text-primary-foreground'
-                      : 'glass-surface text-muted-foreground'
+                      : 'bg-card border border-border text-muted-foreground'
                   )}
                 >
                   {t.label}
@@ -227,7 +227,7 @@ export default function CoverLetterNewPage() {
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              className="glass-elevated rounded-2xl p-4 space-y-3"
+              className="bg-card border border-border shadow-soft rounded-2xl p-4 space-y-3"
             >
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-sm">Generated Letter</h3>
@@ -250,7 +250,7 @@ export default function CoverLetterNewPage() {
       {/* Bottom Toolbar */}
       {result && (
         <div className="fixed bottom-20 left-0 right-0 z-40 px-4 pb-safe">
-          <div className="glass-header rounded-2xl p-3 flex gap-2">
+          <div className="bg-background/95 backdrop-blur-sm border-b border-border rounded-2xl p-3 flex gap-2">
             <Button variant="outline" size="sm" className="gap-1.5 flex-1" onClick={handleCopy}>
               <Copy className="w-4 h-4" /> Copy
             </Button>

@@ -26,9 +26,9 @@ export const ActionCard = memo(function ActionCard({
       className={cn(
         'flex flex-col items-start p-4 rounded-2xl text-left transition-all duration-300 min-h-[120px]',
         'touch-manipulation active:scale-[0.98]',
-        variant === 'default' && 'glass-elevated border-glow hover:scale-[1.02]',
+        variant === 'default' && 'bg-card border border-border shadow-soft hover:scale-[1.02]',
         variant === 'primary' && 'gradient-primary text-primary-foreground shadow-[0_0_32px_-8px_hsl(var(--primary)/0.5)]',
-        variant === 'secondary' && 'glass-surface text-secondary-foreground',
+        variant === 'secondary' && 'bg-card border border-border text-secondary-foreground',
         className
       )}
       whileTap={{ scale: 0.98 }}

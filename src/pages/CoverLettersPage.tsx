@@ -90,7 +90,7 @@ export default function CoverLettersPage() {
   return (
     <div className="min-h-full flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-10 glass-header px-4 py-3 flex items-center gap-3">
+      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 flex items-center gap-3">
         <BackButton />
         <h1 className="text-lg font-bold flex-1">Cover Letters</h1>
         <motion.button
@@ -115,7 +115,7 @@ export default function CoverLettersPage() {
                   placeholder="Search cover letters..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 rounded-full h-11 glass-input"
+                  className="pl-10 rounded-full h-11 bg-input border border-border"
                 />
               </div>
             </div>
@@ -129,7 +129,7 @@ export default function CoverLettersPage() {
           ) : !filtered || filtered.length === 0 ? (
             searchQuery ? (
               <div className="flex flex-col items-center justify-center px-4 py-20 text-center">
-                <div className="w-16 h-16 rounded-2xl glass-elevated flex items-center justify-center mb-4">
+                <div className="w-16 h-16 rounded-2xl bg-card border border-border shadow-soft flex items-center justify-center mb-4">
                   <FileText className="w-8 h-8 text-accent opacity-50" />
                 </div>
                 <h3 className="font-semibold text-foreground mb-1">No matches found</h3>

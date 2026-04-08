@@ -153,7 +153,7 @@ export function TemplateAdvisorSheet({ open, onOpenChange, onApply }: TemplateAd
                     Suggested Style
                   </p>
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="flex items-center gap-2 p-3 rounded-xl glass-elevated">
+                    <div className="flex items-center gap-2 p-3 rounded-xl bg-card border border-border shadow-soft">
                       <Palette className="w-4 h-4 text-muted-foreground" />
                       <div>
                         <p className="text-xs text-muted-foreground">Accent Color</p>
@@ -166,7 +166,7 @@ export function TemplateAdvisorSheet({ open, onOpenChange, onApply }: TemplateAd
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 p-3 rounded-xl glass-elevated">
+                    <div className="flex items-center gap-2 p-3 rounded-xl bg-card border border-border shadow-soft">
                       <Type className="w-4 h-4 text-muted-foreground" />
                       <div>
                         <p className="text-xs text-muted-foreground">Font</p>

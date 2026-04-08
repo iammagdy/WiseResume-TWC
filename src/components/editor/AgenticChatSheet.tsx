@@ -209,7 +209,7 @@ function GuestShowcase({ onClose, onSignIn }: { onClose: () => void; onSignIn: (
           <div className="w-full space-y-3 mb-6">
             <p className="text-xs text-muted-foreground font-medium text-left">What Wise AI can do:</p>
             {CAPABILITIES.map((cap) => (
-              <div key={cap.title} className="flex items-start gap-3 p-3 rounded-xl glass-surface text-left">
+              <div key={cap.title} className="flex items-start gap-3 p-3 rounded-xl bg-card border border-border text-left">
                 <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
                   <cap.icon className="w-4 h-4 text-primary" />
                 </div>
@@ -408,7 +408,7 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
                             'max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed',
                             msg.role === 'user'
                               ? 'bg-primary text-primary-foreground rounded-br-md'
-                              : 'glass-surface rounded-bl-md'
+                              : 'bg-card border border-border rounded-bl-md'
                           )}
                         >
                           {msg.functionCall && (
@@ -473,7 +473,7 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
                       className="flex gap-2 items-start"
                     >
                       <AppIcon size={28} showSparkle={false} className="shrink-0" />
-                      <div className="glass-surface rounded-2xl rounded-bl-md px-4 py-3">
+                      <div className="bg-card border border-border rounded-2xl rounded-bl-md px-4 py-3">
                         <div className="flex gap-1.5">
                           <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:0ms]" />
                           <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:150ms]" />
@@ -534,7 +534,7 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Ask Wise AI to edit your resume..."
-                  className="flex-1 h-11 px-4 rounded-full glass-input text-sm placeholder:text-muted-foreground/60 focus:outline-none"
+                  className="flex-1 h-11 px-4 rounded-full bg-input border border-border text-sm placeholder:text-muted-foreground/60 focus:outline-none"
                   disabled={isThinking}
                 />
                 <Button

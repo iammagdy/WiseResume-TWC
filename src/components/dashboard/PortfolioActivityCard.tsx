@@ -84,7 +84,7 @@ export function PortfolioActivityCard() {
   return (
     <motion.button
       onClick={() => { haptics.light(); navigate('/portfolio?tab=analytics'); }}
-      className="mx-4 mb-3 w-[calc(100%-2rem)] glass-elevated rounded-2xl p-4 text-left active:scale-[0.98] transition-transform"
+      className="mx-4 mb-3 w-[calc(100%-2rem)] bg-card border border-border shadow-soft rounded-2xl p-4 text-left active:scale-[0.98] transition-transform"
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: 0.05 }}

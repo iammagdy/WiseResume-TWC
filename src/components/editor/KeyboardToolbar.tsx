@@ -84,7 +84,7 @@ export function KeyboardToolbar() {
 
   return (
     <div
-      className="fixed left-0 right-0 z-[60] flex flex-col glass-surface border-t border-border/30"
+      className="fixed left-0 right-0 z-[60] flex flex-col bg-card border-t border-border"
       style={{ bottom: 'var(--keyboard-height, 0px)' }}
     >
       {/* Quick-insert row */}

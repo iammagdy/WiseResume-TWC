@@ -326,7 +326,7 @@ export default function AIStudioPage() {
         className="px-4 pb-[5px] pt-[5px]">
         
         {currentResumeId && resumeData ?
-        <div className="flex items-center gap-2 px-3 py-2 rounded-xl glass-surface border border-border/50">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border/50">
             <FileSearch className="w-4 h-4 text-primary shrink-0" />
             <span className="text-[15px] sm:text-sm flex-1 break-words leading-snug" title={resumeData.title}>
               Working on: <span className="font-medium">{resumeData.title}</span>
@@ -376,7 +376,7 @@ export default function AIStudioPage() {
             if (!currentResumeId) {toast.info('Select a resume first to chat with Wise AI');return;}
             setShowChat(true);
           }}
-          className={cn("w-full p-4 rounded-2xl glass-elevated border border-primary/20 hover:border-primary/40 active:scale-[0.98] transition-all touch-manipulation relative overflow-hidden cursor-pointer pb-0 pt-[8px]",
+          className={cn("w-full p-4 rounded-2xl bg-card border border-border shadow-soft border border-primary/20 hover:border-primary/40 active:scale-[0.98] transition-all touch-manipulation relative overflow-hidden cursor-pointer pb-0 pt-[8px]",
 
           isFirstVisit && 'ring-2 ring-primary/40 animate-[pulse_1.5s_ease-in-out_3]'
           )}>
@@ -417,7 +417,7 @@ export default function AIStudioPage() {
           <button
             key={tool.id}
             onClick={() => handleToolAction(tool)}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl glass-surface border border-border/30 hover:border-primary/20 active:scale-95 transition-all touch-manipulation shrink-0">
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border/30 hover:border-primary/20 active:scale-95 transition-all touch-manipulation shrink-0">
             
                 <tool.icon className={cn('w-4 h-4', tool.color)} />
                 <span className="text-sm font-medium whitespace-nowrap">{tool.label}</span>
@@ -488,7 +488,7 @@ export default function AIStudioPage() {
               <button
                 key={tool.id}
                 onClick={() => handleToolAction(tool)}
-                className={cn("p-3 glass-surface border active:scale-95 transition-all touch-manipulation min-h-[100px] relative pl-[5px] pt-[5px] pb-[5px] pr-[5px] ml-[9px] mt-0 mr-[9px] mb-0 flex-col flex items-center justify-center gap-0 text-center rounded-3xl",
+                className={cn("p-3 bg-card border border-border active:scale-95 transition-all touch-manipulation min-h-[100px] relative pl-[5px] pt-[5px] pb-[5px] pr-[5px] ml-[9px] mt-0 mr-[9px] mb-0 flex-col flex items-center justify-center gap-0 text-center rounded-3xl",
 
                 isFeatured ?
                 'border-primary/20 shadow-[0_0_12px_-4px_hsl(var(--primary)/0.2)]' :
@@ -618,7 +618,7 @@ export default function AIStudioPage() {
       {/* Onboarding Tour — auto-dismiss inline banner */}
       {isFirstVisit &&
       <div className="fixed bottom-24 sm:bottom-20 left-4 right-4 z-40 animate-in fade-in-0 slide-in-from-bottom-4 duration-300">
-          <div className="flex items-center gap-3 px-4 py-3 rounded-2xl glass-surface border border-primary/20 shadow-lg">
+          <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-card border border-primary/20 shadow-lg">
             <Sparkles className="w-5 h-5 text-primary shrink-0" />
             <p className="text-sm text-foreground flex-1">Welcome to <span className="font-semibold">AI Studio</span> — tap any tool to supercharge your resume.</p>
             <Button size="sm" variant="ghost" className="shrink-0 min-h-[44px] text-xs" onClick={() => setHasSeenAIStudioTour(true)}>Got it</Button>

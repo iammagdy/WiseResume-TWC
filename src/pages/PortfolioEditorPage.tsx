@@ -510,7 +510,7 @@ export default function PortfolioEditorPage() {
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-background">
       {/* Header */}
-      <div className="shrink-0 flex items-center gap-3 px-4 h-14 pt-safe border-b border-border glass-header backdrop-blur-md">
+      <div className="shrink-0 flex items-center gap-3 px-4 h-14 pt-safe border-b border-border bg-background/95 backdrop-blur-sm">
         <BackButton onBeforeBack={() => {
           if (lastSavedSnapshot && getCurrentSnapshot() !== lastSavedSnapshot) {
             handleNavigateAway('/dashboard');
@@ -550,7 +550,7 @@ export default function PortfolioEditorPage() {
         
 
         {/* Tab Row */}
-        <div className="flex gap-1.5 p-1 rounded-xl glass-surface border border-border/30">
+        <div className="flex gap-1.5 p-1 rounded-xl bg-card border border-border/30">
           {([
           { id: 'setup', label: 'Setup' },
           { id: 'content', label: 'Content' },
@@ -562,7 +562,7 @@ export default function PortfolioEditorPage() {
             onClick={() => handleTabChange(tab.id)}
             className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] touch-manipulation active:scale-[0.97] ${
             activeTab === tab.id ?
-            'glass-elevated text-foreground shadow-[0_0_16px_-4px_hsl(var(--primary)/0.2)]' :
+            'bg-card border border-border shadow-soft text-foreground shadow-[0_0_16px_-4px_hsl(var(--primary)/0.2)]' :
             'text-muted-foreground hover:bg-muted/50'}`
             }>
             

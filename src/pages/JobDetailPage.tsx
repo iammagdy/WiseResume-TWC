@@ -65,7 +65,7 @@ export default function JobDetailPage() {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 min-h-0 h-full overflow-y-auto overscroll-y-contain pb-6">
       {/* Header */}
-      <div className="sticky top-0 z-10 glass-card border-b border-border/50 px-4 py-3 flex items-center gap-3">
+      <div className="sticky top-0 z-10 bg-card border border-border shadow-soft-sm border-b border-border/50 px-4 py-3 flex items-center gap-3">
         <button onClick={() => navigate('/applications')} className="p-2 -ml-2 rounded-xl hover:bg-muted/50 min-h-[44px] min-w-[44px] flex items-center justify-center">
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -77,7 +77,7 @@ export default function JobDetailPage() {
 
       <div className="px-4 space-y-4 mt-4">
         {/* Title Card */}
-        <div className="glass-card rounded-2xl p-5 space-y-3">
+        <div className="bg-card border border-border shadow-soft-sm rounded-2xl p-5 space-y-3">
           <div className="flex items-start gap-3">
             <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
               <Briefcase className="w-6 h-6 text-primary" />
@@ -108,7 +108,7 @@ export default function JobDetailPage() {
 
         {/* Description */}
         {job.description && (
-          <div className="glass-card rounded-2xl p-4 space-y-2">
+          <div className="bg-card border border-border shadow-soft-sm rounded-2xl p-4 space-y-2">
             <h3 className="font-semibold text-sm">Description</h3>
             <p className="text-sm text-muted-foreground whitespace-pre-wrap">{job.description}</p>
           </div>
@@ -116,7 +116,7 @@ export default function JobDetailPage() {
 
         {/* Requirements */}
         {job.requirements && (
-          <div className="glass-card rounded-2xl p-4 space-y-2">
+          <div className="bg-card border border-border shadow-soft-sm rounded-2xl p-4 space-y-2">
             <h3 className="font-semibold text-sm">Requirements</h3>
             <p className="text-sm text-muted-foreground whitespace-pre-wrap">{job.requirements}</p>
           </div>
@@ -124,14 +124,14 @@ export default function JobDetailPage() {
 
         {/* Source URL */}
         {job.source_url && (
-          <button onClick={() => openExternal(job.source_url!)} className="glass-card rounded-2xl p-4 flex items-center gap-2 text-sm text-secondary hover:underline w-full touch-manipulation">
+          <button onClick={() => openExternal(job.source_url!)} className="bg-card border border-border shadow-soft-sm rounded-2xl p-4 flex items-center gap-2 text-sm text-secondary hover:underline w-full touch-manipulation">
             <ExternalLink className="w-4 h-4" /> View Original Posting
           </button>
         )}
 
         {/* Apply with Resume */}
         {showApply && resumes && resumes.length > 0 ? (
-          <div className="glass-card rounded-2xl p-4 space-y-3">
+          <div className="bg-card border border-border shadow-soft-sm rounded-2xl p-4 space-y-3">
             <h3 className="font-semibold text-sm">Apply with Resume</h3>
             <Select onValueChange={handleApplyWithResume}>
               <SelectTrigger><SelectValue placeholder="Select a resume" /></SelectTrigger>

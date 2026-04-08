@@ -27,7 +27,7 @@ export const EditorExportSection = memo(function EditorExportSection({
     const { pdfDefaults, setPdfDefaults } = useSettingsStore();
 
     return (
-        <div className="rounded-2xl glass-elevated overflow-hidden">
+        <div className="rounded-2xl bg-card border border-border shadow-soft overflow-hidden">
             {/* PDF Export Settings - Collapsible */}
             <Collapsible open={pdfOpen} onOpenChange={setPdfOpen}>
                 <CollapsibleTrigger className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-muted/30 transition-colors touch-manipulation">

@@ -20,7 +20,7 @@ export function CollapsibleCard({
   const duration = prefersReducedMotion ? 0 : 0.25;
 
   return (
-    <div id={`section-${id}`} className="glass-elevated rounded-2xl overflow-hidden">
+    <div id={`section-${id}`} className="bg-card border border-border shadow-soft rounded-2xl overflow-hidden">
       <button
         onClick={() => toggleSection(id)}
         className="w-full flex items-center justify-between p-4 text-left active:bg-muted/30 transition-colors"

@@ -188,7 +188,7 @@ export default function ResignationLetterNewPage() {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col min-h-0 overflow-hidden">
-      <header className="sticky top-0 z-10 glass-header px-4 py-3 space-y-1">
+      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 space-y-1">
         <div className="flex items-center gap-3">
           <button
             onClick={() => step > 0 ? setStep(step - 1) : goBack()}
@@ -244,7 +244,7 @@ export default function ResignationLetterNewPage() {
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Last Working Day</label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <button className="w-full h-12 px-4 rounded-xl glass-input text-left text-[16px] touch-manipulation">
+                    <button className="w-full h-12 px-4 rounded-xl bg-input border border-border text-left text-[16px] touch-manipulation">
                       {lastWorkingDay ? format(lastWorkingDay, 'PPP') : 'Select date...'}
                     </button>
                   </PopoverTrigger>
@@ -368,7 +368,7 @@ export default function ResignationLetterNewPage() {
           {/* Step 4: Result */}
           {step === 3 && result && (
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-              <div className="glass-elevated rounded-2xl p-5">
+              <div className="bg-card border border-border shadow-soft rounded-2xl p-5">
                 <Textarea
                   value={result}
                   onChange={(e) => setResult(e.target.value)}
@@ -382,7 +382,7 @@ export default function ResignationLetterNewPage() {
 
       {/* Bottom Navigation */}
       <div className="fixed bottom-20 left-0 right-0 z-40 px-4 pb-safe">
-        <div className="glass-header rounded-2xl p-3 flex gap-2">
+        <div className="bg-background/95 backdrop-blur-sm border-b border-border rounded-2xl p-3 flex gap-2">
           {step < 2 && (
             <Button
               className="flex-1 gap-2 h-12 rounded-xl"

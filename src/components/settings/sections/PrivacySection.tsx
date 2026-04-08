@@ -52,7 +52,7 @@ export const PrivacySection = memo(function PrivacySection({
                 {privacyStatus}
             </Badge>
 
-            <div className="rounded-2xl glass-elevated overflow-hidden">
+            <div className="rounded-2xl bg-card border border-border shadow-soft overflow-hidden">
                 {/* Biometric lock - available on mobile */}
                 {biometricAvailable ? (
                     <>

@@ -152,7 +152,7 @@ export function QuestionBankSheet({
                       'flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all touch-manipulation active:scale-95',
                       activeTab === cat.id
                         ? 'bg-primary text-primary-foreground'
-                        : 'glass-elevated text-muted-foreground hover:text-foreground'
+                        : 'bg-card border border-border shadow-soft text-muted-foreground hover:text-foreground'
                     )}
                   >
                     {CATEGORY_ICONS[cat.id]}

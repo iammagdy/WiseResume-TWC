@@ -21,7 +21,7 @@ export const AIVoiceSection = memo(function AIVoiceSection({
     const elevenlabsApiKey = useSettingsStore(s => s.elevenlabsApiKey);
 
     return (
-        <div className="rounded-2xl glass-elevated overflow-hidden">
+        <div className="rounded-2xl bg-card border border-border shadow-soft overflow-hidden">
             <SettingsRow
                 type="navigation"
                 label="AI Provider"

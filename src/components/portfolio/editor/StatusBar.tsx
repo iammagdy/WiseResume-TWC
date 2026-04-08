@@ -35,7 +35,7 @@ export function StatusBar({
     strengthScore < 40 ? 'text-destructive' : strengthScore < 70 ? 'text-yellow-500' : 'text-green-500';
 
   return (
-    <div className="flex items-center gap-2 px-3 py-2 rounded-xl glass-surface border border-border/40">
+    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border">
       {/* Live/Draft badge */}
       <Badge
         variant={portfolioEnabled ? 'default' : 'secondary'}
@@ -77,7 +77,7 @@ export function StatusBar({
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <button className={`text-[11px] font-bold shrink-0 px-2 py-1 rounded-lg glass-surface border border-border/30 touch-manipulation ${strengthColor}`}>
+            <button className={`text-[11px] font-bold shrink-0 px-2 py-1 rounded-lg bg-card border border-border touch-manipulation ${strengthColor}`}>
               {strengthScore}%
             </button>
           </TooltipTrigger>

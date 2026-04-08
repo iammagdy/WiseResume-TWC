@@ -62,7 +62,7 @@ export default function AccountStatsCard({ resumes, coverLetters, applications, 
     return (
         <div
             ref={cardRef}
-            className="rounded-2xl glass-elevated overflow-hidden p-4 mb-3 border border-primary/20"
+            className="rounded-2xl bg-card border border-primary/20 shadow-soft overflow-hidden p-4 mb-3"
         >
             {membershipTier && (
                 <div className="flex justify-center mb-2">

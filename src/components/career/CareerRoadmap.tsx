@@ -111,7 +111,7 @@ export function CareerRoadmap({ result, completedMilestones, onToggleMilestone }
 
                     {/* Next roles */}
                     {roles.map((role, i) => (
-                      <div key={i} className="glass-input rounded-xl p-3">
+                      <div key={i} className="bg-input border border-border rounded-xl p-3">
                         <div className="flex items-center justify-between mb-1">
                           <p className="text-sm font-medium">{role.title}</p>
                           <Badge className="text-[10px]">{role.matchScore}% match</Badge>

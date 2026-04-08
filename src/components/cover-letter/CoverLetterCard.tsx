@@ -76,7 +76,7 @@ export const CoverLetterCard = memo(function CoverLetterCard({
       </div>
 
       <motion.div
-        className="relative glass-elevated p-4 touch-manipulation cursor-pointer active:bg-muted/30 transition-all"
+        className="relative bg-card border border-border shadow-soft p-4 touch-manipulation cursor-pointer active:bg-muted/30 transition-all"
         style={{ x, touchAction: 'pan-y' }}
         drag="x"
         dragConstraints={{ left: -150, right: 150 }}
@@ -92,7 +92,7 @@ export const CoverLetterCard = memo(function CoverLetterCard({
         whileTap={{ scale: isDragging ? 1 : 0.98 }}
       >
         <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl glass-surface flex items-center justify-center flex-shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center flex-shrink-0">
             <FileText className="w-5 h-5 text-accent" />
           </div>
           <div className="flex-1 min-w-0">

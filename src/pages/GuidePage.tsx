@@ -80,7 +80,7 @@ export default function GuidePage() {
       </div>
 
       {/* Header */}
-      <header className="pt-safe pt-2 pb-2 px-4 flex items-center gap-2 glass-header">
+      <header className="pt-safe pt-2 pb-2 px-4 flex items-center gap-2 bg-background/95 backdrop-blur-sm border-b border-border">
         <BackButton />
         <span className="flex-1 min-w-0 text-sm font-medium truncate">{guide.title}</span>
         <button
@@ -108,7 +108,7 @@ export default function GuidePage() {
               onClick={() => { setFontSize(s); haptics.light(); setShowFontMenu(false); }}
               className={cn(
                 'px-3 py-1.5 rounded-full text-xs font-medium min-h-[36px] touch-manipulation active:scale-95 transition-all',
-                fontSize === s ? 'bg-primary text-primary-foreground' : 'glass-surface'
+                fontSize === s ? 'bg-primary text-primary-foreground' : 'bg-card border border-border'
               )}
             >
               {s === 'sm' ? 'Small' : s === 'md' ? 'Medium' : 'Large'}
@@ -136,7 +136,7 @@ export default function GuidePage() {
                 onClick={() => { setHelpful(guide.slug, true); haptics.success(); }}
                 className={cn(
                   'min-w-[52px] min-h-[52px] flex items-center justify-center rounded-full transition-all touch-manipulation active:scale-90',
-                  helpful === true ? 'bg-primary/20 text-primary' : 'glass-surface text-muted-foreground'
+                  helpful === true ? 'bg-primary/20 text-primary' : 'bg-card border border-border text-muted-foreground'
                 )}
                 aria-label="Yes, helpful"
               >
@@ -146,7 +146,7 @@ export default function GuidePage() {
                 onClick={() => { setHelpful(guide.slug, false); haptics.light(); }}
                 className={cn(
                   'min-w-[52px] min-h-[52px] flex items-center justify-center rounded-full transition-all touch-manipulation active:scale-90',
-                  helpful === false ? 'bg-destructive/20 text-destructive' : 'glass-surface text-muted-foreground'
+                  helpful === false ? 'bg-destructive/20 text-destructive' : 'bg-card border border-border text-muted-foreground'
                 )}
                 aria-label="Not helpful"
               >
@@ -164,7 +164,7 @@ export default function GuidePage() {
                   <button
                     key={r.slug}
                     onClick={() => { haptics.light(); navigate(`/guides/${r.slug}`); }}
-                    className="w-full text-left p-3 rounded-xl glass-surface transition-all active:scale-[0.98] touch-manipulation min-h-[48px]"
+                    className="w-full text-left p-3 rounded-xl bg-card border border-border transition-all active:scale-[0.98] touch-manipulation min-h-[48px]"
                   >
                     <p className="text-sm font-medium">{r.title}</p>
                     <p className="text-[10px] text-muted-foreground mt-0.5">{r.readTimeMinutes} min read</p>

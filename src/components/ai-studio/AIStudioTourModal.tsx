@@ -54,7 +54,7 @@ export function AIStudioTourModal({ onDismiss }: AIStudioTourModalProps) {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
           transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-          className="w-full max-w-sm glass-elevated rounded-3xl border border-primary/20 p-6 space-y-5"
+          className="w-full max-w-sm bg-card border border-primary/20 shadow-soft-lg rounded-3xl p-6 space-y-5"
         >
           {/* Step indicator */}
           <div className="flex justify-center gap-2">

@@ -59,7 +59,7 @@ export default function ResignationLettersPage() {
 
   return (
     <div className="min-h-full flex flex-col">
-      <header className="sticky top-0 z-10 glass-header px-4 py-3 flex items-center gap-3">
+      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 flex items-center gap-3">
         <BackButton />
         <h1 className="text-lg font-bold flex-1">Resignation Letters</h1>
         <motion.button
@@ -83,7 +83,7 @@ export default function ResignationLettersPage() {
                   placeholder="Search resignation letters..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 rounded-full h-11 glass-input"
+                  className="pl-10 rounded-full h-11 bg-input border border-border"
                 />
               </div>
             </div>
@@ -95,7 +95,7 @@ export default function ResignationLettersPage() {
             </div>
           ) : !filtered || filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center px-4 py-20 text-center">
-              <div className="w-16 h-16 rounded-2xl glass-elevated flex items-center justify-center mb-4">
+              <div className="w-16 h-16 rounded-2xl bg-card border border-border shadow-soft flex items-center justify-center mb-4">
                 <FileSignature className="w-8 h-8 text-accent opacity-50" />
               </div>
               <h3 className="font-semibold text-foreground mb-1">
@@ -133,7 +133,7 @@ export default function ResignationLettersPage() {
                       whileTap={{ scale: 0.98 }}
                       style={{ touchAction: 'pan-y' }}
                       onClick={() => navigate(`/resignation-letter/edit/${letter.id}`)}
-                      className="w-full text-left glass-elevated rounded-2xl p-4 space-y-2 active:scale-[0.98] touch-manipulation"
+                      className="w-full text-left bg-card border border-border shadow-soft rounded-2xl p-4 space-y-2 active:scale-[0.98] touch-manipulation"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <h3 className="font-semibold text-foreground truncate">

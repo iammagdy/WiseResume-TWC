@@ -42,7 +42,7 @@ const STATUS_BADGE_CLASSES: Record<ApplicationStatus, string> = {
 
 function JobCard({ job, onClick, matchScore, onTailor, onMarkApplied }: {job: Job;onClick: () => void;matchScore: JobMatchResult | null;onTailor: () => void;onMarkApplied: () => void;}) {
   return (
-    <div className="glass-card rounded-2xl p-4 space-y-2">
+    <div className="bg-card border border-border shadow-soft-sm rounded-2xl p-4 space-y-2">
       <button
         onClick={onClick}
         className="flex items-start gap-3 w-full text-left">
@@ -318,7 +318,7 @@ export default function ApplicationsPage() {
                 return (
                   <div
                     key={app.id}
-                    className="glass-card rounded-2xl p-4 space-y-2">
+                    className="bg-card border border-border shadow-soft-sm rounded-2xl p-4 space-y-2">
                     
                         <button
                       onClick={() => navigate(`/application/${app.id}`)}
@@ -404,7 +404,7 @@ export default function ApplicationsPage() {
                   </div>) : (
 
             /* Compact empty state for filtered view */
-            <div className="glass-surface rounded-2xl p-4 flex items-center gap-3">
+            <div className="bg-card border border-border rounded-2xl p-4 flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                       <FileText className="w-4 h-4 text-primary" />
                     </div>

@@ -63,7 +63,7 @@ function RoleCard({ role }: { role: NextRole }) {
 
   return (
     <motion.button
-      className="w-full text-left p-4 rounded-xl glass-surface border border-border/50 active:scale-[0.98] transition-transform touch-manipulation"
+      className="w-full text-left p-4 rounded-xl bg-card border border-border active:scale-[0.98] transition-transform touch-manipulation"
       onClick={() => setExpanded(!expanded)}
       layout
     >
@@ -141,7 +141,7 @@ function SkillGapCard({ gap }: { gap: SkillGap }) {
   const Icon = config.icon;
 
   return (
-    <div className="p-3 rounded-xl glass-surface flex gap-3">
+    <div className="p-3 rounded-xl bg-card border border-border flex gap-3">
       <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', config.bg)}>
         <Icon className={cn('w-4 h-4', config.color)} />
       </div>
@@ -169,7 +169,7 @@ function IndustryCard({ alt }: { alt: IndustryAlternative }) {
   const salary = salaryIcon[alt.salaryComparison];
 
   return (
-    <div className="p-4 rounded-xl glass-surface">
+    <div className="p-4 rounded-xl bg-card border border-border">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <Globe className="w-4 h-4 text-primary" />
@@ -306,7 +306,7 @@ export function CareerPathSheet({ open, onOpenChange }: CareerPathSheetProps) {
 
           {result && !isLoading && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <div className="flex items-center gap-3 p-4 rounded-xl glass-elevated mb-4">
+              <div className="flex items-center gap-3 p-4 rounded-xl bg-card border border-border shadow-soft mb-4">
                 <GraduationCap className="w-6 h-6 text-primary" />
                 <div className="flex-1">
                   <p className="text-sm font-semibold">{result.primaryField}</p>

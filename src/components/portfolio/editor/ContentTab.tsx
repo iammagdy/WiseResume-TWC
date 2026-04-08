@@ -94,7 +94,7 @@ export function ContentTab(props: ContentTabProps) {
       </div>
 
       {syncMode === 'auto' ? (
-        <div className="text-center py-8 space-y-2 glass-elevated rounded-xl">
+        <div className="text-center py-8 space-y-2 bg-card border border-border shadow-soft rounded-xl">
           <RefreshCw className="w-6 h-6 text-primary mx-auto" />
           <p className="text-sm font-medium text-foreground">Content auto-syncs from your resume</p>
           <p className="text-xs text-muted-foreground px-4">

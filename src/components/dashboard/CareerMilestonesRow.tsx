@@ -41,7 +41,7 @@ function MilestoneBadge({ milestone }: { milestone: Milestone }) {
             exit={{ opacity: 0, y: 4, scale: 0.9 }}
             transition={{ duration: 0.15 }}
           >
-            <div className="glass-elevated rounded-xl px-3 py-2 text-xs text-center max-w-[160px] shadow-lg border border-border/50">
+            <div className="bg-card border border-border shadow-soft rounded-xl px-3 py-2 text-xs text-center max-w-[160px]">
               {milestone.earned ? (
                 <span className="font-medium text-primary">✓ {milestone.description}</span>
               ) : (
@@ -74,7 +74,7 @@ export function CareerMilestonesRow() {
       transition={{ duration: 0.4, delay: 0.1 }}
       className="px-4 pb-2"
     >
-      <div className="glass-elevated rounded-2xl overflow-hidden">
+      <div className="bg-card border border-border shadow-soft rounded-2xl overflow-hidden">
         {/* Collapsed header - always visible */}
         <button
           onClick={handleToggle}

@@ -5,7 +5,7 @@ export function ProfileSkeleton() {
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Header */}
-      <div className="shrink-0 flex items-center gap-3 px-4 h-14 pt-safe border-b border-border glass-header backdrop-blur-md">
+      <div className="shrink-0 flex items-center gap-3 px-4 h-14 pt-safe border-b border-border bg-background/95 backdrop-blur-sm">
         <BackButton />
         <div className="h-6 w-32 bg-muted rounded animate-pulse" />
       </div>
@@ -32,7 +32,7 @@ export function ProfileSkeleton() {
         </div>
 
         {/* Progress Card Skeleton */}
-        <div className="glass-elevated rounded-2xl p-4 space-y-4">
+        <div className="bg-card border border-border shadow-soft rounded-2xl p-4 space-y-4">
           <div className="flex justify-between">
             <Skeleton className="h-5 w-32" />
             <Skeleton className="h-4 w-8" />
@@ -50,7 +50,7 @@ export function ProfileSkeleton() {
         </div>
 
         {/* Portfolio Card Skeleton */}
-        <div className="glass-elevated rounded-2xl p-4 space-y-4">
+        <div className="bg-card border border-border shadow-soft rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-3">
             <Skeleton className="w-10 h-10 rounded-xl" />
             <div className="space-y-2 flex-1">

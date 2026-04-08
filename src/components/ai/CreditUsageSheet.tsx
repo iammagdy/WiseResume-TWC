@@ -206,7 +206,7 @@ export const CreditUsageSheet = memo(function CreditUsageSheet({
           )}
 
           {/* Lifetime stat */}
-          <div className="flex items-center justify-between px-3 py-3 rounded-xl glass-surface">
+          <div className="flex items-center justify-between px-3 py-3 rounded-xl bg-card border border-border">
             <span className="text-sm text-muted-foreground">Lifetime usage</span>
             <span className="text-sm font-semibold">{totalLifetime} credits</span>
           </div>

@@ -226,7 +226,7 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
               <p className="text-sm text-muted-foreground text-center animate-pulse">Scoring both resumes...</p>
               <div className="grid grid-cols-2 gap-4">
                 {[0, 1].map(i => (
-                  <div key={i} className="space-y-3 p-3 rounded-xl glass-surface border border-border/30 min-h-[160px]">
+                  <div key={i} className="space-y-3 p-3 rounded-xl bg-card border border-border min-h-[160px]">
                     <Skeleton className="h-4 w-24" />
                     <Skeleton className="h-16 w-16 rounded-full mx-auto" />
                     {[0, 1, 2].map(j => <Skeleton key={j} className="h-3 w-full" />)}
@@ -280,7 +280,7 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: side === 'b' ? 0.1 : 0 }}
                     className={cn(
-                      'p-3 rounded-xl glass-surface border transition-all',
+                      'p-3 rounded-xl bg-card border border-border transition-all',
                       winner === side ? 'border-primary/40 ring-1 ring-primary/20' : 'border-border/30'
                     )}
                   >

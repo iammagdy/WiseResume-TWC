@@ -55,7 +55,7 @@ export function ShareFeedbackSheet({ open, onOpenChange, shareId }: ShareFeedbac
               onClick={() => { setFilter(f); haptics.light(); }}
               className={cn(
                 'px-3 py-1.5 rounded-full text-xs font-medium min-h-[36px] touch-manipulation active:scale-95 transition-all capitalize',
-                filter === f ? 'bg-primary text-primary-foreground' : 'glass-surface text-muted-foreground'
+                filter === f ? 'bg-primary text-primary-foreground' : 'bg-card border border-border text-muted-foreground'
               )}
             >
               {f}
@@ -81,7 +81,7 @@ export function ShareFeedbackSheet({ open, onOpenChange, shareId }: ShareFeedbac
               <div
                 key={comment.id}
                 className={cn(
-                  'p-3 rounded-xl glass-surface',
+                  'p-3 rounded-xl bg-card border border-border',
                   comment.is_resolved && 'opacity-60'
                 )}
               >

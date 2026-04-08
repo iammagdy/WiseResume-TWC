@@ -121,7 +121,7 @@ export function HiredCelebrationModal({ open, onClose, jobTitle, company, resume
 
           {/* Modal */}
           <motion.div
-            className="relative z-10 w-full max-w-sm glass-elevated rounded-3xl p-6 overflow-hidden"
+            className="relative z-10 w-full max-w-sm bg-card border border-border shadow-soft-lg rounded-3xl p-6 overflow-hidden"
             initial={{ y: 60, scale: 0.95, opacity: 0 }}
             animate={{ y: 0, scale: 1, opacity: 1 }}
             exit={{ y: 60, scale: 0.95, opacity: 0 }}

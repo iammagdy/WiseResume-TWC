@@ -121,7 +121,7 @@ export function UseTemplateSheet({ example, open, onOpenChange }: Props) {
             <button
               key={key}
               onClick={() => handleSelect(key)}
-              className="w-full flex items-center gap-3 p-4 rounded-xl glass-elevated active:scale-[0.97] transition-transform touch-manipulation text-left"
+              className="w-full flex items-center gap-3 p-4 rounded-xl bg-card border border-border shadow-soft active:scale-[0.97] transition-transform touch-manipulation text-left"
             >
               <div className="w-11 h-11 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <Icon className="w-5 h-5 text-primary" />

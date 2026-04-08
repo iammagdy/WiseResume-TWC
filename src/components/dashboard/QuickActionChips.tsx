@@ -70,7 +70,7 @@ export const QuickActionChips = memo(function QuickActionChips({ onCreateNew }: 
           onClick={() => handleAction(item.action)}
           className={cn(
             'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-full',
-            'glass-surface border-glow',
+            'bg-card border border-border',
             'touch-manipulation active:scale-95 transition-transform',
             'min-h-[44px]'
           )}

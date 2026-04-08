@@ -70,7 +70,7 @@ export function ExampleIdeasSheet({ example, open, onOpenChange }: Props) {
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{group.section}</h4>
               <div className="space-y-2">
                 {group.phrases.map((phrase, i) => (
-                  <div key={i} className="glass-surface rounded-xl p-3 flex items-start gap-2">
+                  <div key={i} className="bg-card border border-border rounded-xl p-3 flex items-start gap-2">
                     <p className="flex-1 text-sm text-foreground leading-relaxed min-w-0">{phrase}</p>
                     <div className="flex flex-col gap-1 shrink-0">
                       <Button

@@ -90,14 +90,14 @@ export default function ApplicationTrackerPage() {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 min-h-0 h-full overflow-y-auto overscroll-y-contain pb-6">
       {/* Header */}
-      <div className="sticky top-0 z-10 glass-card border-b border-border/50 px-4 py-3 flex items-center gap-3">
+      <div className="sticky top-0 z-10 bg-card border border-border shadow-soft-sm border-b border-border/50 px-4 py-3 flex items-center gap-3">
         <BackButton />
         <h1 className="text-lg font-bold truncate flex-1">Application Details</h1>
       </div>
 
       <div className="px-4 space-y-4 mt-4">
         {/* Status Timeline */}
-        <div className="glass-card rounded-2xl p-5">
+        <div className="bg-card border border-border shadow-soft-sm rounded-2xl p-5">
           {isRejected ? (
             <div className="flex items-center gap-3 text-destructive">
               <div className="w-8 h-8 rounded-full bg-destructive/20 flex items-center justify-center">✕</div>
@@ -131,7 +131,7 @@ export default function ApplicationTrackerPage() {
         </div>
 
         {/* Job Summary */}
-        <div className="glass-card rounded-2xl p-4 space-y-2">
+        <div className="bg-card border border-border shadow-soft-sm rounded-2xl p-4 space-y-2">
           <div className="flex items-center gap-2">
             <Briefcase className="w-4 h-4 text-primary" />
             <span className="font-semibold">{app.job_title}</span>
@@ -155,7 +155,7 @@ export default function ApplicationTrackerPage() {
         {linkedResume && (
           <button
             onClick={() => navigate(`/resume/${linkedResume.id}`)}
-            className="glass-card rounded-2xl p-4 flex items-center gap-3 w-full text-left hover:bg-muted/30 transition-colors"
+            className="bg-card border border-border shadow-soft-sm rounded-2xl p-4 flex items-center gap-3 w-full text-left hover:bg-muted/30 transition-colors"
           >
             <FileText className="w-5 h-5 text-secondary" />
             <div>
@@ -169,7 +169,7 @@ export default function ApplicationTrackerPage() {
         {coverLetter && (
           <button
             onClick={() => navigate(`/cover-letter/edit/${coverLetter.id}`)}
-            className="glass-card rounded-2xl p-4 flex items-center gap-3 w-full text-left hover:bg-muted/30 transition-colors"
+            className="bg-card border border-border shadow-soft-sm rounded-2xl p-4 flex items-center gap-3 w-full text-left hover:bg-muted/30 transition-colors"
           >
             <Mail className="w-5 h-5 text-primary" />
             <div>
@@ -197,7 +197,7 @@ export default function ApplicationTrackerPage() {
         )}
 
         {/* Notes */}
-        <div className="glass-card rounded-2xl p-4 space-y-3">
+        <div className="bg-card border border-border shadow-soft-sm rounded-2xl p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-sm">Notes</h3>
             {!isEditingNotes && <Button variant="ghost" size="sm" onClick={() => setIsEditingNotes(true)}>Edit</Button>}
@@ -218,7 +218,7 @@ export default function ApplicationTrackerPage() {
         {/* Set Reminder */}
         <div className="space-y-2">
           {showReminder ? (
-            <div className="glass-card rounded-2xl p-4 space-y-3">
+            <div className="bg-card border border-border shadow-soft-sm rounded-2xl p-4 space-y-3">
               <h3 className="font-semibold text-sm">Set Reminder</h3>
               <Input type="datetime-local" value={reminderDate} onChange={e => setReminderDate(e.target.value)} className="text-[16px]" />
               <div className="flex gap-2">

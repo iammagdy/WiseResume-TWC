@@ -13,7 +13,7 @@ const CustomTooltip = ({ active, payload }: any) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div className="glass-elevated rounded-lg px-3 py-2 text-xs shadow-lg border border-border/30">
+    <div className="bg-card border border-border shadow-soft rounded-lg px-3 py-2 text-xs">
       <p className="font-semibold text-foreground">Session {d.session}: {d.score}/10</p>
       <p className="text-muted-foreground">{d.date}</p>
     </div>
@@ -45,7 +45,7 @@ export function InterviewStatsCard({ onViewHistory }: InterviewStatsCardProps) {
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mx-4 mb-4 glass-elevated rounded-2xl p-4 space-y-3"
+      className="mx-4 mb-4 bg-card border border-border shadow-soft rounded-2xl p-4 space-y-3"
     >
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold text-foreground flex items-center gap-2">

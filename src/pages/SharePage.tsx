@@ -60,7 +60,7 @@ export default function SharePage() {
     const isWrongPassword = passwordAttempt !== undefined;
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background text-foreground">
-        <div className="glass-card rounded-2xl p-6 max-w-sm w-full space-y-4">
+        <div className="bg-card border border-border shadow-soft-sm rounded-2xl p-6 max-w-sm w-full space-y-4">
           <div className="flex items-center gap-2 justify-center">
             <Lock className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-bold">Password Required</h2>
@@ -200,7 +200,7 @@ export default function SharePage() {
         <section className="mt-10 border-t border-border pt-6">
           <button
             onClick={() => setFeedbackOpen(!feedbackOpen)}
-            className="w-full flex items-center justify-between p-3 rounded-xl glass-surface touch-manipulation active:scale-[0.98] min-h-[48px]"
+            className="w-full flex items-center justify-between p-3 rounded-xl bg-card border border-border touch-manipulation active:scale-[0.98] min-h-[48px]"
           >
             <div className="flex items-center gap-2">
               <MessageSquare className="w-5 h-5 text-primary" />
@@ -214,7 +214,7 @@ export default function SharePage() {
 
           {feedbackOpen && (
             <div className="mt-3 space-y-3">
-              <div className="p-4 rounded-xl glass-surface space-y-3">
+              <div className="p-4 rounded-xl bg-card border border-border space-y-3">
                 <Input
                   placeholder="Your name"
                   value={authorName}
@@ -252,7 +252,7 @@ export default function SharePage() {
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-muted-foreground px-1">Recent Feedback</p>
                   {visibleComments.map((comment) => (
-                    <div key={comment.id} className="p-3 rounded-xl glass-surface">
+                    <div key={comment.id} className="p-3 rounded-xl bg-card border border-border">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-sm font-medium">{comment.author_name}</span>
                         {comment.section && comment.section !== 'general' && (

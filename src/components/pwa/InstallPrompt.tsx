@@ -71,7 +71,7 @@ export function InstallPrompt() {
         initial={{ y: 100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 100, opacity: 0 }}
-        className="fixed bottom-[5.5rem] sm:bottom-[11.5rem] left-4 right-4 z-40 glass-elevated rounded-2xl p-4 shadow-lg"
+        className="fixed bottom-[5.5rem] sm:bottom-[11.5rem] left-4 right-4 z-40 bg-card border border-border shadow-soft-lg rounded-2xl p-4"
         style={{
           boxShadow: '0 8px 40px -8px hsl(var(--primary) / 0.3)',
         }}

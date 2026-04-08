@@ -82,8 +82,7 @@ export function ResumeCard({
   return (
     <motion.div
       className={cn(
-        'relative rounded-2xl glass-elevated overflow-hidden transition-all duration-300',
-        'border-glow',
+        'relative rounded-2xl bg-card border border-border shadow-soft overflow-hidden transition-all duration-300',
         'shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.15)]',
         'hover:shadow-[0_12px_40px_-8px_hsl(var(--primary)/0.25)]',
         className

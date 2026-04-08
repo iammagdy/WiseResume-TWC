@@ -170,7 +170,7 @@ export const ResumeListCard = memo(function ResumeListCard({
   return (
     <div className={cn(
       "relative overflow-hidden rounded-2xl border-l-4 transition-colors duration-500",
-      "border-l-primary/20 border-glow",
+      "border-l-primary/20",
     )}>
       {/* Swipe action backgrounds */}
       <div className="absolute inset-0 flex">
@@ -208,7 +208,7 @@ export const ResumeListCard = memo(function ResumeListCard({
           }
         }}
         className={cn(
-          'relative glass-elevated p-4 touch-manipulation cursor-pointer min-h-[180px] sm:min-h-[120px]',
+          'relative bg-card border border-border shadow-soft p-4 touch-manipulation cursor-pointer min-h-[180px] sm:min-h-[120px]',
           'active:bg-muted/30 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50'
         )}
         style={{ x, touchAction: 'pan-y' }}
@@ -253,7 +253,7 @@ export const ResumeListCard = memo(function ResumeListCard({
                 {isRenaming ? (
                   <input
                     autoFocus
-                    className="font-semibold text-foreground bg-transparent glass-input rounded-lg px-2 py-0.5 h-7 w-full max-w-[180px] text-sm focus:outline-none focus:ring-1 focus:ring-primary/40"
+                    className="font-semibold text-foreground bg-transparent bg-input border border-border rounded-lg px-2 py-0.5 h-7 w-full max-w-[180px] text-sm focus:outline-none focus:ring-1 focus:ring-primary/40"
                     defaultValue={resume.title}
                     onClick={(e) => e.stopPropagation()}
                     onBlur={(e) => {

@@ -141,7 +141,7 @@ export function ActivityTimeline() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05, duration: 0.3 }}
-            className="glass-surface rounded-2xl p-3.5 border border-border/20 transition-transform active:scale-[0.98] min-h-[80px] cursor-pointer"
+            className="bg-card border border-border rounded-2xl p-3.5 transition-transform active:scale-[0.98] min-h-[80px] cursor-pointer"
             onClick={isResume && entry.resumeId ? () => navigate(`/resume/${entry.resumeId}`) : undefined}
           >
             <div className="flex items-start gap-3">

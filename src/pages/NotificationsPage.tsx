@@ -66,7 +66,7 @@ export default function NotificationsPage() {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 min-h-0 h-full overflow-y-auto overscroll-y-contain pb-6">
       {/* Header */}
-      <div className="sticky top-0 z-10 glass-card border-b border-border/50 px-4 py-3 flex items-center gap-3">
+      <div className="sticky top-0 z-10 bg-card border border-border shadow-soft-sm border-b border-border/50 px-4 py-3 flex items-center gap-3">
         <BackButton />
         <h1 className="text-lg font-bold flex-1">Notifications</h1>
         <div className="flex items-center gap-1">
@@ -116,7 +116,7 @@ export default function NotificationsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, x: -100 }}
                 onClick={() => handleClick(n)}
-                className={`glass-card rounded-xl p-4 flex items-start gap-3 cursor-pointer transition-colors ${
+                className={`bg-card border border-border shadow-soft-sm rounded-xl p-4 flex items-start gap-3 cursor-pointer transition-colors ${
                   !n.is_read ? 'border-l-2 border-l-primary' : 'opacity-70'
                 }`}
               >
