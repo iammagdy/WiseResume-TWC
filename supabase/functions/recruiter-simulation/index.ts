@@ -177,7 +177,7 @@ Analyze this resume from your unique perspective as ${personaConfig.name}. Be sp
       ],
       temperature: 0.7,
       maxTokens: 3000,
-      userId: user.id,
+      userId,
     });
 
     const analysis = parseAIJSON(aiResponse.content || '{}');
@@ -189,7 +189,7 @@ Analyze this resume from your unique perspective as ${personaConfig.name}. Be sp
       );
     }
 
-    await recordUsage(user.id, 'recruiter_sim', { provider: aiResponse.providerUsed || 'unknown' });
+    await recordUsage(userId, 'recruiter_sim', { provider: aiResponse.providerUsed || 'unknown' });
 
     return new Response(
       JSON.stringify({

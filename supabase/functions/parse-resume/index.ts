@@ -541,6 +541,17 @@ serve(async (req) => {
         description: vol.description || '',
       })),
       hobbies: parsedResume.hobbies || [],
+      projects: (parsedResume.projects || []).map((proj: any) => ({
+        id: generateId(),
+        name: proj.name || '',
+        role: proj.role || '',
+        startDate: proj.startDate || '',
+        endDate: proj.endDate || '',
+        technologies: proj.technologies || [],
+        description: proj.description || '',
+        url: proj.url || undefined,
+        githubUrl: proj.githubUrl || undefined,
+      })),
     };
 
     // Final confidence scoring
@@ -645,7 +656,13 @@ serve(async (req) => {
           projects: (fallbackResume.projects || []).map((p: any) => ({
             id: fallbackGenerateId(),
             name: p.name || '',
+            role: p.role || '',
+            startDate: p.startDate || '',
+            endDate: p.endDate || '',
+            technologies: p.technologies || [],
             description: p.description || '',
+            url: p.url || undefined,
+            githubUrl: p.githubUrl || undefined,
           })),
           volunteering: (fallbackResume.volunteering || []).map((v: any) => ({
             id: fallbackGenerateId(),
@@ -764,6 +781,24 @@ function mergeParseResults(pass1: any, pass2: any, pass1Confidence: Record<strin
   }
   if (pass1Confidence.skills < 0.5 && pass2.skills?.length > 0) {
     merged.skills = pass2.skills;
+  }
+  if ((!merged.certifications || merged.certifications.length === 0) && pass2.certifications?.length > 0) {
+    merged.certifications = pass2.certifications;
+  }
+  if ((!merged.awards || merged.awards.length === 0) && pass2.awards?.length > 0) {
+    merged.awards = pass2.awards;
+  }
+  if ((!merged.publications || merged.publications.length === 0) && pass2.publications?.length > 0) {
+    merged.publications = pass2.publications;
+  }
+  if ((!merged.volunteering || merged.volunteering.length === 0) && pass2.volunteering?.length > 0) {
+    merged.volunteering = pass2.volunteering;
+  }
+  if ((!merged.hobbies || merged.hobbies.length === 0) && pass2.hobbies?.length > 0) {
+    merged.hobbies = pass2.hobbies;
+  }
+  if ((!merged.projects || merged.projects.length === 0) && pass2.projects?.length > 0) {
+    merged.projects = pass2.projects;
   }
 
   return merged;

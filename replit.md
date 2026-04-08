@@ -72,3 +72,10 @@ See `.env.example`. Key variables:
 - Removed: border-glow, border-white/*, shadow-purple-500/*, ring-white/* patterns
 - Pages updated: ProfilePage, SettingsPage, DashboardPage, SubscriptionPage, ResumeDetailPage, TemplatesPage
 - UploadPage, EditorPage, PreviewPage were already clean (no glass-* usage)
+
+## Bug Fixes (Post-Redesign Audit)
+- **AuthContext user.id**: Now uses only the bridge UUID (from token-exchange), never the raw Kinde ID (kp_xxx). If bridge hasn't settled, `user` is null to prevent UUID type errors in Supabase queries.
+- **Data query gating**: All hooks with `enabled: !!user` now naturally wait for the bridge since `user` is null until bridge provides a UUID.
+- **Edge function fixes**: 6 functions (recruiter-simulation, optimize-for-linkedin, one-page-optimizer, career-path-advisor, career-assessment, generate-resignation-letter) fixed `user.id` → `userId` from requireAuth.
+- **Parse-resume merge**: `mergeParseResults` now preserves certifications, awards, publications, volunteering, hobbies, and projects from pass 2.
+- **Local parser alignment**: `localParser.ts` project output now matches full Project interface (role, startDate, endDate, technologies, description).

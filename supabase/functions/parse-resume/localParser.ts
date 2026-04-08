@@ -36,7 +36,7 @@ interface MinimalResumeData {
     date: string;
   }>;
   awards: Array<{ id: string; title: string; issuer: string; date: string }>;
-  projects: Array<{ id: string; name: string; description: string }>;
+  projects: Array<{ id: string; name: string; role: string; startDate: string; endDate: string; technologies: string[]; description: string }>;
   volunteering: Array<{ id: string; organization: string; role: string }>;
   languages: Array<{ id: string; name: string; proficiency: string }>;
   templateId: string;
@@ -162,6 +162,10 @@ export function localParseResume(text: string): MinimalResumeData {
     projects: buckets.projects.slice(0, 5).map(l => ({
       id: crypto.randomUUID(),
       name: l.slice(0, 100),
+      role: '',
+      startDate: '',
+      endDate: '',
+      technologies: [],
       description: '',
     })),
     volunteering: buckets.volunteering.slice(0, 5).map(l => ({

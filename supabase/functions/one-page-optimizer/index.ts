@@ -122,7 +122,7 @@ Return ONLY a JSON object with this EXACT structure (no markdown, no code fences
       model: 'google/gemini-2.5-flash',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.5,
-      userId: user.id,
+      userId,
     });
 
     const result = parseAIJSON(aiResponse.content || '{}');
@@ -134,7 +134,7 @@ Return ONLY a JSON object with this EXACT structure (no markdown, no code fences
       );
     }
 
-    await recordUsage(user.id, 'one_page', { provider: aiResponse.providerUsed || 'unknown' });
+    await recordUsage(userId, 'one_page', { provider: aiResponse.providerUsed || 'unknown' });
 
     return new Response(
       JSON.stringify({ success: true, ...result }),

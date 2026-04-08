@@ -93,7 +93,7 @@ ${resume.education?.map((e: any) => `- ${e.degree} in ${e.field} from ${e.instit
       ],
       temperature: 0.6,
       maxTokens: 4000,
-      userId: user.id,
+      userId,
     });
 
     const result = parseAIJSON(aiResponse.content || '{}');
@@ -109,7 +109,7 @@ ${resume.education?.map((e: any) => `- ${e.degree} in ${e.field} from ${e.instit
       actionPlan: (result as any).actionPlan || [],
     };
 
-    await recordUsage(user.id, 'career_path', { provider: aiResponse.providerUsed || 'unknown' });
+    await recordUsage(userId, 'career_path', { provider: aiResponse.providerUsed || 'unknown' });
 
     return new Response(JSON.stringify({ ...sanitized, _providerUsed: aiResponse.providerUsed || 'unknown' }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

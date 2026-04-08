@@ -124,7 +124,7 @@ ${resume.certifications?.map((c: any) => `- ${c.name} from ${c.issuer}`).join("\
       ],
       temperature: 0.5,
       maxTokens: 8000,
-      userId: user.id,
+      userId,
       timeout: 45_000,
     });
 
@@ -148,7 +148,7 @@ ${resume.certifications?.map((c: any) => `- ${c.name} from ${c.issuer}`).join("\
       actionPlan: (result as any).actionPlan || [],
     };
 
-    await recordUsage(user.id, 'career_assess', { provider: aiResponse.providerUsed || 'unknown' });
+    await recordUsage(userId, 'career_assess', { provider: aiResponse.providerUsed || 'unknown' });
 
     return new Response(JSON.stringify(sanitized), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -115,7 +115,7 @@ Generate a comprehensive LinkedIn optimization package.`;
       model: 'google/gemini-2.5-flash',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,
-      userId: user.id,
+      userId,
       tools: [{
         type: 'function',
         function: {
@@ -175,7 +175,7 @@ Generate a comprehensive LinkedIn optimization package.`;
       );
     }
 
-    await recordUsage(user.id, 'linkedin_opt', { provider: aiResponse.providerUsed || 'unknown' });
+    await recordUsage(userId, 'linkedin_opt', { provider: aiResponse.providerUsed || 'unknown' });
 
     return new Response(
       JSON.stringify({ success: true, ...result }),

@@ -102,13 +102,13 @@ Write the complete letter with proper business letter formatting.`;
         { role: "user", content: userPrompt },
       ],
       temperature: 0.7,
-      userId: user.id,
+      userId,
     });
 
     const letter = aiResponse.content;
     if (!letter) throw new Error("No content in AI response");
 
-    await recordUsage(user.id, 'resignation', { provider: aiResponse.providerUsed || 'unknown' });
+    await recordUsage(userId, 'resignation', { provider: aiResponse.providerUsed || 'unknown' });
 
     return new Response(
       JSON.stringify({ letter }),

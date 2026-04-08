@@ -72,10 +72,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [getToken]);
 
   // Derive a simple user object from Kinde
+  // IMPORTANT: user.id MUST be a valid UUID from the bridge, never the raw Kinde ID
+  // (kp_xxx format) which causes Postgres "invalid input syntax for type uuid" errors.
   const user: KindeAppUser | null = useMemo(() => {
     if (!kindeUser) return null;
+    const bridgeUserId = getUserId();
+    if (!bridgeUserId) return null;
     return {
-      id: getUserId() || kindeUser.id || '',
+      id: bridgeUserId,
       email: kindeUser.email ?? '',
       name: [kindeUser.givenName, kindeUser.familyName].filter(Boolean).join(' ') || undefined,
     };
