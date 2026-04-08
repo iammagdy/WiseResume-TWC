@@ -75,11 +75,11 @@
   <!-- Global Theme Script -->
   <script>
     (function () {
-      var t = 'dark';
+      var t = 'system';
       try {
         var raw = localStorage.getItem('wiseresume-settings');
-        if (raw) { t = JSON.parse(raw).state.theme || 'dark'; }
-        else { t = localStorage.getItem('theme') || 'dark'; }
+        if (raw) { t = JSON.parse(raw).state.theme || 'system'; }
+        else { t = localStorage.getItem('theme') || 'system'; }
       } catch (e) { }
       var resolved = t === 'system'
         ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
