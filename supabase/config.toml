@@ -1,6 +1,10 @@
 project_id = "jnsfmkzgxsviuthaqlyy"
 
 [functions]
+  [functions.admin-set-plan]
+    verify_jwt = false
+  [functions.admin-list-users]
+    verify_jwt = false
   [functions.agentic-chat]
     verify_jwt = false
   [functions.ai-health]

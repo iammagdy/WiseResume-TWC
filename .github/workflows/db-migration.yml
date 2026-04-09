@@ -29,7 +29,8 @@ jobs:
           version: latest
 
       - name: Apply database migrations
-        run: supabase db push --project-ref jnsfmkzgxsviuthaqlyy
+        run: supabase db push --project-ref jnsfmkzgxsviuthaqlyy --debug
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
