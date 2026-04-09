@@ -25,7 +25,7 @@ interface SetPlanModalProps {
   password: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess: (newPlan: Plan) => void;
+  onSuccess: () => void;
 }
 
 export function SetPlanModal({ user, password, open, onOpenChange, onSuccess }: SetPlanModalProps) {
@@ -46,7 +46,7 @@ export function SetPlanModal({ user, password, open, onOpenChange, onSuccess }: 
       const result = data as { success?: boolean; error?: string };
       if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
       toast.success(`Plan updated to ${selected} for ${user.email}`);
-      onSuccess(selected);
+      onSuccess();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to update plan');
     } finally {

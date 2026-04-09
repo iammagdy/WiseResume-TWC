@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { RefreshCw, Search, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,7 @@ export interface AdminUser {
 
 interface AdminUsersPanelProps {
   password: string;
+  onCountChange?: (count: number) => void;
 }
 
 const PLAN_COLORS: Record<string, string> = {
@@ -33,7 +34,7 @@ function formatDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-export function AdminUsersPanel({ password }: AdminUsersPanelProps) {
+export function AdminUsersPanel({ password, onCountChange }: AdminUsersPanelProps) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -52,10 +53,15 @@ export function AdminUsersPanel({ password }: AdminUsersPanelProps) {
       const result = data as { success?: boolean; users?: AdminUser[]; error?: string } | AdminUser[];
       if (Array.isArray(result)) {
         setUsers(result);
+        onCountChange?.(result.length);
       } else if (result?.success === false) {
         throw new Error(result.error ?? 'Unknown error');
       } else {
-        setUsers(result?.users ?? []);
+        const list = result?.users ?? [];
+        setUsers(list);
+        onCountChange?.(list.length);
+        setLoaded(true);
+        return;
       }
       setLoaded(true);
     } catch (e) {
@@ -65,11 +71,15 @@ export function AdminUsersPanel({ password }: AdminUsersPanelProps) {
     }
   }, [password]);
 
-  const handlePlanChanged = useCallback((userId: string, newPlan: string) => {
-    setUsers((prev) =>
-      prev.map((u) => (u.user_id === userId ? { ...u, plan_name: newPlan as AdminUser['plan_name'] } : u))
-    );
-  }, []);
+  // Auto-fetch on mount
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
+  const handlePlanChanged = useCallback(async () => {
+    // Re-fetch the full list after a plan change for accuracy
+    await fetchUsers();
+  }, [fetchUsers]);
 
   const filtered = users.filter((u) => {
     if (!query.trim()) return true;
@@ -217,9 +227,9 @@ export function AdminUsersPanel({ password }: AdminUsersPanelProps) {
           password={password}
           open={!!selectedUser}
           onOpenChange={(open) => { if (!open) setSelectedUser(null); }}
-          onSuccess={(newPlan) => {
-            handlePlanChanged(selectedUser.user_id, newPlan);
+          onSuccess={async () => {
             setSelectedUser(null);
+            await handlePlanChanged();
           }}
         />
       )}

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DevKitRunner } from '@/components/dev-kit/DevKitRunner';
 import { AdminUsersPanel } from '@/components/dev-kit/AdminUsersPanel';
+import { DEV_KIT_VERSION } from '@/components/dev-kit/config';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -22,6 +23,7 @@ export default function DevToolsPage() {
   const [pwError, setPwError] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('health');
+  const [userCount, setUserCount] = useState<number | null>(null);
   const navigate = useNavigate();
 
   const handleUnlock = async (e: React.FormEvent) => {
@@ -100,7 +102,7 @@ export default function DevToolsPage() {
             </Button>
             <div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">Developer Kit</h1>
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">v2.0.0</p>
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{DEV_KIT_VERSION}</p>
             </div>
           </div>
         </header>
@@ -134,18 +136,23 @@ export default function DevToolsPage() {
           <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5 text-primary" />
-              <h2 className="text-lg font-semibold">User Management</h2>
+              <h2 className="text-lg font-semibold">
+                User Management
+                {userCount !== null && (
+                  <span className="ml-2 text-sm font-normal text-muted-foreground">({userCount})</span>
+                )}
+              </h2>
             </div>
             <p className="text-sm text-muted-foreground">
               View all registered users and manually assign plan tiers. Changes take effect immediately.
             </p>
-            <AdminUsersPanel password={pw} />
+            <AdminUsersPanel password={pw} onCountChange={setUserCount} />
           </div>
         )}
 
         <footer className="py-12 border-t border-border text-center">
           <p className="text-xs text-muted-foreground/60 font-mono italic">
-            v2.0.0 · Build ID: {new Date().toISOString().split('T')[0].replace(/-/g, '')}
+            {DEV_KIT_VERSION} · Build ID: {new Date().toISOString().split('T')[0].replace(/-/g, '')}
           </p>
         </footer>
       </div>
