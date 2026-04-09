@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Globe, Home, BarChart3, Sparkles, Settings } from 'lucide-react';
+import { FileText, Globe, Home, BarChart3, Sparkles, Settings, Lock } from 'lucide-react';
 import { motion, useReducedMotion, LayoutGroup } from 'framer-motion';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -12,7 +12,6 @@ import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useChangelogBadge } from '@/hooks/useChangelogBadge';
 import { useCareerAssessment } from '@/hooks/useCareerAssessment';
 import { usePlan } from '@/hooks/usePlan';
-import { Lock } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface TabItem {
