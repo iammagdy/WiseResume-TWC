@@ -54,9 +54,15 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let authResult: Awaited<ReturnType<typeof requireAuth>>;
   try {
-    const { userId, client } = await requireAuth(req);
+    authResult = await requireAuth(req);
+  } catch (authErr) {
+    return authErrorResponse(authErr, req.headers.get('origin'));
+  }
+  const { userId, client } = authResult;
 
+  try {
     const { apiKey, provider, baseUrl, model, modelsOnly } = await req.json();
     
     // Ollama may have empty API key; OpenRouter model refresh may send placeholder

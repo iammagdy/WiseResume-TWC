@@ -5,7 +5,7 @@ on:
     inputs:
       confirm:
         description: >
-          🤖 CHECK AI KEY — Calls the Gemini API directly using your
+          🤖 CHECK AI KEY — Calls the Vertex AI Express API directly using your
           WISE_AI_API_KEY and tells you if it is working, expired, or has
           run out of quota. Run this when AI features (resume tailoring,
           chat, cover letter) stop working and you are not sure if it is
@@ -20,7 +20,7 @@ jobs:
   check-ai-key:
     runs-on: ubuntu-latest
     steps:
-      - name: Test WISE_AI_API_KEY against Gemini API
+      - name: Test WISE_AI_API_KEY against Vertex AI Express API
         run: |
           echo "============================================"
           echo "          AI KEY HEALTH CHECK"
@@ -34,11 +34,13 @@ jobs:
           fi
 
           echo "  ✅ WISE_AI_API_KEY is set in GitHub secrets."
-          echo "  Testing against Gemini API..."
+          echo "  Testing against Vertex AI Express API (aiplatform.googleapis.com)..."
           echo ""
 
-          RESPONSE=$(curl -s -w "\n%{http_code}" \
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview?key=${WISE_AI_API_KEY}")
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash-lite:generateContent?key=${WISE_AI_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{"contents":[{"parts":[{"text":"Hi"}]}],"generationConfig":{"maxOutputTokens":1}}')
           STATUS=$(echo "$RESPONSE" | tail -1)
           BODY=$(echo "$RESPONSE" | head -1)
 
@@ -46,15 +48,23 @@ jobs:
           echo ""
 
           if [ "$STATUS" = "200" ]; then
-            echo "  ✅ KEY IS VALID — Gemini API accepted the key."
+            echo "  ✅ KEY IS VALID — Vertex AI Express API accepted the key."
             echo "     AI features should be working normally."
           elif [ "$STATUS" = "400" ]; then
-            echo "  ❌ KEY IS INVALID — The key was rejected by Gemini API."
+            echo "  ❌ KEY IS INVALID — The key was rejected by Vertex AI Express API."
+            echo "     Response: $BODY"
             echo "     Generate a new key at: https://aistudio.google.com/app/apikey"
             echo "     Then update it in Supabase → Project Settings → Edge Function Secrets"
+            exit 1
+          elif [ "$STATUS" = "401" ] || [ "$STATUS" = "403" ]; then
+            echo "  ❌ KEY IS UNAUTHORIZED — The key was rejected (HTTP $STATUS)."
+            echo "     Response: $BODY"
+            echo "     Generate a new key at: https://aistudio.google.com/app/apikey"
+            echo "     Then update it in Supabase → Project Settings → Edge Function Secrets"
+            exit 1
           elif [ "$STATUS" = "429" ]; then
             echo "  ⚠️  QUOTA EXCEEDED — The key is valid but has hit its rate limit."
-            echo "     Wait a few minutes and try again, or upgrade to a paid Gemini plan."
+            echo "     Wait a few minutes and try again, or upgrade to a paid plan."
           else
             echo "  ⚠️  UNEXPECTED RESPONSE ($STATUS)"
             echo "     Response: $BODY"
