@@ -62,7 +62,7 @@ export function CreateResumeDialog({
 }: CreateResumeDialogProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isPro } = usePlan();
+  const { isPro, isLoading: planLoading } = usePlan();
   const { profile } = useProfile(user?.id);
   const { createResume, duplicateResume } = useResumeMutations();
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
@@ -309,8 +309,9 @@ export function CreateResumeDialog({
     setBlankStep('title');
   };
 
-  // Free-tier gate: only 1 resume allowed
-  const atResumeLimit = !isPro && existingResumes.length >= 1 && !!user;
+  // Free-tier gate: only 1 resume allowed. Only activate once plan is loaded to avoid
+  // false positives for Pro users during the initial loading state.
+  const atResumeLimit = !planLoading && !isPro && existingResumes.length >= 1 && !!user;
 
   return (
     <Dialog open={open} onOpenChange={resetAndClose}>
