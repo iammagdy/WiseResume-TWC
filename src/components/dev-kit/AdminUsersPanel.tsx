@@ -69,7 +69,7 @@ export function AdminUsersPanel({ password, onCountChange }: AdminUsersPanelProp
     } finally {
       setLoading(false);
     }
-  }, [password]);
+  }, [password, onCountChange]);
 
   // Auto-fetch on mount
   useEffect(() => {
@@ -110,7 +110,7 @@ export function AdminUsersPanel({ password, onCountChange }: AdminUsersPanelProp
           className="flex items-center gap-2 shrink-0"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          {loaded ? 'Refresh' : 'Load Users'}
+          Refresh
         </Button>
       </div>
 
@@ -121,20 +121,12 @@ export function AdminUsersPanel({ password, onCountChange }: AdminUsersPanelProp
         </div>
       )}
 
-      {/* Loading skeleton */}
-      {loading && !loaded && (
+      {/* Loading skeleton — shown on first fetch and on refresh */}
+      {loading && (
         <div className="space-y-2">
           {[...Array(5)].map((_, i) => (
             <div key={i} className="h-14 rounded-lg bg-muted/50 animate-pulse" />
           ))}
-        </div>
-      )}
-
-      {/* Empty prompt */}
-      {!loaded && !loading && !error && (
-        <div className="py-16 text-center text-muted-foreground space-y-2">
-          <Users className="w-10 h-10 mx-auto opacity-30" />
-          <p className="text-sm">Click "Load Users" to fetch the list</p>
         </div>
       )}
 
