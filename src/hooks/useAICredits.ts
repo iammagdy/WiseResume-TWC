@@ -14,6 +14,9 @@ export interface AICredits {
   updated_at: string;
 }
 
+/** Sentinel value in daily_limit meaning unlimited (Premium plan). */
+const UNLIMITED_SENTINEL = -1;
+
 function useIsBYOK(): boolean {
   const aiProvider = useSettingsStore((s) => s.aiProvider);
   const geminiKeyValidated = useSettingsStore((s) => s.geminiKeyValidated);
@@ -55,6 +58,14 @@ export function useAICredits() {
           usage_date: new Date().toISOString().split('T')[0],
           total_usage: 0,
         } as Partial<AICredits>;
+      }
+
+      // -1 sentinel = unlimited (Premium)
+      if (data.daily_limit === UNLIMITED_SENTINEL) {
+        return {
+          ...data,
+          daily_limit: Infinity,
+        } as unknown as AICredits;
       }
 
       const today = new Date().toISOString().split('T')[0];
@@ -114,17 +125,20 @@ export function useAICreditsMutations() {
 
     if (!data) return true;
 
+    // -1 sentinel = unlimited (Premium plan)
+    if (data.daily_limit === UNLIMITED_SENTINEL) return true;
+
     const today = new Date().toISOString().split('T')[0];
     if (data.usage_date !== today) return true;
 
     if ((data.daily_usage || 0) >= (data.daily_limit || 5)) {
-      toast.error('Daily AI credit limit reached. Try again tomorrow!');
+      toast.error('Daily AI credit limit reached. Try again tomorrow or upgrade your plan!');
       return false;
     }
 
     const remaining = (data.daily_limit || 5) - (data.daily_usage || 0);
-    if (remaining <= 3) {
-      toast.warning(`Only ${remaining} AI credits remaining today`);
+    if (remaining <= 2) {
+      toast.warning(`Only ${remaining} AI credit${remaining === 1 ? '' : 's'} remaining today`);
     }
 
     return true;

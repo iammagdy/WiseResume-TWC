@@ -9,6 +9,16 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Fail closed if password env is not configured — no default fallback
+  const SECRET_PASSWORD = Deno.env.get('DEV_KIT_PASSWORD');
+  if (!SECRET_PASSWORD) {
+    console.error('[admin-set-plan] DEV_KIT_PASSWORD env var is not set');
+    return new Response(
+      JSON.stringify({ success: false, error: 'Admin functions are not configured' }),
+      { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
   try {
     const body = await req.json();
     const { password, target_user_id, plan } = body;
@@ -20,7 +30,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    const SECRET_PASSWORD = Deno.env.get('DEV_KIT_PASSWORD') || 'thewisedeveloper';
     if (password !== SECRET_PASSWORD) {
       return new Response(
         JSON.stringify({ success: false, error: 'Unauthorized' }),

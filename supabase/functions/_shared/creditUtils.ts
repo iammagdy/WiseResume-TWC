@@ -5,6 +5,9 @@ export interface CreditCheckResult {
   remaining: number;
 }
 
+/** Sentinel value stored in ai_credits.daily_limit for unlimited plans (Premium). */
+const UNLIMITED_SENTINEL = -1;
+
 /**
  * Checks if a user has sufficient AI credits (or BYOK setup) to perform an action.
  * This is meant to be called server-side to prevent bypass of the client guards.
@@ -20,7 +23,6 @@ export async function checkUserCreditBalance(userId: string): Promise<CreditChec
     .eq('user_id', userId)
     .maybeSingle();
     
-  // Let the aiClient handle provider matching, but assume BYOK is set if provider is not wiseresume or null
   const isBYOK = preferences?.ai_provider && preferences.ai_provider !== 'wiseresume';
   if (isBYOK) {
     return { hasCredits: true, remaining: 9999 };
@@ -35,14 +37,17 @@ export async function checkUserCreditBalance(userId: string): Promise<CreditChec
 
   if (error) {
     console.error('Failed to fetch ai_credits:', error);
-    // Fail closed to prevent abuse, or fail open to prevent breaking everything?
-    // Failing closed if there's an error to be strictly secure for credit limits
     return { hasCredits: false, remaining: 0 };
   }
 
-  // If no record, they essentially have default limits (free tier = 5/day)
+  // If no record, default to free tier (5/day)
   if (!credits) {
     return { hasCredits: true, remaining: 5 };
+  }
+
+  // -1 sentinel = unlimited (Premium plan)
+  if (credits.daily_limit === UNLIMITED_SENTINEL) {
+    return { hasCredits: true, remaining: 999999 };
   }
 
   const today = new Date().toISOString().split('T')[0];
