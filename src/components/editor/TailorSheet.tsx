@@ -615,8 +615,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
               />
             </div>
           </>
-        ) : (
-        <>
+        ) : (<>
         <SheetHeader className="pb-4 shrink-0">
           <div className="flex items-center justify-between">
             <SheetTitle className="flex items-center gap-2">
@@ -1298,7 +1297,12 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
             )}
           </div>
         )}
+        </>
+        )}
       </SheetContent>
+
+      {/* AI Settings Sheet */}
+      <AISettingsSheet open={showAISettings} onOpenChange={setShowAISettings} />
 
       {/* Compare Sheet */}
       <CompareSheet
@@ -1335,11 +1339,6 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
           toast.info('Full details view coming soon');
         }}
       />
-
-      {/* AI Settings Sheet */}
-      <AISettingsSheet open={showAISettings} onOpenChange={setShowAISettings} />
-        </>
-        )}
     </Sheet>
   );
 });
