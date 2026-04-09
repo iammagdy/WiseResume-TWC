@@ -7,7 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { Check, Crown, Gift, Sparkles, Gem } from 'lucide-react';
 import { useResumes } from '@/hooks/useResumes';
 import { useAICredits } from '@/hooks/useAICredits';
-import { usePlan } from '@/hooks/usePlan';
+import { usePlan, PlanName } from '@/hooks/usePlan';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -39,7 +39,7 @@ const PLAN_FEATURES = {
   ],
 };
 
-const RESUME_LIMIT: Record<string, number | null> = {
+const RESUME_LIMIT: Record<PlanName, number | null> = {
   free: 1,
   pro: null,
   premium: null,
@@ -120,7 +120,7 @@ export default function SubscriptionPage() {
                   <Skeleton className="h-4 w-16" />
                 ) : (
                   <span className="text-muted-foreground font-medium">
-                    {resumeCount} / {isUnlimitedResumes ? '∞' : resumeLimit}
+                    {resumeCount} / {isUnlimitedResumes ? 'unlimited' : resumeLimit}
                   </span>
                 )}
               </div>
@@ -147,7 +147,7 @@ export default function SubscriptionPage() {
                   <Skeleton className="h-4 w-16" />
                 ) : (
                   <span className="text-muted-foreground font-medium">
-                    {isUnlimitedCredits ? `${dailyUsage} / ∞` : `${dailyUsage} / ${dailyLimit}`}
+                    {isUnlimitedCredits ? `${dailyUsage} / unlimited` : `${dailyUsage} / ${dailyLimit}`}
                   </span>
                 )}
               </div>
@@ -205,7 +205,7 @@ export default function SubscriptionPage() {
                 onClick={() => handleUpgrade(upgradeTarget)}
               >
                 <Crown className="w-4 h-4 mr-2" />
-                Upgrade to {planLabel(upgradeTarget)}
+                Upgrade to {planLabel(upgradeTarget)} — coming soon
               </Button>
             </CardContent>
           </Card>
