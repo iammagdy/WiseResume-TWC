@@ -1,5 +1,7 @@
 import { type SectionId, type TestStatus, type TestResult, type TestDef } from './types';
 
+export const DEV_KIT_VERSION = 'v2.0.0';
+
 export const SECTIONS: { id: SectionId; title: string; emoji: string }[] = [
   { id: 'auth', title: 'Auth & Token Bridge', emoji: '🔑' },
   { id: 'routing', title: 'Routing & Protected Pages', emoji: '🛤️' },

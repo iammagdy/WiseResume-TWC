@@ -1,17 +1,27 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft, Activity, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DevKitRunner } from '@/components/dev-kit/DevKitRunner';
+import { AdminUsersPanel } from '@/components/dev-kit/AdminUsersPanel';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+
+type Tab = 'health' | 'users';
+
+const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
+  { id: 'health', label: 'Health & Diagnostics', icon: Activity },
+  { id: 'users', label: 'Users', icon: Users },
+];
 
 export default function DevToolsPage() {
   const [unlocked, setUnlocked] = useState(false);
   const [pw, setPw] = useState('');
   const [pwError, setPwError] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [activeTab, setActiveTab] = useState<Tab>('health');
   const navigate = useNavigate();
 
   const handleUnlock = async (e: React.FormEvent) => {
@@ -81,24 +91,61 @@ export default function DevToolsPage() {
 
   return (
     <div className="min-h-screen bg-background/40 backdrop-blur-sm relative z-10">
-      <div className="max-w-3xl mx-auto px-4 py-8 pb-32 space-y-8">
-        <header className="flex items-center justify-between sticky top-0 py-4 bg-background/95 backdrop-blur-sm z-40 px-2 rounded-xl mb-4 border border-border shadow-sm">
+      <div className="max-w-4xl mx-auto px-4 py-8 pb-32 space-y-6">
+        {/* Header */}
+        <header className="flex items-center justify-between sticky top-0 py-4 bg-background/95 backdrop-blur-sm z-40 px-2 rounded-xl mb-2 border border-border shadow-sm">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="hover:bg-background/20 rounded-full h-10 w-10">
               <ArrowLeft className="w-6 h-6" />
             </Button>
             <div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">Developer Kit</h1>
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Health & Diagnostics</p>
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">v2.0.0</p>
             </div>
           </div>
         </header>
 
-        <DevKitRunner />
-        
+        {/* Tab switcher */}
+        <div className="flex gap-1 p-1 bg-muted/50 rounded-xl border border-border w-fit">
+          {TABS.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all',
+                  activeTab === tab.id
+                    ? 'bg-background shadow-sm text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <Icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Tab content */}
+        {activeTab === 'health' && <DevKitRunner />}
+
+        {activeTab === 'users' && (
+          <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold">User Management</h2>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              View all registered users and manually assign plan tiers. Changes take effect immediately.
+            </p>
+            <AdminUsersPanel password={pw} />
+          </div>
+        )}
+
         <footer className="py-12 border-t border-border text-center">
           <p className="text-xs text-muted-foreground/60 font-mono italic">
-            v1.3.0 · Build ID: {new Date().toISOString().split('T')[0].replace(/-/g, '')}
+            v2.0.0 · Build ID: {new Date().toISOString().split('T')[0].replace(/-/g, '')}
           </p>
         </footer>
       </div>
