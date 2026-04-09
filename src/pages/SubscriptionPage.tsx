@@ -4,69 +4,79 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Check, X, Crown, Gift, Sparkles } from 'lucide-react';
+import { Check, Crown, Gift, Sparkles, Gem } from 'lucide-react';
 import { useResumes } from '@/hooks/useResumes';
+import { useAICredits } from '@/hooks/useAICredits';
+import { usePlan } from '@/hooks/usePlan';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
+import { Skeleton } from '@/components/ui/skeleton';
 
-const PLANS = [
-  {
-    name: 'Free',
-    price: '$0',
-    period: 'forever',
-    current: true,
-    features: [
-      { label: '3 resumes', included: true },
-      { label: 'Basic templates', included: true },
-      { label: 'PDF export', included: true },
-      { label: 'ATS scoring', included: true },
-      { label: 'AI tailor (5/day)', included: true },
-      { label: 'Cover letters', included: false },
-      { label: 'Priority support', included: false },
-      { label: 'Custom branding', included: false },
-    ],
-  },
-  {
-    name: 'Pro',
-    price: '$9.99',
-    period: '/month',
-    popular: true,
-    features: [
-      { label: 'Unlimited resumes', included: true },
-      { label: 'All templates', included: true },
-      { label: 'PDF export', included: true },
-      { label: 'ATS scoring', included: true },
-      { label: 'AI tailor (unlimited)', included: true },
-      { label: 'Cover letters', included: true },
-      { label: 'Priority support', included: true },
-      { label: 'Custom branding', included: false },
-    ],
-  },
-  {
-    name: 'Premium',
-    price: '$19.99',
-    period: '/month',
-    features: [
-      { label: 'Everything in Pro', included: true },
-      { label: 'Custom branding', included: true },
-      { label: 'Team collaboration', included: true },
-      { label: 'API access', included: true },
-      { label: 'Dedicated support', included: true },
-      { label: 'Analytics dashboard', included: true },
-      { label: 'White-label exports', included: true },
-      { label: 'Early access features', included: true },
-    ],
-  },
-];
+const PLAN_FEATURES = {
+  free: [
+    '1 resume',
+    'Basic AI suggestions',
+    'ATS score check',
+    'PDF export',
+    'Portfolio site',
+  ],
+  pro: [
+    'Unlimited resumes',
+    'Advanced AI tools',
+    'Smart tailoring',
+    'Interview coaching',
+    'Cover letter generator',
+    'Application tracker',
+    'Priority support',
+  ],
+  premium: [
+    'Everything in Pro',
+    'Custom branding',
+    'Analytics dashboard',
+    'White-label exports',
+    'Early access features',
+    'Dedicated support',
+  ],
+};
+
+const RESUME_LIMIT: Record<string, number | null> = {
+  free: 1,
+  pro: null,
+  premium: null,
+};
+
+function planLabel(plan: string) {
+  return plan.charAt(0).toUpperCase() + plan.slice(1);
+}
+
+function PlanIcon({ plan }: { plan: string }) {
+  if (plan === 'premium') return <Gem className="w-5 h-5 text-amber-500" />;
+  if (plan === 'pro') return <Crown className="w-5 h-5 text-primary" />;
+  return <Sparkles className="w-5 h-5 text-primary" />;
+}
 
 export default function SubscriptionPage() {
   const navigate = useNavigate();
-  const { data: resumes = [] } = useResumes();
+  const { data: resumes = [], isLoading: resumesLoading } = useResumes();
+  const { data: credits, isLoading: creditsLoading } = useAICredits();
+  const { plan, isPro, isPremium, isLoading: planLoading } = usePlan();
 
-  const handleUpgrade = (plan: string) => {
+  const resumeLimit = RESUME_LIMIT[plan];
+  const resumeCount = resumes.length;
+
+  const dailyUsage = credits?.daily_usage ?? 0;
+  const dailyLimit = credits?.daily_limit ?? 5;
+  const isUnlimitedCredits = dailyLimit === Infinity || dailyLimit < 0;
+  const isUnlimitedResumes = resumeLimit === null;
+
+  const handleUpgrade = (targetPlan: string) => {
     haptics.light();
-    toast(`${plan} upgrade coming soon!`, { icon: '🚀' });
+    toast(`Upgrade to ${planLabel(targetPlan)} — coming soon!`, { icon: '🚀' });
   };
+
+  const isLoading = planLoading || resumesLoading || creditsLoading;
+
+  const upgradeTarget = isPremium ? null : isPro ? 'premium' : 'pro';
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -79,14 +89,18 @@ export default function SubscriptionPage() {
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6 pb-24">
         {/* Current Plan */}
-        <Card className="border-primary/20 bg-primary/5">
+        <Card className={isPremium ? 'border-amber-400/30 bg-amber-50/30 dark:bg-amber-950/20' : 'border-primary/20 bg-primary/5'}>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-primary" />
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isPremium ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-primary/10'}`}>
+              <PlanIcon plan={plan} />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium">Current Plan</p>
-              <p className="text-lg font-bold">Free</p>
+              <p className="text-sm font-medium text-muted-foreground">Current Plan</p>
+              {isLoading ? (
+                <Skeleton className="h-6 w-24 mt-0.5" />
+              ) : (
+                <p className="text-lg font-bold">{planLabel(plan)}</p>
+              )}
             </div>
             <Badge variant="secondary">Active</Badge>
           </CardContent>
@@ -98,66 +112,104 @@ export default function SubscriptionPage() {
             <CardTitle className="text-sm font-semibold">Usage</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Resumes */}
             <div>
-              <div className="flex justify-between text-sm mb-1">
+              <div className="flex justify-between text-sm mb-1.5">
                 <span>Resumes</span>
-                <span className="text-muted-foreground">{resumes.length} / 3</span>
+                {resumesLoading || planLoading ? (
+                  <Skeleton className="h-4 w-16" />
+                ) : (
+                  <span className="text-muted-foreground font-medium">
+                    {resumeCount} / {isUnlimitedResumes ? '∞' : resumeLimit}
+                  </span>
+                )}
               </div>
-              <Progress value={Math.min((resumes.length / 3) * 100, 100)} className="h-2" />
+              {isUnlimitedResumes ? (
+                <div className="h-2 rounded-full bg-primary/20 overflow-hidden">
+                  <div className="h-full w-full bg-primary/30 rounded-full" />
+                </div>
+              ) : (
+                <Progress
+                  value={Math.min((resumeCount / (resumeLimit ?? 1)) * 100, 100)}
+                  className="h-2"
+                />
+              )}
+              {!isUnlimitedResumes && resumeCount >= (resumeLimit ?? 1) && (
+                <p className="text-xs text-destructive mt-1">Resume limit reached — upgrade to add more</p>
+              )}
             </div>
+
+            {/* AI Credits */}
             <div>
-              <div className="flex justify-between text-sm mb-1">
-                <span>AI Credits</span>
-                <span className="text-muted-foreground">3 / 5 today</span>
+              <div className="flex justify-between text-sm mb-1.5">
+                <span>AI Credits (today)</span>
+                {creditsLoading ? (
+                  <Skeleton className="h-4 w-16" />
+                ) : (
+                  <span className="text-muted-foreground font-medium">
+                    {isUnlimitedCredits ? `${dailyUsage} / ∞` : `${dailyUsage} / ${dailyLimit}`}
+                  </span>
+                )}
               </div>
-              <Progress value={60} className="h-2" />
+              {isUnlimitedCredits ? (
+                <div className="h-2 rounded-full bg-primary/20 overflow-hidden">
+                  <div className="h-full w-full bg-primary/30 rounded-full" />
+                </div>
+              ) : (
+                <Progress
+                  value={dailyLimit > 0 ? Math.min((dailyUsage / dailyLimit) * 100, 100) : 0}
+                  className="h-2"
+                />
+              )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Plans */}
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Plans</h2>
-          {PLANS.map((plan) => (
-            <Card key={plan.name} className={plan.popular ? 'border-primary/30 relative overflow-hidden' : ''}>
-              {plan.popular && (
-                <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-[10px] font-bold px-3 py-1 rounded-bl-xl">
-                  POPULAR
-                </div>
-              )}
-              <CardContent className="p-4 space-y-3">
-                <div className="flex items-baseline gap-1">
-                  <span className="text-xl font-bold">{plan.price}</span>
-                  <span className="text-sm text-muted-foreground">{plan.period}</span>
-                </div>
-                <p className="text-sm font-semibold">{plan.name}</p>
-                <div className="space-y-1.5">
-                  {plan.features.map((f, i) => (
-                    <div key={i} className="flex items-center gap-2 text-sm">
-                      {f.included ? (
-                        <Check className="w-4 h-4 text-primary shrink-0" />
-                      ) : (
-                        <X className="w-4 h-4 text-muted-foreground/40 shrink-0" />
-                      )}
-                      <span className={f.included ? '' : 'text-muted-foreground/60'}>{f.label}</span>
-                    </div>
-                  ))}
-                </div>
-                {plan.current ? (
-                  <Button variant="outline" className="w-full" disabled>Current Plan</Button>
-                ) : (
-                  <Button
-                    className="w-full bg-gradient-to-r from-primary to-primary/80"
-                    onClick={() => handleUpgrade(plan.name)}
-                  >
-                    <Crown className="w-4 h-4 mr-2" />
-                    Upgrade to {plan.name}
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </section>
+        {/* Current plan features */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">Your {planLabel(plan)} Plan includes</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {PLAN_FEATURES[plan as keyof typeof PLAN_FEATURES]?.map((feature) => (
+              <div key={feature} className="flex items-center gap-2.5 text-sm">
+                <Check className={`w-4 h-4 shrink-0 ${isPremium ? 'text-amber-500' : 'text-primary'}`} />
+                <span>{feature}</span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Upgrade card — only if not already on the top plan */}
+        {upgradeTarget && (
+          <Card className={upgradeTarget === 'premium' ? 'border-amber-400/40 relative overflow-hidden' : 'border-primary/30 relative overflow-hidden'}>
+            <div className={`absolute top-0 right-0 text-[10px] font-bold px-3 py-1 rounded-bl-xl ${upgradeTarget === 'premium' ? 'bg-amber-500 text-white' : 'bg-primary text-primary-foreground'}`}>
+              {upgradeTarget === 'premium' ? 'POWER USERS' : 'POPULAR'}
+            </div>
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-baseline gap-1 mt-1">
+                <span className="text-xl font-bold">{upgradeTarget === 'premium' ? '$19' : '$9'}</span>
+                <span className="text-sm text-muted-foreground">/month</span>
+              </div>
+              <p className="text-sm font-semibold">{planLabel(upgradeTarget)}</p>
+              <div className="space-y-1.5">
+                {PLAN_FEATURES[upgradeTarget as keyof typeof PLAN_FEATURES].map((feature) => (
+                  <div key={feature} className="flex items-center gap-2 text-sm">
+                    <Check className={`w-4 h-4 shrink-0 ${upgradeTarget === 'premium' ? 'text-amber-500' : 'text-primary'}`} />
+                    <span>{feature}</span>
+                  </div>
+                ))}
+              </div>
+              <Button
+                className={`w-full mt-1 ${upgradeTarget === 'premium' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-gradient-to-r from-primary to-primary/80'}`}
+                onClick={() => handleUpgrade(upgradeTarget)}
+              >
+                <Crown className="w-4 h-4 mr-2" />
+                Upgrade to {planLabel(upgradeTarget)}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Referral Link */}
         <Card className="bg-gradient-to-br from-primary/5 to-accent/5">

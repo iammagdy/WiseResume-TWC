@@ -37,6 +37,7 @@ const features = [
 const pricingFeatures = {
   free: ['1 resume', 'Basic AI suggestions', 'ATS score check', 'PDF export', 'Portfolio site'],
   pro: ['Unlimited resumes', 'Advanced AI tools', 'Smart tailoring', 'Interview coaching', 'Cover letter generator', 'Application tracker', 'Priority support'],
+  premium: ['Everything in Pro', 'Custom branding', 'Analytics dashboard', 'White-label exports', 'Early access features', 'Dedicated support'],
 };
 
 const Index = () => {
@@ -402,18 +403,19 @@ const Index = () => {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 max-w-4xl mx-auto">
+            {/* Free */}
             <motion.div
               className="rounded-2xl border border-border bg-card p-6 flex flex-col"
               initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-20px' }}
-              transition={{ duration: 0.4, delay: 0.05, ease: 'easeOut' }}
+              transition={{ duration: 0.4, delay: 0.04, ease: 'easeOut' }}
             >
               <h3 className="text-base font-semibold text-foreground mb-1">Free</h3>
               <p className="text-3xl font-bold text-foreground mb-1">$0<span className="text-sm font-normal text-muted-foreground">/mo</span></p>
-              <p className="text-sm text-muted-foreground mb-6">Perfect to get started</p>
-              <ul className="space-y-3 mb-8 flex-1">
+              <p className="text-sm text-muted-foreground mb-5">Perfect to get started</p>
+              <ul className="space-y-2.5 mb-7 flex-1">
                 {pricingFeatures.free.map((item) => (
                   <li key={item} className="flex items-center gap-2.5 text-sm text-foreground">
                     <Check className="w-4 h-4 text-primary shrink-0" />
@@ -426,20 +428,21 @@ const Index = () => {
               </Button>
             </motion.div>
 
+            {/* Pro — highlighted */}
             <motion.div
               className="rounded-2xl border-2 border-primary bg-card p-6 flex flex-col relative"
               initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-20px' }}
-              transition={{ duration: 0.4, delay: 0.1, ease: 'easeOut' }}
+              transition={{ duration: 0.4, delay: 0.08, ease: 'easeOut' }}
             >
               <span className="absolute -top-3 left-6 px-3 py-0.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold">
                 Popular
               </span>
               <h3 className="text-base font-semibold text-foreground mb-1">Pro</h3>
               <p className="text-3xl font-bold text-foreground mb-1">$9<span className="text-sm font-normal text-muted-foreground">/mo</span></p>
-              <p className="text-sm text-muted-foreground mb-6">For serious job seekers</p>
-              <ul className="space-y-3 mb-8 flex-1">
+              <p className="text-sm text-muted-foreground mb-5">For serious job seekers</p>
+              <ul className="space-y-2.5 mb-7 flex-1">
                 {pricingFeatures.pro.map((item) => (
                   <li key={item} className="flex items-center gap-2.5 text-sm text-foreground">
                     <Check className="w-4 h-4 text-primary shrink-0" />
@@ -448,7 +451,34 @@ const Index = () => {
                 ))}
               </ul>
               <Button size="lg" className="w-full h-11 rounded-xl" onClick={handleCTA}>
-                Start Free Trial
+                Get Started
+              </Button>
+            </motion.div>
+
+            {/* Premium */}
+            <motion.div
+              className="rounded-2xl border border-amber-400/40 bg-card p-6 flex flex-col relative"
+              initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-20px' }}
+              transition={{ duration: 0.4, delay: 0.12, ease: 'easeOut' }}
+            >
+              <span className="absolute -top-3 left-6 px-3 py-0.5 rounded-full bg-amber-500 text-white text-xs font-semibold">
+                Power Users
+              </span>
+              <h3 className="text-base font-semibold text-foreground mb-1">Premium</h3>
+              <p className="text-3xl font-bold text-foreground mb-1">$19<span className="text-sm font-normal text-muted-foreground">/mo</span></p>
+              <p className="text-sm text-muted-foreground mb-5">For career professionals</p>
+              <ul className="space-y-2.5 mb-7 flex-1">
+                {pricingFeatures.premium.map((item) => (
+                  <li key={item} className="flex items-center gap-2.5 text-sm text-foreground">
+                    <Check className="w-4 h-4 text-amber-500 shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <Button size="lg" variant="outline" className="w-full h-11 rounded-xl border-amber-400/50 hover:bg-amber-50 dark:hover:bg-amber-950/20" onClick={handleCTA}>
+                Get Started
               </Button>
             </motion.div>
           </div>
