@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { password, page = 1, per_page = 100 } = body;
+    const { password, page = 1, per_page = 50 } = body;
 
     if (!password) {
       return new Response(
@@ -37,12 +37,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    const limit = Math.min(Math.max(1, Number(per_page) || 100), 200);
+    // Hard cap at 100 rows per page
+    const limit = Math.min(Math.max(1, Number(per_page) || 50), 100);
     const offset = Math.max(0, (Number(page) - 1) * limit);
 
     const supabase = getServiceClient();
 
-    // Use the service-role-only get_all_users_admin RPC
+    // Calls service-role-only get_all_users_admin RPC
     const { data, error } = await supabase.rpc('get_all_users_admin', {
       p_limit: limit,
       p_offset: offset,
