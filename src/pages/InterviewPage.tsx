@@ -25,6 +25,8 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { activityTracker } from '@/lib/activityTracker';
+import { usePlan } from '@/hooks/usePlan';
+import { UpgradeWall } from '@/components/plan/UpgradeWall';
 
 type InterviewPhase = 'setup' | 'preview' | 'active' | 'summary';
 
@@ -37,6 +39,7 @@ function InterviewPageContent() {
   const { user, loading, supabaseReady, supabaseSettled } = useAuth();
   const { currentResume } = useResumeStore();
   const hydrated = useResumeStoreHydration();
+  const { isPro, isLoading: planLoading } = usePlan();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [textInput, setTextInput] = useState('');
   const [showTextInput, setShowTextInput] = useState(false);
@@ -252,6 +255,24 @@ function InterviewPageContent() {
   // Show loading while auth or store hydrates (D-2)
   if (loading || !supabaseSettled || !hydrated) {
     return <InterviewSkeleton />;
+  }
+
+  // Feature gate: Interview Coaching is Pro+
+  if (!planLoading && !isPro) {
+    return (
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 pt-safe">
+          <BackButton />
+        </header>
+        <div className="flex-1 flex items-center justify-center">
+          <UpgradeWall
+            requiredPlan="pro"
+            featureName="Interview Coaching"
+            description="Practice real voice interviews with AI that listens, responds, and scores you live."
+          />
+        </div>
+      </div>
+    );
   }
 
   // Empty state — no resume loaded

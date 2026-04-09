@@ -21,6 +21,8 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from '@/hooks/useAuth';
 import { getUserId } from '@/lib/supabaseBridge';
 import { useProfile } from '@/hooks/useProfile';
+import { usePlan } from '@/hooks/usePlan';
+import { UpgradeWall } from '@/components/plan/UpgradeWall';
 import { Json } from '@/integrations/supabase/types';
 import {
   Select,
@@ -60,6 +62,7 @@ export function CreateResumeDialog({
 }: CreateResumeDialogProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isPro } = usePlan();
   const { profile } = useProfile(user?.id);
   const { createResume, duplicateResume } = useResumeMutations();
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
@@ -306,6 +309,9 @@ export function CreateResumeDialog({
     setBlankStep('title');
   };
 
+  // Free-tier gate: only 1 resume allowed
+  const atResumeLimit = !isPro && existingResumes.length >= 1 && !!user;
+
   return (
     <Dialog open={open} onOpenChange={resetAndClose}>
       <DialogContent className="max-w-[90vw] sm:max-w-md">
@@ -313,7 +319,16 @@ export function CreateResumeDialog({
           <DialogTitle>Create New Resume</DialogTitle>
         </DialogHeader>
 
-        {!mode ? (
+        {atResumeLimit ? (
+          <div className="py-4">
+            <UpgradeWall
+              requiredPlan="pro"
+              featureName="Multiple Resumes"
+              description="Free plan includes 1 resume. Upgrade to Pro for unlimited resumes, tailored versions, and more."
+              compact
+            />
+          </div>
+        ) : !mode ? (
           /* Mode Selection */
           <div className="space-y-3 py-4">
             <motion.button

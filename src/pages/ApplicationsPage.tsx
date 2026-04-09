@@ -9,6 +9,8 @@ import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useJobActivityStats } from '@/hooks/useJobActivityStats';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
+import { usePlan } from '@/hooks/usePlan';
+import { UpgradeWall } from '@/components/plan/UpgradeWall';
 import { useResumeStore } from '@/store/resumeStore';
 import { JobActivityStatsCard } from '@/components/applications/JobActivityStats';
 import { ActivityTimeline } from '@/components/applications/ActivityTimeline';
@@ -93,6 +95,7 @@ export default function ApplicationsPage() {
   const { createApplication } = useJobApplicationMutations();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isPro, isLoading: planLoading } = usePlan();
   const queryClient = useQueryClient();
   const stats = useJobActivityStats();
   const [activeTab, setActiveTab] = useState<TabKey>('applications');
@@ -221,6 +224,27 @@ export default function ApplicationsPage() {
 
 
   const hasActiveFilters = filters.query || filters.jobTypes.length > 0 || filters.location;
+
+  // Feature gate: Application Tracker is Pro+
+  if (!planLoading && !isPro) {
+    return (
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 pt-safe">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-primary" />
+            <h1 className="text-page-title">My Activity</h1>
+          </div>
+        </header>
+        <div className="flex-1 flex items-center justify-center">
+          <UpgradeWall
+            requiredPlan="pro"
+            featureName="Application Tracker"
+            description="Track all your job applications in one place with status updates and activity insights."
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col min-h-0 pb-4">

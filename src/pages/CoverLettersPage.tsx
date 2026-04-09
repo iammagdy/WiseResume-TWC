@@ -13,6 +13,8 @@ import { useCoverLetters, useCoverLetterMutations } from '@/hooks/useCoverLetter
 import { useAuth } from '@/hooks/useAuth';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
+import { usePlan } from '@/hooks/usePlan';
+import { UpgradeWall } from '@/components/plan/UpgradeWall';
 
 import {
   AlertDialog,
@@ -28,6 +30,7 @@ import {
 export default function CoverLettersPage() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const { isPro, isLoading: planLoading } = usePlan();
   const { data: letters, isLoading, refetch } = useCoverLetters();
   const { saveCoverLetter, deleteCoverLetter } = useCoverLetterMutations();
 
@@ -86,6 +89,25 @@ export default function CoverLettersPage() {
   });
 
   const actionLetter = letters?.find((l) => l.id === actionSheetId);
+
+  // Feature gate: Cover Letters is Pro+
+  if (!planLoading && !isPro) {
+    return (
+      <div className="min-h-full flex flex-col">
+        <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 flex items-center gap-3">
+          <BackButton />
+          <h1 className="text-lg font-bold flex-1">Cover Letters</h1>
+        </header>
+        <div className="flex-1 flex items-center justify-center">
+          <UpgradeWall
+            requiredPlan="pro"
+            featureName="Cover Letters"
+            description="Generate tailored cover letters that match your resume and any job description."
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-full flex flex-col">

@@ -11,6 +11,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useChangelogBadge } from '@/hooks/useChangelogBadge';
 import { useCareerAssessment } from '@/hooks/useCareerAssessment';
+import { usePlan } from '@/hooks/usePlan';
+import { Lock } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface TabItem {
@@ -98,6 +100,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
   const { hasNew, markSeen } = useChangelogBadge();
   const { data: careerAssessment } = useCareerAssessment();
   const pendingCount = useOfflineSyncStore(s => s.pendingChanges.length);
+  const { isPro } = usePlan();
   const prefersReducedMotion = useReducedMotion();
 
   const hasCareerReminder = !!careerAssessment?.result?.skillGaps?.length &&
@@ -237,17 +240,33 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                             {pendingCount}
                           </span>
                         )}
-                        {tab.path === '/ai-studio' && discoveryDots.aiTools && !active && (
+                        {tab.path === '/ai-studio' && !isPro && !active && (
+                          <span
+                            className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-500 border-2 border-background flex items-center justify-center"
+                            aria-label="Pro feature"
+                          >
+                            <Lock className="w-2 h-2 text-white" />
+                          </span>
+                        )}
+                        {tab.path === '/ai-studio' && isPro && discoveryDots.aiTools && !active && (
                           <span
                             className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary border-2 border-background animate-pulse"
                             aria-label="Discover AI tools"
                           />
                         )}
-                        {tab.path === '/ai-studio' && !discoveryDots.aiTools && hasCareerReminder && !active && (
+                        {tab.path === '/ai-studio' && isPro && !discoveryDots.aiTools && hasCareerReminder && !active && (
                           <span
                             className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 border-2 border-background"
                             aria-label="Career plan needs attention"
                           />
+                        )}
+                        {tab.path === '/applications' && !isPro && !active && (
+                          <span
+                            className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-500 border-2 border-background flex items-center justify-center"
+                            aria-label="Pro feature"
+                          >
+                            <Lock className="w-2 h-2 text-white" />
+                          </span>
                         )}
                         {tab.path === '/portfolio' && discoveryDots.portfolio && !active && (
                           <span
