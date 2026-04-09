@@ -40,19 +40,19 @@ export async function checkUserCreditBalance(userId: string): Promise<CreditChec
     return { hasCredits: false, remaining: 0 };
   }
 
-  // If no record, they essentially have default limits
+  // If no record, they essentially have default limits (free tier = 5/day)
   if (!credits) {
-    return { hasCredits: true, remaining: 20 }; // Using default 20 limit
+    return { hasCredits: true, remaining: 5 };
   }
 
   const today = new Date().toISOString().split('T')[0];
   
   // If last usage wasn't today, limits are implicitly reset
   if (credits.usage_date !== today) {
-    return { hasCredits: true, remaining: credits.daily_limit || 20 };
+    return { hasCredits: true, remaining: credits.daily_limit || 5 };
   }
 
-  const remaining = (credits.daily_limit || 20) - (credits.daily_usage || 0);
+  const remaining = (credits.daily_limit || 5) - (credits.daily_usage || 0);
   
   return {
     hasCredits: remaining > 0,

@@ -51,7 +51,7 @@ export function useAICredits() {
       if (!data) {
         return {
           daily_usage: 0,
-          daily_limit: 20,
+          daily_limit: 5,
           usage_date: new Date().toISOString().split('T')[0],
           total_usage: 0,
         } as Partial<AICredits>;
@@ -117,12 +117,12 @@ export function useAICreditsMutations() {
     const today = new Date().toISOString().split('T')[0];
     if (data.usage_date !== today) return true;
 
-    if ((data.daily_usage || 0) >= (data.daily_limit || 20)) {
+    if ((data.daily_usage || 0) >= (data.daily_limit || 5)) {
       toast.error('Daily AI credit limit reached. Try again tomorrow!');
       return false;
     }
 
-    const remaining = (data.daily_limit || 20) - (data.daily_usage || 0);
+    const remaining = (data.daily_limit || 5) - (data.daily_usage || 0);
     if (remaining <= 3) {
       toast.warning(`Only ${remaining} AI credits remaining today`);
     }
