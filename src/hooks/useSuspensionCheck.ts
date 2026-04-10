@@ -8,12 +8,51 @@ export interface SuspensionState {
   isLoading: boolean;
 }
 
+async function checkSuspensionViaMe(token: string): Promise<{ suspended: boolean; reason: string | null }> {
+  try {
+    const { VITE_SUPABASE_URL } = import.meta.env;
+    const baseUrl = VITE_SUPABASE_URL || (window as unknown as Record<string, string>).__SUPABASE_URL__;
+    if (!baseUrl) return { suspended: false, reason: null };
+
+    const res = await fetch(`${baseUrl}/functions/v1/me`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (res.status === 403) {
+      const body = await res.json().catch(() => ({}));
+      if (body?.suspended === true) {
+        return { suspended: true, reason: body.reason ?? null };
+      }
+    }
+    return { suspended: false, reason: null };
+  } catch {
+    return { suspended: false, reason: null };
+  }
+}
+
 export function useSuspensionCheck(): SuspensionState {
-  const { user, isAuthenticated, supabaseReady } = useAuth();
+  const { user, isAuthenticated, supabaseReady, getKindeToken } = useAuth();
 
   const { data, isLoading } = useQuery({
     queryKey: ['suspension', user?.id],
     queryFn: async (): Promise<{ is_suspended: boolean; suspension_reason: string | null }> => {
+      // Primary: check me endpoint for 403 (aligned with suspension contract)
+      try {
+        const token = await getKindeToken();
+        if (token) {
+          const meResult = await checkSuspensionViaMe(token);
+          if (meResult.suspended) {
+            return { is_suspended: true, suspension_reason: meResult.reason };
+          }
+        }
+      } catch {
+        // Fallthrough to profile polling
+      }
+
+      // Fallback: direct profiles table check
       const { data, error } = await supabase
         .from('profiles')
         .select('is_suspended, suspension_reason')
