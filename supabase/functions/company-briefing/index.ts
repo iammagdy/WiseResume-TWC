@@ -1,5 +1,5 @@
 import { getCorsHeaders } from '../_shared/cors.ts';
-import { callAIWithRetry, sanitizeInputText, toUserError } from '../_shared/aiClient.ts';
+import { callAIWithRetry, sanitizeInputText, toUserError, parseAIJSON } from '../_shared/aiClient.ts';
 import { checkRateLimit, recordUsage } from '../_shared/rateLimiter.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 
@@ -256,11 +256,8 @@ Deno.serve(async (req) => {
     }
 
     if (!briefing && aiResponse.content) {
-      try {
-        briefing = JSON.parse(aiResponse.content);
-      } catch {
-        console.error('Failed to parse content as JSON');
-      }
+      briefing = parseAIJSON(aiResponse.content);
+      if (!briefing) console.error('Failed to parse content as JSON');
     }
 
     if (!briefing) {
