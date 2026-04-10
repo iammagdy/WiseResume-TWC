@@ -59,8 +59,36 @@ serve(async (req) => {
       );
     }
 
+    const logs = logsData ?? [];
+
+    // Enrich logs with user email from profiles
+    if (logs.length > 0) {
+      const userIds = [...new Set(logs.map(l => l.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, email')
+        .in('user_id', userIds);
+
+      const emailMap: Record<string, string> = {};
+      if (profiles) {
+        for (const p of profiles) {
+          emailMap[p.user_id] = p.email;
+        }
+      }
+
+      const enrichedLogs = logs.map(l => ({
+        ...l,
+        user_email: emailMap[l.user_id] ?? null,
+      }));
+
+      return new Response(
+        JSON.stringify({ success: true, logs: enrichedLogs }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     return new Response(
-      JSON.stringify({ success: true, logs: logsData ?? [] }),
+      JSON.stringify({ success: true, logs }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (err) {

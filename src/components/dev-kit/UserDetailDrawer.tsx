@@ -76,7 +76,11 @@ function summarizeAction(action: string, meta: Record<string, unknown>): string 
   return action.replace(/_/g, ' ');
 }
 
-export function UserDetailDrawer({ user, password, open, onClose, onUserUpdated }: UserDetailDrawerProps) {
+export function UserDetailDrawer({ user: userProp, password, open, onClose, onUserUpdated }: UserDetailDrawerProps) {
+  // Local copy of user so we can reflect mutations immediately without waiting for parent refetch
+  const [user, setUser] = useState<AdminUser>(userProp);
+  useEffect(() => { setUser(userProp); }, [userProp]);
+
   const [planTab, setPlanTab] = useState<PlanTab>('permanent');
   const [selectedPlan, setSelectedPlan] = useState<'free' | 'pro' | 'premium'>(user.plan_name);
   const [savingPlan, setSavingPlan] = useState(false);
@@ -142,6 +146,7 @@ export function UserDetailDrawer({ user, password, open, onClose, onUserUpdated 
       const result = data as { success?: boolean; error?: string };
       if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
       toast.success(`Plan set to ${selectedPlan}`);
+      setUser(prev => ({ ...prev, plan_name: selectedPlan, plan_updated_at: new Date().toISOString() }));
       onUserUpdated();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to set plan');
@@ -159,7 +164,9 @@ export function UserDetailDrawer({ user, password, open, onClose, onUserUpdated 
       if (error) throw new Error(error.message);
       const result = data as { success?: boolean; error?: string };
       if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      const expiresAt = new Date(Date.now() + trialDays * 86400000).toISOString();
       toast.success(`${trialPlan} trial granted for ${trialDays} days`);
+      setUser(prev => ({ ...prev, trial_plan: trialPlan, trial_expires_at: expiresAt }));
       onUserUpdated();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to grant trial');
@@ -178,6 +185,7 @@ export function UserDetailDrawer({ user, password, open, onClose, onUserUpdated 
       const result = data as { success?: boolean; error?: string };
       if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
       toast.success('Trial revoked');
+      setUser(prev => ({ ...prev, trial_plan: null, trial_expires_at: null }));
       onUserUpdated();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to revoke trial');
@@ -197,6 +205,11 @@ export function UserDetailDrawer({ user, password, open, onClose, onUserUpdated 
       const result = data as { success?: boolean; error?: string };
       if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
       toast.success(suspend ? 'User suspended' : 'User unsuspended');
+      setUser(prev => ({
+        ...prev,
+        is_suspended: suspend,
+        suspension_reason: suspend ? suspendReason || null : null,
+      }));
       onUserUpdated();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to update suspension');

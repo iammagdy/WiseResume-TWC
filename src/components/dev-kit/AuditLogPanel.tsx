@@ -7,6 +7,7 @@ import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 interface AuditLog {
   id: string;
   user_id: string;
+  user_email: string | null;
   category: string;
   action: string;
   metadata: Record<string, unknown>;
@@ -158,8 +159,11 @@ export function AuditLogPanel({ password }: AuditLogPanelProps) {
               <tbody>
                 {logs.map((log) => (
                   <tr key={log.id} className="border-b border-border last:border-0">
-                    <td className="px-4 py-3 font-mono text-[10px] text-muted-foreground">
-                      {log.user_id.slice(0, 8)}…
+                    <td className="px-4 py-3 text-xs text-muted-foreground max-w-[160px]">
+                      {log.user_email
+                        ? <span className="truncate block" title={log.user_email}>{log.user_email}</span>
+                        : <span className="font-mono text-[10px]">{log.user_id.slice(0, 8)}…</span>
+                      }
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant="outline" className={`text-[10px] capitalize ${ACTION_COLORS[log.action] ?? 'bg-muted/40 text-muted-foreground border-border'}`}>
