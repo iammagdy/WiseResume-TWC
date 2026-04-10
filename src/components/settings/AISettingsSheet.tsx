@@ -29,7 +29,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSettingsStore, AIProvider, WiseresumeSubProvider } from '@/store/settingsStore';
+import { useSettingsStore, AIProvider } from '@/store/settingsStore';
 import { resetFallbackToast } from '@/lib/aiFallbackToast';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getUserId } from '@/lib/supabaseBridge';
@@ -196,8 +196,14 @@ const maskKey = (key: string) => {
 const hasNoToolCalling = (provider: ByokProviderId, model: string, baseUrl?: string): boolean => {
   if (!model) return false;
   if (provider === 'cohere' && (model === 'command' || model === 'command-light')) return true;
-  // Ollama Cloud (ollama.com) uses the native /api/chat endpoint which does not support tool calling
-  if (provider === 'ollama' && baseUrl && /ollama\.com/i.test(baseUrl)) return true;
+  // Ollama Cloud (ollama.com / api.ollama.com) uses the native /api/chat + /api/tags endpoints
+  // which do not support tool calling.  Self-hosted Ollama native API URLs also contain an /api
+  // path prefix (e.g. http://localhost:11434/api) — these differ from the OpenAI-compatible /v1/
+  // path and equally lack tool-call support.
+  if (provider === 'ollama' && baseUrl) {
+    const url = baseUrl.toLowerCase();
+    if (/ollama\.com/i.test(url) || /\/api(?:\/|$)/.test(url)) return true;
+  }
   const m = model.toLowerCase();
   return m.includes('instruct-lite') || m.includes('base');
 };
@@ -235,9 +241,6 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     mistralKeyValidated, setMistralKeyValidated, mistralModel, setMistralModel,
     xaiKeyValidated, setXaiKeyValidated, xaiModel, setXaiModel,
     cohereKeyValidated, setCohereKeyValidated, cohereModel, setCohereModel,
-    // WiseResume
-    wiseresumeSubProvider,
-    setWiseresumeSubProvider,
   } = useSettingsStore();
 
   // ── UI mode (decoupled from aiProvider so first-time BYOK setup is accessible) ──
@@ -551,23 +554,6 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
           supabase.from('user_preferences').update({ ai_provider: provider }).eq('user_id', uid).then(() => {});
         }
       } catch {}
-    }
-  };
-
-  // ── WiseResume sub-provider ──
-  const handleWiseresumeSubProviderChange = async (value: WiseresumeSubProvider) => {
-    setWiseresumeSubProvider(value);
-    try {
-      const uid = getUserId();
-      if (uid) {
-        const { error: saveErr } = await supabase
-          .from('user_preferences')
-          .update({ wiseresume_sub_provider: value })
-          .eq('user_id', uid);
-        if (saveErr) toast.error('Could not save engine preference. Please try again.');
-      }
-    } catch {
-      toast.error('Could not save engine preference. Please try again.');
     }
   };
 
