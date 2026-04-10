@@ -65,16 +65,19 @@ export function DevKitRunner() {
     if (s.includes('openrouter') && (s.includes('payment_required') || s.includes('402') || s.includes('insufficient credits'))) {
       return 'OpenRouter account has insufficient credits — add funds at openrouter.ai';
     }
+    if (s.includes('gemini_api_key') && s.includes('not configured')) {
+      return 'GEMINI_API_KEY not configured — required for headshot generation. Set it in Supabase → Project Settings → Edge Function Secrets';
+    }
     if (
       s.includes('invalid_key') ||
       s.includes('invalid api key') ||
       s.includes('no ai api key') ||
       s.includes('wise_ai_api_key') ||
       s.includes('vertex_api_key') ||
+      s.includes('openrouter_api_key') ||
+      s.includes('groq_api_key') ||
       s.includes('api key not configured') ||
-      s.includes('gemini_api_key not configured') ||
-      s.includes('openrouter') ||
-      s.includes('groq')
+      s.includes('wiseresume ai is not configured')
     ) {
       return 'AI key not configured — set OPENROUTER_API_KEY and GROQ_API_KEY in Supabase → Project Settings → Edge Function Secrets';
     }
