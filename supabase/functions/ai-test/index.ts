@@ -34,14 +34,15 @@ serve(async (req) => {
       // Ignore parse errors for empty/invalid bodies
     }
 
-    // Get user's preferred provider (use service-role client for cross-project DB)
+    // Get user's preferred provider + WiseResume sub-provider (use service-role client for cross-project DB)
     const { data: prefs } = await supabaseAdmin
       .from('user_preferences')
-      .select('ai_provider')
+      .select('ai_provider, wiseresume_sub_provider')
       .eq('user_id', userId)
       .maybeSingle();
 
     const preferredProvider = (prefs?.ai_provider as 'gemini' | 'ollama' | 'openrouter' | 'wiseresume') || 'wiseresume';
+    const wiseresumeSubProvider = (prefs?.wiseresume_sub_provider as 'openrouter' | 'groq' | 'auto') || 'auto';
 
     // ===== Cooldown Check for WiseResume AI =====
     if (preferredProvider === 'wiseresume') {
@@ -97,10 +98,11 @@ serve(async (req) => {
     // Resolve user keys
     let userGeminiKey: string | undefined;
     let ollamaConfig: { key: string; baseUrl: string | null; model: string | null } | undefined;
-    let testModel = 'google/gemini-2.0-flash';
+    let testModel = 'google/gemma-4-26b-a4b-it:free';
 
     if (preferredProvider === 'gemini') {
       userGeminiKey = await getUserKeyFromDB(userId, 'gemini');
+      testModel = 'gemini-2.5-flash-lite';
     } else if (preferredProvider === 'ollama') {
       ollamaConfig = await getUserKeyAndUrlFromDB(userId, 'ollama');
     }
@@ -113,7 +115,7 @@ serve(async (req) => {
     };
     const expectedGreeting = identityMap[preferredProvider] || identityMap.wiseresume;
 
-    console.log(`[ai-test] Calling AI for provider: ${preferredProvider}, model: ${testModel}`);
+    console.log(`[ai-test] Calling AI for provider: ${preferredProvider}, sub: ${wiseresumeSubProvider}, model: ${testModel}`);
     const aiResponse = await callAI({
       model: testModel,
       messages: [
@@ -121,9 +123,10 @@ serve(async (req) => {
         { role: 'user', content: 'Say hello and identify yourself.' },
       ],
       temperature: 0,
-      maxTokens: 10,
-      timeout: 15000,
+      maxTokens: 50,
+      timeout: 20000,
       preferredProvider,
+      wiseresumeSubProvider,
       userGeminiKey,
       userId,
     });

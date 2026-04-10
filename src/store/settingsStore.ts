@@ -9,6 +9,7 @@ export type AITipFrequency = 'daily' | 'weekly' | 'on-demand';
 // AI Provider types
 export type AIProvider = 'wiseresume' | 'gemini' | 'ollama' | 'openrouter';
 export type GeminiKeyTier = 'free' | 'paid' | 'unknown';
+export type WiseresumeSubProvider = 'openrouter' | 'groq' | 'auto';
 
 interface GeminiDailyUsage {
   date: string;
@@ -74,6 +75,9 @@ interface SettingsState {
   openrouterApiKey: string;
   openrouterModel: string;
   openrouterKeyValidated: boolean;
+
+  // WiseResume AI sub-provider selection
+  wiseresumeSubProvider: WiseresumeSubProvider;
   
   // Actions
   setShowAutoSaveToasts: (value: boolean) => void;
@@ -120,6 +124,9 @@ interface SettingsState {
   setOpenrouterApiKey: (key: string) => void;
   setOpenrouterModel: (model: string) => void;
   setOpenrouterKeyValidated: (validated: boolean) => void;
+
+  // WiseResume sub-provider
+  setWiseresumeSubProvider: (sub: WiseresumeSubProvider) => void;
   
   resetSettings: () => void;
   resetUserSettings: () => void;
@@ -169,6 +176,8 @@ const defaultSettings = {
   openrouterApiKey: '',
   openrouterModel: '',
   openrouterKeyValidated: false,
+  // WiseResume sub-provider default
+  wiseresumeSubProvider: 'auto' as WiseresumeSubProvider,
 };
 
 // Helper to get Pacific midnight reset
@@ -241,6 +250,9 @@ export const useSettingsStore = create<SettingsState>()(
       setOpenrouterApiKey: (key) => set({ openrouterApiKey: key, openrouterKeyValidated: false }),
       setOpenrouterModel: (model) => set({ openrouterModel: model }),
       setOpenrouterKeyValidated: (validated) => set({ openrouterKeyValidated: validated }),
+
+      // WiseResume sub-provider
+      setWiseresumeSubProvider: (sub) => set({ wiseresumeSubProvider: sub }),
       
       resetSettings: () => set(defaultSettings),
 

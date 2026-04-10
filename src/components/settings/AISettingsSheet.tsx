@@ -27,7 +27,7 @@ import {
   Activity,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSettingsStore, AIProvider, GeminiKeyTier } from '@/store/settingsStore';
+import { useSettingsStore, AIProvider, GeminiKeyTier, WiseresumeSubProvider } from '@/store/settingsStore';
 import { resetFallbackToast } from '@/lib/aiFallbackToast';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getUserId } from '@/lib/supabaseBridge';
@@ -96,6 +96,8 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       setOpenrouterModel,
       openrouterKeyValidated,
       setOpenrouterKeyValidated,
+      wiseresumeSubProvider,
+      setWiseresumeSubProvider,
     } = useSettingsStore();
 
     const [showKey, setShowKey] = useState(false);
@@ -386,6 +388,19 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       if (value === 'openrouter' && !openrouterKeyValidated) {
         toast.info('Add your OpenRouter API key below to connect');
       }
+    };
+
+    const handleWiseresumeSubProviderChange = async (value: WiseresumeSubProvider) => {
+      setWiseresumeSubProvider(value);
+      try {
+        const uid = getUserId();
+        if (uid) {
+          await supabase
+            .from('user_preferences')
+            .update({ wiseresume_sub_provider: value })
+            .eq('user_id', uid);
+        }
+      } catch {}
     };
 
     const handleValidateKey = async () => {
@@ -1299,6 +1314,40 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                       </div>
                       {getProviderStatus(p.id)}
                     </motion.button>
+
+                    {/* Expanded config for WiseResume AI — engine sub-selector */}
+                    {safeProvider === p.id && p.id === 'wiseresume' && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="ml-7 mt-1 mb-2 space-y-2 pl-3 border-l-2 border-primary/20"
+                      >
+                        <div className="space-y-1">
+                          <Label className="text-[11px] text-muted-foreground">Engine</Label>
+                          <Select
+                            value={wiseresumeSubProvider}
+                            onValueChange={(v) => handleWiseresumeSubProviderChange(v as WiseresumeSubProvider)}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="auto">Auto (recommended)</SelectItem>
+                              <SelectItem value="openrouter">OpenRouter — Gemma 4 (free)</SelectItem>
+                              <SelectItem value="groq">Groq — Llama 3.3 (free)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <p className="text-[11px] text-muted-foreground">
+                            {wiseresumeSubProvider === 'auto'
+                              ? 'Tries OpenRouter first, falls back to Groq automatically.'
+                              : wiseresumeSubProvider === 'openrouter'
+                              ? 'Uses OpenRouter — Google Gemma 4 (free tier).'
+                              : 'Uses Groq — Llama 3.3 70B (free tier).'}
+                          </p>
+                        </div>
+                      </motion.div>
+                    )}
 
                     {/* Expanded config for Gemini */}
                     {safeProvider === p.id && p.id === 'gemini' && (

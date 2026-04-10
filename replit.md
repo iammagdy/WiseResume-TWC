@@ -26,17 +26,25 @@ See `.env.example`. Key variables:
 - `VITE_SUPABASE_URL` - Supabase project URL
 - `VITE_SUPABASE_PUBLISHABLE_KEY` - Supabase anonymous key
 
-## AI Backend (Vertex AI Express)
-All AI calls route through Vertex AI Express (`aiplatform.googleapis.com`).
-- **Endpoint**: `https://aiplatform.googleapis.com/v1/publishers/google/models/{MODEL}:generateContent?key={KEY}`
-- **Auth**: API key via `?key=` query parameter (not Bearer header)
-- **Body format**: Native Gemini (`contents` / `role` / `parts` + `systemInstruction`)
-- **Env var**: `VERTEX_API_KEY` (primary), `WISE_AI_API_KEY` (legacy fallback), `GEMINI_API_KEY` (legacy fallback)
-- **Set in**: Supabase → Project Settings → Edge Function Secrets
-- **Central client**: `supabase/functions/_shared/aiClient.ts` — `callGeminiDirect` converts OpenAI-style messages to native Gemini format, `parseVertexResponse` converts back to internal `AIResponse`
+## AI Backend (WiseResume AI — OpenRouter + Groq)
+WiseResume AI now routes through OpenRouter (Google Gemma 4, free) and Groq (Llama 3.3 70B, free).
+- **OpenRouter**: `https://openrouter.ai/api/v1/chat/completions`, model `google/gemma-4-26b-a4b-it:free`, headers: `HTTP-Referer: https://resume.thewise.cloud`, `X-Title: WiseResume`
+- **Groq**: `https://api.groq.com/openai/v1/chat/completions`, model `llama-3.3-70b-versatile`
+- **Env vars in Supabase Edge Function Secrets**:
+  - `OPENROUTER_API_KEY` — OpenRouter key (`sk-or-v1-...`)
+  - `GROQ_API_KEY` — Groq key (`gsk_...`)
+  - Legacy: `VERTEX_API_KEY`, `WISE_AI_API_KEY`, `GEMINI_API_KEY` (still used for Gemini BYOK health checks)
+- **Push secrets**: Run GitHub Actions → "Set Supabase Edge Function Secrets" workflow (type 'yes')
+  - First add `OPENROUTER_API_KEY` + `GROQ_API_KEY` to GitHub Secrets → Settings → Secrets and variables → Actions
+- **Central client**: `supabase/functions/_shared/aiClient.ts`
+  - `callWiseresumeAI(subProvider, ...)` — routes to OpenRouter or Groq based on preference
+  - `callGroqDirect(apiKey, ...)` — Groq OpenAI-compatible call
+  - `callOpenRouterDirect(apiKey, model, ...)` — OpenRouter BYOK call
+  - `callGeminiDirect(apiKey, model, ...)` — Gemini BYOK only (no longer WiseResume primary)
 - **BYOK Providers**: `AIProvider = 'wiseresume' | 'gemini' | 'ollama' | 'openrouter'`
-  - **OpenRouter**: BYOK via `https://openrouter.ai/api/v1/chat/completions` (OpenAI-compatible, Bearer auth). Model list from `GET /api/v1/models`. `callOpenRouterDirect` in aiClient.ts handles routing. Stored in `user_api_keys` table with `provider='openrouter'`.
-  - **Priority order in `callAI`**: OpenRouter BYOK → Ollama BYOK → Gemini BYOK → Vertex AI default → legacy fallback
+  - **WiseresumeSubProvider**: `'openrouter' | 'groq' | 'auto'` — stored in `user_preferences.wiseresume_sub_provider` and Zustand `settingsStore`
+  - **Priority order in `callAI`**: OpenRouter BYOK → Ollama BYOK → Gemini BYOK → WiseResume AI (managed) → legacy GEMINI_API_KEY
+  - **Auto mode**: tries OpenRouter first, falls back to Groq on failure
 
 ## Dev Server
 - Host: `0.0.0.0`

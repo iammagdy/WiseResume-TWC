@@ -1,6 +1,7 @@
 /**
  * Shared AI Client for Edge Functions
- * Routes AI requests via Vertex AI Express (aiplatform.googleapis.com)
+ * WiseResume AI: OpenRouter (Gemma 4, free) + Groq (Llama 3.3, free) with auto-fallback.
+ * Also supports user BYOK keys: Gemini, Ollama, OpenRouter.
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -35,6 +36,8 @@ export interface AICallOptions {
   timeout?: number;
   /** Preferred AI provider — if omitted, read from user_preferences table */
   preferredProvider?: 'gemini' | 'ollama' | 'openrouter' | 'wiseresume';
+  /** WiseResume AI sub-provider: 'openrouter' (Gemma 4), 'groq' (Llama 3.3), or 'auto' (try both) */
+  wiseresumeSubProvider?: 'openrouter' | 'groq' | 'auto';
 }
 
 export interface AIResponse {
@@ -195,22 +198,47 @@ async function getUserPreferredProvider(userId: string): Promise<string | null> 
 }
 
 /**
- * Calls AI API using Vertex AI Express as default or user BYOK keys.
- * Priority: BYOK Ollama → BYOK Gemini → Vertex AI (VERTEX_API_KEY) → legacy fallbacks
+ * Reads the user's WiseResume AI sub-provider preference from user_preferences.
+ * Returns 'openrouter', 'groq', 'auto', or 'auto' as default.
+ */
+async function getUserWiseresumeSubProvider(userId: string): Promise<'openrouter' | 'groq' | 'auto'> {
+  try {
+    const supabase = getServiceClient();
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .select('wiseresume_sub_provider')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error || !data?.wiseresume_sub_provider) return 'auto';
+    const val = data.wiseresume_sub_provider as string;
+    if (val === 'openrouter' || val === 'groq' || val === 'auto') return val;
+    return 'auto';
+  } catch (err) {
+    console.warn('[aiClient] Failed to fetch wiseresume sub-provider preference:', err);
+    return 'auto';
+  }
+}
+
+/**
+ * Calls AI API routing through WiseResume AI (OpenRouter/Groq) or user BYOK keys.
+ * Priority: BYOK OpenRouter → BYOK Ollama → BYOK Gemini → WiseResume AI (managed) → legacy GEMINI_API_KEY
  */
 export async function callAI(options: AICallOptions): Promise<AIResponse> {
   const { model, messages, temperature = 0.7, maxTokens, tools, toolChoice, userId, timeout = 30_000 } = options;
 
-  const vertexKey = Deno.env.get('VERTEX_API_KEY');
-  const wiseAIKey = Deno.env.get('WISE_AI_API_KEY');
-  const defaultKey = vertexKey || wiseAIKey;
+  const openrouterManagedKey = Deno.env.get('OPENROUTER_API_KEY');
+  const groqManagedKey = Deno.env.get('GROQ_API_KEY');
+  const globalGeminiKey = Deno.env.get('GEMINI_API_KEY');
+  const hasManagedAI = !!(openrouterManagedKey || groqManagedKey);
 
   let userGeminiKey: string | undefined;
   let userOllamaData: { key: string; baseUrl: string | null; model: string | null } | undefined;
   let userOpenRouterData: { key: string; baseUrl: string | null; model: string | null } | undefined;
+  let wiseresumeSubProvider: 'openrouter' | 'groq' | 'auto' = options.wiseresumeSubProvider || 'auto';
+
   if (userId) {
     const preferredProvider = options.preferredProvider || await getUserPreferredProvider(userId);
-    
+
     if (preferredProvider === 'ollama') {
       userOllamaData = await getUserKeyAndUrlFromDB(userId, 'ollama');
     } else if (preferredProvider === 'openrouter') {
@@ -218,18 +246,19 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
     } else if (preferredProvider === 'gemini') {
       userGeminiKey = await getUserKeyFromDB(userId);
     } else {
-      // No preference or 'wiseresume': skip BYOK, use default key
+      // 'wiseresume' or no preference — read sub-provider if not already supplied
+      if (!options.wiseresumeSubProvider) {
+        wiseresumeSubProvider = await getUserWiseresumeSubProvider(userId);
+      }
     }
   }
   if (!userGeminiKey && !userOllamaData && options.userGeminiKey) {
     userGeminiKey = options.userGeminiKey; // deprecated body param
   }
 
-  const globalGeminiKey = Deno.env.get('GEMINI_API_KEY');
-
-  if (!defaultKey && !userGeminiKey && !userOllamaData && !userOpenRouterData && !globalGeminiKey) {
+  if (!hasManagedAI && !userGeminiKey && !userOllamaData && !userOpenRouterData && !globalGeminiKey) {
     console.error('[AI] No API key available');
-    throw createAIError('invalid_key', 'No AI API key configured. Please add your API key in Settings.', 500);
+    throw createAIError('invalid_key', 'WiseResume AI is not configured. Please contact support or add your own API key in Settings.', 500);
   }
 
   const controller = new AbortController();
@@ -247,12 +276,12 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
         const res = await callOpenRouterDirect(userOpenRouterData.key, orModel, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
         return { ...res, providerUsed: 'openrouter' };
       } catch (err) {
-        console.warn('[AI] OpenRouter BYOK failed, falling back to Vertex AI:', err instanceof Error ? err.message : err);
-        if (defaultKey) {
+        console.warn('[AI] OpenRouter BYOK failed, falling back to WiseResume AI:', err instanceof Error ? err.message : err);
+        if (hasManagedAI) {
           const fallbackController = new AbortController();
           const fallbackTimeout = setTimeout(() => fallbackController.abort(), timeout);
           try {
-            const res = await callGeminiDirect(defaultKey, model, messages, temperature, maxTokens, tools, toolChoice, fallbackController.signal);
+            const res = await callWiseresumeAI('auto', messages, temperature, maxTokens, tools, toolChoice, fallbackController.signal);
             return { ...res, fallbackUsed: true, fallbackReason: 'openrouter_error', providerUsed: 'wiseresume_fallback' };
           } finally {
             clearTimeout(fallbackTimeout);
@@ -273,12 +302,12 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
         const res = await callOllamaDirect(userOllamaData.key, userOllamaData.baseUrl, ollamaModel, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
         return { ...res, providerUsed: 'ollama' };
       } catch (err) {
-        console.warn('[AI] Ollama BYOK failed, falling back to Vertex AI:', err instanceof Error ? err.message : err);
-        if (defaultKey) {
+        console.warn('[AI] Ollama BYOK failed, falling back to WiseResume AI:', err instanceof Error ? err.message : err);
+        if (hasManagedAI) {
           const fallbackController = new AbortController();
           const fallbackTimeout = setTimeout(() => fallbackController.abort(), timeout);
           try {
-            const res = await callGeminiDirect(defaultKey, model, messages, temperature, maxTokens, tools, toolChoice, fallbackController.signal);
+            const res = await callWiseresumeAI('auto', messages, temperature, maxTokens, tools, toolChoice, fallbackController.signal);
             return { ...res, fallbackUsed: true, fallbackReason: 'ollama_error', providerUsed: 'wiseresume_fallback' };
           } finally {
             clearTimeout(fallbackTimeout);
@@ -296,17 +325,17 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
         return { ...res, providerUsed: 'gemini_byok' };
       } catch (err) {
         const errDetail = err instanceof Error ? `${err.message} (type=${(err as any)?.type}, status=${(err as any)?.status})` : String(err);
-        console.warn('[AI] Gemini BYOK failed, falling back to Vertex AI:', errDetail);
+        console.warn('[AI] Gemini BYOK failed, falling back to WiseResume AI:', errDetail);
         const fallbackReason = (err as any)?.type === 'quota_exceeded' ? 'quota_exceeded'
           : (err as any)?.type === 'invalid_key' ? 'invalid_key'
           : (err as any)?.type === 'rate_limit' ? 'rate_limit'
           : (err instanceof Error && err.message?.includes('not found')) ? 'model_not_found'
           : 'gemini_error';
-        if (defaultKey) {
+        if (hasManagedAI) {
           const fallbackController = new AbortController();
           const fallbackTimeout = setTimeout(() => fallbackController.abort(), timeout);
           try {
-            const res = await callGeminiDirect(defaultKey, model, messages, temperature, maxTokens, tools, toolChoice, fallbackController.signal);
+            const res = await callWiseresumeAI('auto', messages, temperature, maxTokens, tools, toolChoice, fallbackController.signal);
             return { ...res, fallbackUsed: true, fallbackReason, providerUsed: 'wiseresume_fallback' };
           } finally {
             clearTimeout(fallbackTimeout);
@@ -316,14 +345,14 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
       }
     }
 
-    // Priority 3: Vertex AI default (VERTEX_API_KEY or WISE_AI_API_KEY)
-    if (defaultKey) {
-      console.log('[AI] Using Vertex AI for model:', model);
-      const res = await callGeminiDirect(defaultKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
-      return { ...res, providerUsed: 'wiseresume' };
+    // Priority 3: WiseResume AI managed (OpenRouter + Groq)
+    if (hasManagedAI) {
+      console.log('[AI] Using WiseResume AI (sub-provider:', wiseresumeSubProvider, ')');
+      const res = await callWiseresumeAI(wiseresumeSubProvider, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+      return { ...res, providerUsed: res.providerUsed || 'wiseresume' };
     }
 
-    // Priority 4: Global GEMINI_API_KEY (legacy fallback)
+    // Priority 4: Legacy GEMINI_API_KEY fallback
     if (globalGeminiKey) {
       console.log('[AI] Using legacy GEMINI_API_KEY for model:', model);
       const res = await callGeminiDirect(globalGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
@@ -346,7 +375,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
 
 const RETRY_DELAYS = [1000, 2000, 4000];
 const RETRY_TIMEOUTS = [30_000, 45_000, 55_000];
-const FALLBACK_MODEL = 'google/gemini-3-flash-preview';
+const FALLBACK_MODEL = 'google/gemma-4-26b-a4b-it:free';
 
 function isRetryableError(error: unknown): boolean {
   if (error instanceof DOMException && error.name === 'AbortError') return true;
@@ -574,6 +603,158 @@ async function callOpenRouterDirect(
 
   const data = await response.json();
   return parseOpenAIResponse(data);
+}
+
+/**
+ * Calls Groq API (OpenAI-compatible endpoint) using the managed GROQ_API_KEY.
+ * Model: llama-3.3-70b-versatile
+ */
+async function callGroqDirect(
+  apiKey: string,
+  messages: AIMessage[],
+  temperature: number,
+  maxTokens?: number,
+  tools?: AITool[],
+  toolChoice?: { type: 'function'; function: { name: string } } | 'auto',
+  signal?: AbortSignal
+): Promise<AIResponse> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${apiKey}`,
+  };
+
+  const body: Record<string, unknown> = {
+    model: 'llama-3.3-70b-versatile',
+    messages,
+    temperature,
+  };
+  if (maxTokens) body.max_tokens = maxTokens;
+  if (tools && tools.length > 0) {
+    body.tools = tools;
+    if (toolChoice) body.tool_choice = toolChoice;
+  }
+
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+    signal,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Groq API error:', response.status, errorText);
+
+    let errorMessage = 'Groq request failed';
+    try {
+      const parsed = JSON.parse(errorText);
+      errorMessage = parsed.error?.message || parsed.error || errorMessage;
+    } catch {}
+
+    if (response.status === 401 || response.status === 403) {
+      throw createAIError('invalid_key', 'Invalid Groq API key.', 422);
+    }
+    if (response.status === 429) {
+      throw createAIError('rate_limit', 'Groq rate limit reached. Please wait a moment.', 429);
+    }
+    if (response.status === 402) {
+      throw createAIError('payment_required', 'Groq credits exhausted.', 402);
+    }
+    throw createAIError('unknown', errorMessage, response.status);
+  }
+
+  const data = await response.json();
+  return parseOpenAIResponse(data);
+}
+
+/**
+ * Routes to WiseResume AI managed backend: OpenRouter (Gemma 4) or Groq (Llama 3.3).
+ * Auto mode: tries OpenRouter first, falls back to Groq.
+ */
+async function callWiseresumeAI(
+  subProvider: 'openrouter' | 'groq' | 'auto',
+  messages: AIMessage[],
+  temperature: number,
+  maxTokens?: number,
+  tools?: AITool[],
+  toolChoice?: { type: 'function'; function: { name: string } } | 'auto',
+  signal?: AbortSignal
+): Promise<AIResponse> {
+  const openrouterKey = Deno.env.get('OPENROUTER_API_KEY');
+  const groqKey = Deno.env.get('GROQ_API_KEY');
+
+  const tryOpenRouter = async (): Promise<AIResponse> => {
+    if (!openrouterKey) throw new Error('OPENROUTER_API_KEY not set');
+    console.log('[AI] WiseResume AI → OpenRouter (google/gemma-4-26b-a4b-it:free)');
+    const extraHeaders: Record<string, string> = {
+      'HTTP-Referer': 'https://resume.thewise.cloud',
+      'X-Title': 'WiseResume',
+    };
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${openrouterKey}`,
+      ...extraHeaders,
+    };
+    const body: Record<string, unknown> = {
+      model: 'google/gemma-4-26b-a4b-it:free',
+      messages,
+      temperature,
+    };
+    if (maxTokens) body.max_tokens = maxTokens;
+    if (tools && tools.length > 0) {
+      body.tools = tools;
+      if (toolChoice) body.tool_choice = toolChoice;
+    }
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+      signal,
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('WiseResume OpenRouter error:', response.status, errorText);
+      let errorMessage = 'OpenRouter request failed';
+      try { const p = JSON.parse(errorText); errorMessage = p.error?.message || p.error || errorMessage; } catch {}
+      if (response.status === 401 || response.status === 403) throw createAIError('invalid_key', 'WiseResume AI OpenRouter key is invalid.', 422);
+      if (response.status === 429) throw createAIError('rate_limit', 'WiseResume AI rate limited. Please try again shortly.', 429);
+      throw createAIError('unknown', errorMessage, response.status);
+    }
+    const data = await response.json();
+    return { ...parseOpenAIResponse(data), providerUsed: 'wiseresume' };
+  };
+
+  const tryGroq = async (): Promise<AIResponse> => {
+    if (!groqKey) throw new Error('GROQ_API_KEY not set');
+    console.log('[AI] WiseResume AI → Groq (llama-3.3-70b-versatile)');
+    const res = await callGroqDirect(groqKey, messages, temperature, maxTokens, tools, toolChoice, signal);
+    return { ...res, providerUsed: 'wiseresume' };
+  };
+
+  if (subProvider === 'openrouter') {
+    return await tryOpenRouter();
+  }
+  if (subProvider === 'groq') {
+    return await tryGroq();
+  }
+
+  // Auto: try OpenRouter first, then Groq
+  if (openrouterKey) {
+    try {
+      return await tryOpenRouter();
+    } catch (err) {
+      console.warn('[AI] WiseResume OpenRouter failed, trying Groq:', err instanceof Error ? err.message : err);
+      if (groqKey) {
+        return await tryGroq();
+      }
+      throw err;
+    }
+  }
+  if (groqKey) {
+    return await tryGroq();
+  }
+
+  throw createAIError('invalid_key', 'WiseResume AI is not configured. Please contact support.', 500);
 }
 
 /**
