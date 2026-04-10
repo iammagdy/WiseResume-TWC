@@ -8,7 +8,7 @@ import { AISettingsSheet } from '@/components/settings/AISettingsSheet';
 import { EDGE_FUNCTIONS_URL } from '@/lib/supabaseConstants';
 import { getSupabaseToken } from '@/lib/supabaseAuth';
 
-type PingState = 'idle' | 'pinging' | 'done' | 'error';
+type PingState = 'idle' | 'pinging' | 'done';
 
 interface PingResult {
   latencyMs: number | null;
@@ -122,7 +122,7 @@ export function AIHealthBadge() {
     } catch {
       recordFailure(0);
       setPingResult({ latencyMs: null, status: 'down', errorCode: 0 });
-      setPingState('error');
+      setPingState('done');
     }
   }, [recordSuccess, recordFailure, recordProvider]);
 
