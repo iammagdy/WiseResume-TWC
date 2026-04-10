@@ -191,8 +191,21 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Curated model lists for modelsOnly responses
+    const OPENAI_MODELS = ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo', 'o1', 'o1-mini', 'o3-mini'];
+    const ANTHROPIC_MODELS = ['claude-opus-4-5', 'claude-sonnet-4-5', 'claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022', 'claude-3-opus-20240229'];
+    const GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'llama-3.2-11b-vision-preview', 'mixtral-8x7b-32768', 'gemma2-9b-it'];
+    const MISTRAL_MODELS = ['mistral-large-latest', 'mistral-medium-latest', 'mistral-small-latest', 'codestral-latest', 'open-mistral-nemo'];
+    const XAI_MODELS = ['grok-3', 'grok-3-mini', 'grok-2-latest', 'grok-2-mini', 'grok-beta'];
+    const COHERE_MODELS = ['command-r-plus', 'command-r', 'command', 'command-light', 'command-nightly'];
+
     // ===== OpenAI validation =====
     if (provider === 'openai') {
+      if (modelsOnly) {
+        return new Response(JSON.stringify({ isValid: true, tier: 'paid', availableModels: OPENAI_MODELS }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
       const testModel = model || 'gpt-4o-mini';
       const result = await validateOpenAICompat(
         keyTrimmed,
@@ -200,13 +213,18 @@ Deno.serve(async (req) => {
         'OpenAI',
         testModel,
       );
-      return new Response(JSON.stringify({ ...result, model: testModel }), {
+      return new Response(JSON.stringify({ ...result, model: testModel, availableModels: OPENAI_MODELS }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     // ===== Anthropic (Claude) validation =====
     if (provider === 'anthropic') {
+      if (modelsOnly) {
+        return new Response(JSON.stringify({ isValid: true, tier: 'paid', availableModels: ANTHROPIC_MODELS }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
       const testModel = model || 'claude-3-5-haiku-20241022';
       try {
         const resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -225,7 +243,7 @@ Deno.serve(async (req) => {
 
         if (resp.ok) {
           await resp.json();
-          return new Response(JSON.stringify({ isValid: true, tier: 'paid', model: testModel }), {
+          return new Response(JSON.stringify({ isValid: true, tier: 'paid', model: testModel, availableModels: ANTHROPIC_MODELS }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
@@ -238,7 +256,7 @@ Deno.serve(async (req) => {
           });
         }
         if (status === 429) {
-          return new Response(JSON.stringify({ isValid: true, tier: 'paid', model: testModel }), {
+          return new Response(JSON.stringify({ isValid: true, tier: 'paid', model: testModel, availableModels: ANTHROPIC_MODELS }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
@@ -254,6 +272,11 @@ Deno.serve(async (req) => {
 
     // ===== Groq (BYOK) validation =====
     if (provider === 'groq') {
+      if (modelsOnly) {
+        return new Response(JSON.stringify({ isValid: true, tier: 'paid', availableModels: GROQ_MODELS }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
       const testModel = model || 'llama-3.3-70b-versatile';
       const result = await validateOpenAICompat(
         keyTrimmed,
@@ -261,13 +284,18 @@ Deno.serve(async (req) => {
         'Groq',
         testModel,
       );
-      return new Response(JSON.stringify({ ...result, model: testModel }), {
+      return new Response(JSON.stringify({ ...result, model: testModel, availableModels: GROQ_MODELS }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     // ===== Mistral AI validation =====
     if (provider === 'mistral') {
+      if (modelsOnly) {
+        return new Response(JSON.stringify({ isValid: true, tier: 'paid', availableModels: MISTRAL_MODELS }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
       const testModel = model || 'mistral-small-latest';
       const result = await validateOpenAICompat(
         keyTrimmed,
@@ -275,13 +303,18 @@ Deno.serve(async (req) => {
         'Mistral',
         testModel,
       );
-      return new Response(JSON.stringify({ ...result, model: testModel }), {
+      return new Response(JSON.stringify({ ...result, model: testModel, availableModels: MISTRAL_MODELS }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     // ===== xAI (Grok) validation =====
     if (provider === 'xai') {
+      if (modelsOnly) {
+        return new Response(JSON.stringify({ isValid: true, tier: 'paid', availableModels: XAI_MODELS }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
       const testModel = model || 'grok-2-mini';
       const result = await validateOpenAICompat(
         keyTrimmed,
@@ -289,13 +322,18 @@ Deno.serve(async (req) => {
         'xAI',
         testModel,
       );
-      return new Response(JSON.stringify({ ...result, model: testModel }), {
+      return new Response(JSON.stringify({ ...result, model: testModel, availableModels: XAI_MODELS }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     // ===== Cohere validation =====
     if (provider === 'cohere') {
+      if (modelsOnly) {
+        return new Response(JSON.stringify({ isValid: true, tier: 'paid', availableModels: COHERE_MODELS }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
       const testModel = model || 'command-r';
       const result = await validateOpenAICompat(
         keyTrimmed,
@@ -303,7 +341,7 @@ Deno.serve(async (req) => {
         'Cohere',
         testModel,
       );
-      return new Response(JSON.stringify({ ...result, model: testModel }), {
+      return new Response(JSON.stringify({ ...result, model: testModel, availableModels: COHERE_MODELS }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

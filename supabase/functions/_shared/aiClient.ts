@@ -261,7 +261,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
     userGeminiKey = options.userGeminiKey; // deprecated body param
   }
 
-  if (!hasManagedAI && !userGeminiKey && !userOllamaData && !userOpenRouterData && !globalGeminiKey) {
+  if (!hasManagedAI && !userByokData && !userGeminiKey && !userOllamaData && !userOpenRouterData && !globalGeminiKey) {
     console.error('[AI] No API key available');
     throw createAIError('invalid_key', 'WiseResume AI is not configured. Please contact support or add your own API key in Settings.', 500);
   }
