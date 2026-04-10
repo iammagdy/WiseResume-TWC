@@ -41,6 +41,10 @@ BEGIN
         ELSE
           COALESCE(s.plan_name, 'free') = p_filter_plan
       END
+    )
+    AND (
+      p_filter_status IS NULL OR p_filter_status = '' OR
+      COALESCE(s.status, 'active') = p_filter_status
     );
 
   -- Fetch paginated results
@@ -94,6 +98,10 @@ BEGIN
           ELSE
             COALESCE(s.plan_name, 'free') = p_filter_plan
         END
+      )
+      AND (
+        p_filter_status IS NULL OR p_filter_status = '' OR
+        COALESCE(s.status, 'active') = p_filter_status
       )
     ORDER BY
       CASE WHEN p_sort = 'newest'      THEN COALESCE(p.created_at, au.created_at) END DESC NULLS LAST,

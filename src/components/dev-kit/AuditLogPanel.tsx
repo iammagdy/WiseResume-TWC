@@ -97,6 +97,11 @@ export function AuditLogPanel({ password }: AuditLogPanelProps) {
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
+  useEffect(() => {
+    const interval = setInterval(fetchLogs, 30_000);
+    return () => clearInterval(interval);
+  }, [fetchLogs]);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
