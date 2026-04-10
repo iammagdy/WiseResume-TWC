@@ -68,14 +68,15 @@ function UserIdCard({ userId }: { userId: string }) {
   return (
     <button
       onClick={handleCopy}
-      className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-muted/40 border border-border hover:bg-muted/60 transition-colors text-left"
+      className="w-full flex items-start justify-between gap-3 px-4 py-3 rounded-xl bg-muted/40 border border-border hover:bg-muted/60 transition-colors text-left"
       title="Tap to copy your User ID"
     >
       <div className="min-w-0">
         <p className="text-xs font-medium text-muted-foreground mb-0.5">Your User ID</p>
         <p className="font-mono text-xs text-foreground truncate">{userId}</p>
+        <p className="text-xs text-muted-foreground mt-1">Share this ID with support if you need help with your account.</p>
       </div>
-      <span className="text-xs text-muted-foreground shrink-0">{copied ? '✓ Copied' : 'Copy'}</span>
+      <span className="text-xs text-muted-foreground shrink-0 mt-0.5">{copied ? '✓ Copied' : 'Copy'}</span>
     </button>
   );
 }

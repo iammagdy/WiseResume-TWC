@@ -150,31 +150,61 @@ export function AdminUsersPanel({ password, onCountChange }: AdminUsersPanelProp
     fetchUsers(1, false);
   };
 
-  const handleExportCSV = () => {
-    if (!users.length) return;
-    const headers = ['User ID', 'Email', 'Name', 'Plan', 'Trial Plan', 'Trial Expires', 'Suspended', 'Joined', 'Last Active', 'Resumes', 'Credits Used', 'Daily Limit'];
-    const rows = users.map((u) => [
-      u.user_id,
-      u.email,
-      u.full_name || '',
-      u.plan_name,
-      u.trial_plan || '',
-      u.trial_expires_at ? new Date(u.trial_expires_at).toISOString() : '',
-      u.is_suspended ? 'Yes' : 'No',
-      u.created_at ? new Date(u.created_at).toISOString() : '',
-      u.last_sign_in_at ? new Date(u.last_sign_in_at).toISOString() : '',
-      u.resume_count,
-      u.credits_used_today,
-      u.daily_limit ?? '',
-    ]);
-    const csv = [headers, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `wiseresume-users-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const [exportingCSV, setExportingCSV] = useState(false);
+
+  const handleExportCSV = async () => {
+    setExportingCSV(true);
+    try {
+      // Fetch all matching users (up to 5000) for the current filter/search
+      const allUsers: AdminUser[] = [];
+      let p = 1;
+      const PER_EXPORT = 500;
+      while (true) {
+        const { data, error: err } = await edgeFunctions.functions.invoke('admin-list-users', {
+          body: {
+            password,
+            page: p,
+            per_page: PER_EXPORT,
+            filter_plan: planFilter || undefined,
+            sort,
+            search: query.trim() || undefined,
+          },
+        });
+        if (err) break;
+        const result = data as { success?: boolean; users?: AdminUser[]; total?: number };
+        const list = result?.users ?? [];
+        allUsers.push(...list);
+        if (allUsers.length >= (result?.total ?? 0) || list.length < PER_EXPORT) break;
+        p++;
+      }
+      if (!allUsers.length) return;
+      const headers = ['User ID', 'Email', 'Name', 'Plan', 'Trial Plan', 'Trial Expires', 'Suspended', 'Suspension Reason', 'Joined', 'Last Active', 'Resumes', 'Credits Used Today', 'Daily Limit'];
+      const rows = allUsers.map((u) => [
+        u.user_id,
+        u.email,
+        u.full_name || '',
+        u.plan_name,
+        u.trial_plan || '',
+        u.trial_expires_at ? new Date(u.trial_expires_at).toISOString() : '',
+        u.is_suspended ? 'Yes' : 'No',
+        u.suspension_reason || '',
+        u.created_at ? new Date(u.created_at).toISOString() : '',
+        u.last_sign_in_at ? new Date(u.last_sign_in_at).toISOString() : '',
+        u.resume_count,
+        u.credits_used_today,
+        u.daily_limit ?? '',
+      ]);
+      const csv = [headers, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `wiseresume-users-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExportingCSV(false);
+    }
   };
 
   const hasMore = users.length < total;
@@ -201,9 +231,9 @@ export function AdminUsersPanel({ password, onCountChange }: AdminUsersPanelProp
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
-        <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={!loaded || !users.length} className="flex items-center gap-2 shrink-0">
-          <Download className="w-4 h-4" />
-          CSV
+        <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={!loaded || !users.length || exportingCSV} className="flex items-center gap-2 shrink-0">
+          {exportingCSV ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+          {exportingCSV ? 'Exporting…' : 'Export CSV'}
         </Button>
       </div>
 
@@ -277,7 +307,8 @@ export function AdminUsersPanel({ password, onCountChange }: AdminUsersPanelProp
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">Plan</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Joined</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Resumes</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden lg:table-cell">Last Active</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden lg:table-cell">AI credits</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden xl:table-cell">Last active</th>
                     <th className="text-right px-4 py-3 font-medium text-muted-foreground">Action</th>
                   </tr>
                 </thead>
@@ -326,6 +357,11 @@ export function AdminUsersPanel({ password, onCountChange }: AdminUsersPanelProp
                           {user.resume_count}
                         </td>
                         <td className="px-4 py-3 text-muted-foreground text-xs hidden lg:table-cell">
+                          <span title={`${user.credits_used_today} used today / limit: ${user.daily_limit === -1 ? 'unlimited' : (user.daily_limit ?? '?')}`}>
+                            {user.credits_used_today} / {user.daily_limit === -1 ? '∞' : (user.daily_limit ?? '?')}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground text-xs hidden xl:table-cell">
                           {formatDate(user.last_sign_in_at)}
                         </td>
                         <td className="px-4 py-3 text-right">

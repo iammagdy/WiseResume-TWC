@@ -33,8 +33,8 @@ serve(async (req) => {
     if (profile?.is_suspended) {
       return new Response(
         JSON.stringify({
-          error: 'account_suspended',
-          suspension_reason: profile.suspension_reason ?? null,
+          suspended: true,
+          reason: profile.suspension_reason ?? null,
           message: 'Your account has been suspended. Please contact support.',
         }),
         {

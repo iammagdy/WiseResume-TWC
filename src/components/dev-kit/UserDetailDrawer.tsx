@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { X, Crown, Shield, ShieldOff, Zap, StickyNote, Clock, ChevronDown, Copy, Check } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Crown, Shield, ShieldOff, Zap, StickyNote, Copy, Check, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,21 @@ interface UserDetailDrawerProps {
 }
 
 type PlanTab = 'permanent' | 'trial';
+
+interface AuditEntry {
+  id: string;
+  user_id: string;
+  action: string;
+  category?: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+interface NoteEntry {
+  id: string;
+  note_text: string;
+  created_at: string;
+}
 
 const PLAN_COLORS: Record<string, string> = {
   free: 'bg-muted text-muted-foreground border-border',
@@ -46,6 +61,21 @@ function CopyButton({ value }: { value: string }) {
   );
 }
 
+function summarizeAction(action: string, meta: Record<string, unknown>): string {
+  if (action === 'plan_change') return `Plan → ${meta.new_plan ?? '?'}`;
+  if (action === 'trial_grant') return `Trial ${meta.trial_plan ?? ''} for ${meta.days ?? '?'}d`;
+  if (action === 'trial_revoke') return 'Trial revoked';
+  if (action === 'suspend') return `Suspended${meta.reason ? `: ${meta.reason}` : ''}`;
+  if (action === 'unsuspend') return 'Unsuspended';
+  if (action === 'credits_override') {
+    const parts: string[] = [];
+    if (meta.daily_limit != null) parts.push(`limit→${meta.daily_limit}`);
+    if (meta.bonus_credits) parts.push(`+${meta.bonus_credits} bonus`);
+    return parts.join(', ') || 'Credits updated';
+  }
+  return action.replace(/_/g, ' ');
+}
+
 export function UserDetailDrawer({ user, password, open, onClose, onUserUpdated }: UserDetailDrawerProps) {
   const [planTab, setPlanTab] = useState<PlanTab>('permanent');
   const [selectedPlan, setSelectedPlan] = useState<'free' | 'pro' | 'premium'>(user.plan_name);
@@ -62,9 +92,44 @@ export function UserDetailDrawer({ user, password, open, onClose, onUserUpdated 
   const [noteText, setNoteText] = useState('');
   const [savingNote, setSavingNote] = useState(false);
 
+  const [auditHistory, setAuditHistory] = useState<AuditEntry[]>([]);
+  const [notesHistory, setNotesHistory] = useState<NoteEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setHistoryLoading(true);
+
+    edgeFunctions.functions.invoke('admin-audit-logs', {
+      body: { password, limit: 500 },
+    }).then(({ data }) => {
+      if (cancelled) return;
+      const result = data as { success?: boolean; logs?: AuditEntry[] };
+      const all = result?.logs ?? [];
+      // Filter to this user — audit_logs stores user_id as the target
+      setAuditHistory(all.filter(l => l.user_id === user.user_id));
+    }).catch(() => {});
+
+    edgeFunctions.functions.invoke('admin-save-note', {
+      body: { password, target_user_id: user.user_id, action: 'list' },
+    }).then(({ data }) => {
+      if (cancelled) return;
+      const result = data as { success?: boolean; notes?: NoteEntry[] };
+      setNotesHistory(result?.notes ?? []);
+    }).catch(() => {}).finally(() => {
+      if (!cancelled) setHistoryLoading(false);
+    });
+
+    return () => { cancelled = true; };
+  }, [open, user.user_id, password]);
+
   if (!open) return null;
 
   const isTrialActive = user.trial_plan && user.trial_expires_at && new Date(user.trial_expires_at) > new Date();
+  const trialDaysLeft = user.trial_expires_at
+    ? Math.max(0, Math.ceil((new Date(user.trial_expires_at).getTime() - Date.now()) / 86400000))
+    : 0;
 
   const handleSetPlan = async () => {
     if (selectedPlan === user.plan_name) { toast.info('Plan unchanged'); return; }
@@ -176,6 +241,8 @@ export function UserDetailDrawer({ user, password, open, onClose, onUserUpdated 
       if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
       toast.success('Note saved');
       setNoteText('');
+      const newNote: NoteEntry = { id: Date.now().toString(), note_text: noteText, created_at: new Date().toISOString() };
+      setNotesHistory(prev => [newNote, ...prev]);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to save note');
     } finally {
@@ -205,7 +272,7 @@ export function UserDetailDrawer({ user, password, open, onClose, onUserUpdated 
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-5">
-          {/* User Info */}
+          {/* User Info Card */}
           <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground font-medium">User ID</span>
@@ -215,10 +282,10 @@ export function UserDetailDrawer({ user, password, open, onClose, onUserUpdated 
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-medium">Plan</span>
+              <span className="text-xs text-muted-foreground font-medium">Current plan</span>
               <div className="flex items-center gap-1.5">
                 {user.is_suspended && <Badge variant="outline" className="text-[10px] bg-red-500/10 text-red-600 border-red-500/20">Suspended</Badge>}
-                {isTrialActive && <Badge variant="outline" className="text-[10px] bg-purple-500/10 text-purple-600 border-purple-500/20">Trial {user.trial_plan}</Badge>}
+                {isTrialActive && <Badge variant="outline" className="text-[10px] bg-purple-500/10 text-purple-600 border-purple-500/20">Trial {user.trial_plan} · {trialDaysLeft}d left</Badge>}
                 <Badge variant="outline" className={`capitalize text-[10px] ${PLAN_COLORS[user.plan_name] ?? ''}`}>{user.plan_name}</Badge>
               </div>
             </div>
@@ -241,11 +308,17 @@ export function UserDetailDrawer({ user, password, open, onClose, onUserUpdated 
               <span className="text-xs text-muted-foreground">{user.resume_count}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-medium">AI credits today</span>
+              <span className="text-xs text-muted-foreground font-medium">AI credits (today)</span>
               <span className="text-xs text-muted-foreground">
-                {user.credits_used_today} / {user.daily_limit === -1 ? '∞' : (user.daily_limit ?? '—')}
+                {user.credits_used_today} / {user.daily_limit === -1 ? 'unlimited' : (user.daily_limit ?? '—')}
               </span>
             </div>
+            {user.plan_updated_at && (
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground font-medium">Plan last changed</span>
+                <span className="text-xs text-muted-foreground">{formatDate(user.plan_updated_at)}</span>
+              </div>
+            )}
           </div>
 
           {/* Plan Controls */}
@@ -278,6 +351,7 @@ export function UserDetailDrawer({ user, password, open, onClose, onUserUpdated 
                       {selectedPlan === plan && <span className="w-2 h-2 rounded-full bg-primary block" />}
                     </span>
                     <span className="text-sm capitalize font-medium">{plan}</span>
+                    {user.plan_name === plan && <span className="ml-auto text-[10px] text-muted-foreground">current</span>}
                   </button>
                 ))}
                 <Button onClick={handleSetPlan} disabled={savingPlan} size="sm" className="w-full mt-1">
@@ -290,9 +364,10 @@ export function UserDetailDrawer({ user, password, open, onClose, onUserUpdated 
               <div className="space-y-3">
                 {isTrialActive && (
                   <div className="p-2.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-xs text-purple-600 dark:text-purple-400">
-                    Active {user.trial_plan} trial · expires {formatDate(user.trial_expires_at)}
-                    <Button variant="outline" size="sm" onClick={handleRevokeTrial} disabled={revokingTrial} className="ml-2 h-6 text-[10px] text-destructive border-destructive/30">
-                      {revokingTrial ? 'Revoking…' : 'Revoke'}
+                    <p className="font-medium">Active {user.trial_plan} trial</p>
+                    <p className="opacity-80 mt-0.5">Expires {formatDate(user.trial_expires_at)} · {trialDaysLeft} days left</p>
+                    <Button variant="outline" size="sm" onClick={handleRevokeTrial} disabled={revokingTrial} className="mt-2 h-6 text-[10px] text-destructive border-destructive/30">
+                      {revokingTrial ? 'Revoking…' : 'Revoke trial'}
                     </Button>
                   </div>
                 )}
@@ -325,6 +400,27 @@ export function UserDetailDrawer({ user, password, open, onClose, onUserUpdated 
               </div>
             )}
           </div>
+
+          {/* Account History */}
+          {auditHistory.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="flex items-center gap-2 text-sm font-semibold">
+                <Clock className="w-4 h-4 text-muted-foreground" />
+                Plan & Action History
+              </h3>
+              <div className="rounded-xl border border-border overflow-hidden">
+                {auditHistory.slice(0, 10).map((entry) => (
+                  <div key={entry.id} className="flex items-start gap-3 px-3 py-2 border-b border-border last:border-0">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium capitalize">{entry.action.replace(/_/g, ' ')}</p>
+                      <p className="text-[10px] text-muted-foreground">{summarizeAction(entry.action, entry.metadata)}</p>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground shrink-0">{formatDate(entry.created_at)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Suspension */}
           <div className="space-y-3">
@@ -367,9 +463,12 @@ export function UserDetailDrawer({ user, password, open, onClose, onUserUpdated 
               <Zap className="w-4 h-4 text-yellow-500" />
               AI Credits Override
             </h3>
+            <p className="text-xs text-muted-foreground">
+              Currently using <strong>{user.credits_used_today}</strong> of <strong>{user.daily_limit === -1 ? 'unlimited' : (user.daily_limit ?? '?')}</strong> credits today.
+            </p>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Daily limit (-1 = unlimited)</p>
+                <p className="text-xs text-muted-foreground mb-1">New daily limit (-1 = unlimited)</p>
                 <Input
                   type="number"
                   placeholder={user.daily_limit !== null ? String(user.daily_limit) : 'current'}
@@ -405,13 +504,28 @@ export function UserDetailDrawer({ user, password, open, onClose, onUserUpdated 
               placeholder="Add an internal note about this user…"
               value={noteText}
               onChange={(e) => setNoteText(e.target.value)}
-              rows={3}
+              rows={2}
               className="text-xs resize-none"
             />
             <Button onClick={handleSaveNote} disabled={savingNote || !noteText.trim()} size="sm" variant="outline" className="h-8 text-xs w-full">
               {savingNote ? 'Saving…' : 'Save note'}
             </Button>
             <p className="text-[10px] text-muted-foreground">Notes are internal — never visible to the user.</p>
+
+            {/* Notes history */}
+            {notesHistory.length > 0 && (
+              <div className="rounded-xl border border-border overflow-hidden mt-2">
+                <div className="px-3 py-2 bg-muted/30 border-b border-border">
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Previous notes</p>
+                </div>
+                {notesHistory.map((note) => (
+                  <div key={note.id} className="px-3 py-2 border-b border-border last:border-0">
+                    <p className="text-xs">{note.note_text}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">{formatDate(note.created_at)}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

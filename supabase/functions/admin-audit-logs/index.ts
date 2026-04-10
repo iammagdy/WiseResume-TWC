@@ -33,22 +33,23 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
+    // Read from audit_logs (the table all admin RPCs write to)
     let query = supabase
-      .from('admin_user_notes')
-      .select('id, user_id, note_text, created_at')
-      .order('created_at', { ascending: false })
-      .limit(50);
-
-    const { data: logsData, error } = await supabase
-      .from('admin_audit_log')
-      .select('id, user_id, action, category, metadata, created_at, admin_notes')
+      .from('audit_logs')
+      .select('id, user_id, action, category, metadata, created_at')
       .order('created_at', { ascending: false })
       .limit(Math.min(limit, 500));
+
+    if (action_filter) {
+      query = query.eq('action', action_filter);
+    }
+
+    const { data: logsData, error } = await query;
 
     if (error) {
       if (error.code === '42P01') {
         return new Response(
-          JSON.stringify({ success: true, logs: [], message: 'Audit log table not yet created. Run the migration to enable this.' }),
+          JSON.stringify({ success: true, logs: [], message: 'audit_logs table not found. Ensure the database migration has been applied.' }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
@@ -58,13 +59,8 @@ serve(async (req) => {
       );
     }
 
-    let logs = logsData ?? [];
-    if (action_filter) {
-      logs = logs.filter((l) => l.action === action_filter);
-    }
-
     return new Response(
-      JSON.stringify({ success: true, logs }),
+      JSON.stringify({ success: true, logs: logsData ?? [] }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (err) {

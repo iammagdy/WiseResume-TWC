@@ -10,7 +10,6 @@ interface AuditLog {
   category: string;
   action: string;
   metadata: Record<string, unknown>;
-  admin_notes: string | null;
   created_at: string;
 }
 
