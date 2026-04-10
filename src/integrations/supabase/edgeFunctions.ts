@@ -54,10 +54,13 @@ export const edgeFunctions = {
         if (result.response.status === 401) {
           const looksLikeAuthError =
             !result.text ||
-            result.text.includes('Unauthorized') ||
+            result.text.toLowerCase().includes('unauthorized') ||
             result.text.includes('Missing authorization') ||
+            result.text.includes('Missing sub claim') ||
             result.text.includes('invalid signature') ||
-            result.text.includes('jwt');
+            result.text.includes('jwt') ||
+            result.text.includes('session') ||
+            result.text.includes('token');
           if (looksLikeAuthError) {
             const refreshed = await refreshTokenIfNeeded();
             if (refreshed) {
@@ -69,15 +72,41 @@ export const edgeFunctions = {
         }
 
         if (!result.response.ok) {
+          // Parse the error body for a cleaner message when possible
+          let errorMessage = `Edge function returned ${result.response.status}: ${result.text}`;
+          try {
+            const parsed = JSON.parse(result.text);
+            const detail = parsed?.error || parsed?.message || parsed?.detail;
+            if (detail && typeof detail === 'string') {
+              if (result.response.status === 401 || result.response.status === 403) {
+                errorMessage = `Session expired — please sign in again`;
+              } else if (result.response.status === 429) {
+                errorMessage = parsed?.message || 'Rate limit reached. Please wait a moment.';
+              } else if (detail.includes('No AI API key') || detail.includes('API key not configured')) {
+                errorMessage = 'WiseResume AI is not configured on the server. Please contact support or use your own API key in Settings.';
+              } else {
+                errorMessage = detail;
+              }
+            }
+          } catch {
+            // Use the default message if body isn't valid JSON
+            if (result.response.status === 401 || result.response.status === 403) {
+              errorMessage = 'Session expired — please sign in again';
+            }
+          }
           return {
             data: null,
-            error: { message: `Edge function returned ${result.response.status}: ${result.text}`, status: result.response.status },
+            error: { message: errorMessage, status: result.response.status },
           };
         }
 
         return { data: result.data, error: null };
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
+        // A TypeError "Failed to fetch" means the network request itself couldn't complete
+        const rawMessage = err instanceof Error ? err.message : String(err);
+        const message = rawMessage === 'Failed to fetch'
+          ? 'Cannot reach the server. Check your internet connection and try again.'
+          : rawMessage;
         return { data: null, error: { message } };
       }
     },

@@ -6,12 +6,11 @@ on:
       confirm:
         description: >
           🤖 CHECK AI KEY — Calls the Vertex AI Express API directly using your
-          WISE_AI_API_KEY and tells you if it is working, expired, or has
-          run out of quota. Run this when AI features (resume tailoring,
-          chat, cover letter) stop working and you are not sure if it is
-          a code problem or an API key problem. Requires WISE_AI_API_KEY
-          to be set as a secret. Takes a few seconds. Leave this field
-          as-is and click "Run workflow" to proceed.
+          VERTEX_API_KEY (or WISE_AI_API_KEY) and tells you if it is working,
+          expired, or has run out of quota. Run this when AI features stop
+          working and you need to confirm the API key itself is valid.
+          Requires VERTEX_API_KEY or WISE_AI_API_KEY to be set as a GitHub
+          secret. Leave this field as-is and click "Run workflow" to proceed.
         type: string
         required: false
         default: 'Yes, check the AI key'
@@ -20,25 +19,37 @@ jobs:
   check-ai-key:
     runs-on: ubuntu-latest
     steps:
-      - name: Test WISE_AI_API_KEY against Vertex AI Express API
+      - name: Test AI key against Vertex AI Express API
         run: |
           echo "============================================"
           echo "          AI KEY HEALTH CHECK"
           echo "============================================"
           echo ""
 
-          if [ -z "$WISE_AI_API_KEY" ]; then
-            echo "  ❌ WISE_AI_API_KEY is NOT SET in GitHub secrets."
-            echo "     Add it in: Settings → Secrets and variables → Actions"
+          # Accept either VERTEX_API_KEY (preferred) or WISE_AI_API_KEY (legacy)
+          AI_KEY="${VERTEX_API_KEY:-$WISE_AI_API_KEY}"
+
+          if [ -z "$AI_KEY" ]; then
+            echo "  ❌ No AI key is set in GitHub secrets."
+            echo "     You need either VERTEX_API_KEY or WISE_AI_API_KEY."
+            echo ""
+            echo "  How to fix:"
+            echo "  1. Get a key at: https://aistudio.google.com/app/apikey"
+            echo "  2. Add it as VERTEX_API_KEY in:"
+            echo "     GitHub repo → Settings → Secrets and variables → Actions"
+            echo "  3. Run the 'Set Supabase Edge Function Secrets' workflow to"
+            echo "     push it to Supabase so edge functions can use it."
             exit 1
           fi
 
-          echo "  ✅ WISE_AI_API_KEY is set in GitHub secrets."
+          KEY_NAME="WISE_AI_API_KEY"
+          [ -n "$VERTEX_API_KEY" ] && KEY_NAME="VERTEX_API_KEY"
+          echo "  ✅ $KEY_NAME is set in GitHub secrets."
           echo "  Testing against Vertex AI Express API (aiplatform.googleapis.com)..."
           echo ""
 
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-            "https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash-lite:generateContent?key=${WISE_AI_API_KEY}" \
+            "https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash-lite:generateContent?key=${AI_KEY}" \
             -H "Content-Type: application/json" \
             -d '{"contents":[{"parts":[{"text":"Hi"}]}],"generationConfig":{"maxOutputTokens":1}}')
           STATUS=$(echo "$RESPONSE" | tail -1)
@@ -49,18 +60,21 @@ jobs:
 
           if [ "$STATUS" = "200" ]; then
             echo "  ✅ KEY IS VALID — Vertex AI Express API accepted the key."
-            echo "     AI features should be working normally."
+            echo "     AI features should be working if secrets are set in Supabase."
+            echo ""
+            echo "  Next step: Run 'Set Supabase Edge Function Secrets' workflow"
+            echo "  to push VERTEX_API_KEY to your Supabase project."
           elif [ "$STATUS" = "400" ]; then
             echo "  ❌ KEY IS INVALID — The key was rejected by Vertex AI Express API."
             echo "     Response: $BODY"
             echo "     Generate a new key at: https://aistudio.google.com/app/apikey"
-            echo "     Then update it in Supabase → Project Settings → Edge Function Secrets"
+            echo "     Then run 'Set Supabase Edge Function Secrets' to push it."
             exit 1
           elif [ "$STATUS" = "401" ] || [ "$STATUS" = "403" ]; then
             echo "  ❌ KEY IS UNAUTHORIZED — The key was rejected (HTTP $STATUS)."
             echo "     Response: $BODY"
             echo "     Generate a new key at: https://aistudio.google.com/app/apikey"
-            echo "     Then update it in Supabase → Project Settings → Edge Function Secrets"
+            echo "     Then run 'Set Supabase Edge Function Secrets' to push it."
             exit 1
           elif [ "$STATUS" = "429" ]; then
             echo "  ⚠️  QUOTA EXCEEDED — The key is valid but has hit its rate limit."
@@ -73,4 +87,5 @@ jobs:
           echo ""
           echo "============================================"
         env:
+          VERTEX_API_KEY: ${{ secrets.VERTEX_API_KEY }}
           WISE_AI_API_KEY: ${{ secrets.WISE_AI_API_KEY }}
