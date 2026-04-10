@@ -1,6 +1,7 @@
 -- ============================================================
 -- Add target_plan restriction to discount_codes
 -- Restricts coupon redemption to users on specific plans
+-- Also restores percent-coupon subscription persistence
 -- ============================================================
 
 ALTER TABLE public.discount_codes
@@ -11,6 +12,7 @@ COMMENT ON COLUMN public.discount_codes.target_plan IS
   'If set, only users on this plan can redeem the coupon. NULL = any plan.';
 
 -- Update redeem_coupon RPC to enforce target_plan restriction
+-- and restore percent-coupon persistence on subscriptions
 CREATE OR REPLACE FUNCTION public.redeem_coupon(
   p_code    TEXT,
   p_user_id UUID
@@ -72,12 +74,21 @@ BEGIN
   SET uses_count = uses_count + 1
   WHERE id = v_coupon.id;
 
+  -- Apply plan upgrade benefit
   IF v_coupon.discount_type = 'plan_upgrade' AND v_coupon.plan_override IS NOT NULL THEN
     IF v_coupon.plan_days IS NOT NULL THEN
       PERFORM public.admin_grant_trial(p_user_id, v_coupon.plan_override, v_coupon.plan_days);
     ELSE
       PERFORM public.admin_set_user_plan(p_user_id, v_coupon.plan_override, 'coupon:' || p_code);
     END IF;
+  END IF;
+
+  -- Persist percent coupon discount marker on subscription record
+  IF v_coupon.discount_type = 'percent' AND v_coupon.discount_value > 0 THEN
+    UPDATE public.subscriptions
+    SET coupon_code = v_coupon.code,
+        coupon_discount_percent = v_coupon.discount_value
+    WHERE user_id = p_user_id;
   END IF;
 
   INSERT INTO public.audit_logs (user_id, category, action, metadata)
@@ -88,6 +99,7 @@ BEGIN
     jsonb_build_object(
       'code', v_coupon.code,
       'type', v_coupon.discount_type,
+      'value', v_coupon.discount_value,
       'plan_override', v_coupon.plan_override,
       'plan_days', v_coupon.plan_days,
       'target_plan', v_coupon.target_plan
@@ -96,6 +108,17 @@ BEGIN
 
   RETURN jsonb_build_object(
     'success', true,
+    'message', CASE
+      WHEN v_coupon.discount_type = 'plan_upgrade' THEN
+        'Your ' || initcap(v_coupon.plan_override) || ' plan has been activated'
+      WHEN v_coupon.discount_type = 'percent' THEN
+        to_char(v_coupon.discount_value, 'FM990') || '% discount applied to your account'
+      ELSE 'Coupon applied successfully'
+    END,
+    'new_plan', CASE
+      WHEN v_coupon.discount_type = 'plan_upgrade' THEN v_coupon.plan_override
+      ELSE NULL
+    END,
     'coupon', jsonb_build_object(
       'code', v_coupon.code,
       'discount_type', v_coupon.discount_type,

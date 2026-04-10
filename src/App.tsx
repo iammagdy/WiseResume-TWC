@@ -204,7 +204,9 @@ function AppRoutes() {
     return <SuspendedScreen reason={suspensionReason} onSignOut={signOut} />;
   }
 
-  if (appSettings.maintenance_mode && !isPublicStandalone) {
+  const isAdminRoute = location.pathname.startsWith('/dev-tools');
+
+  if (appSettings.maintenance_mode && !isPublicStandalone && !isAdminRoute) {
     return <MaintenanceScreen />;
   }
 
