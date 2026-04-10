@@ -9,6 +9,7 @@ export interface PlanResult {
   isPro: boolean;
   isPremium: boolean;
   isLoading: boolean;
+  refetch?: () => void;
 }
 
 const FALLBACK: PlanResult = {
@@ -21,7 +22,7 @@ const FALLBACK: PlanResult = {
 export function usePlan(): PlanResult {
   const { user, isAuthenticated } = useAuth();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch } = useQuery({
     queryKey: ['plan', user?.id],
     queryFn: async (): Promise<PlanName> => {
       const { data, error } = await supabase.rpc('get_my_plan');
@@ -50,5 +51,6 @@ export function usePlan(): PlanResult {
     isPro: plan === 'pro' || plan === 'premium',
     isPremium: plan === 'premium',
     isLoading,
+    refetch,
   };
 }

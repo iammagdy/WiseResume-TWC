@@ -21,58 +21,34 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const {
-      password,
-      page = 1,
-      per_page = 50,
-      filter_plan,
-      filter_status,
-      sort = 'newest',
-      search,
-    } = body;
+    const { password } = body;
 
-    if (!password) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Password required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (password !== SECRET_PASSWORD) {
+    if (!password || password !== SECRET_PASSWORD) {
       return new Response(
         JSON.stringify({ success: false, error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const limit = Math.min(Math.max(1, Number(per_page) || 50), 200);
-    const offset = Math.max(0, (Number(page) - 1) * limit);
-
     const supabase = getServiceClient();
 
-    const { data, error } = await supabase.rpc('get_all_users_admin_v2', {
-      p_limit: limit,
-      p_offset: offset,
-      p_filter_plan: filter_plan || null,
-      p_filter_status: filter_status || null,
-      p_sort: sort || 'newest',
-      p_search: search || null,
-    });
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('key, value, updated_at');
 
-    if (error) {
-      console.error('[admin-list-users] RPC error:', error);
-      return new Response(
-        JSON.stringify({ success: false, error: error.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (error) throw error;
+
+    const settings: Record<string, unknown> = {};
+    for (const row of (data || [])) {
+      settings[row.key] = row.value;
     }
 
     return new Response(
-      JSON.stringify(data),
+      JSON.stringify({ success: true, settings }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err) {
-    console.error('[admin-list-users] Unexpected error:', err);
+    console.error('[admin-get-settings] Error:', err);
     return new Response(
       JSON.stringify({ success: false, error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

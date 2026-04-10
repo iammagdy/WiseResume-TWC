@@ -1,20 +1,26 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Activity, Users } from 'lucide-react';
+import { ArrowLeft, Activity, Users, Tag, Settings, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DevKitRunner } from '@/components/dev-kit/DevKitRunner';
 import { AdminUsersPanel } from '@/components/dev-kit/AdminUsersPanel';
+import { CouponsPanel } from '@/components/dev-kit/CouponsPanel';
+import { AppSettingsPanel } from '@/components/dev-kit/AppSettingsPanel';
+import { AuditLogPanel } from '@/components/dev-kit/AuditLogPanel';
 import { DEV_KIT_VERSION } from '@/components/dev-kit/config';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-type Tab = 'health' | 'users';
+type Tab = 'health' | 'users' | 'coupons' | 'settings' | 'activity';
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
-  { id: 'health', label: 'Health & Diagnostics', icon: Activity },
+  { id: 'health', label: 'Health', icon: Activity },
   { id: 'users', label: 'Users', icon: Users },
+  { id: 'coupons', label: 'Coupons', icon: Tag },
+  { id: 'settings', label: 'Settings', icon: Settings },
+  { id: 'activity', label: 'Activity', icon: Clock },
 ];
 
 export default function DevToolsPage() {
@@ -72,13 +78,13 @@ export default function DevToolsPage() {
           </div>
           <form onSubmit={handleUnlock} className="space-y-4">
             <div className="space-y-1">
-              <Input 
-                type="password" 
-                placeholder="Developer Password" 
-                value={pw} 
-                onChange={e => { setPw(e.target.value); setPwError(false); }} 
+              <Input
+                type="password"
+                placeholder="Developer Password"
+                value={pw}
+                onChange={e => { setPw(e.target.value); setPwError(false); }}
                 disabled={isVerifying}
-                className={`h-12 bg-background/50 ${pwError ? 'border-destructive ring-destructive/20' : ''}`} 
+                className={`h-12 bg-background/50 ${pwError ? 'border-destructive ring-destructive/20' : ''}`}
               />
               {pwError && <p className="text-xs text-destructive font-medium pl-1 italic">Invalid password</p>}
             </div>
@@ -107,26 +113,32 @@ export default function DevToolsPage() {
           </div>
         </header>
 
-        {/* Tab switcher */}
-        <div className="flex gap-1 p-1 bg-muted/50 rounded-xl border border-border w-fit">
-          {TABS.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all',
-                  activeTab === tab.id
-                    ? 'bg-background shadow-sm text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                <Icon className="w-4 h-4" />
-                {tab.label}
-              </button>
-            );
-          })}
+        {/* Tab switcher — scrollable on mobile */}
+        <div className="overflow-x-auto -mx-1 px-1">
+          <div className="flex gap-1 p-1 bg-muted/50 rounded-xl border border-border w-fit min-w-full sm:min-w-0">
+            {TABS.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap',
+                    activeTab === tab.id
+                      ? 'bg-background shadow-sm text-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span className="hidden sm:inline">{tab.label}</span>
+                  <span className="sm:hidden">{tab.label}</span>
+                  {tab.id === 'users' && userCount !== null && (
+                    <span className="text-xs text-muted-foreground ml-0.5">({userCount})</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Tab content */}
@@ -139,20 +151,62 @@ export default function DevToolsPage() {
               <h2 className="text-lg font-semibold">
                 User Management
                 {userCount !== null && (
-                  <span className="ml-2 text-sm font-normal text-muted-foreground">({userCount})</span>
+                  <span className="ml-2 text-sm font-normal text-muted-foreground">({userCount} total)</span>
                 )}
               </h2>
             </div>
             <p className="text-sm text-muted-foreground">
-              View all registered users and manually assign plan tiers. Changes take effect immediately.
+              View all registered users. Click any row to manage — set plans, grant trials, suspend accounts, adjust credits, and add admin notes.
             </p>
             <AdminUsersPanel password={pw} onCountChange={setUserCount} />
+          </div>
+        )}
+
+        {activeTab === 'coupons' && (
+          <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <Tag className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold">Coupon Management</h2>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Create and manage discount codes. Users can redeem codes on the subscription page to get free plan upgrades or discounts.
+            </p>
+            <CouponsPanel password={pw} />
+          </div>
+        )}
+
+        {activeTab === 'settings' && (
+          <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <Settings className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold">App Settings</h2>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Control app-wide settings. Toggle maintenance mode, post announcements, and enable or disable features for all users.
+            </p>
+            <AppSettingsPanel password={pw} />
+          </div>
+        )}
+
+        {activeTab === 'activity' && (
+          <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold">Admin Activity Log</h2>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              A record of all admin actions — plan changes, trial grants, suspensions, credit overrides, and coupon redemptions.
+            </p>
+            <AuditLogPanel password={pw} />
           </div>
         )}
 
         <footer className="py-12 border-t border-border text-center">
           <p className="text-xs text-muted-foreground/60 font-mono italic">
             {DEV_KIT_VERSION} · Build ID: {new Date().toISOString().split('T')[0].replace(/-/g, '')}
+          </p>
+          <p className="text-xs text-muted-foreground/40 mt-1">
+            Edge functions require deployment. Ensure SUPABASE_ACCESS_TOKEN + DEV_KIT_PASSWORD are set.
           </p>
         </footer>
       </div>

@@ -21,59 +21,39 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { password, target_user_id, plan } = body;
+    const { password, key, value } = body;
 
-    if (!password) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Password required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (password !== SECRET_PASSWORD) {
+    if (!password || password !== SECRET_PASSWORD) {
       return new Response(
         JSON.stringify({ success: false, error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (!target_user_id || !plan) {
+    if (!key) {
       return new Response(
-        JSON.stringify({ success: false, error: 'target_user_id and plan are required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const cleanPlan = String(plan).toLowerCase().trim();
-    if (!['free', 'pro', 'premium'].includes(cleanPlan)) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'plan must be one of: free, pro, premium' }),
+        JSON.stringify({ success: false, error: 'key is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const supabase = getServiceClient();
 
-    const { data, error } = await supabase.rpc('admin_set_user_plan', {
-      p_target_user_id: target_user_id,
-      p_new_plan: cleanPlan,
-      p_updated_by: 'dev-kit',
-    });
-
-    if (error) {
-      console.error('[admin-set-plan] RPC error:', error);
-      return new Response(
-        JSON.stringify({ success: false, error: error.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    const { error } = await supabase
+      .from('app_settings')
+      .upsert(
+        { key, value, updated_at: new Date().toISOString() },
+        { onConflict: 'key' }
       );
-    }
+
+    if (error) throw error;
 
     return new Response(
-      JSON.stringify(data),
+      JSON.stringify({ success: true }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err) {
-    console.error('[admin-set-plan] Unexpected error:', err);
+    console.error('[admin-update-settings] Error:', err);
     return new Response(
       JSON.stringify({ success: false, error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

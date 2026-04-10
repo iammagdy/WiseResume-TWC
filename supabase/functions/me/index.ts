@@ -28,11 +28,27 @@ serve(async (req) => {
       client.from('user_preferences').select('*').eq('user_id', userId).maybeSingle(),
     ]);
 
+    // Suspension check — return 403 if account is suspended
+    const profile = profileResult.data;
+    if (profile?.is_suspended) {
+      return new Response(
+        JSON.stringify({
+          error: 'account_suspended',
+          suspension_reason: profile.suspension_reason ?? null,
+          message: 'Your account has been suspended. Please contact support.',
+        }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      );
+    }
+
     return new Response(
       JSON.stringify({
         userId,
         kinde_sub: kindeSub,
-        profile: profileResult.data || null,
+        profile: profile || null,
         preferences: prefsResult.data || null,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

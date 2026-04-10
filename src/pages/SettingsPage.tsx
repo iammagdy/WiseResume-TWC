@@ -57,6 +57,29 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+function UserIdCard({ userId }: { userId: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(userId).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+  return (
+    <button
+      onClick={handleCopy}
+      className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-muted/40 border border-border hover:bg-muted/60 transition-colors text-left"
+      title="Tap to copy your User ID"
+    >
+      <div className="min-w-0">
+        <p className="text-xs font-medium text-muted-foreground mb-0.5">Your User ID</p>
+        <p className="font-mono text-xs text-foreground truncate">{userId}</p>
+      </div>
+      <span className="text-xs text-muted-foreground shrink-0">{copied ? '✓ Copied' : 'Copy'}</span>
+    </button>
+  );
+}
+
 export default function SettingsPage() {
   const navigate = useNavigate();
   const { user, loading, supabaseSettled, signOut } = useAuth();
@@ -255,7 +278,7 @@ export default function SettingsPage() {
           {user && (
             <div>
               <SectionLabel>Account</SectionLabel>
-              <div className="mx-4">
+              <div className="mx-4 space-y-3">
                 <AccountSection
                   user={user}
                   authProvider={authProvider}
@@ -263,6 +286,7 @@ export default function SettingsPage() {
                   onSignOut={() => setSignOutConfirmOpen(true)}
                   onDeleteData={() => setDeleteDialogOpen(true)}
                 />
+                <UserIdCard userId={user.id} />
               </div>
             </div>
           )}

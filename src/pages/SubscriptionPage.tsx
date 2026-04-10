@@ -1,16 +1,19 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BackButton } from '@/components/ui/BackButton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Check, Crown, Gift, Sparkles, Gem } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Check, Crown, Gift, Sparkles, Gem, Tag, Loader2 } from 'lucide-react';
 import { useResumes } from '@/hooks/useResumes';
 import { useAICredits } from '@/hooks/useAICredits';
 import { usePlan, PlanName } from '@/hooks/usePlan';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { Skeleton } from '@/components/ui/skeleton';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 
 const PLAN_FEATURES = {
   free: [
@@ -59,7 +62,7 @@ export default function SubscriptionPage() {
   const navigate = useNavigate();
   const { data: resumes = [], isLoading: resumesLoading } = useResumes();
   const { data: credits, isLoading: creditsLoading } = useAICredits();
-  const { plan, isPro, isPremium, isLoading: planLoading } = usePlan();
+  const { plan, isPro, isPremium, isLoading: planLoading, refetch: refetchPlan } = usePlan();
 
   const resumeLimit = RESUME_LIMIT[plan];
   const resumeCount = resumes.length;
@@ -75,8 +78,35 @@ export default function SubscriptionPage() {
   };
 
   const isLoading = planLoading || resumesLoading || creditsLoading;
-
   const upgradeTarget = isPremium ? null : isPro ? 'premium' : 'pro';
+
+  const [couponCode, setCouponCode] = useState('');
+  const [redeeming, setRedeeming] = useState(false);
+  const [couponSuccess, setCouponSuccess] = useState<string | null>(null);
+
+  const handleRedeemCoupon = async () => {
+    if (!couponCode.trim()) return;
+    haptics.light();
+    setRedeeming(true);
+    setCouponSuccess(null);
+    try {
+      const { data, error } = await edgeFunctions.functions.invoke('redeem-coupon', {
+        body: { code: couponCode.trim().toUpperCase() },
+      });
+      if (error) throw new Error(error.message);
+      const result = data as { success?: boolean; message?: string; new_plan?: string; error?: string };
+      if (result?.success === false) throw new Error(result.error ?? 'Invalid or expired code');
+      const msg = result.message ?? 'Coupon applied!';
+      setCouponSuccess(msg);
+      toast.success(msg);
+      setCouponCode('');
+      refetchPlan?.();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to redeem coupon');
+    } finally {
+      setRedeeming(false);
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -210,6 +240,41 @@ export default function SubscriptionPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Coupon Redemption */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Tag className="w-4 h-4 text-primary" />
+              Redeem a Coupon
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Got a promo code? Enter it below to unlock a free plan upgrade or discount.
+            </p>
+            {couponSuccess ? (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-sm text-green-600 dark:text-green-400">
+                <Check className="w-4 h-4 shrink-0" />
+                {couponSuccess}
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Input
+                  placeholder="COUPONCODE"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === 'Enter' && handleRedeemCoupon()}
+                  className="font-mono uppercase tracking-widest"
+                  disabled={redeeming}
+                />
+                <Button onClick={handleRedeemCoupon} disabled={redeeming || !couponCode.trim()} className="shrink-0">
+                  {redeeming ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Apply'}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Referral Link */}
         <Card className="bg-gradient-to-br from-primary/5 to-accent/5">

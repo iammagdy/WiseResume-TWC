@@ -21,47 +21,32 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { password, target_user_id, plan } = body;
+    const { password, target_user_id, note_text } = body;
 
-    if (!password) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Password required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (password !== SECRET_PASSWORD) {
+    if (!password || password !== SECRET_PASSWORD) {
       return new Response(
         JSON.stringify({ success: false, error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (!target_user_id || !plan) {
+    if (!target_user_id || !note_text?.trim()) {
       return new Response(
-        JSON.stringify({ success: false, error: 'target_user_id and plan are required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const cleanPlan = String(plan).toLowerCase().trim();
-    if (!['free', 'pro', 'premium'].includes(cleanPlan)) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'plan must be one of: free, pro, premium' }),
+        JSON.stringify({ success: false, error: 'target_user_id and note_text are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const supabase = getServiceClient();
 
-    const { data, error } = await supabase.rpc('admin_set_user_plan', {
-      p_target_user_id: target_user_id,
-      p_new_plan: cleanPlan,
-      p_updated_by: 'dev-kit',
-    });
+    const { data, error } = await supabase
+      .from('admin_user_notes')
+      .insert({ user_id: target_user_id, note_text: note_text.trim() })
+      .select()
+      .single();
 
     if (error) {
-      console.error('[admin-set-plan] RPC error:', error);
+      console.error('[admin-save-note] DB error:', error);
       return new Response(
         JSON.stringify({ success: false, error: error.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -69,11 +54,11 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify(data),
+      JSON.stringify({ success: true, note: data }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err) {
-    console.error('[admin-set-plan] Unexpected error:', err);
+    console.error('[admin-save-note] Unexpected error:', err);
     return new Response(
       JSON.stringify({ success: false, error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

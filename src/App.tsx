@@ -20,6 +20,9 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { RedirectJobRoute } from "@/components/layout/RedirectJobRoute";
 import { useAIKeyHydration } from "@/hooks/useAIKeyHydration";
+import { useSuspensionCheck } from "@/hooks/useSuspensionCheck";
+import { SuspendedScreen } from "@/components/layout/SuspendedScreen";
+import { useAuth } from "@/hooks/useAuth";
 
 import { KindeProvider } from "@kinde-oss/kinde-auth-react";
 import {
@@ -158,11 +161,14 @@ function AppRoutes() {
 
   const { biometricLockEnabled, biometricLockTimeout, hasSeenSplash, setHasSeenSplash } = useSettingsStore();
   const { isLocked, isAvailable, biometryType, isAuthenticating, authenticate } = useBiometricLock(biometricLockEnabled, biometricLockTimeout);
+  const { signOut } = useAuth();
   const location = useLocation();
 
   const isPublicStandalone = location.pathname.startsWith('/p/') ||
   location.pathname.startsWith('/share/') ||
   location.pathname.startsWith('/l/') ||     location.pathname.startsWith('/auth/callback');
+
+  const { isSuspended, suspensionReason } = useSuspensionCheck();
 
   useEffect(() => {
     const handleRejection = (event: PromiseRejectionEvent) => {
@@ -177,6 +183,10 @@ function AppRoutes() {
 
   if (!hasSeenSplash && !isPublicStandalone) {
     return <AnimatedSplash onComplete={() => setHasSeenSplash(true)} />;
+  }
+
+  if (isSuspended && !isPublicStandalone) {
+    return <SuspendedScreen reason={suspensionReason} onSignOut={signOut} />;
   }
 
   if (biometricLockEnabled && isLocked && isAvailable) {
