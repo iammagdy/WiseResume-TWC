@@ -26,6 +26,7 @@ const ACTION_COLORS: Record<string, string> = {
   unsuspend: 'bg-green-500/10 text-green-600 border-green-500/20',
   credits_override: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
   redeem: 'bg-teal-500/10 text-teal-600 border-teal-500/20',
+  note_added: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
 };
 
 const ACTION_FILTERS = [
@@ -37,6 +38,7 @@ const ACTION_FILTERS = [
   { value: 'unsuspend', label: 'Unsuspend' },
   { value: 'credits_override', label: 'Credits override' },
   { value: 'redeem', label: 'Coupon redeem' },
+  { value: 'note_added', label: 'Note added' },
 ];
 
 function formatDate(iso: string) {
@@ -49,12 +51,13 @@ function summarizeMetadata(action: string, meta: Record<string, unknown>): strin
   if (action === 'plan_change' && meta.new_plan) return `→ ${meta.new_plan}`;
   if (action === 'trial_grant') return `${meta.trial_plan} for ${meta.days}d`;
   if (action === 'credits_override') {
-    const parts = [];
+    const parts: string[] = [];
     if (meta.daily_limit !== null && meta.daily_limit !== undefined) parts.push(`limit→${meta.daily_limit}`);
     if (meta.bonus_credits) parts.push(`+${meta.bonus_credits} bonus`);
     return parts.join(', ');
   }
   if (action === 'redeem' && meta.code) return `code: ${meta.code}`;
+  if (action === 'note_added' && meta.note_preview) return String(meta.note_preview).slice(0, 60);
   if (meta.reason) return String(meta.reason);
   return '';
 }

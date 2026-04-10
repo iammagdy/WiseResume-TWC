@@ -82,6 +82,16 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Write a note_added event to audit_logs for Activity tab visibility
+    await supabase
+      .from('audit_logs')
+      .insert({
+        user_id: target_user_id,
+        category: 'admin',
+        action: 'note_added',
+        metadata: { note_preview: note_text.trim().slice(0, 80) },
+      });
+
     return new Response(
       JSON.stringify({ success: true, note: data }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

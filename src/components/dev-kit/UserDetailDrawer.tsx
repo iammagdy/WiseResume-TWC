@@ -427,6 +427,9 @@ export function UserDetailDrawer({ user: userProp, password, open, onClose, onUs
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium capitalize">{entry.action.replace(/_/g, ' ')}</p>
                       <p className="text-[10px] text-muted-foreground">{summarizeAction(entry.action, entry.metadata)}</p>
+                      <p className="text-[10px] text-muted-foreground/60">
+                        by {(entry.metadata?.actor_email as string) ?? (entry.category === 'admin' ? 'Admin' : 'System')}
+                      </p>
                     </div>
                     <p className="text-[10px] text-muted-foreground shrink-0">{formatDate(entry.created_at)}</p>
                   </div>
