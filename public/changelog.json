@@ -1,8 +1,128 @@
 [
   {
+    "version": "v3.0.0",
+    "date": "Apr 10, 2026",
+    "latest": true,
+    "summary": "A major milestone — AI Settings completely overhauled with 9 BYOK providers, a cleaner interface, and smarter compatibility warnings so you always know your setup is working.",
+    "items": [
+      {
+        "title": "WiseResume AI test results are now clearly branded",
+        "description": "When you tap 'Test AI Connection' in Settings, the result now shows a clean 'WiseResume AI' confirmation — no raw model names or internal provider IDs. You simply see that your AI is working."
+      },
+      {
+        "title": "Tool-calling compatibility warning",
+        "description": "If you configure a BYOK model that doesn't support advanced AI features — such as Ollama Cloud or certain base models — a warning chip now appears upfront before you run into a silent failure. WiseResume tells you early so you can pick a compatible model."
+      },
+      {
+        "title": "AI Settings redesigned with two clear paths",
+        "description": "The AI Settings panel is now split into two distinct sections: WiseResume AI (managed, no setup needed) and BYOK (bring your own key). Less clutter, easier to switch, and much clearer what each option means."
+      },
+      {
+        "title": "All 9 BYOK providers share one consistent setup flow",
+        "description": "No matter which provider you choose — OpenAI, Anthropic, Groq, Mistral, or any of the others — the setup experience is the same: enter your key, pick a model, validate. Done."
+      },
+      {
+        "title": "Reliability improvements throughout",
+        "description": "Multiple edge cases in BYOK key validation, model fetching, and AI routing have been resolved. The AI connection test is more stable and the fallback behaviour is more predictable across all providers."
+      }
+    ]
+  },
+  {
+    "version": "v2.9.0",
+    "date": "Apr 8, 2026",
+    "latest": false,
+    "summary": "BYOK now supports 9 providers — including OpenAI, Anthropic Claude, Groq, Mistral, and more — with a new unified picker and live model lists pulled directly from each provider.",
+    "items": [
+      {
+        "title": "7 new BYOK providers added",
+        "description": "You can now connect your own API key from OpenAI, Anthropic Claude, Groq, Mistral, xAI Grok, Cohere, and OpenRouter — in addition to the existing Gemini and Ollama support. That's 9 providers total."
+      },
+      {
+        "title": "New unified provider picker",
+        "description": "All BYOK providers now live inside one clean interface. Browse, select, and switch between providers in a single place instead of hunting through separate sections."
+      },
+      {
+        "title": "Live model lists fetched from each provider",
+        "description": "Instead of a fixed dropdown, model options are now fetched live from each provider's API. You always see the models actually available on your key — not a hardcoded list that may be out of date."
+      },
+      {
+        "title": "Anthropic Claude fully supported for all AI features",
+        "description": "Claude Sonnet, Haiku, and Opus now work for every AI action in WiseResume — including resume parsing, tailoring, ATS scoring, and structured improvements. All features that previously required workarounds now run cleanly."
+      }
+    ]
+  },
+  {
+    "version": "v2.8.0",
+    "date": "Apr 6, 2026",
+    "latest": false,
+    "summary": "Pro and Pro+ features are now clearly marked across the app, with smart upgrade prompts and resume creation limits enforced per plan.",
+    "items": [
+      {
+        "title": "Premium features visually flagged throughout the app",
+        "description": "Pro-only and Pro+-only features now have clear visual indicators wherever they appear — so you always know at a glance what's included in your plan and what requires an upgrade."
+      },
+      {
+        "title": "Smart upgrade prompts instead of silent failures",
+        "description": "Attempting to use a feature beyond your plan now shows a friendly, informative prompt explaining what you'd get with an upgrade — rather than a confusing error or nothing happening at all."
+      },
+      {
+        "title": "Resume creation limits enforced by plan",
+        "description": "Free plan users can see their remaining resume slots at a glance and are guided toward upgrading when they've reached the limit, with a clear explanation of what each plan includes."
+      },
+      {
+        "title": "Faster support for plan changes",
+        "description": "Plan changes and trial grants can now be applied directly by the support team, which means quicker resolution if you ever need a manual plan adjustment."
+      }
+    ]
+  },
+  {
+    "version": "v2.7.0",
+    "date": "Apr 3, 2026",
+    "latest": false,
+    "summary": "WiseResume now has three clear subscription tiers — Free, Pro, and Pro+ — with a new Subscription page where you can see your plan, usage, and upgrade in one place.",
+    "items": [
+      {
+        "title": "New pricing tiers: Free, Pro, and Pro+",
+        "description": "WiseResume now offers three plans with a clear breakdown of what each includes. Whether you're just getting started or running a full job search, there's a tier that fits."
+      },
+      {
+        "title": "New Subscription page",
+        "description": "A dedicated Subscription page shows your current plan, AI credit usage, and renewal status all in one place. Upgrade or start a trial directly from the same page — no digging through settings."
+      },
+      {
+        "title": "Trial access for eligible users",
+        "description": "Eligible users can now activate a limited-time trial of Pro or Pro+ directly from the Subscription page to try the full feature set before committing."
+      },
+      {
+        "title": "AI credit tracking",
+        "description": "AI credits used per action are now tracked and visible in your account, so you always know where you stand and can plan your usage accordingly."
+      }
+    ]
+  },
+  {
+    "version": "v2.6.0",
+    "date": "Apr 1, 2026",
+    "latest": false,
+    "summary": "Import your LinkedIn profile when creating a resume, and enjoy a faster, more reliable WiseResume AI powered by a new dual-engine system.",
+    "items": [
+      {
+        "title": "LinkedIn import in Create Resume",
+        "description": "When creating a new resume, you can now pull your LinkedIn profile directly into WiseResume as a starting point — saving you from filling everything in by hand. Just paste your profile and let WiseResume do the rest."
+      },
+      {
+        "title": "WiseResume AI is faster and more reliable",
+        "description": "The AI engine now runs on a dual-AI system with automatic fallback. This means faster responses day-to-day and fewer interruptions if one engine is temporarily busy — your work keeps moving without delays."
+      },
+      {
+        "title": "AI connection test edge case fixed",
+        "description": "The 'Test AI Connection' button in Settings was occasionally returning a confusing error for WiseResume AI users. This is now fixed — the test connects cleanly every time."
+      }
+    ]
+  },
+  {
     "version": "v2.5.1",
     "date": "Mar 30, 2026",
-    "latest": true,
+    "latest": false,
     "summary": "A quick stability and polish update — the Interview Prep page no longer crashes, and the empty dashboard now shows real previews of your future resume.",
     "items": [
       {
