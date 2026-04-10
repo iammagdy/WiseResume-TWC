@@ -78,11 +78,28 @@ Deno.serve(async (req) => {
         }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      // Determine which engine to test
-      const testEngine = (sub === 'groq' && groqKey) ? 'groq'
-        : (sub === 'openrouter' && openrouterKey) ? 'openrouter'
-        : openrouterKey ? 'openrouter'
-        : 'groq';
+      // Determine which engine to test — fail explicitly if selected engine key is missing
+      let testEngine: 'openrouter' | 'groq';
+      if (sub === 'openrouter') {
+        if (!openrouterKey) {
+          return new Response(JSON.stringify({
+            isValid: false,
+            error: 'OpenRouter engine is not configured. Please contact support.',
+          }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        testEngine = 'openrouter';
+      } else if (sub === 'groq') {
+        if (!groqKey) {
+          return new Response(JSON.stringify({
+            isValid: false,
+            error: 'Groq engine is not configured. Please contact support.',
+          }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        testEngine = 'groq';
+      } else {
+        // Auto: prefer OpenRouter, fall back to Groq
+        testEngine = openrouterKey ? 'openrouter' : 'groq';
+      }
 
       try {
         let resp: Response;
