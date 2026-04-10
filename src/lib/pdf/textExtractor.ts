@@ -1,4 +1,10 @@
 import * as pdfjsLib from 'pdfjs-dist';
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+
+// pdfjs-dist v4 removed the disableWorker option from getDocument().
+// GlobalWorkerOptions.workerSrc must be set so pdfjs can load the worker
+// correctly. Vite's ?url import resolves this to the properly bundled path.
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 interface TextItem {
   str: string;
@@ -68,12 +74,9 @@ export interface ExtractionResult {
 export async function extractTextFromPDF(file: File): Promise<ExtractionResult> {
   const arrayBuffer = await file.arrayBuffer();
 
-  // Always run without the web worker — it's only a performance optimisation and
-  // frequently fails in production (CSP headers, Service Worker conflicts, stale
-  // cached worker file). For 1–5 page resume PDFs the difference is imperceptible.
   let pdf;
   try {
-    pdf = await pdfjsLib.getDocument({ data: arrayBuffer, disableWorker: true }).promise;
+    pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : '';
     const errorName = error instanceof Error ? error.name : '';

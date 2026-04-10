@@ -7,8 +7,13 @@
  */
 
 import * as pdfjsLib from 'pdfjs-dist';
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { createWorker, Worker } from 'tesseract.js';
+
 import { preprocessResumeText } from './textPreprocessor';
+
+// pdfjs-dist v4: configure worker via GlobalWorkerOptions (disableWorker was removed).
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 export interface OCRProgress {
   page: number;
