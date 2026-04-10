@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAI, isAIError, toUserError, sanitizeInputText } from "../_shared/aiClient.ts";
+import { callAI, isAIError, toUserError, sanitizeInputText, parseAIJSON } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { decodeJwtPayload } from "../_shared/authMiddleware.ts";
 import { localParseResume } from "./localParser.ts";
@@ -380,14 +380,21 @@ serve(async (req) => {
       });
 
       const toolCall = aiResponse.toolCalls?.[0];
-      if (!toolCall || toolCall.function.name !== 'parse_resume') {
+      let parsedFromTool: any = null;
+      if (toolCall?.function?.name === 'parse_resume' && toolCall.function.arguments) {
+        try { parsedFromTool = JSON.parse(toolCall.function.arguments); } catch {}
+      }
+      if (!parsedFromTool && aiResponse.content) {
+        parsedFromTool = parseAIJSON(aiResponse.content);
+      }
+      if (!parsedFromTool) {
         // Throw so the catch block can engage the localParseResume fallback
         const unexpectedErr: any = new Error('AI returned unexpected response format');
         unexpectedErr.status = 503;
         throw unexpectedErr;
       }
 
-      parsedResume = JSON.parse(toolCall.function.arguments);
+      parsedResume = parsedFromTool;
 
       // Phase 4: Check completeness and retry if needed
       const firstPassConfidence = computeFieldConfidence(parsedResume);
@@ -416,8 +423,14 @@ serve(async (req) => {
           });
 
           const retryCall = retryResponse.toolCalls?.[0];
-          if (retryCall?.function.name === 'parse_resume') {
-            const retryData = JSON.parse(retryCall.function.arguments);
+          let retryData: any = null;
+          if (retryCall?.function?.name === 'parse_resume' && retryCall.function.arguments) {
+            try { retryData = JSON.parse(retryCall.function.arguments); } catch {}
+          }
+          if (!retryData && retryResponse.content) {
+            retryData = parseAIJSON(retryResponse.content);
+          }
+          if (retryData) {
             // Merge: prefer pass 2 values for missing fields only
             parsedResume = mergeParseResults(parsedResume, retryData, firstPassConfidence.fieldConfidence);
             console.log('✅ Pass 2 merge complete');

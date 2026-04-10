@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAI, isAIError, toUserError } from "../_shared/aiClient.ts";
+import { callAI, isAIError, toUserError, parseAIJSON } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 
@@ -114,14 +114,19 @@ FACTUAL CONSTRAINTS:
     });
 
     const toolCall = aiResponse.toolCalls?.[0];
-    if (!toolCall?.function?.arguments) {
+    let result: any = null;
+    if (toolCall?.function?.arguments) {
+      try { result = JSON.parse(toolCall.function.arguments); } catch {}
+    }
+    if (!result && aiResponse.content) {
+      result = parseAIJSON(aiResponse.content);
+    }
+    if (!result) {
       return new Response(
         JSON.stringify({ error: "Invalid AI response format" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const result = JSON.parse(toolCall.function.arguments);
 
     await recordUsage(userId, 'fill_gap', { provider: aiResponse.providerUsed || 'unknown' });
 

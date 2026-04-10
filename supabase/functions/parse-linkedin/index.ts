@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAI, isAIError, toUserError, sanitizeInputText } from "../_shared/aiClient.ts";
+import { callAI, isAIError, toUserError, sanitizeInputText, parseAIJSON } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 
@@ -182,11 +182,16 @@ Extract certifications from the "Licenses & Certifications" section, volunteerin
     });
 
     const toolCall = aiResponse.toolCalls?.[0];
-    if (!toolCall?.function?.arguments) {
+    let extractedData: any = null;
+    if (toolCall?.function?.arguments) {
+      try { extractedData = JSON.parse(toolCall.function.arguments); } catch {}
+    }
+    if (!extractedData && aiResponse.content) {
+      extractedData = parseAIJSON(aiResponse.content);
+    }
+    if (!extractedData) {
       throw new Error("No structured data returned from AI");
     }
-
-    const extractedData = JSON.parse(toolCall.function.arguments);
 
     await recordUsage(userId, 'parse_linkedin', { provider: aiResponse.providerUsed || 'unknown' });
 

@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
-import { callAI, toUserError } from '../_shared/aiClient.ts';
+import { callAI, toUserError, parseAIJSON } from '../_shared/aiClient.ts';
 import { recordUsage } from '../_shared/rateLimiter.ts';
 
 serve(async (req) => {
@@ -93,11 +93,16 @@ ${resumeSummary ? `Candidate Summary: ${resumeSummary.slice(0, 1000)}` : ''}`;
     });
 
     const toolCall = aiResponse.toolCalls?.[0];
-    if (!toolCall?.function?.arguments) {
-      throw new Error('No tool call returned');
+    let result: any = null;
+    if (toolCall?.function?.arguments) {
+      try { result = JSON.parse(toolCall.function.arguments); } catch {}
     }
-
-    const result = JSON.parse(toolCall.function.arguments);
+    if (!result && aiResponse.content) {
+      result = parseAIJSON(aiResponse.content);
+    }
+    if (!result) {
+      throw new Error('No structured result returned from AI');
+    }
     const providerUsed = aiResponse.providerUsed || 'unknown';
 
     await recordUsage(userId, 'question_bank', { provider: providerUsed });

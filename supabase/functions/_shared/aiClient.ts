@@ -388,7 +388,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
     if (hasManagedAI) {
       console.log('[AI] Using WiseResume AI (sub-provider:', wiseresumeSubProvider, ')');
       const res = await callWiseresumeAI(wiseresumeSubProvider, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
-      return { ...res, providerUsed: res.providerUsed || 'wiseresume' };
+      return { ...normalizeToolCallResponse(res, toolChoice), providerUsed: res.providerUsed || 'wiseresume' };
     }
 
     // Priority 4: Legacy GEMINI_API_KEY fallback
@@ -965,7 +965,23 @@ async function callWiseresumeAI(
     return await tryGroq();
   }
 
-  // Auto: try OpenRouter first, then Groq
+  // Auto mode: prefer Groq when tool calling is requested (Llama 3.3 has better
+  // function-calling reliability than Gemma 4 free). For plain text, keep
+  // OpenRouter first (higher throughput, no Groq rate-limit concerns).
+  const needsTools = !!(tools && tools.length > 0);
+
+  if (needsTools && groqKey) {
+    try {
+      return await tryGroq();
+    } catch (err) {
+      console.warn('[AI] WiseResume Groq (tool-call) failed, trying OpenRouter:', err instanceof Error ? err.message : err);
+      if (openrouterKey) {
+        return await tryOpenRouter();
+      }
+      throw err;
+    }
+  }
+
   if (openrouterKey) {
     try {
       return await tryOpenRouter();
@@ -1247,6 +1263,43 @@ export function toUserError(error: unknown): { status: number; error: string; me
     status: 500,
     error: 'internal',
     message: 'Something went wrong. Please try again.',
+  };
+}
+
+/**
+ * When a model returns structured data as text content instead of a proper tool
+ * call (common with smaller free models), reconstruct a synthetic tool call so
+ * that all downstream edge-function parsers work without modification.
+ *
+ * Only fires when:
+ *  - The response has no tool calls
+ *  - The response has non-empty content
+ *  - toolChoice is a specific function (not 'auto')
+ *  - The content parses to valid JSON
+ */
+function normalizeToolCallResponse(
+  response: AIResponse,
+  toolChoice?: AICallOptions['toolChoice'],
+): AIResponse {
+  if (response.toolCalls?.length) return response;
+  if (!response.content?.trim()) return response;
+  if (!toolChoice || toolChoice === 'auto' || typeof toolChoice !== 'object') return response;
+
+  const parsed = parseAIJSON(response.content);
+  if (!parsed) return response;
+
+  console.log(`[AI] normalizeToolCallResponse: reconstructed tool call "${toolChoice.function.name}" from content JSON`);
+  return {
+    ...response,
+    toolCalls: [{
+      id: 'call_content_0',
+      type: 'function' as const,
+      function: {
+        name: toolChoice.function.name,
+        arguments: JSON.stringify(parsed),
+      },
+    }],
+    content: null,
   };
 }
 
