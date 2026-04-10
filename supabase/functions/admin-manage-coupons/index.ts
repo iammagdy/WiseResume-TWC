@@ -52,6 +52,7 @@ Deno.serve(async (req) => {
         discount_value,
         plan_override,
         plan_days,
+        target_plan,
         expires_at,
         max_uses,
       } = rest;
@@ -71,6 +72,7 @@ Deno.serve(async (req) => {
           discount_value: discount_value || 0,
           plan_override: plan_override || null,
           plan_days: plan_days || null,
+          target_plan: target_plan || null,
           expires_at: expires_at || null,
           max_uses: max_uses || 0,
           is_active: true,

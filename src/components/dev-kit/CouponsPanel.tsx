@@ -20,6 +20,7 @@ interface Coupon {
   discount_value: number;
   plan_override: string | null;
   plan_days: number | null;
+  target_plan: string | null;
   expires_at: string | null;
   max_uses: number;
   uses_count: number;
@@ -48,6 +49,7 @@ export function CouponsPanel({ password }: CouponsPanelProps) {
   const [newDays, setNewDays] = useState('30');
   const [newExpiry, setNewExpiry] = useState('');
   const [newMaxUses, setNewMaxUses] = useState('0');
+  const [newTargetPlan, setNewTargetPlan] = useState<'' | 'free' | 'pro' | 'premium'>('');
   const [creating, setCreating] = useState(false);
 
   const fetchCoupons = useCallback(async () => {
@@ -114,6 +116,7 @@ export function CouponsPanel({ password }: CouponsPanelProps) {
           discount_value: newType === 'percent' ? Number(newValue) : 0,
           plan_override: newType === 'plan_upgrade' ? newPlan : null,
           plan_days: newType === 'plan_upgrade' && newDays ? Number(newDays) : null,
+          target_plan: newTargetPlan || null,
           expires_at: newExpiry || null,
           max_uses: Number(newMaxUses) || 0,
         },
@@ -123,7 +126,7 @@ export function CouponsPanel({ password }: CouponsPanelProps) {
       if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
       toast.success(`Coupon "${newCode.toUpperCase()}" created`);
       setCreateOpen(false);
-      setNewCode(''); setNewValue(''); setNewExpiry(''); setNewMaxUses('0');
+      setNewCode(''); setNewValue(''); setNewExpiry(''); setNewMaxUses('0'); setNewTargetPlan('');
       fetchCoupons();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to create coupon');
@@ -189,9 +192,13 @@ export function CouponsPanel({ password }: CouponsPanelProps) {
                       {c.discount_type === 'plan_upgrade' ? (
                         <span className="text-xs text-muted-foreground">
                           {c.plan_override} {c.plan_days ? `(${c.plan_days}d)` : '(perm)'}
+                          {c.target_plan && <span className="ml-1 text-amber-600">→ {c.target_plan} only</span>}
                         </span>
                       ) : (
-                        <span className="text-xs text-muted-foreground">{c.discount_value}% off</span>
+                        <span className="text-xs text-muted-foreground">
+                          {c.discount_value}% off
+                          {c.target_plan && <span className="ml-1 text-amber-600">→ {c.target_plan} only</span>}
+                        </span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground hidden md:table-cell">
@@ -284,6 +291,20 @@ export function CouponsPanel({ password }: CouponsPanelProps) {
                 </div>
               </div>
             )}
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Restrict to plan (optional)</p>
+              <select
+                value={newTargetPlan}
+                onChange={(e) => setNewTargetPlan(e.target.value as '' | 'free' | 'pro' | 'premium')}
+                className="w-full text-sm bg-background border border-border rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="">Any plan</option>
+                <option value="free">Free only</option>
+                <option value="pro">Pro only</option>
+                <option value="premium">Premium only</option>
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">Only users on this plan can redeem.</p>
+            </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Expires (optional)</p>

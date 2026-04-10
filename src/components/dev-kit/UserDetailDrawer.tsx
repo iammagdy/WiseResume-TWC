@@ -321,9 +321,19 @@ export function UserDetailDrawer({ user: userProp, password, open, onClose, onUs
               <span className="text-xs text-muted-foreground">{user.resume_count}</span>
             </div>
             <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground font-medium">Short links</span>
+              <span className="text-xs text-muted-foreground">{user.link_count ?? 0}</span>
+            </div>
+            <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground font-medium">AI credits (today)</span>
               <span className="text-xs text-muted-foreground">
                 {user.credits_used_today} / {user.daily_limit === -1 ? 'unlimited' : (user.daily_limit ?? '—')}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground font-medium">Daily AI limit</span>
+              <span className="text-xs text-muted-foreground">
+                {user.daily_limit === -1 ? 'Unlimited' : user.daily_limit != null ? `${user.daily_limit} / day` : '—'}
               </span>
             </div>
             {user.plan_updated_at && (

@@ -125,6 +125,17 @@ const queryClient = new QueryClient({
   }
 });
 
+function FeatureGate({
+  enabled,
+  children,
+}: {
+  enabled: boolean;
+  children: React.ReactNode;
+}) {
+  if (!enabled) return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+}
+
 function AppRoutes() {
   useBackButton();
   useStatusBarThemeSync();
@@ -233,28 +244,28 @@ function AppRoutes() {
                <Route path="/preview" element={<Suspense fallback={<PreviewSkeleton />}><PreviewPage /></Suspense>} />
                <Route path="/upload" element={<Suspense fallback={<UploadSkeleton />}><UploadPage /></Suspense>} />
                <Route path="/settings" element={<Suspense fallback={<SettingsSkeleton />}><SettingsPage /></Suspense>} />
-               <Route path="/interview" element={<Suspense fallback={<InterviewSkeleton />}><InterviewPage /></Suspense>} />
-                <Route path="/applications" element={<Suspense fallback={<ApplicationsSkeleton />}><ApplicationsPage /></Suspense>} />
+               <Route path="/interview" element={<FeatureGate enabled={appSettings.feature_interview_coach}><Suspense fallback={<InterviewSkeleton />}><InterviewPage /></Suspense></FeatureGate>} />
+                <Route path="/applications" element={<FeatureGate enabled={appSettings.feature_applications}><Suspense fallback={<ApplicationsSkeleton />}><ApplicationsPage /></Suspense></FeatureGate>} />
                 <Route path="/onboarding" element={<Suspense fallback={<OnboardingSkeleton />}><OnboardingPage /></Suspense>} />
                 <Route path="/profile" element={<Suspense fallback={<ProfilePageSkeleton />}><ProfilePage /></Suspense>} />
                 <Route path="/templates" element={<Suspense fallback={<TemplatesPageSkeleton />}><TemplatesPage /></Suspense>} />
                 <Route path="/resume/:id" element={<Suspense fallback={<DetailSkeleton />}><ResumeDetailPage /></Suspense>} />
                 <Route path="/job/:id" element={<Suspense fallback={<DetailSkeleton />}><JobDetailPage /></Suspense>} />
-                <Route path="/application/:id" element={<Suspense fallback={<DetailSkeleton />}><ApplicationTrackerPage /></Suspense>} />
+                <Route path="/application/:id" element={<FeatureGate enabled={appSettings.feature_applications}><Suspense fallback={<DetailSkeleton />}><ApplicationTrackerPage /></Suspense></FeatureGate>} />
                  <Route path="/notifications" element={<Suspense fallback={<NotificationsSkeleton />}><NotificationsPage /></Suspense>} />
-                 <Route path="/portfolio" element={<Suspense fallback={<PortfolioEditorSkeleton />}><PortfolioEditorPage /></Suspense>} />
+                 <Route path="/portfolio" element={<FeatureGate enabled={appSettings.feature_portfolio}><Suspense fallback={<PortfolioEditorSkeleton />}><PortfolioEditorPage /></Suspense></FeatureGate>} />
                  
-                 <Route path="/cover-letters" element={<Suspense fallback={<CoverLettersSkeleton />}><CoverLettersPage /></Suspense>} />
-                <Route path="/cover-letter/new" element={<Suspense fallback={<DetailSkeleton />}><CoverLetterNewPage /></Suspense>} />
-                <Route path="/cover-letter/edit/:id" element={<Suspense fallback={<DetailSkeleton />}><CoverLetterEditPage /></Suspense>} />
+                 <Route path="/cover-letters" element={<FeatureGate enabled={appSettings.feature_cover_letters}><Suspense fallback={<CoverLettersSkeleton />}><CoverLettersPage /></Suspense></FeatureGate>} />
+                <Route path="/cover-letter/new" element={<FeatureGate enabled={appSettings.feature_cover_letters}><Suspense fallback={<DetailSkeleton />}><CoverLetterNewPage /></Suspense></FeatureGate>} />
+                <Route path="/cover-letter/edit/:id" element={<FeatureGate enabled={appSettings.feature_cover_letters}><Suspense fallback={<DetailSkeleton />}><CoverLetterEditPage /></Suspense></FeatureGate>} />
                 <Route path="/examples" element={<Suspense fallback={<GuidesExamplesSkeleton />}><ExamplesPage /></Suspense>} />
-                <Route path="/career" element={<Suspense fallback={<DetailSkeleton />}><CareerPage /></Suspense>} />
+                <Route path="/career" element={<FeatureGate enabled={appSettings.feature_career_advisor}><Suspense fallback={<DetailSkeleton />}><CareerPage /></Suspense></FeatureGate>} />
                 <Route path="/resignation-letters" element={<Suspense fallback={<ResignationLettersSkeleton />}><ResignationLettersPage /></Suspense>} />
                 <Route path="/resignation-letter/new" element={<Suspense fallback={<DetailSkeleton />}><ResignationLetterNewPage /></Suspense>} />
                 <Route path="/resignation-letter/edit/:id" element={<Suspense fallback={<DetailSkeleton />}><ResignationLetterEditPage /></Suspense>} />
                 <Route path="/guides" element={<Suspense fallback={<GuidesExamplesSkeleton />}><GuidesPage /></Suspense>} />
                 <Route path="/guides/:slug" element={<Suspense fallback={<DetailSkeleton />}><GuidePage /></Suspense>} />
-                 <Route path="/ai-studio" element={<Suspense fallback={<AIStudioSkeleton />}><AIStudioPage /></Suspense>} />
+                 <Route path="/ai-studio" element={<FeatureGate enabled={appSettings.feature_ai_studio}><Suspense fallback={<AIStudioSkeleton />}><AIStudioPage /></Suspense></FeatureGate>} />
                  <Route path="/help" element={<Suspense fallback={<DetailSkeleton />}><HelpPage /></Suspense>} />
                  <Route path="/analytics" element={<Suspense fallback={<AnalyticsSkeleton />}><AnalyticsPage /></Suspense>} />
                  <Route path="/subscription" element={<Suspense fallback={<DetailSkeleton />}><SubscriptionPage /></Suspense>} />

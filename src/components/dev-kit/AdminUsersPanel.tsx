@@ -14,6 +14,7 @@ export interface AdminUser {
   plan_status: string;
   created_at: string;
   resume_count: number;
+  link_count: number;
   last_sign_in_at: string | null;
   plan_updated_at: string | null;
   trial_plan: string | null;
