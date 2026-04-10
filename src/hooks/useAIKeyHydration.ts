@@ -3,7 +3,7 @@
  * Ensures the UI reflects saved provider config even after page reload.
  */
 import { useEffect, useRef } from 'react';
-import { useSettingsStore } from '@/store/settingsStore';
+import { useSettingsStore, AIProvider } from '@/store/settingsStore';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from '@/hooks/useAuth';
@@ -11,7 +11,13 @@ import { useAIHealthStore } from '@/store/aiHealthStore';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const ALL_BYOK_PROVIDERS = ['gemini', 'ollama', 'openrouter', 'openai', 'anthropic', 'groq', 'mistral', 'xai', 'cohere'];
+const ALL_AI_PROVIDERS: AIProvider[] = [
+  'wiseresume', 'openai', 'anthropic', 'gemini', 'groq', 'mistral', 'xai', 'cohere', 'openrouter', 'ollama',
+];
+
+function isValidAIProvider(p: string): p is AIProvider {
+  return ALL_AI_PROVIDERS.includes(p as AIProvider);
+}
 
 export function useAIKeyHydration() {
   const hydrated = useRef(false);
@@ -104,10 +110,8 @@ export function useAIKeyHydration() {
           .eq('user_id', userId)
           .maybeSingle();
 
-        if (prefs?.ai_provider && ALL_BYOK_PROVIDERS.includes(prefs.ai_provider)) {
-          store.setAIProvider(prefs.ai_provider as any);
-        } else if (prefs?.ai_provider === 'wiseresume') {
-          store.setAIProvider('wiseresume');
+        if (prefs?.ai_provider && isValidAIProvider(prefs.ai_provider)) {
+          store.setAIProvider(prefs.ai_provider);
         }
 
         if (prefs?.wiseresume_sub_provider) {

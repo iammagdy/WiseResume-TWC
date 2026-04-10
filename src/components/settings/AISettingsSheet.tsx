@@ -228,8 +228,10 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     setWiseresumeSubProvider,
   } = useSettingsStore();
 
-  // ── Main mode: 'wiseresume' or 'byok' ──
-  const mainMode: 'wiseresume' | 'byok' = aiProvider === 'wiseresume' ? 'wiseresume' : 'byok';
+  // ── UI mode (decoupled from aiProvider so first-time BYOK setup is accessible) ──
+  const [uiMode, setUiMode] = useState<'wiseresume' | 'byok'>(
+    aiProvider !== 'wiseresume' ? 'byok' : 'wiseresume'
+  );
 
   // ── BYOK state ──
   const defaultByokProvider: ByokProviderId = (aiProvider !== 'wiseresume' ? aiProvider : 'openai') as ByokProviderId;
@@ -337,6 +339,13 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     }
     return () => clearInterval(interval);
   }, [secondsRemaining > 0]);
+
+  // ── Sync uiMode when sheet opens (keeps it in sync with actual provider) ──
+  useEffect(() => {
+    if (open) {
+      setUiMode(aiProvider !== 'wiseresume' ? 'byok' : 'wiseresume');
+    }
+  }, [open]);
 
   // ── Hydrate on sheet open ──
   const refreshUsageHistory = async () => {
@@ -483,6 +492,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
   // ── Handle switching to WiseResume AI ──
   const handleSwitchToWiseresume = async () => {
     haptics.selection();
+    setUiMode('wiseresume');
     setAIProvider('wiseresume');
     setTestResult(null);
     try {
@@ -496,17 +506,21 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
   // ── Handle switching to BYOK mode ──
   const handleSwitchToBYOK = () => {
     haptics.selection();
+    setUiMode('byok');
     const firstValidated = BYOK_PROVIDER_ORDER.find(p => isValidated(p));
-    const target = firstValidated || byokProvider;
-    setByokProvider(target as ByokProviderId);
-    if (isValidated(target)) {
-      setAIProvider(target);
+    if (firstValidated) {
+      // Activate the first already-validated provider
+      setByokProvider(firstValidated as ByokProviderId);
+      setAIProvider(firstValidated as AIProvider);
       try {
         const uid = getUserId();
         if (uid) {
-          supabase.from('user_preferences').update({ ai_provider: target }).eq('user_id', uid).then(() => {});
+          supabase.from('user_preferences').update({ ai_provider: firstValidated }).eq('user_id', uid).then(() => {});
         }
       } catch {}
+    } else {
+      // No validated BYOK provider yet — open picker to let user choose and configure
+      setShowProviderPicker(true);
     }
   };
 
@@ -852,7 +866,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                   onClick={handleSwitchToWiseresume}
                   className={cn(
                     'w-full text-left rounded-lg border p-3 transition-all',
-                    mainMode === 'wiseresume'
+                    uiMode === 'wiseresume'
                       ? 'border-primary/60 bg-primary/5 ring-1 ring-primary/30'
                       : 'border-border hover:border-muted-foreground/40'
                   )}
@@ -860,9 +874,9 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                   <div className="flex items-center gap-2.5">
                     <div className={cn(
                       'w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all',
-                      mainMode === 'wiseresume' ? 'border-primary' : 'border-muted-foreground/50'
+                      uiMode === 'wiseresume' ? 'border-primary' : 'border-muted-foreground/50'
                     )}>
-                      {mainMode === 'wiseresume' && <div className="w-2 h-2 rounded-full bg-primary" />}
+                      {uiMode === 'wiseresume' && <div className="w-2 h-2 rounded-full bg-primary" />}
                     </div>
                     <Zap className="w-4 h-4 text-primary shrink-0" />
                     <div className="flex-1 min-w-0">
@@ -876,7 +890,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
 
                   {/* Sub-provider selection (shown when active) */}
                   <AnimatePresence>
-                    {mainMode === 'wiseresume' && (
+                    {uiMode === 'wiseresume' && (
                       <motion.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
@@ -913,7 +927,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                   onClick={handleSwitchToBYOK}
                   className={cn(
                     'w-full text-left rounded-lg border p-3 transition-all',
-                    mainMode === 'byok'
+                    uiMode === 'byok'
                       ? 'border-primary/60 bg-primary/5 ring-1 ring-primary/30'
                       : 'border-border hover:border-muted-foreground/40'
                   )}
@@ -921,9 +935,9 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                   <div className="flex items-center gap-2.5">
                     <div className={cn(
                       'w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all',
-                      mainMode === 'byok' ? 'border-primary' : 'border-muted-foreground/50'
+                      uiMode === 'byok' ? 'border-primary' : 'border-muted-foreground/50'
                     )}>
-                      {mainMode === 'byok' && <div className="w-2 h-2 rounded-full bg-primary" />}
+                      {uiMode === 'byok' && <div className="w-2 h-2 rounded-full bg-primary" />}
                     </div>
                     <Key className="w-4 h-4 text-muted-foreground shrink-0" />
                     <div className="flex-1 min-w-0">
@@ -932,7 +946,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                       </div>
                       <p className="text-[11px] text-muted-foreground mt-0.5">Use your own API key · 9 providers</p>
                     </div>
-                    {mainMode === 'byok' && providerValidated && (
+                    {uiMode === 'byok' && providerValidated && (
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                     )}
                   </div>
@@ -941,7 +955,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
 
               {/* ── BYOK Configuration Section ── */}
               <AnimatePresence>
-                {mainMode === 'byok' && (
+                {uiMode === 'byok' && (
                   <motion.div
                     initial={{ opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -1335,14 +1349,14 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                   type="button"
                   onClick={() => handlePickProvider(p)}
                   className={cn(
-                    'relative flex flex-col items-center gap-1.5 rounded-lg border p-3 text-center transition-all',
+                    'relative flex flex-col items-center gap-1 rounded-lg border p-2.5 text-center transition-all',
                     isActive
                       ? 'border-primary/60 bg-primary/5 ring-1 ring-primary/30'
                       : 'border-border hover:border-muted-foreground/40 hover:bg-muted/30'
                   )}
                 >
                   {validated && (
-                    <div className="absolute top-1.5 right-1.5">
+                    <div className="absolute top-1 right-1">
                       <CheckCircle2 className="w-3 h-3 text-emerald-500" />
                     </div>
                   )}
@@ -1350,12 +1364,11 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                     <Server className={cn('w-5 h-5', conf.iconColor)} />
                   ) : p === 'openrouter' ? (
                     <Brain className={cn('w-5 h-5', conf.iconColor)} />
-                  ) : p === 'wiseresume' ? (
-                    <Zap className={cn('w-5 h-5', conf.iconColor)} />
                   ) : (
                     <Key className={cn('w-5 h-5', conf.iconColor)} />
                   )}
-                  <span className="text-[10px] font-medium leading-tight">{conf.label}</span>
+                  <span className="text-[10px] font-semibold leading-tight">{conf.label}</span>
+                  <span className="text-[9px] text-muted-foreground font-mono leading-tight truncate w-full">{conf.keyHint}</span>
                 </button>
               );
             })}
