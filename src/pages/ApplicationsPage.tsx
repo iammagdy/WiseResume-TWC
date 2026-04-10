@@ -250,7 +250,7 @@ export default function ApplicationsPage() {
     <div className="flex-1 flex flex-col min-h-0 pb-4">
       {/* Header */}
       <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 pt-safe">
-        <div className="flex items-center justify-between max-w-3xl mx-auto w-full">
+        <div className="flex items-center justify-between max-w-3xl lg:max-w-5xl mx-auto w-full">
           <div className="flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-primary" />
             <h1 className="text-page-title">My Activity</h1>
@@ -284,7 +284,7 @@ export default function ApplicationsPage() {
 
       {/* All scrollable content inside PullToRefresh */}
       <PullToRefresh onRefresh={handleRefresh} className="flex-1">
-        <div className="px-4 py-4 space-y-4 max-w-3xl mx-auto w-full">
+        <div className="px-4 py-4 space-y-4 max-w-3xl lg:max-w-5xl mx-auto w-full">
           {/* Premium Tab Bar */}
           <div className="rounded-2xl bg-muted/50 p-1 flex gap-1 -mt-2">
             {TABS.map((t) =>

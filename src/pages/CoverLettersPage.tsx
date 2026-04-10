@@ -127,7 +127,7 @@ export default function CoverLettersPage() {
       </header>
 
       <PullToRefresh onRefresh={handleRefresh} className="flex-1">
-        <div className="pb-safe">
+        <div className="pb-safe max-w-3xl lg:max-w-5xl mx-auto w-full">
           {/* Search */}
           {letters && letters.length > 0 && (
             <div className="px-4 pt-3 pb-2">

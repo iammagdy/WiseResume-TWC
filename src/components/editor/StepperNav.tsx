@@ -72,6 +72,14 @@ export const StepperNav = memo(function StepperNav({
   const activeScore = sectionScores?.[activeStep] ?? (activeCompleted ? 100 : 0);
   const activeInProgress = activeScore > 0 && activeScore < 100;
 
+  // Desktop: compute visible steps (excluding "more") for line calculations
+  const visibleSteps = steps.filter(s => s.id !== 'more');
+  const visibleStepCount = visibleSteps.length;
+  // If active step is the "more" panel (a sub-section), treat it as the last visible step
+  const visibleActiveIndex = activeStep === 'more' || !visibleSteps.find(s => s.id === activeStep)
+    ? visibleStepCount - 1
+    : visibleSteps.findIndex(s => s.id === activeStep);
+
   if (isMobile) {
     return (
       <>
@@ -168,15 +176,15 @@ export const StepperNav = memo(function StepperNav({
         <div
           className="absolute top-5 left-[10%] h-[2px] gradient-primary transition-all duration-400 ease-out"
           style={{
-            width: `${activeIndex > 0 ? (activeIndex / (steps.length - 1)) * 80 : 0}%`,
+            width: `${visibleActiveIndex > 0 ? (visibleActiveIndex / (visibleStepCount - 1)) * 80 : 0}%`,
           }}
         />
 
-        {steps.filter(s => s.id !== 'more').map((step, i) => {
+        {visibleSteps.map((step, i) => {
           const Icon = STEP_ICONS[step.id] || Plus;
           const isActive = step.id === activeStep;
           const isCompleted = completedSteps[step.id];
-          const isPast = i < activeIndex;
+          const isPast = i < visibleActiveIndex;
           const score = sectionScores?.[step.id] ?? (isCompleted ? 100 : 0);
           const isInProgress = score > 0 && score < 100;
           const showConfetti = step.id === justCompletedStep;

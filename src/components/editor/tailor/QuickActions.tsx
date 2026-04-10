@@ -84,9 +84,23 @@ Return JSON: { "recommendedOrder": ["section1", "section2", ...], "reasoning": "
           }),
         });
 
-        if (!res.ok) throw new Error(`Edge function returned ${res.status}`);
+        if (!res.ok) {
+          const status = res.status;
+          if (status === 401 || status === 403) {
+            throw new Error('Session expired — please sign in again to use AI features.');
+          } else if (status === 429) {
+            throw new Error('Too many requests — please wait a moment and try again.');
+          } else {
+            throw new Error('AI is temporarily unavailable — please try again in a moment.');
+          }
+        }
         const data = await res.json();
-        if (data?.error) throw new Error(data.message || data.error);
+        if (data?.error) {
+          if (data.error === 'rate_limit') throw new Error('Too many requests — please wait a moment and try again.');
+          if (data.error === 'payment_required') throw new Error('AI credits exhausted. Please check your account.');
+          if (data.error === 'invalid_key') throw new Error('Invalid API key — please check your AI settings.');
+          throw new Error('AI is temporarily unavailable — please try again in a moment.');
+        }
         return data;
       });
 

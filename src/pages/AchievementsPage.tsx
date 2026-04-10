@@ -91,7 +91,7 @@ export default function AchievementsPage() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6 pb-24">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6 pb-24 max-w-3xl lg:max-w-5xl mx-auto w-full">
         {/* Level & XP */}
         <Card className="bg-gradient-to-br from-primary/5 to-accent/5">
           <CardContent className="p-4 space-y-3">

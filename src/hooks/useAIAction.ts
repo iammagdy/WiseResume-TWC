@@ -32,7 +32,19 @@ export function useAIAction({ operation }: UseAIActionOptions) {
       try {
         result = await action();
       } catch (err: any) {
-        const message = err?.message || 'AI action failed';
+        const raw = err?.message || '';
+        let message = 'AI is temporarily unavailable — please try again in a moment.';
+        if (raw.includes('401') || raw.toLowerCase().includes('unauthorized') || raw.toLowerCase().includes('jwt expired')) {
+          message = 'Session expired — please sign in again to use AI features.';
+        } else if (raw === 'rate_limit' || raw.includes('rate limit') || raw.includes('429')) {
+          message = 'Too many requests — please wait a moment and try again.';
+        } else if (raw === 'payment_required' || raw.includes('402')) {
+          message = 'AI credits exhausted. Please check your account.';
+        } else if (raw === 'invalid_key') {
+          message = 'Invalid API key — please check your AI settings.';
+        } else if (!navigator.onLine) {
+          message = "You're offline — AI features need an internet connection.";
+        }
         toast.error(message);
         return null;
       }

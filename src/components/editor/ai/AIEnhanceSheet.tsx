@@ -261,10 +261,28 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
           }),
         });
 
-        if (!res.ok) throw new Error(`Edge function returned ${res.status}`);
+        if (!res.ok) {
+          const status = res.status;
+          if (status === 401 || status === 403) {
+            toast.error('Session expired — please sign in again to use AI features.');
+          } else if (status === 429) {
+            toast.error('Too many requests — please wait a moment and try again.');
+          } else {
+            toast.error('AI is temporarily unavailable — please try again in a moment.');
+          }
+          continue;
+        }
         const data = await res.json();
         if (data?.error) {
-          toast.error(data.message || `Failed to enhance ${sectionInfo.label}`);
+          if (data.error === 'rate_limit') {
+            toast.error('Too many requests — please wait a moment and try again.');
+          } else if (data.error === 'payment_required') {
+            toast.error('AI credits exhausted. Please check your account.');
+          } else if (data.error === 'invalid_key') {
+            toast.error('Invalid API key — please check your AI settings.');
+          } else {
+            toast.error('AI is temporarily unavailable — please try again in a moment.');
+          }
           continue;
         }
 

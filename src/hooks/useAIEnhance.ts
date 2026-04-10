@@ -47,11 +47,15 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
     setResult(null);
     slowToastShown.current = false;
 
+    // Show an immediate "AI is working" loading toast
+    const loadingToastId = toast.loading('AI is thinking…', { duration: Infinity });
+
     // Show "taking longer than usual" after 20s
     const slowTimer = setTimeout(() => {
       if (!slowToastShown.current) {
         slowToastShown.current = true;
-        toast.info('This is taking longer than usual. Hang tight…');
+        toast.dismiss(loadingToastId);
+        toast.info('This is taking longer than usual. Hang tight…', { duration: Infinity, id: 'ai-slow-warning' });
       }
     }, 20_000);
 
@@ -85,22 +89,32 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
 
         if (!res.ok) {
           useAIHealthStore.getState().recordFailure(0);
-          throw new Error(`Edge function returned ${res.status}`);
+          const status = res.status;
+          if (status === 401 || status === 403) {
+            throw new Error('401 Unauthorized – no session');
+          } else if (status === 429) {
+            throw new Error('rate_limit');
+          } else if (status === 402) {
+            throw new Error('payment_required');
+          } else if (status >= 500) {
+            throw new Error('server_error');
+          } else {
+            throw new Error(`server_error_${status}`);
+          }
         }
 
         const respData = await res.json();
 
         if (respData.error) {
           if (respData.error === 'rate_limit') {
-            toast.error('Too many requests. Please wait a moment and try again.');
+            throw new Error('rate_limit');
           } else if (respData.error === 'payment_required') {
-            toast.error('AI credits exhausted. Please check your account.');
+            throw new Error('payment_required');
           } else if (respData.error === 'invalid_key') {
-            toast.error('Invalid Gemini API key. Please check your AI settings.');
+            throw new Error('invalid_key');
           } else {
-            toast.error(respData.message || 'Failed to enhance content');
+            throw new Error('server_error');
           }
-          return null;
         }
 
         useAIHealthStore.getState().recordSuccess(_latency);
@@ -109,6 +123,9 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
         respData.improved = sanitizeAIContent(respData.improved);
         return respData;
       });
+
+      toast.dismiss(loadingToastId);
+      toast.dismiss('ai-slow-warning');
 
       if (!data) {
         clearTimeout(slowTimer);
@@ -122,6 +139,8 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
 
     } catch (error) {
       clearTimeout(slowTimer);
+      toast.dismiss(loadingToastId);
+      toast.dismiss('ai-slow-warning');
       console.error('AI enhancement error:', error);
       const errMsg = error instanceof Error ? error.message : '';
       const is401 = errMsg.includes('401') || errMsg.toLowerCase().includes('unauthorized') || errMsg.toLowerCase().includes('jwt expired');
@@ -130,9 +149,17 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
       } else if (is401) {
         toast.error('Session expired — please sign in again to use AI features.');
       } else if (isTimeoutError(error)) {
-        toast.warning('The request timed out. Please try again.');
+        toast.warning('The AI request timed out. Please try again.');
+      } else if (errMsg === 'rate_limit') {
+        toast.error('Too many requests — please wait a moment and try again.');
+      } else if (errMsg === 'payment_required') {
+        toast.error('AI credits exhausted. Please check your account.');
+      } else if (errMsg === 'invalid_key') {
+        toast.error('Invalid API key — please check your AI settings.');
+      } else if (errMsg === 'server_error' || errMsg.startsWith('server_error_')) {
+        toast.error('AI is temporarily unavailable — please try again in a moment.');
       } else {
-        toast.error('Failed to enhance content. Please try again.');
+        toast.error('AI is temporarily unavailable — please try again in a moment.');
       }
       return null;
     } finally {

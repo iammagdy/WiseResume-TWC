@@ -128,7 +128,7 @@ export default function ProfilePage() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 max-w-3xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 max-w-3xl lg:max-w-5xl mx-auto w-full">
         {/* Incomplete Profile Banner */}
         {completion < 100 && (
           <div className="flex items-center gap-3 p-3 rounded-xl border border-primary/20 bg-primary/5">

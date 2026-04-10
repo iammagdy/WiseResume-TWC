@@ -280,7 +280,14 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
         console.error(`[useATSSuggestions] Edge Function ${res.status} error:`, errBody);
-        throw new Error(errBody?.message || `Edge function returned ${res.status}`);
+        const status = res.status;
+        if (status === 401 || status === 403) {
+          throw new Error('Session expired — please sign in again to use AI features.');
+        } else if (status === 429) {
+          throw new Error('Too many requests — please wait a moment and try again.');
+        } else {
+          throw new Error('AI is temporarily unavailable — please try again in a moment.');
+        }
       }
       const data = await res.json();
       console.log(`[useATSSuggestions] Deep analysis for ${section} completed in ${Date.now() - startTime}ms`);

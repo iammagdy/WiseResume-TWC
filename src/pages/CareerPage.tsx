@@ -129,7 +129,7 @@ export default function CareerPage() {
       </header>
 
       <PullToRefresh onRefresh={handleRefresh} className="flex-1">
-        <div className="px-4 py-4 pb-safe space-y-4 max-w-3xl mx-auto w-full">
+        <div className="px-4 py-4 pb-safe space-y-4 max-w-3xl lg:max-w-5xl mx-auto w-full">
           {isLoading ? (
             <div className="space-y-4">
               <Skeleton className="h-32 rounded-2xl" />

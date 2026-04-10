@@ -73,25 +73,38 @@ export const edgeFunctions = {
 
         if (!result.response.ok) {
           // Parse the error body for a cleaner message when possible
-          let errorMessage = `Edge function returned ${result.response.status}: ${result.text}`;
+          let errorMessage = 'AI is temporarily unavailable — please try again in a moment.';
           try {
             const parsed = JSON.parse(result.text);
             const detail = parsed?.error || parsed?.message || parsed?.detail;
-            if (detail && typeof detail === 'string') {
-              if (result.response.status === 401 || result.response.status === 403) {
-                errorMessage = `Session expired — please sign in again`;
-              } else if (result.response.status === 429) {
-                errorMessage = parsed?.message || 'Rate limit reached. Please wait a moment.';
-              } else if (detail.includes('No AI API key') || detail.includes('API key not configured')) {
-                errorMessage = 'WiseResume AI is not configured on the server. Please contact support or use your own API key in Settings.';
-              } else {
+            const status = result.response.status;
+            if (status === 401 || status === 403) {
+              errorMessage = 'Session expired — please sign in again.';
+            } else if (status === 429) {
+              errorMessage = 'Too many requests — please wait a moment and try again.';
+            } else if (status === 402) {
+              errorMessage = 'AI credits exhausted. Please check your account.';
+            } else if (detail && typeof detail === 'string') {
+              if (detail.includes('No AI API key') || detail.includes('API key not configured')) {
+                errorMessage = 'WiseResume AI is not configured. Please contact support or add your own API key in Settings.';
+              } else if (detail.includes('invalid_key') || detail.includes('Invalid API key')) {
+                errorMessage = 'Invalid API key — please check your AI settings.';
+              } else if (detail.includes('rate_limit') || detail.includes('rate limit')) {
+                errorMessage = 'Too many requests — please wait a moment and try again.';
+              } else if (detail.length < 120 && !detail.match(/^\d+$/) && !detail.toLowerCase().includes('error code') && !detail.toLowerCase().includes('function')) {
+                // Only use the detail if it looks like a user-readable message
                 errorMessage = detail;
               }
             }
           } catch {
-            // Use the default message if body isn't valid JSON
-            if (result.response.status === 401 || result.response.status === 403) {
-              errorMessage = 'Session expired — please sign in again';
+            // Use status-based message if body isn't valid JSON
+            const status = result.response.status;
+            if (status === 401 || status === 403) {
+              errorMessage = 'Session expired — please sign in again.';
+            } else if (status === 429) {
+              errorMessage = 'Too many requests — please wait a moment and try again.';
+            } else if (status === 402) {
+              errorMessage = 'AI credits exhausted. Please check your account.';
             }
           }
           return {

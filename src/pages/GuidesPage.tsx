@@ -55,7 +55,7 @@ export default function GuidesPage() {
       </header>
 
       {/* Search */}
-      <div className="px-4 pt-3 pb-2">
+      <div className="px-4 pt-3 pb-2 max-w-3xl lg:max-w-5xl mx-auto w-full">
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -68,7 +68,7 @@ export default function GuidesPage() {
       </div>
 
       {/* Browse / Saved toggle */}
-      <div className="px-4 pb-2 flex gap-2">
+      <div className="px-4 pb-2 flex gap-2 max-w-3xl lg:max-w-5xl mx-auto w-full">
         <button
           onClick={() => { setShowSaved(false); haptics.light(); }}
           className={cn(
@@ -91,7 +91,7 @@ export default function GuidesPage() {
 
       {/* Category chips */}
       {!showSaved && (
-        <div className="px-4 pb-3 flex gap-2 overflow-x-auto no-scrollbar">
+        <div className="px-4 pb-3 flex gap-2 overflow-x-auto no-scrollbar max-w-3xl lg:max-w-5xl mx-auto w-full">
           <button
             onClick={() => { setActiveCategory('all'); haptics.light(); }}
             className={cn(
@@ -117,7 +117,7 @@ export default function GuidesPage() {
       )}
 
       {/* Guide list */}
-      <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-safe">
+      <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-safe max-w-3xl lg:max-w-5xl mx-auto w-full">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <BookOpen className="w-12 h-12 text-muted-foreground/40 mb-3" />

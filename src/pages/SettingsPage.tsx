@@ -249,7 +249,7 @@ export default function SettingsPage() {
         </header>
 
         {/* Content */}
-        <div className="py-6 space-y-7 overflow-y-auto pb-24">
+        <div className="py-6 space-y-7 overflow-y-auto pb-24 max-w-3xl lg:max-w-5xl mx-auto w-full">
           {/* Guest CTA */}
           {!user && <div className="px-4"><GuestCtaCard navigate={navigate} /></div>}
 
