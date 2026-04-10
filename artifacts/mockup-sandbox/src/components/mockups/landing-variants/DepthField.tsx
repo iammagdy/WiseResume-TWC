@@ -15,9 +15,8 @@ const useInView = (threshold = 0.15) => {
 };
 
 export function DepthField() {
-  const [mouseX, setMouseX] = useState(0);
-  const [mouseY, setMouseY] = useState(0);
   const [isInteractive, setIsInteractive] = useState(false);
+  const sceneRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -26,17 +25,18 @@ export function DepthField() {
   }, []);
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isInteractive) return;
+    if (!isInteractive || !sceneRef.current) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - rect.left - rect.width / 2) / rect.width;
     const y = (e.clientY - rect.top - rect.height / 2) / rect.height;
-    setMouseX(x * 8); // max ±8 degrees
-    setMouseY(y * 8);
+    sceneRef.current.style.setProperty('--rx', `${y * 8}deg`);
+    sceneRef.current.style.setProperty('--ry', `${x * 8}deg`);
   };
 
   const handleMouseLeave = () => {
-    setMouseX(0);
-    setMouseY(0);
+    if (!sceneRef.current) return;
+    sceneRef.current.style.setProperty('--rx', '0deg');
+    sceneRef.current.style.setProperty('--ry', '0deg');
   };
 
   const [featuresRef, featuresInView] = useInView();
@@ -83,11 +83,14 @@ export function DepthField() {
           perspectiveOrigin: '50% 50%'
         }}
       >
-        <div 
+        <div
+          ref={sceneRef}
           className="absolute inset-0 w-full h-full flex items-center justify-center"
           style={{
+            ['--rx' as string]: '0deg',
+            ['--ry' as string]: '0deg',
             transformStyle: 'preserve-3d',
-            transform: isInteractive ? `rotateX(${-mouseY}deg) rotateY(${mouseX}deg)` : 'none',
+            transform: isInteractive ? 'rotateX(calc(-1 * var(--rx))) rotateY(var(--ry))' : 'none',
             transition: 'transform 0.1s ease-out'
           }}
         >
@@ -278,6 +281,29 @@ export function DepthField() {
           <button className="px-10 py-5 rounded-full bg-white text-gray-900 font-bold text-xl hover:scale-105 transition-transform shadow-[0_0_40px_rgba(255,255,255,0.3)]">
             Create Your Resume Now
           </button>
+        </div>
+      </section>
+
+      {/* Install CTA */}
+      <section className="py-16 px-6">
+        <div className="max-w-4xl mx-auto rounded-2xl border border-purple-500/20 bg-purple-900/10 backdrop-blur-md p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-purple-500/30 shrink-0">
+              <Zap className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <div className="font-bold text-white text-base mb-1">Install WiseResume on your device</div>
+              <div className="text-sm text-gray-400">Works offline. Add to home screen for instant access on any device.</div>
+            </div>
+          </div>
+          <div className="flex gap-3 shrink-0">
+            <button onClick={() => {}} className="px-5 py-2.5 rounded-full border border-white/10 bg-white/5 text-white text-sm font-semibold hover:bg-white/10 transition-colors">
+              📱 Add to Home Screen
+            </button>
+            <button onClick={() => {}} className="px-5 py-2.5 rounded-full bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold shadow-lg shadow-purple-500/25 transition-all">
+              ⬇ Install App
+            </button>
+          </div>
         </div>
       </section>
 

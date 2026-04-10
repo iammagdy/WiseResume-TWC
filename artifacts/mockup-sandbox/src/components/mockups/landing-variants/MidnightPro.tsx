@@ -138,6 +138,35 @@ export function MidnightPro() {
         .fade-up.visible { opacity:1; transform:translateY(0); }
         .card-hover { transition: transform 0.3s ease, box-shadow 0.3s ease; }
         .card-hover:hover { transform: translateY(-4px); }
+
+        /* RESPONSIVE */
+        .mp-hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+        .mp-feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: auto auto; gap: 16px; }
+        .mp-pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; }
+        .mp-stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
+        .mp-bento-large { grid-column: span 2; }
+        .mp-badges { display: block; }
+        .mp-card-visual { display: flex; justify-content: center; align-items: center; height: 480px; }
+        .mp-nav { display: flex; }
+
+        @media (max-width: 900px) {
+          .mp-hero-grid { grid-template-columns: 1fr; gap: 40px; }
+          .mp-feature-grid { grid-template-columns: 1fr 1fr; }
+          .mp-bento-large { grid-column: span 2; }
+          .mp-pricing-grid { grid-template-columns: 1fr; gap: 12px; }
+          .mp-card-visual { height: 380px; }
+        }
+
+        @media (max-width: 640px) {
+          .mp-hero-grid { grid-template-columns: 1fr; gap: 32px; }
+          .mp-feature-grid { grid-template-columns: 1fr; }
+          .mp-bento-large { grid-column: span 1; }
+          .mp-pricing-grid { grid-template-columns: 1fr; }
+          .mp-stat-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+          .mp-badges { display: none; }
+          .mp-card-visual { height: 300px; }
+          .mp-nav { display: none; }
+        }
       `}</style>
 
       {/* AURORA BACKGROUND */}
@@ -163,7 +192,7 @@ export function MidnightPro() {
             </div>
             <span style={{ fontWeight: 800, fontSize: 16, letterSpacing: "-0.3px" }}>WiseResume</span>
           </div>
-          <nav style={{ display: "flex", gap: 32, alignItems: "center" }}>
+          <nav className="mp-nav" style={{ gap: 32, alignItems: "center" }}>
             {["Features", "Pricing"].map(l => (
               <a key={l} href="#" style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", textDecoration: "none", transition: "color 0.2s" }}
                 onMouseEnter={e => (e.currentTarget.style.color = "#fff")}
@@ -181,7 +210,7 @@ export function MidnightPro() {
 
       {/* HERO */}
       <section style={{ position: "relative", zIndex: 10, minHeight: "100vh", display: "flex", alignItems: "center", paddingTop: 100 }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "60px 24px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 60, alignItems: "center" }}>
+        <div className="mp-hero-grid" style={{ maxWidth: 1200, margin: "0 auto", padding: "60px 24px" }}>
           {/* Left: Text */}
           <div>
             <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 100, padding: "6px 16px", marginBottom: 28 }}>
@@ -222,22 +251,24 @@ export function MidnightPro() {
           </div>
 
           {/* Right: Floating UI */}
-          <div style={{ position: "relative", display: "flex", justifyContent: "center", alignItems: "center", height: 480 }}>
+          <div className="mp-card-visual" style={{ position: "relative" }}>
             <div style={{ animation: "float 6s ease-in-out infinite", position: "relative" }}>
               <ResumeCard />
               <div style={{ position: "absolute", inset: -1, borderRadius: 21, background: "linear-gradient(135deg, rgba(99,102,241,0.3), transparent, rgba(168,85,247,0.2))", pointerEvents: "none" }} />
               <div style={{ position: "absolute", inset: 0, borderRadius: 20, boxShadow: "0 0 60px rgba(99,102,241,0.25), 0 0 120px rgba(168,85,247,0.12)", pointerEvents: "none" }} />
             </div>
-            <FloatingBadge text="ATS Score: 92%" color="#34d399" style={{ top: 30, right: -20, animation: "badgefloat1 4s ease-in-out infinite" }} />
-            <FloatingBadge text="Interview Ready" color="#818cf8" style={{ bottom: 80, left: -30, animation: "badgefloat2 5s ease-in-out infinite" }} />
-            <FloatingBadge text="Tailored in 30s" color="#f472b6" style={{ bottom: 20, right: 10, animation: "badgefloat1 6s ease-in-out infinite 1s" }} />
+            <div className="mp-badges" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+              <FloatingBadge text="ATS Score: 92%" color="#34d399" style={{ top: 30, right: -20, animation: "badgefloat1 4s ease-in-out infinite" }} />
+              <FloatingBadge text="Interview Ready" color="#818cf8" style={{ bottom: 80, left: -30, animation: "badgefloat2 5s ease-in-out infinite" }} />
+              <FloatingBadge text="Tailored in 30s" color="#f472b6" style={{ bottom: 20, right: 10, animation: "badgefloat1 6s ease-in-out infinite 1s" }} />
+            </div>
           </div>
         </div>
       </section>
 
       {/* STATS */}
       <section style={{ position: "relative", zIndex: 10, borderTop: "1px solid rgba(255,255,255,0.06)", borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}>
-        <div style={{ maxWidth: 900, margin: "0 auto", padding: "48px 24px", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 0 }}>
+        <div className="mp-stat-grid" style={{ maxWidth: 900, margin: "0 auto", padding: "48px 24px" }}>
           {[
             { value: "50K+", label: "Resumes Created", color: "#818cf8" },
             { value: "92%", label: "ATS Pass Rate", color: "#34d399" },
@@ -265,13 +296,13 @@ export function MidnightPro() {
         </div>
 
         {/* Bento grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gridTemplateRows: "auto auto", gap: 16 }}>
+        <div className="mp-feature-grid">
           {/* Large card top-left */}
           <div
-            className="card-hover"
+            className="card-hover mp-bento-large"
             onMouseEnter={() => setHoveredFeature(0)}
             onMouseLeave={() => setHoveredFeature(null)}
-            style={{ gridColumn: "span 2", padding: 36, borderRadius: 20, background: FEATURES[0].bg, border: `1px solid ${hoveredFeature === 0 ? FEATURES[0].border : "rgba(255,255,255,0.06)"}`, transition: "border-color 0.3s", cursor: "default" }}
+            style={{ padding: 36, borderRadius: 20, background: FEATURES[0].bg, border: `1px solid ${hoveredFeature === 0 ? FEATURES[0].border : "rgba(255,255,255,0.06)"}`, transition: "border-color 0.3s", cursor: "default" }}
           >
             <div style={{ width: 48, height: 48, borderRadius: 14, background: `${FEATURES[0].accent}20`, border: `1px solid ${FEATURES[0].accent}40`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
               <FeatureIcon feature={FEATURES[0]} size={24} />
@@ -303,10 +334,10 @@ export function MidnightPro() {
 
           {/* Large card bottom-right */}
           <div
-            className="card-hover"
+            className="card-hover mp-bento-large"
             onMouseEnter={() => setHoveredFeature(5)}
             onMouseLeave={() => setHoveredFeature(null)}
-            style={{ gridColumn: "span 2", padding: 36, borderRadius: 20, background: FEATURES[5].bg, border: `1px solid ${hoveredFeature === 5 ? FEATURES[5].border : "rgba(255,255,255,0.06)"}`, transition: "border-color 0.3s", cursor: "default" }}
+            style={{ padding: 36, borderRadius: 20, background: FEATURES[5].bg, border: `1px solid ${hoveredFeature === 5 ? FEATURES[5].border : "rgba(255,255,255,0.06)"}`, transition: "border-color 0.3s", cursor: "default" }}
           >
             <div style={{ width: 48, height: 48, borderRadius: 14, background: `${FEATURES[5].accent}20`, border: `1px solid ${FEATURES[5].accent}40`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
               <FeatureIcon feature={FEATURES[5]} size={24} />
@@ -329,7 +360,7 @@ export function MidnightPro() {
           <p style={{ fontSize: 16, color: "rgba(255,255,255,0.45)" }}>Start free. Upgrade when you need more power.</p>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, alignItems: "start" }}>
+        <div className="mp-pricing-grid">
           {[
             { name: "Free", price: "$0", period: "/forever", desc: "Perfect to get started", features: ["1 resume", "Basic AI suggestions", "ATS score check", "PDF export"], cta: "Get Started", highlight: false },
             { name: "Pro", price: "$9", period: "/mo", desc: "For serious job seekers", features: ["Unlimited resumes", "Advanced AI tools", "Smart tailoring", "Interview coaching", "Cover letter generator", "Application tracker"], cta: "Get Pro", highlight: true },
@@ -383,6 +414,29 @@ export function MidnightPro() {
           <button onClick={() => {}} className="shimmer-btn" style={{ color: "#fff", border: "none", padding: "16px 40px", borderRadius: 14, fontSize: 17, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 10, boxShadow: "0 0 50px rgba(99,102,241,0.5)", position: "relative" }}>
             Get Started for Free <ArrowRight size={20} />
           </button>
+        </div>
+      </section>
+
+      {/* INSTALL CTA */}
+      <section style={{ position: "relative", zIndex: 10, maxWidth: 1200, margin: "0 auto", padding: "0 24px 80px" }}>
+        <div style={{ borderRadius: 20, padding: "40px 32px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+            <div style={{ width: 52, height: 52, borderRadius: 14, background: "linear-gradient(135deg,#6366f1,#8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 20px rgba(99,102,241,0.4)", flexShrink: 0 }}>
+              <Sparkles size={24} color="#fff" />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>Install WiseResume on your device</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)" }}>Access your resumes and AI tools anytime — even offline. Works on iOS, Android & desktop.</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={() => {}} style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: "10px 20px", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+              📱 Add to Home Screen
+            </button>
+            <button onClick={() => {}} className="shimmer-btn" style={{ color: "#fff", border: "none", padding: "10px 20px", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+              ⬇ Install App
+            </button>
+          </div>
         </div>
       </section>
 

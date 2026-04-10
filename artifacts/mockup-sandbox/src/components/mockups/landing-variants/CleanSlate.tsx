@@ -455,6 +455,29 @@ export const CleanSlate = () => {
         </section>
       </main>
 
+      {/* Install CTA */}
+      <section className="max-w-5xl mx-auto px-6 pb-16">
+        <div className="rounded-2xl bg-indigo-50 border border-indigo-100 p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0">
+              <ArrowRight className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <div className="font-bold text-zinc-900 text-base mb-0.5">Install WiseResume on your device</div>
+              <div className="text-sm text-zinc-500">Works offline — add to your home screen for instant access anytime.</div>
+            </div>
+          </div>
+          <div className="flex gap-3 shrink-0">
+            <button onClick={() => {}} className="px-5 py-2.5 rounded-lg border border-zinc-300 bg-white text-zinc-700 text-sm font-semibold hover:bg-zinc-50 transition-colors">
+              📱 Add to Home Screen
+            </button>
+            <button onClick={() => {}} className="px-5 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors">
+              ⬇ Install App
+            </button>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="border-t border-zinc-200 bg-white py-12">
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
