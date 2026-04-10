@@ -22,16 +22,22 @@ serve(async (req) => {
       return new Response(JSON.stringify({ success: false, error: "Rate limit exceeded" }), { status: 429, headers: corsHeaders });
     }
 
-    // Parse request body for potential 'checkOnly' flag and client-provided sub-provider
+    // Parse request body for potential 'checkOnly' flag and admin-gated sub-provider override
     let checkOnly = false;
     let bodySubProvider: 'openrouter' | 'groq' | 'auto' | undefined;
+    let isAdminRequest = false;
+    const DEV_KIT_PASSWORD = Deno.env.get('DEV_KIT_PASSWORD');
     try {
       const text = await req.clone().text();
       if (text) {
         const body = JSON.parse(text);
         checkOnly = body?.checkOnly === true;
-        if (body?.wiseresumeSubProvider === 'openrouter' || body?.wiseresumeSubProvider === 'groq' || body?.wiseresumeSubProvider === 'auto') {
+        // Gate wiseresumeSubProvider override on admin password so only Dev Kit callers
+        // can request raw engine diagnostics (bypasses cooldown).
+        const hasValidAdminPassword = DEV_KIT_PASSWORD && body?.adminPassword === DEV_KIT_PASSWORD;
+        if (hasValidAdminPassword && (body?.wiseresumeSubProvider === 'openrouter' || body?.wiseresumeSubProvider === 'groq' || body?.wiseresumeSubProvider === 'auto')) {
           bodySubProvider = body.wiseresumeSubProvider;
+          isAdminRequest = true;
         }
       }
     } catch {
@@ -68,7 +74,8 @@ serve(async (req) => {
     }
 
     // ===== Cooldown Check for WiseResume AI =====
-    if (preferredProvider === 'wiseresume') {
+    // Admin engine diagnostic requests bypass the cooldown so both engines can be tested sequentially.
+    if (preferredProvider === 'wiseresume' && !isAdminRequest) {
       const COOLDOWN_SECONDS = 300; // 5 minutes
       console.log(`[ai-test] Checking cooldown for user: ${userId}`);
       

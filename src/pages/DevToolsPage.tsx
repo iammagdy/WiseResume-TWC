@@ -142,7 +142,7 @@ export default function DevToolsPage() {
         </div>
 
         {/* Tab content */}
-        {activeTab === 'health' && <DevKitRunner />}
+        {activeTab === 'health' && <DevKitRunner adminPassword={pw} />}
 
         {activeTab === 'users' && (
           <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">

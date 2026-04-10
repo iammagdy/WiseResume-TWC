@@ -23,7 +23,11 @@ const MINIMAL_RESUME = {
 
 const SAMPLE_JD = 'We are looking for a Senior Frontend Engineer with 3+ years of React and TypeScript experience.';
 
-export function DevKitRunner() {
+interface DevKitRunnerProps {
+  adminPassword?: string;
+}
+
+export function DevKitRunner({ adminPassword = '' }: DevKitRunnerProps) {
   const auth = useAuth();
   const [results, setResults] = useState<Record<string, TestResult>>({});
   const [expandedJson, setExpandedJson] = useState<Record<string, boolean>>({});
@@ -198,7 +202,7 @@ export function DevKitRunner() {
     {
       id: 'ai-engine-openrouter', label: 'Engine · OpenRouter (Gemma 4)', description: 'Directly test WiseResume managed OpenRouter endpoint — admin only', section: 'ai',
       run: () => strictInvoke('ai-engine-openrouter', async () => {
-        const res = await edgeFunctions.functions.invoke('ai-test', { body: { wiseresumeSubProvider: 'openrouter' } });
+        const res = await edgeFunctions.functions.invoke('ai-test', { body: { wiseresumeSubProvider: 'openrouter', adminPassword } });
         if (res.error) throw new Error((res.error as any).message || 'ai-test error');
         if (!res.data?.success) throw new Error(res.data?.error || 'ai-test returned failure');
         return { engine: 'openrouter', model: res.data.model, latencyMs: res.data.latencyMs, response: res.data.response };
@@ -207,7 +211,7 @@ export function DevKitRunner() {
     {
       id: 'ai-engine-groq', label: 'Engine · Groq (Llama 3.3)', description: 'Directly test WiseResume managed Groq endpoint — admin only', section: 'ai',
       run: () => strictInvoke('ai-engine-groq', async () => {
-        const res = await edgeFunctions.functions.invoke('ai-test', { body: { wiseresumeSubProvider: 'groq' } });
+        const res = await edgeFunctions.functions.invoke('ai-test', { body: { wiseresumeSubProvider: 'groq', adminPassword } });
         if (res.error) throw new Error((res.error as any).message || 'ai-test error');
         if (!res.data?.success) throw new Error(res.data?.error || 'ai-test returned failure');
         return { engine: 'groq', model: res.data.model, latencyMs: res.data.latencyMs, response: res.data.response };
