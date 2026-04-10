@@ -714,7 +714,9 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       haptics.light();
 
       try {
-        const { data, error } = await edgeFunctions.functions.invoke('ai-test');
+        const { data, error } = await edgeFunctions.functions.invoke('ai-test', {
+          body: { wiseresumeSubProvider },
+        });
 
         if (error) {
           // Check for cooldown (429)

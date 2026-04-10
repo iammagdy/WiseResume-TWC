@@ -93,11 +93,33 @@ serve(async (req) => {
         }
       } catch {
         clearTimeout(timeoutId);
-        latencyMs = Date.now() - startTime;
+        // OpenRouter unreachable — try Groq before reporting degraded
         if (groqKey) {
-          // Fall back to Groq health check
-          status = 'degraded';
+          const groqStart = Date.now();
+          const groqController = new AbortController();
+          const groqTimeout = setTimeout(() => groqController.abort(), 8_000);
+          try {
+            const groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
+              body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: 'Hi' }], max_tokens: 1 }),
+              signal: groqController.signal,
+            });
+            clearTimeout(groqTimeout);
+            latencyMs = Date.now() - groqStart;
+            if (groqResp.ok) {
+              status = latencyMs < 8000 ? 'healthy' : 'degraded';
+            } else {
+              errorCode = groqResp.status;
+              status = (groqResp.status === 429) ? 'degraded' : 'down';
+            }
+          } catch {
+            clearTimeout(groqTimeout);
+            latencyMs = Date.now() - startTime;
+            status = 'down';
+          }
         } else {
+          latencyMs = Date.now() - startTime;
           status = 'down';
         }
       }

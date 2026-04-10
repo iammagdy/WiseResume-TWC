@@ -22,13 +22,17 @@ serve(async (req) => {
       return new Response(JSON.stringify({ success: false, error: "Rate limit exceeded" }), { status: 429, headers: corsHeaders });
     }
 
-    // Parse request body for potential 'checkOnly' flag
+    // Parse request body for potential 'checkOnly' flag and client-provided sub-provider
     let checkOnly = false;
+    let bodySubProvider: 'openrouter' | 'groq' | 'auto' | undefined;
     try {
       const text = await req.clone().text();
       if (text) {
         const body = JSON.parse(text);
         checkOnly = body?.checkOnly === true;
+        if (body?.wiseresumeSubProvider === 'openrouter' || body?.wiseresumeSubProvider === 'groq' || body?.wiseresumeSubProvider === 'auto') {
+          bodySubProvider = body.wiseresumeSubProvider;
+        }
       }
     } catch {
       // Ignore parse errors for empty/invalid bodies
@@ -42,7 +46,8 @@ serve(async (req) => {
       .maybeSingle();
 
     const preferredProvider = (prefs?.ai_provider as 'gemini' | 'ollama' | 'openrouter' | 'wiseresume') || 'wiseresume';
-    const wiseresumeSubProvider = (prefs?.wiseresume_sub_provider as 'openrouter' | 'groq' | 'auto') || 'auto';
+    // Prefer body-provided sub-provider (reflects current UI selection) over DB value
+    const wiseresumeSubProvider: 'openrouter' | 'groq' | 'auto' = bodySubProvider ?? ((prefs?.wiseresume_sub_provider as 'openrouter' | 'groq' | 'auto') || 'auto');
 
     // ===== Cooldown Check for WiseResume AI =====
     if (preferredProvider === 'wiseresume') {
