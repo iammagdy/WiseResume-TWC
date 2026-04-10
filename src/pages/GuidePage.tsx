@@ -119,7 +119,7 @@ export default function GuidePage() {
 
       {/* Content */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain px-5 pb-safe">
-        <div className="max-w-2xl lg:max-w-4xl mx-auto py-4">
+        <div className="max-w-2xl lg:max-w-none mx-auto py-4">
           <Badge variant="secondary" className="mb-2 text-[10px]">{categoryLabel}</Badge>
           <h1 className="text-xl font-bold mb-1">{guide.title}</h1>
           <p className="text-xs text-muted-foreground mb-6">{guide.readTimeMinutes} min read</p>

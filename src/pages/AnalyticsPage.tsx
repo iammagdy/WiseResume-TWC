@@ -108,7 +108,7 @@ export default function AnalyticsPage() {
       </header>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 pb-24">
-        <div className="max-w-4xl mx-auto space-y-6">
+        <div className="max-w-none mx-auto w-full space-y-6">
           {/* Summary Stats */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {[

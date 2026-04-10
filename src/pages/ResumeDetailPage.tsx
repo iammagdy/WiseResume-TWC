@@ -216,7 +216,7 @@ export default function ResumeDetailPage() {
         </DropdownMenu>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 max-w-3xl lg:max-w-5xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 lg:max-w-none mx-auto w-full">
         {/* Mobile-only badge row — secondary badges hidden from header on small screens */}
         {(isTailored || (tailoredCount > 0 && !isTailored)) && (
           <div className="flex sm:hidden flex-wrap gap-2">

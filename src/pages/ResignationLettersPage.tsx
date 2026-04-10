@@ -74,7 +74,7 @@ export default function ResignationLettersPage() {
       </header>
 
       <PullToRefresh onRefresh={handleRefresh} className="flex-1">
-        <div className="pb-safe max-w-3xl lg:max-w-5xl mx-auto w-full">
+        <div className="pb-safe lg:max-w-none mx-auto w-full">
           {letters && letters.length > 0 && (
             <div className="px-4 pt-3 pb-2">
               <div className="relative">

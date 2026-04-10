@@ -593,7 +593,7 @@ function DashboardPageContent() {
 
       {/* All scrollable content inside PullToRefresh */}
       <PullToRefresh onRefresh={handleRefresh} className="flex-1">
-        <div className="pb-safe max-w-3xl xl:max-w-5xl mx-auto w-full">
+        <div className="pb-safe lg:max-w-none mx-auto w-full">
           {/* Trust banner — only on first visit, hidden on small screens after first dismiss */}
           {showTrustBanner && (
             <div className="px-4 pt-3 hidden sm:block">

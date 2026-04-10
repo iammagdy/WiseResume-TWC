@@ -117,7 +117,7 @@ export default function SubscriptionPage() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6 pb-24 max-w-3xl lg:max-w-5xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6 pb-24 lg:max-w-none mx-auto w-full">
         {/* Current Plan */}
         <Card className={isPremium ? 'border-amber-400/30 bg-amber-50/30 dark:bg-amber-950/20' : 'border-primary/20 bg-primary/5'}>
           <CardContent className="p-4 flex items-center gap-3">

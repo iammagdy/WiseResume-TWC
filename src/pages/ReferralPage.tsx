@@ -81,7 +81,7 @@ export default function ReferralPage() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6 pb-24 max-w-3xl lg:max-w-5xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6 pb-24 lg:max-w-none mx-auto w-full">
         {/* Invite Code */}
         <Card className="bg-gradient-to-br from-primary/5 to-accent/5">
           <CardContent className="p-6 flex flex-col items-center gap-4">

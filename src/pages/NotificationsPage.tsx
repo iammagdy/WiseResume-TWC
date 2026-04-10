@@ -87,7 +87,7 @@ export default function NotificationsPage() {
       </header>
 
       {/* Filter Tabs */}
-      <div className="shrink-0 px-4 pt-3 pb-1 flex gap-2 max-w-3xl lg:max-w-5xl mx-auto w-full">
+      <div className="shrink-0 px-4 pt-3 pb-1 flex gap-2 lg:max-w-none mx-auto w-full">
         {TABS.map(t => (
           <button
             key={t.key}
@@ -102,7 +102,7 @@ export default function NotificationsPage() {
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto overscroll-y-contain px-4 mt-2 pb-6 space-y-2 max-w-3xl lg:max-w-5xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto overscroll-y-contain px-4 mt-2 pb-6 space-y-2 lg:max-w-none mx-auto w-full">
         <AnimatePresence>
           {filtered.length === 0 ? (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-20 text-muted-foreground">
