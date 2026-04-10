@@ -94,14 +94,14 @@ export function DepthField() {
             transition: 'transform 0.1s ease-out'
           }}
         >
-          {/* Background layer (z: -200px) */}
-          <div style={{ position: 'absolute', transformStyle: 'preserve-3d', transform: 'translateZ(-200px)', width: '100%', height: '100%' }}>
+          {/* Background layer (z: -300px) */}
+          <div style={{ position: 'absolute', transformStyle: 'preserve-3d', transform: 'translateZ(-300px)', width: '100%', height: '100%' }}>
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-purple-600/20 rounded-full blur-[120px] mix-blend-screen opacity-50 animate-pulse" />
             <div className="absolute top-1/3 left-1/4 w-[500px] h-[500px] bg-indigo-600/15 rounded-full blur-[100px] mix-blend-screen opacity-40" />
           </div>
 
-          {/* Mid layer (z: -80px) */}
-          <div style={{ position: 'absolute', transformStyle: 'preserve-3d', transform: 'translateZ(-80px)', width: '100%', height: '100%' }}>
+          {/* Mid layer (z: -100px) */}
+          <div style={{ position: 'absolute', transformStyle: 'preserve-3d', transform: 'translateZ(-100px)', width: '100%', height: '100%' }}>
             <div className="absolute top-[20%] right-[15%] w-64 h-80 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md -rotate-12 shadow-2xl opacity-60">
               <div className="p-6 space-y-4">
                 <div className="w-16 h-16 rounded-full bg-white/10" />

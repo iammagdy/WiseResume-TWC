@@ -4,6 +4,18 @@ import { modules as discoveredModules } from "./.generated/mockup-components";
 
 type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
 
+const NAMED_ROUTES: Record<string, string> = {
+  "/midnight": "landing-variants/MidnightPro",
+  "/clean": "landing-variants/CleanSlate",
+  "/depth": "landing-variants/DepthField",
+};
+
+const VARIANTS = [
+  { path: "/midnight", label: "A — Midnight Pro", sub: "Dark Glassmorphism", color: "#6366f1" },
+  { path: "/clean",    label: "B — Clean Slate",  sub: "Minimal SaaS",       color: "#0ea5e9" },
+  { path: "/depth",    label: "C — Depth Field",  sub: "3D Parallax",        color: "#a855f7" },
+];
+
 function _resolveComponent(
   mod: Record<string, unknown>,
   name: string,
@@ -91,46 +103,144 @@ function getBasePath(): string {
   return import.meta.env.BASE_URL.replace(/\/$/, "");
 }
 
-function getPreviewExamplePath(): string {
+function ComparisonGallery() {
   const basePath = getBasePath();
-  return `${basePath}/preview/ComponentName`;
-}
 
-function Gallery() {
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
-      <div className="text-center max-w-md">
-        <h1 className="text-2xl font-semibold text-gray-900 mb-3">
-          Component Preview Server
-        </h1>
-        <p className="text-gray-500 mb-4">
-          This server renders individual components for the workspace canvas.
-        </p>
-        <p className="text-sm text-gray-400">
-          Access component previews at{" "}
-          <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">
-            {getPreviewExamplePath()}
-          </code>
-        </p>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#0f0f13",
+        fontFamily: "system-ui, -apple-system, sans-serif",
+        padding: "32px 24px",
+      }}
+    >
+      <div style={{ maxWidth: 1400, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 40 }}>
+          <h1
+            style={{
+              fontSize: 28,
+              fontWeight: 800,
+              color: "#fff",
+              marginBottom: 8,
+              letterSpacing: "-0.5px",
+            }}
+          >
+            WiseResume — Landing Page Variants
+          </h1>
+          <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", marginBottom: 0 }}>
+            Compare all three designs side by side. Click a label to open full view.
+          </p>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 20,
+            alignItems: "start",
+          }}
+        >
+          {VARIANTS.map((v) => (
+            <div key={v.path} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  background: "rgba(255,255,255,0.05)",
+                  border: `1px solid ${v.color}40`,
+                }}
+              >
+                <div
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: "50%",
+                    background: v.color,
+                    flexShrink: 0,
+                    boxShadow: `0 0 8px ${v.color}`,
+                  }}
+                />
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{v.label}</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>{v.sub}</div>
+                </div>
+                <a
+                  href={`${basePath}${v.path}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    marginLeft: "auto",
+                    fontSize: 11,
+                    color: v.color,
+                    textDecoration: "none",
+                    fontWeight: 600,
+                    padding: "4px 10px",
+                    borderRadius: 6,
+                    border: `1px solid ${v.color}50`,
+                    background: `${v.color}10`,
+                  }}
+                >
+                  Open ↗
+                </a>
+              </div>
+
+              <div
+                style={{
+                  borderRadius: 12,
+                  overflow: "hidden",
+                  border: `1px solid ${v.color}25`,
+                  boxShadow: `0 4px 24px rgba(0,0,0,0.4)`,
+                  background: "#000",
+                  height: 640,
+                  position: "relative",
+                }}
+              >
+                <iframe
+                  src={`${basePath}${v.path}`}
+                  title={v.label}
+                  style={{
+                    width: "200%",
+                    height: "200%",
+                    border: "none",
+                    transform: "scale(0.5)",
+                    transformOrigin: "0 0",
+                    pointerEvents: "none",
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
-function getPreviewPath(): string | null {
+function getLocalPath(): string {
   const basePath = getBasePath();
   const { pathname } = window.location;
-  const local =
-    basePath && pathname.startsWith(basePath)
-      ? pathname.slice(basePath.length) || "/"
-      : pathname;
+  return basePath && pathname.startsWith(basePath)
+    ? pathname.slice(basePath.length) || "/"
+    : pathname;
+}
+
+function getPreviewPath(): string | null {
+  const local = getLocalPath();
   const match = local.match(/^\/preview\/(.+)$/);
   return match ? match[1] : null;
 }
 
+function getNamedRoute(): string | null {
+  const local = getLocalPath();
+  return NAMED_ROUTES[local] ?? null;
+}
+
 function App() {
   const previewPath = getPreviewPath();
-
   if (previewPath) {
     return (
       <PreviewRenderer
@@ -140,7 +250,17 @@ function App() {
     );
   }
 
-  return <Gallery />;
+  const namedPath = getNamedRoute();
+  if (namedPath) {
+    return (
+      <PreviewRenderer
+        componentPath={namedPath}
+        modules={discoveredModules}
+      />
+    );
+  }
+
+  return <ComparisonGallery />;
 }
 
 export default App;
