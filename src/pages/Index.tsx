@@ -122,6 +122,23 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: -1, pointerEvents: 'none' }}>
+        <LightRays
+          raysOrigin="top-center"
+          raysColor="#ffffff"
+          raysSpeed={1.7}
+          lightSpread={0.5}
+          rayLength={3}
+          followMouse={true}
+          mouseInfluence={0.4}
+          noiseAmount={0}
+          distortion={0}
+          className="custom-rays"
+          pulsating={false}
+          fadeDistance={1.8}
+          saturation={1}
+        />
+      </div>
       <div className="fixed top-0 left-0 right-0 h-[2px] z-[60] pointer-events-none" style={{ display: 'none' }}>
         <div ref={progressRef} className="h-full bg-primary transition-[width] duration-75 ease-out" />
       </div>
@@ -195,25 +212,7 @@ const Index = () => {
 
       <main className="max-w-6xl mx-auto w-full">
         {/* Hero Section — Clean, text-focused */}
-        <section className="relative overflow-hidden flex flex-col items-center text-center px-4 sm:px-6 pt-[calc(7rem+env(safe-area-inset-top))] pb-12 sm:pb-16">
-          <div style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 0, pointerEvents: 'none' }}>
-            <LightRays
-              raysOrigin="top-center"
-              raysColor="#ffffff"
-              raysSpeed={1.7}
-              lightSpread={0.5}
-              rayLength={3}
-              followMouse={true}
-              mouseInfluence={0.4}
-              noiseAmount={0}
-              distortion={0}
-              className="custom-rays"
-              pulsating={false}
-              fadeDistance={1.8}
-              saturation={1}
-            />
-          </div>
-          <div className="relative z-10 flex flex-col items-center w-full">
+        <section className="flex flex-col items-center text-center px-4 sm:px-6 pt-[calc(7rem+env(safe-area-inset-top))] pb-12 sm:pb-16">
           <motion.div className="mb-6" {...fade(0)}>
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold border border-primary/20">
               <Sparkles className="w-3 h-3" />
@@ -287,7 +286,6 @@ const Index = () => {
               </span>
             ))}
           </motion.div>
-          </div>
         </section>
 
         {/* Social proof strip — compact, subtle */}
