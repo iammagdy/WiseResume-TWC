@@ -66,10 +66,10 @@ export function useAIKeyHydration() {
           }
         }
 
-        // Hydrate AI provider preference
+        // Hydrate AI provider preference + WiseResume sub-provider
         const { data: prefs } = await supabase
           .from('user_preferences')
-          .select('ai_provider')
+          .select('ai_provider, wiseresume_sub_provider')
           .eq('user_id', userId)
           .maybeSingle();
 
@@ -79,6 +79,13 @@ export function useAIKeyHydration() {
           const currentLocal = store.aiProvider;
           if (currentLocal === 'wiseresume') {
             store.setAIProvider('wiseresume');
+          }
+        }
+
+        if (prefs?.wiseresume_sub_provider) {
+          const sub = prefs.wiseresume_sub_provider as string;
+          if (sub === 'openrouter' || sub === 'groq' || sub === 'auto') {
+            store.setWiseresumeSubProvider(sub);
           }
         }
 

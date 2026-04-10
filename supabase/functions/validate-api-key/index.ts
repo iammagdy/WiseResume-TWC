@@ -63,8 +63,73 @@ Deno.serve(async (req) => {
   const { userId, client } = authResult;
 
   try {
-    const { apiKey, provider, baseUrl, model, modelsOnly } = await req.json();
-    
+    const { apiKey, provider, baseUrl, model, modelsOnly, wiseresumeSubProvider } = await req.json();
+
+    // WiseResume AI uses managed keys — no user API key needed
+    if (provider === 'wiseresume') {
+      const openrouterKey = Deno.env.get('OPENROUTER_API_KEY');
+      const groqKey = Deno.env.get('GROQ_API_KEY');
+      const sub = wiseresumeSubProvider || 'auto';
+
+      if (!openrouterKey && !groqKey) {
+        return new Response(JSON.stringify({
+          isValid: false,
+          error: 'WiseResume AI is not configured. Please contact support.',
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      // Determine which engine to test
+      const testEngine = (sub === 'groq' && groqKey) ? 'groq'
+        : (sub === 'openrouter' && openrouterKey) ? 'openrouter'
+        : openrouterKey ? 'openrouter'
+        : 'groq';
+
+      try {
+        let resp: Response;
+        if (testEngine === 'groq' && groqKey) {
+          resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
+            body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: 'Hi' }], max_tokens: 1 }),
+          });
+        } else if (openrouterKey) {
+          resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${openrouterKey}`,
+              'HTTP-Referer': 'https://resume.thewise.cloud',
+              'X-Title': 'WiseResume',
+            },
+            body: JSON.stringify({ model: 'google/gemma-4-26b-a4b-it:free', messages: [{ role: 'user', content: 'Hi' }], max_tokens: 1 }),
+          });
+        } else {
+          throw new Error('No key available');
+        }
+
+        if (resp.ok) {
+          return new Response(JSON.stringify({
+            isValid: true,
+            tier: 'free',
+            engine: testEngine,
+            message: `WiseResume AI (${testEngine === 'groq' ? 'Groq — Llama 3.3' : 'OpenRouter — Gemma 4'}) is working.`,
+          }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+
+        const errText = await resp.text();
+        return new Response(JSON.stringify({
+          isValid: false,
+          engine: testEngine,
+          error: `WiseResume AI (${testEngine}) returned HTTP ${resp.status}: ${errText.slice(0, 120)}`,
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      } catch (fetchErr) {
+        return new Response(JSON.stringify({
+          isValid: false,
+          error: `Cannot reach WiseResume AI (${testEngine}). Please try again later.`,
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+    }
+
     // Ollama may have empty API key; OpenRouter model refresh may send placeholder
     if (provider !== 'ollama' && provider !== 'openrouter' && (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length < 10)) {
       return new Response(JSON.stringify({ isValid: false, error: 'Invalid API key format' }), {
