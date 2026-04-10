@@ -22,7 +22,6 @@ const STATUS_CONFIG: Record<AIHealthStatus, {
   dotClass: string;
   textClass: string;
   badgeBg: string;
-  barClass: string;
 }> = {
   healthy: {
     label: 'AI Online',
@@ -30,7 +29,6 @@ const STATUS_CONFIG: Record<AIHealthStatus, {
     dotClass: 'bg-emerald-400',
     textClass: 'text-emerald-400',
     badgeBg: 'bg-emerald-500/10 border-emerald-500/25 hover:bg-emerald-500/15',
-    barClass: 'bg-emerald-400',
   },
   degraded: {
     label: 'AI Slow',
@@ -38,7 +36,6 @@ const STATUS_CONFIG: Record<AIHealthStatus, {
     dotClass: 'bg-amber-400',
     textClass: 'text-amber-400',
     badgeBg: 'bg-amber-500/10 border-amber-500/25 hover:bg-amber-500/15',
-    barClass: 'bg-amber-400',
   },
   down: {
     label: 'AI Unavailable',
@@ -46,14 +43,13 @@ const STATUS_CONFIG: Record<AIHealthStatus, {
     dotClass: 'bg-red-400',
     textClass: 'text-red-400',
     badgeBg: 'bg-red-500/10 border-red-500/25 hover:bg-red-500/15',
-    barClass: 'bg-red-400',
   },
 };
 
 function latencyQuality(ms: number | null): { label: string; fraction: number; colorClass: string } {
   if (ms === null) return { label: '—', fraction: 0, colorClass: 'bg-muted-foreground/30' };
-  if (ms < 2000) return { label: 'Fast', fraction: Math.min(1, ms / 2000), colorClass: 'bg-emerald-400' };
-  if (ms < 5000) return { label: 'Moderate', fraction: Math.min(1, (ms - 2000) / 3000 * 0.5 + 0.5), colorClass: 'bg-amber-400' };
+  if (ms < 3000) return { label: 'Fast', fraction: ms / 3000, colorClass: 'bg-emerald-400' };
+  if (ms < 8000) return { label: 'Moderate', fraction: 0.5 + (ms - 3000) / 10000, colorClass: 'bg-amber-400' };
   return { label: 'Slow', fraction: 1, colorClass: 'bg-red-400' };
 }
 
@@ -114,11 +110,11 @@ export function AIHealthBadge() {
       const pingErrorCode: number | null = data.errorCode ?? null;
       const pingProvider: string = data.provider ?? 'wiseresume';
 
+      recordProvider(pingProvider);
       if (pingStatus === 'down') {
         recordFailure(pingErrorCode ?? 0);
       } else {
         recordSuccess(latency);
-        recordProvider(pingProvider);
       }
 
       setPingResult({ latencyMs: latency > 0 ? latency : null, status: pingStatus, errorCode: pingErrorCode });
@@ -131,7 +127,8 @@ export function AIHealthBadge() {
   }, [recordSuccess, recordFailure, recordProvider]);
 
   const handleOpenChange = useCallback((open: boolean) => {
-    if (open && pingState === 'idle') {
+    if (open && pingState !== 'pinging') {
+      setPingResult(null);
       runPing();
     }
   }, [pingState, runPing]);
@@ -191,7 +188,7 @@ export function AIHealthBadge() {
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Response Time</span>
             <button
-              onClick={() => { setPingState('idle'); setPingResult(null); runPing(); }}
+              onClick={() => { setPingResult(null); runPing(); }}
               disabled={pingState === 'pinging'}
               className="flex items-center gap-1 text-[11px] text-primary/70 hover:text-primary disabled:opacity-40 transition-colors"
               aria-label="Ping again"
