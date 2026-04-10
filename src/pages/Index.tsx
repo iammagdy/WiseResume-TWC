@@ -14,6 +14,7 @@ import { useEffect, useState, useRef, lazy, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
 import { QuickTailorSheet } from '@/components/landing/QuickTailorSheet';
+import LightRays from '@/components/landing/LightRays';
 import { useTheme } from '@/hooks/use-theme';
 import { InstallButton } from '@/components/pwa/InstallButton';
 import { useThemeLogo } from '@/hooks/useThemeLogo';
@@ -194,7 +195,25 @@ const Index = () => {
 
       <main className="max-w-6xl mx-auto w-full">
         {/* Hero Section — Clean, text-focused */}
-        <section className="flex flex-col items-center text-center px-4 sm:px-6 pt-[calc(7rem+env(safe-area-inset-top))] pb-12 sm:pb-16">
+        <section className="relative overflow-hidden flex flex-col items-center text-center px-4 sm:px-6 pt-[calc(7rem+env(safe-area-inset-top))] pb-12 sm:pb-16">
+          <div style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 0, pointerEvents: 'none' }}>
+            <LightRays
+              raysOrigin="top-center"
+              raysColor="#ffffff"
+              raysSpeed={1.7}
+              lightSpread={0.5}
+              rayLength={3}
+              followMouse={true}
+              mouseInfluence={0.4}
+              noiseAmount={0}
+              distortion={0}
+              className="custom-rays"
+              pulsating={false}
+              fadeDistance={1.8}
+              saturation={1}
+            />
+          </div>
+          <div className="relative z-10 flex flex-col items-center w-full">
           <motion.div className="mb-6" {...fade(0)}>
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold border border-primary/20">
               <Sparkles className="w-3 h-3" />
@@ -268,6 +287,7 @@ const Index = () => {
               </span>
             ))}
           </motion.div>
+          </div>
         </section>
 
         {/* Social proof strip — compact, subtle */}
