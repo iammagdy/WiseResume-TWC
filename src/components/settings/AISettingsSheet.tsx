@@ -1257,6 +1257,9 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                           {testResult.fallbackUsed && (
                             <p className="text-amber-400">⚡ Fell back to WiseResume AI</p>
                           )}
+                          {testResult.response && (
+                            <p className="italic opacity-70">"{testResult.response}"</p>
+                          )}
                         </div>
                       )}
                     </motion.div>
