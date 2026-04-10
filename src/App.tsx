@@ -13,7 +13,6 @@ import { BiometricLockScreen } from "@/components/BiometricLockScreen";
 import { useBiometricLock } from "@/hooks/useBiometricLock";
 import { useSettingsStore } from "@/store/settingsStore";
 import { toast } from "sonner";
-import { AnimatedSplash } from "@/components/AnimatedSplash";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -53,6 +52,10 @@ import {
 "@/components/layout/PageSkeletons";
 import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
+
+const AnimatedSplash = lazyWithRetry(() =>
+  import("@/components/AnimatedSplash").then(m => ({ default: m.AnimatedSplash }))
+);
 
 const CommandPalette = lazyWithRetry(() => import("@/components/layout/CommandPalette"));
 
@@ -197,7 +200,11 @@ function AppRoutes() {
   }, []);
 
   if (!hasSeenSplash && !isPublicStandalone) {
-    return <AnimatedSplash onComplete={() => setHasSeenSplash(true)} />;
+    return (
+      <Suspense fallback={<div className="fixed inset-0 bg-background" />}>
+        <AnimatedSplash onComplete={() => setHasSeenSplash(true)} />
+      </Suspense>
+    );
   }
 
   if (isSuspended && !isPublicStandalone) {
@@ -300,8 +307,26 @@ function AppRoutes() {
         <Route path="*" element={<Suspense fallback={<DetailSkeleton />}><NotFound /></Suspense>} />
       </Routes>
       
+      <PrefetchOnIdle />
       </>);
 
+}
+
+function PrefetchOnIdle() {
+  useEffect(() => {
+    const prefetch = () => {
+      void import("./pages/DashboardPage");
+      void import("./pages/UploadPage");
+      void import("./pages/EditorPage");
+    };
+    if (typeof (window as any).requestIdleCallback === 'function') {
+      const id = (window as any).requestIdleCallback(prefetch, { timeout: 4000 });
+      return () => (window as any).cancelIdleCallback(id);
+    }
+    const t = setTimeout(prefetch, 3000);
+    return () => clearTimeout(t);
+  }, []);
+  return null;
 }
 
 function DeferredProviders() {
