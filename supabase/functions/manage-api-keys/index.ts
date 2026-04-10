@@ -130,15 +130,10 @@ Deno.serve(async (req) => {
         const resolvedBaseUrl = baseUrl || base_url;
         upsertData.base_url = normalizeOptionalString(resolvedBaseUrl);
         upsertData.model = normalizedModel;
-      } else if (provider === 'gemini') {
-        upsertData.base_url = null;
-        upsertData.model = normalizedModel;
-      } else if (provider === 'openrouter') {
-        upsertData.base_url = null;
-        upsertData.model = normalizedModel;
       } else {
+        // All other providers: save model if provided, clear base_url
         upsertData.base_url = null;
-        upsertData.model = null;
+        upsertData.model = normalizedModel;
       }
 
       const { error } = await supabase

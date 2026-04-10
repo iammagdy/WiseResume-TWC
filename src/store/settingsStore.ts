@@ -7,7 +7,7 @@ export type AutoSaveToastMode = 'always' | 'errors-only';
 export type AITipFrequency = 'daily' | 'weekly' | 'on-demand';
 
 // AI Provider types
-export type AIProvider = 'wiseresume' | 'gemini' | 'ollama' | 'openrouter';
+export type AIProvider = 'wiseresume' | 'openai' | 'anthropic' | 'gemini' | 'groq' | 'mistral' | 'xai' | 'cohere' | 'openrouter' | 'ollama';
 export type GeminiKeyTier = 'free' | 'paid' | 'unknown';
 export type WiseresumeSubProvider = 'openrouter' | 'groq' | 'auto';
 
@@ -58,14 +58,12 @@ interface SettingsState {
   aiProvider: AIProvider;
   /** Stores a masked preview of the key (e.g. AIza...xyz). The full key is only in the server DB. */
   geminiApiKey: string;
-  
   geminiKeyTier: GeminiKeyTier;
   geminiKeyValidated: boolean;
   geminiDailyUsage: GeminiDailyUsage;
   geminiModel: string;
   
   // Ollama Provider Settings (in-memory only, keys stored server-side)
-  /** Stores a masked preview of the key. The full key is only in the server DB. */
   ollamaApiKey: string;
   ollamaBaseUrl: string;
   ollamaModel: string;
@@ -78,6 +76,33 @@ interface SettingsState {
 
   // WiseResume AI sub-provider selection
   wiseresumeSubProvider: WiseresumeSubProvider;
+
+  // ── New BYOK providers ─────────────────────────────────────────────────────
+  // OpenAI
+  openaiApiKey: string;
+  openaiModel: string;
+  openaiKeyValidated: boolean;
+  // Anthropic (Claude)
+  anthropicApiKey: string;
+  anthropicModel: string;
+  anthropicKeyValidated: boolean;
+  // Groq (user BYOK key, distinct from managed WiseResume Groq)
+  groqApiKey: string;
+  groqModel: string;
+  groqKeyValidated: boolean;
+  // Mistral AI
+  mistralApiKey: string;
+  mistralModel: string;
+  mistralKeyValidated: boolean;
+  // xAI (Grok)
+  xaiApiKey: string;
+  xaiModel: string;
+  xaiKeyValidated: boolean;
+  // Cohere
+  cohereApiKey: string;
+  cohereModel: string;
+  cohereKeyValidated: boolean;
+  // ──────────────────────────────────────────────────────────────────────────
   
   // Actions
   setShowAutoSaveToasts: (value: boolean) => void;
@@ -107,7 +132,6 @@ interface SettingsState {
   // AI Provider Actions
   setAIProvider: (provider: AIProvider) => void;
   setGeminiApiKey: (key: string) => void;
-  
   setGeminiKeyTier: (tier: GeminiKeyTier) => void;
   setGeminiKeyValidated: (validated: boolean) => void;
   setGeminiModel: (model: string) => void;
@@ -127,6 +151,26 @@ interface SettingsState {
 
   // WiseResume sub-provider
   setWiseresumeSubProvider: (sub: WiseresumeSubProvider) => void;
+
+  // New BYOK provider actions
+  setOpenaiApiKey: (key: string) => void;
+  setOpenaiModel: (model: string) => void;
+  setOpenaiKeyValidated: (validated: boolean) => void;
+  setAnthropicApiKey: (key: string) => void;
+  setAnthropicModel: (model: string) => void;
+  setAnthropicKeyValidated: (validated: boolean) => void;
+  setGroqApiKey: (key: string) => void;
+  setGroqModel: (model: string) => void;
+  setGroqKeyValidated: (validated: boolean) => void;
+  setMistralApiKey: (key: string) => void;
+  setMistralModel: (model: string) => void;
+  setMistralKeyValidated: (validated: boolean) => void;
+  setXaiApiKey: (key: string) => void;
+  setXaiModel: (model: string) => void;
+  setXaiKeyValidated: (validated: boolean) => void;
+  setCohereApiKey: (key: string) => void;
+  setCohereModel: (model: string) => void;
+  setCohereKeyValidated: (validated: boolean) => void;
   
   resetSettings: () => void;
   resetUserSettings: () => void;
@@ -178,6 +222,25 @@ const defaultSettings = {
   openrouterKeyValidated: false,
   // WiseResume sub-provider default
   wiseresumeSubProvider: 'auto' as WiseresumeSubProvider,
+  // New BYOK provider defaults
+  openaiApiKey: '',
+  openaiModel: 'gpt-4o-mini',
+  openaiKeyValidated: false,
+  anthropicApiKey: '',
+  anthropicModel: 'claude-3-5-haiku-20241022',
+  anthropicKeyValidated: false,
+  groqApiKey: '',
+  groqModel: 'llama-3.3-70b-versatile',
+  groqKeyValidated: false,
+  mistralApiKey: '',
+  mistralModel: 'mistral-small-latest',
+  mistralKeyValidated: false,
+  xaiApiKey: '',
+  xaiModel: 'grok-2-mini',
+  xaiKeyValidated: false,
+  cohereApiKey: '',
+  cohereModel: 'command-r',
+  cohereKeyValidated: false,
 };
 
 // Helper to get Pacific midnight reset
@@ -232,7 +295,6 @@ export const useSettingsStore = create<SettingsState>()(
         const current = get().geminiDailyUsage;
         
         if (current.date !== today) {
-          // Reset for new day
           set({ geminiDailyUsage: { date: today, count: 1 } });
         } else {
           set({ geminiDailyUsage: { date: today, count: current.count + 1 } });
@@ -253,6 +315,26 @@ export const useSettingsStore = create<SettingsState>()(
 
       // WiseResume sub-provider
       setWiseresumeSubProvider: (sub) => set({ wiseresumeSubProvider: sub }),
+
+      // New BYOK provider actions
+      setOpenaiApiKey: (key) => set({ openaiApiKey: key, openaiKeyValidated: false }),
+      setOpenaiModel: (model) => set({ openaiModel: model }),
+      setOpenaiKeyValidated: (validated) => set({ openaiKeyValidated: validated }),
+      setAnthropicApiKey: (key) => set({ anthropicApiKey: key, anthropicKeyValidated: false }),
+      setAnthropicModel: (model) => set({ anthropicModel: model }),
+      setAnthropicKeyValidated: (validated) => set({ anthropicKeyValidated: validated }),
+      setGroqApiKey: (key) => set({ groqApiKey: key, groqKeyValidated: false }),
+      setGroqModel: (model) => set({ groqModel: model }),
+      setGroqKeyValidated: (validated) => set({ groqKeyValidated: validated }),
+      setMistralApiKey: (key) => set({ mistralApiKey: key, mistralKeyValidated: false }),
+      setMistralModel: (model) => set({ mistralModel: model }),
+      setMistralKeyValidated: (validated) => set({ mistralKeyValidated: validated }),
+      setXaiApiKey: (key) => set({ xaiApiKey: key, xaiKeyValidated: false }),
+      setXaiModel: (model) => set({ xaiModel: model }),
+      setXaiKeyValidated: (validated) => set({ xaiKeyValidated: validated }),
+      setCohereApiKey: (key) => set({ cohereApiKey: key, cohereKeyValidated: false }),
+      setCohereModel: (model) => set({ cohereModel: model }),
+      setCohereKeyValidated: (validated) => set({ cohereKeyValidated: validated }),
       
       resetSettings: () => set(defaultSettings),
 
@@ -273,7 +355,11 @@ export const useSettingsStore = create<SettingsState>()(
       partialize: (state) => {
         // Exclude sensitive keys from localStorage persistence
         // Keys are now stored server-side via manage-api-keys edge function
-        const { geminiApiKey, elevenlabsApiKey, ollamaApiKey, openrouterApiKey, ...rest } = state;
+        const {
+          geminiApiKey, elevenlabsApiKey, ollamaApiKey, openrouterApiKey,
+          openaiApiKey, anthropicApiKey, groqApiKey, mistralApiKey, xaiApiKey, cohereApiKey,
+          ...rest
+        } = state;
         return rest;
       },
     }

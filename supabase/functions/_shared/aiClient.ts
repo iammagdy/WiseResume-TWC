@@ -35,7 +35,7 @@ export interface AICallOptions {
   /** Override default timeout in ms */
   timeout?: number;
   /** Preferred AI provider — if omitted, read from user_preferences table */
-  preferredProvider?: 'gemini' | 'ollama' | 'openrouter' | 'wiseresume';
+  preferredProvider?: string;
   /** WiseResume AI sub-provider: 'openrouter' (Gemma 4), 'groq' (Llama 3.3), or 'auto' (try both) */
   wiseresumeSubProvider?: 'openrouter' | 'groq' | 'auto';
 }
@@ -234,6 +234,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
   let userGeminiKey: string | undefined;
   let userOllamaData: { key: string; baseUrl: string | null; model: string | null } | undefined;
   let userOpenRouterData: { key: string; baseUrl: string | null; model: string | null } | undefined;
+  let userByokData: { key: string; model: string | null; provider: string } | undefined;
   let wiseresumeSubProvider: 'openrouter' | 'groq' | 'auto' = options.wiseresumeSubProvider || 'auto';
 
   if (userId) {
@@ -245,6 +246,10 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
       userOpenRouterData = await getUserKeyAndUrlFromDB(userId, 'openrouter');
     } else if (preferredProvider === 'gemini') {
       userGeminiKey = await getUserKeyFromDB(userId);
+    } else if (preferredProvider && (OPENAI_COMPAT_BASE_URLS[preferredProvider] || preferredProvider === 'anthropic')) {
+      // New BYOK providers: OpenAI, Anthropic, Groq (BYOK), Mistral, xAI, Cohere
+      const data = await getUserKeyAndUrlFromDB(userId, preferredProvider);
+      if (data) userByokData = { key: data.key, model: data.model, provider: preferredProvider };
     } else {
       // 'wiseresume' or no preference — read sub-provider if not already supplied
       if (!options.wiseresumeSubProvider) {
@@ -265,6 +270,39 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
+    // Priority -1: New BYOK providers (OpenAI, Anthropic, Groq, Mistral, xAI, Cohere)
+    if (userByokData) {
+      const { provider, key, model: storedModel } = userByokData;
+      const byokModel = storedModel || model;
+      if (!byokModel) {
+        throw createAIError('invalid_key', `No model selected for ${provider}. Please choose a model in AI Settings.`, 400);
+      }
+      console.log(`[AI] Using user BYOK ${provider} key, model:`, byokModel);
+      try {
+        let res: AIResponse;
+        if (provider === 'anthropic') {
+          res = await callAnthropicDirect(key, byokModel, messages, temperature, maxTokens, controller.signal);
+        } else {
+          const completionsUrl = OPENAI_COMPAT_BASE_URLS[provider];
+          res = await callOpenAICompatible(key, completionsUrl, provider, byokModel, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+        }
+        return { ...res, providerUsed: provider };
+      } catch (err) {
+        console.warn(`[AI] ${provider} BYOK failed, falling back to WiseResume AI:`, err instanceof Error ? err.message : err);
+        if (hasManagedAI) {
+          const fallbackController = new AbortController();
+          const fallbackTimeout = setTimeout(() => fallbackController.abort(), timeout);
+          try {
+            const res = await callWiseresumeAI('auto', messages, temperature, maxTokens, tools, toolChoice, fallbackController.signal);
+            return { ...res, fallbackUsed: true, fallbackReason: `${provider}_error`, providerUsed: 'wiseresume_fallback' };
+          } finally {
+            clearTimeout(fallbackTimeout);
+          }
+        }
+        throw err;
+      }
+    }
+
     // Priority 0: User BYOK OpenRouter key
     if (userOpenRouterData) {
       const orModel = userOpenRouterData.model || model;
@@ -603,6 +641,148 @@ async function callOpenRouterDirect(
 
   const data = await response.json();
   return parseOpenAIResponse(data);
+}
+
+/**
+ * Base URLs for user BYOK OpenAI-compatible providers.
+ */
+const OPENAI_COMPAT_BASE_URLS: Record<string, string> = {
+  openai: 'https://api.openai.com/v1/chat/completions',
+  groq: 'https://api.groq.com/openai/v1/chat/completions',
+  mistral: 'https://api.mistral.ai/v1/chat/completions',
+  xai: 'https://api.x.ai/v1/chat/completions',
+  cohere: 'https://api.cohere.com/compatibility/v1/chat/completions',
+};
+
+/**
+ * Generic call to any OpenAI-compatible API with a user-provided key.
+ * Used for: OpenAI, Groq (BYOK), Mistral, xAI, Cohere.
+ */
+async function callOpenAICompatible(
+  apiKey: string,
+  completionsUrl: string,
+  providerName: string,
+  model: string,
+  messages: AIMessage[],
+  temperature: number,
+  maxTokens?: number,
+  tools?: AITool[],
+  toolChoice?: { type: 'function'; function: { name: string } } | 'auto',
+  signal?: AbortSignal
+): Promise<AIResponse> {
+  const body: Record<string, unknown> = { model, messages, temperature };
+  if (maxTokens) body.max_tokens = maxTokens;
+  if (tools && tools.length > 0) {
+    body.tools = tools;
+    if (toolChoice) body.tool_choice = toolChoice;
+  }
+
+  const response = await fetch(completionsUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(body),
+    signal,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`${providerName} API error:`, response.status, errorText);
+    let errorMessage = `${providerName} request failed`;
+    try {
+      const parsed = JSON.parse(errorText);
+      errorMessage = parsed.error?.message || parsed.error || errorMessage;
+    } catch {}
+    if (response.status === 401 || response.status === 403) {
+      throw createAIError('invalid_key', `Invalid ${providerName} API key. Please check your settings.`, 422);
+    }
+    if (response.status === 429) {
+      throw createAIError('rate_limit', `${providerName} rate limit reached. Please wait.`, 429);
+    }
+    if (response.status === 402) {
+      throw createAIError('payment_required', `${providerName} credits exhausted.`, 402);
+    }
+    throw createAIError('unknown', errorMessage, response.status);
+  }
+
+  const data = await response.json();
+  return parseOpenAIResponse(data);
+}
+
+/**
+ * Calls the Anthropic Messages API directly (Claude models).
+ * Note: Anthropic uses a different auth header and body format than OpenAI.
+ */
+async function callAnthropicDirect(
+  apiKey: string,
+  model: string,
+  messages: AIMessage[],
+  temperature: number,
+  maxTokens?: number,
+  signal?: AbortSignal
+): Promise<AIResponse> {
+  const systemMessages = messages.filter(m => m.role === 'system');
+  const nonSystemMessages = messages.filter(m => m.role !== 'system');
+
+  const body: Record<string, unknown> = {
+    model,
+    max_tokens: maxTokens || 2048,
+    messages: nonSystemMessages.map(m => ({ role: m.role, content: m.content })),
+    temperature,
+  };
+
+  if (systemMessages.length > 0) {
+    body.system = systemMessages.map(m => m.content).join('\n\n');
+  }
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify(body),
+    signal,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Anthropic API error:', response.status, errorText);
+    let errorMessage = 'Anthropic request failed';
+    try {
+      const parsed = JSON.parse(errorText);
+      errorMessage = parsed.error?.message || parsed.error || errorMessage;
+    } catch {}
+    if (response.status === 401 || response.status === 403) {
+      throw createAIError('invalid_key', 'Invalid Anthropic API key. Please check your settings.', 422);
+    }
+    if (response.status === 429) {
+      throw createAIError('rate_limit', 'Anthropic rate limit reached. Please wait.', 429);
+    }
+    if (response.status === 402) {
+      throw createAIError('payment_required', 'Anthropic credits exhausted.', 402);
+    }
+    throw createAIError('unknown', errorMessage, response.status);
+  }
+
+  const data = await response.json();
+
+  // Parse Anthropic response format: { content: [{ type: 'text', text: '...' }], usage: {...} }
+  const textContent = (data.content || [])
+    .filter((c: any) => c.type === 'text')
+    .map((c: any) => c.text)
+    .join('');
+
+  return {
+    content: textContent || null,
+    usage: data.usage ? {
+      promptTokens: data.usage.input_tokens || 0,
+      completionTokens: data.usage.output_tokens || 0,
+    } : undefined,
+  };
 }
 
 /**

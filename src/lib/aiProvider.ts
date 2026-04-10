@@ -3,8 +3,20 @@
  * Helper functions to get AI provider configuration for frontend service layer
  */
 
-import { useSettingsStore } from '@/store/settingsStore';
+import { useSettingsStore, AIProvider } from '@/store/settingsStore';
 
+const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
+  openai: 'OpenAI',
+  anthropic: 'Claude (Anthropic)',
+  gemini: 'Google Gemini',
+  groq: 'Groq',
+  mistral: 'Mistral AI',
+  xai: 'xAI (Grok)',
+  cohere: 'Cohere',
+  openrouter: 'OpenRouter',
+  ollama: 'Ollama',
+  wiseresume: 'WiseResume AI',
+};
 
 /**
  * Increments the daily usage counter for Gemini free tier
@@ -26,7 +38,8 @@ export function getAIProviderInfo(): {
   isCustomKey: boolean;
   tier: 'default' | 'free' | 'paid';
 } {
-  const { aiProvider, geminiKeyTier, geminiKeyValidated, ollamaKeyValidated, openrouterKeyValidated } = useSettingsStore.getState();
+  const store = useSettingsStore.getState();
+  const { aiProvider } = store;
   
   if (aiProvider === 'wiseresume') {
     return { name: 'WiseResume AI', isCustomKey: false, tier: 'default' };
@@ -34,28 +47,47 @@ export function getAIProviderInfo(): {
   
   if (aiProvider === 'ollama') {
     return {
-      name: ollamaKeyValidated ? 'Ollama' : 'Ollama (Not Configured)',
+      name: store.ollamaKeyValidated ? 'Ollama' : 'Ollama (Not Configured)',
       isCustomKey: true,
-      tier: ollamaKeyValidated ? 'paid' : 'free',
+      tier: store.ollamaKeyValidated ? 'paid' : 'free',
     };
   }
 
   if (aiProvider === 'openrouter') {
     return {
-      name: openrouterKeyValidated ? 'OpenRouter' : 'OpenRouter (Not Configured)',
+      name: store.openrouterKeyValidated ? 'OpenRouter' : 'OpenRouter (Not Configured)',
       isCustomKey: true,
-      tier: openrouterKeyValidated ? 'paid' : 'free',
+      tier: store.openrouterKeyValidated ? 'paid' : 'free',
     };
   }
   
-  if (!geminiKeyValidated) {
-    return { name: 'Gemini (Not Configured)', isCustomKey: true, tier: 'free' };
+  if (aiProvider === 'gemini') {
+    if (!store.geminiKeyValidated) {
+      return { name: 'Gemini (Not Configured)', isCustomKey: true, tier: 'free' };
+    }
+    return {
+      name: `Gemini (${store.geminiKeyTier === 'paid' ? 'Paid' : 'Free'})`,
+      isCustomKey: true,
+      tier: store.geminiKeyTier === 'paid' ? 'paid' : 'free',
+    };
   }
-  
+
+  // Generic handler for new BYOK providers
+  const validatedMap: Partial<Record<AIProvider, boolean>> = {
+    openai: store.openaiKeyValidated,
+    anthropic: store.anthropicKeyValidated,
+    groq: store.groqKeyValidated,
+    mistral: store.mistralKeyValidated,
+    xai: store.xaiKeyValidated,
+    cohere: store.cohereKeyValidated,
+  };
+  const isValidated = validatedMap[aiProvider] ?? false;
+  const displayName = PROVIDER_DISPLAY_NAMES[aiProvider] || aiProvider;
+
   return {
-    name: `Gemini (${geminiKeyTier === 'paid' ? 'Paid' : 'Free'})`,
+    name: isValidated ? displayName : `${displayName} (Not Configured)`,
     isCustomKey: true,
-    tier: geminiKeyTier === 'paid' ? 'paid' : 'free',
+    tier: isValidated ? 'paid' : 'free',
   };
 }
 
@@ -78,7 +110,7 @@ export async function handleAIError(response: Response, defaultMessage: string):
     throw new Error('AI credits exhausted. Please add more credits.');
   }
   if (response.status === 401 && errorData.error?.includes('Invalid')) {
-    throw new Error('Invalid Gemini API key. Please check your AI settings.');
+    throw new Error('Invalid API key. Please check your AI settings.');
   }
 
   throw new Error(errorData.error || defaultMessage);

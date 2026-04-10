@@ -1,6 +1,6 @@
 /**
  * Hydrates AI provider settings from server on login.
- * Ensures the UI reflects saved Ollama/Gemini config even after page reload.
+ * Ensures the UI reflects saved provider config even after page reload.
  */
 import { useEffect, useRef } from 'react';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -10,6 +10,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAIHealthStore } from '@/store/aiHealthStore';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const ALL_BYOK_PROVIDERS = ['gemini', 'ollama', 'openrouter', 'openai', 'anthropic', 'groq', 'mistral', 'xai', 'cohere'];
 
 export function useAIKeyHydration() {
   const hydrated = useRef(false);
@@ -23,8 +25,8 @@ export function useAIKeyHydration() {
       const userId = user.id;
 
       try {
-        // Reset AI state to defaults before hydrating from server
         const store = useSettingsStore.getState();
+        // Reset all provider validation states before hydrating
         store.setGeminiKeyValidated(false);
         store.setGeminiKeyTier('unknown');
         store.setOllamaKeyValidated(false);
@@ -32,13 +34,18 @@ export function useAIKeyHydration() {
         store.setOllamaModel('');
         store.setOpenrouterKeyValidated(false);
         store.setOpenrouterModel('');
+        store.setOpenaiKeyValidated(false);
+        store.setAnthropicKeyValidated(false);
+        store.setGroqKeyValidated(false);
+        store.setMistralKeyValidated(false);
+        store.setXaiKeyValidated(false);
+        store.setCohereKeyValidated(false);
         store.setAIProvider('wiseresume');
 
         // Hydrate keys from manage-api-keys
         const { data, error } = await edgeFunctions.functions.invoke('manage-api-keys', {
           body: { action: 'get' },
         });
-
 
         if (!error && data?.keys) {
           const keys = data.keys as Array<{
@@ -63,6 +70,30 @@ export function useAIKeyHydration() {
               store.setOpenrouterModel(key.model || '');
               store.setOpenrouterKeyValidated(true);
             }
+            if (key.provider === 'openai') {
+              if (key.model) store.setOpenaiModel(key.model);
+              store.setOpenaiKeyValidated(true);
+            }
+            if (key.provider === 'anthropic') {
+              if (key.model) store.setAnthropicModel(key.model);
+              store.setAnthropicKeyValidated(true);
+            }
+            if (key.provider === 'groq') {
+              if (key.model) store.setGroqModel(key.model);
+              store.setGroqKeyValidated(true);
+            }
+            if (key.provider === 'mistral') {
+              if (key.model) store.setMistralModel(key.model);
+              store.setMistralKeyValidated(true);
+            }
+            if (key.provider === 'xai') {
+              if (key.model) store.setXaiModel(key.model);
+              store.setXaiKeyValidated(true);
+            }
+            if (key.provider === 'cohere') {
+              if (key.model) store.setCohereModel(key.model);
+              store.setCohereKeyValidated(true);
+            }
           }
         }
 
@@ -73,13 +104,10 @@ export function useAIKeyHydration() {
           .eq('user_id', userId)
           .maybeSingle();
 
-        if (prefs?.ai_provider && prefs.ai_provider !== 'wiseresume') {
-          store.setAIProvider(prefs.ai_provider as 'gemini' | 'ollama' | 'openrouter' | 'wiseresume');
+        if (prefs?.ai_provider && ALL_BYOK_PROVIDERS.includes(prefs.ai_provider)) {
+          store.setAIProvider(prefs.ai_provider as any);
         } else if (prefs?.ai_provider === 'wiseresume') {
-          const currentLocal = store.aiProvider;
-          if (currentLocal === 'wiseresume') {
-            store.setAIProvider('wiseresume');
-          }
+          store.setAIProvider('wiseresume');
         }
 
         if (prefs?.wiseresume_sub_provider) {

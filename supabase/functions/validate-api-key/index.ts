@@ -10,29 +10,26 @@ function isPrivateUrl(url: string): boolean {
     const parsed = new URL(url);
     const hostname = parsed.hostname.toLowerCase();
 
-    // Exact matches
     if (
       hostname === 'localhost' ||
       hostname === '0.0.0.0' ||
       hostname === '::1' ||
-      hostname === '127.0.0.1' // Caught by regex too, but fast path
+      hostname === '127.0.0.1'
     ) {
       return true;
     }
 
-    // IP ranges
     if (
-      /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) || // 127.x.x.x loopback
-      /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||  // 10.x.x.x private
-      /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||     // 192.168.x.x private
-      /^169\.254\.\d{1,3}\.\d{1,3}$/.test(hostname) ||     // 169.254.x.x link-local APIPA
-      /^fc00:/.test(hostname) ||                           // IPv6 private/unique local
-      /^fe80:/.test(hostname)                              // IPv6 link-local
+      /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+      /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+      /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+      /^169\.254\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+      /^fc00:/.test(hostname) ||
+      /^fe80:/.test(hostname)
     ) {
       return true;
     }
 
-    // 172.16.x.x - 172.31.x.x private
     const match172 = /^172\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/.exec(hostname);
     if (match172) {
       const secondOctet = parseInt(match172[1], 10);
@@ -43,8 +40,49 @@ function isPrivateUrl(url: string): boolean {
 
     return false;
   } catch {
-    // Unparseable URLs are effectively blocked/invalid
     return true;
+  }
+}
+
+/** Generic OpenAI-compatible validation: sends a tiny chat request and returns { isValid, tier } */
+async function validateOpenAICompat(
+  apiKey: string,
+  completionsUrl: string,
+  providerName: string,
+  model: string,
+): Promise<{ isValid: boolean; tier: string; error?: string }> {
+  try {
+    const resp = await fetch(completionsUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'user', content: 'Say OK' }],
+        max_tokens: 5,
+        temperature: 0,
+      }),
+    });
+
+    if (resp.ok) {
+      await resp.json();
+      return { isValid: true, tier: 'paid' };
+    }
+
+    const status = resp.status;
+    const errText = await resp.text();
+    if (status === 401 || status === 403) {
+      return { isValid: false, tier: 'unknown', error: `Invalid ${providerName} API key` };
+    }
+    if (status === 429) {
+      // Rate limited but key is valid
+      return { isValid: true, tier: 'paid' };
+    }
+    return { isValid: false, tier: 'unknown', error: `${providerName} returned HTTP ${status}: ${errText.slice(0, 120)}` };
+  } catch (err) {
+    return { isValid: false, tier: 'unknown', error: `Cannot reach ${providerName}. Check your API key.` };
   }
 }
 
@@ -65,7 +103,7 @@ Deno.serve(async (req) => {
   try {
     const { apiKey, provider, baseUrl, model, modelsOnly, wiseresumeSubProvider } = await req.json();
 
-    // WiseResume AI uses managed keys — no user API key needed
+    // ===== WiseResume AI (managed) =====
     if (provider === 'wiseresume') {
       const openrouterKey = Deno.env.get('OPENROUTER_API_KEY');
       const groqKey = Deno.env.get('GROQ_API_KEY');
@@ -78,7 +116,6 @@ Deno.serve(async (req) => {
         }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      // Determine which engine to test — fail explicitly if selected engine key is missing
       let testEngine: 'openrouter' | 'groq';
       if (sub === 'openrouter') {
         if (!openrouterKey) {
@@ -97,7 +134,6 @@ Deno.serve(async (req) => {
         }
         testEngine = 'groq';
       } else {
-        // Auto: prefer OpenRouter, fall back to Groq
         testEngine = openrouterKey ? 'openrouter' : 'groq';
       }
 
@@ -147,24 +183,135 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Ollama may have empty API key; OpenRouter model refresh may send placeholder
-    if (provider !== 'ollama' && provider !== 'openrouter' && (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length < 10)) {
+    // For all non-wiseresume providers, require a real API key (except ollama + openrouter which allow empty)
+    const keyTrimmed = (apiKey || '').trim();
+    if (provider !== 'ollama' && provider !== 'openrouter' && keyTrimmed.length < 8) {
       return new Response(JSON.stringify({ isValid: false, error: 'Invalid API key format' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    if (provider !== 'gemini' && provider !== 'ollama' && provider !== 'openrouter') {
-      return new Response(JSON.stringify({ isValid: false, error: 'Unsupported provider' }), {
+    // ===== OpenAI validation =====
+    if (provider === 'openai') {
+      const testModel = model || 'gpt-4o-mini';
+      const result = await validateOpenAICompat(
+        keyTrimmed,
+        'https://api.openai.com/v1/chat/completions',
+        'OpenAI',
+        testModel,
+      );
+      return new Response(JSON.stringify({ ...result, model: testModel }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ===== Anthropic (Claude) validation =====
+    if (provider === 'anthropic') {
+      const testModel = model || 'claude-3-5-haiku-20241022';
+      try {
+        const resp = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': keyTrimmed,
+            'anthropic-version': '2023-06-01',
+          },
+          body: JSON.stringify({
+            model: testModel,
+            max_tokens: 5,
+            messages: [{ role: 'user', content: 'Say OK' }],
+          }),
+        });
+
+        if (resp.ok) {
+          await resp.json();
+          return new Response(JSON.stringify({ isValid: true, tier: 'paid', model: testModel }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        const status = resp.status;
+        const errText = await resp.text();
+        if (status === 401 || status === 403) {
+          return new Response(JSON.stringify({ isValid: false, error: 'Invalid Anthropic API key' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        if (status === 429) {
+          return new Response(JSON.stringify({ isValid: true, tier: 'paid', model: testModel }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        return new Response(JSON.stringify({ isValid: false, error: `Anthropic returned HTTP ${status}: ${errText.slice(0, 120)}` }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch {
+        return new Response(JSON.stringify({ isValid: false, error: 'Cannot reach Anthropic. Check your API key.' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // ===== Groq (BYOK) validation =====
+    if (provider === 'groq') {
+      const testModel = model || 'llama-3.3-70b-versatile';
+      const result = await validateOpenAICompat(
+        keyTrimmed,
+        'https://api.groq.com/openai/v1/chat/completions',
+        'Groq',
+        testModel,
+      );
+      return new Response(JSON.stringify({ ...result, model: testModel }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ===== Mistral AI validation =====
+    if (provider === 'mistral') {
+      const testModel = model || 'mistral-small-latest';
+      const result = await validateOpenAICompat(
+        keyTrimmed,
+        'https://api.mistral.ai/v1/chat/completions',
+        'Mistral',
+        testModel,
+      );
+      return new Response(JSON.stringify({ ...result, model: testModel }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ===== xAI (Grok) validation =====
+    if (provider === 'xai') {
+      const testModel = model || 'grok-2-mini';
+      const result = await validateOpenAICompat(
+        keyTrimmed,
+        'https://api.x.ai/v1/chat/completions',
+        'xAI',
+        testModel,
+      );
+      return new Response(JSON.stringify({ ...result, model: testModel }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ===== Cohere validation =====
+    if (provider === 'cohere') {
+      const testModel = model || 'command-r';
+      const result = await validateOpenAICompat(
+        keyTrimmed,
+        'https://api.cohere.com/compatibility/v1/chat/completions',
+        'Cohere',
+        testModel,
+      );
+      return new Response(JSON.stringify({ ...result, model: testModel }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     // ===== OpenRouter validation =====
     if (provider === 'openrouter') {
-      const orKey = (apiKey || '').trim();
+      const orKey = keyTrimmed;
 
-      // Model list refresh mode: fetch public models list without key validation
       if (modelsOnly) {
         try {
           const modelsResponse = await fetch('https://openrouter.ai/api/v1/models');
@@ -202,7 +349,6 @@ Deno.serve(async (req) => {
 
         const modelsData = await modelsResponse.json();
         const availableModels: string[] = (modelsData.data || []).map((m: any) => m.id).slice(0, 200);
-
         console.log(`[validate] OpenRouter: found ${availableModels.length} models`);
 
         const testModel = model || (availableModels.includes('google/gemini-2.5-flash') ? 'google/gemini-2.5-flash' : availableModels[0]);
@@ -249,7 +395,6 @@ Deno.serve(async (req) => {
 
     // ===== Ollama validation =====
     if (provider === 'ollama') {
-
       if (!baseUrl) {
         return new Response(JSON.stringify({ isValid: false, error: 'Base URL is required for Ollama' }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -266,12 +411,11 @@ Deno.serve(async (req) => {
       const useNativeApi = isOllamaCloud(cleanUrl);
       
       const reqHeaders: Record<string, string> = {};
-      if (apiKey.trim()) {
-        reqHeaders['Authorization'] = `Bearer ${apiKey.trim()}`;
+      if (keyTrimmed) {
+        reqHeaders['Authorization'] = `Bearer ${keyTrimmed}`;
       }
 
       try {
-        // Step 1: List models
         const modelsEndpoint = useNativeApi
           ? `${cleanUrl}/api/tags`
           : `${cleanUrl}/v1/models`;
@@ -301,25 +445,20 @@ Deno.serve(async (req) => {
 
         const modelsData = await modelsResponse.json();
         
-        // Parse models list differently based on API format
         let availableModels: string[] = [];
         if (useNativeApi) {
-          // Native Ollama: { models: [{ name: "model:tag", ... }] }
           availableModels = modelsData.models?.map((m: any) => m.name || m.model) || [];
         } else {
-          // OpenAI-compatible: { data: [{ id: "model" }] }
           availableModels = modelsData.data?.map((m: any) => m.id) || [];
         }
 
         console.log(`[validate] Ollama: found ${availableModels.length} models, native=${useNativeApi}`);
 
-        // Step 2: Real completion test with the chosen model
         const testModel = model || availableModels[0];
         if (testModel) {
           let completionResponse: Response;
 
           if (useNativeApi) {
-            // Native Ollama API: POST /api/chat
             completionResponse = await fetch(`${cleanUrl}/api/chat`, {
               method: 'POST',
               headers: { ...reqHeaders, 'Content-Type': 'application/json' },
@@ -330,7 +469,6 @@ Deno.serve(async (req) => {
               }),
             });
           } else {
-            // OpenAI-compatible: POST /v1/chat/completions
             completionResponse = await fetch(`${cleanUrl}/v1/chat/completions`, {
               method: 'POST',
               headers: { ...reqHeaders, 'Content-Type': 'application/json' },
@@ -361,7 +499,6 @@ Deno.serve(async (req) => {
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             });
           }
-          // Consume the body
           await completionResponse.json();
         }
 
@@ -376,118 +513,100 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ===== Gemini / Vertex AI validation =====
+    // ===== Gemini validation =====
+    if (provider === 'gemini') {
+      const GEMINI_TEST_MODELS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.5-pro'];
+      const testModel = 'gemini-2.5-flash-lite';
 
-    const VERTEX_TEST_MODELS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.5-pro'];
-    const testModel = 'gemini-2.5-flash-lite';
+      const testResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${testModel}:generateContent?key=${keyTrimmed}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: 'Hi' }] }],
+            generationConfig: { maxOutputTokens: 1 },
+          }),
+        }
+      );
 
-    // Step 1: Validate key with a minimal generateContent call
-    const testResponse = await fetch(
-      `https://aiplatform.googleapis.com/v1/publishers/google/models/${testModel}:generateContent?key=${apiKey.trim()}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: 'Hi' }] }],
-          generationConfig: { maxOutputTokens: 1 },
-        }),
-      }
-    );
-
-    if (!testResponse.ok) {
-      const status = testResponse.status;
-      const errText = await testResponse.text();
-      const lower = errText.toLowerCase();
-      if (status === 400 && (lower.includes('api_key_invalid') || lower.includes('api key not valid'))) {
-        return new Response(JSON.stringify({ isValid: false, tier: 'unknown', error: 'Invalid API key' }), {
+      if (!testResponse.ok) {
+        const status = testResponse.status;
+        const errText = await testResponse.text();
+        const lower = errText.toLowerCase();
+        if (status === 400 && (lower.includes('api_key_invalid') || lower.includes('api key not valid'))) {
+          return new Response(JSON.stringify({ isValid: false, tier: 'unknown', error: 'Invalid API key' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        if (status === 401 || status === 403) {
+          return new Response(JSON.stringify({ isValid: false, tier: 'unknown', error: 'Invalid API key' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        if (status === 429) {
+          return new Response(JSON.stringify({ isValid: true, tier: 'free', availableModels: GEMINI_TEST_MODELS }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        return new Response(JSON.stringify({ isValid: false, tier: 'unknown', error: `Validation failed: ${status}` }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      if (status === 401 || status === 403) {
-        return new Response(JSON.stringify({ isValid: false, tier: 'unknown', error: 'Invalid API key' }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+
+      await testResponse.json();
+
+      const availableModels: string[] = [];
+      for (const m of GEMINI_TEST_MODELS) {
+        if (m === testModel) {
+          availableModels.push(m);
+          continue;
+        }
+        try {
+          const probeRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${keyTrimmed}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: 'Hi' }] }],
+                generationConfig: { maxOutputTokens: 1 },
+              }),
+            }
+          );
+          if (probeRes.ok) availableModels.push(m);
+          await probeRes.text();
+        } catch {
+          // Skip unavailable models
+        }
       }
-      if (status === 429) {
-        return new Response(JSON.stringify({ isValid: true, tier: 'free', availableModels: VERTEX_TEST_MODELS }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+
+      let tier: 'free' | 'paid' | 'unknown' = 'unknown';
+      const rateLimitHeader = testResponse.headers.get('x-ratelimit-limit-requests')
+        || testResponse.headers.get('x-ratelimit-limit-requests-per-model')
+        || testResponse.headers.get('x-ratelimit-limit-requests-per-minute');
+
+      if (rateLimitHeader) {
+        const rpm = parseInt(rateLimitHeader, 10);
+        if (!isNaN(rpm)) tier = rpm < 100 ? 'free' : 'paid';
       }
-      return new Response(JSON.stringify({ isValid: false, tier: 'unknown', error: `Validation failed: ${status}` }), {
+
+      if (tier === 'unknown') {
+        const rpdHeader = testResponse.headers.get('x-ratelimit-limit-requests-per-day');
+        if (rpdHeader) {
+          const rpd = parseInt(rpdHeader, 10);
+          if (!isNaN(rpd)) tier = rpd > 2000 ? 'paid' : 'free';
+        }
+      }
+
+      if (tier === 'unknown') tier = 'paid';
+
+      return new Response(JSON.stringify({ isValid: true, tier, availableModels }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Key is valid — consume response
-    await testResponse.json();
-
-    // Step 2: Probe available models
-    const availableModels: string[] = [];
-    for (const model of VERTEX_TEST_MODELS) {
-      if (model === testModel) {
-        availableModels.push(model);
-        continue;
-      }
-      try {
-        const probeRes = await fetch(
-          `https://aiplatform.googleapis.com/v1/publishers/google/models/${model}:generateContent?key=${apiKey.trim()}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: 'Hi' }] }],
-              generationConfig: { maxOutputTokens: 1 },
-            }),
-          }
-        );
-        if (probeRes.ok) {
-          availableModels.push(model);
-        }
-        await probeRes.text();
-      } catch {
-        // Skip unavailable models
-      }
-    }
-
-    // Step 3: Tier detection via rate limit headers or RPM probe
-    let tier: 'free' | 'paid' | 'unknown' = 'unknown';
-
-    const headerEntries: Record<string, string> = {};
-    testResponse.headers.forEach((v, k) => { headerEntries[k] = v; });
-    console.log('[validate] Vertex AI response headers:', JSON.stringify(headerEntries));
-
-    const rateLimitHeader = testResponse.headers.get('x-ratelimit-limit-requests')
-      || testResponse.headers.get('x-ratelimit-limit-requests-per-model')
-      || testResponse.headers.get('x-ratelimit-limit-requests-per-minute');
-
-    if (rateLimitHeader) {
-      const rpm = parseInt(rateLimitHeader, 10);
-      if (!isNaN(rpm)) {
-        tier = rpm < 100 ? 'free' : 'paid';
-        console.log(`[validate] Tier from RPM header: ${tier} (rpm=${rpm})`);
-      }
-    }
-
-    if (tier === 'unknown') {
-      const rpdHeader = testResponse.headers.get('x-ratelimit-limit-requests-per-day');
-      if (rpdHeader) {
-        const rpd = parseInt(rpdHeader, 10);
-        if (!isNaN(rpd)) {
-          tier = rpd > 2000 ? 'paid' : 'free';
-          console.log(`[validate] Tier from RPD header: ${tier} (rpd=${rpd})`);
-        }
-      }
-    }
-
-    // Vertex AI Express keys are generally "paid" (pay-as-you-go)
-    if (tier === 'unknown') {
-      tier = 'paid';
-      console.log('[validate] Vertex AI key validated, defaulting to paid tier');
-    }
-
-    console.log(`[validate] Final tier: ${tier}`);
-
-    return new Response(JSON.stringify({ isValid: true, tier, availableModels }), {
+    return new Response(JSON.stringify({ isValid: false, error: 'Unsupported provider' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
