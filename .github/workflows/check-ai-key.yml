@@ -48,30 +48,41 @@ jobs:
           echo "  Testing against Vertex AI Express API (aiplatform.googleapis.com)..."
           echo ""
 
-          check_endpoint() {
-            local endpoint_name="$1"
+          test_endpoint() {
+            local label="$1"
             local url="$2"
-            local resp
-            resp=$(curl -s -w "\n%{http_code}" -X POST "$url" \
+            local result
+            result=$(curl -s -w "\n%{http_code}" -X POST "$url" \
               -H "Content-Type: application/json" \
               -d '{"contents":[{"parts":[{"text":"Hi"}]}],"generationConfig":{"maxOutputTokens":1}}')
-            local status body
-            status=$(echo "$resp" | tail -1)
-            body=$(echo "$resp" | head -1)
-            echo "  [$endpoint_name] HTTP $status"
-            echo "$status"
+            local http_code body
+            http_code=$(echo "$result" | tail -1)
+            body=$(echo "$result" | head -n -1)
+            echo "  [$label] HTTP $http_code"
+            if [ "$http_code" != "200" ]; then
+              echo "  Response: $body" | head -c 300
+              echo ""
+            fi
+            echo "$http_code" >&3
           }
 
-          # Test Vertex AI Express endpoint
+          exec 3>/tmp/statuses
+
+          # Test 1: Vertex AI Express
           echo "  Testing Vertex AI Express (aiplatform.googleapis.com)..."
-          STATUS1=$(check_endpoint "Vertex AI Express" \
-            "https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash-lite:generateContent?key=${AI_KEY}" | tail -1)
+          test_endpoint "Vertex AI Express" \
+            "https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash:generateContent?key=${AI_KEY}"
 
-          # Test Google Generative Language endpoint (Cloud Console API keys)
+          # Test 2: Generative Language API with gemini-2.0-flash (broadly available)
           echo "  Testing Generative Language API (generativelanguage.googleapis.com)..."
-          STATUS2=$(check_endpoint "Generative Language" \
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${AI_KEY}" | tail -1)
+          test_endpoint "Generative Language" \
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${AI_KEY}"
 
+          exec 3>&-
+          STATUS1=$(sed -n '1p' /tmp/statuses)
+          STATUS2=$(sed -n '2p' /tmp/statuses)
+          echo ""
+          echo "  Results: Vertex=$STATUS1  GenLang=$STATUS2"
           echo ""
 
           if [ "$STATUS1" = "200" ] || [ "$STATUS2" = "200" ]; then
@@ -83,20 +94,29 @@ jobs:
             echo "  AI features should be working in WiseResume."
           elif [ "$STATUS1" = "429" ] || [ "$STATUS2" = "429" ]; then
             echo "  ⚠️  QUOTA EXCEEDED — Key is valid but hit rate limit. Wait a few minutes."
-          elif [ "$STATUS1" = "400" ] || [ "$STATUS2" = "400" ]; then
-            echo "  ❌ KEY IS INVALID (HTTP 400) — The API rejected the key format."
-            echo "     Get a new key from Google Cloud Console → APIs & Services → Credentials"
+          elif [ "$STATUS1" = "403" ] || [ "$STATUS2" = "403" ]; then
+            echo "  ❌ API NOT ENABLED (HTTP 403) — The API is disabled on your Google Cloud project."
+            echo ""
+            echo "  To fix:"
+            echo "  1. Go to: https://console.cloud.google.com/apis/library"
+            echo "  2. Enable: 'Generative Language API' (search for it)"
+            echo "  3. Also enable: 'Vertex AI API' if you want Vertex AI Express"
             exit 1
           else
-            echo "  ❌ KEY FAILED ON BOTH ENDPOINTS (Vertex: $STATUS1, GenLang: $STATUS2)"
+            echo "  ❌ KEY NOT WORKING (Vertex: $STATUS1, GenLang: $STATUS2)"
             echo ""
-            echo "  Possible causes:"
-            echo "  - API key has restrictions (check Cloud Console → APIs & Services → Credentials)"
-            echo "  - Generative Language API not enabled on your project"
-            echo "  - Billing not enabled on the Google Cloud project"
+            echo "  Possible causes & fixes:"
             echo ""
-            echo "  To fix: Go to Cloud Console → APIs & Services → Enable APIs"
-            echo "  and enable: 'Generative Language API' or 'Vertex AI API'"
+            echo "  1. API not enabled — Go to Cloud Console → APIs & Services → Library"
+            echo "     and enable 'Generative Language API'"
+            echo ""
+            echo "  2. API key has API restrictions — Go to Cloud Console → APIs & Services → Credentials"
+            echo "     click your key → under 'API restrictions' select 'Don't restrict key'"
+            echo ""
+            echo "  3. Billing not enabled — Go to Cloud Console → Billing"
+            echo "     and link a billing account to your project"
+            echo ""
+            echo "  4. Key is for a different project — Make sure you copied the right key"
             exit 1
           fi
 

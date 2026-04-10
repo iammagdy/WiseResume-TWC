@@ -667,35 +667,45 @@ async function callGeminiDirect(
     }
   }
 
-  // Try Vertex AI Express endpoint first; fall back to Generative Language API
-  // (Cloud Console API keys created in Vertex AI Studio work on generativelanguage.googleapis.com)
-  const ENDPOINTS = [
-    `https://aiplatform.googleapis.com/v1/publishers/google/models/${geminiModel}:generateContent?key=${apiKey}`,
-    `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`,
+  // Attempt list: Vertex AI Express first, then Generative Language API
+  // Cloud Console API keys (from Vertex AI Studio) work on generativelanguage.googleapis.com
+  // Vertex AI Express keys work on aiplatform.googleapis.com
+  // We try both automatically so the app works regardless of key type.
+  const attempts = [
+    {
+      url: `https://aiplatform.googleapis.com/v1/publishers/google/models/${geminiModel}:generateContent?key=${apiKey}`,
+      label: 'Vertex AI Express',
+    },
+    {
+      url: `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`,
+      label: 'Generative Language API',
+    },
   ];
 
   let response: Response | null = null;
   let lastErrorText = '';
+  const AUTH_FALLBACK_STATUSES = new Set([400, 401, 403]);
 
-  for (let i = 0; i < ENDPOINTS.length; i++) {
-    const url = ENDPOINTS[i];
-    console.log(`[AI] Trying endpoint ${i + 1}/${ENDPOINTS.length}: ${url.split('?')[0]}`);
-    const r = await fetch(url, {
+  for (const attempt of attempts) {
+    console.log(`[AI] Trying ${attempt.label}: ${attempt.url.split('?')[0]}`);
+    const r = await fetch(attempt.url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
       signal,
     });
     if (r.ok) {
+      console.log(`[AI] Success via ${attempt.label}`);
       response = r;
       break;
     }
     lastErrorText = await r.text();
-    // Only fall back on auth errors (401/403) — other errors are real failures
-    if (r.status !== 401 && r.status !== 403) {
+    // Fall back on auth/access errors; hard-fail on 4xx content errors (429, etc.)
+    if (!AUTH_FALLBACK_STATUSES.has(r.status)) {
+      console.warn(`[AI] ${attempt.label} returned ${r.status}, not retrying`);
       handleGeminiError(r.status, lastErrorText);
     }
-    console.warn(`[AI] Endpoint ${i + 1} returned ${r.status}, trying next...`);
+    console.warn(`[AI] ${attempt.label} returned ${r.status}, trying next endpoint...`);
   }
 
   if (!response) {
