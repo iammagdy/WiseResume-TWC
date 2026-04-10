@@ -74,7 +74,7 @@ export function Elevated() {
           <div className="max-w-2xl">
             <Badge variant="secondary" className="mb-8 rounded-full px-4 py-1.5 border-primary/20 bg-primary/5 text-primary">
               <Sparkles className="w-3.5 h-3.5 mr-2 inline" />
-              WiseResume AI 2.0 is now live
+              AI-Powered Career Platform
             </Badge>
             <h1 className="text-5xl lg:text-7xl font-extrabold tracking-tight mb-6 leading-[1.1]">
               The resume that <br className="hidden lg:block" />
@@ -94,20 +94,12 @@ export function Elevated() {
               </Button>
             </div>
             
-            <div className="flex items-center gap-6 text-sm text-muted-foreground font-medium">
-              <div className="flex -space-x-2">
-                {[1,2,3,4].map(i => (
-                  <div key={i} className="w-8 h-8 rounded-full border-2 border-background bg-muted flex items-center justify-center overflow-hidden">
-                    <img src={`https://i.pravatar.cc/100?img=${i+10}`} alt="User" />
-                  </div>
-                ))}
-              </div>
-              <div>
-                <div className="flex items-center text-amber-500 mb-0.5">
-                  {[1,2,3,4,5].map(i => <Star key={i} className="w-3.5 h-3.5 fill-current" />)}
-                </div>
-                Trusted by 50,000+ pros
-              </div>
+            <div className="flex flex-wrap items-center gap-5 text-sm text-muted-foreground font-medium">
+              <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-primary" /> Free to start</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-border inline-block" />
+              <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-primary" /> No credit card</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-border inline-block" />
+              <span className="flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-primary" /> AI-powered</span>
             </div>
           </div>
 
@@ -169,10 +161,10 @@ export function Elevated() {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {[
-              { icon: <Sparkles className="w-5 h-5 text-blue-500" />, stat: "50K+", label: "Resumes Built" },
-              { icon: <Target className="w-5 h-5 text-emerald-500" />, stat: "92%", label: "ATS Pass Rate" },
-              { icon: <Star className="w-5 h-5 text-amber-500" />, stat: "4.8/5", label: "Average Rating" },
-              { icon: <Zap className="w-5 h-5 text-purple-500" />, stat: "30s", label: "Avg. Tailor Time" },
+              { icon: <Sparkles className="w-5 h-5 text-blue-500" />, stat: "50K+", label: "Resumes" },
+              { icon: <Target className="w-5 h-5 text-emerald-500" />, stat: "92%", label: "ATS pass rate" },
+              { icon: <Star className="w-5 h-5 text-amber-500" />, stat: "4.8★", label: "Rating" },
+              { icon: <Zap className="w-5 h-5 text-purple-500" />, stat: "30s", label: "Avg. tailor" },
             ].map((s, i) => (
               <Card key={i} className="p-6 rounded-2xl bg-card hover:bg-muted/50 transition-colors border-border/50 shadow-sm flex flex-col items-center text-center group">
                 <div className="w-10 h-10 rounded-xl bg-background border flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
@@ -295,7 +287,7 @@ export function Elevated() {
               </div>
               <p className="text-muted-foreground mb-8 text-sm">Perfect for building your first resume.</p>
               <ul className="space-y-4 mb-8 flex-1 text-sm font-medium">
-                {['1 Resume', 'Basic Templates', 'PDF Export', '7-day History'].map((f, i) => (
+                {['1 resume', 'Basic AI suggestions', 'ATS score check', 'PDF export', 'Portfolio site'].map((f, i) => (
                   <li key={i} className="flex items-center gap-3">
                     <CheckCircle2 className="w-5 h-5 text-primary" /> {f}
                   </li>
@@ -320,7 +312,7 @@ export function Elevated() {
               </div>
               <p className="text-background/70 mb-8 text-sm">Everything you need for a serious job hunt.</p>
               <ul className="space-y-4 mb-8 flex-1 text-sm font-medium">
-                {['Unlimited Resumes', 'AI Writing Assistant', 'ATS Scoring', 'Smart Tailoring', 'Cover Letters'].map((f, i) => (
+                {['Unlimited resumes', 'Advanced AI tools', 'Smart tailoring', 'Interview coaching', 'Cover letter generator', 'Application tracker', 'Priority support'].map((f, i) => (
                   <li key={i} className="flex items-center gap-3">
                     <CheckCircle2 className="w-5 h-5 text-primary fill-background" /> {f}
                   </li>
@@ -340,7 +332,7 @@ export function Elevated() {
               </div>
               <p className="text-muted-foreground mb-8 text-sm">For maximum visibility and coaching.</p>
               <ul className="space-y-4 mb-8 flex-1 text-sm font-medium">
-                {['Everything in Pro', 'AI Interview Coaching', 'Portfolio Website', 'Custom Domain', 'Priority Support'].map((f, i) => (
+                {['Everything in Pro', 'Custom branding', 'Analytics dashboard', 'White-label exports', 'Early access features', 'Dedicated support'].map((f, i) => (
                   <li key={i} className="flex items-center gap-3">
                     <CheckCircle2 className="w-5 h-5 text-primary" /> {f}
                   </li>

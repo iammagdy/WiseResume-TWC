@@ -101,22 +101,22 @@ export function Polished() {
             <div className="flex flex-col items-center justify-center text-center pt-4 md:pt-0">
               <FileText className="w-6 h-6 text-primary mb-3 opacity-80" />
               <div className="text-3xl font-bold text-primary mb-1 tracking-tight">50K+</div>
-              <div className="text-sm font-medium text-muted-foreground">Resumes Created</div>
+              <div className="text-sm font-medium text-muted-foreground">Resumes</div>
             </div>
             <div className="flex flex-col items-center justify-center text-center pt-4 md:pt-0">
               <Target className="w-6 h-6 text-emerald-500 mb-3 opacity-80" />
               <div className="text-3xl font-bold text-emerald-600 mb-1 tracking-tight">92%</div>
-              <div className="text-sm font-medium text-muted-foreground">ATS Pass Rate</div>
+              <div className="text-sm font-medium text-muted-foreground">ATS pass rate</div>
             </div>
             <div className="flex flex-col items-center justify-center text-center pt-4 md:pt-0">
               <Star className="w-6 h-6 text-amber-500 mb-3 opacity-80 fill-amber-500/20" />
               <div className="text-3xl font-bold text-amber-600 mb-1 tracking-tight">4.8★</div>
-              <div className="text-sm font-medium text-muted-foreground">User Rating</div>
+              <div className="text-sm font-medium text-muted-foreground">Rating</div>
             </div>
             <div className="flex flex-col items-center justify-center text-center pt-4 md:pt-0">
               <Zap className="w-6 h-6 text-blue-500 mb-3 opacity-80" />
               <div className="text-3xl font-bold text-blue-600 mb-1 tracking-tight">30s</div>
-              <div className="text-sm font-medium text-muted-foreground">Avg. Tailor Time</div>
+              <div className="text-sm font-medium text-muted-foreground">Avg. tailor</div>
             </div>
           </div>
         </div>
@@ -165,7 +165,7 @@ export function Polished() {
               </div>
               <div className="mt-8 flex-1 bg-muted/40 border-t border-border/50 mx-8 rounded-t-xl relative overflow-hidden flex items-start justify-center p-6 min-h-[220px]">
                 <div className="w-32 h-32 rounded-full border-[12px] border-emerald-500/20 border-t-emerald-500 flex items-center justify-center">
-                  <span className="text-2xl font-bold text-emerald-600">94%</span>
+                  <span className="text-2xl font-bold text-emerald-600">92%</span>
                 </div>
               </div>
             </div>
@@ -263,9 +263,9 @@ export function Polished() {
                 $0
               </div>
               <ul className="space-y-4 mb-8 flex-1">
-                <li className="flex items-start text-sm"><CheckCircle2 className="w-4 h-4 text-primary mr-3 mt-0.5 shrink-0" /> 1 Resume</li>
-                <li className="flex items-start text-sm"><CheckCircle2 className="w-4 h-4 text-primary mr-3 mt-0.5 shrink-0" /> Basic templates</li>
-                <li className="flex items-start text-sm"><CheckCircle2 className="w-4 h-4 text-primary mr-3 mt-0.5 shrink-0" /> PDF export</li>
+                {['1 resume', 'Basic AI suggestions', 'ATS score check', 'PDF export', 'Portfolio site'].map((f) => (
+                  <li key={f} className="flex items-start text-sm"><CheckCircle2 className="w-4 h-4 text-primary mr-3 mt-0.5 shrink-0" /> {f}</li>
+                ))}
               </ul>
               <Button variant="outline" className="w-full h-12 rounded-full font-bold">Get Started</Button>
             </div>
@@ -285,10 +285,9 @@ export function Polished() {
                 <span className="text-lg font-bold text-muted-foreground ml-1">/mo</span>
               </div>
               <ul className="space-y-4 mb-8 flex-1">
-                <li className="flex items-start text-sm"><CheckCircle2 className="w-4 h-4 text-primary mr-3 mt-0.5 shrink-0" /> Unlimited Resumes</li>
-                <li className="flex items-start text-sm"><CheckCircle2 className="w-4 h-4 text-primary mr-3 mt-0.5 shrink-0" /> AI Bullet Writing</li>
-                <li className="flex items-start text-sm"><CheckCircle2 className="w-4 h-4 text-primary mr-3 mt-0.5 shrink-0" /> Basic ATS Scoring</li>
-                <li className="flex items-start text-sm"><CheckCircle2 className="w-4 h-4 text-primary mr-3 mt-0.5 shrink-0" /> Premium templates</li>
+                {['Unlimited resumes', 'Advanced AI tools', 'Smart tailoring', 'Interview coaching', 'Cover letter generator', 'Application tracker', 'Priority support'].map((f) => (
+                  <li key={f} className="flex items-start text-sm"><CheckCircle2 className="w-4 h-4 text-primary mr-3 mt-0.5 shrink-0" /> {f}</li>
+                ))}
               </ul>
               <Button className="w-full h-12 rounded-full font-bold shadow-lg shadow-primary/20">Upgrade to Pro</Button>
             </div>
@@ -303,10 +302,9 @@ export function Polished() {
                 <span className="text-base font-bold text-muted-foreground ml-1">/mo</span>
               </div>
               <ul className="space-y-4 mb-8 flex-1">
-                <li className="flex items-start text-sm"><CheckCircle2 className="w-4 h-4 text-primary mr-3 mt-0.5 shrink-0" /> Everything in Pro</li>
-                <li className="flex items-start text-sm"><CheckCircle2 className="w-4 h-4 text-primary mr-3 mt-0.5 shrink-0" /> Smart Tailoring</li>
-                <li className="flex items-start text-sm"><CheckCircle2 className="w-4 h-4 text-primary mr-3 mt-0.5 shrink-0" /> Cover Letter Gen</li>
-                <li className="flex items-start text-sm"><CheckCircle2 className="w-4 h-4 text-primary mr-3 mt-0.5 shrink-0" /> Interview Coaching</li>
+                {['Everything in Pro', 'Custom branding', 'Analytics dashboard', 'White-label exports', 'Early access features', 'Dedicated support'].map((f) => (
+                  <li key={f} className="flex items-start text-sm"><CheckCircle2 className="w-4 h-4 text-primary mr-3 mt-0.5 shrink-0" /> {f}</li>
+                ))}
               </ul>
               <Button variant="outline" className="w-full h-12 rounded-full font-bold">Go Premium</Button>
             </div>
