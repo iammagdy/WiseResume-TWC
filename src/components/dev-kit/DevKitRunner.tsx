@@ -71,9 +71,12 @@ export function DevKitRunner() {
       s.includes('no ai api key') ||
       s.includes('wise_ai_api_key') ||
       s.includes('vertex_api_key') ||
-      s.includes('api key not configured')
+      s.includes('api key not configured') ||
+      s.includes('gemini_api_key not configured') ||
+      s.includes('openrouter') ||
+      s.includes('groq')
     ) {
-      return 'VERTEX_API_KEY not set or invalid — configure it in Supabase → Project Settings → Edge Function Secrets';
+      return 'AI key not configured — set OPENROUTER_API_KEY and GROQ_API_KEY in Supabase → Project Settings → Edge Function Secrets';
     }
     return null;
   };

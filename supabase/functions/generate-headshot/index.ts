@@ -34,13 +34,13 @@ serve(async (req) => {
 - Head and shoulders composition
 - High-quality, polished finish suitable for professional use`;
 
-    // Call Gemini directly with image input via the native Gemini API
+    // Call Gemini directly with image input via the native Gemini API (requires multimodal support)
     const geminiModel = 'gemini-2.5-flash';
-    const geminiKey = Deno.env.get('VERTEX_API_KEY') || Deno.env.get('WISE_AI_API_KEY') || Deno.env.get('GEMINI_API_KEY');
+    const geminiKey = Deno.env.get('GEMINI_API_KEY') || Deno.env.get('WISE_AI_API_KEY') || Deno.env.get('VERTEX_API_KEY');
 
     if (!geminiKey) {
       return new Response(
-        JSON.stringify({ error: "VERTEX_API_KEY is not configured. Please set it in Supabase Secrets." }),
+        JSON.stringify({ error: "GEMINI_API_KEY is not configured. Please set it in Supabase Secrets." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

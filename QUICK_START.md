@@ -56,11 +56,13 @@ Category: Productivity
 🔧 /app/setup-android.sh                ← Auto setup script
 ```
 
-### Supabase Secret (Add in Dashboard)
-```bash
-EMERGENT_LLM_KEY=sk-emergent-2113715Ec2b2713676
-```
-**Where:** Supabase Dashboard → Settings → Edge Functions → Add Secret
+### Supabase Secrets Required
+The following secrets must be set in Supabase Dashboard → Settings → Edge Functions → Secrets:
+- `OPENROUTER_API_KEY` — OpenRouter API key for WiseResume AI (Gemma 4 free model)
+- `GROQ_API_KEY` — Groq API key for WiseResume AI fallback (Llama 3.3 free model)
+- `GEMINI_API_KEY` — Google Gemini API key (required for headshot generation feature)
+
+Note: The old EMERGENT_LLM_KEY is no longer used and should be removed if present.
 
 ---
 

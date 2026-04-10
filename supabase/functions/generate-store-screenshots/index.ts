@@ -64,8 +64,8 @@ serve(async (req) => {
   }
 
   try {
-    const VERTEX_API_KEY = Deno.env.get("VERTEX_API_KEY") || Deno.env.get("WISE_AI_API_KEY") || Deno.env.get("GEMINI_API_KEY");
-    if (!VERTEX_API_KEY) throw new Error("VERTEX_API_KEY not configured");
+    const geminiKey = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("WISE_AI_API_KEY") || Deno.env.get("VERTEX_API_KEY");
+    if (!geminiKey) throw new Error("GEMINI_API_KEY not configured");
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -89,7 +89,7 @@ serve(async (req) => {
       console.log(`Generating: ${item.name}...`);
 
       const aiResponse = await fetch(
-        `https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash:generateContent?key=${VERTEX_API_KEY}`,
+        `https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
         {
           method: "POST",
           headers: {
