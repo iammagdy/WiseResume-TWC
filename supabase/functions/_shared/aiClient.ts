@@ -198,23 +198,24 @@ async function getUserPreferredProvider(userId: string): Promise<string | null> 
 }
 
 /**
- * Reads the user's WiseResume AI sub-provider preference from user_preferences.
+ * Reads the global WiseResume AI engine setting from app_settings table.
  * Returns 'openrouter', 'groq', 'auto', or 'auto' as default.
+ * Admin-controlled; users cannot override this.
  */
-async function getUserWiseresumeSubProvider(userId: string): Promise<'openrouter' | 'groq' | 'auto'> {
+async function getGlobalAIEngine(): Promise<'openrouter' | 'groq' | 'auto'> {
   try {
     const supabase = getServiceClient();
     const { data, error } = await supabase
-      .from('user_preferences')
-      .select('wiseresume_sub_provider')
-      .eq('user_id', userId)
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'wiseresume_ai_engine')
       .maybeSingle();
-    if (error || !data?.wiseresume_sub_provider) return 'auto';
-    const val = data.wiseresume_sub_provider as string;
+    if (error || !data?.value) return 'auto';
+    const val = data.value as string;
     if (val === 'openrouter' || val === 'groq' || val === 'auto') return val;
     return 'auto';
   } catch (err) {
-    console.warn('[aiClient] Failed to fetch wiseresume sub-provider preference:', err);
+    console.warn('[aiClient] Failed to fetch global AI engine setting:', err);
     return 'auto';
   }
 }
@@ -251,9 +252,9 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
       const data = await getUserKeyAndUrlFromDB(userId, preferredProvider);
       if (data) userByokData = { key: data.key, model: data.model, provider: preferredProvider };
     } else {
-      // 'wiseresume' or no preference — read sub-provider if not already supplied
+      // 'wiseresume' or no preference — read global engine setting if not already supplied
       if (!options.wiseresumeSubProvider) {
-        wiseresumeSubProvider = await getUserWiseresumeSubProvider(userId);
+        wiseresumeSubProvider = await getGlobalAIEngine();
       }
     }
   }

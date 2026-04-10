@@ -195,6 +195,24 @@ export function DevKitRunner() {
       id: 'agentic-chat', label: 'Agentic Chat', description: 'Call agentic-chat edge function', section: 'ai',
       run: () => strictInvoke('agentic-chat', () => edgeFunctions.functions.invoke('agentic-chat', { body: { message: 'What can you help me with?', conversationHistory: [], currentResume: null } })),
     },
+    {
+      id: 'ai-engine-openrouter', label: 'Engine · OpenRouter (Gemma 4)', description: 'Directly test WiseResume managed OpenRouter endpoint — admin only', section: 'ai',
+      run: () => strictInvoke('ai-engine-openrouter', async () => {
+        const res = await edgeFunctions.functions.invoke('ai-test', { body: { wiseresumeSubProvider: 'openrouter' } });
+        if (res.error) throw new Error((res.error as any).message || 'ai-test error');
+        if (!res.data?.success) throw new Error(res.data?.error || 'ai-test returned failure');
+        return { engine: 'openrouter', model: res.data.model, latencyMs: res.data.latencyMs, response: res.data.response };
+      }),
+    },
+    {
+      id: 'ai-engine-groq', label: 'Engine · Groq (Llama 3.3)', description: 'Directly test WiseResume managed Groq endpoint — admin only', section: 'ai',
+      run: () => strictInvoke('ai-engine-groq', async () => {
+        const res = await edgeFunctions.functions.invoke('ai-test', { body: { wiseresumeSubProvider: 'groq' } });
+        if (res.error) throw new Error((res.error as any).message || 'ai-test error');
+        if (!res.data?.success) throw new Error(res.data?.error || 'ai-test returned failure');
+        return { engine: 'groq', model: res.data.model, latencyMs: res.data.latencyMs, response: res.data.response };
+      }),
+    },
     // === ROUTING ===
     {
       id: 'dashboard-route', label: 'Dashboard Route Check', description: 'Query resumes table (RLS check)', section: 'routing',

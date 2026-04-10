@@ -169,6 +169,42 @@ export function AppSettingsPanel({ password }: AppSettingsPanelProps) {
           ))}
         </div>
       </div>
+
+      {/* WiseResume AI Engine */}
+      <div className="rounded-xl border border-border p-4 space-y-3">
+        <h3 className="text-sm font-semibold">WiseResume AI Engine</h3>
+        <p className="text-xs text-muted-foreground">Select which AI backend powers WiseResume AI for all users. Changes take effect immediately.</p>
+        <div className="space-y-2">
+          {([
+            { value: 'auto', label: 'Auto (best available)', description: 'Tries OpenRouter first, falls back to Groq' },
+            { value: 'openrouter', label: 'OpenRouter · Gemma 4', description: 'Google Gemma 4 via OpenRouter (free tier)' },
+            { value: 'groq', label: 'Groq · Llama 3.3', description: 'Meta Llama 3.3 70B via Groq (free tier)' },
+          ] as const).map((opt) => {
+            const current = (settings.wiseresume_ai_engine as string) ?? 'auto';
+            const isSelected = current === opt.value;
+            return (
+              <button
+                key={opt.value}
+                onClick={() => updateSetting('wiseresume_ai_engine', opt.value)}
+                disabled={saving === 'wiseresume_ai_engine' || loading}
+                className={`w-full text-left flex items-center gap-3 rounded-lg border p-3 transition-all ${
+                  isSelected ? 'border-primary/60 bg-primary/5' : 'border-border hover:border-muted-foreground/30'
+                }`}
+              >
+                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                  isSelected ? 'border-primary' : 'border-muted-foreground/40'
+                }`}>
+                  {isSelected && <div className="w-2 h-2 rounded-full bg-primary" />}
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{opt.label}</p>
+                  <p className="text-xs text-muted-foreground">{opt.description}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

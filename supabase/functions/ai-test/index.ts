@@ -38,16 +38,30 @@ serve(async (req) => {
       // Ignore parse errors for empty/invalid bodies
     }
 
-    // Get user's preferred provider + WiseResume sub-provider (use service-role client for cross-project DB)
+    // Get user's preferred provider (use service-role client for cross-project DB)
     const { data: prefs } = await supabaseAdmin
       .from('user_preferences')
-      .select('ai_provider, wiseresume_sub_provider')
+      .select('ai_provider')
       .eq('user_id', userId)
       .maybeSingle();
 
     const preferredProvider = (prefs?.ai_provider as 'gemini' | 'ollama' | 'openrouter' | 'wiseresume') || 'wiseresume';
-    // Prefer body-provided sub-provider (reflects current UI selection) over DB value
-    const wiseresumeSubProvider: 'openrouter' | 'groq' | 'auto' = bodySubProvider ?? ((prefs?.wiseresume_sub_provider as 'openrouter' | 'groq' | 'auto') || 'auto');
+
+    // Determine WiseResume sub-provider:
+    // body-provided value (admin Dev Kit override) takes priority;
+    // otherwise fall back to the global wiseresume_ai_engine app setting.
+    let wiseresumeSubProvider: 'openrouter' | 'groq' | 'auto' = bodySubProvider ?? 'auto';
+    if (!bodySubProvider) {
+      const { data: engineRow } = await supabaseAdmin
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'wiseresume_ai_engine')
+        .maybeSingle();
+      const engineVal = engineRow?.value as string | undefined;
+      if (engineVal === 'openrouter' || engineVal === 'groq' || engineVal === 'auto') {
+        wiseresumeSubProvider = engineVal;
+      }
+    }
 
     // ===== Cooldown Check for WiseResume AI =====
     if (preferredProvider === 'wiseresume') {
@@ -157,9 +171,16 @@ serve(async (req) => {
       console.error('[ai-test] Failed to log usage:', insertError);
     }
 
+    // Brand the response for WiseResume AI so clients never see raw sub-provider names
+    const isWiseresumeMode = preferredProvider === 'wiseresume' && !bodySubProvider;
+    const displayProvider = isWiseresumeMode ? 'WiseResume AI' : providerUsed;
+    const displayModel = isWiseresumeMode ? undefined : testModel;
+
     return new Response(JSON.stringify({
       success: true,
       providerUsed,
+      displayProvider,
+      displayModel,
       latencyMs,
       response: aiResponse.content?.trim() || 'OK',
       model: testModel,

@@ -56,6 +56,8 @@ interface AISettingsSheetProps {
 interface TestResult {
   status: 'success' | 'error';
   providerUsed: string;
+  displayProvider?: string;
+  displayModel?: string;
   latencyMs: number;
   error?: string;
   fallbackUsed?: boolean;
@@ -188,6 +190,14 @@ const BYOK_PROVIDER_ORDER: ByokProviderId[] = [
 const maskKey = (key: string) => {
   if (!key || key.length < 8) return '••••••••';
   return `${key.slice(0, 4)}...${key.slice(-4)}`;
+};
+
+/** Returns true when the model likely does not support tool/function calling. */
+const hasNoToolCalling = (provider: ByokProviderId, model: string): boolean => {
+  if (!model) return false;
+  if (provider === 'cohere' && (model === 'command' || model === 'command-light')) return true;
+  const m = model.toLowerCase();
+  return m.includes('instruct-lite') || m.endsWith('-base') || m.includes('-base-');
 };
 
 export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
@@ -752,7 +762,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     haptics.light();
     try {
       const { data, error } = await edgeFunctions.functions.invoke('ai-test', {
-        body: { wiseresumeSubProvider },
+        body: {},
       });
       if (error) {
         if ((error as any).status === 429 || error.message?.includes('cooldown')) {
@@ -777,6 +787,8 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
         setTestResult({
           status: 'success',
           providerUsed: data.providerUsed || aiProvider,
+          displayProvider: data.displayProvider,
+          displayModel: data.displayModel,
           latencyMs: data.latencyMs || 0,
           fallbackUsed: data.fallbackUsed,
           fallbackReason: data.fallbackReason,
@@ -888,37 +900,6 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                     </div>
                   </div>
 
-                  {/* Sub-provider selection (shown when active) */}
-                  <AnimatePresence>
-                    {uiMode === 'wiseresume' && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="overflow-hidden"
-                      >
-                        <div className="mt-3 pt-3 border-t border-border/60 space-y-2">
-                          <Label className="text-[11px] text-muted-foreground">AI Engine</Label>
-                          <Select
-                            value={wiseresumeSubProvider}
-                            onValueChange={(v) => handleWiseresumeSubProviderChange(v as WiseresumeSubProvider)}
-                          >
-                            <SelectTrigger
-                              className="h-8 text-xs"
-                              onClick={e => e.stopPropagation()}
-                            >
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent onClick={e => e.stopPropagation()}>
-                              <SelectItem value="auto">Auto (best available)</SelectItem>
-                              <SelectItem value="openrouter">OpenRouter · Gemma 4</SelectItem>
-                              <SelectItem value="groq">Groq · Llama 3.3</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
                 </button>
 
                 {/* Bring Your Own Key Card */}
@@ -1104,6 +1085,13 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                           </div>
                         )}
 
+                        {hasNoToolCalling(byokProvider, currentModel) && (
+                          <div className="p-2 rounded-md bg-amber-500/10 border border-amber-500/20 text-xs text-amber-400 flex items-start gap-2">
+                            <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                            <span>This model may not support tool calling. Some AI features like resume tailoring may not work correctly.</span>
+                          </div>
+                        )}
+
                         <Button
                           variant="outline"
                           size="sm"
@@ -1258,11 +1246,11 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                       )}
                       {testResult.status === 'success' && (
                         <div className="opacity-80 text-[11px] space-y-0.5">
-                          {testResult.providerUsed && (
-                            <p>Provider: <span className="font-medium">{testResult.providerUsed}</span></p>
+                          {(testResult.displayProvider || testResult.providerUsed) && (
+                            <p>Provider: <span className="font-medium">{testResult.displayProvider || testResult.providerUsed}</span></p>
                           )}
-                          {testResult.model && (
-                            <p>Model: <span className="font-medium">{testResult.model}</span></p>
+                          {testResult.displayModel && (
+                            <p>Model: <span className="font-medium">{testResult.displayModel}</span></p>
                           )}
                           {testResult.fallbackUsed && (
                             <p className="text-amber-400">⚡ Fell back to WiseResume AI</p>
