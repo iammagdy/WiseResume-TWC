@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronRight, Star, FileText, CheckCircle, Zap, Target, Layout, PenTool, Lock } from 'lucide-react';
+import { ChevronRight, Star, CheckCircle, Zap, Target, Layout, PenTool } from 'lucide-react';
 
 const useInView = (threshold = 0.15) => {
   const ref = useRef<HTMLDivElement>(null);

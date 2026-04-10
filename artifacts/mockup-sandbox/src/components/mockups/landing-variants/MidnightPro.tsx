@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Sparkles, Target, Wand2, Mic, PenTool, BarChart3, Check, ArrowRight, Star, Zap, Shield, Globe } from "lucide-react";
+import { Sparkles, Target, Wand2, Mic, PenTool, BarChart3, Check, ArrowRight } from "lucide-react";
 
 const FEATURES = [
   {

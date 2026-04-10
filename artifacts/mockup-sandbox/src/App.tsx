@@ -133,7 +133,12 @@ function ComparisonGallery() {
           </p>
         </div>
 
+        <style>{`
+          @media (max-width: 900px) { .cg-grid { grid-template-columns: 1fr 1fr !important; } }
+          @media (max-width: 600px) { .cg-grid { grid-template-columns: 1fr !important; } }
+        `}</style>
         <div
+          className="cg-grid"
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(3, 1fr)",
