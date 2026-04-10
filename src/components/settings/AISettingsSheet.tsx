@@ -193,11 +193,13 @@ const maskKey = (key: string) => {
 };
 
 /** Returns true when the model likely does not support tool/function calling. */
-const hasNoToolCalling = (provider: ByokProviderId, model: string): boolean => {
+const hasNoToolCalling = (provider: ByokProviderId, model: string, baseUrl?: string): boolean => {
   if (!model) return false;
   if (provider === 'cohere' && (model === 'command' || model === 'command-light')) return true;
+  // Ollama Cloud (ollama.com) uses the native /api/chat endpoint which does not support tool calling
+  if (provider === 'ollama' && baseUrl && /ollama\.com/i.test(baseUrl)) return true;
   const m = model.toLowerCase();
-  return m.includes('instruct-lite') || m.includes('-base');
+  return m.includes('instruct-lite') || m.includes('base');
 };
 
 export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
@@ -1085,10 +1087,10 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                           </div>
                         )}
 
-                        {hasNoToolCalling(byokProvider, currentModel) && (
+                        {hasNoToolCalling(byokProvider, currentModel, byokProvider === 'ollama' ? (ollamaUrlInput || ollamaBaseUrl) : undefined) && (
                           <div className="p-2 rounded-md bg-amber-500/10 border border-amber-500/20 text-xs text-amber-400 flex items-start gap-2">
                             <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                            <span>This model may not support tool calling. Some AI features like resume tailoring may not work correctly.</span>
+                            <span>This model may not support tool calling. Some AI features like resume parsing and structured improvements may not work correctly.</span>
                           </div>
                         )}
 

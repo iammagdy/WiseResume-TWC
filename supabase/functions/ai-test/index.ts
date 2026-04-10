@@ -121,13 +121,21 @@ serve(async (req) => {
     // Resolve user keys
     let userGeminiKey: string | undefined;
     let ollamaConfig: { key: string; baseUrl: string | null; model: string | null } | undefined;
-    let testModel = 'google/gemma-4-26b-a4b-it:free';
 
+    // Set the expected model based on provider/sub-provider so admin diagnostics show accurate info.
+    // For WiseResume managed: OpenRouter uses Gemma 4, Groq uses Llama 3.3.
+    let testModel = 'google/gemma-4-26b-a4b-it:free';
     if (preferredProvider === 'gemini') {
       userGeminiKey = await getUserKeyFromDB(userId, 'gemini');
       testModel = 'gemini-2.5-flash-lite';
     } else if (preferredProvider === 'ollama') {
       ollamaConfig = await getUserKeyAndUrlFromDB(userId, 'ollama');
+    } else if (preferredProvider === 'wiseresume') {
+      if (wiseresumeSubProvider === 'groq') {
+        testModel = 'llama-3.3-70b-versatile';
+      } else {
+        testModel = 'google/gemma-4-26b-a4b-it:free';
+      }
     }
 
     const identityMap: Record<string, string> = {
@@ -157,6 +165,13 @@ serve(async (req) => {
     const latencyMs = Date.now() - startTime;
     const providerUsed = aiResponse.providerUsed || preferredProvider;
     console.log(`[ai-test] AI responded in ${latencyMs}ms using ${providerUsed}`);
+
+    // For WiseResume managed AI on 'auto', update testModel based on the backend that actually responded,
+    // so admin diagnostics always reflect the real model (e.g. Groq fallback shows Llama, not Gemma).
+    if (preferredProvider === 'wiseresume' && wiseresumeSubProvider === 'auto') {
+      if (providerUsed.includes('groq')) testModel = 'llama-3.3-70b-versatile';
+      else testModel = 'google/gemma-4-26b-a4b-it:free';
+    }
 
     // Log test call
     const { error: insertError } = await supabaseAdmin.from('ai_usage_logs').insert({
