@@ -38,7 +38,7 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
           className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-background overflow-hidden"
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.25, ease: 'easeInOut' }}
+          transition={{ duration: 0.3, ease: 'easeInOut' }}
           onClick={dismiss}
           role="button"
           tabIndex={0}

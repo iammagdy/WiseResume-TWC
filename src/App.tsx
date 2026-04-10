@@ -319,9 +319,9 @@ function PrefetchOnIdle() {
       void import("./pages/UploadPage");
       void import("./pages/EditorPage");
     };
-    if (typeof (window as any).requestIdleCallback === 'function') {
-      const id = (window as any).requestIdleCallback(prefetch, { timeout: 4000 });
-      return () => (window as any).cancelIdleCallback(id);
+    if (typeof requestIdleCallback !== 'undefined') {
+      const id = requestIdleCallback(prefetch, { timeout: 4000 });
+      return () => cancelIdleCallback(id);
     }
     const t = setTimeout(prefetch, 3000);
     return () => clearTimeout(t);

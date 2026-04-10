@@ -1,8 +1,31 @@
 /// <reference types="vitest" />
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { VitePWA } from "vite-plugin-pwa";
+
+const PREFETCH_CHUNKS = ['DashboardPage', 'EditorPage', 'UploadPage', 'framer', 'AnimatedSplash'];
+
+function prefetchPlugin(): Plugin {
+  return {
+    name: 'prefetch-key-routes',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html, ctx) {
+        if (!ctx.bundle) return html;
+        const links: string[] = [];
+        for (const [fileName, chunk] of Object.entries(ctx.bundle)) {
+          if (chunk.type !== 'chunk') continue;
+          if (PREFETCH_CHUNKS.some(name => chunk.name === name)) {
+            links.push(`  <link rel="prefetch" href="/${fileName}" as="script" crossorigin />`);
+          }
+        }
+        if (links.length === 0) return html;
+        return html.replace('</head>', links.join('\n') + '\n</head>');
+      },
+    },
+  };
+}
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -36,6 +59,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
+    prefetchPlugin(),
     VitePWA({
       strategies: "injectManifest",
       srcDir: "public",
