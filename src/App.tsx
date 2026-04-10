@@ -22,6 +22,9 @@ import { RedirectJobRoute } from "@/components/layout/RedirectJobRoute";
 import { useAIKeyHydration } from "@/hooks/useAIKeyHydration";
 import { useSuspensionCheck } from "@/hooks/useSuspensionCheck";
 import { SuspendedScreen } from "@/components/layout/SuspendedScreen";
+import { MaintenanceScreen } from "@/components/layout/MaintenanceScreen";
+import { AnnouncementBanner } from "@/components/layout/AnnouncementBanner";
+import { useAppSettings } from "@/hooks/useAppSettings";
 import { useAuth } from "@/hooks/useAuth";
 
 import { KindeProvider } from "@kinde-oss/kinde-auth-react";
@@ -169,6 +172,7 @@ function AppRoutes() {
   location.pathname.startsWith('/l/') ||     location.pathname.startsWith('/auth/callback');
 
   const { isSuspended, suspensionReason } = useSuspensionCheck();
+  const appSettings = useAppSettings();
 
   useEffect(() => {
     const handleRejection = (event: PromiseRejectionEvent) => {
@@ -189,6 +193,10 @@ function AppRoutes() {
     return <SuspendedScreen reason={suspensionReason} onSignOut={signOut} />;
   }
 
+  if (appSettings.maintenance_mode && !isPublicStandalone) {
+    return <MaintenanceScreen />;
+  }
+
   if (biometricLockEnabled && isLocked && isAvailable) {
     return (
       <BiometricLockScreen
@@ -201,6 +209,9 @@ function AppRoutes() {
 
   return (
     <>
+        {appSettings.announcement_enabled && appSettings.announcement_banner && (
+          <AnnouncementBanner message={appSettings.announcement_banner} />
+        )}
         <Routes>
           {/* Public routes */}
           <Route path="/" element={<Index />} />

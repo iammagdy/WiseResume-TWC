@@ -10,6 +10,7 @@ interface AuditLog {
   category: string;
   action: string;
   metadata: Record<string, unknown>;
+  admin_notes: string | null;
   created_at: string;
 }
 
@@ -63,44 +64,27 @@ export function AuditLogPanel({ password }: AuditLogPanelProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [actionFilter, setActionFilter] = useState('');
+  const [notDeployed, setNotDeployed] = useState(false);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setNotDeployed(false);
     try {
-      const { data, error: err } = await edgeFunctions.functions.invoke('admin-get-settings', {
-        body: { password },
+      const { data, error: err } = await edgeFunctions.functions.invoke('admin-audit-logs', {
+        body: { password, limit: 200, action_filter: actionFilter || null },
       });
-      if (err) throw new Error(err.message);
-
-      const { data: logsData, error: logsErr } = await edgeFunctions.functions.invoke('admin-list-users', {
-        body: { password, page: 1, per_page: 1 },
-      });
-
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://jnsfmkzgxsviuthaqlyy.supabase.co';
-      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
-
-      const res = await fetch(`${supabaseUrl}/rest/v1/rpc/get_audit_logs_admin`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': anonKey,
-          'Authorization': `Bearer ${anonKey}`,
-        },
-        body: JSON.stringify({
-          p_password: password,
-          p_limit: 200,
-          p_action_filter: actionFilter || null,
-        }),
-      });
-
-      if (res.ok) {
-        const result = await res.json();
-        setLogs(Array.isArray(result) ? result : (result?.logs ?? []));
-      } else {
-        setLogs([]);
-        setError('Audit log RPC not deployed yet. Run the migration first.');
+      if (err) {
+        if (err.message?.includes('Failed to fetch') || err.status === 404) {
+          setNotDeployed(true);
+          return;
+        }
+        throw new Error(err.message);
       }
+      const result = data as { success?: boolean; logs?: AuditLog[]; message?: string; error?: string };
+      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      setLogs(result?.logs ?? []);
+      if (result?.message) setError(result.message);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load audit logs');
     } finally {
@@ -110,16 +94,12 @@ export function AuditLogPanel({ password }: AuditLogPanelProps) {
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
 
-  const filtered = actionFilter
-    ? logs.filter((l) => l.action === actionFilter)
-    : logs;
-
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Activity className="w-4 h-4" />
-          <span>{filtered.length} log entries</span>
+          <span>{logs.length} log entries</span>
         </div>
         <div className="flex items-center gap-2 ml-auto">
           <div className="relative">
@@ -138,17 +118,25 @@ export function AuditLogPanel({ password }: AuditLogPanelProps) {
         </div>
       </div>
 
-      {error && (
-        <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">{error}</div>
+      {notDeployed && (
+        <div className="p-4 rounded-xl bg-muted/50 border border-border text-sm text-center text-muted-foreground space-y-1">
+          <Activity className="w-6 h-6 mx-auto mb-2 opacity-40" />
+          <p className="font-medium">Audit logs function not yet deployed</p>
+          <p className="text-xs">Deploy the <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">admin-audit-logs</code> edge function to enable activity logging.</p>
+        </div>
       )}
 
-      {loading && !logs.length && (
+      {error && !notDeployed && (
+        <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm text-amber-700 dark:text-amber-400">{error}</div>
+      )}
+
+      {loading && !logs.length && !notDeployed && (
         <div className="space-y-2">
           {[...Array(5)].map((_, i) => <div key={i} className="h-12 rounded-lg bg-muted/50 animate-pulse" />)}
         </div>
       )}
 
-      {!loading && !error && filtered.length === 0 && (
+      {!loading && !error && !notDeployed && logs.length === 0 && (
         <div className="text-center py-8 text-muted-foreground">
           <Activity className="w-8 h-8 mx-auto mb-2 opacity-40" />
           <p className="text-sm">No audit log entries yet.</p>
@@ -156,7 +144,7 @@ export function AuditLogPanel({ password }: AuditLogPanelProps) {
         </div>
       )}
 
-      {filtered.length > 0 && (
+      {logs.length > 0 && (
         <div className="rounded-xl border border-border overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -169,7 +157,7 @@ export function AuditLogPanel({ password }: AuditLogPanelProps) {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((log) => (
+                {logs.map((log) => (
                   <tr key={log.id} className="border-b border-border last:border-0">
                     <td className="px-4 py-3 font-mono text-[10px] text-muted-foreground">
                       {log.user_id.slice(0, 8)}…

@@ -106,15 +106,12 @@ export function UserDetailDrawer({ user, password, open, onClose, onUserUpdated 
   const handleRevokeTrial = async () => {
     setRevokingTrial(true);
     try {
-      const { data, error } = await edgeFunctions.functions.invoke('admin-grant-trial', {
-        body: { password, target_user_id: user.user_id, plan: 'pro', days: -1 },
+      const { data, error } = await edgeFunctions.functions.invoke('admin-revoke-trial', {
+        body: { password, target_user_id: user.user_id },
       });
-      if (error) {
-        const { data: d2, error: e2 } = await edgeFunctions.functions.invoke('admin-set-plan', {
-          body: { password, target_user_id: user.user_id, plan: user.plan_name },
-        });
-        if (e2) throw new Error(e2.message);
-      }
+      if (error) throw new Error(error.message);
+      const result = data as { success?: boolean; error?: string };
+      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
       toast.success('Trial revoked');
       onUserUpdated();
     } catch (e) {
