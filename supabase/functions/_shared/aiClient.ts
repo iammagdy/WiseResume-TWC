@@ -281,7 +281,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
       try {
         let res: AIResponse;
         if (provider === 'anthropic') {
-          res = await callAnthropicDirect(key, byokModel, messages, temperature, maxTokens, controller.signal);
+          res = await callAnthropicDirect(key, byokModel, messages, temperature, maxTokens, controller.signal, tools, toolChoice);
         } else {
           const completionsUrl = OPENAI_COMPAT_BASE_URLS[provider];
           res = await callOpenAICompatible(key, completionsUrl, provider, byokModel, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
@@ -711,9 +711,28 @@ async function callOpenAICompatible(
   return parseOpenAIResponse(data);
 }
 
+// Anthropic response content block types
+interface AnthropicTextBlock {
+  type: 'text';
+  text: string;
+}
+interface AnthropicToolUseBlock {
+  type: 'tool_use';
+  id: string;
+  name: string;
+  input: Record<string, unknown>;
+}
+type AnthropicContentBlock = AnthropicTextBlock | AnthropicToolUseBlock;
+
+interface AnthropicResponse {
+  content: AnthropicContentBlock[];
+  usage?: { input_tokens: number; output_tokens: number };
+  stop_reason?: string;
+}
+
 /**
  * Calls the Anthropic Messages API directly (Claude models).
- * Note: Anthropic uses a different auth header and body format than OpenAI.
+ * Supports tool-calling by converting OpenAI tool format to Anthropic format.
  */
 async function callAnthropicDirect(
   apiKey: string,
@@ -721,7 +740,9 @@ async function callAnthropicDirect(
   messages: AIMessage[],
   temperature: number,
   maxTokens?: number,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  tools?: AITool[],
+  toolChoice?: { type: 'function'; function: { name: string } } | 'auto',
 ): Promise<AIResponse> {
   const systemMessages = messages.filter(m => m.role === 'system');
   const nonSystemMessages = messages.filter(m => m.role !== 'system');
@@ -735,6 +756,20 @@ async function callAnthropicDirect(
 
   if (systemMessages.length > 0) {
     body.system = systemMessages.map(m => m.content).join('\n\n');
+  }
+
+  // Convert OpenAI tool format to Anthropic tool format
+  if (tools && tools.length > 0) {
+    body.tools = tools.map(t => ({
+      name: t.function.name,
+      description: t.function.description,
+      input_schema: t.function.parameters,
+    }));
+    if (toolChoice === 'auto') {
+      body.tool_choice = { type: 'auto' };
+    } else if (toolChoice && typeof toolChoice === 'object') {
+      body.tool_choice = { type: 'tool', name: toolChoice.function.name };
+    }
   }
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -753,9 +788,11 @@ async function callAnthropicDirect(
     console.error('Anthropic API error:', response.status, errorText);
     let errorMessage = 'Anthropic request failed';
     try {
-      const parsed = JSON.parse(errorText);
-      errorMessage = parsed.error?.message || parsed.error || errorMessage;
-    } catch {}
+      const parsed = JSON.parse(errorText) as { error?: { message?: string } };
+      errorMessage = parsed.error?.message || errorMessage;
+    } catch {
+      // Use raw error text as message
+    }
     if (response.status === 401 || response.status === 403) {
       throw createAIError('invalid_key', 'Invalid Anthropic API key. Please check your settings.', 422);
     }
@@ -768,19 +805,28 @@ async function callAnthropicDirect(
     throw createAIError('unknown', errorMessage, response.status);
   }
 
-  const data = await response.json();
+  const data = await response.json() as AnthropicResponse;
 
-  // Parse Anthropic response format: { content: [{ type: 'text', text: '...' }], usage: {...} }
-  const textContent = (data.content || [])
-    .filter((c: any) => c.type === 'text')
-    .map((c: any) => c.text)
-    .join('');
+  const textBlocks = data.content.filter((c): c is AnthropicTextBlock => c.type === 'text');
+  const toolUseBlocks = data.content.filter((c): c is AnthropicToolUseBlock => c.type === 'tool_use');
+
+  const toolCalls = toolUseBlocks.length > 0
+    ? toolUseBlocks.map(block => ({
+        id: block.id,
+        type: 'function' as const,
+        function: {
+          name: block.name,
+          arguments: JSON.stringify(block.input),
+        },
+      }))
+    : undefined;
 
   return {
-    content: textContent || null,
+    content: textBlocks.map(b => b.text).join('') || null,
+    toolCalls,
     usage: data.usage ? {
-      promptTokens: data.usage.input_tokens || 0,
-      completionTokens: data.usage.output_tokens || 0,
+      promptTokens: data.usage.input_tokens,
+      completionTokens: data.usage.output_tokens,
     } : undefined,
   };
 }

@@ -44,6 +44,28 @@ function isPrivateUrl(url: string): boolean {
   }
 }
 
+/**
+ * Fetches model IDs from an OpenAI-compatible /v1/models endpoint.
+ * Returns an array of model ID strings, or the fallback list on error.
+ */
+async function fetchOpenAICompatModels(
+  apiKey: string,
+  modelsUrl: string,
+  fallback: string[],
+): Promise<string[]> {
+  try {
+    const resp = await fetch(modelsUrl, {
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+    });
+    if (!resp.ok) return fallback;
+    const data = await resp.json() as { data?: Array<{ id: string }> };
+    const ids = (data.data || []).map(m => m.id).filter(Boolean);
+    return ids.length > 0 ? ids : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 /** Generic OpenAI-compatible validation: sends a tiny chat request and returns { isValid, tier } */
 async function validateOpenAICompat(
   apiKey: string,
@@ -201,8 +223,14 @@ Deno.serve(async (req) => {
 
     // ===== OpenAI validation =====
     if (provider === 'openai') {
+      // Fetch live model list from OpenAI; fall back to curated list on error
+      const availableModels = await fetchOpenAICompatModels(
+        keyTrimmed,
+        'https://api.openai.com/v1/models',
+        OPENAI_MODELS,
+      );
       if (modelsOnly) {
-        return new Response(JSON.stringify({ isValid: true, tier: 'paid', availableModels: OPENAI_MODELS }), {
+        return new Response(JSON.stringify({ isValid: true, tier: 'paid', availableModels }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
@@ -213,15 +241,17 @@ Deno.serve(async (req) => {
         'OpenAI',
         testModel,
       );
-      return new Response(JSON.stringify({ ...result, model: testModel, availableModels: OPENAI_MODELS }), {
+      return new Response(JSON.stringify({ ...result, model: testModel, availableModels }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     // ===== Anthropic (Claude) validation =====
     if (provider === 'anthropic') {
+      // Anthropic does not expose a public models list endpoint; use curated list
+      const availableModels = ANTHROPIC_MODELS;
       if (modelsOnly) {
-        return new Response(JSON.stringify({ isValid: true, tier: 'paid', availableModels: ANTHROPIC_MODELS }), {
+        return new Response(JSON.stringify({ isValid: true, tier: 'paid', availableModels }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
@@ -243,7 +273,7 @@ Deno.serve(async (req) => {
 
         if (resp.ok) {
           await resp.json();
-          return new Response(JSON.stringify({ isValid: true, tier: 'paid', model: testModel, availableModels: ANTHROPIC_MODELS }), {
+          return new Response(JSON.stringify({ isValid: true, tier: 'paid', model: testModel, availableModels }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
@@ -256,7 +286,7 @@ Deno.serve(async (req) => {
           });
         }
         if (status === 429) {
-          return new Response(JSON.stringify({ isValid: true, tier: 'paid', model: testModel, availableModels: ANTHROPIC_MODELS }), {
+          return new Response(JSON.stringify({ isValid: true, tier: 'paid', model: testModel, availableModels }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
@@ -272,8 +302,14 @@ Deno.serve(async (req) => {
 
     // ===== Groq (BYOK) validation =====
     if (provider === 'groq') {
+      // Fetch live model list from Groq; fall back to curated list on error
+      const availableModels = await fetchOpenAICompatModels(
+        keyTrimmed,
+        'https://api.groq.com/openai/v1/models',
+        GROQ_MODELS,
+      );
       if (modelsOnly) {
-        return new Response(JSON.stringify({ isValid: true, tier: 'paid', availableModels: GROQ_MODELS }), {
+        return new Response(JSON.stringify({ isValid: true, tier: 'paid', availableModels }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
@@ -284,15 +320,21 @@ Deno.serve(async (req) => {
         'Groq',
         testModel,
       );
-      return new Response(JSON.stringify({ ...result, model: testModel, availableModels: GROQ_MODELS }), {
+      return new Response(JSON.stringify({ ...result, model: testModel, availableModels }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     // ===== Mistral AI validation =====
     if (provider === 'mistral') {
+      // Fetch live model list from Mistral; fall back to curated list on error
+      const availableModels = await fetchOpenAICompatModels(
+        keyTrimmed,
+        'https://api.mistral.ai/v1/models',
+        MISTRAL_MODELS,
+      );
       if (modelsOnly) {
-        return new Response(JSON.stringify({ isValid: true, tier: 'paid', availableModels: MISTRAL_MODELS }), {
+        return new Response(JSON.stringify({ isValid: true, tier: 'paid', availableModels }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
@@ -303,15 +345,21 @@ Deno.serve(async (req) => {
         'Mistral',
         testModel,
       );
-      return new Response(JSON.stringify({ ...result, model: testModel, availableModels: MISTRAL_MODELS }), {
+      return new Response(JSON.stringify({ ...result, model: testModel, availableModels }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     // ===== xAI (Grok) validation =====
     if (provider === 'xai') {
+      // Fetch live model list from xAI; fall back to curated list on error
+      const availableModels = await fetchOpenAICompatModels(
+        keyTrimmed,
+        'https://api.x.ai/v1/models',
+        XAI_MODELS,
+      );
       if (modelsOnly) {
-        return new Response(JSON.stringify({ isValid: true, tier: 'paid', availableModels: XAI_MODELS }), {
+        return new Response(JSON.stringify({ isValid: true, tier: 'paid', availableModels }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
@@ -322,15 +370,21 @@ Deno.serve(async (req) => {
         'xAI',
         testModel,
       );
-      return new Response(JSON.stringify({ ...result, model: testModel, availableModels: XAI_MODELS }), {
+      return new Response(JSON.stringify({ ...result, model: testModel, availableModels }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     // ===== Cohere validation =====
     if (provider === 'cohere') {
+      // Fetch live model list from Cohere compatibility endpoint; fall back to curated list
+      const availableModels = await fetchOpenAICompatModels(
+        keyTrimmed,
+        'https://api.cohere.com/compatibility/v1/models',
+        COHERE_MODELS,
+      );
       if (modelsOnly) {
-        return new Response(JSON.stringify({ isValid: true, tier: 'paid', availableModels: COHERE_MODELS }), {
+        return new Response(JSON.stringify({ isValid: true, tier: 'paid', availableModels }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
@@ -341,7 +395,7 @@ Deno.serve(async (req) => {
         'Cohere',
         testModel,
       );
-      return new Response(JSON.stringify({ ...result, model: testModel, availableModels: COHERE_MODELS }), {
+      return new Response(JSON.stringify({ ...result, model: testModel, availableModels }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
