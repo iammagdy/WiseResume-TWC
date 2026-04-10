@@ -667,57 +667,21 @@ async function callGeminiDirect(
     }
   }
 
-  // Attempt list — try three paths to cover all Google AI API key types:
-  //
-  // 1. Vertex AI Express (v1beta1) — API key via x-goog-api-key header
-  //    Used with keys created in Google Cloud Console (Vertex AI Studio area)
-  //    Requires Vertex AI API to be enabled on the GCP project
-  //
-  // 2. Generative Language API (v1beta) — API key via ?key= query param
-  //    Used with keys from Google AI Studio or Cloud Console with Generative Language API enabled
-  //
-  // 3. Vertex AI Express (v1) — same as #1 but v1 path, some accounts use this
-  const attempts = [
-    {
-      url: `https://aiplatform.googleapis.com/v1beta1/publishers/google/models/${geminiModel}:generateContent`,
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      label: 'Vertex AI Express (v1beta1)',
-    },
-    {
-      url: `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`,
-      headers: { 'Content-Type': 'application/json' } as Record<string, string>,
-      label: 'Generative Language API',
-    },
-  ];
+  // Google Generative Language API (Gemini API) — the standard endpoint for simple API keys.
+  // API keys from both Google AI Studio and Cloud Console (with Generative Language API enabled)
+  // work here. Note: aiplatform.googleapis.com requires OAuth2/service accounts, not API keys.
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`;
+  console.log(`[AI] Calling Gemini API: ${url.split('?')[0]} (model: ${geminiModel})`);
 
-  let response: Response | null = null;
-  let lastErrorText = '';
-  const AUTH_FALLBACK_STATUSES = new Set([400, 401, 403]);
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal,
+  });
 
-  for (const attempt of attempts) {
-    console.log(`[AI] Trying ${attempt.label}: ${attempt.url.split('?')[0]}`);
-    const r = await fetch(attempt.url, {
-      method: 'POST',
-      headers: attempt.headers,
-      body: JSON.stringify(body),
-      signal,
-    });
-    if (r.ok) {
-      console.log(`[AI] Success via ${attempt.label}`);
-      response = r;
-      break;
-    }
-    lastErrorText = await r.text();
-    // Fall back on auth/access errors; hard-fail on anything else (429, 5xx, etc.)
-    if (!AUTH_FALLBACK_STATUSES.has(r.status)) {
-      console.warn(`[AI] ${attempt.label} returned ${r.status}, not retrying`);
-      handleGeminiError(r.status, lastErrorText);
-    }
-    console.warn(`[AI] ${attempt.label} returned ${r.status}, trying next endpoint...`);
-  }
-
-  if (!response) {
-    handleGeminiError(401, lastErrorText);
+  if (!response.ok) {
+    handleGeminiError(response.status, await response.text());
   }
 
   const data = await response.json();
