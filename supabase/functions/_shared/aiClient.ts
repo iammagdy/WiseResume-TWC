@@ -667,17 +667,39 @@ async function callGeminiDirect(
     }
   }
 
-  const url = `https://aiplatform.googleapis.com/v1/publishers/google/models/${geminiModel}:generateContent?key=${apiKey}`;
+  // Try Vertex AI Express endpoint first; fall back to Generative Language API
+  // (Cloud Console API keys created in Vertex AI Studio work on generativelanguage.googleapis.com)
+  const ENDPOINTS = [
+    `https://aiplatform.googleapis.com/v1/publishers/google/models/${geminiModel}:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`,
+  ];
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    signal,
-  });
+  let response: Response | null = null;
+  let lastErrorText = '';
 
-  if (!response.ok) {
-    handleGeminiError(response.status, await response.text());
+  for (let i = 0; i < ENDPOINTS.length; i++) {
+    const url = ENDPOINTS[i];
+    console.log(`[AI] Trying endpoint ${i + 1}/${ENDPOINTS.length}: ${url.split('?')[0]}`);
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal,
+    });
+    if (r.ok) {
+      response = r;
+      break;
+    }
+    lastErrorText = await r.text();
+    // Only fall back on auth errors (401/403) — other errors are real failures
+    if (r.status !== 401 && r.status !== 403) {
+      handleGeminiError(r.status, lastErrorText);
+    }
+    console.warn(`[AI] Endpoint ${i + 1} returned ${r.status}, trying next...`);
+  }
+
+  if (!response) {
+    handleGeminiError(401, lastErrorText);
   }
 
   const data = await response.json();
