@@ -197,7 +197,7 @@ const hasNoToolCalling = (provider: ByokProviderId, model: string): boolean => {
   if (!model) return false;
   if (provider === 'cohere' && (model === 'command' || model === 'command-light')) return true;
   const m = model.toLowerCase();
-  return m.includes('instruct-lite') || m.endsWith('-base') || m.includes('-base-');
+  return m.includes('instruct-lite') || m.includes('-base');
 };
 
 export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
@@ -1249,7 +1249,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                           {(testResult.displayProvider || testResult.providerUsed) && (
                             <p>Provider: <span className="font-medium">{testResult.displayProvider || testResult.providerUsed}</span></p>
                           )}
-                          {testResult.displayModel && (
+                          {testResult.displayModel && testResult.displayModel !== testResult.displayProvider && (
                             <p>Model: <span className="font-medium">{testResult.displayModel}</span></p>
                           )}
                           {testResult.fallbackUsed && (

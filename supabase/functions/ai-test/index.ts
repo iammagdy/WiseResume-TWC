@@ -45,7 +45,11 @@ serve(async (req) => {
       .eq('user_id', userId)
       .maybeSingle();
 
-    const preferredProvider = (prefs?.ai_provider as 'gemini' | 'ollama' | 'openrouter' | 'wiseresume') || 'wiseresume';
+    // When an admin body sub-provider is supplied (Dev Kit engine test),
+    // force the WiseResume managed path regardless of the admin's own AI preference.
+    const preferredProvider = bodySubProvider
+      ? 'wiseresume'
+      : ((prefs?.ai_provider as 'gemini' | 'ollama' | 'openrouter' | 'wiseresume') || 'wiseresume');
 
     // Determine WiseResume sub-provider:
     // body-provided value (admin Dev Kit override) takes priority;
@@ -174,7 +178,7 @@ serve(async (req) => {
     // Brand the response for WiseResume AI so clients never see raw sub-provider names
     const isWiseresumeMode = preferredProvider === 'wiseresume' && !bodySubProvider;
     const displayProvider = isWiseresumeMode ? 'WiseResume AI' : providerUsed;
-    const displayModel = isWiseresumeMode ? undefined : testModel;
+    const displayModel = isWiseresumeMode ? 'WiseResume AI' : testModel;
 
     return new Response(JSON.stringify({
       success: true,
