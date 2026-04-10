@@ -395,12 +395,17 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       try {
         const uid = getUserId();
         if (uid) {
-          await supabase
+          const { error: saveErr } = await supabase
             .from('user_preferences')
             .update({ wiseresume_sub_provider: value })
             .eq('user_id', uid);
+          if (saveErr) {
+            toast.error('Could not save engine preference. Please try again.');
+          }
         }
-      } catch {}
+      } catch {
+        toast.error('Could not save engine preference. Please try again.');
+      }
     };
 
     const handleValidateKey = async () => {
@@ -1324,7 +1329,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                         className="ml-7 mt-1 mb-2 space-y-2 pl-3 border-l-2 border-primary/20"
                       >
                         <div className="space-y-1">
-                          <Label className="text-[11px] text-muted-foreground">Engine</Label>
+                          <Label className="text-[11px] text-muted-foreground">WiseResume AI engine</Label>
                           <Select
                             value={wiseresumeSubProvider}
                             onValueChange={(v) => handleWiseresumeSubProviderChange(v as WiseresumeSubProvider)}
