@@ -59,21 +59,21 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Rate limiting — see RATE_LIMIT_REQUESTS_PER_HOUR constant above
+    // Rate limiting — controlled by RATE_LIMIT_REQUESTS_PER_HOUR above.
+    // We count recent submissions from this IP directly in the DB so that
+    // changing the constant actually changes enforcement without any SQL edits.
     const clientIp = req.headers.get("x-real-ip") || req.headers.get("x-forwarded-for") || "unknown";
-    const { data: isAllowed, error: rateLimitError } = await supabaseAdmin.rpc("check_email_rate_limit", {
-      client_ip: clientIp,
-    });
+    const windowStart = new Date(Date.now() - 3600_000).toISOString();
 
-    if (rateLimitError) {
-      console.error("Rate limit check error:", rateLimitError);
-      return new Response(
-        JSON.stringify({ error: "Rate limit check failed. Please try again later.", details: rateLimitError.message }),
-        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const { count: recentCount, error: countError } = await supabaseAdmin
+      .from("contact_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("ip_address", clientIp)
+      .gte("created_at", windowStart);
 
-    if (isAllowed === false) {
+    if (countError) {
+      console.warn("Rate limit count error (allowing request):", countError.message);
+    } else if ((recentCount ?? 0) >= RATE_LIMIT_REQUESTS_PER_HOUR) {
       return new Response(
         JSON.stringify({ error: `Too many requests. Limit is ${RATE_LIMIT_REQUESTS_PER_HOUR} per hour per IP. Please try again later.` }),
         { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }

@@ -33,7 +33,7 @@ export function FeatureRequestDialog({ open, onOpenChange }: FeatureRequestDialo
   const [email, setEmail] = useState('');
   const [featureTitle, setFeatureTitle] = useState('');
   const [featureDescription, setFeatureDescription] = useState('');
-  const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'saved' | 'error'>('idle');
 
   const handleSend = useCallback(async () => {
     if (!featureTitle.trim() || !featureDescription.trim()) return;
@@ -64,10 +64,17 @@ export function FeatureRequestDialog({ open, onOpenChange }: FeatureRequestDialo
       });
       if (error) throw error;
       if (res?.error) throw new Error(res.error);
+      if (res?.saved === true && res?.success === false) {
+        setStatus('saved');
+        setTimeout(() => {
+          onOpenChange(false);
+          setTimeout(() => { setStatus('idle'); setFeatureTitle(''); setFeatureDescription(''); }, 300);
+        }, 3500);
+        return;
+      }
       setStatus('success');
       setTimeout(() => {
         onOpenChange(false);
-        // Reset after close animation
         setTimeout(() => {
           setStatus('idle');
           setFeatureTitle('');
@@ -93,7 +100,7 @@ export function FeatureRequestDialog({ open, onOpenChange }: FeatureRequestDialo
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-[min(24rem,calc(100vw-2rem))] rounded-2xl p-6 gap-0 z-[100]">
-        {status === 'success' ? (
+        {(status === 'success' || status === 'saved') ? (
           <div className="flex flex-col items-center gap-4 py-4 text-center">
             <div className="w-16 h-16 rounded-full bg-[hsl(var(--success))]/10 flex items-center justify-center">
               <CheckCircle2 className="w-8 h-8 text-[hsl(var(--success))]" />
@@ -102,7 +109,10 @@ export function FeatureRequestDialog({ open, onOpenChange }: FeatureRequestDialo
               Thank you!
             </DialogTitle>
             <p className="text-sm text-muted-foreground">
-              Your feature request has been received. We'll review it and consider adding it to our roadmap.
+              {status === 'saved'
+                ? "Your message was saved — we'll follow up via the app."
+                : "Your feature request has been received. We'll review it and consider adding it to our roadmap."
+              }
             </p>
           </div>
         ) : (

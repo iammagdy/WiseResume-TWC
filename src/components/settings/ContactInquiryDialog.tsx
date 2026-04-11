@@ -50,7 +50,7 @@ export function ContactInquiryDialog({ open, onOpenChange, defaultDepartment }: 
   const [department, setDepartment] = useState<DepartmentValue>(defaultDepartment || 'general');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
-  const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'saved' | 'error'>('idle');
 
   useEffect(() => {
     if (open && defaultDepartment) {
@@ -88,6 +88,14 @@ export function ContactInquiryDialog({ open, onOpenChange, defaultDepartment }: 
       });
       if (error) throw error;
       if (res?.error) throw new Error(res.error);
+      if (res?.saved === true && res?.success === false) {
+        setStatus('saved');
+        setTimeout(() => {
+          onOpenChange(false);
+          setTimeout(() => { setStatus('idle'); setSubject(''); setMessage(''); setDepartment('general'); }, 300);
+        }, 3500);
+        return;
+      }
       setStatus('success');
       setTimeout(() => {
         onOpenChange(false);
@@ -118,16 +126,19 @@ export function ContactInquiryDialog({ open, onOpenChange, defaultDepartment }: 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-[min(24rem,calc(100vw-2rem))] rounded-2xl p-6 gap-0 z-[100]">
-        {status === 'success' ? (
+        {(status === 'success' || status === 'saved') ? (
           <div className="flex flex-col items-center gap-4 py-4 text-center">
             <div className="w-16 h-16 rounded-full bg-[hsl(var(--success))]/10 flex items-center justify-center">
               <CheckCircle2 className="w-8 h-8 text-[hsl(var(--success))]" />
             </div>
             <DialogTitle className="text-lg font-semibold text-foreground">
-              Inquiry Received
+              {status === 'saved' ? 'Message Saved' : 'Inquiry Received'}
             </DialogTitle>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              We've received your inquiry. Our team typically responds within <strong className="text-foreground">24–48 hours</strong>.
+              {status === 'saved'
+                ? "Your message was saved — we'll follow up via the app."
+                : <>We've received your inquiry. Our team typically responds within <strong className="text-foreground">24–48 hours</strong>.</>
+              }
             </p>
           </div>
         ) : (

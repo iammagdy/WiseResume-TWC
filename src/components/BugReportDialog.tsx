@@ -89,7 +89,7 @@ export function BugReportDialog() {
   const [data, setData] = useState<BugReportData | null>(null);
   const [email, setEmail] = useState('');
   const [additionalContext, setAdditionalContext] = useState('');
-  const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'saved' | 'error'>('idle');
   const [reportMode, setReportMode] = useState<'detected' | 'custom'>('detected');
 
   useEffect(() => {
@@ -170,8 +170,13 @@ export function BugReportDialog() {
       });
       if (error) throw error;
       if (res?.error) throw new Error(res.error);
-      
+
       activityTracker.clearErrors();
+      if (res?.saved === true && res?.success === false) {
+        setStatus('saved');
+        setTimeout(() => setOpen(false), 3000);
+        return;
+      }
       setStatus('success');
       setTimeout(() => setOpen(false), 2000);
     } catch (err) {
@@ -202,7 +207,7 @@ export function BugReportDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-[min(24rem,calc(100vw-2rem))] max-h-[90vh] overflow-y-auto rounded-2xl p-6 gap-0 z-[100]">
-        {status === 'success' ? (
+        {(status === 'success' || status === 'saved') ? (
           <div className="flex flex-col items-center gap-4 py-4 text-center">
             <div className="w-16 h-16 rounded-full bg-[hsl(var(--success))]/10 flex items-center justify-center">
               <CheckCircle2 className="w-8 h-8 text-[hsl(var(--success))]" />
@@ -211,7 +216,10 @@ export function BugReportDialog() {
               Thank you!
             </DialogTitle>
             <p className="text-sm text-muted-foreground">
-              Your report has been received. We'll investigate and resolve this shortly.
+              {status === 'saved'
+                ? "Your message was saved — we'll follow up via the app."
+                : "Your report has been received. We'll investigate and resolve this shortly."
+              }
             </p>
           </div>
         ) : (

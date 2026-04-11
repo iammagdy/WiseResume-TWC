@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
-import { RefreshCw, GitCommit, CheckCircle, XCircle, ExternalLink, Loader2, Clock } from 'lucide-react';
+import { RefreshCw, GitCommit, CheckCircle, XCircle, ExternalLink, Loader2, Clock, Mail, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { supabase } from '@/integrations/supabase/safeClient';
 
 interface DeploymentPanelProps {
   password: string;
@@ -62,6 +63,7 @@ export function DeploymentPanel({ password }: DeploymentPanelProps) {
   const [data, setData] = useState<DeploymentData | null>(null);
   const [loading, setLoading] = useState(false);
   const [secondsAgo, setSecondsAgo] = useState(0);
+  const [contactTableOk, setContactTableOk] = useState<boolean | null>(null);
 
   const fetchDeploymentData = useCallback(async () => {
     setLoading(true);
@@ -126,6 +128,12 @@ export function DeploymentPanel({ password }: DeploymentPanelProps) {
   }, [password]);
 
   useEffect(() => { fetchDeploymentData(); }, [fetchDeploymentData]);
+
+  useEffect(() => {
+    supabase.from('contact_requests').select('id', { count: 'exact', head: true }).then(({ error }) => {
+      setContactTableOk(error === null);
+    });
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -278,6 +286,69 @@ export function DeploymentPanel({ password }: DeploymentPanelProps) {
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Email Service Checklist */}
+          <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <Mail className="w-4 h-4 text-primary" />
+              <p className="text-sm font-semibold text-foreground">Email Service</p>
+            </div>
+            <div className="space-y-2">
+              {/* RESEND_API_KEY — pulled from env check results */}
+              {(() => {
+                const resendCheck = data?.envChecks.find(c => c.key === 'RESEND_API_KEY');
+                const resendOk = resendCheck?.present ?? false;
+                return (
+                  <div className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${resendOk ? 'border-green-500/20 bg-green-500/5' : 'border-destructive/20 bg-destructive/5'}`}>
+                    {resendOk
+                      ? <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                      : <XCircle className="w-4 h-4 text-destructive shrink-0" />
+                    }
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-foreground">Resend API Key</p>
+                      <p className="text-[10px] font-mono text-muted-foreground">RESEND_API_KEY</p>
+                    </div>
+                    <span className={`text-[10px] font-medium ${resendOk ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
+                      {resendOk ? '✓ configured' : '✗ missing'}
+                    </span>
+                  </div>
+                );
+              })()}
+              {/* Sender domain — manual verification only */}
+              <div className="flex items-center gap-3 rounded-lg border px-3 py-2.5 border-amber-500/20 bg-amber-500/5">
+                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-foreground">Sender domain verified</p>
+                  <p className="text-[10px] font-mono text-muted-foreground">notifications@thewise.cloud — manual check in Resend dashboard</p>
+                </div>
+                <span className="text-[10px] font-medium text-amber-600">manual</span>
+              </div>
+              {/* contact_requests table accessibility */}
+              <div className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${
+                contactTableOk === null ? 'border-border bg-muted/20'
+                  : contactTableOk ? 'border-green-500/20 bg-green-500/5'
+                  : 'border-destructive/20 bg-destructive/5'
+              }`}>
+                {contactTableOk === null
+                  ? <Loader2 className="w-4 h-4 text-muted-foreground animate-spin shrink-0" />
+                  : contactTableOk
+                    ? <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                    : <XCircle className="w-4 h-4 text-destructive shrink-0" />
+                }
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-foreground">contact_requests table</p>
+                  <p className="text-[10px] font-mono text-muted-foreground">Supabase DB — stores all contact submissions as fallback</p>
+                </div>
+                <span className={`text-[10px] font-medium ${
+                  contactTableOk === null ? 'text-muted-foreground'
+                    : contactTableOk ? 'text-green-600 dark:text-green-400'
+                    : 'text-destructive'
+                }`}>
+                  {contactTableOk === null ? 'checking…' : contactTableOk ? '✓ accessible' : '✗ error'}
+                </span>
+              </div>
+            </div>
           </div>
 
           {/* Environment Variable Checklist */}
