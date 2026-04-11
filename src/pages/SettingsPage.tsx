@@ -270,6 +270,7 @@ export default function SettingsPage() {
                 {user?.email && (
                   <p className="text-sm text-muted-foreground truncate">{user.email}</p>
                 )}
+                <p className="text-xs text-muted-foreground/70 mt-0.5">Edit account &amp; professional details</p>
               </div>
               <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
             </button>

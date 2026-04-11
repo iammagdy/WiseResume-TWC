@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit2, Share2, FileText, Briefcase, Globe, ExternalLink, MapPin, Clock, HardDrive, Linkedin, Sparkles, User } from 'lucide-react';
+import { Edit2, Share2, FileText, Briefcase, Globe, ExternalLink, MapPin, Clock, HardDrive, Linkedin, Sparkles, User, AlertTriangle } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -117,6 +117,30 @@ export default function ProfilePage() {
 
   const nextTip = getNextMissingField(profile);
 
+  const portfolioResume = resumes.find((r) => r.id === profile?.portfolioResumeId) || resumes[0];
+  const portfolioLastSyncedAt = profile?.portfolioExtras?.lastSyncedFromResumeAt;
+  const isPortfolioStale =
+    profile?.portfolioSyncMode === 'locked' &&
+    !!portfolioResume?.updated_at &&
+    !!portfolioLastSyncedAt &&
+    new Date(portfolioResume.updated_at) > new Date(portfolioLastSyncedAt);
+
+  const handleResyncPortfolio = async () => {
+    haptics.light();
+    try {
+      await updateProfile({
+        portfolioSyncMode: 'auto',
+        portfolioExtras: {
+          ...(profile?.portfolioExtras || {}),
+          lastSyncedFromResumeAt: new Date().toISOString(),
+        },
+      });
+      toast.success('Portfolio re-synced with your resume');
+    } catch {
+      toast.error('Failed to re-sync portfolio');
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Header */}
@@ -191,7 +215,7 @@ export default function ProfilePage() {
             {nextTip ? `💡 ${nextTip.hint}` : 'Your profile is complete! 🎉'}
           </p>
           <Button variant="secondary" size="sm" className="w-full text-slate-50" onClick={() => setEditOpen(true)}>
-            <Edit2 className="w-4 h-4 mr-2" /> Edit Profile
+            <Edit2 className="w-4 h-4 mr-2" /> Edit account &amp; professional details
           </Button>
         </div>
 
@@ -234,6 +258,23 @@ export default function ProfilePage() {
               👁 <span className="font-semibold text-foreground">{profile.views}</span> total views
             </p>
           }
+          {isPortfolioStale && (
+            <div className="flex items-start gap-2 p-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-foreground">Portfolio may be out of date</p>
+                <p className="text-[11px] text-muted-foreground">Your resume was updated after the portfolio was last synced.</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0 h-7 text-[11px] px-2 border-amber-500/40 hover:bg-amber-500/10"
+                onClick={handleResyncPortfolio}
+              >
+                Re-sync now
+              </Button>
+            </div>
+          )}
           <div className="grid grid-cols-3 gap-2">
             {profile?.username && profile?.portfolioEnabled &&
             <a

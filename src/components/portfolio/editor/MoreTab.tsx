@@ -66,7 +66,7 @@ export function MoreTab(props: MoreTabProps) {
       <CollapsibleCard
         id="sociallinks"
         icon={<Link2 className="w-4 h-4" />}
-        title="Links & Contact"
+        title="Portfolio links & contact"
         hint={(linkedinUrl || githubUrl || contactEmail) ? <span className="text-[11px]">configured</span> : undefined}
         openSections={openSections}
         toggleSection={toggleSection}

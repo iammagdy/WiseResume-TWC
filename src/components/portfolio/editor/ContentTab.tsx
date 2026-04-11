@@ -1,6 +1,6 @@
 import {
   Briefcase, Star, Plus, X, FileText,
-  MessageSquareQuote, TrendingUp, RefreshCw, Lock,
+  MessageSquareQuote, TrendingUp, RefreshCw, Lock, AlertTriangle,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,6 +14,9 @@ export interface ContentTabProps {
   // Sync mode
   syncMode: 'auto' | 'locked';
   onSyncModeChange: (mode: 'auto' | 'locked') => void;
+  // Stale sync detection
+  resumeUpdatedAt?: string | null;
+  portfolioLastSyncedAt?: string | null;
   // Portfolio Summary (separate from CV bio)
   portfolioSummary: string;
   onPortfolioSummaryChange: (val: string) => void;
@@ -37,6 +40,7 @@ export function ContentTab(props: ContentTabProps) {
   const {
     openSections, toggleSection,
     syncMode, onSyncModeChange,
+    resumeUpdatedAt, portfolioLastSyncedAt,
     portfolioSummary, onPortfolioSummaryChange,
     bio,
     caseStudies, onCaseStudiesChange,
@@ -44,6 +48,11 @@ export function ContentTab(props: ContentTabProps) {
     testimonials, onTestimonialsChange,
     highlights, onHighlightsChange,
   } = props;
+
+  const isStale = syncMode === 'locked'
+    && !!resumeUpdatedAt
+    && !!portfolioLastSyncedAt
+    && new Date(resumeUpdatedAt) > new Date(portfolioLastSyncedAt);
 
   const handleSwitchToCustom = () => {
     if (syncMode === 'auto') {
@@ -57,6 +66,25 @@ export function ContentTab(props: ContentTabProps) {
 
   return (
     <div className="space-y-3">
+      {/* Stale sync warning */}
+      {isStale && (
+        <div className="flex items-start gap-3 p-3 rounded-xl border border-amber-500/30 bg-amber-500/10">
+          <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-foreground">Portfolio may be out of date</p>
+            <p className="text-xs text-muted-foreground">Your resume was updated after the portfolio was last synced.</p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0 h-8 text-xs border-amber-500/40 hover:bg-amber-500/10"
+            onClick={() => onSyncModeChange('auto')}
+          >
+            Re-sync now
+          </Button>
+        </div>
+      )}
+
       {/* Content Mode Toggle */}
       <div className="space-y-2">
         <label className="text-xs font-medium text-foreground">Content Mode</label>

@@ -31,6 +31,7 @@ export interface PortfolioExtras {
   highlights?: Array<{ id: string; value: string; label: string }>;
   portfolioSnapshot?: Record<string, unknown> | null;
   portfolioSummary?: string;
+  lastSyncedFromResumeAt?: string | null;
 }
 
 import { PortfolioSections } from '@/components/portfolio/editor/ContentVisibilitySection';

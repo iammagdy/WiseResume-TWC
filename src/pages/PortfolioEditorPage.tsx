@@ -388,7 +388,12 @@ export default function PortfolioEditorPage() {
         openToWork,
         availabilityHeadline: availabilityHeadline || null,
         portfolioSyncMode: syncMode,
-        portfolioExtras: { caseStudies, services, testimonials, highlights, portfolioSummary }
+        portfolioExtras: {
+          caseStudies, services, testimonials, highlights, portfolioSummary,
+          lastSyncedFromResumeAt: syncMode === 'auto' ? new Date().toISOString() : (
+            profile?.portfolioExtras?.lastSyncedFromResumeAt ?? null
+          ),
+        }
       };
 
       await updateProfile(updates as Parameters<typeof updateProfile>[0]);
@@ -613,6 +618,8 @@ export default function PortfolioEditorPage() {
               toggleSection={toggleSection}
               syncMode={syncMode}
               onSyncModeChange={setSyncMode}
+              resumeUpdatedAt={selectedResume?.updated_at ?? null}
+              portfolioLastSyncedAt={profile?.portfolioExtras?.lastSyncedFromResumeAt ?? null}
               portfolioSummary={portfolioSummary}
               onPortfolioSummaryChange={setPortfolioSummary}
               bio={bio}

@@ -54,7 +54,7 @@ export function ProfileSection(props: ProfileSectionProps) {
     <CollapsibleCard
       id="profile"
       icon={<User className="w-4 h-4" />}
-      title="Profile"
+      title="Edit portfolio bio & social links"
       hint={username ? <span className="font-mono text-muted-foreground">/p/{username}</span> : undefined}
       openSections={openSections}
       toggleSection={toggleSection}
