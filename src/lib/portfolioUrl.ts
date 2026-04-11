@@ -15,4 +15,8 @@ export const PORTFOLIO_DOMAIN = resolveDomain();
 export const getPortfolioUrl = (username: string): string =>
   `${PORTFOLIO_DOMAIN}/p/${username}`;
 
+/** Display-only URL — always shows resume.thewise.cloud regardless of current domain */
+export const getPortfolioDisplayUrl = (username: string): string =>
+  `resume.thewise.cloud/p/${username}`;
+
 export const getAppUrl = (): string => PORTFOLIO_DOMAIN;

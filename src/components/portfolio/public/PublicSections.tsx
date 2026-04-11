@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Briefcase, Layers, FolderOpen, Github, Wrench, Sparkles, Award, GraduationCap, Trophy, BookOpen, Heart, ExternalLink } from 'lucide-react';
+import { Briefcase, Layers, FolderOpen, Github, Wrench, Sparkles, Award, GraduationCap, Trophy, BookOpen, Heart, ExternalLink, Pin } from 'lucide-react';
 
 import type { PublicProfile, PublicResume } from '@/hooks/usePublicPortfolio';
 import { StatsStrip } from '@/components/portfolio/public/StatsStrip';
@@ -74,6 +74,7 @@ export interface PublicSectionsProps {
   highlights: any[];
   allSkills: string[];
   portfolioSummary?: string | null;
+  sectionOrder?: string[];
 }
 
 export const PublicSections = ({
@@ -85,7 +86,8 @@ export const PublicSections = ({
   navSections,
   highlights,
   allSkills,
-  portfolioSummary
+  portfolioSummary,
+  sectionOrder,
 }: PublicSectionsProps) => {
   const [showMoreSkills, setShowMoreSkills] = useState(false);
   const hasMoreSkills = allSkills.length > SKILL_CLOUD_LIMIT;
@@ -94,18 +96,327 @@ export const PublicSections = ({
   const validEducation = resume.education?.filter(e => e.institution && e.degree) || [];
   const testimonials = profile.testimonials?.filter(t => t.quote && t.authorName) || [];
 
-  const hasExperience = validExperience.length > 0;
-  const hasCaseStudies = profile.caseStudies && profile.caseStudies.length > 0;
-  const hasProjects = resume.projects && resume.projects.length > 0;
-  const hasGithubProjects = profile.githubProjectsCache && profile.githubProjectsCache.length > 0;
-  const hasServices = profile.services && profile.services.length > 0;
-  const hasTestimonials = testimonials.length > 0;
-  const hasSkills = allSkills.length > 0;
-  const hasEducation = validEducation.length > 0;
-  const hasCerts = resume.certifications && resume.certifications.length > 0;
-  const hasAwards = resume.awards && resume.awards.length > 0;
-  const hasPublications = resume.publications && resume.publications.length > 0;
-  const hasVolunteering = resume.volunteering && resume.volunteering.length > 0;
+  const sections = profile.portfolioSections;
+  const show = (key: string) => !sections || (sections as unknown as Record<string, boolean>)[key] !== false;
+
+  const hasAbout = show('about') && !!profile.portfolioBio;
+  const hasExperience = show('experience') && validExperience.length > 0;
+  const hasCaseStudies = show('caseStudies') && profile.caseStudies && profile.caseStudies.length > 0;
+  const hasProjects = show('projects') && resume.projects && resume.projects.length > 0;
+  const hasGithubProjects = show('githubProjects') && profile.githubProjectsCache && profile.githubProjectsCache.length > 0;
+  const hasServices = show('services') && profile.services && profile.services.length > 0;
+  const hasTestimonials = show('testimonials') && testimonials.length > 0;
+  const hasSkills = show('skills') && allSkills.length > 0;
+  const hasEducation = show('education') && validEducation.length > 0;
+  const hasCerts = show('certifications') && resume.certifications && resume.certifications.length > 0;
+  const hasAwards = show('awards') && resume.awards && resume.awards.length > 0;
+  const hasPublications = show('publications') && resume.publications && resume.publications.length > 0;
+  const hasVolunteering = show('volunteering') && resume.volunteering && resume.volunteering.length > 0;
+
+  const DEFAULT_ORDER = [
+    'about', 'experience', 'caseStudies', 'projects', 'githubProjects',
+    'services', 'testimonials', 'skills', 'education',
+    'certifications', 'awards', 'publications', 'volunteering',
+  ];
+
+  const effectiveOrder = sectionOrder && sectionOrder.length > 0
+    ? [
+        ...sectionOrder,
+        ...DEFAULT_ORDER.filter(k => !sectionOrder.includes(k))
+      ]
+    : DEFAULT_ORDER;
+
+  const renderSection = (key: string) => {
+    switch (key) {
+      case 'about':
+        return hasAbout ? (
+          <motion.section key="about" variants={bioFade} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-60px' }} id="section-about">
+            <SectionHeader icon={<Briefcase className="w-5 h-5" />} title="About" style={pStyle} />
+            {(() => {
+              const cardProps = getGenericCardProps(pStyle);
+              const isTerminal = pStyle === 'developer-terminal';
+              return (
+                <div className={`${cardProps.className} ${!cardProps.className.includes('p-') && !isTerminal ? 'p-5 rounded-2xl' : ''}`} style={cardProps.style}>
+                  {isTerminal && <div className="pf-terminal-dots"><span /><span /><span /></div>}
+                  <div className={isTerminal ? 'pf-terminal-card-body' : ''}>
+                    <BioReveal bio={profile.portfolioBio!} />
+                  </div>
+                </div>
+              );
+            })()}
+          </motion.section>
+        ) : null;
+
+      case 'experience':
+        return hasExperience ? (
+          <motion.section key="experience" variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-experience">
+            <SectionHeader icon={<Briefcase className="w-5 h-5" />} title="Experience" style={pStyle} />
+            <div className="pf-timeline-container relative" ref={(node) => {
+              if (!node || node.dataset.observed) return;
+              node.dataset.observed = 'true';
+              const obs = new IntersectionObserver(([entry]) => {
+                if (entry.isIntersecting) {
+                  node.classList.add('pf-timeline-drawn');
+                  node.querySelectorAll('.pf-exp-card').forEach((card, idx) => {
+                    (card as HTMLElement).style.animationDelay = `${idx * 100}ms`;
+                    card.classList.add('pf-card-revealed');
+                  });
+                  node.querySelectorAll('.pf-timeline-dot').forEach((dot, idx) => {
+                    (dot as HTMLElement).style.transitionDelay = `${idx * 100}ms`;
+                    dot.classList.add('pf-dot-visible');
+                  });
+                  obs.disconnect();
+                }
+              }, { threshold: 0.15 });
+              obs.observe(node);
+            }}>
+              <div className="pf-timeline-line" style={{ background: `linear-gradient(to bottom, ${accentColor}, transparent)` }} />
+              <div className="space-y-4 pl-11 md:pl-14">
+                {validExperience.map((exp, i) => (
+                  <div key={exp.id || i} className="relative">
+                    <div className="pf-timeline-dot" style={{ background: accentColor, borderColor: 'var(--pf-bg, #0a0a1a)' }} />
+                    <div className="pf-timeline-connector" style={{ background: accentColor }} />
+                    <ExperienceCard exp={exp} style={pStyle} isLast={i === resume.experience.length - 1} index={i} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.section>
+        ) : null;
+
+      case 'caseStudies':
+        return hasCaseStudies ? (
+          <motion.section key="caseStudies" variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-case-studies">
+            <SectionHeader icon={<Layers className="w-5 h-5" />} title="Case Studies" style={pStyle} />
+            <div className="space-y-5">
+              {profile.caseStudies.map((cs) => (
+                <CaseStudyCard key={cs.id} cs={cs} style={pStyle} />
+              ))}
+            </div>
+          </motion.section>
+        ) : null;
+
+      case 'projects':
+        return hasProjects ? (
+          <motion.section key="projects" id="section-projects" variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }}>
+            <SectionHeader icon={<FolderOpen className="w-5 h-5" />} title="Projects" style={pStyle} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {resume.projects.map((p, i) => (
+                <ProjectCard key={p.id || i} project={p} style={pStyle} />
+              ))}
+            </div>
+          </motion.section>
+        ) : null;
+
+      case 'githubProjects':
+        return hasGithubProjects ? (
+          <motion.section key="githubProjects" variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-github">
+            <SectionHeader icon={<Github className="w-5 h-5" />} title="GitHub Projects" style={pStyle} />
+            <GitHubProjectsSection projects={profile.githubProjectsCache} accentColor={accentColor} style={pStyle} />
+          </motion.section>
+        ) : null;
+
+      case 'services':
+        return hasServices ? (
+          <motion.section key="services" variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-services">
+            <SectionHeader icon={<Wrench className="w-5 h-5" />} title="Services" style={pStyle} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {profile.services.map((s) => (
+                <ServiceCard key={s.id} service={s} style={pStyle} />
+              ))}
+            </div>
+          </motion.section>
+        ) : null;
+
+      case 'testimonials':
+        return hasTestimonials ? (
+          <motion.section key="testimonials" variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-testimonials">
+            <SectionHeader icon={<Sparkles className="w-5 h-5" />} title="Testimonials" style={pStyle} />
+            <div className="space-y-4">
+              {testimonials.map((t) => (
+                <TestimonialCard key={t.id} testimonial={t} style={pStyle} />
+              ))}
+            </div>
+          </motion.section>
+        ) : null;
+
+      case 'skills':
+        return hasSkills ? (
+          <motion.section
+            key="skills"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-60px' }}
+            className={isTwoCol ? 'md:sticky md:top-8' : ''}
+            id="section-skills"
+          >
+            <SectionHeader icon={<Award className="w-5 h-5" />} title="Skills" style={pStyle} />
+            <SkillCloud
+              skills={allSkills}
+              experience={resume.experience}
+              projects={resume.projects}
+              pStyle={pStyle}
+              showMore={showMoreSkills}
+              onToggleMore={() => setShowMoreSkills(v => !v)}
+              hasMore={hasMoreSkills}
+              moreCount={allSkills.length - SKILL_CLOUD_LIMIT}
+            />
+          </motion.section>
+        ) : null;
+
+      case 'education':
+        return hasEducation ? (
+          <motion.section key="education" variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-education">
+            <SectionHeader icon={<GraduationCap className="w-5 h-5" />} title="Education" style={pStyle} />
+            <div className="space-y-4" ref={(el) => {
+              if (!el || (el as HTMLElement & { __eduObserved?: boolean }).__eduObserved) return;
+              (el as HTMLElement & { __eduObserved?: boolean }).__eduObserved = true;
+              const observer = new IntersectionObserver(
+                ([entry]) => {
+                  if (!entry.isIntersecting) return;
+                  const cards = el.querySelectorAll('.pf-edu-card');
+                  cards.forEach((card, i) => {
+                    (card as HTMLElement).style.animationDelay = `${i * 120}ms`;
+                    card.classList.add('pf-edu-revealed');
+                  });
+                  observer.disconnect();
+                },
+                { threshold: 0.2, rootMargin: '0px 0px -50px 0px' }
+              );
+              observer.observe(el);
+            }}>
+              {validEducation.map((edu, i) => (
+                <EducationCard key={edu.id || i} edu={edu} style={pStyle} />
+              ))}
+            </div>
+          </motion.section>
+        ) : null;
+
+      case 'certifications':
+        return hasCerts ? (
+          <motion.section key="certifications" variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-certifications">
+            <SectionHeader icon={<Award className="w-5 h-5" />} title="Certifications" style={pStyle} />
+            <div className="space-y-3">
+              {resume.certifications.map((cert, i) => {
+                const cardProps = getGenericCardProps(pStyle);
+                const isTerminal = pStyle === 'developer-terminal';
+                return (
+                  <motion.div key={cert.id || i} variants={getThemeItemVariant(pStyle)} className={cardProps.className} style={cardProps.style}>
+                    {isTerminal && <div className="pf-terminal-dots"><span /><span /><span /></div>}
+                    <div className={isTerminal ? 'pf-terminal-card-body' : ''}>
+                      <h4 className="font-semibold text-sm" style={{ color: 'var(--pf-fg, inherit)' }}>{cert.name}</h4>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{cert.issuer} · {cert.date}</p>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </motion.section>
+        ) : null;
+
+      case 'awards':
+        return hasAwards ? (
+          <motion.section key="awards" variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-awards">
+            <SectionHeader icon={<Trophy className="w-5 h-5" />} title="Awards" style={pStyle} />
+            <div className="space-y-3">
+              {resume.awards.map((award, i) => {
+                const cardProps = getGenericCardProps(pStyle);
+                const isTerminal = pStyle === 'developer-terminal';
+                return (
+                  <motion.div key={award.id || i} variants={getThemeItemVariant(pStyle)} className={cardProps.className} style={cardProps.style}>
+                    {isTerminal && <div className="pf-terminal-dots"><span /><span /><span /></div>}
+                    <div className={isTerminal ? 'pf-terminal-card-body' : ''}>
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="font-semibold text-sm" style={{ color: 'var(--pf-fg, inherit)' }}>{award.title}</h4>
+                        {award.date && <span className="text-xs shrink-0" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{award.date}</span>}
+                      </div>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--pf-accent)' }}>{award.issuer}</p>
+                      {award.description && (
+                        <p className="text-xs mt-1.5 leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{award.description}</p>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </motion.section>
+        ) : null;
+
+      case 'publications':
+        return hasPublications ? (
+          <motion.section key="publications" variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-publications">
+            <SectionHeader icon={<BookOpen className="w-5 h-5" />} title="Publications" style={pStyle} />
+            <div className="space-y-3">
+              {resume.publications.map((pub, i) => {
+                const cardProps = getGenericCardProps(pStyle);
+                const isTerminal = pStyle === 'developer-terminal';
+                return (
+                  <motion.div key={pub.id || i} variants={getThemeItemVariant(pStyle)} className={cardProps.className} style={cardProps.style}>
+                    {isTerminal && <div className="pf-terminal-dots"><span /><span /><span /></div>}
+                    <div className={isTerminal ? 'pf-terminal-card-body' : ''}>
+                      {pub.url ? (
+                        <a href={pub.url} target="_blank" rel="noopener noreferrer"
+                          className="font-semibold text-sm inline-flex items-center gap-1 hover:opacity-80 transition-opacity"
+                          style={{ color: 'var(--pf-fg, inherit)' }}>
+                          {pub.title}
+                          <ExternalLink className="w-3 h-3" style={{ color: 'var(--pf-accent)' }} />
+                        </a>
+                      ) : (
+                        <h4 className="font-semibold text-sm" style={{ color: 'var(--pf-fg, inherit)' }}>{pub.title}</h4>
+                      )}
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
+                        {pub.publisher}{pub.date ? ` · ${pub.date}` : ''}
+                      </p>
+                      {pub.description && (
+                        <p className="text-xs mt-1.5 leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{pub.description}</p>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </motion.section>
+        ) : null;
+
+      case 'volunteering':
+        return hasVolunteering ? (
+          <motion.section key="volunteering" variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-volunteering">
+            <SectionHeader icon={<Heart className="w-5 h-5" />} title="Volunteering" style={pStyle} />
+            <div className="space-y-3">
+              {resume.volunteering.map((vol, i) => {
+                const cardProps = getGenericCardProps(pStyle);
+                const isTerminal = pStyle === 'developer-terminal';
+                return (
+                  <motion.div key={vol.id || i} variants={getThemeItemVariant(pStyle)} className={cardProps.className} style={cardProps.style}>
+                    {isTerminal && <div className="pf-terminal-dots"><span /><span /><span /></div>}
+                    <div className={isTerminal ? 'pf-terminal-card-body' : ''}>
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="font-semibold text-sm" style={{ color: 'var(--pf-fg, inherit)' }}>{vol.role}</h4>
+                        <span className="text-xs shrink-0" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
+                          {vol.startDate} – {vol.endDate || 'Present'}
+                        </span>
+                      </div>
+                      <p className="text-xs mt-0.5 font-medium" style={{ color: 'var(--pf-accent)' }}>{vol.organization}</p>
+                      {vol.description && (
+                        <p className="text-xs mt-1.5 leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{vol.description}</p>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </motion.section>
+        ) : null;
+
+      default:
+        return null;
+    }
+  };
+
+  const orderedSections = effectiveOrder.map(key => renderSection(key)).filter(Boolean);
+
+  const primaryKeys = ['about', 'experience', 'caseStudies', 'projects', 'githubProjects', 'services', 'testimonials'];
+  const secondaryKeys = ['skills', 'education', 'certifications', 'awards', 'publications', 'volunteering'];
 
   return (
     <>
@@ -122,6 +433,55 @@ export const PublicSections = ({
         </motion.div>
       )}
 
+      {/* Pinned / Featured Project Hero Card */}
+      {profile.pinnedProject && profile.pinnedProject.title && (
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="mx-4 mt-2 mb-4"
+        >
+          <div
+            className="rounded-2xl p-5 relative overflow-hidden"
+            style={{
+              background: `linear-gradient(135deg, color-mix(in srgb, ${accentColor} 12%, var(--pf-card, rgba(255,255,255,0.05))), var(--pf-card, rgba(255,255,255,0.03)))`,
+              border: `1px solid color-mix(in srgb, ${accentColor} 30%, var(--pf-border, rgba(255,255,255,0.08)))`,
+            }}
+          >
+            <div className="absolute top-3 right-3 opacity-20">
+              <Pin className="w-5 h-5" style={{ color: accentColor }} />
+            </div>
+            <div className="flex items-center gap-2 mb-3">
+              <span
+                className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
+                style={{ background: `color-mix(in srgb, ${accentColor} 20%, transparent)`, color: accentColor }}
+              >
+                Featured Project
+              </span>
+            </div>
+            <h3 className="text-lg font-black mb-2" style={{ color: 'var(--pf-fg, #f5f5ff)', fontFamily: 'var(--pf-heading-font)' }}>
+              {profile.pinnedProject.title}
+            </h3>
+            {profile.pinnedProject.description && (
+              <p className="text-sm leading-relaxed mb-3" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
+                {profile.pinnedProject.description}
+              </p>
+            )}
+            {profile.pinnedProject.url && (
+              <a
+                href={profile.pinnedProject.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-full transition-all hover:opacity-90 active:scale-95"
+                style={{ background: accentColor, color: '#fff' }}
+              >
+                View Project <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            )}
+          </div>
+        </motion.div>
+      )}
+
       <StatsStrip experience={resume.experience} skillCount={allSkills.length} accentColor={accentColor} />
 
       {highlights.length > 0 && (
@@ -130,292 +490,24 @@ export const PublicSections = ({
 
       <SectionNav sections={navSections} accentColor={accentColor} pStyle={pStyle} />
 
-      <div className={`px-2 pb-20 pt-10 ${isTwoCol ? 'md:grid md:grid-cols-5 md:gap-10' : 'space-y-10'}`}>
-        <div className={isTwoCol ? 'md:col-span-3 space-y-10' : 'space-y-10'}>
-
-          {/* About */}
-          {profile.portfolioBio && (
-            <motion.section id="section-about" variants={bioFade} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-60px' }}>
-              <SectionHeader icon={<Briefcase className="w-5 h-5" />} title="About" style={pStyle} />
-              {(() => {
-                const cardProps = getGenericCardProps(pStyle);
-                const isTerminal = pStyle === 'developer-terminal';
-                return (
-                  <div className={`${cardProps.className} ${!cardProps.className.includes('p-') && !isTerminal ? 'p-5 rounded-2xl' : ''}`} style={cardProps.style}>
-                    {isTerminal && <div className="pf-terminal-dots"><span /><span /><span /></div>}
-                    <div className={isTerminal ? 'pf-terminal-card-body' : ''}>
-                      <BioReveal bio={profile.portfolioBio} />
-                    </div>
-                  </div>
-                );
-              })()}
-            </motion.section>
-          )}
-
-          {/* Experience */}
-          {hasExperience && (
-            <motion.section variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-experience">
-              <SectionHeader icon={<Briefcase className="w-5 h-5" />} title="Experience" style={pStyle} />
-              <div className="pf-timeline-container relative" ref={(node) => {
-                if (!node || node.dataset.observed) return;
-                node.dataset.observed = 'true';
-                const obs = new IntersectionObserver(([entry]) => {
-                  if (entry.isIntersecting) {
-                    node.classList.add('pf-timeline-drawn');
-                    node.querySelectorAll('.pf-exp-card').forEach((card, idx) => {
-                      (card as HTMLElement).style.animationDelay = `${idx * 100}ms`;
-                      card.classList.add('pf-card-revealed');
-                    });
-                    node.querySelectorAll('.pf-timeline-dot').forEach((dot, idx) => {
-                      (dot as HTMLElement).style.transitionDelay = `${idx * 100}ms`;
-                      dot.classList.add('pf-dot-visible');
-                    });
-                    obs.disconnect();
-                  }
-                }, { threshold: 0.15 });
-                obs.observe(node);
-              }}>
-                <div className="pf-timeline-line" style={{ background: `linear-gradient(to bottom, ${accentColor}, transparent)` }} />
-                <div className="space-y-4 pl-11 md:pl-14">
-                  {validExperience.map((exp, i) => (
-                    <div key={exp.id || i} className="relative">
-                      <div className="pf-timeline-dot" style={{ background: accentColor, borderColor: 'var(--pf-bg, #0a0a1a)' }} />
-                      <div className="pf-timeline-connector" style={{ background: accentColor }} />
-                      <ExperienceCard exp={exp} style={pStyle} isLast={i === resume.experience.length - 1} index={i} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </motion.section>
-          )}
-
-          {/* Case Studies */}
-          {hasCaseStudies && (
-            <motion.section variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-case-studies">
-              <SectionHeader icon={<Layers className="w-5 h-5" />} title="Case Studies" style={pStyle} />
-              <div className="space-y-5">
-                {profile.caseStudies.map((cs) => (
-                  <CaseStudyCard key={cs.id} cs={cs} style={pStyle} />
-                ))}
-              </div>
-            </motion.section>
-          )}
-
-          {/* Projects */}
-          {hasProjects && (
-            <motion.section id="section-projects" variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }}>
-              <SectionHeader icon={<FolderOpen className="w-5 h-5" />} title="Projects" style={pStyle} />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {resume.projects.map((p, i) => (
-                  <ProjectCard key={p.id || i} project={p} style={pStyle} />
-                ))}
-              </div>
-            </motion.section>
-          )}
-
-          {/* GitHub Projects */}
-          {hasGithubProjects && (
-            <motion.section variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-github">
-              <SectionHeader icon={<Github className="w-5 h-5" />} title="GitHub Projects" style={pStyle} />
-              <GitHubProjectsSection projects={profile.githubProjectsCache} accentColor={accentColor} style={pStyle} />
-            </motion.section>
-          )}
-
-          {/* Services */}
-          {hasServices && (
-            <motion.section variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-services">
-              <SectionHeader icon={<Wrench className="w-5 h-5" />} title="Services" style={pStyle} />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {profile.services.map((s) => (
-                  <ServiceCard key={s.id} service={s} style={pStyle} />
-                ))}
-              </div>
-            </motion.section>
-          )}
-
-          {/* Testimonials */}
-          {hasTestimonials && (
-            <motion.section variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-testimonials">
-              <SectionHeader icon={<Sparkles className="w-5 h-5" />} title="Testimonials" style={pStyle} />
-              <div className="space-y-4">
-                {testimonials.map((t) => (
-                  <TestimonialCard key={t.id} testimonial={t} style={pStyle} />
-                ))}
-              </div>
-            </motion.section>
-          )}
+      {isTwoCol ? (
+        <div className="px-2 pb-20 pt-10 md:grid md:grid-cols-5 md:gap-10">
+          <div className="md:col-span-3 space-y-10">
+            {effectiveOrder
+              .filter(k => primaryKeys.includes(k))
+              .map(key => renderSection(key))}
+          </div>
+          <div className="md:col-span-2 space-y-10">
+            {effectiveOrder
+              .filter(k => secondaryKeys.includes(k))
+              .map(key => renderSection(key))}
+          </div>
         </div>
-
-        <div className={isTwoCol ? 'md:col-span-2 space-y-10' : 'space-y-10'}>
-
-          {/* Skills */}
-          {hasSkills && (
-            <motion.section
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: '-60px' }}
-              className={isTwoCol ? 'md:sticky md:top-8' : ''}
-              id="section-skills"
-            >
-              <SectionHeader icon={<Award className="w-5 h-5" />} title="Skills" style={pStyle} />
-              <SkillCloud
-                skills={allSkills}
-                experience={resume.experience}
-                projects={resume.projects}
-                pStyle={pStyle}
-                showMore={showMoreSkills}
-                onToggleMore={() => setShowMoreSkills(v => !v)}
-                hasMore={hasMoreSkills}
-                moreCount={allSkills.length - SKILL_CLOUD_LIMIT}
-              />
-            </motion.section>
-          )}
-
-          {/* Education */}
-          {hasEducation && (
-            <motion.section variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-education">
-              <SectionHeader icon={<GraduationCap className="w-5 h-5" />} title="Education" style={pStyle} />
-              <div className="space-y-4" ref={(el) => {
-                if (!el || (el as HTMLElement & { __eduObserved?: boolean }).__eduObserved) return;
-                (el as HTMLElement & { __eduObserved?: boolean }).__eduObserved = true;
-                const observer = new IntersectionObserver(
-                  ([entry]) => {
-                    if (!entry.isIntersecting) return;
-                    const cards = el.querySelectorAll('.pf-edu-card');
-                    cards.forEach((card, i) => {
-                      (card as HTMLElement).style.animationDelay = `${i * 120}ms`;
-                      card.classList.add('pf-edu-revealed');
-                    });
-                    observer.disconnect();
-                  },
-                  { threshold: 0.2, rootMargin: '0px 0px -50px 0px' }
-                );
-                observer.observe(el);
-              }}>
-                {validEducation.map((edu, i) => (
-                  <EducationCard key={edu.id || i} edu={edu} style={pStyle} />
-                ))}
-              </div>
-            </motion.section>
-          )}
-
-          {/* Certifications */}
-          {hasCerts && (
-            <motion.section variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-certifications">
-              <SectionHeader icon={<Award className="w-5 h-5" />} title="Certifications" style={pStyle} />
-              <div className="space-y-3">
-                {resume.certifications.map((cert, i) => {
-                  const cardProps = getGenericCardProps(pStyle);
-                  const isTerminal = pStyle === 'developer-terminal';
-                  return (
-                    <motion.div key={cert.id || i} variants={getThemeItemVariant(pStyle)} className={cardProps.className} style={cardProps.style}>
-                      {isTerminal && <div className="pf-terminal-dots"><span /><span /><span /></div>}
-                      <div className={isTerminal ? 'pf-terminal-card-body' : ''}>
-                        <h4 className="font-semibold text-sm" style={{ color: 'var(--pf-fg, inherit)' }}>{cert.name}</h4>
-                        <p className="text-xs mt-0.5" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{cert.issuer} · {cert.date}</p>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            </motion.section>
-          )}
-
-          {/* Awards */}
-          {hasAwards && (
-            <motion.section variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-awards">
-              <SectionHeader icon={<Trophy className="w-5 h-5" />} title="Awards" style={pStyle} />
-              <div className="space-y-3">
-                {resume.awards.map((award, i) => {
-                  const cardProps = getGenericCardProps(pStyle);
-                  const isTerminal = pStyle === 'developer-terminal';
-                  return (
-                    <motion.div key={award.id || i} variants={getThemeItemVariant(pStyle)} className={cardProps.className} style={cardProps.style}>
-                      {isTerminal && <div className="pf-terminal-dots"><span /><span /><span /></div>}
-                      <div className={isTerminal ? 'pf-terminal-card-body' : ''}>
-                        <div className="flex items-start justify-between gap-2">
-                          <h4 className="font-semibold text-sm" style={{ color: 'var(--pf-fg, inherit)' }}>{award.title}</h4>
-                          {award.date && <span className="text-xs shrink-0" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{award.date}</span>}
-                        </div>
-                        <p className="text-xs mt-0.5" style={{ color: 'var(--pf-accent)' }}>{award.issuer}</p>
-                        {award.description && (
-                          <p className="text-xs mt-1.5 leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{award.description}</p>
-                        )}
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            </motion.section>
-          )}
-
-          {/* Publications */}
-          {hasPublications && (
-            <motion.section variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-publications">
-              <SectionHeader icon={<BookOpen className="w-5 h-5" />} title="Publications" style={pStyle} />
-              <div className="space-y-3">
-                {resume.publications.map((pub, i) => {
-                  const cardProps = getGenericCardProps(pStyle);
-                  const isTerminal = pStyle === 'developer-terminal';
-                  return (
-                    <motion.div key={pub.id || i} variants={getThemeItemVariant(pStyle)} className={cardProps.className} style={cardProps.style}>
-                      {isTerminal && <div className="pf-terminal-dots"><span /><span /><span /></div>}
-                      <div className={isTerminal ? 'pf-terminal-card-body' : ''}>
-                        {pub.url ? (
-                          <a href={pub.url} target="_blank" rel="noopener noreferrer"
-                            className="font-semibold text-sm inline-flex items-center gap-1 hover:opacity-80 transition-opacity"
-                            style={{ color: 'var(--pf-fg, inherit)' }}>
-                            {pub.title}
-                            <ExternalLink className="w-3 h-3" style={{ color: 'var(--pf-accent)' }} />
-                          </a>
-                        ) : (
-                          <h4 className="font-semibold text-sm" style={{ color: 'var(--pf-fg, inherit)' }}>{pub.title}</h4>
-                        )}
-                        <p className="text-xs mt-0.5" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
-                          {pub.publisher}{pub.date ? ` · ${pub.date}` : ''}
-                        </p>
-                        {pub.description && (
-                          <p className="text-xs mt-1.5 leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{pub.description}</p>
-                        )}
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            </motion.section>
-          )}
-
-          {/* Volunteering */}
-          {hasVolunteering && (
-            <motion.section variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-volunteering">
-              <SectionHeader icon={<Heart className="w-5 h-5" />} title="Volunteering" style={pStyle} />
-              <div className="space-y-3">
-                {resume.volunteering.map((vol, i) => {
-                  const cardProps = getGenericCardProps(pStyle);
-                  const isTerminal = pStyle === 'developer-terminal';
-                  return (
-                    <motion.div key={vol.id || i} variants={getThemeItemVariant(pStyle)} className={cardProps.className} style={cardProps.style}>
-                      {isTerminal && <div className="pf-terminal-dots"><span /><span /><span /></div>}
-                      <div className={isTerminal ? 'pf-terminal-card-body' : ''}>
-                        <div className="flex items-start justify-between gap-2">
-                          <h4 className="font-semibold text-sm" style={{ color: 'var(--pf-fg, inherit)' }}>{vol.role}</h4>
-                          <span className="text-xs shrink-0" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
-                            {vol.startDate} – {vol.endDate || 'Present'}
-                          </span>
-                        </div>
-                        <p className="text-xs mt-0.5 font-medium" style={{ color: 'var(--pf-accent)' }}>{vol.organization}</p>
-                        {vol.description && (
-                          <p className="text-xs mt-1.5 leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{vol.description}</p>
-                        )}
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            </motion.section>
-          )}
+      ) : (
+        <div className="px-2 pb-20 pt-10 space-y-10">
+          {orderedSections}
         </div>
-      </div>
+      )}
     </>
   );
 };

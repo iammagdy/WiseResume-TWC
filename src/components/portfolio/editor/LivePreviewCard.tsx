@@ -12,10 +12,17 @@ interface LivePreviewCardProps {
   portfolioFont: string;
   bio?: string;
   openToWork?: boolean;
+  availabilityStatus?: 'actively-looking' | 'open-to-offers' | 'not-looking';
   views?: number;
 }
 
-export function LivePreviewCard({ avatarUrl, fullName, jobTitle, portfolioStyle, accentColor, portfolioFont, bio, openToWork, views }: LivePreviewCardProps) {
+const AVAILABILITY_BADGE: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  'actively-looking': { label: 'Actively Looking', color: '#22c55e', bg: 'rgba(34,197,94,0.15)', border: 'rgba(34,197,94,0.3)' },
+  'open-to-offers': { label: 'Open to Offers', color: '#f59e0b', bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.3)' },
+  'not-looking': { label: '', color: '', bg: '', border: '' },
+};
+
+export function LivePreviewCard({ avatarUrl, fullName, jobTitle, portfolioStyle, accentColor, portfolioFont, bio, openToWork, availabilityStatus, views }: LivePreviewCardProps) {
   const initials = fullName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
 
   const vars = useMemo(() => {
@@ -37,6 +44,9 @@ export function LivePreviewCard({ avatarUrl, fullName, jobTitle, portfolioStyle,
   }, [portfolioStyle, portfolioFont]);
 
   const bioSnippet = bio && bio.length > 80 ? bio.slice(0, 80) + '…' : bio;
+
+  const effectiveStatus = availabilityStatus ?? (openToWork ? 'actively-looking' : 'not-looking');
+  const badge = AVAILABILITY_BADGE[effectiveStatus];
 
   return (
     <div
@@ -74,10 +84,14 @@ export function LivePreviewCard({ avatarUrl, fullName, jobTitle, portfolioStyle,
             {bioSnippet}
           </p>
         )}
-        <div className="flex items-center gap-3 mt-1">
-          {openToWork && (
-            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
-              Open to Work
+        <div className="flex items-center gap-3 mt-1 flex-wrap justify-center">
+          {badge.label && (
+            <span
+              className="text-[9px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1"
+              style={{ background: badge.bg, color: badge.color, border: `1px solid ${badge.border}` }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: badge.color }} />
+              {badge.label}
             </span>
           )}
           {typeof views === 'number' && views > 0 && (

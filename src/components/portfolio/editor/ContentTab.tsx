@@ -1,11 +1,28 @@
 import {
   Briefcase, Star, Plus, X, FileText,
   MessageSquareQuote, TrendingUp, RefreshCw, Lock, AlertTriangle,
+  ChevronUp, ChevronDown, Pin, Link,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { CollapsibleCard } from './shared';
+
+const SECTION_LABEL_MAP: Record<string, string> = {
+  about: 'About',
+  experience: 'Experience',
+  education: 'Education',
+  skills: 'Skills',
+  projects: 'Projects',
+  caseStudies: 'Case Studies',
+  services: 'Services',
+  testimonials: 'Testimonials',
+  certifications: 'Certifications',
+  awards: 'Awards',
+  publications: 'Publications',
+  volunteering: 'Volunteering',
+  githubProjects: 'GitHub Projects',
+};
 
 export interface ContentTabProps {
   // Collapsible sections
@@ -34,6 +51,12 @@ export interface ContentTabProps {
   // Highlights
   highlights: Array<{ id: string; value: string; label: string }>;
   onHighlightsChange: (val: Array<{ id: string; value: string; label: string }>) => void;
+  // Section reordering
+  sectionOrder: string[];
+  onSectionOrderChange: (order: string[]) => void;
+  // Featured/pinned project
+  pinnedProject: { title: string; description: string; url: string } | null;
+  onPinnedProjectChange: (val: { title: string; description: string; url: string } | null) => void;
 }
 
 export function ContentTab(props: ContentTabProps) {
@@ -47,6 +70,8 @@ export function ContentTab(props: ContentTabProps) {
     services, onServicesChange,
     testimonials, onTestimonialsChange,
     highlights, onHighlightsChange,
+    sectionOrder, onSectionOrderChange,
+    pinnedProject, onPinnedProjectChange,
   } = props;
 
   const isStale = syncMode === 'locked'
@@ -56,12 +81,25 @@ export function ContentTab(props: ContentTabProps) {
 
   const handleSwitchToCustom = () => {
     if (syncMode === 'auto') {
-      // Pre-populate summary with CV bio if empty
       if (!portfolioSummary && bio) {
         onPortfolioSummaryChange(bio);
       }
     }
     onSyncModeChange('locked');
+  };
+
+  const moveSectionUp = (idx: number) => {
+    if (idx === 0) return;
+    const next = [...sectionOrder];
+    [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+    onSectionOrderChange(next);
+  };
+
+  const moveSectionDown = (idx: number) => {
+    if (idx === sectionOrder.length - 1) return;
+    const next = [...sectionOrder];
+    [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+    onSectionOrderChange(next);
   };
 
   return (
@@ -120,6 +158,101 @@ export function ContentTab(props: ContentTabProps) {
             : 'You can freely edit all sections. Changes won\'t affect your CV.'}
         </p>
       </div>
+
+      {/* Section Order */}
+      <CollapsibleCard
+        id="section-order"
+        icon={<ChevronUp className="w-4 h-4" />}
+        title="Section Order"
+        hint={<span className="text-[11px] text-muted-foreground">drag to reorder</span>}
+        openSections={openSections}
+        toggleSection={toggleSection}
+      >
+        <p className="text-[11px] text-muted-foreground mb-2">Change the order sections appear on your public portfolio.</p>
+        <div className="space-y-1.5">
+          {sectionOrder.map((sectionKey, idx) => (
+            <div key={sectionKey} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/40 border border-border">
+              <span className="flex-1 text-sm text-foreground">{SECTION_LABEL_MAP[sectionKey] ?? sectionKey}</span>
+              <div className="flex gap-0.5">
+                <button
+                  onClick={() => moveSectionUp(idx)}
+                  disabled={idx === 0}
+                  className="w-7 h-7 flex items-center justify-center rounded-md transition-colors hover:bg-muted disabled:opacity-30"
+                  aria-label="Move up"
+                >
+                  <ChevronUp className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => moveSectionDown(idx)}
+                  disabled={idx === sectionOrder.length - 1}
+                  className="w-7 h-7 flex items-center justify-center rounded-md transition-colors hover:bg-muted disabled:opacity-30"
+                  aria-label="Move down"
+                >
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CollapsibleCard>
+
+      {/* Featured/Pinned Project */}
+      <CollapsibleCard
+        id="pinned-project"
+        icon={<Pin className="w-4 h-4" />}
+        title="Featured Project"
+        hint={pinnedProject?.title ? <span className="text-[11px] truncate max-w-[100px]">{pinnedProject.title}</span> : undefined}
+        openSections={openSections}
+        toggleSection={toggleSection}
+      >
+        <p className="text-[11px] text-muted-foreground mb-3">Pin one project as a hero card at the top of your portfolio.</p>
+        {pinnedProject === null ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPinnedProjectChange({ title: '', description: '', url: '' })}
+            className="w-full h-10 rounded-xl active:scale-95 touch-manipulation"
+          >
+            <Pin className="w-4 h-4 mr-2" /> Pin a Project
+          </Button>
+        ) : (
+          <div className="space-y-2 rounded-xl border border-border bg-card p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Featured Project</span>
+              <button onClick={() => onPinnedProjectChange(null)} className="text-muted-foreground hover:text-destructive transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <Input
+              placeholder="Project headline"
+              value={pinnedProject.title}
+              onChange={e => onPinnedProjectChange({ ...pinnedProject, title: e.target.value })}
+              maxLength={80}
+            />
+            <Textarea
+              placeholder="Short description (what you built, what makes it special)"
+              value={pinnedProject.description}
+              onChange={e => onPinnedProjectChange({ ...pinnedProject, description: e.target.value })}
+              className="min-h-[70px] text-sm"
+              maxLength={200}
+            />
+            <div className="relative">
+              <Link className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Input
+                placeholder="https://your-project.com (optional)"
+                value={pinnedProject.url}
+                onChange={e => onPinnedProjectChange({ ...pinnedProject, url: e.target.value })}
+                type="url"
+                inputMode="url"
+                autoCapitalize="none"
+                autoCorrect="off"
+                className="pl-8"
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground text-right">{pinnedProject.description.length}/200</p>
+          </div>
+        )}
+      </CollapsibleCard>
 
       {syncMode === 'auto' ? (
         <div className="text-center py-8 space-y-2 bg-card border border-border shadow-soft rounded-xl">

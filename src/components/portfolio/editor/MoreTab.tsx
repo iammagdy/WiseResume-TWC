@@ -66,13 +66,18 @@ export function MoreTab(props: MoreTabProps) {
       <CollapsibleCard
         id="sociallinks"
         icon={<Link2 className="w-4 h-4" />}
-        title="Portfolio links & contact"
+        title="Contact & links"
         hint={(linkedinUrl || githubUrl || contactEmail) ? <span className="text-[11px]">configured</span> : undefined}
         openSections={openSections}
         toggleSection={toggleSection}
       >
-        <p className="text-[11px] text-muted-foreground mb-3">Links shown on your public portfolio.</p>
+        <p className="text-[11px] text-muted-foreground mb-3">Links shown on your public portfolio. Social profiles (LinkedIn, GitHub, X) sync from your Settings — update them there to avoid duplication.</p>
         <div className="space-y-3">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-foreground">Public Contact Email</label>
+            <Input type="email" placeholder="your@email.com" value={contactEmail} onChange={e => onContactEmailChange(e.target.value)} onBlur={() => onContactEmailChange(contactEmail.trim().toLowerCase())} autoComplete="email" autoCapitalize="none" inputMode="email" />
+            <p className="text-[11px] text-muted-foreground">Shown on your portfolio "Contact me" button. Defaults to your account email if empty.</p>
+          </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
               <Linkedin className="w-3.5 h-3.5" /> LinkedIn URL
@@ -84,19 +89,6 @@ export function MoreTab(props: MoreTabProps) {
               <Github className="w-3.5 h-3.5" /> GitHub URL
             </label>
             <Input placeholder="https://github.com/yourusername" value={githubUrl} onChange={e => onGithubUrlChange(e.target.value)} onBlur={() => onGithubUrlChange(normalizeUrl(githubUrl))} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-foreground">Contact Email</label>
-            <Input type="email" placeholder="your@email.com" value={contactEmail} onChange={e => onContactEmailChange(e.target.value)} onBlur={() => onContactEmailChange(contactEmail.trim().toLowerCase())} autoComplete="email" autoCapitalize="none" inputMode="email" />
-            <p className="text-[11px] text-muted-foreground">Public email shown on your portfolio. Defaults to your account email if empty.</p>
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-foreground">X (Twitter) URL</label>
-            <Input placeholder="https://x.com/yourusername" value={twitterUrl} onChange={e => onTwitterUrlChange(e.target.value)} onBlur={() => onTwitterUrlChange(normalizeUrl(twitterUrl))} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-foreground">Personal Website</label>
-            <Input placeholder="https://yourwebsite.com" value={websiteUrl} onChange={e => onWebsiteUrlChange(e.target.value)} onBlur={() => onWebsiteUrlChange(normalizeUrl(websiteUrl))} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
           </div>
         </div>
       </CollapsibleCard>

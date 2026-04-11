@@ -50,6 +50,9 @@ export interface PublicProfile {
   portfolioSummary: string | null;
   portfolioSyncMode: 'auto' | 'locked';
   githubProjectsCache: Array<{ name: string; description: string; url: string; language: string | null; stars: number; topics: string[] }>;
+  availabilityStatus: 'actively-looking' | 'open-to-offers' | 'not-looking';
+  sectionOrder: string[] | null;
+  pinnedProject: { title: string; description: string; url: string } | null;
 }
 
 export interface PublicResume {
@@ -126,6 +129,9 @@ async function fetchPublicPortfolio(username: string): Promise<PublicPortfolioDa
       portfolioSummary: (extras.portfolioSummary as string) || null,
       portfolioSyncMode: ((profile.portfolioSyncMode as string) || 'auto') as 'auto' | 'locked',
       githubProjectsCache: (profile.githubProjectsCache as Array<{ name: string; description: string; url: string; language: string | null; stars: number; topics: string[] }>) || [],
+      availabilityStatus: ((extras.availabilityStatus as string) || ((profile.openToWork as boolean) ? 'actively-looking' : 'not-looking')) as 'actively-looking' | 'open-to-offers' | 'not-looking',
+      sectionOrder: (extras.sectionOrder as string[]) || null,
+      pinnedProject: (extras.pinnedProject as { title: string; description: string; url: string }) || null,
     },
     resume: {
       id: (resume.id as string) || '',

@@ -5,10 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
 import { CollapsibleCard } from './shared';
 import type { PortfolioSections } from './ContentVisibilitySection';
 import { SECTION_LABELS } from './ContentVisibilitySection';
+import { Switch } from '@/components/ui/switch';
+
+export type AvailabilityStatus = 'actively-looking' | 'open-to-offers' | 'not-looking';
 
 export interface SetupTabProps {
   username: string;
@@ -28,14 +30,20 @@ export interface SetupTabProps {
   onToggleSectionVisibility: (key: keyof PortfolioSections) => void;
   openSections: Set<string>;
   toggleSection: (id: string) => void;
-  // Availability
-  openToWork: boolean;
-  onOpenToWorkChange: (val: boolean) => void;
+  // Availability — 3-state
+  availabilityStatus: AvailabilityStatus;
+  onAvailabilityStatusChange: (val: AvailabilityStatus) => void;
   availabilityHeadline: string;
   onAvailabilityHeadlineChange: (val: string) => void;
   onGenerateAvailability: () => void;
   generatingAvailability: boolean;
 }
+
+const AVAILABILITY_OPTIONS: { value: AvailabilityStatus; label: string; color: string; badge: string }[] = [
+  { value: 'actively-looking', label: 'Actively looking', color: '#22c55e', badge: 'bg-green-500/15 text-green-500 border-green-500/30' },
+  { value: 'open-to-offers', label: 'Open to offers', color: '#f59e0b', badge: 'bg-amber-500/15 text-amber-500 border-amber-500/30' },
+  { value: 'not-looking', label: 'Not looking (private)', color: '#6b7280', badge: 'bg-muted text-muted-foreground border-border' },
+];
 
 export function SetupTab(props: SetupTabProps) {
   const {
@@ -44,7 +52,7 @@ export function SetupTab(props: SetupTabProps) {
     bio, onBioChange, onGenerateBio, generatingBio,
     sections, onToggleSectionVisibility,
     openSections, toggleSection,
-    openToWork, onOpenToWorkChange,
+    availabilityStatus, onAvailabilityStatusChange,
     availabilityHeadline, onAvailabilityHeadlineChange,
     onGenerateAvailability, generatingAvailability,
   } = props;
@@ -55,21 +63,29 @@ export function SetupTab(props: SetupTabProps) {
   const now = new Date();
   const currentMonthYear = `${now.toLocaleString('default', { month: 'long' })} ${now.getFullYear()}`;
 
+  const currentAvailability = AVAILABILITY_OPTIONS.find(o => o.value === availabilityStatus) ?? AVAILABILITY_OPTIONS[2];
+
   return (
     <div className="space-y-5">
       {/* Username */}
       <div className="space-y-1">
         <label className="text-xs font-medium text-foreground">Username</label>
         <p className="text-[11px] text-muted-foreground font-mono">resume.thewise.cloud/p/{username || 'your-name'}</p>
-        <Input
-          value={username}
-          onChange={(e) => onUsernameChange(e.target.value)}
-          placeholder="your-name"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          inputMode="url"
-        />
+        <div className="relative">
+          <Input
+            value={username}
+            onChange={(e) => onUsernameChange(e.target.value)}
+            placeholder="your-name"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            inputMode="url"
+            className="pr-14"
+          />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground tabular-nums">
+            {username.length}/30
+          </span>
+        </div>
         {usernameError && <p className="text-xs text-destructive">{usernameError}</p>}
         {!usernameError && username.length >= 3 && (
           <div className="flex items-center gap-1.5">
@@ -81,14 +97,14 @@ export function SetupTab(props: SetupTabProps) {
             )}
             {!checkingUsername && usernameAvailable === true && (
               <>
-                <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
-                <span className="text-xs text-green-500">Available</span>
+                <CheckCircle2 className="w-4 h-4 text-green-500" />
+                <span className="text-xs font-medium text-green-500">✓ Available</span>
               </>
             )}
             {!checkingUsername && usernameAvailable === false && (
               <>
-                <XCircle className="w-3.5 h-3.5 text-destructive" />
-                <span className="text-xs text-destructive">Taken</span>
+                <XCircle className="w-4 h-4 text-destructive" />
+                <span className="text-xs font-medium text-destructive">✗ Username taken — choose another</span>
               </>
             )}
           </div>
@@ -164,19 +180,34 @@ export function SetupTab(props: SetupTabProps) {
         id="availability"
         icon={<Zap className="w-4 h-4" />}
         title="Availability"
-        hint={openToWork ? <span className="text-[11px] text-green-500">Open to Work</span> : undefined}
+        hint={
+          availabilityStatus !== 'not-looking'
+            ? <span className={`text-[11px] px-2 py-0.5 rounded-full border font-medium ${currentAvailability.badge}`}>{currentAvailability.label}</span>
+            : undefined
+        }
         openSections={openSections}
         toggleSection={toggleSection}
       >
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-foreground">Show "Open to Work" badge</p>
-            <p className="text-[11px] text-muted-foreground">Displayed prominently on your portfolio.</p>
-          </div>
-          <Switch checked={openToWork} onCheckedChange={onOpenToWorkChange} />
+        <p className="text-[11px] text-muted-foreground mb-3">Set your job-seeking status — shown as a badge on your public portfolio.</p>
+        <div className="space-y-2">
+          {AVAILABILITY_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => onAvailabilityStatusChange(opt.value)}
+              className={`w-full flex items-center gap-3 rounded-xl border p-3 text-left transition-all active:scale-[0.98] ${
+                availabilityStatus === opt.value ? 'border-primary/60 bg-primary/5' : 'border-border bg-card'
+              }`}
+            >
+              <span
+                className="w-3 h-3 rounded-full shrink-0"
+                style={{ background: availabilityStatus === opt.value ? opt.color : 'transparent', border: `2px solid ${opt.color}` }}
+              />
+              <span className="text-sm font-medium text-foreground">{opt.label}</span>
+            </button>
+          ))}
         </div>
-        {openToWork && (
-          <div className="space-y-1 mt-2">
+        {availabilityStatus !== 'not-looking' && (
+          <div className="space-y-1 mt-3">
             <div className="flex items-center justify-between">
               <label className="text-xs font-medium text-foreground">Availability headline</label>
               <Button variant="ghost" size="sm" onClick={onGenerateAvailability} disabled={generatingAvailability} className="h-7 text-xs px-2 active:scale-95">

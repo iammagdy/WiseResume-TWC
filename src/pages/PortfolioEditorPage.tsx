@@ -16,9 +16,9 @@ import { haptics } from '@/lib/haptics';
 import { PortfolioEditorSkeleton } from '@/components/layout/PageSkeletons';
 
 import { useNavigate } from 'react-router-dom';
-import { QrCode } from 'lucide-react';
+import { QrCode, ExternalLink } from 'lucide-react';
 import { UnsavedChangesDialog } from '@/components/editor/UnsavedChangesDialog';
-import { getPortfolioUrl } from '@/lib/portfolioUrl';
+import { getPortfolioUrl, getPortfolioDisplayUrl } from '@/lib/portfolioUrl';
 import { openExternal } from '@/lib/openExternal';
 import { getSafeMatchMedia } from '@/lib/envUtils';
 import { normalizeUrl } from '@/lib/urlUtils';
@@ -82,6 +82,7 @@ export default function PortfolioEditorPage() {
   const [portfolioAccentColor, setPortfolioAccentColor] = useState('#e84545');
   const [portfolioFont, setPortfolioFont] = useState<PortfolioFont>('inter');
   const [openToWork, setOpenToWork] = useState(false);
+  const [availabilityStatus, setAvailabilityStatus] = useState<'actively-looking' | 'open-to-offers' | 'not-looking'>('not-looking');
   const [availabilityHeadline, setAvailabilityHeadline] = useState('');
   const [showQR, setShowQR] = useState(false);
   const [showCareerCard, setShowCareerCard] = useState(false);
@@ -93,6 +94,8 @@ export default function PortfolioEditorPage() {
   const [testimonials, setTestimonials] = useState<Array<{id: string;quote: string;authorName: string;authorTitle: string;}>>([]);
   const [highlights, setHighlights] = useState<Array<{id: string;value: string;label: string;}>>([]);
   const [portfolioSummary, setPortfolioSummary] = useState('');
+  const [sectionOrder, setSectionOrder] = useState<string[]>(['about', 'experience', 'caseStudies', 'projects', 'githubProjects', 'services', 'testimonials', 'skills', 'education', 'certifications', 'awards', 'publications', 'volunteering']);
+  const [pinnedProject, setPinnedProject] = useState<{title: string; description: string; url: string} | null>(null);
   const [activeTab, setActiveTab] = useState<'setup' | 'content' | 'design' | 'more'>('setup');
 
   // ── Unsaved changes tracking ──
@@ -106,17 +109,17 @@ export default function PortfolioEditorPage() {
       username, bio, portfolioEnabled, githubUrl, websiteUrl, twitterUrl,
       linkedinUrl, contactEmail, selectedTheme, sections, metaTitle,
       metaDescription, portfolioStyle, portfolioLayout, portfolioAccentColor,
-      portfolioFont, openToWork, availabilityHeadline, syncMode,
+      portfolioFont, availabilityStatus, availabilityHeadline, syncMode,
       caseStudies, services, testimonials, highlights, portfolioSummary,
-      selectedResumeId,
+      selectedResumeId, sectionOrder, pinnedProject,
     });
   }, [
     username, bio, portfolioEnabled, githubUrl, websiteUrl, twitterUrl,
     linkedinUrl, contactEmail, selectedTheme, sections, metaTitle,
     metaDescription, portfolioStyle, portfolioLayout, portfolioAccentColor,
-    portfolioFont, openToWork, availabilityHeadline, syncMode,
+    portfolioFont, availabilityStatus, availabilityHeadline, syncMode,
     caseStudies, services, testimonials, highlights, portfolioSummary,
-    selectedResumeId,
+    selectedResumeId, sectionOrder, pinnedProject,
   ]);
 
   const tabIndexMap = { setup: 0, content: 1, design: 2, more: 3 } as const;
@@ -153,6 +156,7 @@ export default function PortfolioEditorPage() {
       setPortfolioAccentColor(profile.portfolioAccentColor || '#e84545');
       setPortfolioFont((profile.portfolioFont || 'inter') as PortfolioFont);
       setOpenToWork(profile.openToWork || false);
+      setAvailabilityStatus((profile.portfolioExtras?.availabilityStatus as 'actively-looking' | 'open-to-offers' | 'not-looking') || (profile.openToWork ? 'actively-looking' : 'not-looking'));
       setAvailabilityHeadline(profile.availabilityHeadline || '');
       setSyncMode(profile.portfolioSyncMode as 'auto' | 'locked' || 'auto');
       const extras = profile.portfolioExtras || {};
@@ -161,6 +165,8 @@ export default function PortfolioEditorPage() {
       setTestimonials(extras.testimonials as Array<{id: string;quote: string;authorName: string;authorTitle: string;}> || []);
       setHighlights(extras.highlights as Array<{id: string;value: string;label: string;}> || []);
       setPortfolioSummary(extras.portfolioSummary as string || '');
+      setSectionOrder(extras.sectionOrder as string[] || ['about', 'experience', 'caseStudies', 'projects', 'githubProjects', 'services', 'testimonials', 'skills', 'education', 'certifications', 'awards', 'publications', 'volunteering']);
+      setPinnedProject(extras.pinnedProject as {title: string; description: string; url: string} | null || null);
     }
   }, [profile]);
 
@@ -386,11 +392,14 @@ export default function PortfolioEditorPage() {
         portfolioLayout,
         portfolioAccentColor: portfolioAccentColor || null,
         portfolioFont,
-        openToWork,
+        openToWork: availabilityStatus !== 'not-looking',
         availabilityHeadline: availabilityHeadline || null,
         portfolioSyncMode: syncMode,
         portfolioExtras: {
           caseStudies, services, testimonials, highlights, portfolioSummary,
+          sectionOrder,
+          pinnedProject: pinnedProject || null,
+          availabilityStatus,
           lastSyncedFromResumeAt: syncMode === 'auto' ? new Date().toISOString() : (
             profile?.portfolioExtras?.lastSyncedFromResumeAt ?? null
           ),
@@ -446,13 +455,17 @@ export default function PortfolioEditorPage() {
     }
   };
 
-  // Display URL
-  const portfolioDisplayUrl = username ? `thewise.cloud/p/${username}` : '';
+  // Display URL — always show resume.thewise.cloud (never thewise.cloud)
+  const portfolioDisplayUrl = username ? getPortfolioDisplayUrl(username) : '';
+  // Canonical URL for copy/share/QR — always uses resume.thewise.cloud so shared links
+  // always point to the primary domain regardless of which domain the editor is loaded on.
+  const portfolioCanonicalUrl = username ? `https://resume.thewise.cloud/p/${username}` : '';
+  // Navigation URL — uses the current domain so it works in any environment
   const actualPortfolioUrl = username ? getPortfolioUrl(username) : '';
 
   const handleCopyUrl = async () => {
-    if (!actualPortfolioUrl) return;
-    await navigator.clipboard.writeText(actualPortfolioUrl);
+    if (!portfolioCanonicalUrl) return;
+    await navigator.clipboard.writeText(portfolioCanonicalUrl);
     setCopied(true);
     haptics.light();
     toast.success('Link copied!');
@@ -460,14 +473,14 @@ export default function PortfolioEditorPage() {
   };
 
   const handleShareQR = async () => {
-    if (!actualPortfolioUrl) return;
+    if (!portfolioCanonicalUrl) return;
     haptics.light();
     if (navigator.share) {
       try {
-        await navigator.share({ title: `${profile?.fullName || 'My'} Portfolio`, url: actualPortfolioUrl });
+        await navigator.share({ title: `${profile?.fullName || 'My'} Portfolio`, url: portfolioCanonicalUrl });
       } catch {/* cancelled */}
     } else {
-      await navigator.clipboard.writeText(actualPortfolioUrl);
+      await navigator.clipboard.writeText(portfolioCanonicalUrl);
       toast.success('Link copied!');
     }
   };
@@ -525,6 +538,18 @@ export default function PortfolioEditorPage() {
           return false;
         }} />
         <h1 className="text-page-title leading-tight flex-1">Portfolio</h1>
+        {portfolioEnabled && portfolioCanonicalUrl && (
+          <a
+            href={portfolioCanonicalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-muted transition-colors shrink-0"
+            title="View public portfolio"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">View live</span>
+          </a>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 pb-6 bg-[#fbf9f9]/15">
@@ -532,7 +557,7 @@ export default function PortfolioEditorPage() {
         <StatusBar
           portfolioEnabled={portfolioEnabled}
           portfolioDisplayUrl={portfolioDisplayUrl}
-          actualPortfolioUrl={actualPortfolioUrl}
+          actualPortfolioUrl={portfolioCanonicalUrl}
           copied={copied}
           onCopyUrl={handleCopyUrl}
           onOpenQR={() => {haptics.light();setShowQR(true);}}
@@ -551,7 +576,8 @@ export default function PortfolioEditorPage() {
           accentColor={portfolioAccentColor}
           portfolioFont={portfolioFont}
           bio={bio}
-          openToWork={openToWork}
+          openToWork={availabilityStatus !== 'not-looking'}
+          availabilityStatus={availabilityStatus}
           views={profile?.views || 0} />
         
 
@@ -619,8 +645,8 @@ export default function PortfolioEditorPage() {
               onToggleSectionVisibility={toggleSectionVisibility}
               openSections={openSections}
               toggleSection={toggleSection}
-              openToWork={openToWork}
-              onOpenToWorkChange={setOpenToWork}
+              availabilityStatus={availabilityStatus}
+              onAvailabilityStatusChange={setAvailabilityStatus}
               availabilityHeadline={availabilityHeadline}
               onAvailabilityHeadlineChange={setAvailabilityHeadline}
               onGenerateAvailability={handleGenerateAvailability}
@@ -646,7 +672,11 @@ export default function PortfolioEditorPage() {
               testimonials={testimonials}
               onTestimonialsChange={setTestimonials}
               highlights={highlights}
-              onHighlightsChange={setHighlights} />
+              onHighlightsChange={setHighlights}
+              sectionOrder={sectionOrder}
+              onSectionOrderChange={setSectionOrder}
+              pinnedProject={pinnedProject}
+              onPinnedProjectChange={setPinnedProject} />
 
             }
 
@@ -708,14 +738,15 @@ export default function PortfolioEditorPage() {
         saving={savingPortfolio}
         disabled={!!usernameError || usernameAvailable === false || checkingUsername}
         portfolioEnabled={portfolioEnabled}
-        onPortfolioEnabledChange={setPortfolioEnabled} />
+        onPortfolioEnabledChange={setPortfolioEnabled}
+        portfolioUrl={portfolioCanonicalUrl || undefined} />
       
 
       {/* Sheets */}
       <QRGeneratorSheet
         open={showQR}
         onOpenChange={setShowQR}
-        portfolioUrl={actualPortfolioUrl}
+        portfolioUrl={portfolioCanonicalUrl}
         displayUrl={portfolioDisplayUrl}
         onShare={handleShareQR} />
       

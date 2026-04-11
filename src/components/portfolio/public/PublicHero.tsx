@@ -107,7 +107,27 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
                   {profile.jobTitle}
                 </span>
               )}
-              {profile.openToWork && (
+              {profile.availabilityStatus === 'actively-looking' && (
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full" style={{
+                  background: 'rgba(34,197,94,0.15)',
+                  color: '#22c55e',
+                  border: '1px solid rgba(34,197,94,0.3)',
+                }}>
+                  <span className="w-2 h-2 rounded-full bg-[#22c55e] animate-pulse" />
+                  Actively Looking
+                </span>
+              )}
+              {profile.availabilityStatus === 'open-to-offers' && (
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full" style={{
+                  background: 'rgba(245,158,11,0.15)',
+                  color: '#f59e0b',
+                  border: '1px solid rgba(245,158,11,0.3)',
+                }}>
+                  <span className="w-2 h-2 rounded-full bg-[#f59e0b]" />
+                  Open to Offers
+                </span>
+              )}
+              {!profile.availabilityStatus && profile.openToWork && (
                 <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full" style={{
                   background: 'rgba(34,197,94,0.15)',
                   color: '#22c55e',
@@ -119,7 +139,7 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
               )}
             </div>
 
-            {profile.openToWork && isActiveWithin24h(liveLastActiveAt) && (
+            {(profile.availabilityStatus === 'actively-looking' || (!profile.availabilityStatus && profile.openToWork)) && isActiveWithin24h(liveLastActiveAt) && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.85 }}
                 animate={{ opacity: 1, scale: 1 }}

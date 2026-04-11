@@ -245,14 +245,26 @@ function PublicPortfolioContent() {
 
   const initials = profile.fullName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
   const portfolioSummary = profile.portfolioSummary;
+  const sectionOrder = profile.sectionOrder || undefined;
 
   // Navigation Highlights
   const highlights = profile.highlights || [];
-  const navSections: { id: string; label: string }[] = [];
-  if (show('experience') && validExperience.length > 0) navSections.push({ id: 'section-experience', label: 'Experience' });
-  if (show('projects') && resume.projects?.length > 0) navSections.push({ id: 'section-projects', label: 'Projects' });
-  if (show('skills') && resume.skills?.length > 0) navSections.push({ id: 'section-skills', label: 'Skills' });
-  if (show('education') && validEducation.length > 0) navSections.push({ id: 'section-education', label: 'Education' });
+
+  const NAV_SECTION_MAP: Record<string, { id: string; label: string; check: boolean }> = {
+    experience: { id: 'section-experience', label: 'Experience', check: show('experience') && validExperience.length > 0 },
+    projects: { id: 'section-projects', label: 'Projects', check: show('projects') && (resume.projects?.length ?? 0) > 0 },
+    skills: { id: 'section-skills', label: 'Skills', check: show('skills') && (resume.skills?.length ?? 0) > 0 },
+    education: { id: 'section-education', label: 'Education', check: show('education') && validEducation.length > 0 },
+  };
+
+  const NAV_DEFAULT_ORDER = ['experience', 'projects', 'skills', 'education'];
+  const navOrder = sectionOrder && sectionOrder.length > 0
+    ? [...sectionOrder.filter(k => k in NAV_SECTION_MAP), ...NAV_DEFAULT_ORDER.filter(k => !sectionOrder.includes(k))]
+    : NAV_DEFAULT_ORDER;
+  const navSections = navOrder
+    .map(k => NAV_SECTION_MAP[k])
+    .filter(s => s && s.check)
+    .map(s => ({ id: s.id, label: s.label }));
 
   return (
     <div className={`pf-theme pf-theme-${pStyle} min-h-screen text-[--pf-fg] selection:bg-[--pf-accent] selection:text-white pb-safe`} style={rootStyle}>
@@ -295,6 +307,7 @@ function PublicPortfolioContent() {
             highlights={highlights}
             allSkills={allSkills}
             portfolioSummary={portfolioSummary}
+            sectionOrder={sectionOrder}
           />
         </Suspense>
 
