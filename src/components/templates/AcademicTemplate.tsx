@@ -29,7 +29,7 @@ export const AcademicTemplate = memo(function AcademicTemplate({ resume }: Acade
           <h2 className="text-sm font-bold uppercase tracking-wider mb-3 pb-1 border-b" style={{ color: '#1e3a5f', borderColor: '#1e3a5f' }}>Education</h2>
           <div className="space-y-3">
             {education.map((edu) => (
-              <div key={edu.id}>
+              <div key={edu.id} data-break-avoid>
                 <div className="flex justify-between items-baseline">
                   <h3 className="font-bold text-gray-900">{edu.degree} in {edu.field}</h3>
                   <span className="text-gray-600 text-sm">{formatDisplayDate(edu.startDate)} – {formatDisplayDate(edu.endDate)}</span>
@@ -47,7 +47,7 @@ export const AcademicTemplate = memo(function AcademicTemplate({ resume }: Acade
           <h2 className="text-sm font-bold uppercase tracking-wider mb-3 pb-1 border-b" style={{ color: '#1e3a5f', borderColor: '#1e3a5f' }}>Academic Experience</h2>
           <div className="space-y-4">
             {experience.map((exp) => (
-              <div key={exp.id}>
+              <div key={exp.id} data-break-avoid>
                 <div className="flex justify-between items-baseline">
                   <h3 className="font-bold text-gray-900">{exp.position}</h3>
                   <span className="text-gray-600 text-sm">{formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</span>
@@ -56,7 +56,7 @@ export const AcademicTemplate = memo(function AcademicTemplate({ resume }: Acade
                 {exp.description && <p data-break-child className="text-gray-600 mt-1 text-justify">{exp.description}</p>}
                 {exp.achievements.length > 0 && (
                   <ul data-break-child className="mt-2 space-y-1 list-disc list-inside">
-                    {exp.achievements.map((a, idx) => (<li key={idx} className="text-gray-700">{a}</li>))}
+                    {exp.achievements.map((a, idx) => (<li key={idx} data-break-child className="text-gray-700">{a}</li>))}
                   </ul>
                 )}
               </div>

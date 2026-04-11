@@ -29,7 +29,7 @@ export const CompactTemplate = memo(function CompactTemplate({ resume }: Compact
                 {exp.description && <p data-break-child className="text-gray-600 mt-0.5">{exp.description}</p>}
                 {exp.achievements.length > 0 && (
                   <ul data-break-child className="mt-0.5 space-y-0.5">
-                    {exp.achievements.map((a, idx) => (<li key={idx} className="text-gray-700 pl-2 relative before:content-['•'] before:absolute before:left-0 before:text-gray-400">{a}</li>))}
+                    {exp.achievements.map((a, idx) => (<li key={idx} data-break-child className="text-gray-700 pl-2 relative before:content-['•'] before:absolute before:left-0 before:text-gray-400">{a}</li>))}
                   </ul>
                 )}
               </div>
