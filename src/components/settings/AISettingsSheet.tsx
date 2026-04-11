@@ -150,7 +150,7 @@ const BYOK_PROVIDERS: Record<ByokProviderId, ByokProviderConfig> = {
     docsLabel: 'Get key at xAI Console',
     iconColor: 'text-zinc-300',
     defaultModel: 'grok-2-mini',
-    models: ['grok-3', 'grok-3-mini', 'grok-2', 'grok-2-mini'],
+    models: ['grok-3', 'grok-3-mini', 'grok-2-latest', 'grok-2-mini'],
     requiresUrl: false,
   },
   cohere: {
@@ -160,7 +160,7 @@ const BYOK_PROVIDERS: Record<ByokProviderId, ByokProviderConfig> = {
     docsLabel: 'Get key at Cohere Dashboard',
     iconColor: 'text-violet-400',
     defaultModel: 'command-r',
-    models: ['command-a-03-2025', 'command-r-plus', 'command-r'],
+    models: ['command-r-plus', 'command-r', 'command-nightly'],
     requiresUrl: false,
   },
   openrouter: {

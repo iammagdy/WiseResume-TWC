@@ -41,10 +41,12 @@ WiseResume AI now routes through OpenRouter (Google Gemma 4, free) and Groq (Lla
   - `callGroqDirect(apiKey, ...)` — Groq OpenAI-compatible call
   - `callOpenRouterDirect(apiKey, model, ...)` — OpenRouter BYOK call
   - `callGeminiDirect(apiKey, model, ...)` — Gemini BYOK only (no longer WiseResume primary)
-- **BYOK Providers**: `AIProvider = 'wiseresume' | 'gemini' | 'ollama' | 'openrouter'`
+- **BYOK Providers**: `AIProvider = 'wiseresume' | 'openai' | 'anthropic' | 'gemini' | 'groq' | 'mistral' | 'xai' | 'cohere' | 'openrouter' | 'ollama'`
   - **WiseresumeSubProvider**: `'openrouter' | 'groq' | 'auto'` — stored in `user_preferences.wiseresume_sub_provider` and Zustand `settingsStore`
-  - **Priority order in `callAI`**: OpenRouter BYOK → Ollama BYOK → Gemini BYOK → WiseResume AI (managed) → legacy GEMINI_API_KEY
+  - **Priority order in `callAI`**: New BYOK (OpenAI/Anthropic/Groq/Mistral/xAI/Cohere) → OpenRouter BYOK → Ollama BYOK → Gemini BYOK → WiseResume AI (managed) → legacy GEMINI_API_KEY
+  - **Gemini BYOK**: Now reads stored model from DB (via `getUserKeyAndUrlFromDB`) so user's model selection is respected
   - **Auto mode**: tries OpenRouter first, falls back to Groq on failure
+  - **Validation**: `supabase/functions/validate-api-key/index.ts` — validates all 9 BYOK providers
 
 ## Dev Server
 - Host: `0.0.0.0`

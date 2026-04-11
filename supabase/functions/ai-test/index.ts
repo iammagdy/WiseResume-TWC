@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { callAI, getUserKeyFromDB, getUserKeyAndUrlFromDB } from "../_shared/aiClient.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { callAI, getUserKeyAndUrlFromDB } from "../_shared/aiClient.ts";
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { checkRateLimit } from '../_shared/rateLimiter.ts';
@@ -55,7 +54,7 @@ serve(async (req) => {
     // force the WiseResume managed path regardless of the admin's own AI preference.
     const preferredProvider = bodySubProvider
       ? 'wiseresume'
-      : ((prefs?.ai_provider as 'gemini' | 'ollama' | 'openrouter' | 'wiseresume') || 'wiseresume');
+      : (prefs?.ai_provider || 'wiseresume');
 
     // Determine WiseResume sub-provider:
     // body-provided value (admin Dev Kit override) takes priority;
@@ -125,18 +124,42 @@ serve(async (req) => {
       });
     }
 
-    // Resolve user keys
-    let userGeminiKey: string | undefined;
-    let ollamaConfig: { key: string; baseUrl: string | null; model: string | null } | undefined;
-
     // Set the expected model based on provider/sub-provider so admin diagnostics show accurate info.
     // For WiseResume managed: OpenRouter uses Gemma 4, Groq uses Llama 3.3.
+    // For BYOK providers: read the stored model from DB; fall back to a safe per-provider default.
+    const BYOK_PROVIDERS_LIST = ['openai', 'anthropic', 'groq', 'mistral', 'xai', 'cohere', 'gemini', 'openrouter', 'ollama'];
+    const BYOK_DEFAULT_MODELS: Record<string, string> = {
+      openai: 'gpt-4o-mini',
+      anthropic: 'claude-3-5-haiku-20241022',
+      groq: 'llama-3.3-70b-versatile',
+      mistral: 'mistral-small-latest',
+      xai: 'grok-2-mini',
+      cohere: 'command-r',
+      gemini: 'gemini-2.5-flash',
+      openrouter: '',
+      ollama: '',
+    };
     let testModel = 'google/gemma-4-26b-a4b-it:free';
-    if (preferredProvider === 'gemini') {
-      userGeminiKey = await getUserKeyFromDB(userId, 'gemini');
-      testModel = 'gemini-2.5-flash-lite';
-    } else if (preferredProvider === 'ollama') {
-      ollamaConfig = await getUserKeyAndUrlFromDB(userId, 'ollama');
+    let storedByokModel: string | null = null;
+
+    if (BYOK_PROVIDERS_LIST.includes(preferredProvider)) {
+      const byokData = await getUserKeyAndUrlFromDB(userId, preferredProvider);
+      storedByokModel = byokData?.model || null;
+      const defaultModel = BYOK_DEFAULT_MODELS[preferredProvider] || '';
+
+      if (!storedByokModel && !defaultModel) {
+        // Providers like OpenRouter/Ollama require a model to be explicitly set
+        return new Response(JSON.stringify({
+          success: false,
+          error: `No model selected for ${preferredProvider}. Please choose a model in AI Settings before testing.`,
+          latencyMs: Date.now() - startTime,
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      testModel = storedByokModel || defaultModel;
     } else if (preferredProvider === 'wiseresume') {
       if (wiseresumeSubProvider === 'groq') {
         testModel = 'llama-3.3-70b-versatile';
@@ -150,6 +173,12 @@ serve(async (req) => {
       gemini: "Hello! I'm Gemini AI",
       ollama: "Hello! I'm Ollama AI",
       openrouter: "Hello! I'm OpenRouter AI",
+      openai: "Hello! I'm OpenAI",
+      anthropic: "Hello! I'm Claude",
+      groq: "Hello! I'm Groq",
+      mistral: "Hello! I'm Mistral AI",
+      xai: "Hello! I'm Grok",
+      cohere: "Hello! I'm Cohere",
     };
     const expectedGreeting = identityMap[preferredProvider] || identityMap.wiseresume;
 
@@ -165,7 +194,6 @@ serve(async (req) => {
       timeout: 20000,
       preferredProvider,
       wiseresumeSubProvider,
-      userGeminiKey,
       userId,
     });
 
@@ -178,6 +206,11 @@ serve(async (req) => {
     if (preferredProvider === 'wiseresume' && wiseresumeSubProvider === 'auto') {
       if (providerUsed.includes('groq')) testModel = 'llama-3.3-70b-versatile';
       else testModel = 'google/gemma-4-26b-a4b-it:free';
+    }
+
+    // For BYOK providers, show the stored model name or a sensible default
+    if (BYOK_PROVIDERS_LIST.includes(preferredProvider) && storedByokModel) {
+      testModel = storedByokModel;
     }
 
     // Log test call

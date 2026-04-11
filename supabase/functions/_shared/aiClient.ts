@@ -232,7 +232,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
   const globalGeminiKey = Deno.env.get('GEMINI_API_KEY');
   const hasManagedAI = !!(openrouterManagedKey || groqManagedKey);
 
-  let userGeminiKey: string | undefined;
+  let userGeminiData: { key: string; model: string | null } | undefined;
   let userOllamaData: { key: string; baseUrl: string | null; model: string | null } | undefined;
   let userOpenRouterData: { key: string; baseUrl: string | null; model: string | null } | undefined;
   let userByokData: { key: string; model: string | null; provider: string } | undefined;
@@ -246,7 +246,8 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
     } else if (preferredProvider === 'openrouter') {
       userOpenRouterData = await getUserKeyAndUrlFromDB(userId, 'openrouter');
     } else if (preferredProvider === 'gemini') {
-      userGeminiKey = await getUserKeyFromDB(userId);
+      const geminiData = await getUserKeyAndUrlFromDB(userId, 'gemini');
+      if (geminiData) userGeminiData = { key: geminiData.key, model: geminiData.model };
     } else if (preferredProvider && (OPENAI_COMPAT_BASE_URLS[preferredProvider] || preferredProvider === 'anthropic')) {
       // New BYOK providers: OpenAI, Anthropic, Groq (BYOK), Mistral, xAI, Cohere
       const data = await getUserKeyAndUrlFromDB(userId, preferredProvider);
@@ -258,11 +259,12 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
       }
     }
   }
-  if (!userGeminiKey && !userOllamaData && options.userGeminiKey) {
-    userGeminiKey = options.userGeminiKey; // deprecated body param
+  // Legacy deprecated body param support
+  if (!userGeminiData && options.userGeminiKey) {
+    userGeminiData = { key: options.userGeminiKey, model: null };
   }
 
-  if (!hasManagedAI && !userByokData && !userGeminiKey && !userOllamaData && !userOpenRouterData && !globalGeminiKey) {
+  if (!hasManagedAI && !userByokData && !userGeminiData && !userOllamaData && !userOpenRouterData && !globalGeminiKey) {
     console.error('[AI] No API key available');
     throw createAIError('invalid_key', 'WiseResume AI is not configured. Please contact support or add your own API key in Settings.', 500);
   }
@@ -357,10 +359,11 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
     }
 
     // Priority 2: User BYOK Gemini key
-    if (userGeminiKey) {
-      console.log('[AI] Using user BYOK Gemini key for model:', model);
+    if (userGeminiData) {
+      const geminiModel = userGeminiData.model || model;
+      console.log('[AI] Using user BYOK Gemini key for model:', geminiModel);
       try {
-        const res = await callGeminiDirect(userGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+        const res = await callGeminiDirect(userGeminiData.key, geminiModel, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
         return { ...res, providerUsed: 'gemini_byok' };
       } catch (err) {
         const errDetail = err instanceof Error ? `${err.message} (type=${(err as any)?.type}, status=${(err as any)?.status})` : String(err);

@@ -218,8 +218,8 @@ Deno.serve(async (req) => {
     const ANTHROPIC_MODELS = ['claude-opus-4-5', 'claude-sonnet-4-5', 'claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022', 'claude-3-opus-20240229'];
     const GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'llama-3.2-11b-vision-preview', 'mixtral-8x7b-32768', 'gemma2-9b-it'];
     const MISTRAL_MODELS = ['mistral-large-latest', 'mistral-medium-latest', 'mistral-small-latest', 'codestral-latest', 'open-mistral-nemo'];
-    const XAI_MODELS = ['grok-3', 'grok-3-mini', 'grok-2-latest', 'grok-2-mini', 'grok-beta'];
-    const COHERE_MODELS = ['command-r-plus', 'command-r', 'command', 'command-light', 'command-nightly'];
+    const XAI_MODELS = ['grok-3', 'grok-3-mini', 'grok-2-latest', 'grok-2-mini'];
+    const COHERE_MODELS = ['command-r-plus', 'command-r', 'command-nightly'];
 
     // ===== OpenAI validation =====
     if (provider === 'openai') {
