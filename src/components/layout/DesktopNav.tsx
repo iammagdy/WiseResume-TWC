@@ -83,6 +83,12 @@ export function DesktopNav() {
   const handleTabPress = (tab: TabItem) => {
     haptics.selection();
     if (tab.path === '/dashboard') markSeen();
+    if ((tab.path === '/ai-studio' || tab.path === '/applications') && !isPro) {
+      toast.info('Upgrade to Pro to unlock this feature', {
+        action: { label: 'Upgrade', onClick: () => navigate('/subscription') }
+      });
+      return;
+    }
     if (tab.guarded && !currentResumeId) {
       if (resumes && resumes.length > 0) {
         const latest = resumes[0];
@@ -132,6 +138,14 @@ export function DesktopNav() {
                 <Icon className="w-4 h-4" aria-hidden="true" />
                 {tab.path === '/dashboard' && hasNew && (
                   <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-primary border border-background" />
+                )}
+                {tab.path === '/ai-studio' && !isPro && !active && (
+                  <span
+                    className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-500 border-2 border-background flex items-center justify-center"
+                    aria-label="Pro feature"
+                  >
+                    <Lock className="w-1.5 h-1.5 text-white" />
+                  </span>
                 )}
                 {tab.path === '/applications' && !isPro && !active && (
                   <span

@@ -130,6 +130,13 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
     if (tab.path === '/dashboard') {
       markSeen();
     }
+    if ((tab.path === '/ai-studio' || tab.path === '/applications') && !isPro) {
+      haptics.warning();
+      toast.info('Upgrade to Pro to unlock this feature', {
+        action: { label: 'Upgrade', onClick: () => navigate('/subscription') }
+      });
+      return;
+    }
     if (tab.path === '/ai-studio') {
       if (discoveryDots.aiTools) {
         localStorage.setItem('wr-discovered-ai-tools', 'true');

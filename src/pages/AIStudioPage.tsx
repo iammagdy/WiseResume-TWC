@@ -42,6 +42,8 @@ import { useResumeStore } from '@/store/resumeStore';
 import { useResume, useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { calcOverallScore } from '@/lib/resumeCompletionRules';
 import { useAuth } from '@/hooks/useAuth';
+import { usePlan } from '@/hooks/usePlan';
+import { UpgradeWall } from '@/components/plan/UpgradeWall';
 import { useSettingsStore } from '@/store/settingsStore';
 import { AIStudioTourModal } from '@/components/ai-studio/AIStudioTourModal';
 import { toast } from 'sonner';
@@ -184,6 +186,7 @@ const allTools = [...toolCategories.flatMap((c) => c.tools), ...qrTools];
 export default function AIStudioPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isPro, isLoading: planLoading } = usePlan();
   const currentResumeId = useResumeStore((s) => s.currentResumeId);
   const { data: resumeData } = useResume(currentResumeId);
   const hasSeenAIStudioTour = useSettingsStore((s) => s.hasSeenAIStudioTour);
@@ -332,6 +335,26 @@ export default function AIStudioPage() {
     setTipDismissed(true);
     localStorage.setItem(TIP_DISMISSED_KEY, '1');
   }, []);
+
+  if (planLoading) return null;
+  if (!isPro) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <UpgradeWall
+          requiredPlan="pro"
+          featureName="AI Studio"
+          description="Unlock the full suite of AI-powered resume and career tools with a Pro plan."
+          features={[
+            'Smart Tailor — adapt your resume to any job description',
+            'Interview Prep — practice Q&A with AI',
+            'Cover Letter & LinkedIn optimizer',
+            'Career path advisor and salary coach',
+            'Company briefings and cold email generator',
+          ]}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-28 sm:pb-20 lg:pb-6">
