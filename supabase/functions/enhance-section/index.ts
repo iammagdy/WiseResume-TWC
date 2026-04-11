@@ -546,11 +546,12 @@ serve(async (req) => {
       );
     }
 
-    const body = await req.json() as EnhanceRequest & { content?: string; instruction?: string };
+    const body = await req.json() as EnhanceRequest & { content?: string; instruction?: string; variants?: boolean };
     const section = body.section;
     const action = body.action || (section === 'custom' ? 'custom' : undefined);
     const currentContent = body.currentContent ?? body.content;
     const context = body.context;
+    const variantsMode = body.variants === true;
     // userGeminiKey removed
     const fixInstruction = body.fixInstruction ?? body.instruction;
 
@@ -604,6 +605,67 @@ serve(async (req) => {
     }
 
     const prompt = buildPrompt(section, action, currentContent, context, fixInstruction);
+
+    // === VARIANTS MODE: return 3 parallel rewrites (concise / balanced / expanded) ===
+    const VARIANT_COMPATIBLE_ACTIONS = ['improve', 'add_metrics', 'generate_bullets', 'expand', 'shorten', 'generate'];
+    if (variantsMode && VARIANT_COMPATIBLE_ACTIONS.includes(action)) {
+      const temperature = 0.8;
+      const styleSuffixes = [
+        '\n\nSTYLE DIRECTIVE: Produce a CONCISE version — 20-30% shorter than the original. Cut filler, merge related points, keep only the highest-impact content.',
+        '',
+        '\n\nSTYLE DIRECTIVE: Produce an EXPANDED version — 20-30% richer than the original. Add specific metrics, context, examples, and outcomes.',
+      ];
+      const styleLabels = ['Concise', 'Balanced', 'Expanded'];
+
+      console.log(`Variants mode: running 3 parallel enhance calls for ${section}/${action}`);
+
+      const variantResponses = await Promise.allSettled(
+        styleSuffixes.map(suffix =>
+          callAIWithRetry({
+            model: 'google/gemini-3-flash-preview',
+            messages: [{ role: 'user', content: prompt + suffix }],
+            temperature,
+            userId,
+          })
+        )
+      );
+
+      const variants: Array<{ improved: unknown; label: string }> = [];
+      let representativeChanges: string[] = [];
+      let representativeSuggestions: string[] = [];
+      let providerUsed = 'unknown';
+
+      for (let i = 0; i < variantResponses.length; i++) {
+        const result = variantResponses[i];
+        if (result.status === 'fulfilled' && result.value.content) {
+          const parsed = parseAIJSON(result.value.content) as Record<string, unknown> | null;
+          if (parsed && parsed.improved !== undefined) {
+            variants.push({ improved: parsed.improved, label: styleLabels[i] });
+            if (i === 1 && Array.isArray(parsed.changes)) {
+              representativeChanges = parsed.changes as string[];
+              representativeSuggestions = Array.isArray(parsed.suggestions) ? parsed.suggestions as string[] : [];
+            }
+            providerUsed = result.value.providerUsed || 'unknown';
+          }
+        }
+      }
+
+      if (variants.length === 0) {
+        return new Response(JSON.stringify({ error: 'enhancement_failed', message: 'AI variants generation failed. Please try again.' }), {
+          status: 502,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      await recordUsage(userId, 'enhance', { section, action, provider: providerUsed, variantsCount: variants.length });
+
+      return new Response(JSON.stringify({
+        variants,
+        changes: representativeChanges,
+        suggestions: representativeSuggestions,
+        _providerUsed: providerUsed,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     // Call AI using the shared client
     const temperature = action === 'ats_improve' ? 0.3 : 0.7;

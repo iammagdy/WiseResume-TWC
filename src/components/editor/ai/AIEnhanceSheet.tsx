@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Sparkles, Loader2, Check, X, ArrowRight, ChevronDown, ChevronUp, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Sparkles, Loader2, Check, X, ArrowRight, ChevronDown, ChevronUp, CheckCircle2, AlertTriangle, Layers } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -57,6 +57,8 @@ interface SectionResult {
   suggestions?: string[];
   applied: boolean;
   warning?: string;
+  variants?: Array<{ improved: unknown; label: string }>;
+  selectedVariantIndex?: number;
 }
 
 // --- Section-aware formatting helpers ---
@@ -185,6 +187,7 @@ function sectionHasContent(resume: Record<string, unknown>, sectionId: SectionTy
 
 export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false, disabledSections }: AIEnhanceSheetProps) {
   const [mode, setMode] = useState<ActionType>(atsMode ? 'ats_improve' : 'improve');
+  const [variantsMode, setVariantsMode] = useState(false);
   const [selectedSections, setSelectedSections] = useState<Set<SectionType>>(new Set());
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [results, setResults] = useState<SectionResult[]>([]);
@@ -258,6 +261,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
             action: effectiveAction,
             currentContent: content,
             context: { resume: currentResume },
+            ...(variantsMode && !atsMode ? { variants: true } : {}),
           }),
         });
 
@@ -289,25 +293,40 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
         trackGeminiUsage();
         incrementUsage.mutate();
 
-        // Validate entry count for array sections
-        let warning: string | undefined;
-        if (['experience', 'education', 'certifications', 'awards', 'projects', 'publications', 'volunteering', 'languages'].includes(sectionInfo.id) && Array.isArray(content) && Array.isArray(data.improved)) {
-          if (data.improved.length < (content as unknown[]).length) {
-            warning = `AI returned ${data.improved.length} entries but original has ${(content as unknown[]).length}. Some entries may be missing.`;
+        if (data.variants && Array.isArray(data.variants) && data.variants.length > 0) {
+          const firstVariant = data.variants[0];
+          newResults.push({
+            section: sectionInfo.id,
+            label: sectionInfo.label,
+            original: content,
+            improved: firstVariant.improved,
+            rawImproved: firstVariant.improved,
+            changes: data.changes || [],
+            suggestions: data.suggestions,
+            applied: false,
+            variants: data.variants,
+            selectedVariantIndex: 0,
+          });
+        } else {
+          let warning: string | undefined;
+          if (['experience', 'education', 'certifications', 'awards', 'projects', 'publications', 'volunteering', 'languages'].includes(sectionInfo.id) && Array.isArray(content) && Array.isArray(data.improved)) {
+            if (data.improved.length < (content as unknown[]).length) {
+              warning = `AI returned ${data.improved.length} entries but original has ${(content as unknown[]).length}. Some entries may be missing.`;
+            }
           }
-        }
 
-        newResults.push({
-          section: sectionInfo.id,
-          label: sectionInfo.label,
-          original: content,
-          improved: data.improved,
-          rawImproved: data.improved,
-          changes: data.changes || [],
-          suggestions: data.suggestions,
-          applied: false,
-          warning,
-        });
+          newResults.push({
+            section: sectionInfo.id,
+            label: sectionInfo.label,
+            original: content,
+            improved: data.improved,
+            rawImproved: data.improved,
+            changes: data.changes || [],
+            suggestions: data.suggestions,
+            applied: false,
+            warning,
+          });
+        }
 
         setResults([...newResults]);
       } catch (err) {
@@ -321,6 +340,15 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
       toast.success(`Enhanced ${newResults.length} section${newResults.length > 1 ? 's' : ''}`);
     }
   }, [currentResume, selectedSections, effectiveAction, checkCredits, incrementUsage]);
+
+  const selectVariant = useCallback((resultIndex: number, variantIndex: number) => {
+    haptics.light();
+    setResults(prev => prev.map((r, i) => {
+      if (i !== resultIndex || !r.variants) return r;
+      const chosen = r.variants[variantIndex];
+      return { ...r, improved: chosen.improved, rawImproved: chosen.improved, selectedVariantIndex: variantIndex };
+    }));
+  }, []);
 
   const applyResult = useCallback((index: number) => {
     const result = results[index];
@@ -498,11 +526,11 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
                 {MODES.map(m => (
                   <button
                     key={m.id}
-                    onClick={() => { haptics.light(); setMode(m.id); }}
+                    onClick={() => { haptics.light(); setMode(m.id); setVariantsMode(false); }}
                     className={cn(
                       'px-3 py-2 rounded-full text-xs font-medium border transition-all touch-manipulation min-h-[44px]',
                       'active:scale-95',
-                      mode === m.id
+                      mode === m.id && !variantsMode
                         ? 'bg-primary text-primary-foreground border-primary'
                         : 'bg-muted border-border text-muted-foreground hover:border-primary/30'
                     )}
@@ -510,7 +538,25 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
                     {m.label}
                   </button>
                 ))}
+                <button
+                  onClick={() => { haptics.light(); setVariantsMode(v => !v); }}
+                  className={cn(
+                    'px-3 py-2 rounded-full text-xs font-medium border transition-all touch-manipulation min-h-[44px] flex items-center gap-1.5',
+                    'active:scale-95',
+                    variantsMode
+                      ? 'bg-purple-600 text-white border-purple-600'
+                      : 'bg-muted border-border text-muted-foreground hover:border-purple-400/50'
+                  )}
+                >
+                  <Layers className="w-3 h-3" />
+                  3 Variants
+                </button>
               </div>
+              {variantsMode && (
+                <p className="text-[11px] text-muted-foreground mt-2 px-1">
+                  The AI will generate 3 versions — Concise, Balanced, and Expanded — so you can pick your favorite.
+                </p>
+              )}
             </div>
           )}
 
@@ -578,17 +624,20 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
           <Button
             onClick={handleEnhance}
             disabled={selectedSections.size === 0 || isEnhancing}
-            className="w-full h-12 gradient-primary text-primary-foreground font-semibold"
+            className={cn(
+              'w-full h-12 font-semibold',
+              variantsMode ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'gradient-primary text-primary-foreground'
+            )}
           >
             {isEnhancing ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                {atsMode ? 'Optimizing for ATS…' : 'Enhancing…'}
+                {variantsMode ? 'Generating 3 variants…' : atsMode ? 'Optimizing for ATS…' : 'Enhancing…'}
               </>
             ) : (
               <>
-                <Sparkles className="w-4 h-4 mr-2" />
-                {atsMode ? 'Optimize' : 'Enhance'} {selectedSections.size > 0 ? `${selectedSections.size} Section${selectedSections.size > 1 ? 's' : ''}` : ''}
+                {variantsMode ? <Layers className="w-4 h-4 mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                {variantsMode ? 'Generate 3 Variants' : atsMode ? 'Optimize' : 'Enhance'} {selectedSections.size > 0 ? `${selectedSections.size} Section${selectedSections.size > 1 ? 's' : ''}` : ''}
               </>
             )}
           </Button>
@@ -653,19 +702,52 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
                             </div>
                           )}
 
-                          <div className="space-y-2">
-                            <div>
-                              <p className="text-[10px] font-medium text-muted-foreground mb-1">Original</p>
-                              {renderSectionPreview(r.section, r.original, 'original')}
+                          {r.variants && r.variants.length > 0 ? (
+                            <div className="space-y-2">
+                              <p className="text-[10px] font-medium text-muted-foreground">Pick a version to apply:</p>
+                              {r.variants.map((v, vi) => {
+                                const isSelected = r.selectedVariantIndex === vi;
+                                return (
+                                  <button
+                                    key={vi}
+                                    onClick={() => !r.applied && selectVariant(i, vi)}
+                                    disabled={r.applied}
+                                    className={cn(
+                                      'w-full text-left rounded-lg border p-3 transition-all touch-manipulation',
+                                      isSelected
+                                        ? 'border-purple-500 bg-purple-500/10 ring-1 ring-purple-500/30'
+                                        : 'border-border bg-card hover:border-purple-400/40'
+                                    )}
+                                  >
+                                    <div className="flex items-center justify-between mb-1.5">
+                                      <Badge
+                                        variant="secondary"
+                                        className={cn('text-[10px]', isSelected && 'bg-purple-500/20 text-purple-700 dark:text-purple-300')}
+                                      >
+                                        {v.label}
+                                      </Badge>
+                                      {isSelected && <Check className="w-3.5 h-3.5 text-purple-500" />}
+                                    </div>
+                                    {renderSectionPreview(r.section, v.improved, 'enhanced')}
+                                  </button>
+                                );
+                              })}
                             </div>
-                            <div className="flex justify-center">
-                              <ArrowRight className="w-3.5 h-3.5 text-primary" />
+                          ) : (
+                            <div className="space-y-2">
+                              <div>
+                                <p className="text-[10px] font-medium text-muted-foreground mb-1">Original</p>
+                                {renderSectionPreview(r.section, r.original, 'original')}
+                              </div>
+                              <div className="flex justify-center">
+                                <ArrowRight className="w-3.5 h-3.5 text-primary" />
+                              </div>
+                              <div>
+                                <p className="text-[10px] font-medium text-primary mb-1">Enhanced</p>
+                                {renderSectionPreview(r.section, r.improved, 'enhanced')}
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-[10px] font-medium text-primary mb-1">Enhanced</p>
-                              {renderSectionPreview(r.section, r.improved, 'enhanced')}
-                            </div>
-                          </div>
+                          )}
 
                           {r.changes.length > 0 && (
                             <div className="flex flex-wrap gap-1">
@@ -689,8 +771,12 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
                               <Button variant="outline" size="sm" className="flex-1 min-h-[44px]" onClick={() => discardResult(i)}>
                                 <X className="w-4 h-4 mr-1" /> Discard
                               </Button>
-                              <Button size="sm" className="flex-1 min-h-[44px] gradient-primary" onClick={() => applyResult(i)}>
-                                <Check className="w-4 h-4 mr-1" /> Apply
+                              <Button
+                                size="sm"
+                                className={cn('flex-1 min-h-[44px]', r.variants ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'gradient-primary')}
+                                onClick={() => applyResult(i)}
+                              >
+                                <Check className="w-4 h-4 mr-1" /> {r.variants ? 'Apply Selected' : 'Apply'}
                               </Button>
                             </div>
                           )}
