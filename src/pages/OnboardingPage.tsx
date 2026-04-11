@@ -388,7 +388,7 @@ export default function OnboardingPage() {
                       icon: Target,
                       title: 'Build your resume',
                       description: 'Import or create an AI-polished resume in minutes.',
-                      action: () => { markCompleted(false); navigate('/ai-studio'); },
+                      action: () => { markCompleted(false); navigate('/dashboard'); },
                     },
                     {
                       icon: BookOpen,
