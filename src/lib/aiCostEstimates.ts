@@ -18,6 +18,14 @@ export const AI_COST_MAP: Record<string, number> = {
   'headshot': 1,
   'interview-turn': 1,
   'ats-deep': 1,
+  'salary-negotiation': 2,
+  'job-rejection': 1,
+  'reference-letter': 2,
+  'personal-branding': 1,
+  'cold-email': 1,
+  'skills-gap': 1,
+  'portfolio-bio': 1,
+  'free': 0,
 } as const;
 
 export function getAICost(operation: string): number {
