@@ -1,0 +1,614 @@
+import { useState, useCallback, useEffect } from 'react';
+import { RefreshCw, Activity, CheckCircle, AlertCircle, Clock, PlayCircle, Loader2, XCircle, AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { DevKitRunner } from './DevKitRunner';
+
+interface LiveActivityPanelProps {
+  password: string;
+  adminPassword: string;
+}
+
+interface UsageEvent {
+  id: string;
+  user_id: string | null;
+  event_type: string;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
+interface ErrorLogRow {
+  id: string;
+  message: string;
+  context: string | null;
+  created_at: string;
+  level: string | null;
+}
+
+type HealthStatus = 'unknown' | 'ok' | 'warn' | 'error' | 'checking';
+
+interface FnHealth {
+  name: string;
+  label: string;
+  status: HealthStatus;
+  lastChecked: Date | null;
+  errorMsg?: string;
+  durationMs?: number;
+}
+
+interface EdgeFunctionDef {
+  name: string;
+  label: string;
+  buildBody: (adminPassword: string) => Record<string, unknown>;
+  classify: (data: unknown, error: unknown) => HealthStatus;
+  errMsg: (data: unknown, error: unknown) => string | undefined;
+}
+
+type InvokeError = { status?: number; message?: string } | null;
+type ResponseData = { error?: string; success?: boolean } | null;
+
+function classifyEdgeFunctionResponse(data: unknown, error: unknown): HealthStatus {
+  const err = error as InvokeError;
+  if (!err) {
+    const d = data as ResponseData;
+    if (d?.error) return 'warn';
+    return 'ok';
+  }
+  const status = err.status;
+  if (typeof status === 'number') {
+    if (status === 404) return 'error';
+    if (status >= 400 && status < 500) return 'warn';
+    if (status >= 500) return 'error';
+  }
+  return 'error';
+}
+
+function extractErrMsg(data: unknown, error: unknown): string | undefined {
+  const err = error as InvokeError;
+  if (err?.message) return err.message;
+  const d = data as ResponseData;
+  if (d?.error) return d.error;
+  return undefined;
+}
+
+function classifyAiEndpointResponse(data: unknown, error: unknown): HealthStatus {
+  const err = error as InvokeError;
+  if (!err) return 'ok';
+  const status = err.status;
+  if (typeof status === 'number') {
+    if (status === 404) return 'error';
+    if (status >= 400 && status < 500) return 'ok';
+    if (status >= 500) return 'error';
+  }
+  return 'error';
+}
+
+function extractAiErrMsg(data: unknown, error: unknown): string | undefined {
+  const err = error as InvokeError;
+  if (!err) return undefined;
+  const status = err.status;
+  if (typeof status === 'number' && status >= 400 && status < 500 && status !== 404) {
+    return undefined;
+  }
+  if (err?.message) return err.message;
+  const d = data as ResponseData;
+  if (d?.error) return d.error;
+  return undefined;
+}
+
+const LIGHTWEIGHT_FN_DEFS: EdgeFunctionDef[] = [
+  {
+    name: 'me',
+    label: 'me (auth)',
+    buildBody: () => ({}),
+    classify: classifyEdgeFunctionResponse,
+    errMsg: extractErrMsg,
+  },
+  {
+    name: 'admin-list-users',
+    label: 'admin-list-users',
+    buildBody: (pw: string) => ({ password: pw, page: 1, per_page: 1 }),
+    classify: classifyEdgeFunctionResponse,
+    errMsg: extractErrMsg,
+  },
+  {
+    name: 'admin-get-settings',
+    label: 'admin-get-settings',
+    buildBody: (pw: string) => ({ password: pw }),
+    classify: classifyEdgeFunctionResponse,
+    errMsg: extractErrMsg,
+  },
+  {
+    name: 'admin-audit-logs',
+    label: 'admin-audit-logs',
+    buildBody: (pw: string) => ({ password: pw, limit: 1 }),
+    classify: classifyEdgeFunctionResponse,
+    errMsg: extractErrMsg,
+  },
+];
+
+const AI_FN_DEFS: EdgeFunctionDef[] = [
+  {
+    name: 'tailor-resume',
+    label: 'tailor-resume',
+    buildBody: () => ({ resume: {}, jobDescription: '', intensity: 'light' }),
+    classify: classifyAiEndpointResponse,
+    errMsg: extractAiErrMsg,
+  },
+  {
+    name: 'agentic-chat',
+    label: 'agentic-chat',
+    buildBody: () => ({ message: '', conversationHistory: [], currentResume: null }),
+    classify: classifyAiEndpointResponse,
+    errMsg: extractAiErrMsg,
+  },
+  {
+    name: 'enhance-section',
+    label: 'enhance-section',
+    buildBody: () => ({ section: 'summary', action: 'improve', currentContent: '', context: {} }),
+    classify: classifyAiEndpointResponse,
+    errMsg: extractAiErrMsg,
+  },
+  {
+    name: 'analyze-resume',
+    label: 'analyze-resume',
+    buildBody: () => ({ resume: {}, jobDescription: '' }),
+    classify: classifyAiEndpointResponse,
+    errMsg: extractAiErrMsg,
+  },
+];
+
+const ALL_FN_DEFS: EdgeFunctionDef[] = [...LIGHTWEIGHT_FN_DEFS, ...AI_FN_DEFS];
+
+interface RecentError {
+  id: string;
+  source: string;
+  message: string;
+  level: string;
+  timestamp: string;
+}
+
+function StatusDot({ status }: { status: HealthStatus }) {
+  if (status === 'checking') return <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />;
+  if (status === 'ok') return <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" title="OK" />;
+  if (status === 'warn') return <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" title="Degraded" />;
+  if (status === 'error') return <span className="w-2.5 h-2.5 rounded-full bg-destructive inline-block" title="Error" />;
+  return <span className="w-2.5 h-2.5 rounded-full bg-muted-foreground/40 inline-block" title="Not tested" />;
+}
+
+function StatusIcon({ status }: { status: HealthStatus }) {
+  if (status === 'ok') return <CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" />;
+  if (status === 'warn') return <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />;
+  if (status === 'error') return <AlertCircle className="w-3.5 h-3.5 text-destructive shrink-0" />;
+  return null;
+}
+
+function cardBg(status: HealthStatus): string {
+  if (status === 'ok') return 'border-green-500/20 bg-green-500/5';
+  if (status === 'warn') return 'border-amber-500/20 bg-amber-500/5';
+  if (status === 'error') return 'border-destructive/20 bg-destructive/5';
+  return 'border-border bg-muted/20';
+}
+
+function formatRelative(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const secs = Math.floor(diff / 1000);
+  if (secs < 60) return `${secs}s ago`;
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function formatTimestamp(iso: string): string {
+  return new Date(iso).toLocaleTimeString('en-US', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  });
+}
+
+export function LiveActivityPanel({ password, adminPassword }: LiveActivityPanelProps) {
+  const [events, setEvents] = useState<UsageEvent[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsError, setEventsError] = useState<string | null>(null);
+  const [feedSecondsAgo, setFeedSecondsAgo] = useState(0);
+
+  const [errorLogs, setErrorLogs] = useState<ErrorLogRow[]>([]);
+  const [errorLogsMissing, setErrorLogsMissing] = useState(false);
+  const [recentErrors, setRecentErrors] = useState<RecentError[]>([]);
+
+  const [fnHealth, setFnHealth] = useState<FnHealth[]>(
+    ALL_FN_DEFS.map(f => ({
+      name: f.name, label: f.label, status: 'unknown' as HealthStatus, lastChecked: null,
+    }))
+  );
+  const [healthRunning, setHealthRunning] = useState(false);
+  const [healthCheckedAt, setHealthCheckedAt] = useState<Date | null>(null);
+
+  const fetchEvents = useCallback(async () => {
+    setEventsLoading(true);
+    setEventsError(null);
+    try {
+      const { data, error } = await supabase
+        .from('usage_events')
+        .select('id, user_id, event_type, metadata, created_at')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      setEvents(data ?? []);
+      setFeedSecondsAgo(0);
+    } catch (e) {
+      setEventsError(e instanceof Error ? e.message : 'Failed to load events');
+    } finally {
+      setEventsLoading(false);
+    }
+  }, []);
+
+  const fetchErrorLogs = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('error_log')
+      .select('id, message, context, created_at, level')
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error) {
+      if (error.code === '42P01') {
+        setErrorLogsMissing(true);
+      }
+      return;
+    }
+    setErrorLogsMissing(false);
+    setErrorLogs(data ?? []);
+  }, []);
+
+  const runHealthChecksForDefs = useCallback(async (defs: EdgeFunctionDef[]) => {
+    setHealthRunning(true);
+    const names = new Set(defs.map(d => d.name));
+    setFnHealth(prev => prev.map(f => names.has(f.name) ? { ...f, status: 'checking' as HealthStatus } : f));
+
+    const checkedResults: FnHealth[] = [];
+    const newErrors: RecentError[] = [];
+
+    for (const def of defs) {
+      const start = Date.now();
+      try {
+        const body = def.buildBody(adminPassword);
+        const { data, error } = await edgeFunctions.functions.invoke(def.name, { body });
+        const durationMs = Date.now() - start;
+        const status = def.classify(data, error);
+        const errorMsg = def.errMsg(data, error);
+
+        if (status === 'error' || status === 'warn') {
+          newErrors.push({
+            id: `${def.name}-${Date.now()}`,
+            source: def.label,
+            message: errorMsg ?? `${def.label} returned ${status}`,
+            level: status === 'error' ? 'error' : 'warn',
+            timestamp: new Date().toISOString(),
+          });
+        }
+
+        checkedResults.push({
+          name: def.name, label: def.label, status, lastChecked: new Date(), errorMsg, durationMs,
+        });
+      } catch (e) {
+        const durationMs = Date.now() - start;
+        const msg = String(e);
+        checkedResults.push({
+          name: def.name, label: def.label, status: 'error', lastChecked: new Date(),
+          errorMsg: msg, durationMs,
+        });
+        newErrors.push({
+          id: `${def.name}-${Date.now()}`,
+          source: def.label,
+          message: msg,
+          level: 'error',
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }
+
+    const checkedMap = new Map(checkedResults.map(r => [r.name, r]));
+    setFnHealth(prev => prev.map(f => checkedMap.get(f.name) ?? f));
+    setHealthRunning(false);
+    setHealthCheckedAt(new Date());
+
+    if (errorLogsMissing && newErrors.length > 0) {
+      setRecentErrors(newErrors);
+    }
+  }, [adminPassword, errorLogsMissing]);
+
+  const runAllHealthChecks = useCallback(() => {
+    return runHealthChecksForDefs(ALL_FN_DEFS);
+  }, [runHealthChecksForDefs]);
+
+  const runLightweightHealthChecks = useCallback(() => {
+    return runHealthChecksForDefs(LIGHTWEIGHT_FN_DEFS);
+  }, [runHealthChecksForDefs]);
+
+  useEffect(() => { fetchEvents(); }, [fetchEvents]);
+  useEffect(() => { fetchErrorLogs(); }, [fetchErrorLogs]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchEvents();
+      fetchErrorLogs();
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [fetchEvents, fetchErrorLogs]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      runLightweightHealthChecks();
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [runLightweightHealthChecks]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFeedSecondsAgo(s => s + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const feedLastUpdatedLabel = feedSecondsAgo < 60
+    ? `${feedSecondsAgo}s ago`
+    : `${Math.floor(feedSecondsAgo / 60)}m ago`;
+
+  const healthOk = fnHealth.filter(f => f.status === 'ok').length;
+  const healthWarn = fnHealth.filter(f => f.status === 'warn').length;
+  const healthError = fnHealth.filter(f => f.status === 'error').length;
+  const healthUnknown = fnHealth.filter(f => f.status === 'unknown').length;
+
+  const effectiveErrors: { id: string; source: string; message: string; level: string; timestamp: string }[] =
+    errorLogsMissing
+      ? recentErrors
+      : errorLogs.map(r => ({
+          id: r.id,
+          source: 'error_log',
+          message: r.message,
+          level: r.level ?? 'error',
+          timestamp: r.created_at,
+        }));
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Live Activity</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Feed updated {feedLastUpdatedLabel} · auto-refreshes every 30s
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={fetchEvents} disabled={eventsLoading} className="flex items-center gap-2">
+          <RefreshCw className={`w-4 h-4 ${eventsLoading ? 'animate-spin' : ''}`} />
+          Refresh Feed
+        </Button>
+      </div>
+
+      {/* Edge Function Health */}
+      <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <p className="text-sm font-semibold text-foreground flex items-center gap-2 flex-wrap">
+            <Activity className="w-4 h-4 text-primary" />
+            Edge Function Health
+            {healthUnknown < ALL_FN_DEFS.length && (
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                healthError > 0 ? 'bg-destructive/10 text-destructive' :
+                healthWarn > 0 ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' :
+                'bg-green-500/10 text-green-600 dark:text-green-400'
+              }`}>
+                {healthOk} OK{healthWarn > 0 ? ` · ${healthWarn} warn` : ''}{healthError > 0 ? ` · ${healthError} error` : ''}
+              </span>
+            )}
+            {healthCheckedAt && !healthRunning && (
+              <span className="text-xs font-normal text-muted-foreground">
+                · last checked {formatRelative(healthCheckedAt.toISOString())}
+              </span>
+            )}
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={healthRunning}
+            onClick={runAllHealthChecks}
+            className="flex items-center gap-1.5 h-8 text-xs"
+          >
+            {healthRunning
+              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Checking…</>
+              : <><PlayCircle className="w-3.5 h-3.5" />Run health check</>
+            }
+          </Button>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {fnHealth.map((fn) => {
+            const isAi = AI_FN_DEFS.some(d => d.name === fn.name);
+            return (
+            <div
+              key={fn.name}
+              className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${cardBg(fn.status)}`}
+            >
+              <StatusDot status={fn.status} />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-foreground font-mono flex items-center gap-1.5">
+                  {fn.label}
+                  {isAi && fn.status === 'unknown' && (
+                    <span className="text-[9px] font-normal uppercase tracking-wide text-muted-foreground border border-border rounded px-1 py-0.5">manual</span>
+                  )}
+                </p>
+                {fn.status === 'error' && fn.errorMsg && (
+                  <p className="text-[10px] text-destructive truncate">{fn.errorMsg}</p>
+                )}
+                {fn.status === 'warn' && fn.errorMsg && (
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400 truncate">{fn.errorMsg}</p>
+                )}
+                <div className="flex items-center gap-2 mt-0.5">
+                  {fn.durationMs !== undefined && fn.status !== 'checking' && (
+                    <p className="text-[10px] text-muted-foreground">{fn.durationMs}ms</p>
+                  )}
+                  {fn.lastChecked && fn.status !== 'checking' && (
+                    <p className="text-[10px] text-muted-foreground">
+                      · tested {formatRelative(fn.lastChecked.toISOString())}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <StatusIcon status={fn.status} />
+            </div>
+            );
+          })}
+        </div>
+        {healthUnknown === ALL_FN_DEFS.length && (
+          <p className="text-xs text-muted-foreground text-center pt-1">
+            Admin functions auto-check every 30s. Click "Run health check" to also probe AI endpoints.
+          </p>
+        )}
+      </div>
+
+      {/* Error Log */}
+      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+        <div className="flex items-center gap-2 px-5 py-4 border-b border-border">
+          <XCircle className="w-4 h-4 text-destructive" />
+          <p className="text-sm font-semibold text-foreground">Error Log</p>
+          {effectiveErrors.length > 0 && (
+            <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive">
+              {effectiveErrors.length}
+            </span>
+          )}
+          {errorLogsMissing && (
+            <span className="text-xs text-muted-foreground italic ml-1">(from health checks — no error_log table)</span>
+          )}
+        </div>
+
+        {effectiveErrors.length === 0 && (
+          <div className="py-8 text-center text-muted-foreground">
+            <CheckCircle className="w-6 h-6 mx-auto mb-2 text-green-500 opacity-60" />
+            <p className="text-sm">
+              {errorLogsMissing
+                ? 'No errors detected from health checks yet. Run a health check to populate.'
+                : 'No errors logged.'
+              }
+            </p>
+            {errorLogsMissing && (
+              <p className="text-xs mt-1 opacity-60">
+                No <code className="font-mono text-xs">error_log</code> table found — showing health check failures instead.
+              </p>
+            )}
+          </div>
+        )}
+
+        {effectiveErrors.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-muted/40 border-b border-border">
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs">Level</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs">Source</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs">Message</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs">Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {effectiveErrors.map((row) => (
+                  <tr key={row.id} className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
+                    <td className="px-4 py-2.5">
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${
+                        row.level === 'error'
+                          ? 'bg-destructive/10 text-destructive border-destructive/20'
+                          : 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+                      }`}>
+                        {row.level}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-xs font-mono text-muted-foreground">{row.source}</td>
+                    <td className="px-4 py-2.5 text-xs text-foreground max-w-[220px]">
+                      <span className="line-clamp-2">{row.message}</span>
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
+                      {formatRelative(row.timestamp)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Live Usage Event Feed */}
+      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Clock className="w-4 h-4 text-primary" />
+            Recent Usage Events
+            <span className="text-xs font-normal text-muted-foreground">(last 50)</span>
+          </p>
+          {eventsLoading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+        </div>
+
+        {eventsError && (
+          <div className="p-4 text-sm text-destructive bg-destructive/5">{eventsError}</div>
+        )}
+
+        {!eventsError && events.length === 0 && !eventsLoading && (
+          <div className="py-10 text-center text-muted-foreground">
+            <Clock className="w-8 h-8 mx-auto mb-2 opacity-40" />
+            <p className="text-sm">No usage events recorded yet.</p>
+          </div>
+        )}
+
+        {events.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-muted/40 border-b border-border">
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs">Event Type</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs hidden sm:table-cell">User</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs">Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {events.map((event) => (
+                  <tr key={event.id} className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
+                    <td className="px-4 py-2.5">
+                      <span className="text-xs font-mono bg-muted/50 px-2 py-0.5 rounded border border-border text-foreground">
+                        {event.event_type}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground font-mono hidden sm:table-cell">
+                      {event.user_id
+                        ? `${event.user_id.slice(0, 8)}…`
+                        : <span className="italic opacity-60">anonymous</span>
+                      }
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                      <span title={event.created_at}>{formatTimestamp(event.created_at)}</span>
+                      <span className="ml-1.5 text-[10px] text-muted-foreground/50">
+                        {formatRelative(event.created_at)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Full Smoke Test Suite (merged from DevKitRunner) */}
+      <div className="border-t border-border pt-6">
+        <div className="mb-4">
+          <h3 className="text-base font-semibold flex items-center gap-2 text-foreground">
+            <Activity className="w-4 h-4 text-primary" />
+            Full Platform Smoke Tests
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Deep end-to-end smoke tests across all platform services — auth, AI, DB, routing, credits and more.
+          </p>
+        </div>
+        <DevKitRunner adminPassword={adminPassword} />
+      </div>
+    </div>
+  );
+}

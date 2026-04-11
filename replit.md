@@ -95,6 +95,14 @@ WiseResume AI now routes through OpenRouter (Google Gemma 4, free) and Groq (Lla
 - Pages updated: ProfilePage, SettingsPage, DashboardPage, SubscriptionPage, ResumeDetailPage, TemplatesPage
 - UploadPage, EditorPage, PreviewPage were already clean (no glass-* usage)
 
+## DevKit Analytics & Monitoring Hub (Task #74 — v3.2.0)
+- **AnalyticsPanel** (`src/components/dev-kit/AnalyticsPanel.tsx`): Page views (all time + today), active users today vs yesterday with delta arrow, top 10 features bar chart (recharts), portfolio views aggregate, new signups last 14 days sparkline, geographic distribution bar chart, AI credits today vs yesterday.
+- **LiveActivityPanel** (`src/components/dev-kit/LiveActivityPanel.tsx`): Real-time 30s auto-refresh feed of last 50 usage_events, edge function health cards (green/amber/red status dots), manual "Run health check" button, merged with DevKitRunner smoke tests in the Live Activity tab.
+- **DeploymentPanel** (`src/components/dev-kit/DeploymentPanel.tsx`): Last 5 GitHub commits from main branch via admin-github-status edge function, "Last deployed" timestamp, env var checklist via admin-env-check edge function (boolean presence only), links to Supabase dashboard + GitHub repo.
+- **admin-github-status** edge function (`supabase/functions/admin-github-status/`): Proxies GitHub commits API using GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO secrets.
+- **admin-env-check** edge function (`supabase/functions/admin-env-check/`): Returns boolean presence of each required env var. No values exposed.
+- **DevToolsPage** updated: Added Analytics, Live Activity, Deployment tabs; renamed "Activity" → "Audit Log"; old "Health" (Runner) tab merged into Live Activity panel; tab bar scrolls horizontally on mobile.
+
 ## Bug Fixes (Post-Redesign Audit)
 - **AuthContext user.id**: Now uses only the bridge UUID (from token-exchange), never the raw Kinde ID (kp_xxx). If bridge hasn't settled, `user` is null to prevent UUID type errors in Supabase queries.
 - **Data query gating**: All hooks with `enabled: !!user` now naturally wait for the bridge since `user` is null until bridge provides a UUID.

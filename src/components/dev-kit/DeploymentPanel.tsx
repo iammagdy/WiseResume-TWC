@@ -1,0 +1,342 @@
+import { useState, useCallback, useEffect } from 'react';
+import { RefreshCw, GitCommit, CheckCircle, XCircle, ExternalLink, Loader2, Clock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+
+interface DeploymentPanelProps {
+  password: string;
+}
+
+interface Commit {
+  sha: string;
+  message: string;
+  author: string;
+  timestamp: string;
+  url: string;
+}
+
+interface EnvCheck {
+  key: string;
+  label: string;
+  present: boolean;
+}
+
+interface DeploymentData {
+  commits: Commit[];
+  lastDeployedAt: string | null;
+  envChecks: EnvCheck[];
+  githubRepoUrl: string | null;
+  supabaseUrl: string | null;
+  lastUpdatedAt: Date;
+  githubError: string | null;
+  envError: string | null;
+}
+
+interface GithubStatusResponse {
+  success: boolean;
+  commits?: Commit[];
+  repoUrl?: string;
+  error?: string;
+}
+
+interface EnvCheckResponse {
+  success: boolean;
+  checks?: EnvCheck[];
+  supabaseUrl?: string;
+  error?: string;
+}
+
+function formatRelative(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const secs = Math.floor(diff / 1000);
+  if (secs < 60) return `${secs}s ago`;
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
+export function DeploymentPanel({ password }: DeploymentPanelProps) {
+  const [data, setData] = useState<DeploymentData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [secondsAgo, setSecondsAgo] = useState(0);
+
+  const fetchDeploymentData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [githubResult, envResult] = await Promise.all([
+        edgeFunctions.functions.invoke('admin-github-status', {
+          body: { password },
+        }),
+        edgeFunctions.functions.invoke('admin-env-check', {
+          body: { password },
+        }),
+      ]);
+
+      let commits: Commit[] = [];
+      let lastDeployedAt: string | null = null;
+      let githubRepoUrl: string | null = null;
+      let githubError: string | null = null;
+
+      const githubInvokeError = githubResult.error;
+      const githubData = githubResult.data as GithubStatusResponse | null;
+
+      if (githubInvokeError) {
+        githubError = githubInvokeError.message ?? 'GitHub API error';
+      } else if (githubData?.error) {
+        githubError = githubData.error;
+      } else if (githubData) {
+        commits = githubData.commits ?? [];
+        lastDeployedAt = commits[0]?.timestamp ?? null;
+        githubRepoUrl = githubData.repoUrl ?? null;
+      }
+
+      let envChecks: EnvCheck[] = [];
+      let supabaseUrl: string | null = null;
+      let envError: string | null = null;
+
+      const envInvokeError = envResult.error;
+      const envData = envResult.data as EnvCheckResponse | null;
+
+      if (envInvokeError) {
+        envError = envInvokeError.message ?? 'Env check error';
+      } else if (envData?.error) {
+        envError = envData.error;
+      } else if (envData) {
+        envChecks = envData.checks ?? [];
+        supabaseUrl = envData.supabaseUrl ?? null;
+      }
+
+      setData({
+        commits,
+        lastDeployedAt,
+        envChecks,
+        githubRepoUrl,
+        supabaseUrl,
+        lastUpdatedAt: new Date(),
+        githubError,
+        envError,
+      });
+      setSecondsAgo(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [password]);
+
+  useEffect(() => { fetchDeploymentData(); }, [fetchDeploymentData]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSecondsAgo(s => s + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchDeploymentData();
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [fetchDeploymentData]);
+
+  const lastUpdatedLabel = secondsAgo < 60
+    ? `${secondsAgo}s ago`
+    : `${Math.floor(secondsAgo / 60)}m ago`;
+
+  const envPresent = data?.envChecks.filter(e => e.present).length ?? 0;
+  const envMissing = data?.envChecks.filter(e => !e.present).length ?? 0;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Deployment Status</h2>
+          {data && (
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Last updated {lastUpdatedLabel} · auto-refreshes every 30s
+            </p>
+          )}
+        </div>
+        <Button variant="outline" size="sm" onClick={fetchDeploymentData} disabled={loading} className="flex items-center gap-2">
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </div>
+
+      {loading && !data && (
+        <div className="flex items-center justify-center py-12 text-muted-foreground gap-2">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span className="text-sm">Loading deployment data…</span>
+        </div>
+      )}
+
+      {data && (
+        <>
+          {/* Last deployed / Quick links */}
+          <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-3">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-primary" />
+              <p className="text-sm font-semibold text-foreground">Deployment Info</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground font-medium mb-1">Last deployed</p>
+                <p className="text-sm text-foreground font-mono">
+                  {data.lastDeployedAt
+                    ? <>
+                        {new Date(data.lastDeployedAt).toLocaleString('en-US', {
+                          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                        })}
+                        <span className="ml-2 text-xs text-muted-foreground">({formatRelative(data.lastDeployedAt)})</span>
+                      </>
+                    : <span className="text-muted-foreground italic">Unknown</span>
+                  }
+                </p>
+              </div>
+              <div className="flex flex-col gap-2">
+                {data.githubRepoUrl && (
+                  <a
+                    href={data.githubRepoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    GitHub Repository
+                  </a>
+                )}
+                {data.supabaseUrl && (
+                  <a
+                    href={data.supabaseUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Supabase Dashboard
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Commits */}
+          <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+            <div className="flex items-center gap-2 px-5 py-4 border-b border-border">
+              <GitCommit className="w-4 h-4 text-primary" />
+              <p className="text-sm font-semibold text-foreground">Recent Commits (main)</p>
+            </div>
+
+            {data.githubError && (
+              <div className="p-4 text-sm text-destructive bg-destructive/5 flex items-start gap-2">
+                <XCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium">GitHub API unavailable</p>
+                  <p className="text-xs text-destructive/70 mt-0.5">{data.githubError}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Deploy the <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">admin-github-status</code> edge function
+                    and set the <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">GITHUB_TOKEN</code>,{' '}
+                    <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">GITHUB_OWNER</code>, and{' '}
+                    <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">GITHUB_REPO</code> secrets.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {!data.githubError && data.commits.length === 0 && (
+              <div className="py-8 text-center text-muted-foreground">
+                <GitCommit className="w-6 h-6 mx-auto mb-2 opacity-40" />
+                <p className="text-sm">No commits found.</p>
+              </div>
+            )}
+
+            {data.commits.length > 0 && (
+              <div className="divide-y divide-border">
+                {data.commits.map((commit) => (
+                  <div key={commit.sha} className="px-5 py-3 hover:bg-muted/10 transition-colors">
+                    <div className="flex items-start gap-3">
+                      <GitCommit className="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-foreground leading-snug line-clamp-2">{commit.message}</p>
+                        <div className="flex items-center gap-3 mt-1">
+                          <span className="text-[10px] text-muted-foreground">{commit.author}</span>
+                          <span className="text-[10px] text-muted-foreground">{formatRelative(commit.timestamp)}</span>
+                          <a
+                            href={commit.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] font-mono text-primary hover:underline"
+                          >
+                            {commit.sha.slice(0, 7)}
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Environment Variable Checklist */}
+          <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-foreground">Environment Variables</p>
+              {data.envChecks.length > 0 && (
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                  envMissing === 0
+                    ? 'bg-green-500/10 text-green-600 dark:text-green-400'
+                    : 'bg-destructive/10 text-destructive'
+                }`}>
+                  {envPresent} / {data.envChecks.length} set
+                </span>
+              )}
+            </div>
+
+            {data.envError && (
+              <div className="text-sm text-destructive bg-destructive/5 p-3 rounded-lg">
+                {data.envError}
+                <p className="text-xs mt-1 text-muted-foreground">
+                  Deploy the <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">admin-env-check</code> edge function.
+                </p>
+              </div>
+            )}
+
+            {!data.envError && data.envChecks.length === 0 && (
+              <p className="text-xs text-muted-foreground">No environment check data available.</p>
+            )}
+
+            {data.envChecks.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {data.envChecks.map((check) => (
+                  <div
+                    key={check.key}
+                    className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${
+                      check.present
+                        ? 'border-green-500/20 bg-green-500/5'
+                        : 'border-destructive/20 bg-destructive/5'
+                    }`}
+                  >
+                    {check.present
+                      ? <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                      : <XCircle className="w-4 h-4 text-destructive shrink-0" />
+                    }
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-foreground">{check.label}</p>
+                      <p className="text-[10px] font-mono text-muted-foreground">{check.key}</p>
+                    </div>
+                    <span className={`text-[10px] font-medium ${check.present ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
+                      {check.present ? '✓ set' : '✗ missing'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

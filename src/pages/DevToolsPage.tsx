@@ -11,31 +11,37 @@ import {
   Loader2,
   Eye,
   EyeOff,
+  BarChart2,
+  Rocket,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { DevKitRunner } from '@/components/dev-kit/DevKitRunner';
 import { AdminUsersPanel } from '@/components/dev-kit/AdminUsersPanel';
 import { CouponsPanel } from '@/components/dev-kit/CouponsPanel';
 import { AppSettingsPanel } from '@/components/dev-kit/AppSettingsPanel';
 import { AuditLogPanel } from '@/components/dev-kit/AuditLogPanel';
 import { OverviewPanel } from '@/components/dev-kit/OverviewPanel';
+import { AnalyticsPanel } from '@/components/dev-kit/AnalyticsPanel';
+import { LiveActivityPanel } from '@/components/dev-kit/LiveActivityPanel';
+import { DeploymentPanel } from '@/components/dev-kit/DeploymentPanel';
 import { DEV_KIT_VERSION } from '@/components/dev-kit/config';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-type Tab = 'overview' | 'health' | 'users' | 'coupons' | 'settings' | 'activity';
+type Tab = 'overview' | 'analytics' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity';
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-  { id: 'health', label: 'Health', icon: Activity },
+  { id: 'analytics', label: 'Analytics', icon: BarChart2 },
+  { id: 'live', label: 'Live Activity', icon: Activity },
+  { id: 'deployment', label: 'Deployment', icon: Rocket },
   { id: 'users', label: 'Users', icon: Users },
   { id: 'coupons', label: 'Coupons', icon: Tag },
   { id: 'settings', label: 'Settings', icon: Settings },
-  { id: 'activity', label: 'Activity', icon: Clock },
+  { id: 'activity', label: 'Audit Log', icon: Clock },
 ];
 
 type ConnectionStatus = 'checking' | 'connected' | 'disconnected';
@@ -291,19 +297,16 @@ export default function DevToolsPage() {
               <OverviewPanel password={pw} />
             )}
 
-            {activeTab === 'health' && (
-              <div className="space-y-4">
-                <div>
-                  <h2 className="text-lg font-semibold flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-primary" />
-                    System Health
-                  </h2>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    Run smoke tests across all platform services to verify end-to-end health.
-                  </p>
-                </div>
-                <DevKitRunner adminPassword={pw} />
-              </div>
+            {activeTab === 'analytics' && (
+              <AnalyticsPanel password={pw} />
+            )}
+
+            {activeTab === 'live' && (
+              <LiveActivityPanel password={pw} adminPassword={pw} />
+            )}
+
+            {activeTab === 'deployment' && (
+              <DeploymentPanel password={pw} />
             )}
 
             {activeTab === 'users' && (
