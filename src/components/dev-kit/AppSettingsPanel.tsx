@@ -101,7 +101,8 @@ export function AppSettingsPanel({ password }: AppSettingsPanelProps) {
         body: { password },
       });
       if (err) {
-        if (err.message?.includes('Failed to fetch') || (err as any).status === 404) {
+        const errStatus = typeof err === 'object' && err !== null && 'status' in err ? (err as { status: unknown }).status : undefined;
+        if (err.message?.includes('Failed to fetch') || errStatus === 404) {
           toast.info('admin-reset-credits not deployed', {
             description: 'Deploy the admin-reset-credits edge function to use this feature.',
             duration: 6000,

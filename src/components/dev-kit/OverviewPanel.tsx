@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { RefreshCw, Users, Crown, Zap, Shield, Clock, FileText, TrendingUp } from 'lucide-react';
+import { RefreshCw, Users, Crown, AlertTriangle, Shield, Clock, FileText, TrendingUp, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import type { AdminUser } from './AdminUsersPanel';
@@ -185,13 +185,12 @@ export function OverviewPanel({ password }: OverviewPanelProps) {
 
       {stats && (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <StatCard
               label="Total Users"
               value={stats.total}
               icon={Users}
               color="bg-primary/10 text-primary"
-              sub={stats.newestUser ? `Newest: ${formatRelative(stats.newestUser)}` : undefined}
             />
             <StatCard
               label="Free Plan"
@@ -218,19 +217,24 @@ export function OverviewPanel({ password }: OverviewPanelProps) {
               color="bg-purple-500/10 text-purple-600 dark:text-purple-400"
             />
             <StatCard
+              label="Suspended"
+              value={stats.suspended}
+              icon={AlertTriangle}
+              color={stats.suspended > 0 ? 'bg-red-500/10 text-red-600 dark:text-red-400' : 'bg-muted text-muted-foreground'}
+            />
+            <StatCard
               label="Total Resumes"
               value={stats.totalResumes}
               icon={FileText}
               color="bg-green-500/10 text-green-600 dark:text-green-400"
             />
+            <StatCard
+              label="Newest Signup"
+              value={stats.newestUser ? formatRelative(stats.newestUser) : '—'}
+              icon={CalendarDays}
+              color="bg-primary/10 text-primary"
+            />
           </div>
-
-          {stats.suspended > 0 && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-600 dark:text-red-400">
-              <Zap className="w-4 h-4 shrink-0" />
-              <span><strong>{stats.suspended}</strong> suspended account{stats.suspended !== 1 ? 's' : ''} — review in the Users tab.</span>
-            </div>
-          )}
 
           <PlanBar
             free={stats.free}
