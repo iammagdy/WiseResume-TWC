@@ -59,6 +59,11 @@ function formatRelative(iso: string): string {
   return `${days}d ago`;
 }
 
+const SUPABASE_PROJECT_REF = import.meta.env.VITE_SUPABASE_URL?.match(/https:\/\/([^.]+)/)?.[1] ?? null;
+const SUPABASE_SECRETS_URL = SUPABASE_PROJECT_REF
+  ? `https://supabase.com/dashboard/project/${SUPABASE_PROJECT_REF}/settings/vault`
+  : 'https://supabase.com/dashboard';
+
 export function DeploymentPanel({ password }: DeploymentPanelProps) {
   const [data, setData] = useState<DeploymentData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -178,19 +183,37 @@ export function DeploymentPanel({ password }: DeploymentPanelProps) {
       </div>
 
       {fetchError && !data && (
-        <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-5 space-y-3">
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-5 space-y-4">
           <div className="flex items-start gap-3">
             <XCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 space-y-2">
               <p className="text-sm font-semibold text-destructive">Failed to load deployment data</p>
-              <p className="text-xs text-destructive/70 mt-1">{fetchError}</p>
-              <p className="text-xs text-muted-foreground mt-2">
-                Make sure the <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">admin-github-status</code> and{' '}
-                <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">admin-env-check</code> edge functions are deployed.
+              <p className="text-xs text-destructive/70">{fetchError}</p>
+              <p className="text-xs text-muted-foreground">
+                The <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">admin-github-status</code> and{' '}
+                <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">admin-env-check</code> edge functions
+                must be deployed to Supabase, and the following secrets must be set:
               </p>
+              <div className="grid grid-cols-1 gap-1.5 pt-1">
+                {(['GITHUB_TOKEN', 'GITHUB_OWNER', 'GITHUB_REPO'] as const).map(k => (
+                  <div key={k} className="flex items-center gap-2 rounded-md bg-muted/60 px-2.5 py-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <code className="font-mono text-xs text-foreground">{k}</code>
+                  </div>
+                ))}
+              </div>
+              <a
+                href={SUPABASE_SECRETS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline pt-1"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                Open Supabase Secrets to add them
+              </a>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={fetchDeploymentData} disabled={loading} className="flex items-center gap-2 mt-1">
+          <Button variant="outline" size="sm" onClick={fetchDeploymentData} disabled={loading} className="flex items-center gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Retry
           </Button>
@@ -264,15 +287,23 @@ export function DeploymentPanel({ password }: DeploymentPanelProps) {
             {data.githubError && (
               <div className="p-4 text-sm text-destructive bg-destructive/5 flex items-start gap-2">
                 <XCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <div>
+                <div className="space-y-1">
                   <p className="font-medium">GitHub API unavailable</p>
-                  <p className="text-xs text-destructive/70 mt-0.5">{data.githubError}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Deploy the <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">admin-github-status</code> edge function
-                    and set the <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">GITHUB_TOKEN</code>,{' '}
+                  <p className="text-xs text-destructive/70">{data.githubError}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Set <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">GITHUB_TOKEN</code>,{' '}
                     <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">GITHUB_OWNER</code>, and{' '}
-                    <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">GITHUB_REPO</code> secrets.
+                    <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">GITHUB_REPO</code> in Supabase secrets.
                   </p>
+                  <a
+                    href={SUPABASE_SECRETS_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Open Supabase Secrets
+                  </a>
                 </div>
               </div>
             )}

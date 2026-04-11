@@ -37,24 +37,115 @@ Deno.serve(async (req) => {
       );
     }
 
-    const supabase = getServiceClient();
+    const parsedLimit: number | undefined =
+      daily_limit !== undefined && daily_limit !== null ? Number(daily_limit) : undefined;
+    const parsedBonus: number =
+      bonus_credits !== undefined && bonus_credits !== null ? Number(bonus_credits) : 0;
 
-    const { data, error } = await supabase.rpc('admin_set_credits', {
-      p_target_user_id: target_user_id,
-      p_daily_limit: daily_limit !== undefined ? Number(daily_limit) : null,
-      p_bonus_credits: bonus_credits !== undefined ? Number(bonus_credits) : 0,
-    });
-
-    if (error) {
-      console.error('[admin-set-credits] RPC error:', error);
+    if (parsedLimit === undefined && parsedBonus === 0) {
       return new Response(
-        JSON.stringify({ success: false, error: error.message }),
+        JSON.stringify({ success: false, error: 'Provide daily_limit, bonus_credits, or both' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabase = getServiceClient();
+    const today = new Date().toISOString().split('T')[0];
+    const now = new Date().toISOString();
+
+    // Fetch current row so we can compute new daily_usage when bonus_credits is set
+    const { data: currentRow, error: fetchError } = await supabase
+      .from('ai_credits')
+      .select('daily_usage, daily_limit, usage_date')
+      .eq('user_id', target_user_id)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error('[admin-set-credits] fetch error:', fetchError);
+      return new Response(
+        JSON.stringify({ success: false, error: fetchError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    if (!currentRow) {
+      // No ai_credits row yet — insert a fresh row with the given values
+      const limitToSet = parsedLimit !== undefined ? parsedLimit : 5;
+
+      const { error: insertError } = await supabase
+        .from('ai_credits')
+        .insert({
+          user_id: target_user_id,
+          daily_limit: limitToSet,
+          daily_usage: 0,
+          total_usage: 0,
+          usage_date: today,
+          updated_at: now,
+        });
+
+      if (insertError && insertError.code !== '23505') {
+        console.error('[admin-set-credits] insert error:', insertError);
+        return new Response(
+          JSON.stringify({ success: false, error: insertError.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else {
+      // Existing row — build update payload
+      const updates: Record<string, unknown> = { updated_at: now };
+
+      if (parsedLimit !== undefined) {
+        updates.daily_limit = parsedLimit;
+      }
+
+      if (parsedBonus > 0) {
+        // Bonus credits reduce today's usage (gives the user more remaining credits today)
+        const currentUsage: number =
+          currentRow.usage_date === today ? (currentRow.daily_usage ?? 0) : 0;
+        updates.daily_usage = Math.max(0, currentUsage - parsedBonus);
+      }
+
+      const { error: updateError } = await supabase
+        .from('ai_credits')
+        .update(updates)
+        .eq('user_id', target_user_id);
+
+      if (updateError) {
+        console.error('[admin-set-credits] update error:', updateError);
+        return new Response(
+          JSON.stringify({ success: false, error: updateError.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Write audit log — non-fatal
+    const { error: auditError } = await supabase
+      .from('audit_logs')
+      .insert({
+        user_id: target_user_id,
+        action: 'credits_override',
+        category: 'credits',
+        metadata: {
+          daily_limit: parsedLimit ?? null,
+          bonus_credits: parsedBonus,
+          updated_by: 'dev-kit',
+          updated_at: now,
+        },
+        created_at: now,
+      });
+
+    if (auditError) {
+      console.warn('[admin-set-credits] audit log error (non-fatal):', auditError);
+    }
+
     return new Response(
-      JSON.stringify({ success: true, ...(data && typeof data === 'object' ? data : {}) }),
+      JSON.stringify({
+        success: true,
+        daily_limit: parsedLimit ?? null,
+        bonus_credits: parsedBonus,
+        updated_at: now,
+      }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err) {

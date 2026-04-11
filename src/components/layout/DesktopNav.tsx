@@ -11,8 +11,8 @@ import { useProfile } from '@/hooks/useProfile';
 import { usePlan } from '@/hooks/usePlan';
 import { toast } from 'sonner';
 import { lazy, Suspense, useState } from 'react';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { PlanAvatar } from '@/components/ui/PlanAvatar';
 
 const AgenticChatSheet = lazy(() => import('@/components/editor/AgenticChatSheet').then((m) => ({ default: m.AgenticChatSheet })));
 
@@ -69,7 +69,7 @@ export function DesktopNav() {
   const { isDark, toggleTheme } = useTheme();
   const { user, signOut } = useAuth();
   const { profile } = useProfile(user?.id, user);
-  const { isPro } = usePlan();
+  const { plan, isPro } = usePlan();
   const [wiseAIOpen, setWiseAIOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
@@ -188,14 +188,7 @@ export function DesktopNav() {
               className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full active:scale-95 transition-transform"
               aria-label="Account menu"
             >
-              <Avatar className="w-8 h-8 border-2 border-primary/20">
-                {profile?.avatarUrl && (
-                  <AvatarImage src={profile.avatarUrl} alt={profile.fullName || 'Profile'} />
-                )}
-                <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
+              <PlanAvatar plan={plan} size="w-8 h-8" avatarUrl={profile?.avatarUrl} initials={initials} imageAlt={profile?.fullName || 'Profile'} />
             </button>
           </PopoverTrigger>
           <PopoverContent align="end" side="bottom" className="w-52 p-1.5">

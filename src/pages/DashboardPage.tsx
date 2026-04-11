@@ -23,8 +23,9 @@ import { FloatingCreateButton } from '@/components/dashboard/FloatingCreateButto
 import { WhatsNextCard } from '@/components/dashboard/WhatsNextCard';
 import { FeatureMapSheet } from '@/components/layout/FeatureMapSheet';
 import { trackSession } from '@/lib/discoveryManager';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { PlanAvatar } from '@/components/ui/PlanAvatar';
+import { usePlan } from '@/hooks/usePlan';
 import { calculateProfileCompletion } from '@/hooks/useProfile';
 import { AIHealthBadge } from '@/components/ai/AIHealthBadge';
 import { AICreditsIndicator } from '@/components/editor/ai/AICreditsIndicator';
@@ -77,6 +78,7 @@ function DashboardPageContent() {
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
   const { scoreResume, getCachedScore, scoringId } = useResumeScore();
   const { profile } = useProfile(user?.id, user);
+  const { plan } = usePlan();
   const { hasNew: hasNewChangelog } = useChangelogBadge();
   const [healthScores, setHealthScores] = useState<Record<string, ResumeHealthScore>>({});
 
@@ -518,16 +520,15 @@ function DashboardPageContent() {
                 {!profilePulseSeen && (
                   <span className="absolute inset-0 rounded-full border-2 border-primary/40 animate-[ping_1.5s_ease-out_4]" />
                 )}
-                <Avatar className="w-9 h-9 border-2 border-primary/20">
-                  {profile?.avatarUrl && (
-                    <AvatarImage src={profile.avatarUrl} alt={profile.fullName || 'Profile'} />
-                  )}
-                  <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                    {profile?.fullName
-                      ? profile.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
-                      : <User className="w-4 h-4" />}
-                  </AvatarFallback>
-                </Avatar>
+                <PlanAvatar
+                  plan={plan}
+                  size="w-9 h-9"
+                  avatarUrl={profile?.avatarUrl}
+                  imageAlt={profile?.fullName || 'Profile'}
+                  initials={profile?.fullName
+                    ? profile.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+                    : <User className="w-4 h-4" />}
+                />
                 {/* Incomplete profile badge */}
                 {user && profile && calculateProfileCompletion(profile) < 50 && (
                   <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-destructive border border-background" />
@@ -537,16 +538,15 @@ function DashboardPageContent() {
             <PopoverContent align="end" side="bottom" className="w-80 p-0">
               <div className="flex flex-col gap-3 p-3">
                 <div className="flex flex-row items-center gap-3">
-                  <Avatar className="w-10 h-10 border-2 border-primary/20">
-                    {profile?.avatarUrl && (
-                      <AvatarImage src={profile.avatarUrl} alt={profile.fullName || 'Profile'} />
-                    )}
-                    <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
-                      {profile?.fullName
-                        ? profile.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
-                        : <User className="w-5 h-5" />}
-                    </AvatarFallback>
-                  </Avatar>
+                  <PlanAvatar
+                    plan={plan}
+                    size="w-10 h-10"
+                    avatarUrl={profile?.avatarUrl}
+                    imageAlt={profile?.fullName || 'Profile'}
+                    initials={profile?.fullName
+                      ? profile.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+                      : <User className="w-5 h-5" />}
+                  />
                   <div className="flex-1 min-w-0">
                     <span className="font-medium leading-5 block truncate">{profile?.fullName || 'User'}</span>
                     {user?.email && (
