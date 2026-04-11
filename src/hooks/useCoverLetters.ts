@@ -11,6 +11,7 @@ export interface CoverLetterRecord {
   company: string | null;
   content: string;
   tone: string | null;
+  template_style: string | null;
   resume_id: string | null;
   created_at: string | null;
   updated_at: string | null;
@@ -62,6 +63,7 @@ export function useCoverLetterMutations() {
       company?: string;
       content: string;
       tone?: string;
+      template_style?: string;
       resume_id?: string;
     }) => {
       if (!user) throw new Error('Not authenticated');
@@ -74,6 +76,7 @@ export function useCoverLetterMutations() {
           company: input.company || null,
           content: input.content,
           tone: input.tone || 'professional',
+          template_style: input.template_style || 'professional',
           resume_id: input.resume_id || null,
         })
         .select()

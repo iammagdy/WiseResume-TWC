@@ -15,6 +15,7 @@ import { useCoverLetterMutations } from '@/hooks/useCoverLetters';
 import { usePlan } from '@/hooks/usePlan';
 import { UpgradeWall } from '@/components/plan/UpgradeWall';
 import { generateCoverLetter } from '@/lib/aiTailor';
+import type { TemplateStyle } from '@/lib/coverLetterPdfGenerator';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 
@@ -34,6 +35,7 @@ export default function CoverLetterNewPage() {
   const [jobTitle, setJobTitle] = useState('');
   const [company, setCompany] = useState('');
   const [tone, setTone] = useState<Tone>('professional');
+  const [templateStyle, setTemplateStyle] = useState<TemplateStyle>('professional');
   const [result, setResult] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -90,6 +92,7 @@ export default function CoverLetterNewPage() {
         company: company || undefined,
         content: result,
         tone,
+        template_style: templateStyle,
         resume_id: selectedResumeId || undefined,
         title: jobTitle ? `${jobTitle}${company ? ` - ${company}` : ''}` : undefined,
       },
@@ -110,45 +113,15 @@ export default function CoverLetterNewPage() {
   const handleDownloadPDF = async () => {
     if (!result) return;
     try {
-      const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
-      const pdfDoc = await PDFDocument.create();
-      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      const fontSize = 11;
-      const margin = 72;
-      const pw = 612;
-      const ph = 792;
-      const maxW = pw - margin * 2;
-      const lh = fontSize * 1.5;
-
-      const lines: string[] = [];
-      for (const para of result.split('\n')) {
-        if (!para.trim()) { lines.push(''); continue; }
-        const words = para.split(/\s+/);
-        let cur = '';
-        for (const w of words) {
-          const test = cur ? `${cur} ${w}` : w;
-          if (font.widthOfTextAtSize(test, fontSize) > maxW && cur) { lines.push(cur); cur = w; }
-          else cur = test;
-        }
-        if (cur) lines.push(cur);
-      }
-
-      let page = pdfDoc.addPage([pw, ph]);
-      let y = ph - margin;
-      for (const line of lines) {
-        if (y < margin) { page = pdfDoc.addPage([pw, ph]); y = ph - margin; }
-        if (line) page.drawText(line, { x: margin, y, size: fontSize, font, color: rgb(0.1, 0.1, 0.1) });
-        y -= lh;
-      }
-
-      const bytes = await pdfDoc.save();
-      const blob = new Blob([bytes.buffer as ArrayBuffer], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `cover-letter-${jobTitle || 'untitled'}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const { downloadCoverLetterPDF } = await import('@/lib/coverLetterPdfGenerator');
+      await downloadCoverLetterPDF({
+        job_title: jobTitle || 'Untitled',
+        company: company || null,
+        content: result,
+        title: jobTitle ? `${jobTitle}${company ? ` - ${company}` : ''}` : null,
+        tone,
+        template_style: templateStyle,
+      });
       toast.success('PDF downloaded!');
     } catch {
       toast.error('Failed to generate PDF');
@@ -159,6 +132,12 @@ export default function CoverLetterNewPage() {
     { value: 'professional', label: 'Professional' },
     { value: 'enthusiastic', label: 'Enthusiastic' },
     { value: 'conversational', label: 'Conversational' },
+  ];
+
+  const templateOptions: { value: TemplateStyle; label: string; description: string }[] = [
+    { value: 'professional', label: 'Professional', description: 'Blue accent bar, classic layout' },
+    { value: 'modern', label: 'Modern', description: 'Teal sidebar, two-column header' },
+    { value: 'minimal', label: 'Minimal', description: 'Clean whitespace, no decorations' },
   ];
 
   return (
@@ -229,6 +208,32 @@ export default function CoverLetterNewPage() {
                   )}
                 >
                   {t.label}
+                </motion.button>
+              ))}
+            </div>
+          </div>
+
+          {/* Template Style */}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Style</label>
+            <div className="flex gap-2">
+              {templateOptions.map((t) => (
+                <motion.button
+                  key={t.value}
+                  whileTap={{ scale: 0.93 }}
+                  style={{ touchAction: 'pan-y' }}
+                  onClick={() => { haptics.selection(); setTemplateStyle(t.value); }}
+                  className={cn(
+                    'flex-1 py-2.5 px-2 rounded-xl text-sm font-medium transition-colors active:scale-95 flex flex-col items-center gap-0.5',
+                    templateStyle === t.value
+                      ? 'gradient-primary text-primary-foreground'
+                      : 'bg-card border border-border text-muted-foreground'
+                  )}
+                >
+                  <span>{t.label}</span>
+                  <span className={cn('text-[10px] leading-tight', templateStyle === t.value ? 'text-primary-foreground/75' : 'text-muted-foreground/70')}>
+                    {t.description}
+                  </span>
                 </motion.button>
               ))}
             </div>
