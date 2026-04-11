@@ -29,6 +29,7 @@ export function AppShell() {
   const { isDark, toggleTheme } = useTheme();
   const showBottomNav = TAB_ROUTES.some(r => location.pathname.startsWith(r));
   const isEditorRoute = location.pathname.startsWith('/editor') || location.pathname.startsWith('/preview');
+  const isPortfolioEditorRoute = location.pathname === '/portfolio';
   const isRootRoute = shouldExitOnBack(location.pathname);
   const enableSwipeBack = showBottomNav && !isEditorRoute && !isRootRoute;
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -132,7 +133,12 @@ export function AppShell() {
       {showBottomNav && !isEditorRoute && (
         <button
           onClick={() => setWiseAIOpen(true)}
-          className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 z-40 lg:hidden flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-primary text-primary-foreground shadow-soft-lg active:scale-95 transition-transform touch-manipulation"
+          className={cn(
+            'fixed right-4 z-50 lg:hidden flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-primary text-primary-foreground shadow-soft-lg active:scale-95 transition-transform touch-manipulation',
+            isPortfolioEditorRoute
+              ? 'bottom-[calc(9rem+env(safe-area-inset-bottom))]'
+              : 'bottom-[calc(5.5rem+env(safe-area-inset-bottom))]'
+          )}
           aria-label="Ask Wise AI"
         >
           <Sparkles className="w-4 h-4" />

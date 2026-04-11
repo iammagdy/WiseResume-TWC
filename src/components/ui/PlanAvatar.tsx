@@ -23,15 +23,15 @@ function planLabelText(plan: PlanName): string {
   return 'Free';
 }
 
-function planLabelClass(plan: PlanName): string {
-  if (plan === 'premium') return 'text-amber-500';
-  if (plan === 'pro') return 'text-blue-500';
-  return 'text-muted-foreground';
+function planBadgeClass(plan: PlanName): string {
+  if (plan === 'premium') return 'bg-amber-400 text-amber-950';
+  if (plan === 'pro') return 'bg-blue-500 text-white';
+  return 'bg-muted text-muted-foreground';
 }
 
 export function PlanAvatar({ plan, avatarUrl, initials, size = 'w-9 h-9', imageAlt, showLabel = false }: PlanAvatarProps) {
   return (
-    <div className="flex flex-col items-center gap-1">
+    <div className="relative inline-flex flex-col items-center">
       <Avatar className={cn(size, planRingClass(plan))}>
         {avatarUrl && (
           <AvatarImage src={avatarUrl} alt={imageAlt || 'Profile'} />
@@ -40,11 +40,15 @@ export function PlanAvatar({ plan, avatarUrl, initials, size = 'w-9 h-9', imageA
           {initials}
         </AvatarFallback>
       </Avatar>
-      {showLabel && (
-        <span className={cn('text-xs font-semibold', planLabelClass(plan))}>
-          {planLabelText(plan)}
-        </span>
-      )}
+      <span
+        className={cn(
+          'absolute -bottom-1.5 left-1/2 -translate-x-1/2',
+          'px-1.5 py-px rounded-full text-[9px] font-bold leading-tight whitespace-nowrap',
+          planBadgeClass(plan)
+        )}
+      >
+        {planLabelText(plan)}
+      </span>
     </div>
   );
 }
