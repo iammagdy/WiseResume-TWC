@@ -147,10 +147,18 @@ export default function PreviewPage() {
     return () => clearTimeout(timer);
   }, [searchParams]);
 
-  // Resume guard
+  // Resume guard — show a brief skeleton while the Zustand store hydrates on rapid
+  // navigation, then redirect if the resume is still absent after settling.
+  useEffect(() => {
+    if (currentResume) return;
+    const timer = setTimeout(() => {
+      navigate(user ? '/dashboard' : '/');
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [currentResume, navigate, user]);
+
   if (!currentResume) {
-    navigate(user ? '/dashboard' : '/');
-    return null;
+    return <TemplateSkeleton />;
   }
 
   // Photo sheet handlers
@@ -520,7 +528,9 @@ export default function PreviewPage() {
             setPreviewScale={setPreviewScale}
           >
             <Suspense fallback={<TemplateSkeleton />}>
-              <TemplateComponent resume={currentResume} />
+              {currentResume.sections != null
+                ? <TemplateComponent resume={currentResume} />
+                : <TemplateSkeleton />}
             </Suspense>
           </PreviewScaledWrapper>
         </div>

@@ -4,6 +4,7 @@ import type { LucideIcon } from 'lucide-react';
 import { ChevronLeft, ChevronRight, Eye, Plus, Trophy, Rocket, Award, BookOpen, Heart, Palette, Globe, Users, X } from 'lucide-react';
 import { User, AlignLeft, Briefcase, GraduationCap, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { SectionCard } from '@/components/editor/SectionCard';
 import { SectionAIAction } from '@/components/editor/SectionAIAction';
 import { ATSInlineSuggestions } from '@/components/editor/ATSInlineSuggestions';
@@ -190,6 +191,8 @@ export function SectionNavButtons({
   handleTabChange: (tab: string) => void;
   navigate: ReturnType<typeof useNavigate>;
 }) {
+  const [isNavigating, setIsNavigating] = useState(false);
+
   return (
     <div className="flex flex-row items-center gap-2 sm:gap-3 py-3 overflow-hidden">
       <Button
@@ -210,13 +213,20 @@ export function SectionNavButtons({
         <Button
           size="lg"
           className="flex-1 min-w-0 min-h-[48px] text-sm gradient-primary shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.5)]"
+          disabled={isNavigating}
           onClick={() => {
+            if (isNavigating) return;
+            setIsNavigating(true);
             haptics.success();
             navigate('/preview');
           }}
         >
-          <Eye className="w-4 h-4 mr-1.5" />
-          Preview & Export
+          {isNavigating ? (
+            <MiniSpinner size={16} className="mr-1.5" />
+          ) : (
+            <Eye className="w-4 h-4 mr-1.5" />
+          )}
+          {isNavigating ? 'Loading…' : 'Preview & Export'}
         </Button>
       ) : (
         <Button
