@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ExternalLink, Calendar, MapPin, Share2, Briefcase, Bookmark, BookmarkCheck, Trash2, DollarSign, Clock } from 'lucide-react';
+import { ExternalLink, Calendar, MapPin, Share2, Briefcase, Bookmark, BookmarkCheck, Trash2, DollarSign, Clock } from 'lucide-react';
 import { openExternal } from '@/lib/openExternal';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
@@ -12,6 +12,7 @@ import { useJobApplicationMutations } from '@/hooks/useJobApplications';
 import { useResumes } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { BackButton } from '@/components/ui/BackButton';
 
 import { DetailSkeleton } from '@/components/layout/PageSkeletons';
 
@@ -66,9 +67,7 @@ export default function JobDetailPage() {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 min-h-0 h-full overflow-y-auto overscroll-y-contain pb-6">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 flex items-center gap-3">
-        <button onClick={() => navigate('/applications')} className="p-2 -ml-2 rounded-xl hover:bg-muted/50 min-h-[44px] min-w-[44px] flex items-center justify-center">
-          <ArrowLeft className="w-5 h-5" />
-        </button>
+        <BackButton />
         <h1 className="text-lg font-bold truncate flex-1">Job Details</h1>
         <button onClick={handleToggleSave} className="p-2 rounded-xl hover:bg-muted/50 min-h-[44px] min-w-[44px] flex items-center justify-center">
           {job.is_saved ? <BookmarkCheck className="w-5 h-5 text-primary" /> : <Bookmark className="w-5 h-5 text-muted-foreground" />}

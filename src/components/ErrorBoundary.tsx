@@ -1,5 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Home, MessageSquareWarning, Send, X, Loader2 } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Home, ArrowLeft, MessageSquareWarning, Send, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { getUserId } from '@/lib/supabaseBridge';
@@ -286,6 +286,15 @@ export class ErrorBoundary extends Component<Props, State> {
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
                 {isChunkError ? 'Reload' : 'Try Again'}
+              </Button>
+              <Button
+                onClick={() => window.history.back()}
+                variant="outline"
+                className="w-full h-12"
+                size="lg"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Go Back
               </Button>
               {!isChunkError && (
                 <Button
