@@ -298,6 +298,52 @@ export function AdminUsersPanel({ password, onCountChange }: AdminUsersPanelProp
             </span>
           </div>
 
+          {/* Plan distribution bar */}
+          {users.length > 0 && (() => {
+            const now = new Date();
+            let free = 0, pro = 0, premium = 0, trial = 0, suspended = 0;
+            for (const u of users) {
+              if (u.is_suspended) { suspended++; continue; }
+              const trialActive = u.trial_plan && u.trial_expires_at && new Date(u.trial_expires_at) > now;
+              if (trialActive) { trial++; continue; }
+              if (u.plan_name === 'premium') premium++;
+              else if (u.plan_name === 'pro') pro++;
+              else free++;
+            }
+            const n = users.length;
+            const pct = (v: number) => `${((v / n) * 100).toFixed(0)}%`;
+            const segs = [
+              { count: free, color: 'bg-muted-foreground/50', label: 'Free', pct: pct(free) },
+              { count: pro, color: 'bg-blue-500', label: 'Pro', pct: pct(pro) },
+              { count: premium, color: 'bg-amber-500', label: 'Premium', pct: pct(premium) },
+              { count: trial, color: 'bg-purple-500', label: 'Trial', pct: pct(trial) },
+              { count: suspended, color: 'bg-red-500', label: 'Suspended', pct: pct(suspended) },
+            ].filter(s => s.count > 0);
+
+            return (
+              <div className="space-y-1.5">
+                <div className="flex rounded-full overflow-hidden h-2 gap-px">
+                  {segs.map(s => (
+                    <div
+                      key={s.label}
+                      className={`${s.color}`}
+                      style={{ width: `${(s.count / n) * 100}%` }}
+                      title={`${s.label}: ${s.count} (${s.pct})`}
+                    />
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                  {segs.map(s => (
+                    <span key={s.label} className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <span className={`w-1.5 h-1.5 rounded-full ${s.color}`} />
+                      {s.label} {s.count}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
           <div className="rounded-xl border border-border overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

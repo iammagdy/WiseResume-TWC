@@ -1,6 +1,6 @@
 import { type SectionId, type TestStatus, type TestResult, type TestDef } from './types';
 
-export const DEV_KIT_VERSION = 'v3.0.0';
+export const DEV_KIT_VERSION = 'v3.1.0';
 
 export const SECTIONS: { id: SectionId; title: string; emoji: string }[] = [
   { id: 'auth', title: 'Auth & Token Bridge', emoji: '🔑' },

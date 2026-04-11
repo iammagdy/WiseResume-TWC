@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
-import { RefreshCw, Settings, Save } from 'lucide-react';
+import { RefreshCw, Settings, Save, Zap, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
@@ -24,6 +25,8 @@ export function AppSettingsPanel({ password }: AppSettingsPanelProps) {
   const [error, setError] = useState<string | null>(null);
   const [announcementText, setAnnouncementText] = useState('');
   const [saving, setSaving] = useState<string | null>(null);
+  const [globalLimitInput, setGlobalLimitInput] = useState('');
+  const [resettingCredits, setResettingCredits] = useState(false);
 
   const fetchSettings = useCallback(async () => {
     setLoading(true);
@@ -46,6 +49,8 @@ export function AppSettingsPanel({ password }: AppSettingsPanelProps) {
       setSettings(parsed);
       const ann = raw['announcement_banner'];
       setAnnouncementText(typeof ann === 'string' ? ann : (ann !== null && ann !== undefined ? String(ann) : ''));
+      const gl = raw['global_daily_limit'];
+      setGlobalLimitInput(gl != null && gl !== '' ? String(gl) : '');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load settings');
     } finally {
@@ -75,6 +80,44 @@ export function AppSettingsPanel({ password }: AppSettingsPanelProps) {
 
   const handleSaveAnnouncement = () => {
     updateSetting('announcement_banner', announcementText.trim() || null);
+  };
+
+  const handleSaveGlobalLimit = () => {
+    const val = globalLimitInput.trim();
+    if (val === '') {
+      updateSetting('global_daily_limit', null);
+    } else {
+      const n = Number(val);
+      if (isNaN(n) || n < -1) { toast.error('Enter a valid number (-1 for unlimited, 0+ for a limit)'); return; }
+      updateSetting('global_daily_limit', String(n));
+    }
+  };
+
+  const handleResetCredits = async () => {
+    if (!confirm('Reset daily AI credits for ALL users? This sets everyone\'s used-today counter back to 0. This cannot be undone.')) return;
+    setResettingCredits(true);
+    try {
+      const { data, error: err } = await edgeFunctions.functions.invoke('admin-reset-credits', {
+        body: { password },
+      });
+      if (err) {
+        if (err.message?.includes('Failed to fetch') || (err as any).status === 404) {
+          toast.info('admin-reset-credits not deployed', {
+            description: 'Deploy the admin-reset-credits edge function to use this feature.',
+            duration: 6000,
+          });
+          return;
+        }
+        throw new Error(err.message);
+      }
+      const result = data as { success?: boolean; reset_count?: number; error?: string };
+      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      toast.success(`Daily AI credits reset for ${result.reset_count ?? 'all'} users`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to reset credits');
+    } finally {
+      setResettingCredits(false);
+    }
   };
 
   return (
@@ -203,6 +246,63 @@ export function AppSettingsPanel({ password }: AppSettingsPanelProps) {
               </button>
             );
           })}
+        </div>
+      </div>
+
+      {/* Global AI Credit Controls */}
+      <div className="rounded-xl border border-border p-4 space-y-4">
+        <div className="flex items-center gap-2">
+          <Zap className="w-4 h-4 text-yellow-500" />
+          <h3 className="text-sm font-semibold">Global AI Credit Controls</h3>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Apply a platform-wide daily AI usage limit to all users not on a custom per-user override. Use -1 for unlimited. Leave blank to use per-plan defaults.
+        </p>
+
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground font-medium">Global daily AI limit (all users)</p>
+          <div className="flex gap-2">
+            <Input
+              type="number"
+              placeholder="-1 = unlimited, blank = per-plan default"
+              value={globalLimitInput}
+              onChange={(e) => setGlobalLimitInput(e.target.value)}
+              className="h-9 text-sm flex-1"
+              min="-1"
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleSaveGlobalLimit}
+              disabled={saving === 'global_daily_limit'}
+              className="flex items-center gap-1.5 shrink-0"
+            >
+              <Save className="w-3.5 h-3.5" />
+              {saving === 'global_daily_limit' ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+          {settings.global_daily_limit != null && settings.global_daily_limit !== '' && (
+            <p className="text-xs text-muted-foreground">
+              Current: <strong>{settings.global_daily_limit === '-1' ? 'Unlimited' : `${settings.global_daily_limit} / day`}</strong>
+            </p>
+          )}
+        </div>
+
+        <div className="pt-1 border-t border-border space-y-2">
+          <p className="text-xs text-muted-foreground font-medium">Reset daily credits</p>
+          <p className="text-xs text-muted-foreground">Resets the used-today counter back to 0 for all users immediately. Useful after an incident or when manually granting extra usage.</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleResetCredits}
+            disabled={resettingCredits}
+            className="flex items-center gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
+          >
+            {resettingCredits
+              ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" />Resetting…</>
+              : <><RotateCcw className="w-3.5 h-3.5" />Reset all daily credits</>
+            }
+          </Button>
         </div>
       </div>
     </div>

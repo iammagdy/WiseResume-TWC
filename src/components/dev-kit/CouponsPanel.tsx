@@ -30,6 +30,7 @@ interface Coupon {
 
 interface CouponsPanelProps {
   password: string;
+  onCountChange?: (n: number) => void;
 }
 
 function formatDate(iso: string | null) {
@@ -37,7 +38,7 @@ function formatDate(iso: string | null) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-export function CouponsPanel({ password }: CouponsPanelProps) {
+export function CouponsPanel({ password, onCountChange }: CouponsPanelProps) {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,13 +63,15 @@ export function CouponsPanel({ password }: CouponsPanelProps) {
       if (err) throw new Error(err.message);
       const result = data as { success?: boolean; coupons?: Coupon[]; error?: string };
       if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
-      setCoupons(result?.coupons ?? []);
+      const list = result?.coupons ?? [];
+      setCoupons(list);
+      onCountChange?.(list.length);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load coupons');
     } finally {
       setLoading(false);
     }
-  }, [password]);
+  }, [password, onCountChange]);
 
   useEffect(() => { fetchCoupons(); }, [fetchCoupons]);
 

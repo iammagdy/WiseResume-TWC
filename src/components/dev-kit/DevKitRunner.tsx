@@ -6,7 +6,7 @@ import { getToken, getUserId, isReady, exchangeToken } from '@/lib/supabaseBridg
 import { useSettingsStore } from '@/store/settingsStore';
 import { logAudit } from '@/lib/auditLogger';
 import { Button } from '@/components/ui/button';
-import { Trash2, Loader2, PlayCircle, AlertCircle, CheckCircle } from 'lucide-react';
+import { Trash2, Loader2, PlayCircle, AlertCircle, CheckCircle, Activity } from 'lucide-react';
 import { type TestStatus, type TestResult, type TestDef, type SectionId } from './types';
 import { SECTIONS } from './config';
 import { SectionSummaryBadge } from './DevKitBadges';
@@ -465,6 +465,68 @@ export function DevKitRunner({ adminPassword = '' }: DevKitRunnerProps) {
           </div>
         )}
       </div>
+
+      {/* System Health Summary Card */}
+      {(() => {
+        const total = tests.length;
+        const passed = smokeSummary ? smokeSummary.passed : Object.values(results).filter(r => r.status === 'success').length;
+        const failed = smokeSummary ? smokeSummary.failed : Object.values(results).filter(r => r.status === 'error').length;
+        const ran = passed + failed;
+        const healthPct = ran > 0 ? Math.round((passed / ran) * 100) : null;
+        const isHealthy = healthPct !== null && healthPct === 100;
+        const isPartial = healthPct !== null && healthPct >= 50 && healthPct < 100;
+        const isUnhealthy = healthPct !== null && healthPct < 50;
+
+        return (
+          <div className={`rounded-xl border p-4 flex items-center gap-4 transition-all ${
+            isHealthy ? 'border-green-500/30 bg-green-500/5' :
+            isPartial ? 'border-amber-500/30 bg-amber-500/5' :
+            isUnhealthy ? 'border-destructive/30 bg-destructive/5' :
+            'border-border bg-muted/30'
+          }`}>
+            <div className={`rounded-lg p-2.5 shrink-0 ${
+              isHealthy ? 'bg-green-500/20 text-green-600 dark:text-green-400' :
+              isPartial ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400' :
+              isUnhealthy ? 'bg-destructive/20 text-destructive' :
+              'bg-muted text-muted-foreground'
+            }`}>
+              <Activity className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-sm font-semibold text-foreground">
+                  System Health
+                </p>
+                <span className={`text-sm font-bold tabular-nums ${
+                  isHealthy ? 'text-green-600 dark:text-green-400' :
+                  isPartial ? 'text-amber-600 dark:text-amber-400' :
+                  isUnhealthy ? 'text-destructive' :
+                  'text-muted-foreground'
+                }`}>
+                  {healthPct !== null ? `${healthPct}%` : '—'}
+                </span>
+              </div>
+              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                {healthPct !== null && (
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      isHealthy ? 'bg-green-500' :
+                      isPartial ? 'bg-amber-500' :
+                      'bg-destructive'
+                    }`}
+                    style={{ width: `${healthPct}%` }}
+                  />
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {ran === 0
+                  ? `${total} checks available — run smoke test to evaluate health`
+                  : `${passed} of ${ran} checks passing`}
+              </p>
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="space-y-10">
         {SECTIONS.map(section => renderSection(section))}
