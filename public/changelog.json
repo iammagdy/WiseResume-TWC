@@ -51,7 +51,7 @@
       },
       {
         "title": "Reliability improvements throughout",
-        "description": "Several edge cases in custom key validation, model selection, and AI routing have been resolved. The AI connection test is more stable and the experience is more predictable across all providers."
+        "description": "Several edge cases in custom key validation, model selection, and switching between providers have been resolved. The AI connection test is more stable and the experience is more predictable across all providers."
       }
     ]
   },
