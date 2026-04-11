@@ -26,7 +26,11 @@ const FALLBACK: PlanResult = {
  * causes `auth.uid()` to return null in direct DB queries, making the plan
  * always appear as 'free'.
  *
- * Realtime invalidation and 10-second polling are handled inside `useMe`.
+ * Uses `effective_plan` (computed server-side) which accounts for active trials:
+ * if a user has an active trial, `effective_plan` reflects the trial plan rather
+ * than the base `plan_name`.
+ *
+ * Realtime invalidation and 4-second polling are handled inside `useMe`.
  */
 export function usePlan(): PlanResult {
   const { isAuthenticated } = useAuth();
@@ -34,7 +38,7 @@ export function usePlan(): PlanResult {
 
   if (!isAuthenticated) return FALLBACK;
 
-  const raw = String(meData?.subscription?.plan_name ?? 'free').toLowerCase();
+  const raw = String(meData?.subscription?.effective_plan ?? 'free').toLowerCase();
   const plan: PlanName = (raw === 'pro' || raw === 'premium') ? (raw as PlanName) : 'free';
 
   return {

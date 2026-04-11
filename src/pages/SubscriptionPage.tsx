@@ -6,15 +6,24 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
-import { Check, Crown, Gift, Sparkles, Gem, Tag, Ticket } from 'lucide-react';
+import { Check, Crown, Gift, Sparkles, Gem, Ticket, CalendarClock } from 'lucide-react';
 import { LoadingButton } from '@/components/ui/LoadingButton';
 import { useResumes } from '@/hooks/useResumes';
 import { useAICredits } from '@/hooks/useAICredits';
 import { usePlan, PlanName } from '@/hooks/usePlan';
+import { useMe } from '@/hooks/useMe';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { Skeleton } from '@/components/ui/skeleton';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { useQueryClient } from '@tanstack/react-query';
 
 const PLAN_FEATURES = {
   free: [
@@ -43,6 +52,11 @@ const PLAN_FEATURES = {
   ],
 };
 
+const PLAN_PRICES: Record<string, string> = {
+  pro: '$9',
+  premium: '$19',
+};
+
 const RESUME_LIMIT: Record<PlanName, number | null> = {
   free: 1,
   pro: null,
@@ -53,17 +67,44 @@ function planLabel(plan: string) {
   return plan.charAt(0).toUpperCase() + plan.slice(1);
 }
 
-function PlanIcon({ plan }: { plan: string }) {
-  if (plan === 'premium') return <Gem className="w-5 h-5 text-amber-500" />;
-  if (plan === 'pro') return <Crown className="w-5 h-5 text-primary" />;
-  return <Sparkles className="w-5 h-5 text-primary" />;
+function PlanIcon({ plan, className }: { plan: string; className?: string }) {
+  if (plan === 'premium') return <Gem className={className ?? 'w-5 h-5 text-amber-500'} />;
+  if (plan === 'pro') return <Crown className={className ?? 'w-5 h-5 text-blue-500'} />;
+  return <Sparkles className={className ?? 'w-5 h-5 text-muted-foreground'} />;
+}
+
+interface CouponDetails {
+  code: string;
+  discount_type: string;
+  discount_value: number;
+  plan_override: string | null;
+  plan_days: number | null;
+  expires_at: string | null;
+  target_plan: string | null;
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
 }
 
 export default function SubscriptionPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: resumes = [], isLoading: resumesLoading } = useResumes();
   const { data: credits, isLoading: creditsLoading } = useAICredits();
-  const { plan, isPro, isPremium, isLoading: planLoading, refetch: refetchPlan } = usePlan();
+  const { plan, isPro, isPremium, isLoading: planLoading } = usePlan();
+  const { data: meData } = useMe();
+
+  const trialPlan = meData?.subscription?.trial_plan ?? null;
+  const trialExpiresAt = meData?.subscription?.trial_expires_at ?? null;
+  const isActiveTrial =
+    !!trialPlan &&
+    !!trialExpiresAt &&
+    new Date(trialExpiresAt) > new Date();
 
   const resumeLimit = RESUME_LIMIT[plan];
   const resumeCount = resumes.length;
@@ -79,33 +120,66 @@ export default function SubscriptionPage() {
   };
 
   const isLoading = planLoading || resumesLoading || creditsLoading;
-  const upgradeTarget = isPremium ? null : isPro ? 'premium' : 'pro';
 
+  // Which upgrade plan cards to show
+  const upgradeTargets: string[] = isPremium ? [] : isPro ? ['premium'] : ['pro', 'premium'];
+
+  // Coupon state
   const [couponCode, setCouponCode] = useState('');
-  const [redeeming, setRedeeming] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [activating, setActivating] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [couponDetails, setCouponDetails] = useState<CouponDetails | null>(null);
+  const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
   const [couponSuccess, setCouponSuccess] = useState<string | null>(null);
 
-  const handleRedeemCoupon = async () => {
+  const handleCheckCode = async () => {
     if (!couponCode.trim()) return;
     haptics.light();
-    setRedeeming(true);
-    setCouponSuccess(null);
+    setChecking(true);
+    try {
+      const { data, error } = await edgeFunctions.functions.invoke('validate-coupon', {
+        body: { code: couponCode.trim().toUpperCase() },
+      });
+      if (error) throw new Error(error.message);
+      const result = data as { valid?: boolean; error?: string; coupon?: CouponDetails; trial_ends_at?: string | null };
+      if (!result?.valid) {
+        toast.error(result?.error ?? 'Invalid or expired code');
+        return;
+      }
+      setCouponDetails(result.coupon ?? null);
+      setTrialEndsAt(result.trial_ends_at ?? null);
+      setConfirmOpen(true);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to check coupon');
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const handleActivateNow = async () => {
+    if (!couponCode.trim()) return;
+    haptics.medium();
+    setActivating(true);
     try {
       const { data, error } = await edgeFunctions.functions.invoke('redeem-coupon', {
         body: { code: couponCode.trim().toUpperCase() },
       });
       if (error) throw new Error(error.message);
-      const result = data as { success?: boolean; message?: string; new_plan?: string; error?: string };
+      const result = data as { success?: boolean; message?: string; error?: string };
       if (result?.success === false) throw new Error(result.error ?? 'Invalid or expired code');
       const msg = result.message ?? 'Coupon applied!';
       setCouponSuccess(msg);
       toast.success(msg);
       setCouponCode('');
-      refetchPlan?.();
+      setConfirmOpen(false);
+      setCouponDetails(null);
+      // Force-refetch me data so plan updates immediately
+      await queryClient.invalidateQueries({ queryKey: ['me'], refetchType: 'all' });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to redeem coupon');
+      toast.error(e instanceof Error ? e.message : 'Failed to activate coupon');
     } finally {
-      setRedeeming(false);
+      setActivating(false);
     }
   };
 
@@ -144,18 +218,18 @@ export default function SubscriptionPage() {
                   placeholder="EARLYACCESS"
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === 'Enter' && handleRedeemCoupon()}
+                  onKeyDown={(e) => e.key === 'Enter' && handleCheckCode()}
                   className="font-mono uppercase tracking-widest"
-                  disabled={redeeming}
+                  disabled={checking || activating}
                 />
                 <LoadingButton
-                  onClick={handleRedeemCoupon}
-                  isLoading={redeeming}
-                  loadingText="Applying…"
+                  onClick={handleCheckCode}
+                  isLoading={checking}
+                  loadingText="Checking…"
                   disabled={!couponCode.trim()}
                   className="shrink-0"
                 >
-                  Apply
+                  Check Code
                 </LoadingButton>
               </div>
             )}
@@ -163,9 +237,9 @@ export default function SubscriptionPage() {
         </Card>
 
         {/* Current Plan */}
-        <Card className={isPremium ? 'border-amber-400/30 bg-amber-50/30 dark:bg-amber-950/20' : 'border-primary/20 bg-primary/5'}>
+        <Card className={isPremium ? 'border-amber-400/30 bg-amber-50/30 dark:bg-amber-950/20' : isPro ? 'border-blue-400/30 bg-blue-50/30 dark:bg-blue-950/20' : 'border-border bg-card'}>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isPremium ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-primary/10'}`}>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isPremium ? 'bg-amber-100 dark:bg-amber-900/30' : isPro ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-muted'}`}>
               <PlanIcon plan={plan} />
             </div>
             <div className="flex-1">
@@ -175,8 +249,18 @@ export default function SubscriptionPage() {
               ) : (
                 <p className="text-lg font-bold">{planLabel(plan)}</p>
               )}
+              {isActiveTrial && trialExpiresAt && (
+                <div className="flex items-center gap-1 mt-0.5">
+                  <CalendarClock className={`w-3.5 h-3.5 ${plan === 'premium' ? 'text-amber-500' : 'text-blue-500'}`} />
+                  <span className={`text-xs font-medium ${plan === 'premium' ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                    Trial ends {formatDate(trialExpiresAt)}
+                  </span>
+                </div>
+              )}
             </div>
-            <Badge variant="secondary">Active</Badge>
+            <Badge variant={isActiveTrial ? 'outline' : 'secondary'} className={isActiveTrial ? (plan === 'premium' ? 'border-amber-400 text-amber-600 dark:text-amber-400' : 'border-blue-400 text-blue-600 dark:text-blue-400') : ''}>
+              {isActiveTrial ? 'Trial' : 'Active'}
+            </Badge>
           </CardContent>
         </Card>
 
@@ -247,43 +331,49 @@ export default function SubscriptionPage() {
           <CardContent className="space-y-2">
             {PLAN_FEATURES[plan as keyof typeof PLAN_FEATURES]?.map((feature) => (
               <div key={feature} className="flex items-center gap-2.5 text-sm">
-                <Check className={`w-4 h-4 shrink-0 ${isPremium ? 'text-amber-500' : 'text-primary'}`} />
+                <Check className={`w-4 h-4 shrink-0 ${isPremium ? 'text-amber-500' : isPro ? 'text-blue-500' : 'text-muted-foreground'}`} />
                 <span>{feature}</span>
               </div>
             ))}
           </CardContent>
         </Card>
 
-        {/* Upgrade card — only if not already on the top plan */}
-        {upgradeTarget && (
-          <Card className={upgradeTarget === 'premium' ? 'border-amber-400/40 relative overflow-hidden' : 'border-primary/30 relative overflow-hidden'}>
-            <div className={`absolute top-0 right-0 text-[10px] font-bold px-3 py-1 rounded-bl-xl ${upgradeTarget === 'premium' ? 'bg-amber-500 text-white' : 'bg-primary text-primary-foreground'}`}>
-              {upgradeTarget === 'premium' ? 'POWER USERS' : 'POPULAR'}
+        {/* Upgrade cards — shown for each plan the user can upgrade to */}
+        {upgradeTargets.map((target) => (
+          <Card
+            key={target}
+            className={target === 'premium' ? 'border-amber-400/40 relative overflow-hidden' : 'border-blue-400/30 relative overflow-hidden'}
+          >
+            <div className={`absolute top-0 right-0 text-[10px] font-bold px-3 py-1 rounded-bl-xl ${target === 'premium' ? 'bg-amber-500 text-white' : 'bg-blue-500 text-white'}`}>
+              {target === 'premium' ? 'POWER USERS' : 'POPULAR'}
             </div>
             <CardContent className="p-4 space-y-3">
-              <div className="flex items-baseline gap-1 mt-1">
-                <span className="text-xl font-bold">{upgradeTarget === 'premium' ? '$19' : '$9'}</span>
+              <div className="flex items-center gap-2 mt-1">
+                <PlanIcon plan={target} className={`w-5 h-5 ${target === 'premium' ? 'text-amber-500' : 'text-blue-500'}`} />
+                <p className="text-sm font-semibold">{planLabel(target)}</p>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-xl font-bold">{PLAN_PRICES[target]}</span>
                 <span className="text-sm text-muted-foreground">/month</span>
               </div>
-              <p className="text-sm font-semibold">{planLabel(upgradeTarget)}</p>
               <div className="space-y-1.5">
-                {PLAN_FEATURES[upgradeTarget as keyof typeof PLAN_FEATURES].map((feature) => (
+                {PLAN_FEATURES[target as keyof typeof PLAN_FEATURES].map((feature) => (
                   <div key={feature} className="flex items-center gap-2 text-sm">
-                    <Check className={`w-4 h-4 shrink-0 ${upgradeTarget === 'premium' ? 'text-amber-500' : 'text-primary'}`} />
+                    <Check className={`w-4 h-4 shrink-0 ${target === 'premium' ? 'text-amber-500' : 'text-blue-500'}`} />
                     <span>{feature}</span>
                   </div>
                 ))}
               </div>
               <Button
-                className={`w-full mt-1 ${upgradeTarget === 'premium' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-gradient-to-r from-primary to-primary/80'}`}
-                onClick={() => handleUpgrade(upgradeTarget)}
+                className={`w-full mt-1 ${target === 'premium' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
+                onClick={() => handleUpgrade(target)}
               >
                 <Crown className="w-4 h-4 mr-2" />
-                Upgrade to {planLabel(upgradeTarget)} — coming soon
+                Upgrade to {planLabel(target)} — coming soon
               </Button>
             </CardContent>
           </Card>
-        )}
+        ))}
 
         {/* Referral Link */}
         <Card className="bg-gradient-to-br from-primary/5 to-accent/5">
@@ -299,6 +389,93 @@ export default function SubscriptionPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Coupon confirmation dialog */}
+      <Dialog open={confirmOpen} onOpenChange={(open) => { if (!activating) setConfirmOpen(open); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Ticket className="w-5 h-5 text-primary" />
+              Early Access Invitation
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              Review your coupon details before activating
+            </DialogDescription>
+          </DialogHeader>
+
+          {couponDetails && (
+            <div className="space-y-4">
+              {/* Plan badge */}
+              {couponDetails.plan_override && (
+                <div className={`flex items-center gap-3 p-3 rounded-xl ${couponDetails.plan_override === 'premium' ? 'bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800' : 'bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800'}`}>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${couponDetails.plan_override === 'premium' ? 'bg-amber-100 dark:bg-amber-900/40' : 'bg-blue-100 dark:bg-blue-900/40'}`}>
+                    <PlanIcon
+                      plan={couponDetails.plan_override}
+                      className={`w-5 h-5 ${couponDetails.plan_override === 'premium' ? 'text-amber-500' : 'text-blue-500'}`}
+                    />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm">{planLabel(couponDetails.plan_override)} Plan</p>
+                    <p className={`text-xs ${couponDetails.plan_override === 'premium' ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                      Early Access
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Pricing */}
+              <div className="space-y-1.5 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Normal price</span>
+                  <span className="line-through text-muted-foreground">
+                    {couponDetails.plan_override ? PLAN_PRICES[couponDetails.plan_override] : '—'}/mo
+                  </span>
+                </div>
+                <div className="flex justify-between items-center font-semibold">
+                  <span>Your price</span>
+                  <span className="text-green-600 dark:text-green-400">Free (Early Access)</span>
+                </div>
+              </div>
+
+              {/* Trial period */}
+              {couponDetails.plan_days && (
+                <div className="space-y-1.5 text-sm border-t pt-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Trial period</span>
+                    <span className="font-medium">{couponDetails.plan_days} days</span>
+                  </div>
+                  {trialEndsAt && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Access until</span>
+                      <span className="font-medium">{formatDate(trialEndsAt)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* CTA */}
+              <div className="flex flex-col gap-2 pt-1">
+                <LoadingButton
+                  onClick={handleActivateNow}
+                  isLoading={activating}
+                  loadingText="Activating…"
+                  className={`w-full ${couponDetails.plan_override === 'premium' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
+                >
+                  Activate Now
+                </LoadingButton>
+                <Button
+                  variant="ghost"
+                  onClick={() => setConfirmOpen(false)}
+                  disabled={activating}
+                  className="w-full text-muted-foreground"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

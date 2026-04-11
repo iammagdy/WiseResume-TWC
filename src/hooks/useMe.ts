@@ -9,6 +9,9 @@ export interface MeSubscription {
   plan_name: string;
   status: string;
   plan_updated_at: string | null;
+  trial_plan: string | null;
+  trial_expires_at: string | null;
+  effective_plan: string;
 }
 
 export interface MeAICredits {

@@ -27,7 +27,10 @@ serve(async (req) => {
     const [profileResult, prefsResult, subsResult, creditsResult] = await Promise.all([
       client.from('profiles').select('*').eq('user_id', userId).maybeSingle(),
       client.from('user_preferences').select('*').eq('user_id', userId).maybeSingle(),
-      client.from('subscriptions').select('plan_name, status, plan_updated_at').eq('user_id', userId).maybeSingle(),
+      client.from('subscriptions')
+        .select('plan_name, status, plan_updated_at, trial_plan, trial_expires_at')
+        .eq('user_id', userId)
+        .maybeSingle(),
       client.from('ai_credits').select('daily_usage, daily_limit, usage_date, total_usage, updated_at').eq('user_id', userId).maybeSingle(),
     ]);
 
@@ -47,13 +50,27 @@ serve(async (req) => {
       );
     }
 
+    // Compute effective plan: trial takes precedence over plan_name when active
+    const sub = subsResult.data;
+    let effectivePlan: string = sub?.plan_name ?? 'free';
+    if (sub?.trial_plan && sub?.trial_expires_at) {
+      const expiresAt = new Date(sub.trial_expires_at as string);
+      if (expiresAt > new Date()) {
+        effectivePlan = sub.trial_plan as string;
+      }
+    }
+
+    const subscriptionPayload = sub
+      ? { ...sub, effective_plan: effectivePlan }
+      : null;
+
     return new Response(
       JSON.stringify({
         userId,
         kinde_sub: kindeSub,
         profile: profile || null,
         preferences: prefsResult.data || null,
-        subscription: subsResult.data || null,
+        subscription: subscriptionPayload,
         ai_credits: creditsResult.data || null,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
