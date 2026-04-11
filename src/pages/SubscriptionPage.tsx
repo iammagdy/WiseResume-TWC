@@ -142,9 +142,13 @@ export default function SubscriptionPage() {
         body: { code: couponCode.trim().toUpperCase() },
       });
       if (error) throw new Error(error.message);
-      const result = data as { valid?: boolean; error?: string; coupon?: CouponDetails; trial_ends_at?: string | null };
+      const result = data as { valid?: boolean; error?: string; already_on_plan?: boolean; coupon?: CouponDetails; trial_ends_at?: string | null };
       if (!result?.valid) {
-        toast.error(result?.error ?? 'Invalid or expired code');
+        if (result?.already_on_plan) {
+          toast.info(result.error ?? 'You already have access to this plan');
+        } else {
+          toast.error(result?.error ?? 'Invalid or expired code');
+        }
         return;
       }
       setCouponDetails(result.coupon ?? null);
@@ -166,8 +170,15 @@ export default function SubscriptionPage() {
         body: { code: couponCode.trim().toUpperCase() },
       });
       if (error) throw new Error(error.message);
-      const result = data as { success?: boolean; message?: string; error?: string };
-      if (result?.success === false) throw new Error(result.error ?? 'Invalid or expired code');
+      const result = data as { success?: boolean; message?: string; error?: string; already_on_plan?: boolean };
+      if (result?.success === false) {
+        if (result?.already_on_plan) {
+          toast.info(result.error ?? 'You already have access to this plan');
+          setConfirmOpen(false);
+          return;
+        }
+        throw new Error(result.error ?? 'Invalid or expired code');
+      }
       const msg = result.message ?? 'Coupon applied!';
       setCouponSuccess(msg);
       toast.success(msg);
@@ -443,6 +454,10 @@ export default function SubscriptionPage() {
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Trial period</span>
                     <span className="font-medium">{couponDetails.plan_days} days</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Starts</span>
+                    <span className="font-medium">Today ({formatDate(new Date().toISOString())})</span>
                   </div>
                   {trialEndsAt && (
                     <div className="flex justify-between items-center">

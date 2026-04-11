@@ -50,9 +50,17 @@ Deno.serve(async (req) => {
     ]);
 
     if (couponRes.error) {
-      console.error('[validate-coupon] DB error:', couponRes.error);
+      console.error('[validate-coupon] Coupon DB error:', couponRes.error);
       return new Response(
         JSON.stringify({ valid: false, error: 'Failed to look up coupon' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (subRes.error) {
+      console.error('[validate-coupon] Subscription DB error:', subRes.error);
+      return new Response(
+        JSON.stringify({ valid: false, error: 'Failed to look up subscription' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
