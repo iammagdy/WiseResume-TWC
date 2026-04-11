@@ -193,8 +193,8 @@ export function CoverLetterGenerator({
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="bottom" className="h-[90vh] rounded-t-3xl">
-          <SheetHeader className="pb-4">
+        <SheetContent side="bottom" className="max-h-[90dvh] rounded-t-3xl flex flex-col">
+          <SheetHeader className="pb-4 shrink-0">
             <div className="flex items-center justify-between">
               <SheetTitle className="flex items-center gap-2">
                 <FileText className="w-5 h-5 text-primary" />
@@ -215,7 +215,7 @@ export function CoverLetterGenerator({
             </div>
           </SheetHeader>
 
-          <div className="overflow-y-auto h-[calc(90vh-140px)] space-y-4 pb-20">
+          <div className="flex-1 min-h-0 overflow-y-auto space-y-4 ai-output-scroll-fade">
             {!coverLetter ? (
               <>
                 {/* Settings */}
@@ -388,74 +388,75 @@ export function CoverLetterGenerator({
                     </div>
                   )}
                 </div>
-
-                {/* Action buttons */}
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <Button
-                      className="flex-1 gradient-primary"
-                      onClick={handleCopy}
-                    >
-                      {copied ? (
-                        <>
-                          <Check className="w-4 h-4 mr-2" />
-                          Copied!
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-4 h-4 mr-2" />
-                          Copy
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="flex-1"
-                      onClick={handleDownloadPDF}
-                      disabled={isDownloading}
-                    >
-                      {isDownloading ? (
-                        <MiniSpinner size={16} className="mr-2" />
-                      ) : (
-                        <Download className="w-4 h-4 mr-2" />
-                      )}
-                      PDF
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={handleDownloadTXT}
-                    >
-                      TXT
-                    </Button>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      className="flex-1"
-                      onClick={() => {
-                        setCoverLetter(null);
-                        setIsEditing(false);
-                      }}
-                    >
-                      <Sparkles className="w-4 h-4 mr-2" />
-                      Regenerate
-                    </Button>
-                    {coverLetterHistory.length > 0 && (
-                      <Button
-                        variant="outline"
-                        className="flex-1"
-                        onClick={() => setShowHistory(true)}
-                      >
-                        <History className="w-4 h-4 mr-2" />
-                        History
-                      </Button>
-                    )}
-                  </div>
-                </div>
               </div>
             )}
           </div>
+
+          {/* Sticky action footer — only when cover letter is ready */}
+          {coverLetter && (
+            <div className="shrink-0 border-t border-border px-4 py-3 space-y-2 bg-background">
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1 gradient-primary"
+                  onClick={handleCopy}
+                >
+                  {copied ? (
+                    <>
+                      <Check className="w-4 h-4 mr-2" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 mr-2" />
+                      Copy
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={handleDownloadPDF}
+                  disabled={isDownloading}
+                >
+                  {isDownloading ? (
+                    <MiniSpinner size={16} className="mr-2" />
+                  ) : (
+                    <Download className="w-4 h-4 mr-2" />
+                  )}
+                  PDF
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleDownloadTXT}
+                >
+                  TXT
+                </Button>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setCoverLetter(null);
+                    setIsEditing(false);
+                  }}
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Regenerate
+                </Button>
+                {coverLetterHistory.length > 0 && (
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setShowHistory(true)}
+                  >
+                    <History className="w-4 h-4 mr-2" />
+                    History
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
         </SheetContent>
       </Sheet>
 

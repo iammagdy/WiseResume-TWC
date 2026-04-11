@@ -103,7 +103,7 @@ export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) 
 
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
-      <SheetContent side="bottom" className="h-[90vh] backdrop-blur-sm bg-background">
+      <SheetContent side="bottom" className="max-h-[90dvh] flex flex-col backdrop-blur-sm bg-background">
         <SheetHeader className="pb-4 shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <Target className="w-5 h-5 text-primary" />
@@ -112,7 +112,7 @@ export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) 
           <AIProviderVia className="mt-0.5" />
         </SheetHeader>
 
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-20">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-20 ai-output-scroll-fade">
           {/* Job Description Input */}
           <div>
             <label className="text-sm font-medium mb-2 block">

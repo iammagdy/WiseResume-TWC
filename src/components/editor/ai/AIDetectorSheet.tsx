@@ -371,7 +371,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[85vh] flex flex-col p-0">
+      <SheetContent side="bottom" className="max-h-[90dvh] flex flex-col p-0">
         <SheetHeader className="px-4 pt-4 pb-2 border-b border-border shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <Shield className="w-5 h-5 text-primary" />
@@ -380,7 +380,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
           <AIProviderVia className="mt-0.5" />
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="flex-1 overflow-y-auto min-h-0 ai-output-scroll-fade">
           <AnimatePresence mode="wait">
             {/* Input State */}
             {viewState === 'input' && (

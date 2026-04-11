@@ -154,7 +154,7 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
 
   return (
     <Sheet open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) resetState(); }}>
-      <SheetContent side="bottom" className="h-[92dvh] flex flex-col overflow-hidden rounded-t-2xl">
+      <SheetContent side="bottom" className="max-h-[90dvh] flex flex-col overflow-hidden rounded-t-2xl">
         <SheetHeader className="shrink-0">
           <div className="flex items-center gap-2">
             {step === 'results' && (
@@ -166,7 +166,7 @@ export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
           </div>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto px-1 pb-safe">
+        <div className="flex-1 min-h-0 overflow-y-auto px-1 pb-safe ai-output-scroll-fade">
           {/* INPUT STEP */}
           {step === 'input' && (
             <div className="space-y-4 pt-2">

@@ -588,7 +588,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[92vh] rounded-t-3xl flex flex-col">
+      <SheetContent side="bottom" className="max-h-[90dvh] rounded-t-3xl flex flex-col">
           <SheetHeader className="pb-4 shrink-0">
           <div className="flex items-center justify-between">
             <SheetTitle className="flex items-center gap-2">
@@ -620,7 +620,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
           </div>
         </SheetHeader>
 
-        <div className="overflow-y-auto flex-1 space-y-4 pb-4">
+        <div className="overflow-y-auto flex-1 min-h-0 space-y-4 pb-4 ai-output-scroll-fade">
           <AITrustBadge className="mx-0" />
 
           {/* Cache restore banner */}

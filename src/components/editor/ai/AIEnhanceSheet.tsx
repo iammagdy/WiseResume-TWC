@@ -504,7 +504,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[85vh] flex flex-col rounded-t-2xl">
+      <SheetContent side="bottom" className="max-h-[90dvh] flex flex-col rounded-t-2xl">
         <SheetHeader className="shrink-0 pb-3 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10">
@@ -517,7 +517,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
           </div>
         </SheetHeader>
 
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-5 py-4">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-5 py-4 ai-output-scroll-fade">
           {/* Mode Selector - hidden in ATS mode */}
           {!atsMode && (
             <div>

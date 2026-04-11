@@ -2039,3 +2039,21 @@ button,
     visibility: visible !important;
   }
 }
+
+/* AI output scroll-fade: adds a bottom fade gradient to indicate more content below */
+.ai-output-scroll-fade {
+  position: relative;
+}
+.ai-output-scroll-fade::after {
+  content: '';
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: block;
+  height: 48px;
+  margin-top: -48px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, hsl(var(--background) / 0.85));
+  border-radius: 0 0 var(--radius) var(--radius);
+}

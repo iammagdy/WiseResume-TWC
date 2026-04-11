@@ -105,7 +105,7 @@ export function QuestionBankSheet({
 
   return (
     <Sheet open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { setExpandedQ(null); } }}>
-      <SheetContent side="bottom" className="h-[85vh] flex flex-col p-0">
+      <SheetContent side="bottom" className="max-h-[90dvh] flex flex-col p-0">
         <SheetHeader className="px-4 pt-4 pb-2 shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <Lightbulb className="w-5 h-5 text-primary" />
@@ -113,7 +113,7 @@ export function QuestionBankSheet({
           </SheetTitle>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-6 min-h-0 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 pb-6 min-h-0 space-y-4 ai-output-scroll-fade">
           {categories.length === 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
               <p className="text-sm text-muted-foreground">

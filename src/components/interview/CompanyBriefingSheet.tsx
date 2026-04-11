@@ -99,7 +99,7 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-h-[90vh]">
+      <DrawerContent className="max-h-[90dvh] flex flex-col">
         <DrawerHeader className="flex items-center justify-between pb-2">
           <DrawerTitle className="flex items-center gap-2 text-base font-bold">
             <Building2 className="w-5 h-5 text-primary" />
@@ -126,7 +126,7 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
         </DrawerHeader>
 
         {/* Scrollable content with visible scrollbar */}
-        <div className="flex-1 overflow-y-auto px-4 pb-6 max-h-[75vh] scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-6 ai-output-scroll-fade scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
           <AITrustBadge className="mb-3" />
 
           {/* Input Phase */}

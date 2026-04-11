@@ -212,7 +212,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[85vh] flex flex-col p-0">
+      <SheetContent side="bottom" className="max-h-[90dvh] flex flex-col p-0">
         <SheetHeader className="px-4 pt-4 pb-2 border-b border-border shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <UserCheck className="w-5 h-5 text-primary" />
@@ -221,7 +221,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
           <AIProviderVia className="mt-0.5" />
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="flex-1 overflow-y-auto min-h-0 ai-output-scroll-fade">
           <AnimatePresence mode="wait">
             {/* Persona Selection */}
             {viewState === 'persona_select' && (
