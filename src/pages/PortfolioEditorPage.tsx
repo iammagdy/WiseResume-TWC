@@ -34,6 +34,8 @@ import { MoreTab } from '@/components/portfolio/editor/MoreTab';
 import { SaveBar } from '@/components/portfolio/editor/SaveBar';
 import { PortfolioHistorySheet } from '@/components/portfolio/PortfolioHistorySheet';
 import { usePortfolioHistory } from '@/hooks/usePortfolioHistory';
+import { VisitorsTab } from '@/components/portfolio/editor/VisitorsTab';
+import type { ScrollEffect } from '@/components/portfolio/editor/ScrollEffectPicker';
 
 
 export default function PortfolioEditorPage() {
@@ -96,7 +98,8 @@ export default function PortfolioEditorPage() {
   const [portfolioSummary, setPortfolioSummary] = useState('');
   const [sectionOrder, setSectionOrder] = useState<string[]>(['about', 'experience', 'caseStudies', 'projects', 'githubProjects', 'services', 'testimonials', 'skills', 'education', 'certifications', 'awards', 'publications', 'volunteering']);
   const [pinnedProject, setPinnedProject] = useState<{title: string; description: string; url: string} | null>(null);
-  const [activeTab, setActiveTab] = useState<'setup' | 'content' | 'design' | 'more'>('setup');
+  const [scrollEffect, setScrollEffect] = useState<ScrollEffect>('fade');
+  const [activeTab, setActiveTab] = useState<'setup' | 'content' | 'design' | 'more' | 'visitors'>('setup');
 
   // ── Unsaved changes tracking ──
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState<string>('');
@@ -111,7 +114,7 @@ export default function PortfolioEditorPage() {
       metaDescription, portfolioStyle, portfolioLayout, portfolioAccentColor,
       portfolioFont, availabilityStatus, availabilityHeadline, syncMode,
       caseStudies, services, testimonials, highlights, portfolioSummary,
-      selectedResumeId, sectionOrder, pinnedProject,
+      selectedResumeId, sectionOrder, pinnedProject, scrollEffect,
     });
   }, [
     username, bio, portfolioEnabled, githubUrl, websiteUrl, twitterUrl,
@@ -119,15 +122,15 @@ export default function PortfolioEditorPage() {
     metaDescription, portfolioStyle, portfolioLayout, portfolioAccentColor,
     portfolioFont, availabilityStatus, availabilityHeadline, syncMode,
     caseStudies, services, testimonials, highlights, portfolioSummary,
-    selectedResumeId, sectionOrder, pinnedProject,
+    selectedResumeId, sectionOrder, pinnedProject, scrollEffect,
   ]);
 
-  const tabIndexMap = { setup: 0, content: 1, design: 2, more: 3 } as const;
+  const tabIndexMap = { setup: 0, content: 1, design: 2, more: 3, visitors: 4 } as const;
   const directionRef = useRef(0);
   const prevTabRef = useRef(activeTab);
   const reducedMotion = useMemo(() => getSafeMatchMedia('(prefers-reduced-motion: reduce)').matches, []);
 
-  const handleTabChange = useCallback((tab: 'setup' | 'content' | 'design' | 'more') => {
+  const handleTabChange = useCallback((tab: 'setup' | 'content' | 'design' | 'more' | 'visitors') => {
     directionRef.current = tabIndexMap[tab] > tabIndexMap[prevTabRef.current] ? 1 : -1;
     prevTabRef.current = tab;
     haptics.light();
@@ -167,6 +170,7 @@ export default function PortfolioEditorPage() {
       setPortfolioSummary(extras.portfolioSummary as string || '');
       setSectionOrder(extras.sectionOrder as string[] || ['about', 'experience', 'caseStudies', 'projects', 'githubProjects', 'services', 'testimonials', 'skills', 'education', 'certifications', 'awards', 'publications', 'volunteering']);
       setPinnedProject(extras.pinnedProject as {title: string; description: string; url: string} | null || null);
+      setScrollEffect((extras.scrollEffect as ScrollEffect) || 'fade');
     }
   }, [profile]);
 
@@ -400,6 +404,7 @@ export default function PortfolioEditorPage() {
           sectionOrder,
           pinnedProject: pinnedProject || null,
           availabilityStatus,
+          scrollEffect,
           lastSyncedFromResumeAt: syncMode === 'auto' ? new Date().toISOString() : (
             profile?.portfolioExtras?.lastSyncedFromResumeAt ?? null
           ),
@@ -578,7 +583,8 @@ export default function PortfolioEditorPage() {
           bio={bio}
           openToWork={availabilityStatus !== 'not-looking'}
           availabilityStatus={availabilityStatus}
-          views={profile?.views || 0} />
+          views={profile?.views || 0}
+          scrollEffect={scrollEffect} />
         
 
         {/* Share your profile — QR code entry point */}
@@ -597,17 +603,18 @@ export default function PortfolioEditorPage() {
         </button>
 
         {/* Tab Row */}
-        <div className="flex gap-1.5 p-1 rounded-xl bg-card border border-border">
+        <div className="flex gap-1 p-1 rounded-xl bg-card border border-border overflow-x-auto scrollbar-none">
           {([
           { id: 'setup', label: 'Setup' },
           { id: 'content', label: 'Content' },
           { id: 'design', label: 'Design' },
+          { id: 'visitors', label: 'Visitors' },
           { id: 'more', label: 'More' }] as
           const).map((tab) =>
           <button
             key={tab.id}
             onClick={() => handleTabChange(tab.id)}
-            className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] touch-manipulation active:scale-[0.97] ${
+            className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] touch-manipulation active:scale-[0.97] whitespace-nowrap px-2 ${
             activeTab === tab.id ?
             'bg-card border border-border shadow-soft text-foreground shadow-[0_0_16px_-4px_hsl(var(--primary)/0.2)]' :
             'text-muted-foreground hover:bg-muted/50'}`
@@ -692,8 +699,18 @@ export default function PortfolioEditorPage() {
               onPortfolioLayoutChange={setPortfolioLayout}
               selectedTheme={selectedTheme}
               onSelectedThemeChange={setSelectedTheme}
+              scrollEffect={scrollEffect}
+              onScrollEffectChange={setScrollEffect}
               userName={profile?.fullName || undefined}
               userAvatarUrl={profile?.avatarUrl || undefined} />
+
+            }
+
+            {activeTab === 'visitors' &&
+            <VisitorsTab
+              username={username || null}
+              portfolioCanonicalUrl={portfolioCanonicalUrl}
+              onShare={handleShareQR} />
 
             }
 

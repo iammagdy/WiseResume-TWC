@@ -18,11 +18,12 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { username, ref, sectionsViewed, timeSpentSeconds } = body as {
+    const { username, ref, sectionsViewed, timeSpentSeconds, device } = body as {
       username: string;
       ref?: string;
       sectionsViewed?: string[];
       timeSpentSeconds?: number;
+      device?: 'mobile' | 'desktop' | 'tablet';
     };
 
     if (!username || typeof username !== "string") {
@@ -90,6 +91,7 @@ serve(async (req) => {
       p_short_link_id: ref || null,
       p_sections_viewed: sectionsViewed ?? [],
       p_time_spent_seconds: timeSpentSeconds ?? null,
+      p_device: device ?? null,
     });
 
     if (visitError) {

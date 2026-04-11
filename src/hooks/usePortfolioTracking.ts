@@ -20,11 +20,16 @@ export function usePortfolioTracking({ username, refParam }: UsePortfolioTrackin
     if (!username) return;
     trackSentRef.current = true;
     const timeSpentSeconds = Math.round((Date.now() - mountTimeRef.current) / 1000);
+    const ua = navigator.userAgent;
+    const device = /Mobi|Android|iPhone|iPad|iPod/i.test(ua)
+      ? (/iPad/i.test(ua) ? 'tablet' : 'mobile')
+      : 'desktop';
     const body = JSON.stringify({
       username,
       ref: refParam,
       sectionsViewed: [...sectionsViewedRef.current],
       timeSpentSeconds,
+      device,
     });
     const url = `${EDGE_FUNCTIONS_URL}/functions/v1/track-portfolio-view`;
     if (navigator.sendBeacon) {

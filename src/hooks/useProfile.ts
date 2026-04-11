@@ -32,6 +32,7 @@ export interface PortfolioExtras {
   portfolioSnapshot?: Record<string, unknown> | null;
   portfolioSummary?: string;
   lastSyncedFromResumeAt?: string | null;
+  scrollEffect?: 'fade' | 'parallax' | 'tilt-3d' | 'cinematic';
 }
 
 import { PortfolioSections } from '@/components/portfolio/editor/ContentVisibilitySection';

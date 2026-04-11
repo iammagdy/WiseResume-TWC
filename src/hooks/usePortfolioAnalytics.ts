@@ -13,6 +13,7 @@ export interface PortfolioVisit {
   referrer: string | null;
   short_link_id: string | null;
   visited_at: string;
+  device: 'mobile' | 'desktop' | 'tablet' | null;
 }
 
 export interface VisitSummary {

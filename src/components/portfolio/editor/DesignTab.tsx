@@ -1,10 +1,12 @@
-import { Palette, Type, Layout, Eye } from 'lucide-react';
+import { Palette, Type, Layout, Eye, Sparkles } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ThemeStorePicker } from './ThemeStorePicker';
 import { PORTFOLIO_THEMES } from '@/lib/portfolioThemes';
 import { haptics } from '@/lib/haptics';
 import type { PortfolioStyle, PortfolioFont, PortfolioLayout } from './AppearanceSection';
 import { ACCENT_PRESETS } from './AppearanceSection';
+import { ScrollEffectPicker } from './ScrollEffectPicker';
+import type { ScrollEffect } from './ScrollEffectPicker';
 
 export interface DesignTabProps {
   portfolioStyle: PortfolioStyle;
@@ -17,6 +19,8 @@ export interface DesignTabProps {
   onPortfolioLayoutChange: (val: PortfolioLayout) => void;
   selectedTheme: string;
   onSelectedThemeChange: (val: string) => void;
+  scrollEffect: ScrollEffect;
+  onScrollEffectChange: (val: ScrollEffect) => void;
   userName?: string;
   userAvatarUrl?: string;
 }
@@ -28,6 +32,7 @@ export function DesignTab(props: DesignTabProps) {
     portfolioFont, onPortfolioFontChange,
     portfolioLayout, onPortfolioLayoutChange,
     selectedTheme, onSelectedThemeChange,
+    scrollEffect, onScrollEffectChange,
     userName, userAvatarUrl,
   } = props;
 
@@ -156,6 +161,16 @@ export function DesignTab(props: DesignTabProps) {
             <SelectItem value="light">Always Light</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+
+      {/* Scroll Effects */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider border-t border-border pt-3">
+          <Sparkles className="w-3.5 h-3.5" />
+          Scroll Effects
+        </div>
+        <p className="text-[11px] text-muted-foreground">Choose how sections animate as visitors scroll.</p>
+        <ScrollEffectPicker value={scrollEffect} onChange={onScrollEffectChange} />
       </div>
     </div>
   );

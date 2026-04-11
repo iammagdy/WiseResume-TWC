@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useRef } from 'react';
+import { motion, useScroll, useTransform, useSpring } from 'framer-motion';
 import { Briefcase, Layers, FolderOpen, Github, Wrench, Sparkles, Award, GraduationCap, Trophy, BookOpen, Heart, ExternalLink, Pin } from 'lucide-react';
 
 import type { PublicProfile, PublicResume } from '@/hooks/usePublicPortfolio';
@@ -19,12 +19,48 @@ import { EducationCard } from '@/components/portfolio/public/cards/EducationCard
 
 const SKILL_CLOUD_LIMIT = 15;
 
-const bioFade = {
-  hidden: { opacity: 0, scale: 0.95, filter: 'blur(4px)' },
-  visible: { opacity: 1, scale: 1, filter: 'blur(0px)', transition: { duration: 0.6, ease: [0, 0, 0.2, 1] } }
-} as any;
 
-const getThemeSectionVariant = (style: string): any => {
+export type ScrollEffect = 'fade' | 'parallax' | 'tilt-3d' | 'cinematic';
+
+const CINEMATIC_DIRECTIONS = [
+  { x: -30, y: 0 },
+  { x: 30, y: 0 },
+  { x: 0, y: -20 },
+  { x: 0, y: 20 },
+] as const;
+
+const getScrollEffectVariant = (effect: ScrollEffect, index: number): any => {
+  switch (effect) {
+    case 'parallax':
+      return {
+        hidden: { opacity: 0, y: 50 },
+        visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0, 0, 0.2, 1] } }
+      };
+    case 'tilt-3d':
+      return {
+        hidden: { opacity: 0, rotateX: 14, y: 30, scale: 0.96, transformPerspective: 800 },
+        visible: { opacity: 1, rotateX: 0, y: 0, scale: 1, transformPerspective: 800, transition: { duration: 0.65, ease: [0, 0, 0.2, 1] } }
+      };
+    case 'cinematic': {
+      const dir = CINEMATIC_DIRECTIONS[index % CINEMATIC_DIRECTIONS.length];
+      return {
+        hidden: { opacity: 0, x: dir.x, y: dir.y, scale: 0.95 },
+        visible: { opacity: 1, x: 0, y: 0, scale: 1, transition: { duration: 0.75, ease: [0.16, 1, 0.3, 1] } }
+      };
+    }
+    case 'fade':
+    default:
+      return {
+        hidden: { opacity: 0, y: 20 },
+        visible: { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0, 0, 0.2, 1] } }
+      };
+  }
+};
+
+const getThemeSectionVariant = (style: string, scrollEffect?: ScrollEffect, index?: number): any => {
+  if (scrollEffect && scrollEffect !== 'fade') {
+    return getScrollEffectVariant(scrollEffect, index ?? 0);
+  }
   if (style === 'developer-terminal') {
     return {
       hidden: { opacity: 0, x: -20 },
@@ -42,6 +78,71 @@ const getThemeSectionVariant = (style: string): any => {
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0, 0, 0.2, 1] } }
   };
 };
+
+function ParallaxSection({ children, className, id }: { children: React.ReactNode; className?: string; id?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] });
+  const y = useTransform(scrollYProgress, [0, 1], [30, -30]);
+  return (
+    <div ref={ref} className={className} id={id}>
+      <motion.div style={{ y }}>
+        {children}
+      </motion.div>
+    </div>
+  );
+}
+
+function Tilt3DSection({ children, className, id }: { children: React.ReactNode; className?: string; id?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'center center'] });
+  const rawRotateX = useTransform(scrollYProgress, [0, 0.5, 1], [10, 0, -4]);
+  const rawScale = useTransform(scrollYProgress, [0, 0.4, 1], [0.96, 1, 1]);
+  const rawOpacity = useTransform(scrollYProgress, [0, 0.25, 1], [0, 1, 1]);
+  const rotateX = useSpring(rawRotateX, { stiffness: 120, damping: 20 });
+  const scale = useSpring(rawScale, { stiffness: 120, damping: 20 });
+  return (
+    <div ref={ref} className={className} id={id} style={{ perspective: '800px' }}>
+      <motion.div style={{ rotateX, scale, opacity: rawOpacity }}>
+        {children}
+      </motion.div>
+    </div>
+  );
+}
+
+function SectionWrapper({
+  children,
+  id,
+  className,
+  scrollEffect,
+  pStyle,
+  index,
+}: {
+  children: React.ReactNode;
+  id?: string;
+  className?: string;
+  scrollEffect?: ScrollEffect;
+  pStyle: string;
+  index: number;
+}) {
+  if (scrollEffect === 'parallax') {
+    return <ParallaxSection id={id} className={className}>{children}</ParallaxSection>;
+  }
+  if (scrollEffect === 'tilt-3d') {
+    return <Tilt3DSection id={id} className={className}>{children}</Tilt3DSection>;
+  }
+  return (
+    <motion.section
+      id={id}
+      className={className}
+      variants={getThemeSectionVariant(pStyle, scrollEffect, index)}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: '-80px' }}
+    >
+      {children}
+    </motion.section>
+  );
+}
 
 const getThemeItemVariant = (style: string): any => {
   return {
@@ -75,6 +176,7 @@ export interface PublicSectionsProps {
   allSkills: string[];
   portfolioSummary?: string | null;
   sectionOrder?: string[];
+  scrollEffect?: ScrollEffect;
 }
 
 export const PublicSections = ({
@@ -88,6 +190,7 @@ export const PublicSections = ({
   allSkills,
   portfolioSummary,
   sectionOrder,
+  scrollEffect,
 }: PublicSectionsProps) => {
   const [showMoreSkills, setShowMoreSkills] = useState(false);
   const hasMoreSkills = allSkills.length > SKILL_CLOUD_LIMIT;
@@ -126,11 +229,14 @@ export const PublicSections = ({
       ]
     : DEFAULT_ORDER;
 
+  const sectionIndexRef = { current: 0 };
+  const nextIndex = () => sectionIndexRef.current++;
+
   const renderSection = (key: string) => {
     switch (key) {
       case 'about':
         return hasAbout ? (
-          <motion.section key="about" variants={bioFade} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-60px' }} id="section-about">
+          <SectionWrapper key="about" id="section-about" scrollEffect={scrollEffect} pStyle={pStyle} index={nextIndex()}>
             <SectionHeader icon={<Briefcase className="w-5 h-5" />} title="About" style={pStyle} />
             {(() => {
               const cardProps = getGenericCardProps(pStyle);
@@ -144,12 +250,12 @@ export const PublicSections = ({
                 </div>
               );
             })()}
-          </motion.section>
+          </SectionWrapper>
         ) : null;
 
       case 'experience':
         return hasExperience ? (
-          <motion.section key="experience" variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-experience">
+          <SectionWrapper key="experience" id="section-experience" scrollEffect={scrollEffect} pStyle={pStyle} index={nextIndex()}>
             <SectionHeader icon={<Briefcase className="w-5 h-5" />} title="Experience" style={pStyle} />
             <div className="pf-timeline-container relative" ref={(node) => {
               if (!node || node.dataset.observed) return;
@@ -181,74 +287,74 @@ export const PublicSections = ({
                 ))}
               </div>
             </div>
-          </motion.section>
+          </SectionWrapper>
         ) : null;
 
       case 'caseStudies':
         return hasCaseStudies ? (
-          <motion.section key="caseStudies" variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-case-studies">
+          <SectionWrapper key="caseStudies" id="section-case-studies" scrollEffect={scrollEffect} pStyle={pStyle} index={nextIndex()}>
             <SectionHeader icon={<Layers className="w-5 h-5" />} title="Case Studies" style={pStyle} />
             <div className="space-y-5">
               {profile.caseStudies.map((cs) => (
                 <CaseStudyCard key={cs.id} cs={cs} style={pStyle} />
               ))}
             </div>
-          </motion.section>
+          </SectionWrapper>
         ) : null;
 
       case 'projects':
         return hasProjects ? (
-          <motion.section key="projects" id="section-projects" variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }}>
+          <SectionWrapper key="projects" id="section-projects" scrollEffect={scrollEffect} pStyle={pStyle} index={nextIndex()}>
             <SectionHeader icon={<FolderOpen className="w-5 h-5" />} title="Projects" style={pStyle} />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {resume.projects.map((p, i) => (
                 <ProjectCard key={p.id || i} project={p} style={pStyle} />
               ))}
             </div>
-          </motion.section>
+          </SectionWrapper>
         ) : null;
 
       case 'githubProjects':
         return hasGithubProjects ? (
-          <motion.section key="githubProjects" variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-github">
+          <SectionWrapper key="githubProjects" id="section-github" scrollEffect={scrollEffect} pStyle={pStyle} index={nextIndex()}>
             <SectionHeader icon={<Github className="w-5 h-5" />} title="GitHub Projects" style={pStyle} />
             <GitHubProjectsSection projects={profile.githubProjectsCache} accentColor={accentColor} style={pStyle} />
-          </motion.section>
+          </SectionWrapper>
         ) : null;
 
       case 'services':
         return hasServices ? (
-          <motion.section key="services" variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-services">
+          <SectionWrapper key="services" id="section-services" scrollEffect={scrollEffect} pStyle={pStyle} index={nextIndex()}>
             <SectionHeader icon={<Wrench className="w-5 h-5" />} title="Services" style={pStyle} />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {profile.services.map((s) => (
                 <ServiceCard key={s.id} service={s} style={pStyle} />
               ))}
             </div>
-          </motion.section>
+          </SectionWrapper>
         ) : null;
 
       case 'testimonials':
         return hasTestimonials ? (
-          <motion.section key="testimonials" variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-testimonials">
+          <SectionWrapper key="testimonials" id="section-testimonials" scrollEffect={scrollEffect} pStyle={pStyle} index={nextIndex()}>
             <SectionHeader icon={<Sparkles className="w-5 h-5" />} title="Testimonials" style={pStyle} />
             <div className="space-y-4">
               {testimonials.map((t) => (
                 <TestimonialCard key={t.id} testimonial={t} style={pStyle} />
               ))}
             </div>
-          </motion.section>
+          </SectionWrapper>
         ) : null;
 
       case 'skills':
         return hasSkills ? (
-          <motion.section
+          <SectionWrapper
             key="skills"
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-60px' }}
-            className={isTwoCol ? 'md:sticky md:top-8' : ''}
             id="section-skills"
+            scrollEffect={scrollEffect}
+            pStyle={pStyle}
+            index={nextIndex()}
+            className={isTwoCol ? 'md:sticky md:top-8' : undefined}
           >
             <SectionHeader icon={<Award className="w-5 h-5" />} title="Skills" style={pStyle} />
             <SkillCloud
@@ -261,12 +367,12 @@ export const PublicSections = ({
               hasMore={hasMoreSkills}
               moreCount={allSkills.length - SKILL_CLOUD_LIMIT}
             />
-          </motion.section>
+          </SectionWrapper>
         ) : null;
 
       case 'education':
         return hasEducation ? (
-          <motion.section key="education" variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-education">
+          <SectionWrapper key="education" id="section-education" scrollEffect={scrollEffect} pStyle={pStyle} index={nextIndex()}>
             <SectionHeader icon={<GraduationCap className="w-5 h-5" />} title="Education" style={pStyle} />
             <div className="space-y-4" ref={(el) => {
               if (!el || (el as HTMLElement & { __eduObserved?: boolean }).__eduObserved) return;
@@ -289,12 +395,12 @@ export const PublicSections = ({
                 <EducationCard key={edu.id || i} edu={edu} style={pStyle} />
               ))}
             </div>
-          </motion.section>
+          </SectionWrapper>
         ) : null;
 
       case 'certifications':
         return hasCerts ? (
-          <motion.section key="certifications" variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-certifications">
+          <SectionWrapper key="certifications" id="section-certifications" scrollEffect={scrollEffect} pStyle={pStyle} index={nextIndex()}>
             <SectionHeader icon={<Award className="w-5 h-5" />} title="Certifications" style={pStyle} />
             <div className="space-y-3">
               {resume.certifications.map((cert, i) => {
@@ -311,12 +417,12 @@ export const PublicSections = ({
                 );
               })}
             </div>
-          </motion.section>
+          </SectionWrapper>
         ) : null;
 
       case 'awards':
         return hasAwards ? (
-          <motion.section key="awards" variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-awards">
+          <SectionWrapper key="awards" id="section-awards" scrollEffect={scrollEffect} pStyle={pStyle} index={nextIndex()}>
             <SectionHeader icon={<Trophy className="w-5 h-5" />} title="Awards" style={pStyle} />
             <div className="space-y-3">
               {resume.awards.map((award, i) => {
@@ -339,12 +445,12 @@ export const PublicSections = ({
                 );
               })}
             </div>
-          </motion.section>
+          </SectionWrapper>
         ) : null;
 
       case 'publications':
         return hasPublications ? (
-          <motion.section key="publications" variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-publications">
+          <SectionWrapper key="publications" id="section-publications" scrollEffect={scrollEffect} pStyle={pStyle} index={nextIndex()}>
             <SectionHeader icon={<BookOpen className="w-5 h-5" />} title="Publications" style={pStyle} />
             <div className="space-y-3">
               {resume.publications.map((pub, i) => {
@@ -375,12 +481,12 @@ export const PublicSections = ({
                 );
               })}
             </div>
-          </motion.section>
+          </SectionWrapper>
         ) : null;
 
       case 'volunteering':
         return hasVolunteering ? (
-          <motion.section key="volunteering" variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-volunteering">
+          <SectionWrapper key="volunteering" id="section-volunteering" scrollEffect={scrollEffect} pStyle={pStyle} index={nextIndex()}>
             <SectionHeader icon={<Heart className="w-5 h-5" />} title="Volunteering" style={pStyle} />
             <div className="space-y-3">
               {resume.volunteering.map((vol, i) => {
@@ -405,7 +511,7 @@ export const PublicSections = ({
                 );
               })}
             </div>
-          </motion.section>
+          </SectionWrapper>
         ) : null;
 
       default:

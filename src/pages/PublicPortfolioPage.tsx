@@ -246,6 +246,7 @@ function PublicPortfolioContent() {
   const initials = profile.fullName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
   const portfolioSummary = profile.portfolioSummary;
   const sectionOrder = profile.sectionOrder || undefined;
+  const scrollEffect = (profile.scrollEffect as 'fade' | 'parallax' | 'tilt-3d' | 'cinematic') || 'fade';
 
   // Navigation Highlights
   const highlights = profile.highlights || [];
@@ -308,6 +309,7 @@ function PublicPortfolioContent() {
             allSkills={allSkills}
             portfolioSummary={portfolioSummary}
             sectionOrder={sectionOrder}
+            scrollEffect={scrollEffect}
           />
         </Suspense>
 

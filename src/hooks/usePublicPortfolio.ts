@@ -53,6 +53,7 @@ export interface PublicProfile {
   availabilityStatus: 'actively-looking' | 'open-to-offers' | 'not-looking';
   sectionOrder: string[] | null;
   pinnedProject: { title: string; description: string; url: string } | null;
+  scrollEffect: 'fade' | 'parallax' | 'tilt-3d' | 'cinematic' | null;
 }
 
 export interface PublicResume {
@@ -132,6 +133,7 @@ async function fetchPublicPortfolio(username: string): Promise<PublicPortfolioDa
       availabilityStatus: ((extras.availabilityStatus as string) || ((profile.openToWork as boolean) ? 'actively-looking' : 'not-looking')) as 'actively-looking' | 'open-to-offers' | 'not-looking',
       sectionOrder: (extras.sectionOrder as string[]) || null,
       pinnedProject: (extras.pinnedProject as { title: string; description: string; url: string }) || null,
+      scrollEffect: ((extras.scrollEffect as string) || null) as 'fade' | 'parallax' | 'tilt-3d' | 'cinematic' | null,
     },
     resume: {
       id: (resume.id as string) || '',

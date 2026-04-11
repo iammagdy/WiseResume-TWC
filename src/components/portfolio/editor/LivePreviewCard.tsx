@@ -2,6 +2,14 @@ import { useMemo } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getThemeById } from '@/lib/portfolioThemes';
 import { Eye } from 'lucide-react';
+import type { ScrollEffect } from '@/components/portfolio/editor/ScrollEffectPicker';
+
+const SCROLL_EFFECT_LABELS: Record<ScrollEffect, string> = {
+  fade: 'Smooth Fade',
+  parallax: 'Parallax Drift',
+  'tilt-3d': '3D Tilt Cards',
+  cinematic: 'Cinematic Reveal',
+};
 
 interface LivePreviewCardProps {
   avatarUrl?: string | null;
@@ -14,6 +22,7 @@ interface LivePreviewCardProps {
   openToWork?: boolean;
   availabilityStatus?: 'actively-looking' | 'open-to-offers' | 'not-looking';
   views?: number;
+  scrollEffect?: ScrollEffect;
 }
 
 const AVAILABILITY_BADGE: Record<string, { label: string; color: string; bg: string; border: string }> = {
@@ -22,7 +31,7 @@ const AVAILABILITY_BADGE: Record<string, { label: string; color: string; bg: str
   'not-looking': { label: '', color: '', bg: '', border: '' },
 };
 
-export function LivePreviewCard({ avatarUrl, fullName, jobTitle, portfolioStyle, accentColor, portfolioFont, bio, openToWork, availabilityStatus, views }: LivePreviewCardProps) {
+export function LivePreviewCard({ avatarUrl, fullName, jobTitle, portfolioStyle, accentColor, portfolioFont, bio, openToWork, availabilityStatus, views, scrollEffect }: LivePreviewCardProps) {
   const initials = fullName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
 
   const vars = useMemo(() => {
@@ -101,6 +110,18 @@ export function LivePreviewCard({ avatarUrl, fullName, jobTitle, portfolioStyle,
             </span>
           )}
         </div>
+        {scrollEffect && scrollEffect !== 'fade' && (
+          <span
+            className="text-[9px] px-2 py-0.5 rounded-full font-medium mt-0.5"
+            style={{
+              background: `color-mix(in srgb, ${accentColor} 12%, transparent)`,
+              color: accentColor,
+              border: `1px solid color-mix(in srgb, ${accentColor} 30%, transparent)`,
+            }}
+          >
+            ✦ {SCROLL_EFFECT_LABELS[scrollEffect]}
+          </span>
+        )}
       </div>
     </div>
   );
