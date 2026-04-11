@@ -1,3 +1,15 @@
+/**
+ * @deprecated This edge function is superseded by `send-contact-email`.
+ *
+ * `send-bug-report` was the original dedicated bug-report endpoint, writing to the
+ * `bug_reports` table and sending a formatted email via Resend. It is no longer
+ * called by any client code — `ErrorBoundary.tsx` was updated (Task #78) to call
+ * `send-contact-email` with `type: 'auto-crash-report'` instead.
+ *
+ * This file is kept for reference and for any in-flight deployments that may still
+ * point to it, but it will not receive further updates. Remove it once all
+ * Supabase edge function deployments have been updated to use `send-contact-email`.
+ */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit } from "../_shared/rateLimiter.ts";

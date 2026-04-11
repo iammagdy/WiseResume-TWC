@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { RefreshCw, Activity, CheckCircle, AlertCircle, Clock, PlayCircle, Loader2, XCircle, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Activity, CheckCircle, AlertCircle, Clock, PlayCircle, Loader2, XCircle, AlertTriangle, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
@@ -169,6 +169,14 @@ interface RecentError {
   timestamp: string;
 }
 
+interface ContactRequest {
+  id: string;
+  type: string;
+  email: string;
+  created_at: string;
+  metadata: Record<string, unknown> | null;
+}
+
 function StatusDot({ status }: { status: HealthStatus }) {
   if (status === 'checking') return <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />;
   if (status === 'ok') return <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" title="OK" />;
@@ -218,6 +226,9 @@ export function LiveActivityPanel({ password, adminPassword }: LiveActivityPanel
   const [errorLogsMissing, setErrorLogsMissing] = useState(false);
   const [recentErrors, setRecentErrors] = useState<RecentError[]>([]);
 
+  const [contactRequests, setContactRequests] = useState<ContactRequest[]>([]);
+  const [contactRequestsLoading, setContactRequestsLoading] = useState(false);
+
   const [fnHealth, setFnHealth] = useState<FnHealth[]>(
     ALL_FN_DEFS.map(f => ({
       name: f.name, label: f.label, status: 'unknown' as HealthStatus, lastChecked: null,
@@ -260,6 +271,22 @@ export function LiveActivityPanel({ password, adminPassword }: LiveActivityPanel
     }
     setErrorLogsMissing(false);
     setErrorLogs(data ?? []);
+  }, []);
+
+  const fetchContactRequests = useCallback(async () => {
+    setContactRequestsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('contact_requests')
+        .select('id, type, email, created_at, metadata')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      if (!error) {
+        setContactRequests((data ?? []) as ContactRequest[]);
+      }
+    } finally {
+      setContactRequestsLoading(false);
+    }
   }, []);
 
   const runHealthChecksForDefs = useCallback(async (defs: EdgeFunctionDef[]) => {
@@ -329,14 +356,16 @@ export function LiveActivityPanel({ password, adminPassword }: LiveActivityPanel
 
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
   useEffect(() => { fetchErrorLogs(); }, [fetchErrorLogs]);
+  useEffect(() => { fetchContactRequests(); }, [fetchContactRequests]);
 
   useEffect(() => {
     const interval = setInterval(() => {
       fetchEvents();
       fetchErrorLogs();
+      fetchContactRequests();
     }, 30_000);
     return () => clearInterval(interval);
-  }, [fetchEvents, fetchErrorLogs]);
+  }, [fetchEvents, fetchErrorLogs, fetchContactRequests]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -590,6 +619,84 @@ export function LiveActivityPanel({ password, adminPassword }: LiveActivityPanel
                     </td>
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Recent Contact Requests */}
+      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Mail className="w-4 h-4 text-primary" />
+            Recent Contact Requests
+            <span className="text-xs font-normal text-muted-foreground">(last 5)</span>
+          </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={fetchContactRequests}
+            disabled={contactRequestsLoading}
+            className="h-7 px-2"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${contactRequestsLoading ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
+
+        {contactRequests.length === 0 && !contactRequestsLoading && (
+          <div className="py-8 text-center text-muted-foreground">
+            <Mail className="w-6 h-6 mx-auto mb-2 opacity-40" />
+            <p className="text-sm">No contact requests yet.</p>
+          </div>
+        )}
+
+        {contactRequests.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-muted/40 border-b border-border">
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs">Type</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs hidden sm:table-cell">Email</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs">Sent</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground text-xs">Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {contactRequests.map((req) => {
+                  const emailSent = req.metadata?.email_sent === true;
+                  const emailPending = req.metadata?.email_sent === undefined || req.metadata?.email_sent === null;
+                  return (
+                    <tr key={req.id} className="border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
+                      <td className="px-4 py-2.5">
+                        <span className="text-xs font-mono bg-muted/50 px-2 py-0.5 rounded border border-border text-foreground">
+                          {req.type}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground font-mono hidden sm:table-cell max-w-[160px] truncate">
+                        {req.email}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {emailPending ? (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full border bg-muted/50 text-muted-foreground border-border">
+                            pending
+                          </span>
+                        ) : emailSent ? (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full border bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
+                            sent
+                          </span>
+                        ) : (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full border bg-amber-500/10 text-amber-600 border-amber-500/20">
+                            not sent
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
+                        {formatRelative(req.created_at)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

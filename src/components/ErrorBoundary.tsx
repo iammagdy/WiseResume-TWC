@@ -172,39 +172,53 @@ export class ErrorBoundary extends Component<Props, State> {
   private handleSendReport = async () => {
     this.setState({ reportStatus: 'sending' });
     try {
-      let userId = getUserId() || 'anonymous';
-      let userEmail: string | null = null;
+      const userId = getUserId() || 'anonymous';
+      const errorMsg = this.state.error?.message || 'Unknown error';
+      const userNote = this.state.reportContext?.trim();
 
       const payload = {
-        error_message: this.state.error?.message || 'Unknown error',
-        error_stack: this.state.error?.stack?.slice(0, 4000),
-        component_stack: this.state.errorInfo?.componentStack?.slice(0, 4000) || null,
-        route: window.location.pathname,
-        user_agent: navigator.userAgent,
-        additional_context: this.state.reportContext || null,
-        user_id: userId,
-        user_email: userEmail,
-        app_version: 'unknown',
+        type: 'auto-crash-report',
+        email: 'crash@wiseresume.app',
+        subject: `Auto Crash: ${errorMsg.slice(0, 80)}`,
+        message: errorMsg + (userNote ? `\n\nUser note: ${userNote}` : ''),
+        metadata: {
+          error_stack: this.state.error?.stack?.slice(0, 4000) ?? null,
+          component_stack: this.state.errorInfo?.componentStack?.slice(0, 4000) ?? null,
+          route: window.location.pathname,
+          user_agent: navigator.userAgent,
+          user_id: userId,
+          app_version: 'unknown',
+        },
       };
 
-      const { error } = await supabase.functions.invoke('send-bug-report', { body: payload });
+      const { data: res, error } = await supabase.functions.invoke('send-contact-email', { body: payload });
       if (error) throw error;
+
+      // Treat saved-but-not-emailed as success — the request is in the database
+      if (res?.saved === true || res?.success === true) {
+        this.setState({ reportStatus: 'sent' });
+        return;
+      }
+      if (res?.error) throw new Error(res.error);
 
       this.setState({ reportStatus: 'sent' });
     } catch (err) {
-      console.error('Failed to send bug report:', err);
-      // Fallback: insert directly into bug_reports table
+      console.error('Failed to send crash report:', err);
+      // Fallback: insert directly into contact_requests table
       try {
-        await supabase.from('bug_reports').insert({
-          error_message: this.state.error?.message || 'Unknown error',
-          error_stack: this.state.error?.stack?.slice(0, 4000),
-          component_stack: this.state.errorInfo?.componentStack?.slice(0, 4000) || null,
-          route: window.location.pathname,
-          user_agent: navigator.userAgent,
-          additional_context: this.state.reportContext || null,
-          user_id: getUserId() || 'anonymous',
-          user_email: 'anonymous@user',
-          app_version: 'unknown',
+        await supabase.from('contact_requests').insert({
+          type: 'auto-crash-report',
+          email: 'crash@wiseresume.app',
+          subject: `Auto Crash: ${this.state.error?.message?.slice(0, 80) ?? 'Unknown'}`,
+          message: this.state.error?.message || 'Unknown error',
+          metadata: {
+            error_stack: this.state.error?.stack?.slice(0, 4000) ?? null,
+            component_stack: this.state.errorInfo?.componentStack?.slice(0, 4000) ?? null,
+            route: window.location.pathname,
+            user_agent: navigator.userAgent,
+            user_id: getUserId() ?? null,
+          },
+          ip_address: 'client-side-fallback',
         });
         this.setState({ reportStatus: 'sent' });
       } catch {

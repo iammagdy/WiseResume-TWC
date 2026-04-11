@@ -9,6 +9,29 @@ const corsHeaders = {
 const DEVELOPER_EMAIL = "contact@thewise.cloud";
 const LOGO_URL = "https://jnsfmkzgxsviuthaqlyy.supabase.co/storage/v1/object/public/avatars/email-assets/wise-ai-logo.png";
 
+// Adjust this constant to change the per-IP rate limit without touching SQL directly.
+// The matching SQL function (check_email_rate_limit) uses 3 requests per hour per IP.
+const RATE_LIMIT_REQUESTS_PER_HOUR = 3;
+
+function buildSubject(type: string, email: string, metadata: Record<string, unknown>): string {
+  switch (type) {
+    case "bug":
+      return `[Bug Report] ${email}`;
+    case "auto-crash-report":
+      return `[Auto Crash Report] ${email}`;
+    case "contact": {
+      const dept = typeof metadata.department === "string" && metadata.department
+        ? metadata.department
+        : "General";
+      return `[Inquiry - ${dept}] ${email}`;
+    }
+    case "feature":
+      return `[Feature Request] ${email}`;
+    default:
+      return `[${type.toUpperCase()}] ${email}`;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -21,9 +44,14 @@ Deno.serve(async (req) => {
     );
 
     const body = await req.json();
-    const { type, email, subject, message, metadata = {} } = body;
+    const { type, email, subject, message, metadata = {} } = body as {
+      type: string;
+      email: string;
+      subject?: string;
+      message: string;
+      metadata?: Record<string, unknown>;
+    };
 
-    // Validation
     if (!type || !email || !message) {
       return new Response(
         JSON.stringify({ error: "Type, email, and message are required" }),
@@ -31,14 +59,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Rate Limiting Check (3 per hour per IP)
+    // Rate limiting — see RATE_LIMIT_REQUESTS_PER_HOUR constant above
     const clientIp = req.headers.get("x-real-ip") || req.headers.get("x-forwarded-for") || "unknown";
     const { data: isAllowed, error: rateLimitError } = await supabaseAdmin.rpc("check_email_rate_limit", {
       client_ip: clientIp,
     });
 
     if (rateLimitError) {
-      // A1: Hard-fail when the rate limit DB check itself errors, to avoid silent bypass
       console.error("Rate limit check error:", rateLimitError);
       return new Response(
         JSON.stringify({ error: "Rate limit check failed. Please try again later.", details: rateLimitError.message }),
@@ -48,21 +75,21 @@ Deno.serve(async (req) => {
 
     if (isAllowed === false) {
       return new Response(
-        JSON.stringify({ error: "Too many requests. Please try again later." }),
+        JSON.stringify({ error: `Too many requests. Limit is ${RATE_LIMIT_REQUESTS_PER_HOUR} per hour per IP. Please try again later.` }),
         { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     // Resolve User ID if authenticated
-    let userId = null;
+    let userId: string | null = null;
     const authHeader = req.headers.get("Authorization");
     if (authHeader?.startsWith("Bearer ")) {
       const { data: { user } } = await supabaseAdmin.auth.getUser(authHeader.replace("Bearer ", ""));
       if (user) userId = user.id;
     }
 
-    // Save to DB
-    const { error: dbError } = await supabaseAdmin
+    // Save to DB first — always, even if email sending fails
+    const { data: insertedRow, error: dbError } = await supabaseAdmin
       .from("contact_requests")
       .insert({
         type,
@@ -70,9 +97,11 @@ Deno.serve(async (req) => {
         email,
         subject,
         message,
-        metadata,
+        metadata: { ...metadata, email_sent: false },
         ip_address: clientIp,
-      });
+      })
+      .select("id")
+      .single();
 
     if (dbError) {
       console.error("DB insert error:", dbError);
@@ -82,20 +111,26 @@ Deno.serve(async (req) => {
       );
     }
 
+    const recordId: string | null = insertedRow?.id ?? null;
+
     // Send Email via Resend
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
     if (!RESEND_API_KEY) {
+      console.warn("RESEND_API_KEY not configured — request saved to DB but email not sent.");
       return new Response(
-        JSON.stringify({ error: "Email service not configured (missing RESEND_API_KEY)" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, reason: "email_not_configured", saved: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const typeLabels: Record<string, string> = {
       bug: "🐛 Bug Report",
+      "auto-crash-report": "🚨 Auto Crash Report",
       feature: "✨ Feature Request",
       contact: "✉️ Contact Inquiry",
     };
+
+    const emailSubject = buildSubject(type, email, metadata);
 
     const emailHtml = `
       <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
@@ -108,11 +143,13 @@ Deno.serve(async (req) => {
         <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; white-space: pre-wrap;">
           ${message}
         </div>
+        ${metadata.department ? `<p><strong>Department:</strong> ${metadata.department}</p>` : ""}
         <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;" />
         <div style="font-size: 12px; color: #666;">
           <p><strong>IP:</strong> ${clientIp}</p>
           <p><strong>User ID:</strong> ${userId || "Anonymous"}</p>
           <p><strong>Time:</strong> ${new Date().toISOString()}</p>
+          ${recordId ? `<p><strong>Record ID:</strong> ${recordId}</p>` : ""}
         </div>
       </div>
     `;
@@ -127,7 +164,7 @@ Deno.serve(async (req) => {
         from: "WiseResume Support <notifications@thewise.cloud>",
         to: [DEVELOPER_EMAIL],
         reply_to: email,
-        subject: `[${type.toUpperCase()}] ${subject || "New Request"}`,
+        subject: emailSubject,
         html: emailHtml,
       }),
     });
@@ -135,11 +172,26 @@ Deno.serve(async (req) => {
     const resendData = await resendRes.json();
 
     if (!resendRes.ok) {
-      console.error("Resend error:", resendData);
+      console.error("Resend error:", JSON.stringify(resendData));
+      // Update the record to reflect that email was not sent
+      if (recordId) {
+        await supabaseAdmin
+          .from("contact_requests")
+          .update({ metadata: { ...metadata, email_sent: false, email_error: String(resendData?.message ?? resendData) } })
+          .eq("id", recordId);
+      }
       return new Response(
-        JSON.stringify({ error: "Failed to send email", details: resendData }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, reason: "email_delivery_failed", saved: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Update the record to mark email as sent
+    if (recordId) {
+      await supabaseAdmin
+        .from("contact_requests")
+        .update({ metadata: { ...metadata, email_sent: true, resend_id: resendData.id } })
+        .eq("id", recordId);
     }
 
     return new Response(

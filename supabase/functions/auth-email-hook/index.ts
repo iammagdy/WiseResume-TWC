@@ -1,3 +1,32 @@
+/**
+ * auth-email-hook — Supabase Auth Hook for transactional emails
+ *
+ * REQUIRED CONFIGURATION (all must be in place for auth emails to work):
+ *
+ * 1. Supabase Auth settings:
+ *    - Navigate to: Supabase Dashboard → Authentication → Hooks
+ *    - Register this function as the hook for "Send Email" events.
+ *    - Without this, Supabase will still use its default (unbranded) email templates.
+ *
+ * 2. Resend sending domain:
+ *    - `thewise.cloud` must be a verified sender domain in your Resend dashboard.
+ *    - Auth emails are sent from:  noreply@thewise.cloud
+ *    - Contact/support emails are sent from: notifications@thewise.cloud
+ *    - Both sub-paths share the same domain verification.
+ *
+ * 3. Supabase secret:
+ *    - `RESEND_API_KEY` must be set as a Supabase secret (not a regular env var).
+ *    - Set via: supabase secrets set RESEND_API_KEY=re_xxxx
+ *    - This same key is used by `send-contact-email` for outbound contact emails.
+ *
+ * Supported email types (mapped to React Email templates in _shared/email-templates/):
+ *   signup, invite, magiclink, recovery, email_change, reauthentication
+ *
+ * Preview endpoint:
+ *   POST /auth-email-hook/preview  { type: "signup" }
+ *   Authorization: Bearer <RESEND_API_KEY>
+ *   Returns rendered HTML without sending an email.
+ */
 import * as React from 'npm:react@18.3.1'
 import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { SignupEmail } from '../_shared/email-templates/signup.tsx'
