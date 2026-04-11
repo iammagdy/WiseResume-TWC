@@ -120,9 +120,18 @@ Deno.serve(async (req) => {
           usage_date: today,
         });
 
-      if (creditsInsertError && creditsInsertError.code !== '23505') {
-        // 23505 = unique_violation (another process inserted concurrently) — safe to ignore
-        console.warn('[admin-set-plan] ai_credits insert error (non-fatal):', creditsInsertError);
+      if (creditsInsertError) {
+        if (creditsInsertError.code === '23505') {
+          // unique_violation — another process inserted concurrently, safe to ignore
+          console.warn('[admin-set-plan] ai_credits concurrent insert race (ignored)');
+        } else {
+          // Unexpected error — treat as fatal so success is never misreported
+          console.error('[admin-set-plan] ai_credits insert error:', creditsInsertError);
+          return new Response(
+            JSON.stringify({ success: false, error: creditsInsertError.message }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
     }
 
