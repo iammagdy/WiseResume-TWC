@@ -93,8 +93,14 @@ export function UserDetailDrawer({ user: userProp, password, open, onClose, onUs
   const { user: authUser } = useAuth();
 
   const [user, setUser] = useState<AdminUser>(userProp);
-  // Sync local user state whenever the parent provides fresh server data
-  useEffect(() => { setUser(userProp); }, [userProp]);
+  // Sync local user state and form fields whenever the parent provides fresh server data
+  useEffect(() => {
+    setUser(userProp);
+    setSelectedPlan(userProp.plan_name);
+    setSuspendReason(userProp.suspension_reason || '');
+    setNewDailyLimit(userProp.daily_limit !== null ? String(userProp.daily_limit) : '');
+    setProfileFullName(userProp.full_name || '');
+  }, [userProp]);
 
   const [planTab, setPlanTab] = useState<PlanTab>('permanent');
   const [selectedPlan, setSelectedPlan] = useState<'free' | 'pro' | 'premium'>(user.plan_name);

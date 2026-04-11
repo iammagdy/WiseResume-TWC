@@ -121,7 +121,7 @@ export function AdminUsersPanel({ password, onCountChange }: AdminUsersPanelProp
         // Sync the open drawer with the fresh server data so it never shows stale state
         setSelectedUser((prev) => {
           if (!prev) return null;
-          return list.find((u) => u.user_id === prev.user_id) ?? prev;
+          return list.find((u) => u.user_id === prev.user_id) ?? null;
         });
       }
       setTotal(tot);
