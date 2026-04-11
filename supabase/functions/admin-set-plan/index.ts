@@ -6,6 +6,17 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 
+/** Per-plan daily AI credit limits.
+ *  Free  → 5/day   (matches SetPlanModal description & useAICredits default)
+ *  Pro   → 100/day (matches SetPlanModal description)
+ *  Premium → -1    (unlimited sentinel, matches UNLIMITED_SENTINEL in creditUtils)
+ */
+const PLAN_DAILY_LIMITS: Record<string, number> = {
+  free: 5,
+  pro: 100,
+  premium: -1,
+};
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -54,10 +65,11 @@ Deno.serve(async (req) => {
 
     const supabase = getServiceClient();
     const now = new Date().toISOString();
+    const newDailyLimit = PLAN_DAILY_LIMITS[cleanPlan];
 
-    // Upsert on subscriptions — works for both new users (no existing row) and existing users.
-    // Only updates plan_name, plan_updated_at, and status; leaves trial fields untouched on conflict.
-    const { error: upsertError } = await supabase
+    // 1. Upsert subscriptions — works for new users (no row) and existing users.
+    //    Only touches plan_name, plan_updated_at, status; leaves trial fields untouched.
+    const { error: subsError } = await supabase
       .from('subscriptions')
       .upsert(
         {
@@ -69,32 +81,74 @@ Deno.serve(async (req) => {
         { onConflict: 'user_id' }
       );
 
-    if (upsertError) {
-      console.error('[admin-set-plan] upsert error:', upsertError);
+    if (subsError) {
+      console.error('[admin-set-plan] subscriptions upsert error:', subsError);
       return new Response(
-        JSON.stringify({ success: false, error: upsertError.message }),
+        JSON.stringify({ success: false, error: subsError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Write audit log entry so history still works in the drawer
+    // 2. Update ai_credits.daily_limit so the credit gate enforces the new plan's entitlement.
+    //    Strategy: always UPDATE first (existing rows — preserves usage counters).
+    //    If the user has no ai_credits row yet, insert a fresh row with correct defaults.
+    const today = new Date().toISOString().split('T')[0];
+
+    const { data: updatedCredits, error: creditsUpdateError } = await supabase
+      .from('ai_credits')
+      .update({ daily_limit: newDailyLimit })
+      .eq('user_id', target_user_id)
+      .select('user_id');
+
+    if (creditsUpdateError) {
+      console.error('[admin-set-plan] ai_credits update error:', creditsUpdateError);
+      return new Response(
+        JSON.stringify({ success: false, error: creditsUpdateError.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // If no row was updated (new user without an ai_credits row), insert one
+    if (!updatedCredits || updatedCredits.length === 0) {
+      const { error: creditsInsertError } = await supabase
+        .from('ai_credits')
+        .insert({
+          user_id: target_user_id,
+          daily_limit: newDailyLimit,
+          daily_usage: 0,
+          total_usage: 0,
+          usage_date: today,
+        });
+
+      if (creditsInsertError && creditsInsertError.code !== '23505') {
+        // 23505 = unique_violation (another process inserted concurrently) — safe to ignore
+        console.warn('[admin-set-plan] ai_credits insert error (non-fatal):', creditsInsertError);
+      }
+    }
+
+    // 3. Write audit log so plan_change history appears in the DevKit drawer
     const { error: auditError } = await supabase
       .from('audit_logs')
       .insert({
         user_id: target_user_id,
         action: 'plan_change',
         category: 'plan',
-        metadata: { new_plan: cleanPlan, updated_by: 'dev-kit', updated_at: now },
+        metadata: {
+          new_plan: cleanPlan,
+          new_daily_limit: newDailyLimit,
+          updated_by: 'dev-kit',
+          updated_at: now,
+        },
         created_at: now,
       });
 
     if (auditError) {
-      // Non-fatal — log but don't fail the request
+      // Non-fatal — audit is best-effort
       console.warn('[admin-set-plan] audit log error (non-fatal):', auditError);
     }
 
     return new Response(
-      JSON.stringify({ success: true, plan: cleanPlan, updated_at: now }),
+      JSON.stringify({ success: true, plan: cleanPlan, daily_limit: newDailyLimit, updated_at: now }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err) {
