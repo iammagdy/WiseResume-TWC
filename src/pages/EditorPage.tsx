@@ -63,12 +63,20 @@ import { EditorHeader } from '@/components/editor/EditorHeader';
 import { EditorSectionContent, SectionNavButtons } from '@/components/editor/EditorSectionContent';
 import { AddSectionSheet } from '@/components/editor/AddSectionSheet';
 import { EditorSkeleton } from '@/components/layout/PageSkeletons';
+import { useTierGate } from '@/hooks/useTierGate';
+import { UpgradeDialog } from '@/components/plan/UpgradeDialog';
 export default function EditorPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const storeHydrated = useResumeStoreHydration();
   const { hasSeenAIIntro, setHasSeenAIIntro } = useSettingsStore();
+  const isBYOK = useSettingsStore((s) =>
+    (s.aiProvider === 'gemini' && s.geminiKeyValidated) ||
+    (s.aiProvider === 'ollama' && s.ollamaKeyValidated) ||
+    (s.aiProvider === 'openrouter' && s.openrouterKeyValidated)
+  );
+  const { gate, triggerGate, dialogOpen: tierGateOpen, dialogState: tierGateState, closeDialog: closeTierGate, isPro, isLoading: planLoading } = useTierGate();
   const [templateBtnSeen, setTemplateBtnSeen] = useState(() => localStorage.getItem('template_btn_seen') === 'true');
 
   // Use shallow selector to prevent unnecessary re-renders when unrelated store parts change
@@ -204,11 +212,12 @@ export default function EditorPage() {
   const [mobileEditorTab, setMobileEditorTab] = useState<'editor' | 'preview' | 'ats'>('editor');
   const [desktopPreviewMode, setDesktopPreviewMode] = useState<'visual' | 'ats'>('visual');
   const isMobile = useIsMobile();
-  // Auto-open Tailor sheet if navigated with ?openTailor=1 or ?tailor=true
+  // Auto-open Tailor sheet if navigated with ?openTailor=1 or ?tailor=true.
+  // Track intent with a ref so the plan gate can be applied once planLoading settles.
+  const autoOpenTailorRef = useRef(false);
   useEffect(() => {
     if (searchParams.get('openTailor') === '1' || searchParams.get('tailor') === 'true') {
-      setShowTailor(true);
-      // Clean up all tailor-related params
+      autoOpenTailorRef.current = true;
       searchParams.delete('openTailor');
       searchParams.delete('tailor');
       searchParams.delete('jobTitle');
@@ -217,6 +226,22 @@ export default function EditorPage() {
       setSearchParams(searchParams, { replace: true });
     }
   }, [searchParams, setSearchParams]);
+
+  // Once plan is resolved, action the queued auto-open with a plan gate check.
+  useEffect(() => {
+    if (!planLoading && autoOpenTailorRef.current) {
+      autoOpenTailorRef.current = false;
+      if (isPro || isBYOK) {
+        setShowTailor(true);
+      } else {
+        triggerGate({
+          requiredPlan: 'pro',
+          featureName: 'Smart Tailoring',
+          description: 'Paste a job description and AI rewrites your resume to match it perfectly.',
+        });
+      }
+    }
+  }, [planLoading, isPro, isBYOK, triggerGate]);
 
   // Handle guided intake params: ?experienceLevel= reorders sections; ?intakeJobTitle= queues summary stub
   useEffect(() => {
@@ -476,20 +501,28 @@ export default function EditorPage() {
   // Hook 3: section scores, completion status, celebration toasts, and confetti
   const { sectionScores, overallScore, localHealthScore, sectionStatus, justCompletedStep } = useEditorSectionScores(currentResume);
 
-  const handleImproveSection = useCallback(() => {
-    setShowTailor(true);
-  }, []);
-
-
+  const handleImproveSection = useCallback(
+    gate('pro', () => setShowTailor(true), {
+      featureName: 'Smart Tailoring',
+      description: 'Paste a job description and AI rewrites your resume to match it perfectly.',
+      bypassCondition: isBYOK,
+    }),
+    [gate, isBYOK]
+  );
 
   const handleBack = useCallback(() => {
     unsavedGuard.interceptNavigate(getBackRoute('/editor'));
   }, [unsavedGuard]);
 
   const handleChangeTemplate = useCallback(() => setShowTemplates(true), []);
-  const handleTailor = useCallback(() => {
-    setShowTailor(true);
-  }, []);
+  const handleTailor = useCallback(
+    gate('pro', () => setShowTailor(true), {
+      featureName: 'Smart Tailoring',
+      description: 'Paste a job description and AI rewrites your resume to match it perfectly.',
+      bypassCondition: isBYOK,
+    }),
+    [gate, isBYOK]
+  );
   const handleAnalyze = useCallback(() => setShowJobSheet(true), []);
   const handleRecruiterSim = useCallback(() => setShowRecruiterSim(true), []);
   const handleAIDetector = useCallback(() => setShowAIDetector(true), []);
@@ -940,6 +973,16 @@ export default function EditorPage() {
             />
           )}
           {showATSScan && <ATSScanSheet open={showATSScan} onOpenChange={setShowATSScan} summary={scanSummary} onJumpToSection={handleTabChange} />}
+          {/* Tier gate upgrade dialog — shown when a Pro-gated tool is clicked without Pro plan */}
+          {tierGateState && (
+            <UpgradeDialog
+              open={tierGateOpen}
+              onClose={closeTierGate}
+              requiredPlan={tierGateState.requiredPlan}
+              featureName={tierGateState.featureName}
+              description={tierGateState.description}
+            />
+          )}
           {/* Mobile tools sheet with sub-view navigation */}
           <Sheet open={showToolsSheet} onOpenChange={(open) => { setShowToolsSheet(open); if (!open) setToolsSubView('list'); }}>
             <SheetContent side="bottom" className="rounded-t-2xl max-h-[75vh] flex flex-col px-0 pb-safe">

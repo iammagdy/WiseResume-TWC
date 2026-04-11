@@ -252,13 +252,13 @@ function InterviewPageContent() {
 
   const backTriggeredRef = useRef(false);
 
-  // Show loading while auth or store hydrates (D-2)
-  if (loading || !supabaseSettled || !hydrated) {
+  // Show loading while auth, store, or plan data hydrates
+  if (loading || !supabaseSettled || !hydrated || planLoading) {
     return <InterviewSkeleton />;
   }
 
   // Feature gate: Interview Coaching is Pro+
-  if (!planLoading && !isPro) {
+  if (!isPro) {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 pt-safe">

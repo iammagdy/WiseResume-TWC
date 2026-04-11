@@ -228,7 +228,8 @@ export default function ApplicationsPage() {
   const hasActiveFilters = filters.query || filters.jobTypes.length > 0 || filters.location;
 
   // Feature gate: Application Tracker is Pro+
-  if (!planLoading && !isPro) {
+  if (planLoading) return null;
+  if (!isPro) {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 pt-safe">

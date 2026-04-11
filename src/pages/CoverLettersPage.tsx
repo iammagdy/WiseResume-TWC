@@ -95,7 +95,8 @@ export default function CoverLettersPage() {
   const actionLetter = letters?.find((l) => l.id === actionSheetId);
 
   // Feature gate: Cover Letters is Pro+
-  if (!planLoading && !isPro) {
+  if (planLoading) return null;
+  if (!isPro) {
     return (
       <div className="min-h-full flex flex-col">
         <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 flex items-center gap-3">

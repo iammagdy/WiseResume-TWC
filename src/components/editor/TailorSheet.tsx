@@ -36,9 +36,6 @@ import haptics from '@/lib/haptics';
 import { AITrustBadge } from '@/components/ui/AITrustBadge';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { useResumeMutations, resumeDataToDb, useResumes, dbToResumeData, DatabaseResume } from '@/hooks/useResumes';
-import { usePlan } from '@/hooks/usePlan';
-import { useSettingsStore } from '@/store/settingsStore';
-import { UpgradeWall } from '@/components/plan/UpgradeWall';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { 
@@ -116,12 +113,6 @@ function clearCache(resumeId: string | null) {
 }
 
 export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApplied }: TailorSheetProps) {
-  const { isPro } = usePlan();
-  const isBYOK = useSettingsStore((s) =>
-    (s.aiProvider === 'gemini' && s.geminiKeyValidated) ||
-    (s.aiProvider === 'ollama' && s.ollamaKeyValidated) ||
-    (s.aiProvider === 'openrouter' && s.openrouterKeyValidated)
-  );
   const { user } = useAuth();
   const { 
     currentResume, 
@@ -598,25 +589,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[92vh] rounded-t-3xl flex flex-col">
-        {/* Feature gate: Smart Tailoring is Pro+. BYOK users bypass this gate. */}
-        {!isPro && !isBYOK ? (
-          <>
-            <SheetHeader className="pb-2 shrink-0">
-              <SheetTitle className="flex items-center gap-2">
-                <Wand2 className="w-5 h-5 text-primary" />
-                AI Resume Tailor
-              </SheetTitle>
-            </SheetHeader>
-            <div className="flex-1 flex items-center justify-center overflow-y-auto">
-              <UpgradeWall
-                requiredPlan="pro"
-                featureName="Smart Tailoring"
-                description="Paste a job description and AI rewrites your resume to match it perfectly in 30 seconds."
-              />
-            </div>
-          </>
-        ) : (<>
-        <SheetHeader className="pb-4 shrink-0">
+          <SheetHeader className="pb-4 shrink-0">
           <div className="flex items-center justify-between">
             <SheetTitle className="flex items-center gap-2">
               <Wand2 className="w-5 h-5 text-primary" />
@@ -1300,8 +1273,6 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
               </p>
             ) : null}
           </div>
-        )}
-        </>
         )}
       </SheetContent>
 
