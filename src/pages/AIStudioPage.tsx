@@ -137,8 +137,7 @@ const toolCategories: {title: string;description: string;tools: ToolEntry[];}[] 
   title: 'Documents',
   description: 'Generate professional letters',
   tools: [
-  { id: 'cover-letters', icon: FileSignature, label: 'Cover Letters', desc: 'AI-generated letters', color: 'text-sky-500', cost: 'cover-letter', navigate: '/cover-letters' },
-  { id: 'resignation-letters', icon: FileOutput, label: 'Resignation', desc: 'Leave professionally', color: 'text-pink-500', cost: 'cover-letter', navigate: '/resignation-letters' }]
+  { id: 'cover-letters', icon: FileSignature, label: 'Cover Letters', desc: 'AI-generated letters', color: 'text-sky-500', cost: 'cover-letter', navigate: '/cover-letters' }]
 
 },
 {
@@ -491,6 +490,22 @@ export default function AIStudioPage() {
           </div>
         </div>
       )}
+
+      {/* More tools — less-frequent actions, de-emphasised */}
+      <div className="px-4 pb-4">
+        <div className="mb-2 px-1">
+          <h2 className="text-base sm:text-sm font-semibold text-muted-foreground">More tools</h2>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => handleToolAction({ id: 'resignation-letters', icon: FileOutput, label: 'Resignation Letter', desc: 'Leave professionally', color: 'text-pink-500', cost: 'cover-letter', navigate: '/resignation-letters' })}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border hover:border-primary/20 active:scale-95 transition-all touch-manipulation"
+          >
+            <FileOutput className="w-4 h-4 text-pink-500" />
+            <span className="text-sm font-medium">Resignation Letter</span>
+          </button>
+        </div>
+      </div>
 
       {/* Pro Tip - dismissible & rotating */}
       {!tipDismissed &&

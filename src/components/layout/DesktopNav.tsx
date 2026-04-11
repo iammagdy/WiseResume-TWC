@@ -1,13 +1,18 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Globe, Home, BarChart3, Sparkles, MessageCircle, Settings, Sun, Moon, Search } from 'lucide-react';
+import { FileText, Globe, Home, BarChart3, Sparkles, MessageCircle, Sun, Moon, Search, Settings, LogOut, CreditCard } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useChangelogBadge } from '@/hooks/useChangelogBadge';
 import { useTheme } from '@/hooks/use-theme';
+import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 import { toast } from 'sonner';
 import { lazy, Suspense, useState, useRef, useEffect } from 'react';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
 
 const AgenticChatSheet = lazy(() => import('@/components/editor/AgenticChatSheet').then((m) => ({ default: m.AgenticChatSheet })));
 
@@ -62,15 +67,18 @@ export function DesktopNav() {
   const { data: resumes } = useResumes({ select: (data) => data.slice(0, 1) });
   const { hasNew, markSeen } = useChangelogBadge();
   const { isDark, toggleTheme } = useTheme();
+  const { user, signOut } = useAuth();
+  const { profile } = useProfile(user?.id, user);
   const [wiseAIOpen, setWiseAIOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const previousPathRef = useRef('/dashboard');
-  const isOnSettings = location.pathname.startsWith('/settings');
 
   useEffect(() => {
+    const isOnSettings = location.pathname.startsWith('/settings');
     if (!isOnSettings) {
       previousPathRef.current = location.pathname;
     }
-  }, [location.pathname, isOnSettings]);
+  }, [location.pathname]);
 
   const isActive = (tab: TabItem) => {
     if (tab.matchPaths) {
@@ -97,6 +105,12 @@ export function DesktopNav() {
     }
     navigate(tab.path);
   };
+
+  const initials = profile?.fullName
+    ? profile.fullName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+    : user?.email
+      ? user.email[0].toUpperCase()
+      : '?';
 
   return (
     <nav
@@ -133,21 +147,6 @@ export function DesktopNav() {
         })}
       </div>
 
-      {isOnSettings &&
-      <button
-        onClick={() => {haptics.selection();}}
-        aria-label="Settings"
-        className={cn(
-          'relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200',
-          'touch-manipulation active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-          'bg-primary/10 text-primary'
-        )}>
-        
-          <Settings className="w-4 h-4" aria-hidden="true" />
-          Settings
-        </button>
-      }
-
       <div className="ml-auto flex items-center gap-2">
         <button
           onClick={() => {
@@ -180,6 +179,59 @@ export function DesktopNav() {
           <MessageCircle className="w-4 h-4" />
           Ask
         </button>
+
+        {/* Profile avatar dropdown */}
+        <Popover open={profileOpen} onOpenChange={setProfileOpen}>
+          <PopoverTrigger asChild>
+            <button
+              className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full active:scale-95 transition-transform"
+              aria-label="Account menu"
+            >
+              <Avatar className="w-8 h-8 border-2 border-primary/20">
+                {profile?.avatarUrl && (
+                  <AvatarImage src={profile.avatarUrl} alt={profile.fullName || 'Profile'} />
+                )}
+                <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="end" side="bottom" className="w-52 p-1.5">
+            <div className="space-y-0.5">
+              {profile?.fullName && (
+                <p className="text-xs text-muted-foreground px-2 py-1 truncate">{profile.fullName}</p>
+              )}
+              <button
+                onClick={() => { haptics.selection(); setProfileOpen(false); navigate('/settings'); }}
+                className="flex w-full items-center gap-2 px-2 py-2 rounded-md text-sm text-foreground hover:bg-muted transition-colors"
+              >
+                <Settings className="w-4 h-4 text-muted-foreground" />
+                Settings
+              </button>
+              <button
+                onClick={() => { haptics.selection(); setProfileOpen(false); navigate('/subscription'); }}
+                className="flex w-full items-center gap-2 px-2 py-2 rounded-md text-sm text-foreground hover:bg-muted transition-colors"
+              >
+                <CreditCard className="w-4 h-4 text-muted-foreground" />
+                Subscription
+              </button>
+              <div className="h-px bg-border my-1" />
+              <button
+                onClick={async () => {
+                  haptics.warning();
+                  setProfileOpen(false);
+                  await signOut();
+                  navigate('/');
+                }}
+                className="flex w-full items-center gap-2 px-2 py-2 rounded-md text-sm text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign out
+              </button>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {wiseAIOpen &&

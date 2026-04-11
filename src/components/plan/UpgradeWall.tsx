@@ -1,4 +1,4 @@
-import { Crown, Lock } from 'lucide-react';
+import { Crown, Lock, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
@@ -8,6 +8,7 @@ interface UpgradeWallProps {
   requiredPlan: 'pro' | 'premium';
   featureName: string;
   description?: string;
+  features?: string[];
   compact?: boolean;
 }
 
@@ -15,7 +16,7 @@ function planLabel(plan: 'pro' | 'premium') {
   return plan === 'pro' ? 'Pro' : 'Premium';
 }
 
-export function UpgradeWall({ requiredPlan, featureName, description, compact = false }: UpgradeWallProps) {
+export function UpgradeWall({ requiredPlan, featureName, description, features, compact = false }: UpgradeWallProps) {
   const navigate = useNavigate();
 
   const handleUpgrade = () => {
@@ -68,6 +69,18 @@ export function UpgradeWall({ requiredPlan, featureName, description, compact = 
           {description ?? `Upgrade to ${planLabel(requiredPlan)} to unlock ${featureName} and all other advanced tools.`}
         </p>
       </div>
+      {features && features.length > 0 && (
+        <ul className="w-full max-w-xs space-y-2 text-left">
+          {features.map((f) => (
+            <li key={f} className="flex items-center gap-2.5 text-sm text-muted-foreground">
+              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
+                <Check className="w-3 h-3 text-primary" />
+              </span>
+              {f}
+            </li>
+          ))}
+        </ul>
+      )}
       <div className="flex flex-col gap-2 w-full max-w-xs">
         <Button
           size="lg"

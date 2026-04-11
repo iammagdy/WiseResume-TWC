@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LazyMotion, domAnimation, m as motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle, AlertCircle, RefreshCw, LayoutTemplate, BookOpen } from 'lucide-react';
 import { DashboardSkeleton } from '@/components/layout/PageSkeletons';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { SortOption, CategoryFilter, ScoreFilter } from '@/components/dashboard/ResumeFilters';
@@ -649,6 +649,37 @@ function DashboardPageContent() {
             resumes={resumes ?? undefined}
             loginStreak={profile?.loginStreak}
           />
+
+          {/* Get inspired — Templates & Examples quick links */}
+          <div className="px-4 pt-2 pb-1">
+            <p className="text-xs font-medium text-muted-foreground mb-2 px-1">Get inspired</p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => { haptics.light(); navigate('/templates'); }}
+                className="flex items-center gap-2.5 px-3 py-3 rounded-xl bg-card border border-border hover:border-primary/20 active:scale-95 transition-all touch-manipulation text-left"
+              >
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <LayoutTemplate className="w-4 h-4 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium leading-tight">Templates</p>
+                  <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">Start from a design</p>
+                </div>
+              </button>
+              <button
+                onClick={() => { haptics.light(); navigate('/examples'); }}
+                className="flex items-center gap-2.5 px-3 py-3 rounded-xl bg-card border border-border hover:border-primary/20 active:scale-95 transition-all touch-manipulation text-left"
+              >
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+                  <BookOpen className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium leading-tight">Examples</p>
+                  <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">See real resumes</p>
+                </div>
+              </button>
+            </div>
+          </div>
 
           {/* Quick Action Chips */}
           {resumes && resumes.length > 0 && (

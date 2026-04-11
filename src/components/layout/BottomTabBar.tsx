@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Globe, Home, BarChart3, Sparkles, Settings, Lock } from 'lucide-react';
+import { FileText, Globe, Home, BarChart3, Sparkles, Lock } from 'lucide-react';
 import { motion, useReducedMotion, LayoutGroup } from 'framer-motion';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -41,6 +41,7 @@ const tabs: TabItem[] = [
     '/achievements',
     '/subscription',
     '/referral',
+    '/settings',
   ]
 },
 {
@@ -75,14 +76,10 @@ const tabs: TabItem[] = [
   icon: Globe,
   label: 'Portfolio',
   matchPaths: ['/portfolio']
-},
-{
-  path: '/settings',
-  icon: Settings,
-  label: 'Settings',
-  matchPaths: ['/settings']
 }];
 
+const AI_TOOL_PATHS = ['/career', '/cover-letters', '/interview'];
+const LAST_AI_TOOL_KEY = 'wr-last-ai-tool';
 
 interface BottomTabBarProps {
   className?: string;
@@ -111,6 +108,16 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
     portfolio: showDots && !localStorage.getItem('wr-discovered-portfolio'),
   }));
 
+  // Track last-visited AI tool for smart tab navigation
+  useEffect(() => {
+    const matched = AI_TOOL_PATHS.find(
+      (p) => location.pathname === p || location.pathname.startsWith(p + '/')
+    );
+    if (matched) {
+      localStorage.setItem(LAST_AI_TOOL_KEY, location.pathname);
+    }
+  }, [location.pathname]);
+
   const isActive = (tab: TabItem) => {
     if (tab.matchPaths) {
       return tab.matchPaths.some((p) => location.pathname === p || location.pathname.startsWith(p + '/'));
@@ -123,9 +130,17 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
     if (tab.path === '/dashboard') {
       markSeen();
     }
-    if (tab.path === '/ai-studio' && discoveryDots.aiTools) {
-      localStorage.setItem('wr-discovered-ai-tools', 'true');
-      setDiscoveryDots(prev => ({ ...prev, aiTools: false }));
+    if (tab.path === '/ai-studio') {
+      if (discoveryDots.aiTools) {
+        localStorage.setItem('wr-discovered-ai-tools', 'true');
+        setDiscoveryDots(prev => ({ ...prev, aiTools: false }));
+      }
+      // Return to last visited AI tool instead of always going to the hub
+      const lastTool = localStorage.getItem(LAST_AI_TOOL_KEY);
+      if (lastTool && !isActive(tab)) {
+        navigate(lastTool);
+        return;
+      }
     }
     if (tab.path === '/portfolio' && discoveryDots.portfolio) {
       localStorage.setItem('wr-discovered-portfolio', 'true');

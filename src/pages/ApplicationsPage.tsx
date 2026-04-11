@@ -236,6 +236,13 @@ export default function ApplicationsPage() {
           requiredPlan="pro"
           featureName="Application Tracker"
           description="Track all your job applications in one place with status updates and activity insights."
+          features={[
+            'Pipeline view: Applied → Screening → Offer',
+            'Resume match rate for saved jobs',
+            'Activity streak & application stats',
+            'Follow-up reminders & email drafts',
+            'Saved jobs with AI match scores',
+          ]}
         />
       </div>
     );
