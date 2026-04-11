@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ComponentType } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BackButton } from '@/components/ui/BackButton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
-import { Check, Crown, Gift, Sparkles, Gem, Ticket, CalendarClock } from 'lucide-react';
+import { Check, Crown, Gift, Sparkles, Gem, Ticket, CalendarClock, FileText, Wand2, Target, MessageSquare, Mail, LayoutList, HeadphonesIcon, Palette, BarChart2, Package, Zap, Infinity, Bot, Star } from 'lucide-react';
 import { LoadingButton } from '@/components/ui/LoadingButton';
 import { useResumes } from '@/hooks/useResumes';
 import { useAICredits } from '@/hooks/useAICredits';
@@ -25,30 +25,35 @@ import {
 } from '@/components/ui/dialog';
 import { useQueryClient } from '@tanstack/react-query';
 
-const PLAN_FEATURES = {
+interface PlanFeature {
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+}
+
+const PLAN_FEATURES: Record<string, PlanFeature[]> = {
   free: [
-    '1 resume',
-    'Basic AI suggestions',
-    'ATS score check',
-    'PDF export',
-    'Portfolio site',
+    { label: '1 resume', icon: FileText },
+    { label: 'Basic AI suggestions', icon: Bot },
+    { label: 'ATS score check', icon: Target },
+    { label: 'PDF export', icon: Package },
+    { label: 'Portfolio site', icon: Star },
   ],
   pro: [
-    'Unlimited resumes',
-    'Advanced AI tools',
-    'Smart tailoring',
-    'Interview coaching',
-    'Cover letter generator',
-    'Application tracker',
-    'Priority support',
+    { label: 'Unlimited resumes', icon: FileText },
+    { label: 'Advanced AI tools', icon: Wand2 },
+    { label: 'Smart tailoring', icon: Target },
+    { label: 'Interview coaching', icon: MessageSquare },
+    { label: 'Cover letter generator', icon: Mail },
+    { label: 'Application tracker', icon: LayoutList },
+    { label: 'Priority support', icon: HeadphonesIcon },
   ],
   premium: [
-    'Everything in Pro',
-    'Custom branding',
-    'Analytics dashboard',
-    'White-label exports',
-    'Early access features',
-    'Dedicated support',
+    { label: 'Everything in Pro', icon: Crown },
+    { label: 'Custom branding', icon: Palette },
+    { label: 'Analytics dashboard', icon: BarChart2 },
+    { label: 'White-label exports', icon: Package },
+    { label: 'Early access features', icon: Zap },
+    { label: 'Dedicated support', icon: HeadphonesIcon },
   ],
 };
 
@@ -335,17 +340,38 @@ export default function SubscriptionPage() {
         </Card>
 
         {/* Current plan features */}
-        <Card>
+        <Card className={isPremium ? 'border-amber-400/30' : isPro ? 'border-blue-400/30' : ''}>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Your {planLabel(plan)} Plan includes</CardTitle>
+            <div className="flex items-center gap-2">
+              <PlanIcon plan={plan} />
+              <CardTitle className={`text-sm font-semibold ${isPremium ? 'text-amber-600 dark:text-amber-400' : isPro ? 'text-blue-600 dark:text-blue-400' : ''}`}>
+                Your {planLabel(plan)} Plan includes
+              </CardTitle>
+            </div>
           </CardHeader>
           <CardContent className="space-y-2">
-            {PLAN_FEATURES[plan as keyof typeof PLAN_FEATURES]?.map((feature) => (
-              <div key={feature} className="flex items-center gap-2.5 text-sm">
-                <Check className={`w-4 h-4 shrink-0 ${isPremium ? 'text-amber-500' : isPro ? 'text-blue-500' : 'text-muted-foreground'}`} />
-                <span>{feature}</span>
-              </div>
-            ))}
+            {/* Credit limit row */}
+            <div className={`flex items-center gap-2.5 text-sm px-3 py-2 rounded-lg ${isPremium ? 'bg-amber-50 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-800/40' : isPro ? 'bg-blue-50 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-800/40' : 'bg-muted/50 border border-border'}`}>
+              {isPremium ? (
+                <Infinity className="w-4 h-4 shrink-0 text-amber-500" />
+              ) : isPro ? (
+                <Bot className="w-4 h-4 shrink-0 text-blue-500" />
+              ) : (
+                <Bot className="w-4 h-4 shrink-0 text-muted-foreground" />
+              )}
+              <span className={`font-medium ${isPremium ? 'text-amber-700 dark:text-amber-300' : isPro ? 'text-blue-700 dark:text-blue-300' : ''}`}>
+                {isPremium ? 'Unlimited AI credits/day' : isPro ? '30 AI credits/day' : '5 AI credits/day'}
+              </span>
+            </div>
+            {PLAN_FEATURES[plan as keyof typeof PLAN_FEATURES]?.map((feature) => {
+              const Icon = feature.icon;
+              return (
+                <div key={feature.label} className="flex items-center gap-2.5 text-sm">
+                  <Icon className={`w-4 h-4 shrink-0 ${isPremium ? 'text-amber-500' : isPro ? 'text-blue-500' : 'text-muted-foreground'}`} />
+                  <span>{feature.label}</span>
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
 
@@ -368,12 +394,15 @@ export default function SubscriptionPage() {
                 <span className="text-sm text-muted-foreground">/month</span>
               </div>
               <div className="space-y-1.5">
-                {PLAN_FEATURES[target as keyof typeof PLAN_FEATURES].map((feature) => (
-                  <div key={feature} className="flex items-center gap-2 text-sm">
-                    <Check className={`w-4 h-4 shrink-0 ${target === 'premium' ? 'text-amber-500' : 'text-blue-500'}`} />
-                    <span>{feature}</span>
-                  </div>
-                ))}
+                {PLAN_FEATURES[target as keyof typeof PLAN_FEATURES].map((feature) => {
+                  const Icon = feature.icon;
+                  return (
+                    <div key={feature.label} className="flex items-center gap-2 text-sm">
+                      <Icon className={`w-4 h-4 shrink-0 ${target === 'premium' ? 'text-amber-500' : 'text-blue-500'}`} />
+                      <span>{feature.label}</span>
+                    </div>
+                  );
+                })}
               </div>
               <Button
                 className={`w-full mt-1 ${target === 'premium' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}

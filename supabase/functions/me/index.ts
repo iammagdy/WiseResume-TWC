@@ -64,6 +64,21 @@ serve(async (req) => {
       ? { ...sub, effective_plan: effectivePlan }
       : null;
 
+    // Override daily_limit in ai_credits based on the effective plan so that
+    // premium/pro users see the correct limit instead of the free-tier value
+    // stored in the database.
+    // Sentinel -1 means "unlimited" (handled on the client side).
+    const PRO_DAILY_LIMIT = 30;
+    const rawCredits = creditsResult.data;
+    let aiCreditsPayload: typeof rawCredits | null = rawCredits ?? null;
+    if (rawCredits) {
+      if (effectivePlan === 'premium') {
+        aiCreditsPayload = { ...rawCredits, daily_limit: -1 };
+      } else if (effectivePlan === 'pro') {
+        aiCreditsPayload = { ...rawCredits, daily_limit: PRO_DAILY_LIMIT };
+      }
+    }
+
     return new Response(
       JSON.stringify({
         userId,
@@ -71,7 +86,7 @@ serve(async (req) => {
         profile: profile || null,
         preferences: prefsResult.data || null,
         subscription: subscriptionPayload,
-        ai_credits: creditsResult.data || null,
+        ai_credits: aiCreditsPayload,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
