@@ -16,6 +16,7 @@ import { haptics } from '@/lib/haptics';
 import { PortfolioEditorSkeleton } from '@/components/layout/PageSkeletons';
 
 import { useNavigate } from 'react-router-dom';
+import { QrCode } from 'lucide-react';
 import { UnsavedChangesDialog } from '@/components/editor/UnsavedChangesDialog';
 import { getPortfolioUrl } from '@/lib/portfolioUrl';
 import { openExternal } from '@/lib/openExternal';
@@ -553,6 +554,21 @@ export default function PortfolioEditorPage() {
           openToWork={openToWork}
           views={profile?.views || 0} />
         
+
+        {/* Share your profile — QR code entry point */}
+        <button
+          onClick={() => { haptics.light(); handleNavigateAway('/qr-code'); }}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-card border border-border hover:border-primary/20 active:scale-[0.98] transition-all touch-manipulation text-left"
+        >
+          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <QrCode className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold leading-tight">Get your QR code</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Share your portfolio anywhere, instantly</p>
+          </div>
+          <span className="text-xs text-muted-foreground shrink-0">→</span>
+        </button>
 
         {/* Tab Row */}
         <div className="flex gap-1.5 p-1 rounded-xl bg-card border border-border">

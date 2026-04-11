@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LazyMotion, domAnimation, m as motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle, AlertCircle, RefreshCw, LayoutTemplate, BookOpen } from 'lucide-react';
+import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle, AlertCircle, RefreshCw, LayoutTemplate, BookOpen, TrendingUp, Trophy, Users, Map } from 'lucide-react';
 import { DashboardSkeleton } from '@/components/layout/PageSkeletons';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { SortOption, CategoryFilter, ScoreFilter } from '@/components/dashboard/ResumeFilters';
@@ -678,6 +678,70 @@ function DashboardPageContent() {
                   <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">See real resumes</p>
                 </div>
               </button>
+            </div>
+          </div>
+
+          {/* Discover — surface hidden features */}
+          <div className="px-4 pt-2 pb-1">
+            <p className="text-xs font-medium text-muted-foreground mb-2 px-1">Discover</p>
+            {/* Mobile: horizontal scroll  /  Desktop: grid */}
+            <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-4 px-4 snap-x snap-mandatory scrollbar-hide lg:overflow-visible lg:mx-0 lg:px-0 lg:grid lg:grid-cols-3 lg:gap-3">
+              {[
+                {
+                  icon: TrendingUp,
+                  iconBg: 'bg-blue-500/10',
+                  iconColor: 'text-blue-600 dark:text-blue-400',
+                  label: 'Analytics',
+                  desc: 'See how your portfolio performs',
+                  path: '/analytics',
+                },
+                {
+                  icon: Trophy,
+                  iconBg: 'bg-amber-500/10',
+                  iconColor: 'text-amber-600 dark:text-amber-400',
+                  label: 'Achievements',
+                  desc: 'Track your career milestones',
+                  path: '/achievements',
+                },
+                {
+                  icon: Users,
+                  iconBg: 'bg-emerald-500/10',
+                  iconColor: 'text-emerald-600 dark:text-emerald-400',
+                  label: 'Referral',
+                  desc: 'Invite friends, earn credits',
+                  path: '/referral',
+                },
+                {
+                  icon: Map,
+                  iconBg: 'bg-violet-500/10',
+                  iconColor: 'text-violet-600 dark:text-violet-400',
+                  label: 'Guides',
+                  desc: 'Tips & resume best practices',
+                  path: '/guides',
+                },
+                {
+                  icon: HelpCircle,
+                  iconBg: 'bg-muted',
+                  iconColor: 'text-muted-foreground',
+                  label: 'Help',
+                  desc: 'Questions? We\'re here.',
+                  path: '/help',
+                },
+              ].map((item) => (
+                <button
+                  key={item.path}
+                  onClick={() => { haptics.light(); navigate(item.path); }}
+                  className="flex flex-col gap-2 p-3 rounded-xl bg-card border border-border hover:border-primary/20 active:scale-95 transition-all touch-manipulation text-left shrink-0 w-36 snap-start lg:w-auto lg:shrink"
+                >
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${item.iconBg}`}>
+                    <item.icon className={`w-4 h-4 ${item.iconColor}`} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium leading-tight">{item.label}</p>
+                    <p className="text-[11px] text-muted-foreground leading-tight mt-0.5 line-clamp-2">{item.desc}</p>
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
 
