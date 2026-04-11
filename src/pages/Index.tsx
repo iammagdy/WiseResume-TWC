@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Target, Wand2, Mic, User, LayoutDashboard, Settings, LogOut, Globe, ArrowRight, FileText, BarChart3, PenTool, CheckCircle2, Check } from 'lucide-react';
+import { Sparkles, Target, Wand2, Mic, LayoutDashboard, Settings, LogOut, Globe, ArrowRight, FileText, BarChart3, PenTool, CheckCircle2, Check, User, Zap, ShieldCheck, Gift, Briefcase } from 'lucide-react';
 import { Footer } from '@/components/landing/Footer';
 import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,6 @@ import { useEffect, useState, useRef, lazy, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
 import { QuickTailorSheet } from '@/components/landing/QuickTailorSheet';
-import LightRays from '@/components/landing/LightRays';
 import { useTheme } from '@/hooks/use-theme';
 import { InstallButton } from '@/components/pwa/InstallButton';
 import { useThemeLogo } from '@/hooks/useThemeLogo';
@@ -22,6 +21,9 @@ import { Sun, Moon } from 'lucide-react';
 
 const LazyEditorDemo = lazy(() => import('@/components/landing/EditorDemo').then((m) => ({ default: m.EditorDemo })));
 const LazyPortfolioDemo = lazy(() => import('@/components/landing/PortfolioDemo').then((m) => ({ default: m.PortfolioDemo })));
+const LazyTailoringDemo = lazy(() => import('@/components/landing/TailoringDemo').then((m) => ({ default: m.TailoringDemo })));
+const LazyInterviewDemo = lazy(() => import('@/components/landing/InterviewDemo').then((m) => ({ default: m.InterviewDemo })));
+const LazyTrackerDemo = lazy(() => import('@/components/landing/TrackerDemo').then((m) => ({ default: m.TrackerDemo })));
 
 const DemoFallback = () =>
   <div className="w-[260px] h-[280px] rounded-2xl border border-border bg-muted/50 animate-pulse" />;
@@ -35,11 +37,56 @@ const features = [
   { icon: BarChart3, title: 'Application Tracker', desc: 'Track all your job applications in one place with status updates and analytics.', color: 'text-pink-600 dark:text-pink-400', bg: 'bg-pink-500/10' },
 ];
 
+const valueProps = [
+  { icon: Zap, label: 'AI-Powered' },
+  { icon: ShieldCheck, label: 'ATS-Optimized' },
+  { icon: Gift, label: 'Free to Start' },
+  { icon: Briefcase, label: 'Built for 2025' },
+];
+
 const pricingFeatures = {
   free: ['1 resume', 'Basic AI suggestions', 'ATS score check', 'PDF export', 'Portfolio site'],
   pro: ['Unlimited resumes', 'Advanced AI tools', 'Smart tailoring', 'Interview coaching', 'Cover letter generator', 'Application tracker', 'Priority support'],
   premium: ['Everything in Pro', 'Custom branding', 'Analytics dashboard', 'White-label exports', 'Early access features', 'Dedicated support'],
 };
+
+const demos = [
+  {
+    badge: { icon: Sparkles, label: 'AI Resume Editor', color: 'bg-primary/10 text-primary' },
+    title: 'AI-Powered Resume Writing',
+    desc: 'Watch AI turn weak bullets into quantified achievements — with a live ATS score.',
+    delay: 0.05,
+    component: 'editor',
+  },
+  {
+    badge: { icon: Wand2, label: 'Smart Tailoring', color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
+    title: 'Keyword Injection in Seconds',
+    desc: 'See how AI matches your resume to a job description before and after tailoring.',
+    delay: 0.1,
+    component: 'tailoring',
+  },
+  {
+    badge: { icon: Globe, label: 'Live Website', color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
+    title: 'Public Portfolio Website',
+    desc: 'Turn your resume into a beautiful personal site with themes, projects, and a shareable link.',
+    delay: 0.15,
+    component: 'portfolio',
+  },
+  {
+    badge: { icon: Mic, label: 'Interview Coach', color: 'bg-orange-500/10 text-orange-600 dark:text-orange-400' },
+    title: 'AI Interview Practice',
+    desc: 'Get scored on real interview questions with AI feedback on every answer.',
+    delay: 0.2,
+    component: 'interview',
+  },
+  {
+    badge: { icon: BarChart3, label: 'Application Tracker', color: 'bg-pink-500/10 text-pink-600 dark:text-pink-400' },
+    title: 'Kanban Job Tracker',
+    desc: 'Visualize every application at a glance and never lose track of an opportunity.',
+    delay: 0.25,
+    component: 'tracker',
+  },
+];
 
 const Index = () => {
   const navigate = useNavigate();
@@ -122,31 +169,27 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: -1, pointerEvents: 'none' }}>
-        <LightRays
-          raysOrigin="top-center"
-          raysColor="#ffffff"
-          raysSpeed={1.7}
-          lightSpread={0.5}
-          rayLength={3}
-          followMouse={true}
-          mouseInfluence={0.4}
-          noiseAmount={0}
-          distortion={0}
-          className="custom-rays"
-          pulsating={false}
-          fadeDistance={1.8}
-          saturation={1}
-        />
+      {/* Background: deep gradient with floating blobs */}
+      <div
+        className="fixed inset-0 -z-10 pointer-events-none overflow-hidden"
+        aria-hidden="true"
+      >
+        <div className="absolute inset-0 hero-gradient-bg" />
+        <div className="hero-blob hero-blob-1" />
+        <div className="hero-blob hero-blob-2" />
+        <div className="hero-blob hero-blob-3" />
       </div>
+
       <div className="fixed top-0 left-0 right-0 h-[2px] z-[60] pointer-events-none" style={{ display: 'none' }}>
         <div ref={progressRef} className="h-full bg-primary transition-[width] duration-75 ease-out" />
       </div>
 
-      {/* Sticky Header */}
+      {/* Sticky Header — backdrop-blur on scroll */}
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          scrolled ? 'bg-background/95 backdrop-blur-sm border-b border-border shadow-soft-sm' : 'bg-transparent'
+          scrolled
+            ? 'bg-background/80 backdrop-blur-md border-b border-border shadow-soft-sm'
+            : 'bg-transparent'
         }`}
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
@@ -211,8 +254,8 @@ const Index = () => {
       </header>
 
       <main className="max-w-6xl mx-auto w-full">
-        {/* Hero Section — Clean, text-focused */}
-        <section className="flex flex-col items-center text-center px-4 sm:px-6 pt-[calc(7rem+env(safe-area-inset-top))] pb-12 sm:pb-16">
+        {/* Hero Section */}
+        <section className="flex flex-col items-center text-center px-4 sm:px-6 pt-[calc(7rem+env(safe-area-inset-top))] pb-12 sm:pb-16 relative">
           <motion.div className="mb-6" {...fade(0)}>
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold border border-primary/20">
               <Sparkles className="w-3 h-3" />
@@ -221,11 +264,11 @@ const Index = () => {
           </motion.div>
 
           <motion.h1
-            className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-[1.08] tracking-tight mb-5 max-w-2xl"
+            className="text-5xl sm:text-6xl lg:text-7xl font-bold text-foreground leading-[1.05] tracking-tight mb-5 max-w-3xl"
             {...fade(0.08)}
           >
             Land your dream job with a{' '}
-            <span className="text-primary">perfect resume</span>
+            <span className="gradient-text">perfect resume</span>
           </motion.h1>
 
           <motion.p
@@ -261,7 +304,7 @@ const Index = () => {
                 <Button
                   size="lg"
                   onClick={handleCTA}
-                  className="h-12 text-base font-semibold rounded-xl flex-1 shadow-soft-lg"
+                  className="h-12 text-base font-semibold rounded-xl flex-1 shadow-soft-lg cta-glow-pulse"
                 >
                   Get Started Free
                   <ArrowRight className="w-4 h-4 ml-2" />
@@ -286,26 +329,46 @@ const Index = () => {
               </span>
             ))}
           </motion.div>
+
+          {/* Scroll to explore arrow */}
+          <motion.div
+            className="mt-10 flex flex-col items-center gap-1.5 text-muted-foreground/60"
+            {...fade(0.35)}
+          >
+            <span className="text-xs tracking-widest uppercase">Scroll to explore</span>
+            <motion.div
+              animate={prefersReducedMotion ? {} : { y: [0, 6, 0] }}
+              transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                <path d="M9 3v12M4 10l5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </motion.div>
+          </motion.div>
         </section>
 
-        {/* Social proof strip — compact, subtle */}
+        {/* Glowing separator */}
+        <div className="hero-separator mx-4 sm:mx-6 mb-12" aria-hidden="true" />
+
+        {/* Value Props Strip — honest, no invented numbers */}
         <section className="px-4 sm:px-6 pb-16">
-          <div className="flex items-center justify-center gap-6 sm:gap-10 flex-wrap">
-            {[
-              { value: '50K+', label: 'Resumes' },
-              { value: '92%', label: 'ATS pass rate' },
-              { value: '4.8★', label: 'Rating' },
-              { value: '30s', label: 'Avg. tailor' },
-            ].map((stat) => (
-              <div key={stat.label} className="flex items-baseline gap-1.5">
-                <span className="text-lg sm:text-xl font-bold text-foreground">{stat.value}</span>
-                <span className="text-xs text-muted-foreground">{stat.label}</span>
+          <motion.div
+            className="flex items-center justify-center gap-4 sm:gap-8 flex-wrap"
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-40px' }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+          >
+            {valueProps.map(({ icon: Icon, label }) => (
+              <div key={label} className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-border bg-card/60 backdrop-blur-sm">
+                <Icon className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium text-foreground">{label}</span>
               </div>
             ))}
-          </div>
+          </motion.div>
         </section>
 
-        {/* Product Demos */}
+        {/* Product Demos — 5 cards */}
         <section className="px-4 sm:px-6 pb-20">
           <motion.div
             className="text-center mb-10"
@@ -318,54 +381,47 @@ const Index = () => {
               See it in action
             </h2>
             <p className="text-muted-foreground max-w-md mx-auto">
-              From AI resume writing to a shareable personal website
+              Five powerful features, one seamless platform
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            <motion.div
-              className="rounded-2xl border border-border bg-card shadow-soft p-6 flex flex-col items-center gap-4"
-              initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.97 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true, margin: '-20px' }}
-              transition={{ duration: 0.4, delay: 0.1, ease: 'easeOut' }}
-            >
-              <div className="text-center">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-3">
-                  <Sparkles className="w-3 h-3" />
-                  AI Resume Editor
-                </span>
-                <h3 className="text-lg font-bold text-foreground mb-1">AI-Powered Resume Writing</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed max-w-[260px] mx-auto">
-                  Watch AI turn weak bullets into quantified achievements — with a live ATS score.
-                </p>
-              </div>
-              <Suspense fallback={<DemoFallback />}><LazyEditorDemo /></Suspense>
-            </motion.div>
-
-            <motion.div
-              className="rounded-2xl border border-border bg-card shadow-soft p-6 flex flex-col items-center gap-4"
-              initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.97 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true, margin: '-20px' }}
-              transition={{ duration: 0.4, delay: 0.15, ease: 'easeOut' }}
-            >
-              <div className="text-center">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold mb-3">
-                  <Globe className="w-3 h-3" />
-                  Live Website
-                </span>
-                <h3 className="text-lg font-bold text-foreground mb-1">Public Portfolio Website</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed max-w-[260px] mx-auto">
-                  Turn your resume into a beautiful personal site with themes, projects, and a shareable link.
-                </p>
-              </div>
-              <Suspense fallback={<DemoFallback />}><LazyPortfolioDemo /></Suspense>
-            </motion.div>
+          {/* Mobile: horizontal scroll; Desktop: 3-col grid */}
+          <div className="flex gap-5 overflow-x-auto pb-4 sm:pb-0 snap-x snap-mandatory sm:overflow-visible sm:grid sm:grid-cols-3 sm:gap-5 max-w-5xl mx-auto -mx-4 px-4 sm:mx-auto sm:px-0">
+            {demos.map((demo, i) => {
+              const BadgeIcon = demo.badge.icon;
+              return (
+                <motion.div
+                  key={demo.component}
+                  className="rounded-2xl border border-border bg-card shadow-soft p-6 flex flex-col items-center gap-4 flex-shrink-0 w-[80vw] sm:w-auto snap-center"
+                  initial={prefersReducedMotion ? false : { opacity: 0, y: 24 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: '-20px' }}
+                  transition={{ duration: 0.45, delay: demo.delay, ease: 'easeOut' }}
+                >
+                  <div className="text-center">
+                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold mb-3 ${demo.badge.color}`}>
+                      <BadgeIcon className="w-3 h-3" />
+                      {demo.badge.label}
+                    </span>
+                    <h3 className="text-lg font-bold text-foreground mb-1">{demo.title}</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed max-w-[260px] mx-auto">
+                      {demo.desc}
+                    </p>
+                  </div>
+                  <Suspense fallback={<DemoFallback />}>
+                    {demo.component === 'editor' && <LazyEditorDemo />}
+                    {demo.component === 'tailoring' && <LazyTailoringDemo />}
+                    {demo.component === 'portfolio' && <LazyPortfolioDemo />}
+                    {demo.component === 'interview' && <LazyInterviewDemo />}
+                    {demo.component === 'tracker' && <LazyTrackerDemo />}
+                  </Suspense>
+                </motion.div>
+              );
+            })}
           </div>
         </section>
 
-        {/* Features — Alternating left/right layout */}
+        {/* Features — Uniform 2-column grid */}
         <section className="px-4 sm:px-6 pb-20">
           <motion.div
             className="text-center mb-12"
@@ -382,21 +438,21 @@ const Index = () => {
             </p>
           </motion.div>
 
-          <div className="max-w-3xl mx-auto space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto">
             {features.map((f, i) => (
               <motion.div
                 key={f.title}
-                className={`flex items-start gap-5 p-5 rounded-2xl border border-border bg-card shadow-soft ${i % 2 === 1 ? 'sm:flex-row-reverse sm:text-right' : ''}`}
+                className="flex items-start gap-4 p-5 rounded-2xl border border-border bg-card shadow-soft"
                 initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: '-20px' }}
-                transition={{ duration: 0.4, delay: i * 0.04, ease: 'easeOut' }}
+                transition={{ duration: 0.4, delay: i * 0.06, ease: 'easeOut' }}
               >
-                <div className={`w-12 h-12 rounded-xl ${f.bg} flex items-center justify-center shrink-0`}>
-                  <f.icon className={`w-6 h-6 ${f.color}`} />
+                <div className={`w-11 h-11 rounded-xl ${f.bg} flex items-center justify-center shrink-0`}>
+                  <f.icon className={`w-5 h-5 ${f.color}`} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-foreground text-lg mb-1">{f.title}</h3>
+                  <h3 className="font-semibold text-foreground text-base mb-1">{f.title}</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
                 </div>
               </motion.div>
@@ -424,7 +480,7 @@ const Index = () => {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 max-w-4xl mx-auto">
             {/* Free */}
             <motion.div
-              className="rounded-2xl border border-border bg-card p-6 flex flex-col"
+              className="pricing-card rounded-2xl border border-border bg-card p-6 flex flex-col"
               initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-20px' }}
@@ -446,16 +502,16 @@ const Index = () => {
               </Button>
             </motion.div>
 
-            {/* Pro — highlighted */}
+            {/* Pro — highlighted with ring */}
             <motion.div
-              className="rounded-2xl border-2 border-primary bg-card p-6 flex flex-col relative"
+              className="pricing-card pricing-card-pro rounded-2xl border-2 border-primary bg-card p-6 flex flex-col relative"
               initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-20px' }}
               transition={{ duration: 0.4, delay: 0.08, ease: 'easeOut' }}
             >
               <span className="absolute -top-3 left-6 px-3 py-0.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold">
-                Popular
+                Most Popular
               </span>
               <h3 className="text-base font-semibold text-foreground mb-1">Pro</h3>
               <p className="text-3xl font-bold text-foreground mb-1">$9<span className="text-sm font-normal text-muted-foreground">/mo</span></p>
@@ -475,7 +531,7 @@ const Index = () => {
 
             {/* Premium */}
             <motion.div
-              className="rounded-2xl border border-amber-400/40 bg-card p-6 flex flex-col relative"
+              className="pricing-card rounded-2xl border border-amber-400/40 bg-card p-6 flex flex-col relative"
               initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-20px' }}
@@ -504,7 +560,13 @@ const Index = () => {
 
         {/* Install CTA */}
         <section className="px-4 sm:px-6 pb-16">
-          <div className="flex flex-col sm:flex-row items-center gap-5 p-6 rounded-2xl border border-border bg-card max-w-lg mx-auto">
+          <motion.div
+            className="flex flex-col sm:flex-row items-center gap-5 p-6 rounded-2xl border border-border bg-card max-w-lg mx-auto"
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-30px' }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+          >
             <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
               <Sparkles className="w-6 h-6 text-primary" />
             </div>
@@ -515,28 +577,34 @@ const Index = () => {
               </p>
             </div>
             <InstallButton className="w-full sm:w-auto" />
-          </div>
+          </motion.div>
         </section>
 
         {/* Final CTA */}
         {!isAuthenticated && (
           <section className="px-4 sm:px-6 pb-20">
-            <div className="flex flex-col items-center text-center gap-5 max-w-lg mx-auto">
+            <motion.div
+              className="flex flex-col items-center text-center gap-5 max-w-lg mx-auto"
+              initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-30px' }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+            >
               <h2 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
                 Ready to land your dream job?
               </h2>
               <p className="text-base text-muted-foreground">
-                Join thousands of professionals building better resumes with AI.
+                Your next opportunity is waiting — start building a resume that gets noticed.
               </p>
               <Button
                 size="lg"
                 onClick={handleCTA}
-                className="h-12 text-base font-semibold rounded-xl px-8 shadow-soft-lg"
+                className="h-12 text-base font-semibold rounded-xl px-8 shadow-soft-lg cta-glow-pulse"
               >
                 Get Started Free
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
-            </div>
+            </motion.div>
           </section>
         )}
 

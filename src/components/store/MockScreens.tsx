@@ -56,8 +56,8 @@ export function MockHeroScreen() {
 
       <div className="flex gap-4 mt-12">
         {[
-          { icon: <Star className="w-4 h-4" />, text: '4.9 Rating' },
-          { icon: <Users className="w-4 h-4" />, text: '50K+ Users' },
+          { icon: <Sparkles className="w-4 h-4" />, text: 'AI-Powered' },
+          { icon: <Users className="w-4 h-4" />, text: 'ATS-Optimized' },
           { icon: <Shield className="w-4 h-4" />, text: '100% Free' },
         ].map((t) => (
           <div
