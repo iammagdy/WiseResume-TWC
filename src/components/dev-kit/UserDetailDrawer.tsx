@@ -352,18 +352,26 @@ export function UserDetailDrawer({ user: userProp, password, open, onClose, onUs
   const handleSetCredits = async () => {
     setSavingCredits(true);
     try {
+      const parsedLimit = newDailyLimit !== '' ? Number(newDailyLimit) : undefined;
+      const parsedBonus = bonusCredits ? Number(bonusCredits) : 0;
       const { data, error } = await edgeFunctions.functions.invoke('admin-set-credits', {
         body: {
           password,
           target_user_id: user.user_id,
-          daily_limit: newDailyLimit !== '' ? Number(newDailyLimit) : undefined,
-          bonus_credits: bonusCredits ? Number(bonusCredits) : 0,
+          daily_limit: parsedLimit,
+          bonus_credits: parsedBonus,
         },
       });
       if (error) throw new Error(error.message);
       const result = data as { success?: boolean; error?: string };
       if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
       toast.success('Credits updated');
+      setUser(prev => ({
+        ...prev,
+        ...(parsedLimit !== undefined ? { daily_limit: parsedLimit } : {}),
+        ...(parsedBonus > 0 ? { credits_used_today: Math.max(0, prev.credits_used_today - parsedBonus) } : {}),
+      }));
+      setNewDailyLimit(parsedLimit !== undefined ? String(parsedLimit) : '');
       setBonusCredits('');
       onUserUpdated();
     } catch (e) {

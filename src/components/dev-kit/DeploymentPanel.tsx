@@ -62,11 +62,13 @@ function formatRelative(iso: string): string {
 export function DeploymentPanel({ password }: DeploymentPanelProps) {
   const [data, setData] = useState<DeploymentData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [secondsAgo, setSecondsAgo] = useState(0);
   const [contactTableOk, setContactTableOk] = useState<boolean | null>(null);
 
   const fetchDeploymentData = useCallback(async () => {
     setLoading(true);
+    setFetchError(null);
     try {
       const [githubResult, envResult] = await Promise.all([
         edgeFunctions.functions.invoke('admin-github-status', {
@@ -122,6 +124,8 @@ export function DeploymentPanel({ password }: DeploymentPanelProps) {
         envError,
       });
       setSecondsAgo(0);
+    } catch (e) {
+      setFetchError(e instanceof Error ? e.message : 'Failed to load deployment data');
     } finally {
       setLoading(false);
     }
@@ -173,7 +177,27 @@ export function DeploymentPanel({ password }: DeploymentPanelProps) {
         </Button>
       </div>
 
-      {loading && !data && (
+      {fetchError && !data && (
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-5 space-y-3">
+          <div className="flex items-start gap-3">
+            <XCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-destructive">Failed to load deployment data</p>
+              <p className="text-xs text-destructive/70 mt-1">{fetchError}</p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Make sure the <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">admin-github-status</code> and{' '}
+                <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">admin-env-check</code> edge functions are deployed.
+              </p>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" onClick={fetchDeploymentData} disabled={loading} className="flex items-center gap-2 mt-1">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Retry
+          </Button>
+        </div>
+      )}
+
+      {loading && !data && !fetchError && (
         <div className="flex items-center justify-center py-12 text-muted-foreground gap-2">
           <Loader2 className="w-5 h-5 animate-spin" />
           <span className="text-sm">Loading deployment data…</span>
