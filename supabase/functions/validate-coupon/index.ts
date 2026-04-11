@@ -2,6 +2,16 @@ import { getCorsHeaders } from '../_shared/cors.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAuth } from '../_shared/authMiddleware.ts';
 
+const PLAN_TIER: Record<string, number> = { free: 0, pro: 1, premium: 2 };
+
+/** Computes the user's effective plan, accounting for active trials. */
+function effectivePlan(planName: string | null, trialPlan: string | null, trialExpiresAt: string | null): string {
+  if (trialPlan && trialExpiresAt && new Date(trialExpiresAt) > new Date()) {
+    return trialPlan;
+  }
+  return planName ?? 'free';
+}
+
 Deno.serve(async (req) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
@@ -25,20 +35,29 @@ Deno.serve(async (req) => {
     const supabase = getServiceClient();
     const upperCode = String(code).toUpperCase().trim();
 
-    // Fetch coupon details (read-only — no writes)
-    const { data: coupon, error: couponError } = await supabase
-      .from('discount_codes')
-      .select('id, code, discount_type, discount_value, plan_override, plan_days, expires_at, max_uses, uses_count, is_active, target_plan')
-      .eq('code', upperCode)
-      .maybeSingle();
+    // Fetch coupon details and user's current subscription in parallel (read-only — no writes)
+    const [couponRes, subRes] = await Promise.all([
+      supabase
+        .from('discount_codes')
+        .select('id, code, discount_type, discount_value, plan_override, plan_days, expires_at, max_uses, uses_count, is_active, target_plan')
+        .eq('code', upperCode)
+        .maybeSingle(),
+      supabase
+        .from('subscriptions')
+        .select('plan_name, trial_plan, trial_expires_at')
+        .eq('user_id', userId)
+        .maybeSingle(),
+    ]);
 
-    if (couponError) {
-      console.error('[validate-coupon] DB error:', couponError);
+    if (couponRes.error) {
+      console.error('[validate-coupon] DB error:', couponRes.error);
       return new Response(
         JSON.stringify({ valid: false, error: 'Failed to look up coupon' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const coupon = couponRes.data;
 
     if (!coupon || !coupon.is_active) {
       return new Response(
@@ -76,20 +95,40 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check target_plan restriction
-    if (coupon.target_plan) {
-      const { data: sub } = await supabase
-        .from('subscriptions')
-        .select('plan_name')
-        .eq('user_id', userId)
-        .maybeSingle();
+    // Compute user's current effective plan (accounts for active trials)
+    const sub = subRes.data;
+    const userEffectivePlan = effectivePlan(
+      sub?.plan_name as string | null,
+      sub?.trial_plan as string | null,
+      sub?.trial_expires_at as string | null,
+    );
 
-      const userPlan = (sub?.plan_name as string | null) ?? 'free';
-      if (userPlan !== coupon.target_plan) {
+    // Check target_plan restriction (coupon is restricted to users on a specific base plan)
+    if (coupon.target_plan) {
+      const basePlan = (sub?.plan_name as string | null) ?? 'free';
+      if (basePlan !== coupon.target_plan) {
         return new Response(
           JSON.stringify({
             valid: false,
             error: `This coupon is only available for ${coupon.target_plan} plan users`,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Guard: if user's effective plan is already equal to or better than what the coupon offers,
+    // return a friendly "already covered" message rather than an error.
+    if (coupon.discount_type === 'plan_upgrade' && coupon.plan_override) {
+      const offerTier = PLAN_TIER[coupon.plan_override as string] ?? 0;
+      const userTier = PLAN_TIER[userEffectivePlan] ?? 0;
+      if (userTier >= offerTier) {
+        const planName = (coupon.plan_override as string).charAt(0).toUpperCase() + (coupon.plan_override as string).slice(1);
+        return new Response(
+          JSON.stringify({
+            valid: false,
+            already_on_plan: true,
+            error: `Great news — you already have access to ${planName} features! This coupon isn't needed for your current plan.`,
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
