@@ -3,7 +3,7 @@ import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { logAudit } from '@/lib/auditLogger';
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
-import { Check, Cloud, CloudOff, Sparkles, ChevronDown, BarChart3, Scissors, Save, Loader2 } from 'lucide-react';
+import { Check, Cloud, CloudOff, Sparkles, ChevronDown, BarChart3, Scissors, Save, Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 // Tooltip removed – Radix Popper causes infinite setRef loop on this page
@@ -177,6 +177,7 @@ export default function EditorPage() {
   });
   const [showATSBadge, setShowATSBadge] = useState(false);
   const [showToolsSheet, setShowToolsSheet] = useState(false);
+  const [toolsSubView, setToolsSubView] = useState<'list' | 'ats-scan'>('list');
   const [showATSScan, setShowATSScan] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [isQuickDownloading, setIsQuickDownloading] = useState(false);
@@ -465,6 +466,13 @@ export default function EditorPage() {
     return base;
   }, [currentResume, educationFirst]);
 
+  // Count optional sections not yet added (available to add via More)
+  const availableMoreCount = useMemo(() => {
+    const MORE_OPTIONAL_IDS = ['awards', 'projects', 'certifications', 'publications', 'volunteering', 'languages', 'hobbies', 'references'];
+    const addedIds = new Set(steps.map(s => s.id));
+    return MORE_OPTIONAL_IDS.filter(id => !addedIds.has(id)).length;
+  }, [steps]);
+
   // Hook 3: section scores, completion status, celebration toasts, and confetti
   const { sectionScores, overallScore, localHealthScore, sectionStatus, justCompletedStep } = useEditorSectionScores(currentResume);
 
@@ -548,7 +556,7 @@ export default function EditorPage() {
       actions: [
         { id: 'tailor', label: 'Tailor to Job', icon: Target, onClick: handleTailor },
         { id: 'ats-check', label: 'ATS Check', icon: BarChart3, onClick: () => setShowJobSheet(true) },
-        { id: 'ats-scan', label: 'ATS Scan', icon: Sparkles, onClick: () => setShowATSScan(true) },
+        { id: 'ats-scan', label: 'ATS Scan', icon: Sparkles, onClick: () => { setToolsSubView('ats-scan'); setShowToolsSheet(true); } },
       ],
     };
     return [quickActions, aiFeatures];
@@ -752,6 +760,7 @@ export default function EditorPage() {
           justCompletedStep={justCompletedStep}
           onMoreSectionSelect={handleMoreSectionSelect}
           activeMoreSection={moreSubSection}
+          availableMoreCount={availableMoreCount}
         />
       </div>
 
@@ -791,11 +800,25 @@ export default function EditorPage() {
               </>
             )}
           </TabsContent>
-          <TabsContent value="ats" className="flex-1 min-h-0 overflow-hidden mt-0">
+          <TabsContent value="ats" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
             {mobileEditorTab === 'ats' && (
-              <Suspense fallback={null}>
-                <ATSParserPreview />
-              </Suspense>
+              <>
+                <div className="shrink-0 px-4 pt-3 pb-2">
+                  <button
+                    onClick={() => { haptics.light(); setToolsSubView('list'); setShowToolsSheet(true); }}
+                    className="flex items-center gap-2.5 w-full rounded-xl border border-border bg-card hover:bg-muted active:scale-[0.98] transition-transform touch-manipulation min-h-[48px] px-4"
+                  >
+                    <Sparkles className="w-4 h-4 text-primary shrink-0" />
+                    <span className="text-sm font-medium flex-1 text-left">AI Tools</span>
+                    <ArrowLeft className="w-4 h-4 text-muted-foreground rotate-180" />
+                  </button>
+                </div>
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  <Suspense fallback={null}>
+                    <ATSParserPreview />
+                  </Suspense>
+                </div>
+              </>
             )}
           </TabsContent>
         </Tabs>
@@ -917,6 +940,102 @@ export default function EditorPage() {
             />
           )}
           {showATSScan && <ATSScanSheet open={showATSScan} onOpenChange={setShowATSScan} summary={scanSummary} onJumpToSection={handleTabChange} />}
+          {/* Mobile tools sheet with sub-view navigation */}
+          <Sheet open={showToolsSheet} onOpenChange={(open) => { setShowToolsSheet(open); if (!open) setToolsSubView('list'); }}>
+            <SheetContent side="bottom" className="rounded-t-2xl max-h-[75vh] flex flex-col px-0 pb-safe">
+              {toolsSubView === 'list' ? (
+                <>
+                  <SheetHeader className="px-4 pb-2 shrink-0">
+                    <SheetTitle className="text-base">AI Tools</SheetTitle>
+                  </SheetHeader>
+                  <div className="overflow-y-auto flex-1 px-4 pb-4 space-y-2">
+                    <button
+                      onClick={() => { haptics.light(); setShowToolsSheet(false); handleTailor(); }}
+                      className="flex items-center gap-3 w-full rounded-xl border border-border bg-card hover:bg-muted active:scale-[0.98] transition-transform touch-manipulation min-h-[56px] px-4"
+                    >
+                      <Target className="w-5 h-5 text-amber-500 shrink-0" />
+                      <div className="text-left min-w-0">
+                        <p className="text-sm font-medium">Tailor to Job</p>
+                        <p className="text-xs text-muted-foreground">Match resume to a job post</p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => { haptics.light(); setShowToolsSheet(false); setShowJobSheet(true); }}
+                      className="flex items-center gap-3 w-full rounded-xl border border-border bg-card hover:bg-muted active:scale-[0.98] transition-transform touch-manipulation min-h-[56px] px-4"
+                    >
+                      <BarChart3 className="w-5 h-5 text-emerald-500 shrink-0" />
+                      <div className="text-left min-w-0">
+                        <p className="text-sm font-medium">ATS Check</p>
+                        <p className="text-xs text-muted-foreground">Score against ATS systems</p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => { haptics.light(); setToolsSubView('ats-scan'); }}
+                      className="flex items-center gap-3 w-full rounded-xl border border-border bg-card hover:bg-muted active:scale-[0.98] transition-transform touch-manipulation min-h-[56px] px-4"
+                    >
+                      <Sparkles className="w-5 h-5 text-cyan-500 shrink-0" />
+                      <div className="text-left min-w-0">
+                        <p className="text-sm font-medium">ATS Scan</p>
+                        <p className="text-xs text-muted-foreground">Quick keyword match scan</p>
+                      </div>
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2 px-4 py-3 border-b border-border shrink-0">
+                    <button
+                      onClick={() => { haptics.light(); setToolsSubView('list'); }}
+                      className="p-1.5 -ml-1.5 rounded-lg hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[40px] min-h-[40px] flex items-center justify-center"
+                      aria-label="Back to tools list"
+                    >
+                      <ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <h3 className="text-base font-semibold">ATS Scan</h3>
+                  </div>
+                  <div className="overflow-y-auto flex-1 px-4 py-4">
+                    {scanSummary ? (
+                      <div className="space-y-5 pb-2">
+                        <div className="text-center space-y-2">
+                          <p className={cn('text-4xl font-bold', scanSummary.matchPercentage >= 70 ? 'text-success' : scanSummary.matchPercentage >= 40 ? 'text-warning' : 'text-destructive')}>
+                            {scanSummary.matchPercentage}%
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {scanSummary.matchedKeywords} of {scanSummary.totalKeywords} keywords matched
+                          </p>
+                        </div>
+                        {scanSummary.perSection.length > 0 && (
+                          <div className="space-y-2">
+                            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Missing Keywords by Section</h4>
+                            {scanSummary.perSection.map(({ section, label, missing }: { section: string; label: string; missing: number }) => (
+                              <button
+                                key={section}
+                                onClick={() => { haptics.light(); handleTabChange(section); setShowToolsSheet(false); setToolsSubView('list'); }}
+                                className="w-full flex items-center gap-3 rounded-xl px-3 py-3 bg-muted active:scale-[0.98] touch-manipulation min-h-[44px]"
+                              >
+                                <span className="text-sm font-medium flex-1 text-left">{label}</span>
+                                <span className="text-xs text-muted-foreground">{missing} missing</span>
+                                <ArrowLeft className="w-4 h-4 text-muted-foreground rotate-180" />
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {scanSummary.perSection.length === 0 && (
+                          <div className="text-center py-6">
+                            <p className="text-sm text-success font-medium">All key terms are covered.</p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center py-10">
+                        <p className="text-sm text-muted-foreground">Run ATS Scan to see keyword results.</p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </SheetContent>
+          </Sheet>
           {showShareSheet && currentResume && (
             <ShareSheet
               open={showShareSheet}

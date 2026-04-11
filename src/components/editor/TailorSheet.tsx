@@ -1290,11 +1290,15 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                 {isApplying ? 'Creating...' : `Apply (${enabledSections.length})`}
               </Button>
             </div>
-            {effectiveScore && (
+            {enabledSections.length === 0 ? (
+              <p className="text-xs text-center text-warning mt-1.5">
+                Toggle at least one section above to apply
+              </p>
+            ) : effectiveScore ? (
               <p className="text-xs text-center text-muted-foreground mt-1.5 [@media(max-height:700px)]:hidden">
                 Applying {enabledSections.length} sections → Score: {effectiveScore}% • New tailored copy will be created
               </p>
-            )}
+            ) : null}
           </div>
         )}
         </>

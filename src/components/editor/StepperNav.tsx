@@ -15,6 +15,7 @@ interface StepperNavProps {
   justCompletedStep?: string | null;
   onMoreSectionSelect?: (sectionId: string) => void;
   activeMoreSection?: string | null;
+  availableMoreCount?: number;
 }
 
 const MORE_SECTIONS = [
@@ -57,6 +58,7 @@ export const StepperNav = memo(function StepperNav({
   justCompletedStep,
   onMoreSectionSelect,
   activeMoreSection,
+  availableMoreCount,
 }: StepperNavProps) {
   const isMobile = useIsMobile();
   const [showSheet, setShowSheet] = useState(false);
@@ -122,10 +124,15 @@ export const StepperNav = memo(function StepperNav({
                     ) : (
                       <Icon className="w-3.5 h-3.5" />
                     )}
-                    {displayLabel}
+                    {step.id === 'more' && !moreDef ? 'Add sections' : displayLabel}
                     {isInProgress && !isCompleted && (
                       <span className="text-[9px] font-bold bg-warning text-warning-foreground rounded-full px-1 py-px leading-tight">
                         {score}%
+                      </span>
+                    )}
+                    {step.id === 'more' && !moreDef && availableMoreCount != null && availableMoreCount > 0 && (
+                      <span className="text-[9px] font-bold bg-primary text-primary-foreground rounded-full w-4 h-4 flex items-center justify-center leading-none shrink-0">
+                        {availableMoreCount}
                       </span>
                     )}
                   </button>
@@ -264,8 +271,13 @@ export const StepperNav = memo(function StepperNav({
         {/* Desktop: More sections FloatingPanel */}
         {onMoreSectionSelect && (
           <FloatingPanelRoot className="flex-shrink-0">
-            <FloatingPanelTrigger title="Additional Sections" className="h-10 w-10 !px-0 justify-center rounded-full">
+            <FloatingPanelTrigger title="Additional Sections" className="h-10 w-10 !px-0 justify-center rounded-full relative">
               <Plus className="w-5 h-5" />
+              {availableMoreCount != null && availableMoreCount > 0 && (
+                <span className="absolute -top-1 -right-1 text-[9px] font-bold bg-primary text-primary-foreground rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                  {availableMoreCount}
+                </span>
+              )}
             </FloatingPanelTrigger>
             <FloatingPanelContent className="max-h-[80dvh] overflow-y-auto pb-safe backdrop-blur-sm bg-background/95">
               <div className="px-4 pb-4">
