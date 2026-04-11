@@ -45,7 +45,10 @@ export function SetPlanModal({ user, password, open, onOpenChange, onSuccess }: 
       if (error) throw new Error(error.message);
       const result = data as { success?: boolean; error?: string };
       if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
-      toast.success(`Plan updated to ${selected} for ${user.email}`);
+      toast.success(`Plan updated to ${selected} for ${user.email}`, {
+        description: "The user's app will reflect this within 30 seconds on next interaction.",
+        duration: 5000,
+      });
       onSuccess();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to update plan');
