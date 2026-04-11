@@ -93,6 +93,7 @@ export function UserDetailDrawer({ user: userProp, password, open, onClose, onUs
   const { user: authUser } = useAuth();
 
   const [user, setUser] = useState<AdminUser>(userProp);
+  // Sync local user state whenever the parent provides fresh server data
   useEffect(() => { setUser(userProp); }, [userProp]);
 
   const [planTab, setPlanTab] = useState<PlanTab>('permanent');
@@ -107,6 +108,16 @@ export function UserDetailDrawer({ user: userProp, password, open, onClose, onUs
   const [newDailyLimit, setNewDailyLimit] = useState(user.daily_limit !== null ? String(user.daily_limit) : '');
   const [bonusCredits, setBonusCredits] = useState('');
   const [savingCredits, setSavingCredits] = useState(false);
+
+  // When a DIFFERENT user is opened (user_id changes), reset all form fields to the new user's data
+  useEffect(() => {
+    setSelectedPlan(userProp.plan_name);
+    setSuspendReason(userProp.suspension_reason || '');
+    setNewDailyLimit(userProp.daily_limit !== null ? String(userProp.daily_limit) : '');
+    setBonusCredits('');
+    setPlanTab('permanent');
+  }, [userProp.user_id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [noteText, setNoteText] = useState('');
   const [savingNote, setSavingNote] = useState(false);
 
