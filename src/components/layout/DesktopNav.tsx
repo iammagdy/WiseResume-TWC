@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Globe, Home, BarChart3, Sparkles, MessageCircle, Sun, Moon, Search, Settings, LogOut, CreditCard } from 'lucide-react';
+import { FileText, Globe, Home, BarChart3, Sparkles, MessageCircle, Sun, Moon, Search, Settings, LogOut, CreditCard, Lock } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
@@ -8,8 +8,9 @@ import { useChangelogBadge } from '@/hooks/useChangelogBadge';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
+import { usePlan } from '@/hooks/usePlan';
 import { toast } from 'sonner';
-import { lazy, Suspense, useState, useRef, useEffect } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
@@ -69,16 +70,9 @@ export function DesktopNav() {
   const { isDark, toggleTheme } = useTheme();
   const { user, signOut } = useAuth();
   const { profile } = useProfile(user?.id, user);
+  const { isPro } = usePlan();
   const [wiseAIOpen, setWiseAIOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const previousPathRef = useRef('/dashboard');
-
-  useEffect(() => {
-    const isOnSettings = location.pathname.startsWith('/settings');
-    if (!isOnSettings) {
-      previousPathRef.current = location.pathname;
-    }
-  }, [location.pathname]);
 
   const isActive = (tab: TabItem) => {
     if (tab.matchPaths) {
@@ -137,9 +131,17 @@ export function DesktopNav() {
               
               <div className="relative">
                 <Icon className="w-4 h-4" aria-hidden="true" />
-                {tab.path === '/dashboard' && hasNew &&
-                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-primary border border-background" />
-                }
+                {tab.path === '/dashboard' && hasNew && (
+                  <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-primary border border-background" />
+                )}
+                {tab.path === '/applications' && !isPro && !active && (
+                  <span
+                    className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-500 border-2 border-background flex items-center justify-center"
+                    aria-label="Pro feature"
+                  >
+                    <Lock className="w-1.5 h-1.5 text-white" />
+                  </span>
+                )}
               </div>
               {tab.label}
             </button>);
