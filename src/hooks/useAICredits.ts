@@ -123,9 +123,28 @@ export function useAICreditsMutations() {
     if (aiProvider === 'gemini' && geminiKeyValidated) return true;
     if (aiProvider === 'ollama' && ollamaKeyValidated) return true;
 
-    // Read from the cached 'me' query for the credits check
-    const cached = queryClient.getQueryData<{ ai_credits: { daily_usage: number; daily_limit: number; usage_date: string } | null } | null>(['me', user.id]);
-    const data = cached?.ai_credits ?? null;
+    // Use cached 'me' data, but fetch fresh if the cache is cold to avoid
+    // bypassing credit checks before the initial query hydrates.
+    type MeCacheShape = { ai_credits: { daily_usage: number; daily_limit: number; usage_date: string } | null } | null;
+    let cached = queryClient.getQueryData<MeCacheShape>(['me', user.id]);
+    if (cached === undefined) {
+      try {
+        cached = await queryClient.fetchQuery<MeCacheShape>({
+          queryKey: ['me', user.id],
+          queryFn: async () => {
+            const { edgeFunctions } = await import('@/integrations/supabase/edgeFunctions');
+            const { data, error } = await edgeFunctions.functions.invoke('me', { body: {} });
+            if (error) throw new Error(error.message ?? 'Failed to fetch credits');
+            return data as MeCacheShape;
+          },
+          staleTime: 5 * 1000,
+        });
+      } catch {
+        return true;
+      }
+    }
+
+    const data = (cached as { ai_credits?: { daily_usage: number; daily_limit: number; usage_date: string } | null } | null)?.ai_credits ?? null;
 
     if (!data) return true;
 

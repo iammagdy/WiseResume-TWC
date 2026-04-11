@@ -95,11 +95,11 @@ export function useMe() {
 
   return useQuery({
     queryKey: ['me', user?.id],
-    queryFn: async (): Promise<MeData | null> => {
+    queryFn: async (): Promise<MeData> => {
       const { data, error } = await edgeFunctions.functions.invoke('me', { body: {} });
       if (error) {
         console.error('[useMe] edge function error:', error);
-        return null;
+        throw new Error(error.message ?? 'Failed to fetch user data');
       }
       return data as MeData;
     },
