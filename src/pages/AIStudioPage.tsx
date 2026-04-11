@@ -307,6 +307,11 @@ export default function AIStudioPage() {
     setRecentIds(getRecentToolIds());
 
     if (tool.navigate) { haptics.medium(); navigate(tool.navigate); return; }
+    if (tool.id === 'company-briefing') {
+      haptics.medium();
+      setShowCompanyBriefing(true);
+      return;
+    }
     const action = () => {
       switch (tool.id) {
         case 'tailor': setShowTailor(true); break;
@@ -317,7 +322,6 @@ export default function AIStudioPage() {
         case 'ab-compare': setShowABCompare(true); break;
         case 'recruiter': setShowRecruiterSim(true); break;
         case 'linkedin': setShowLinkedIn(true); break;
-        case 'company-briefing': setShowCompanyBriefing(true); break;
         case 'career': setShowCareerPath(true); break;
         case 'salary-negotiation': setShowSalaryNegotiation(true); break;
         case 'job-rejection': setShowJobRejection(true); break;

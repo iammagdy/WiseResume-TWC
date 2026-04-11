@@ -53,7 +53,8 @@ function InterviewPageContent() {
   const saveSession = useSaveInterviewSession();
 
   // Resume guard - require a resume for interview practice (only after hydration)
-  const hasValidResume = currentResume && currentResume.contactInfo?.fullName;
+  // Any non-null resume object is valid — fullName is optional
+  const hasValidResume = currentResume != null;
 
   const {
     status,
@@ -278,12 +279,17 @@ function InterviewPageContent() {
           <Sparkles className="w-8 h-8 text-muted-foreground opacity-50" />
         </div>
         <div>
-          <h2 className="font-semibold text-lg mb-1 text-foreground">No Resume Selected</h2>
-          <p className="text-sm text-muted-foreground max-w-xs">Select or create a resume from your dashboard to start interview practice.</p>
+          <h2 className="font-semibold text-lg mb-1 text-foreground">No Resume Found</h2>
+          <p className="text-sm text-muted-foreground max-w-xs">Create or open a resume in the editor first, then come back to start your interview practice.</p>
         </div>
-        <Button onClick={() => navigate('/ai-studio')} className="min-h-[48px] px-6">
-          Go to AI Studio
-        </Button>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={() => navigate('/dashboard')} className="min-h-[48px] px-5">
+            Go to Dashboard
+          </Button>
+          <Button onClick={() => navigate('/dashboard?action=create')} className="min-h-[48px] px-5">
+            Create Resume
+          </Button>
+        </div>
       </div>
     );
   }
@@ -363,7 +369,7 @@ function InterviewPageContent() {
         <div className="flex-1 overflow-y-auto">
           <InterviewStatsCard onViewHistory={() => setShowHistory(true)} />
           <InterviewSetup
-            hasResume={!!currentResume && !!currentResume.contactInfo.fullName}
+            hasResume={!!currentResume}
             speechSupported={speechSupported}
             speechRecognitionAvailable={speechRecognitionAvailable}
             voiceGender={voiceGender}

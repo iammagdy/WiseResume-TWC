@@ -99,8 +99,8 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-h-[90dvh] flex flex-col">
-        <DrawerHeader className="flex items-center justify-between pb-2">
+      <DrawerContent className="h-[90dvh] flex flex-col overflow-hidden">
+        <DrawerHeader className="flex items-center justify-between pb-2 shrink-0">
           <DrawerTitle className="flex items-center gap-2 text-base font-bold">
             <Building2 className="w-5 h-5 text-primary" />
             Company Briefing
