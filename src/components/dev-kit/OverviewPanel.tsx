@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import type { ElementType } from 'react';
 import { RefreshCw, Users, Crown, AlertTriangle, Shield, Clock, FileText, TrendingUp, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
@@ -31,7 +32,7 @@ function StatCard({
 }: {
   label: string;
   value: number | string;
-  icon: React.ElementType;
+  icon: ElementType;
   color: string;
   sub?: string;
 }) {
@@ -162,7 +163,7 @@ export function OverviewPanel({ password }: OverviewPanelProps) {
               Last updated {stats.lastLoadedAt.toLocaleTimeString()}
               {stats.loadedCount < stats.total && (
                 <span className="ml-1.5 text-amber-600 dark:text-amber-400">
-                  · Plan breakdown sampled from first {stats.loadedCount.toLocaleString()} of {stats.total.toLocaleString()} users
+                  · Plan counts and resume totals sampled from first {stats.loadedCount.toLocaleString()} of {stats.total.toLocaleString()} users
                 </span>
               )}
             </p>

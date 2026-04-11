@@ -469,10 +469,10 @@ export function DevKitRunner({ adminPassword = '' }: DevKitRunnerProps) {
       {/* System Health Summary Card */}
       {(() => {
         const total = tests.length;
-        const passed = smokeSummary ? smokeSummary.passed : Object.values(results).filter(r => r.status === 'success').length;
-        const failed = smokeSummary ? smokeSummary.failed : Object.values(results).filter(r => r.status === 'error').length;
+        const passed = smokeSummary ? smokeSummary.passed : 0;
+        const failed = smokeSummary ? smokeSummary.failed : 0;
         const ran = passed + failed;
-        const healthPct = ran > 0 ? Math.round((passed / ran) * 100) : null;
+        const healthPct = smokeSummary ? Math.round((passed / Math.max(ran, 1)) * 100) : null;
         const isHealthy = healthPct !== null && healthPct === 100;
         const isPartial = healthPct !== null && healthPct >= 50 && healthPct < 100;
         const isUnhealthy = healthPct !== null && healthPct < 50;
