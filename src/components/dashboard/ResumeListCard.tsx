@@ -28,6 +28,7 @@ import { useOfflineSyncStore } from '@/store/offlineSyncStore';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { ProgressBar } from '@/components/editor/ProgressBar';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
@@ -48,7 +49,7 @@ interface ResumeListCardProps {
   onEdit: (id: string) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
-  onRename?: (id: string, newTitle: string) => void;
+  onRename?: (id: string, newTitle: string) => void | Promise<void>;
   onInterview?: (id: string) => void;
   showMasterBadge?: boolean;
   showTailoredBadge?: boolean;
@@ -59,6 +60,8 @@ interface ResumeListCardProps {
   selectionMode?: boolean;
   selected?: boolean;
   onToggleSelect?: (id: string) => void;
+  /** Externally driven processing state (e.g. when parent's async mutation is in-flight for this card) */
+  isProcessing?: boolean;
 }
 
 const SWIPE_THRESHOLD = 80;
@@ -78,10 +81,13 @@ export const ResumeListCard = memo(function ResumeListCard({
   selectionMode = false,
   selected = false,
   onToggleSelect,
+  isProcessing = false,
 }: ResumeListCardProps) {
 
   const [isDragging, setIsDragging] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
+  const [isSavingRename, setIsSavingRename] = useState(false);
+  const [showProcessingOverlay, setShowProcessingOverlay] = useState(false);
   const [showTargetJobSheet, setShowTargetJobSheet] = useState(false);
   const [showActionsSheet, setShowActionsSheet] = useState(false);
   const navigateToEditor = useNavigate();
@@ -104,6 +110,16 @@ export const ResumeListCard = memo(function ResumeListCard({
       return () => clearTimeout(timer);
     }
   }, [showSwipeHint]);
+
+  // Only show processing overlay after 300ms to avoid flicker on fast network
+  useEffect(() => {
+    if (!isProcessing) {
+      setShowProcessingOverlay(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowProcessingOverlay(true), 300);
+    return () => clearTimeout(timer);
+  }, [isProcessing]);
 
   // Fit score badge from tailor history
   const getTailorHistoryForResume = useResumeStore(s => s.getTailorHistoryForResume);
@@ -148,11 +164,9 @@ export const ResumeListCard = memo(function ResumeListCard({
     if (info.offset.x <= -SWIPE_THRESHOLD) {
       haptics.warning();
       if (confirmSwipeActions) {
-        // Spring back and let parent handle confirmation
         animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
         onDelete(resume.id);
       } else {
-        // Animate off-screen then trigger
         animate(x, -300, { type: 'tween', duration: 0.2 }).then(() => onDelete(resume.id));
       }
     } else if (info.offset.x >= SWIPE_THRESHOLD) {
@@ -164,7 +178,6 @@ export const ResumeListCard = memo(function ResumeListCard({
         animate(x, 300, { type: 'tween', duration: 0.2 }).then(() => onDuplicate(resume.id));
       }
     } else {
-      // Didn't reach threshold — spring back smoothly
       animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
     }
   };
@@ -247,6 +260,24 @@ export const ResumeListCard = memo(function ResumeListCard({
         onClick={handleCardClick}
         whileTap={{ scale: isDragging ? 1 : 0.98 }}
       >
+        {/* Processing overlay — shown only after 300ms to avoid flicker on fast networks */}
+        <AnimatePresence>
+          {showProcessingOverlay && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="absolute inset-0 flex items-center justify-center z-20 bg-background/70 backdrop-blur-[2px] rounded-2xl pointer-events-none"
+            >
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <MiniSpinner size={16} />
+                <span>Processing…</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Swipe hint overlay — shown once on first load */}
         <AnimatePresence>
           {showSwipeHint && (
@@ -308,26 +339,36 @@ export const ResumeListCard = memo(function ResumeListCard({
                   <Star className="w-4 h-4 text-warning fill-warning flex-shrink-0" />
                 )}
                 {isRenaming ? (
-                  <input
-                    autoFocus
-                    className="font-semibold text-foreground bg-transparent bg-input border border-border rounded-lg px-2 py-0.5 h-7 w-full max-w-[180px] text-sm focus:outline-none focus:ring-1 focus:ring-primary/40"
-                    defaultValue={resume.title}
-                    onClick={(e) => e.stopPropagation()}
-                    onBlur={(e) => {
-                      const val = e.target.value.trim();
-                      if (val && val !== resume.title && onRename) onRename(resume.id, val);
-                      setIsRenaming(false);
-                    }}
-                    onKeyDown={(e) => {
-                      e.stopPropagation();
-                      if (e.key === 'Enter') {
-                        const val = e.currentTarget.value.trim();
-                        if (val && val !== resume.title && onRename) onRename(resume.id, val);
+                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                    <input
+                      autoFocus
+                      disabled={isSavingRename}
+                      className="font-semibold text-foreground bg-transparent bg-input border border-border rounded-lg px-2 py-0.5 h-7 w-full max-w-[180px] text-sm focus:outline-none focus:ring-1 focus:ring-primary/40 disabled:opacity-60"
+                      defaultValue={resume.title}
+                      onClick={(e) => e.stopPropagation()}
+                      onBlur={async (e) => {
+                        if (isSavingRename) return;
+                        const val = e.target.value.trim();
+                        if (val && val !== resume.title && onRename) {
+                          setIsSavingRename(true);
+                          try {
+                            await onRename(resume.id, val);
+                          } finally {
+                            setIsSavingRename(false);
+                          }
+                        }
                         setIsRenaming(false);
-                      }
-                      if (e.key === 'Escape') setIsRenaming(false);
-                    }}
-                  />
+                      }}
+                      onKeyDown={(e) => {
+                        e.stopPropagation();
+                        if (e.key === 'Enter') {
+                          e.currentTarget.blur();
+                        }
+                        if (e.key === 'Escape') setIsRenaming(false);
+                      }}
+                    />
+                    {isSavingRename && <MiniSpinner size={14} className="shrink-0 text-muted-foreground" />}
+                  </div>
                 ) : (
                   <h3 className="font-semibold text-foreground truncate text-lg sm:text-base" title={resume.title}>
                     {resume.title}

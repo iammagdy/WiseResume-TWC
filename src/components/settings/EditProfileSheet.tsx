@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Camera, Upload, MapPin, Briefcase, Linkedin, CheckCircle2, Sparkles, Download, X, ChevronDown, Crown, GraduationCap, Wrench } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { LoadingButton } from '@/components/ui/LoadingButton';
 import {
   Sheet,
   SheetContent,
@@ -710,13 +711,14 @@ export function EditProfileSheet({
           >
             Close
           </Button>
-          <Button
+          <LoadingButton
             onClick={handleSave}
-            disabled={isSaving}
+            isLoading={isSaving}
+            loadingText="Saving..."
             className="flex-1"
           >
-            {isSaving ? 'Saving...' : 'Save & Close'}
-          </Button>
+            Save & Close
+          </LoadingButton>
           </div>
         </div>
       </SheetContent>

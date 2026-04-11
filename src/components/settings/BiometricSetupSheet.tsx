@@ -10,6 +10,7 @@
  } from '@/components/ui/sheet';
  import { Button } from '@/components/ui/button';
  import { haptics } from '@/lib/haptics';
+ import { LoadingButton } from '@/components/ui/LoadingButton';
  
  interface BiometricSetupSheetProps {
    open: boolean;
@@ -142,13 +143,14 @@
  
                {/* Actions */}
                <div className="w-full space-y-3">
-                 <Button
+                 <LoadingButton
                    onClick={handleEnable}
-                   disabled={isEnabling}
+                   isLoading={isEnabling}
+                   loadingText="Verifying..."
                    className="w-full h-12 text-base"
                  >
-                   {isEnabling ? 'Verifying...' : `Enable ${getBiometryName()}`}
-                 </Button>
+                   {`Enable ${getBiometryName()}`}
+                 </LoadingButton>
                  <Button
                    variant="ghost"
                    onClick={handleClose}

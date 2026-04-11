@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PartyPopper, RefreshCw, Globe, Bell, ArrowRight, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { haptics } from '@/lib/haptics';
 import { useNavigate } from 'react-router-dom';
 import { useProfile } from '@/hooks/useProfile';
@@ -61,6 +62,8 @@ export function HiredCelebrationModal({ open, onClose, jobTitle, company, resume
   const { user } = useAuth();
   const { profile, updateProfile } = useProfile(user?.id, user);
   const [didFireHaptics, setDidFireHaptics] = useState(false);
+  const [isTogglingOpenToWork, setIsTogglingOpenToWork] = useState(false);
+  const [isSettingReminder, setIsSettingReminder] = useState(false);
 
   useEffect(() => {
     if (open && !didFireHaptics) {
@@ -75,26 +78,38 @@ export function HiredCelebrationModal({ open, onClose, jobTitle, company, resume
   }, [open]);
 
   const handleTurnOffOpenToWork = async () => {
+    if (isTogglingOpenToWork) return;
     haptics.light();
-    await updateProfile({ open_to_work: false } as Parameters<typeof updateProfile>[0]);
-    toast.success('Open to Work turned off on your portfolio');
-    onClose();
+    setIsTogglingOpenToWork(true);
+    try {
+      await updateProfile({ open_to_work: false } as Parameters<typeof updateProfile>[0]);
+      toast.success('Open to Work turned off on your portfolio');
+      onClose();
+    } finally {
+      setIsTogglingOpenToWork(false);
+    }
   };
 
   const handleSetReminder = async () => {
+    if (isSettingReminder) return;
     haptics.light();
     if (!user?.id) return;
-    const reminderDate = new Date();
-    reminderDate.setMonth(reminderDate.getMonth() + 3);
-    await supabase.from('notifications').insert({
-      user_id: user.id,
-      type: 'system',
-      title: '⏰ Time to update your resume!',
-      message: `It's been 3 months since you started at ${company}. Add your new role and achievements to stay ready.`,
-      link: resumeId ? `/resume/${resumeId}` : '/dashboard',
-    });
-    toast.success('3-month reminder set! We\'ll nudge you to update your resume.');
-    onClose();
+    setIsSettingReminder(true);
+    try {
+      const reminderDate = new Date();
+      reminderDate.setMonth(reminderDate.getMonth() + 3);
+      await supabase.from('notifications').insert({
+        user_id: user.id,
+        type: 'system',
+        title: '⏰ Time to update your resume!',
+        message: `It's been 3 months since you started at ${company}. Add your new role and achievements to stay ready.`,
+        link: resumeId ? `/resume/${resumeId}` : '/dashboard',
+      });
+      toast.success('3-month reminder set! We\'ll nudge you to update your resume.');
+      onClose();
+    } finally {
+      setIsSettingReminder(false);
+    }
   };
 
   const handleUpdateResume = () => {
@@ -172,30 +187,32 @@ export function HiredCelebrationModal({ open, onClose, jobTitle, company, resume
 
               <button
                 onClick={handleTurnOffOpenToWork}
-                className="w-full flex items-center gap-3 p-4 rounded-2xl border border-border hover:bg-muted active:scale-95 transition-all text-left group"
+                disabled={isTogglingOpenToWork || isSettingReminder}
+                className="w-full flex items-center gap-3 p-4 rounded-2xl border border-border hover:bg-muted active:scale-95 transition-all text-left group disabled:opacity-60 disabled:pointer-events-none"
               >
                 <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center shrink-0">
-                  <Globe className="w-5 h-5 text-secondary" />
+                  {isTogglingOpenToWork ? <MiniSpinner size={20} /> : <Globe className="w-5 h-5 text-secondary" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold">Turn off "Open to Work"</p>
-                  <p className="text-xs text-muted-foreground">Update your portfolio status</p>
+                  <p className="text-xs text-muted-foreground">{isTogglingOpenToWork ? 'Updating…' : 'Update your portfolio status'}</p>
                 </div>
-                <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+                {!isTogglingOpenToWork && <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />}
               </button>
 
               <button
                 onClick={handleSetReminder}
-                className="w-full flex items-center gap-3 p-4 rounded-2xl border border-border hover:bg-muted active:scale-95 transition-all text-left group"
+                disabled={isSettingReminder || isTogglingOpenToWork}
+                className="w-full flex items-center gap-3 p-4 rounded-2xl border border-border hover:bg-muted active:scale-95 transition-all text-left group disabled:opacity-60 disabled:pointer-events-none"
               >
                 <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
-                  <Bell className="w-5 h-5 text-accent-foreground" />
+                  {isSettingReminder ? <MiniSpinner size={20} /> : <Bell className="w-5 h-5 text-accent-foreground" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold">Set a 3-month reminder</p>
-                  <p className="text-xs text-muted-foreground">Keep your resume fresh after settling in</p>
+                  <p className="text-xs text-muted-foreground">{isSettingReminder ? 'Setting reminder…' : 'Keep your resume fresh after settling in'}</p>
                 </div>
-                <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+                {!isSettingReminder && <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />}
               </button>
             </div>
 

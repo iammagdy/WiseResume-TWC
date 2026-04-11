@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Briefcase, Building2, FileText, Bookmark, ChevronRight, Check, ArrowLeft, MapPin, Clock, DollarSign, AlertTriangle, Sparkles, Star } from 'lucide-react';
+import { LoadingButton } from '@/components/ui/LoadingButton';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,7 @@ export function AnalyzeJobSheet({ open, onOpenChange }: AnalyzeJobSheetProps) {
   const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null);
   const [showResumePicker, setShowResumePicker] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isTailoring, setIsTailoring] = useState(false);
   const [urlParsedInfo, setUrlParsedInfo] = useState<{ title: string; company: string; url?: string } | null>(null);
 
   const resetState = () => {
@@ -46,12 +48,19 @@ export function AnalyzeJobSheet({ open, onOpenChange }: AnalyzeJobSheetProps) {
     setSelectedResumeId(null);
     setShowResumePicker(false);
     setSaving(false);
+    setIsTailoring(false);
     setUrlParsedInfo(null);
   };
 
   const handleOpenChange = (open: boolean) => {
     if (!open) resetState();
     onOpenChange(open);
+  };
+
+  // Reset isTailoring when sheet opens so stale state doesn't carry over
+  const handleTailorClose = () => {
+    setIsTailoring(false);
+    handleOpenChange(false);
   };
 
   const handleParsed = (data: { title: string; company: string; url?: string }) => {
@@ -91,10 +100,14 @@ export function AnalyzeJobSheet({ open, onOpenChange }: AnalyzeJobSheetProps) {
   const handleTailor = () => {
     if (!selectedResumeId || !parsedJob) return;
     haptics.medium();
+    setIsTailoring(true);
     setCurrentResumeId(selectedResumeId);
     useResumeStore.getState().setJobDescription(parsedJob.description);
-    handleOpenChange(false);
-    navigate(`/editor?tailor=true&jobTitle=${encodeURIComponent(parsedJob.title)}&company=${encodeURIComponent(parsedJob.company)}`);
+    // Brief delay so "Preparing…" state is visible before navigation
+    setTimeout(() => {
+      handleTailorClose();
+      navigate(`/editor?tailor=true&jobTitle=${encodeURIComponent(parsedJob.title)}&company=${encodeURIComponent(parsedJob.company)}`);
+    }, 200);
   };
 
   const handleSaveJob = async () => {
@@ -404,13 +417,15 @@ export function AnalyzeJobSheet({ open, onOpenChange }: AnalyzeJobSheetProps) {
                         >
                           Back
                         </Button>
-                        <Button
+                        <LoadingButton
                           onClick={handleTailor}
+                          isLoading={isTailoring}
+                          loadingText="Preparing…"
                           disabled={!selectedResumeId}
                           className="flex-1 min-h-[48px] font-semibold active:scale-95 transition-transform"
                         >
                           Tailor Resume
-                        </Button>
+                        </LoadingButton>
                       </div>
                     </motion.div>
                   )}

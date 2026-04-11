@@ -7,6 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { SortOption, CategoryFilter, ScoreFilter } from '@/components/dashboard/ResumeFilters';
 import { templates } from '@/lib/templateData';
 import { Button } from '@/components/ui/button';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
@@ -264,14 +265,15 @@ function DashboardPageContent() {
     setDuplicateResumeId(resumeId);
   }, []);
 
-  const confirmDuplicate = useCallback(() => {
-    if (duplicateResumeId) {
-      haptics.success();
-      duplicateResume.mutate(duplicateResumeId, {
-        onSuccess: () => {
-          toast.success('Resume duplicated successfully');
-        },
-      });
+  const confirmDuplicate = useCallback(async () => {
+    if (!duplicateResumeId) return;
+    haptics.success();
+    try {
+      await duplicateResume.mutateAsync(duplicateResumeId);
+      toast.success('Resume duplicated successfully');
+    } catch {
+      // error handled by mutation
+    } finally {
       setDuplicateResumeId(null);
     }
   }, [duplicateResumeId, duplicateResume]);
@@ -286,34 +288,33 @@ function DashboardPageContent() {
     }
   }, [resumes, setCurrentResumeId, setCurrentResume, navigate]);
 
-  const handleRename = useCallback((resumeId: string, newTitle: string) => {
-    updateResume.mutate({ resumeId, updates: {}, title: newTitle }, {
-      onSuccess: () => toast.success('Resume renamed'),
-    });
+  const handleRename = useCallback(async (resumeId: string, newTitle: string) => {
+    try {
+      await updateResume.mutateAsync({ resumeId, updates: {}, title: newTitle });
+      toast.success('Resume renamed');
+    } catch {
+      toast.error('Failed to rename resume');
+    }
   }, [updateResume]);
 
   const handleDelete = useCallback((resumeId: string) => {
     setDeleteResumeId(resumeId);
   }, []);
 
-  const confirmDelete = useCallback(() => {
-    if (deleteResumeId) {
-      const resumeToDelete = resumes?.find(r => r.id === deleteResumeId);
-
-      // Store for potential undo
-      if (resumeToDelete) {
-        setDeletedResume({ id: resumeToDelete.id, title: resumeToDelete.title });
-      }
-
-      haptics.warning();
-      deleteResume.mutate(deleteResumeId, {
-        onSuccess: () => {
-          // Clear score trend history for deleted resume
-          useATSScoreHistoryStore.getState().clearHistory(deleteResumeId!);
-          // Show toast with undo option
-          toast.success(`"${resumeToDelete?.title}" deleted`, { duration: 3000 });
-        },
-      });
+  const confirmDelete = useCallback(async () => {
+    if (!deleteResumeId) return;
+    const resumeToDelete = resumes?.find(r => r.id === deleteResumeId);
+    if (resumeToDelete) {
+      setDeletedResume({ id: resumeToDelete.id, title: resumeToDelete.title });
+    }
+    haptics.warning();
+    try {
+      await deleteResume.mutateAsync(deleteResumeId);
+      useATSScoreHistoryStore.getState().clearHistory(deleteResumeId!);
+      toast.success(`"${resumeToDelete?.title}" deleted`, { duration: 3000 });
+    } catch {
+      // error handled by mutation
+    } finally {
       setDeleteResumeId(null);
     }
   }, [deleteResumeId, resumes, deleteResume]);
@@ -929,6 +930,10 @@ function DashboardPageContent() {
                                   selectionMode={selectionMode}
                                   selected={selectedIds.has(resume.id)}
                                   onToggleSelect={toggleSelection}
+                                  isProcessing={
+                                    (deleteResume.isPending && deleteResume.variables === resume.id) ||
+                                    (duplicateResume.isPending && duplicateResume.variables === resume.id)
+                                  }
                                 />
                               </motion.div>
                             );
@@ -1016,6 +1021,10 @@ function DashboardPageContent() {
                                 selectionMode={selectionMode}
                                 selected={selectedIds.has(resume.id)}
                                 onToggleSelect={toggleSelection}
+                                isProcessing={
+                                  (deleteResume.isPending && deleteResume.variables === resume.id) ||
+                                  (duplicateResume.isPending && duplicateResume.variables === resume.id)
+                                }
                               />
                             </div>
                           </motion.div>
@@ -1065,7 +1074,7 @@ function DashboardPageContent() {
 
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteResumeId} onOpenChange={() => setDeleteResumeId(null)}>
+      <AlertDialog open={!!deleteResumeId} onOpenChange={(open) => { if (!open && !deleteResume.isPending) setDeleteResumeId(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Move to Trash?</AlertDialogTitle>
@@ -1074,12 +1083,14 @@ function DashboardPageContent() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => haptics.light()}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => haptics.light()} disabled={deleteResume.isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => { e.preventDefault(); confirmDelete(); }}
+              disabled={deleteResume.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 inline-flex items-center gap-2"
             >
-              Move to Trash
+              {deleteResume.isPending && <MiniSpinner size={14} />}
+              {deleteResume.isPending ? 'Deleting…' : 'Move to Trash'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1107,7 +1118,7 @@ function DashboardPageContent() {
       </AlertDialog>
 
       {/* Duplicate Confirmation Dialog */}
-      <AlertDialog open={!!duplicateResumeId} onOpenChange={() => setDuplicateResumeId(null)}>
+      <AlertDialog open={!!duplicateResumeId} onOpenChange={(open) => { if (!open && !duplicateResume.isPending) setDuplicateResumeId(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Duplicate Resume?</AlertDialogTitle>
@@ -1116,9 +1127,14 @@ function DashboardPageContent() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => haptics.light()}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDuplicate}>
-              Duplicate
+            <AlertDialogCancel onClick={() => haptics.light()} disabled={duplicateResume.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); confirmDuplicate(); }}
+              disabled={duplicateResume.isPending}
+              className="inline-flex items-center gap-2"
+            >
+              {duplicateResume.isPending && <MiniSpinner size={14} />}
+              {duplicateResume.isPending ? 'Duplicating…' : 'Duplicate'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

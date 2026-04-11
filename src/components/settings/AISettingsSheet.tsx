@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { openExternal } from '@/lib/openExternal';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { LoadingButton } from '@/components/ui/LoadingButton';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -1153,16 +1155,16 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                         )}
 
                         {/* Connect button */}
-                        <Button
+                        <LoadingButton
                           size="sm"
                           onClick={handleValidateBYOK}
-                          disabled={byokIsValidating}
+                          isLoading={byokIsValidating}
+                          loadingText="Connecting..."
+                          spinnerSize={14}
                           className="w-full h-8 text-xs"
                         >
-                          {byokIsValidating ? (
-                            <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Connecting...</>
-                          ) : 'Connect & Validate'}
-                        </Button>
+                          Connect &amp; Validate
+                        </LoadingButton>
 
                         {/* Docs link */}
                         <button
@@ -1190,19 +1192,18 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                   )}
                 </div>
 
-                <Button
+                <LoadingButton
                   size="sm"
                   variant="outline"
                   onClick={handleTestConnection}
-                  disabled={isTesting || secondsRemaining > 0}
+                  isLoading={isTesting}
+                  loadingText="Testing..."
+                  spinnerSize={14}
+                  disabled={secondsRemaining > 0}
                   className="w-full h-8 text-xs gap-1.5"
                 >
-                  {isTesting ? (
-                    <><Loader2 className="w-3.5 h-3.5 animate-spin" />Testing...</>
-                  ) : (
-                    <><Play className="w-3.5 h-3.5" />Run Test</>
-                  )}
-                </Button>
+                  <Play className="w-3.5 h-3.5 mr-1" />Run Test
+                </LoadingButton>
 
                 <AnimatePresence mode="wait">
                   {testResult && (

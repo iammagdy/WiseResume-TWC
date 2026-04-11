@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
-import { Check, Crown, Gift, Sparkles, Gem, Tag, Loader2 } from 'lucide-react';
+import { Check, Crown, Gift, Sparkles, Gem, Tag } from 'lucide-react';
+import { LoadingButton } from '@/components/ui/LoadingButton';
 import { useResumes } from '@/hooks/useResumes';
 import { useAICredits } from '@/hooks/useAICredits';
 import { usePlan, PlanName } from '@/hooks/usePlan';
@@ -268,9 +269,15 @@ export default function SubscriptionPage() {
                   className="font-mono uppercase tracking-widest"
                   disabled={redeeming}
                 />
-                <Button onClick={handleRedeemCoupon} disabled={redeeming || !couponCode.trim()} className="shrink-0">
-                  {redeeming ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Apply'}
-                </Button>
+                <LoadingButton
+                  onClick={handleRedeemCoupon}
+                  isLoading={redeeming}
+                  loadingText="Applying…"
+                  disabled={!couponCode.trim()}
+                  className="shrink-0"
+                >
+                  Apply
+                </LoadingButton>
               </div>
             )}
           </CardContent>

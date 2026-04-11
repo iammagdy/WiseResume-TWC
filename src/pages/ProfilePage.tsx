@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit2, Share2, FileText, Briefcase, Globe, ExternalLink, MapPin, Clock, HardDrive, Linkedin, Sparkles, User, AlertTriangle } from 'lucide-react';
+import { Edit2, Share2, FileText, Briefcase, Globe, ExternalLink, MapPin, Clock, HardDrive, Linkedin, Sparkles, User, AlertTriangle, RefreshCw } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { LoadingButton } from '@/components/ui/LoadingButton';
 import { BackButton } from '@/components/ui/BackButton';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -48,6 +50,8 @@ export default function ProfilePage() {
   const [linkedinOpen, setLinkedinOpen] = useState(false);
   const [draftWarningOpen, setDraftWarningOpen] = useState(false);
   const [isNavigatingToOnboarding, setIsNavigatingToOnboarding] = useState(false);
+  const [isResyncing, setIsResyncing] = useState(false);
+  const [isGoingLive, setIsGoingLive] = useState(false);
 
   const isLoading = !supabaseSettled || (profileLoading && !profile);
 
@@ -99,6 +103,8 @@ export default function ProfilePage() {
   };
 
   const handleGoLive = async () => {
+    if (isGoingLive) return;
+    setIsGoingLive(true);
     try {
       await updateProfile({ portfolioEnabled: true });
       toast.success('Portfolio is now live!');
@@ -106,6 +112,8 @@ export default function ProfilePage() {
       await doPortfolioShare();
     } catch {
       toast.error('Failed to update portfolio status');
+    } finally {
+      setIsGoingLive(false);
     }
   };
 
@@ -126,7 +134,9 @@ export default function ProfilePage() {
     new Date(portfolioResume.updated_at) > new Date(portfolioLastSyncedAt);
 
   const handleResyncPortfolio = async () => {
+    if (isResyncing) return;
     haptics.light();
+    setIsResyncing(true);
     try {
       await updateProfile({
         portfolioSyncMode: 'auto',
@@ -138,6 +148,8 @@ export default function ProfilePage() {
       toast.success('Portfolio re-synced with your resume');
     } catch {
       toast.error('Failed to re-sync portfolio');
+    } finally {
+      setIsResyncing(false);
     }
   };
 
@@ -265,14 +277,17 @@ export default function ProfilePage() {
                 <p className="text-xs font-medium text-foreground">Portfolio may be out of date</p>
                 <p className="text-[11px] text-muted-foreground">Your resume was updated after the portfolio was last synced.</p>
               </div>
-              <Button
+              <LoadingButton
                 variant="outline"
                 size="sm"
+                isLoading={isResyncing}
+                loadingText="Syncing…"
+                spinnerSize={12}
                 className="shrink-0 h-7 text-[11px] px-2 border-amber-500/40 hover:bg-amber-500/10"
                 onClick={handleResyncPortfolio}
               >
                 Re-sync now
-              </Button>
+              </LoadingButton>
             </div>
           )}
           <div className="grid grid-cols-3 gap-2">
@@ -334,7 +349,11 @@ export default function ProfilePage() {
               resume={resume}
               onEdit={handleEditResume}
               onDuplicate={(id) => duplicateResume.mutate(id)}
-              onDelete={(id) => deleteResume.mutate(id)} />
+              onDelete={(id) => deleteResume.mutate(id)}
+              isProcessing={
+                (deleteResume.isPending && deleteResume.variables === resume.id) ||
+                (duplicateResume.isPending && duplicateResume.variables === resume.id)
+              } />
             )}
             </div>
           </div>
@@ -375,8 +394,13 @@ export default function ProfilePage() {
             <Button variant="outline" onClick={async () => { setDraftWarningOpen(false); await doPortfolioShare(); }}>
               Share Anyway
             </Button>
-            <AlertDialogAction onClick={handleGoLive}>
-              Go Live & Share
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleGoLive(); }}
+              disabled={isGoingLive}
+              className="inline-flex items-center gap-2"
+            >
+              {isGoingLive && <MiniSpinner size={14} />}
+              {isGoingLive ? 'Going Live…' : 'Go Live & Share'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

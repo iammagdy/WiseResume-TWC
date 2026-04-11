@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Target, Sparkles, CheckCircle, AlertTriangle, XCircle, ArrowRight } from 'lucide-react';
+import { LoadingButton } from '@/components/ui/LoadingButton';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -58,6 +59,7 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
   const [progress, setProgress] = useState<EnhancedTailorProgress | null>(null);
   const [tailorResult, setTailorResult] = useState<SuperTailorResult | null>(null);
   const [isTailoring, setIsTailoring] = useState(false);
+  const [isSavingMatch, setIsSavingMatch] = useState(false);
 
   const resumeData = useMemo(() => dbToResumeData(resume), [resume]);
 
@@ -85,23 +87,28 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
       setTailorResult(result);
       setPhase('results');
 
-      // Update resume target job info
+      // Update resume target job info (background save)
       if (user) {
         const title = parsedJob?.title || result.jobParsed?.title || 'Target Job';
         const company = parsedJob?.company || result.jobParsed?.company || '';
         const score = result.overallScore?.after || 0;
 
-        await supabase
-          .from('resumes')
-          .update({
-            target_job_title: title,
-            target_company: company,
-            job_match_score: score,
-          })
-          .eq('id', resume.id)
-          .eq('user_id', user.id);
+        setIsSavingMatch(true);
+        try {
+          await supabase
+            .from('resumes')
+            .update({
+              target_job_title: title,
+              target_company: company,
+              job_match_score: score,
+            })
+            .eq('id', resume.id)
+            .eq('user_id', user.id);
 
-        queryClient.invalidateQueries({ queryKey: ['resumes'] });
+          queryClient.invalidateQueries({ queryKey: ['resumes'] });
+        } finally {
+          setIsSavingMatch(false);
+        }
       }
     } catch (error) {
       console.error('Analysis error:', error);
@@ -319,13 +326,16 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
                 Tailor Resume
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
-              <Button
+              <LoadingButton
                 variant="ghost"
                 onClick={() => { onOpenChange(false); resetState(); }}
+                isLoading={isSavingMatch}
+                loadingText="Saving…"
+                disabled={isTailoring}
                 className="w-full min-h-[44px]"
               >
                 Save Match Only
-              </Button>
+              </LoadingButton>
             </div>
           </motion.div>
         )}

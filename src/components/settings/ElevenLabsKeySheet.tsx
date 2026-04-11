@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Key, Trash2 } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
+import { LoadingButton } from '@/components/ui/LoadingButton';
 import { toast } from 'sonner';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { logAudit } from '@/lib/auditLogger';
@@ -107,10 +108,15 @@ export const ElevenLabsKeySheet = forwardRef<HTMLDivElement, ElevenLabsKeySheetP
               className="font-mono text-sm"
             />
             <div className="flex gap-2">
-              <Button onClick={handleSave} className="flex-1" disabled={isSaving || !key.trim()}>
-                {isSaving ? <MiniSpinner size={16} className="mr-2" /> : null}
+              <LoadingButton
+                onClick={handleSave}
+                isLoading={isSaving}
+                loadingText="Saving…"
+                disabled={!key.trim()}
+                className="flex-1"
+              >
                 Save
-              </Button>
+              </LoadingButton>
               {hasServerKey && (
                 <Button variant="outline" onClick={handleClear} disabled={isClearing}>
                   {isClearing ? <MiniSpinner size={16} /> : <Trash2 className="w-4 h-4" />}
