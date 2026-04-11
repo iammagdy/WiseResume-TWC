@@ -302,6 +302,10 @@
         "description": "The AI Studio page was sometimes failing to load on the first visit. It now opens cleanly every time."
       },
       {
+        "title": "Activity section links correctly",
+        "description": "Going directly to the Activity section now takes you straight to your Applications list instead of showing a 'not found' error."
+      },
+      {
         "title": "Bottom tab navigation",
         "description": "The top navigation links have been replaced with a mobile-native fixed bottom tab bar on phones and tablets, matching standard mobile app conventions. Desktop retains the existing top nav layout."
       },
