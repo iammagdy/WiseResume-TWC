@@ -65,7 +65,7 @@ export function CouponsPanel({ password, onCountChange }: CouponsPanelProps) {
       if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
       const list = result?.coupons ?? [];
       setCoupons(list);
-      onCountChange?.(list.length);
+      onCountChange?.(list.filter(c => c.is_active).length);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load coupons');
     } finally {

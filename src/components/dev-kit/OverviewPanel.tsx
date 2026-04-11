@@ -100,26 +100,32 @@ export function OverviewPanel({ password }: OverviewPanelProps) {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: err } = await edgeFunctions.functions.invoke('admin-list-users', {
-        body: {
-          password,
-          page: 1,
-          per_page: 5000,
-          sort: 'newest',
-        },
-      });
-      if (err) throw new Error(err.message);
-      const result = data as { success?: boolean; users?: AdminUser[]; total?: number; error?: string };
-      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      const PAGE_SIZE = 200;
+      const allUsers: AdminUser[] = [];
+      let page = 1;
+      let total = 0;
 
-      const users: AdminUser[] = result?.users ?? [];
-      const total = result?.total ?? users.length;
+      while (true) {
+        const { data, error: err } = await edgeFunctions.functions.invoke('admin-list-users', {
+          body: { password, page, per_page: PAGE_SIZE, sort: 'newest' },
+        });
+        if (err) throw new Error(err.message);
+        const result = data as { success?: boolean; users?: AdminUser[]; total?: number; error?: string };
+        if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+
+        const batch: AdminUser[] = result?.users ?? [];
+        if (page === 1) total = result?.total ?? batch.length;
+        allUsers.push(...batch);
+
+        if (allUsers.length >= total || batch.length < PAGE_SIZE) break;
+        page++;
+      }
 
       let free = 0, pro = 0, premium = 0, trial = 0, suspended = 0;
       let totalResumes = 0, totalLinks = 0;
 
       const now = new Date();
-      for (const u of users) {
+      for (const u of allUsers) {
         totalResumes += u.resume_count ?? 0;
         totalLinks += u.link_count ?? 0;
         if (u.is_suspended) { suspended++; continue; }
@@ -130,9 +136,9 @@ export function OverviewPanel({ password }: OverviewPanelProps) {
         else free++;
       }
 
-      const newestUser = users.length > 0 ? users[0].created_at : null;
+      const newestUser = allUsers.length > 0 ? allUsers[0].created_at : null;
 
-      setStats({ total, loadedCount: users.length, free, pro, premium, trial, suspended, totalResumes, totalLinks, newestUser, lastLoadedAt: new Date() });
+      setStats({ total, loadedCount: allUsers.length, free, pro, premium, trial, suspended, totalResumes, totalLinks, newestUser, lastLoadedAt: new Date() });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load overview');
     } finally {
