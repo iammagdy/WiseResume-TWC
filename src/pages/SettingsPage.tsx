@@ -8,7 +8,6 @@ import {
 import { AnimatePresence, motion } from 'framer-motion';
 import { openExternal } from '@/lib/openExternal';
 import { SettingsRow } from '@/components/settings/SettingsRow';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from '@/components/ui/alert-dialog';
@@ -16,6 +15,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, calculateProfileCompletion } from '@/hooks/useProfile';
+import { usePlan } from '@/hooks/usePlan';
+import { PlanAvatar } from '@/components/ui/PlanAvatar';
 import { useSettingsStore } from '@/store/settingsStore';
 import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { useResumeStore } from '@/store/resumeStore';
@@ -85,6 +86,7 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const { user, loading, supabaseSettled, signOut } = useAuth();
   const { profile, updateProfile } = useProfile(user?.id, user);
+  const { plan } = usePlan();
   const { data: resumes = [] } = useResumes();
   const { currentResumeId } = useResumeStore();
 
@@ -259,18 +261,25 @@ export default function SettingsPage() {
               onClick={() => navigate('/profile')}
               className="w-full flex items-center gap-4 p-4 rounded-2xl bg-card border border-border shadow-soft text-left active:scale-[0.98] transition-all touch-manipulation"
             >
-              <Avatar className="h-14 w-14">
-                <AvatarImage src={profile?.avatarUrl} />
-                <AvatarFallback className="bg-primary text-primary-foreground">
-                  {getInitials()}
-                </AvatarFallback>
-              </Avatar>
+              <PlanAvatar
+                plan={plan}
+                avatarUrl={profile?.avatarUrl}
+                initials={getInitials()}
+                size="h-14 w-14"
+                showLabel
+              />
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-foreground truncate">{displayName}</p>
                 {user?.email && (
                   <p className="text-sm text-muted-foreground truncate">{user.email}</p>
                 )}
-                <p className="text-xs text-muted-foreground/70 mt-0.5">Edit account &amp; professional details</p>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); navigate('/subscription'); }}
+                  className="text-xs text-primary/80 mt-0.5 hover:text-primary transition-colors"
+                >
+                  {plan === 'free' ? 'Free plan · Redeem a coupon to upgrade' : `${plan.charAt(0).toUpperCase() + plan.slice(1)} plan · Manage subscription`}
+                </button>
               </div>
               <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
             </button>

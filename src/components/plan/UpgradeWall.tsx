@@ -1,8 +1,13 @@
-import { Crown, Lock, Check } from 'lucide-react';
+import { useState } from 'react';
+import { Crown, Lock, Check, Ticket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { LoadingButton } from '@/components/ui/LoadingButton';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { useNavigate } from 'react-router-dom';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { usePlan } from '@/hooks/usePlan';
 
 interface UpgradeWallProps {
   requiredPlan: 'pro' | 'premium';
@@ -14,6 +19,75 @@ interface UpgradeWallProps {
 
 function planLabel(plan: 'pro' | 'premium') {
   return plan === 'pro' ? 'Pro' : 'Premium';
+}
+
+function InlineCoupon({ onSuccess }: { onSuccess?: () => void }) {
+  const [code, setCode] = useState('');
+  const [redeeming, setRedeeming] = useState(false);
+  const [redeemed, setRedeemed] = useState<string | null>(null);
+  const { refetch } = usePlan();
+
+  const handleRedeem = async () => {
+    if (!code.trim()) return;
+    haptics.light();
+    setRedeeming(true);
+    try {
+      const { data, error } = await edgeFunctions.functions.invoke('redeem-coupon', {
+        body: { code: code.trim().toUpperCase() },
+      });
+      if (error) throw new Error(error.message);
+      const result = data as { success?: boolean; message?: string; error?: string };
+      if (result?.success === false) throw new Error(result.error ?? 'Invalid or expired code');
+      const msg = result.message ?? 'Coupon applied!';
+      setRedeemed(msg);
+      toast.success(msg);
+      setCode('');
+      refetch?.();
+      onSuccess?.();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to redeem coupon');
+    } finally {
+      setRedeeming(false);
+    }
+  };
+
+  if (redeemed) {
+    return (
+      <div className="flex items-center gap-2 p-2.5 rounded-lg bg-green-500/10 border border-green-500/20 text-xs text-green-600 dark:text-green-400">
+        <Check className="w-3.5 h-3.5 shrink-0" />
+        {redeemed}
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full space-y-1.5">
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Ticket className="w-3.5 h-3.5" />
+        <span>Have an early access code?</span>
+      </div>
+      <div className="flex gap-2">
+        <Input
+          placeholder="EARLYACCESS"
+          value={code}
+          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          onKeyDown={(e) => e.key === 'Enter' && handleRedeem()}
+          className="font-mono uppercase tracking-widest text-xs h-9"
+          disabled={redeeming}
+        />
+        <LoadingButton
+          size="sm"
+          onClick={handleRedeem}
+          isLoading={redeeming}
+          loadingText="…"
+          disabled={!code.trim()}
+          className="shrink-0 h-9"
+        >
+          Apply
+        </LoadingButton>
+      </div>
+    </div>
+  );
 }
 
 export function UpgradeWall({ requiredPlan, featureName, description, features, compact = false }: UpgradeWallProps) {
@@ -52,6 +126,7 @@ export function UpgradeWall({ requiredPlan, featureName, description, features, 
             View plans
           </Button>
         </div>
+        <InlineCoupon />
       </div>
     );
   }
@@ -81,7 +156,7 @@ export function UpgradeWall({ requiredPlan, featureName, description, features, 
           ))}
         </ul>
       )}
-      <div className="flex flex-col gap-2 w-full max-w-xs">
+      <div className="flex flex-col gap-3 w-full max-w-xs">
         <Button
           size="lg"
           className="w-full gap-2"
@@ -97,6 +172,7 @@ export function UpgradeWall({ requiredPlan, featureName, description, features, 
         >
           View all plans
         </Button>
+        <InlineCoupon />
       </div>
     </div>
   );

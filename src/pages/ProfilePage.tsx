@@ -5,11 +5,12 @@ import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { LoadingButton } from '@/components/ui/LoadingButton';
 import { BackButton } from '@/components/ui/BackButton';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, calculateProfileCompletion, getNextMissingField } from '@/hooks/useProfile';
+import { usePlan } from '@/hooks/usePlan';
+import { PlanAvatar } from '@/components/ui/PlanAvatar';
 import { useResumes } from '@/hooks/useResumes';
 import { useJobApplications } from '@/hooks/useJobApplications';
 import { EditProfileSheet } from '@/components/settings/EditProfileSheet';
@@ -41,6 +42,7 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const { user, supabaseSettled } = useAuth();
   const { profile, loading: profileLoading, updateProfile } = useProfile(user?.id, user);
+  const { plan } = usePlan();
   const { data: resumes = [] } = useResumes();
   const { data: applications = [] } = useJobApplications();
   const { deleteResume, duplicateResume } = useResumeMutations();
@@ -191,10 +193,13 @@ export default function ProfilePage() {
         )}
         {/* Avatar & Name */}
         <div className="flex flex-col items-center text-center gap-3">
-          <Avatar className="h-24 w-24 border-2 border-primary/30 shadow-lg">
-            <AvatarImage src={profile?.avatarUrl || undefined} />
-            <AvatarFallback className="bg-primary text-primary-foreground text-2xl">{getInitials()}</AvatarFallback>
-          </Avatar>
+          <PlanAvatar
+            plan={plan}
+            avatarUrl={profile?.avatarUrl}
+            initials={getInitials()}
+            size="h-24 w-24"
+            showLabel
+          />
            <div>
             <h2 className="text-2xl font-bold text-foreground">{profile?.fullName || 'Your Name'}</h2>
             {profile?.jobTitle &&

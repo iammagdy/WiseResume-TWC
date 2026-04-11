@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
-import { Check, Crown, Gift, Sparkles, Gem, Tag } from 'lucide-react';
+import { Check, Crown, Gift, Sparkles, Gem, Tag, Ticket } from 'lucide-react';
 import { LoadingButton } from '@/components/ui/LoadingButton';
 import { useResumes } from '@/hooks/useResumes';
 import { useAICredits } from '@/hooks/useAICredits';
@@ -119,6 +119,49 @@ export default function SubscriptionPage() {
       </header>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6 pb-24 lg:max-w-none mx-auto w-full">
+
+        {/* Early Access — Coupon Redemption (prominent, at the top) */}
+        <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-accent/5 relative overflow-hidden">
+          <div className="absolute top-0 right-0 text-[10px] font-bold px-3 py-1 rounded-bl-xl bg-primary text-primary-foreground">
+            EARLY ACCESS
+          </div>
+          <CardContent className="p-4 space-y-3 pt-6">
+            <div className="flex items-center gap-2">
+              <Ticket className="w-5 h-5 text-primary" />
+              <p className="text-sm font-semibold text-foreground">Have a coupon code?</p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Redeem your early access code to instantly unlock a Pro or Premium plan — no payment needed.
+            </p>
+            {couponSuccess ? (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-sm text-green-600 dark:text-green-400">
+                <Check className="w-4 h-4 shrink-0" />
+                {couponSuccess}
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Input
+                  placeholder="EARLYACCESS"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === 'Enter' && handleRedeemCoupon()}
+                  className="font-mono uppercase tracking-widest"
+                  disabled={redeeming}
+                />
+                <LoadingButton
+                  onClick={handleRedeemCoupon}
+                  isLoading={redeeming}
+                  loadingText="Applying…"
+                  disabled={!couponCode.trim()}
+                  className="shrink-0"
+                >
+                  Apply
+                </LoadingButton>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Current Plan */}
         <Card className={isPremium ? 'border-amber-400/30 bg-amber-50/30 dark:bg-amber-950/20' : 'border-primary/20 bg-primary/5'}>
           <CardContent className="p-4 flex items-center gap-3">
@@ -241,47 +284,6 @@ export default function SubscriptionPage() {
             </CardContent>
           </Card>
         )}
-
-        {/* Coupon Redemption */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Tag className="w-4 h-4 text-primary" />
-              Redeem a Coupon
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-xs text-muted-foreground">
-              Got a promo code? Enter it below to unlock a free plan upgrade or discount.
-            </p>
-            {couponSuccess ? (
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-sm text-green-600 dark:text-green-400">
-                <Check className="w-4 h-4 shrink-0" />
-                {couponSuccess}
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <Input
-                  placeholder="COUPONCODE"
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === 'Enter' && handleRedeemCoupon()}
-                  className="font-mono uppercase tracking-widest"
-                  disabled={redeeming}
-                />
-                <LoadingButton
-                  onClick={handleRedeemCoupon}
-                  isLoading={redeeming}
-                  loadingText="Applying…"
-                  disabled={!couponCode.trim()}
-                  className="shrink-0"
-                >
-                  Apply
-                </LoadingButton>
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
         {/* Referral Link */}
         <Card className="bg-gradient-to-br from-primary/5 to-accent/5">

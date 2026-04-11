@@ -108,7 +108,7 @@ export function useMe() {
     gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',
-    refetchInterval: 10 * 1000,
+    refetchInterval: 4 * 1000,
     refetchIntervalInBackground: false,
     retry: 2,
     retryDelay: (i: number) => Math.min(1000 * 2 ** i, 5000),
