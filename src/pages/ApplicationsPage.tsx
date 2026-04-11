@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useDeferredValue, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { Plus, Bell, BarChart3, Briefcase, FileText, Search, MapPin, Building2, Calendar, Mic, Mail, Scissors, CheckCircle2, FlaskConical } from 'lucide-react';
+import { Plus, Bell, BarChart3, Briefcase, FileText, Search, MapPin, Building2, Calendar, Mic, Mail, Scissors, CheckCircle2, FlaskConical, Zap, Wand2, BookOpen } from 'lucide-react';
 import { useJobApplications, useJobApplicationMutations, ApplicationStatus } from '@/hooks/useJobApplications';
 import { useJobs, useJobMutations, Job } from '@/hooks/useJobs';
 import { sampleJobs } from '@/lib/sampleJobs';
@@ -17,6 +17,7 @@ import { ActivityTimeline } from '@/components/applications/ActivityTimeline';
 import { ActivityStreak } from '@/components/applications/ActivityStreak';
 
 import { AddApplicationSheet } from '@/components/applications/AddApplicationSheet';
+import { QuickAddSheet } from '@/components/applications/QuickAddSheet';
 import { ResumeListSheet } from '@/components/applications/ResumeListSheet';
 import { JobSearchSheet, JobFilters } from '@/components/applications/JobSearchSheet';
 import { SaveJobSheet } from '@/components/applications/SaveJobSheet';
@@ -100,6 +101,7 @@ export default function ApplicationsPage() {
   const stats = useJobActivityStats();
   const [activeTab, setActiveTab] = useState<TabKey>('applications');
   const [showAdd, setShowAdd] = useState(false);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showSaveJob, setShowSaveJob] = useState(false);
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'all'>('all');
@@ -408,21 +410,32 @@ export default function ApplicationsPage() {
                 </div> :
 
             statusFilter === 'all' ? (
-            /* Centered empty state for first-time users */
-            <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-                    <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-                      <FileText className="w-8 h-8 text-primary" />
+            /* Guided empty state for first-time users */
+            <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+                    <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center mb-4 shadow-md">
+                      <FileText className="w-8 h-8 text-primary-foreground" />
                     </div>
-                    <h3 className="text-base font-semibold mb-1">Track your job applications</h3>
-                    <p className="text-sm text-muted-foreground mb-6 max-w-[260px]">
-                      Add applications to stay organized and never miss a follow-up
+                    <h3 className="text-base font-semibold mb-1">Add your first application</h3>
+                    <p className="text-sm text-muted-foreground mb-2 max-w-[260px]">
+                      Track every job you apply to — stay organized and never miss a follow-up.
                     </p>
-                    <button
-                onClick={() => {haptics.medium();setShowAdd(true);}}
-                className="px-5 py-3 rounded-full gradient-primary text-primary-foreground text-sm font-semibold min-h-[44px] touch-manipulation active:scale-95 shadow-md">
-                
-                      Add your first application
-                    </button>
+                    <p className="text-xs text-muted-foreground mb-6 max-w-[260px]">
+                      Start with company name, role, and status. Takes under 5 seconds.
+                    </p>
+                    <div className="flex flex-col gap-3 w-full max-w-[260px]">
+                      <button
+                  onClick={() => {haptics.medium();setShowQuickAdd(true);}}
+                  className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl gradient-primary text-primary-foreground text-sm font-semibold min-h-[44px] touch-manipulation active:scale-95 shadow-md">
+                  
+                          <Zap className="w-4 h-4" /> Quick Add
+                        </button>
+                      <button
+                  onClick={() => {haptics.light();setShowAdd(true);}}
+                  className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-muted text-foreground text-sm font-medium min-h-[44px] touch-manipulation active:scale-95">
+                  
+                          <Plus className="w-4 h-4" /> Full Form
+                        </button>
+                    </div>
                   </div>) : (
 
             /* Compact empty state for filtered view */
@@ -442,7 +455,7 @@ export default function ApplicationsPage() {
                         Show All
                       </button>
                       <button
-                  onClick={() => {haptics.light();setShowAdd(true);}}
+                  onClick={() => {haptics.light();setShowQuickAdd(true);}}
                   className="px-3 py-2 rounded-full bg-primary/10 text-primary text-xs font-medium min-h-[44px] touch-manipulation active:scale-95">
                   
                         + Add
@@ -490,27 +503,53 @@ export default function ApplicationsPage() {
               )}
                 </div> :
 
+            hasActiveFilters ? (
             <div className="items-center justify-center text-muted-foreground py-[30px] my-[50px] flex flex-col">
                   <Briefcase className="w-12 h-12 mb-3 opacity-30" />
-                  <p className="font-medium">{hasActiveFilters ? 'No jobs match filters' : 'No saved jobs yet'}</p>
-                  <p className="text-sm mt-1 mb-4">{hasActiveFilters ? 'Try adjusting your filters' : 'Save jobs to start tracking your applications'}</p>
-                  {!hasActiveFilters &&
-              <>
-                      <div className="flex gap-3">
-                        <button
-                    onClick={() => {haptics.light();setShowSearch(true);}}
-                    className="flex items-center gap-1.5 text-xs font-medium text-primary px-4 py-2.5 rounded-full bg-primary/10 hover:bg-primary/15 transition-colors min-h-[44px] touch-manipulation">
-                    
+                  <p className="font-medium">No jobs match filters</p>
+                  <p className="text-sm mt-1">Try adjusting your filters</p>
+                </div>) : (
+
+            /* Informative empty state for Saved Jobs */
+            <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+                  <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center mb-4 shadow-md">
+                    <Briefcase className="w-8 h-8 text-primary-foreground" />
+                  </div>
+                  <h3 className="text-base font-semibold mb-2">No saved jobs yet</h3>
+                  <p className="text-sm text-muted-foreground mb-1 max-w-[280px]">
+                    Jobs you save from the AI Studio or Resume Tailoring flow appear here automatically.
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-6 max-w-[260px]">
+                    You can also save jobs manually or search to find new ones.
+                  </p>
+                  <div className="flex flex-col gap-3 w-full max-w-[280px]">
+                    <button
+                  onClick={() => {haptics.medium();navigate('/ai-studio');}}
+                  className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl gradient-primary text-primary-foreground text-sm font-semibold min-h-[44px] touch-manipulation active:scale-95 shadow-md">
+                  
+                        <Wand2 className="w-4 h-4" /> Go to AI Studio
+                      </button>
+                    <button
+                  onClick={() => {haptics.light();navigate('/editor?tailor=true');}}
+                  className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-muted text-foreground text-sm font-medium min-h-[44px] touch-manipulation active:scale-95">
+                  
+                        <BookOpen className="w-4 h-4" /> Tailor a Resume
+                      </button>
+                    <div className="flex gap-2 justify-center mt-1">
+                      <button
+                  onClick={() => {haptics.light();setShowSearch(true);}}
+                  className="flex items-center gap-1.5 text-xs font-medium text-primary px-4 py-2.5 rounded-full bg-primary/10 hover:bg-primary/15 transition-colors min-h-[44px] touch-manipulation">
+                  
                           <Search className="w-3.5 h-3.5" /> Search Jobs
                         </button>
-                        <button
-                    onClick={() => {haptics.light();setShowSaveJob(true);}}
-                    className="flex items-center gap-1.5 text-xs font-medium text-foreground px-4 py-2.5 rounded-full bg-muted hover:bg-muted/80 transition-colors min-h-[44px] touch-manipulation">
-                    
+                      <button
+                  onClick={() => {haptics.light();setShowSaveJob(true);}}
+                  className="flex items-center gap-1.5 text-xs font-medium text-foreground px-4 py-2.5 rounded-full bg-muted hover:bg-muted/80 transition-colors min-h-[44px] touch-manipulation">
+                  
                           <Plus className="w-3.5 h-3.5" /> Add Manually
                         </button>
-                      </div>
-                      <button
+                    </div>
+                    <button
                   disabled={isSeeding}
                   onClick={async () => {
                     setIsSeeding(true);
@@ -525,14 +564,14 @@ export default function ApplicationsPage() {
                       setIsSeeding(false);
                     }
                   }}
-                  className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground px-4 py-2 rounded-full border border-dashed border-border hover:border-primary/40 hover:text-primary transition-colors min-h-[44px] touch-manipulation mt-3">
+                  className="flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground px-4 py-2 rounded-full border border-dashed border-border hover:border-primary/40 hover:text-primary transition-colors min-h-[44px] touch-manipulation">
                   
                         <FlaskConical className="w-3.5 h-3.5" />
-                        {isSeeding ? 'Adding...' : 'Add Sample Jobs'}
+                        {isSeeding ? 'Adding...' : 'Try Sample Jobs'}
                       </button>
-                    </>
-              }
-                </div>
+                  </div>
+                </div>)
+
             }
             </>
           }
@@ -551,15 +590,17 @@ export default function ApplicationsPage() {
       }
       {activeTab === 'applications' &&
       <button
-        onClick={() => {haptics.medium();setShowAdd(true);}}
-        className="fixed bottom-[7.5rem] sm:bottom-20 right-4 pr-safe z-50 w-14 h-14 rounded-full gradient-primary shadow-lg flex items-center justify-center active:scale-95 transition-transform"
-        aria-label="Add application">
+        onClick={() => {haptics.medium();setShowQuickAdd(true);}}
+        className="fixed bottom-[7.5rem] sm:bottom-20 right-4 pr-safe z-50 h-12 px-4 rounded-full gradient-primary shadow-lg flex items-center gap-2 active:scale-95 transition-transform"
+        aria-label="Quick add application">
         
-          <Plus className="w-6 h-6 text-primary-foreground" />
+          <Zap className="w-5 h-5 text-primary-foreground" />
+          <span className="text-primary-foreground text-sm font-semibold">Quick Add</span>
         </button>
       }
 
       <AddApplicationSheet open={showAdd} onOpenChange={setShowAdd} />
+      <QuickAddSheet open={showQuickAdd} onOpenChange={setShowQuickAdd} />
       <ResumeListSheet
         open={resumeListOpen}
         onOpenChange={setResumeListOpen}
