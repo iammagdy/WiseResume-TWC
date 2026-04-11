@@ -1,29 +1,57 @@
 [
   {
-    "version": "v3.0.0",
-    "date": "Apr 10, 2026",
+    "version": "v3.1.0",
+    "date": "Apr 11, 2026",
     "latest": true,
-    "summary": "A major milestone — AI Settings completely overhauled with 9 BYOK providers, a cleaner interface, and smarter compatibility warnings so you always know your setup is working.",
+    "summary": "Smoother previews, smarter navigation on mobile, your plan badge shown everywhere, and early-access upgrades now front and center.",
     "items": [
       {
-        "title": "WiseResume AI test results are now clearly branded",
-        "description": "When you tap 'Test AI Connection' in Settings, the result now shows a clean 'WiseResume AI' confirmation — no raw model names or internal provider IDs. You simply see that your AI is working."
+        "title": "Preview page now loads every time",
+        "description": "Tapping 'Preview & Export' quickly no longer crashes the app. The preview button disables itself after the first tap so you land on a clean, fully loaded preview — every time."
       },
       {
-        "title": "Tool-calling compatibility warning",
-        "description": "If you configure a BYOK model that doesn't support advanced AI features — such as Ollama Cloud or certain base models — a warning chip now appears upfront before you run into a silent failure. WiseResume tells you early so you can pick a compatible model."
+        "title": "Easier to navigate on mobile",
+        "description": "A 'Go Back' button now appears on any error screen so you're never stuck. The back button works consistently across all pages, and if you're viewing someone's portfolio while logged in, a discreet 'Back to App' button takes you home in one tap."
+      },
+      {
+        "title": "Your plan is now visible everywhere",
+        "description": "A colored ring around your profile picture tells you your plan at a glance — gray for Free, blue for Pro, gold for Premium — with the plan name shown below. Your current plan also appears on your Settings and Profile pages so you always know where you stand."
+      },
+      {
+        "title": "Early-access coupon front and center",
+        "description": "Have an early-access code? The coupon field now appears right at the top of the Subscription page — and inside any feature upgrade prompt — so you can unlock Pro or Premium immediately without hunting through settings."
+      },
+      {
+        "title": "Plan changes reflect in seconds",
+        "description": "When the support team updates your plan or AI credits, the change now shows up in your app within a few seconds instead of waiting for a manual refresh."
+      }
+    ]
+  },
+  {
+    "version": "v3.0.0",
+    "date": "Apr 10, 2026",
+    "latest": false,
+    "summary": "A major milestone — AI Settings completely overhauled with 9 custom AI connections, a cleaner interface, and smarter warnings so you always know your setup is working.",
+    "items": [
+      {
+        "title": "AI connection test shows a clear result",
+        "description": "When you tap 'Test AI Connection' in Settings, the result now shows a clean 'WiseResume AI' confirmation. You simply see that your AI is working — no confusing technical details."
+      },
+      {
+        "title": "Heads-up before using an incompatible AI model",
+        "description": "If you connect a custom AI model that doesn't support WiseResume's advanced features, a warning now appears upfront — before anything goes wrong — so you can switch to a fully compatible model with confidence."
       },
       {
         "title": "AI Settings redesigned with two clear paths",
-        "description": "The AI Settings panel is now split into two distinct sections: WiseResume AI (managed, no setup needed) and BYOK (bring your own key). Less clutter, easier to switch, and much clearer what each option means."
+        "description": "The AI Settings panel is now split into two distinct sections: WiseResume AI (managed, no setup needed) and Custom AI Key (bring your own). Less clutter, easier to switch, and much clearer what each option means."
       },
       {
-        "title": "All 9 BYOK providers share one consistent setup flow",
-        "description": "No matter which provider you choose — OpenAI, Anthropic, Groq, Mistral, or any of the others — the setup experience is the same: enter your key, pick a model, validate. Done."
+        "title": "All 9 custom AI connections share one setup flow",
+        "description": "No matter which AI provider you choose — OpenAI, Anthropic, Groq, Mistral, or any of the others — the setup experience is the same: enter your key, pick a model, validate. Done."
       },
       {
         "title": "Reliability improvements throughout",
-        "description": "Multiple edge cases in BYOK key validation, model fetching, and AI routing have been resolved. The AI connection test is more stable and the fallback behaviour is more predictable across all providers."
+        "description": "Several edge cases in custom key validation, model selection, and AI routing have been resolved. The AI connection test is more stable and the experience is more predictable across all providers."
       }
     ]
   },
@@ -31,23 +59,23 @@
     "version": "v2.9.0",
     "date": "Apr 8, 2026",
     "latest": false,
-    "summary": "BYOK now supports 9 providers — including OpenAI, Anthropic Claude, Groq, Mistral, and more — with a new unified picker and live model lists pulled directly from each provider.",
+    "summary": "Your own AI key now works with 9 providers — including OpenAI, Anthropic Claude, Groq, Mistral, and more — with a new unified picker and live model lists pulled directly from each provider.",
     "items": [
       {
-        "title": "7 new BYOK providers added",
+        "title": "7 new AI providers added",
         "description": "You can now connect your own API key from OpenAI, Anthropic Claude, Groq, Mistral, xAI Grok, Cohere, and OpenRouter — in addition to the existing Gemini and Ollama support. That's 9 providers total."
       },
       {
-        "title": "New unified provider picker",
-        "description": "All BYOK providers now live inside one clean interface. Browse, select, and switch between providers in a single place instead of hunting through separate sections."
+        "title": "New unified AI provider picker",
+        "description": "All custom AI providers now live inside one clean interface. Browse, select, and switch between providers in a single place instead of hunting through separate sections."
       },
       {
-        "title": "Live model lists fetched from each provider",
+        "title": "Live model lists from each provider",
         "description": "Instead of a fixed dropdown, model options are now fetched live from each provider's API. You always see the models actually available on your key — not a hardcoded list that may be out of date."
       },
       {
         "title": "Anthropic Claude fully supported for all AI features",
-        "description": "Claude Sonnet, Haiku, and Opus now work for every AI action in WiseResume — including resume parsing, tailoring, ATS scoring, and structured improvements. All features that previously required workarounds now run cleanly."
+        "description": "Claude Sonnet, Haiku, and Opus now work for every AI action in WiseResume — including resume parsing, tailoring, ATS scoring, and structured improvements. All features now run cleanly."
       }
     ]
   },
@@ -55,18 +83,18 @@
     "version": "v2.8.0",
     "date": "Apr 6, 2026",
     "latest": false,
-    "summary": "Pro and Pro+ features are now clearly marked across the app, with smart upgrade prompts and resume creation limits enforced per plan.",
+    "summary": "Pro and Premium features are now clearly marked across the app, with smart upgrade prompts and resume creation limits shown per plan.",
     "items": [
       {
         "title": "Premium features visually flagged throughout the app",
-        "description": "Pro-only and Pro+-only features now have clear visual indicators wherever they appear — so you always know at a glance what's included in your plan and what requires an upgrade."
+        "description": "Pro-only and Premium-only features now have clear visual indicators wherever they appear — so you always know at a glance what's included in your plan and what requires an upgrade."
       },
       {
         "title": "Smart upgrade prompts instead of silent failures",
         "description": "Attempting to use a feature beyond your plan now shows a friendly, informative prompt explaining what you'd get with an upgrade — rather than a confusing error or nothing happening at all."
       },
       {
-        "title": "Resume creation limits enforced by plan",
+        "title": "Resume creation limits shown clearly",
         "description": "Free plan users can see their remaining resume slots at a glance and are guided toward upgrading when they've reached the limit, with a clear explanation of what each plan includes."
       },
       {
@@ -79,10 +107,10 @@
     "version": "v2.7.0",
     "date": "Apr 3, 2026",
     "latest": false,
-    "summary": "WiseResume now has three clear subscription tiers — Free, Pro, and Pro+ — with a new Subscription page where you can see your plan, usage, and upgrade in one place.",
+    "summary": "WiseResume now has three clear subscription tiers — Free, Pro, and Premium — with a new Subscription page where you can see your plan, usage, and upgrade in one place.",
     "items": [
       {
-        "title": "New pricing tiers: Free, Pro, and Pro+",
+        "title": "New pricing tiers: Free, Pro, and Premium",
         "description": "WiseResume now offers three plans with a clear breakdown of what each includes. Whether you're just getting started or running a full job search, there's a tier that fits."
       },
       {
@@ -91,7 +119,7 @@
       },
       {
         "title": "Trial access for eligible users",
-        "description": "Eligible users can now activate a limited-time trial of Pro or Pro+ directly from the Subscription page to try the full feature set before committing."
+        "description": "Eligible users can now activate a limited-time trial of Pro or Premium directly from the Subscription page to try the full feature set before committing."
       },
       {
         "title": "AI credit tracking",
@@ -114,8 +142,8 @@
         "description": "The AI engine now runs on a dual-AI system with automatic fallback. This means faster responses day-to-day and fewer interruptions if one engine is temporarily busy — your work keeps moving without delays."
       },
       {
-        "title": "AI connection test edge case fixed",
-        "description": "The 'Test AI Connection' button in Settings was occasionally returning a confusing error for WiseResume AI users. This is now fixed — the test connects cleanly every time."
+        "title": "AI connection test always works",
+        "description": "The 'Test AI Connection' button in Settings was occasionally returning a confusing error for some users. This is now fixed — the test connects cleanly every time."
       }
     ]
   },
@@ -127,11 +155,11 @@
     "items": [
       {
         "title": "Interview Prep page no longer crashes on open",
-        "description": "Navigating to Interview Prep was crashing the entire page every time due to a router incompatibility in the back-navigation guard. It's now fixed — the page opens reliably and the back button still works as expected."
+        "description": "Navigating to Interview Prep was crashing the entire page every time due to a navigation issue. It's now fixed — the page opens reliably and the back button still works as expected."
       },
       {
-        "title": "Microphone test error no longer silently fails",
-        "description": "In the Interview Setup screen, if the microphone permission check encountered an error it would fail silently with no feedback. It now correctly shows a toast notification explaining what went wrong."
+        "title": "Microphone error now explained clearly",
+        "description": "In the Interview Setup screen, if the microphone permission check ran into an issue, it would fail with no feedback at all. It now shows a clear notification explaining what went wrong so you can fix it."
       },
       {
         "title": "Empty dashboard shows real template previews",
@@ -143,7 +171,7 @@
     "version": "v2.5.0",
     "date": "Mar 29, 2026",
     "latest": false,
-    "summary": "A behind-the-scenes reliability update — uploading your resume, saving your profile, and testing your AI connection all work more smoothly now.",
+    "summary": "A reliability update — uploading your resume, saving your profile, and testing your AI connection all work more smoothly now.",
     "items": [
       {
         "title": "Resume upload no longer gets stuck",
@@ -154,12 +182,12 @@
         "description": "Your name, job title, location, and other profile details weren't always saving correctly. This is now fixed — hit Save and your changes stick right away."
       },
       {
-        "title": "Small label fix in Settings",
-        "description": "The sign-in method in your Account settings was showing 'Kinde' (our auth system's name) instead of 'Email'. It now correctly says 'Email' — much clearer."
+        "title": "Sign-in method label corrected",
+        "description": "The sign-in method shown in your Account settings was displaying an internal system name instead of 'Email'. It now correctly says 'Email' — much clearer."
       },
       {
         "title": "AI connection test works again",
-        "description": "The 'Test AI Connection' button in Settings was returning a 'Model not found' error for WiseResume AI users. That's fixed — the test now connects cleanly and confirms your AI is working."
+        "description": "The 'Test AI Connection' button in Settings was returning a confusing error for WiseResume AI users. That's fixed — the test now connects cleanly and confirms your AI is working."
       }
     ]
   },
@@ -187,7 +215,7 @@
     "version": "v2.3.1",
     "date": "Feb 20, 2026",
     "latest": false,
-    "summary": "A quick polish pass -- the splash screen now features a twinkling star-field and you can replay it any time from Settings.",
+    "summary": "A quick polish pass — the splash screen now features a twinkling star-field and you can replay it any time from Settings.",
     "items": [
       {
         "title": "Star-field splash background",
@@ -198,8 +226,8 @@
         "description": "A new button in Settings > About & Help lets you re-watch the animated intro whenever you want."
       },
       {
-        "title": "Reduced-motion compliance",
-        "description": "All new splash animations are fully disabled when the OS-level Reduce Motion preference is active -- stars render as static dots instead."
+        "title": "Smooth experience for all preferences",
+        "description": "If you have motion reduction turned on in your device settings, the splash animations quietly simplify — stars appear as gentle static dots so everything stays comfortable to look at."
       }
     ]
   },
@@ -215,7 +243,7 @@
       },
       {
         "title": "Typewriter tagline fixed & upgraded",
-        "description": "The hero tagline no longer cuts off mid-word. Phrases cycle cleanly with a properly blinking cursor, configurable from portfolio settings, falling back to the user's top skills automatically."
+        "description": "The hero tagline no longer cuts off mid-word. Phrases cycle cleanly with a properly blinking cursor, configurable from portfolio settings, falling back to your top skills automatically."
       },
       {
         "title": "Ambient hero background",
@@ -223,7 +251,7 @@
       },
       {
         "title": "Scroll-triggered animations",
-        "description": "Every section title draws an underline as it enters view, experience cards slide in staggered, skill tags bubble-pop in one by one, and education cards fade up from below — all powered by IntersectionObserver, never layout-blocking."
+        "description": "Every section title draws an underline as it enters view, experience cards slide in staggered, skill tags bubble-pop in one by one, and education cards fade up from below — smooth and never jarring."
       },
       {
         "title": "Card hover lift & skill tag interactions",
@@ -231,59 +259,55 @@
       },
       {
         "title": "Line-by-line bio reveal",
-        "description": "The About section bio uncovers itself line by line like a curtain lifting, and the \"Show more\" accordion in experience cards unfolds smoothly with a chevron rotation."
+        "description": "The About section bio uncovers itself line by line like a curtain lifting, and the 'Show more' accordion in experience cards unfolds smoothly with a chevron rotation."
       },
       {
         "title": "Button shimmer sweep",
-        "description": "The \"Share Card\" and \"Download CV\" buttons in the hero emit a periodic diagonal light shimmer when idle — alive without being distracting."
+        "description": "The 'Share Card' and 'Download CV' buttons in the hero emit a periodic diagonal light shimmer when idle — alive without being distracting."
       },
       {
         "title": "Sticky header slide-in",
-        "description": "When scrolling past the hero, the sticky name/avatar bar now slides down cinematically with a backdrop blur instead of snapping into view abruptly."
+        "description": "When scrolling past the hero, the sticky name/avatar bar now slides down smoothly with a backdrop blur instead of snapping into view abruptly."
       },
       {
         "title": "Career Card 3D flip & holographic shimmer",
-        "description": "Switching between Cosmic, Aurora, and Clean card styles triggers a 3D flip transition. The card preview gains a continuous iridescent shimmer and tilts toward the cursor or touch point."
+        "description": "Switching between Cosmic, Aurora, and Clean card styles triggers a 3D flip transition. The card preview gains a continuous iridescent shimmer and tilts toward your cursor or touch point."
       },
       {
         "title": "Career timeline with scroll-draw",
-        "description": "A vertical accent-colored timeline line draws downward through the experience section as you scroll, with dots that pop in alongside each card, giving visitors an instant feel for career progression."
+        "description": "A vertical accent-colored timeline line draws downward through the experience section as you scroll, with dots that pop in alongside each card — giving visitors an instant feel for your career progression."
       },
       {
         "title": "\"Open to Work\" availability badge",
-        "description": "If the user has set their availability in portfolio settings, a pulsing green dot badge now appears in the hero automatically, visible to every recruiter who visits the portfolio."
+        "description": "If you've set your availability in portfolio settings, a pulsing green dot badge now appears in the hero automatically — visible to every recruiter who visits your portfolio."
       },
       {
         "title": "Animated stats strip",
-        "description": "A new \"Years Experience / Roles Held / Skills\" strip between the hero and About section counts up from zero when it enters the viewport, with staggered timing per stat."
+        "description": "A new 'Years Experience / Roles Held / Skills' strip between the hero and About section counts up from zero when it enters the viewport, with staggered timing per stat."
       },
       {
         "title": "Section quick-nav pills",
         "description": "A sticky horizontally scrollable pill row on mobile lets visitors jump directly to any section with one tap. The active pill updates automatically as you scroll."
       },
       {
-        "title": "\"Contact Me\" sticky CTA",
-        "description": "A floating pill button appears after the hero scrolls out of view, resolving the best contact method automatically (email → WhatsApp → LinkedIn). Pulses subtly every 5 seconds to catch attention without being intrusive."
+        "title": "\"Contact Me\" sticky button",
+        "description": "A floating pill button appears after the hero scrolls out of view, automatically using the best contact method (email, WhatsApp, or LinkedIn). It pulses subtly every 5 seconds to catch attention without being intrusive."
       },
       {
         "title": "Editor sync conflict fixed",
-        "description": "The \"Sync Conflict Detected\" modal no longer appears when clicking \"+ Add\" in any section. Conflict detection now only triggers on genuine server/local timestamp mismatches, and the dismiss button works on the first tap."
+        "description": "The 'Sync Conflict Detected' modal no longer appears when clicking '+ Add' in any section. Conflict detection now only triggers on genuine mismatches between devices, and the dismiss button works on the first tap."
       },
       {
-        "title": "Studio page crash resolved",
-        "description": "The AI Studio page no longer throws \"supabaseUrl is required\" on load. Supabase client initialization is now properly guarded before the page mounts."
-      },
-      {
-        "title": "Activity URL redirect",
-        "description": "Navigating directly to /activity now correctly redirects to /applications instead of showing a 404 error page."
+        "title": "AI Studio page opens reliably",
+        "description": "The AI Studio page was sometimes failing to load on the first visit. It now opens cleanly every time."
       },
       {
         "title": "Bottom tab navigation",
-        "description": "The top navigation links have been replaced with a mobile-native fixed bottom tab bar on screens below 1024px, matching standard mobile app conventions. Desktop retains the existing top nav layout."
+        "description": "The top navigation links have been replaced with a mobile-native fixed bottom tab bar on phones and tablets, matching standard mobile app conventions. Desktop retains the existing top nav layout."
       },
       {
-        "title": "Duplicate FAB removed",
-        "description": "The floating \"+\" button on the Home dashboard has been removed. The \"New Resume\" button in the action row is the single clear entry point for resume creation."
+        "title": "Duplicate button removed from dashboard",
+        "description": "The floating '+' button on the Home dashboard has been removed. The 'New Resume' button in the action row is the single clear entry point for resume creation."
       },
       {
         "title": "Resume name in editor header",
@@ -291,11 +315,11 @@
       },
       {
         "title": "Save vs. Unpublish button differentiation",
-        "description": "On the Portfolio page, \"Save Portfolio\" remains the bold primary action while \"Unpublish Portfolio\" is now styled as a bordered destructive button with a warning icon — the two actions are no longer visually identical."
+        "description": "On the Portfolio page, 'Save Portfolio' remains the bold primary action while 'Unpublish Portfolio' is now styled as a clearly separate destructive button with a warning icon — the two actions are no longer visually identical."
       },
       {
-        "title": "All animations respect reduced motion",
-        "description": "Every animation introduced in this release is fully disabled when the user has \"Reduce Motion\" enabled at the OS level, ensuring full accessibility compliance."
+        "title": "All animations respect your device preferences",
+        "description": "Every animation introduced in this release quietly simplifies when you have motion reduction turned on at the device level."
       }
     ]
   },
@@ -303,11 +327,11 @@
     "version": "v2.2.2",
     "date": "Feb 20, 2026",
     "latest": false,
-    "summary": "Smoother animations, a refreshed Settings footer, and better tap targets -- the app feels faster and looks sharper.",
+    "summary": "Smoother animations, a refreshed Settings footer, and better tap targets — the app feels faster and looks sharper.",
     "items": [
       {
-        "title": "Smoother border animations",
-        "description": "The glowing border effect now uses fewer draw calls on smaller screens, so scrolling and transitions feel snappier -- especially on older phones."
+        "title": "Smoother animations throughout",
+        "description": "The glowing border effect now performs better on smaller screens, so scrolling and transitions feel snappier — especially on older phones."
       },
       {
         "title": "No more white flash on launch",
@@ -318,8 +342,8 @@
         "description": "The WiseResume version card at the bottom of Settings now has a glowing app icon, a version badge, and a proper Changelog button."
       },
       {
-        "title": "Bigger tap targets across the app",
-        "description": "Buttons and icons that were slightly too small for comfortable thumb use now meet the 44x44px accessibility standard."
+        "title": "Easier to tap across the app",
+        "description": "Buttons and icons that were slightly too small for comfortable thumb use now have larger tap areas — nothing feels fiddly anymore."
       }
     ]
   },
@@ -327,7 +351,7 @@
     "version": "v2.2.1",
     "date": "Feb 19, 2026",
     "latest": false,
-    "summary": "A focused mobile polish pass -- the portfolio page is cleaner, the install banner stays out of the way, and empty states guide you forward.",
+    "summary": "A focused mobile polish pass — the portfolio page is cleaner, the install banner stays out of the way, and empty states guide you forward.",
     "items": [
       {
         "title": "Portfolio Overview hero card",
@@ -335,7 +359,7 @@
       },
       {
         "title": "Empty sections hide automatically",
-        "description": "Portfolio sections with no content are hidden by default -- tap 'Add more sections' to reveal them when you're ready."
+        "description": "Portfolio sections with no content are hidden by default — tap 'Add more sections' to reveal them when you're ready."
       },
       {
         "title": "Skills label updated",
@@ -343,7 +367,7 @@
       },
       {
         "title": "Install banner stays out of the way",
-        "description": "The PWA install prompt now sits just above the tab bar on small phones instead of floating over your content."
+        "description": "The 'Add to Home Screen' install prompt now sits just above the tab bar on small phones instead of floating over your content."
       },
       {
         "title": "Better empty state for Applications",
@@ -422,15 +446,15 @@
     "items": [
       {
         "title": "Unsaved changes guard",
-        "description": "The editor detects unsaved changes and prompts Save, Discard, or Cancel before you navigate away — including Android back button."
+        "description": "The editor detects unsaved changes and prompts Save, Discard, or Cancel before you navigate away — including the Android back button."
       },
       {
         "title": "Offline sync conflict detection",
         "description": "If a resume changed on another device, a clear dialog lets you pick the server or local version."
       },
       {
-        "title": "44px touch targets everywhere",
-        "description": "All interactive elements in the editor and tracker now meet the mobile accessibility standard."
+        "title": "Easier to tap in the editor and tracker",
+        "description": "All interactive elements in the editor and tracker now have comfortably large touch areas, making it easier to use on any phone."
       },
       {
         "title": "Mobile delete confirmation",
@@ -468,11 +492,11 @@
     "items": [
       {
         "title": "Polished tailor loading screen",
-        "description": "Real-feel progress animation with cubic ease, animated percentage, glowing bar, ETA countdown, and fun facts carousel."
+        "description": "A real-feel progress animation with a live percentage, glowing bar, ETA countdown, and fun facts keeps you entertained while AI works on your resume."
       },
       {
         "title": "Projected score preview",
-        "description": "Live before/after ATS score comparison and skill gap count shown during the tailoring process."
+        "description": "A live before/after ATS score comparison and skill gap count is shown during the tailoring process so you can see the improvement as it happens."
       },
       {
         "title": "Mobile scroll fixes",
@@ -526,7 +550,7 @@
       },
       {
         "title": "A/B Resume Compare",
-        "description": "Compare two resume versions side-by-side with score breakdown and section-level diffs."
+        "description": "Compare two resume versions side-by-side with score breakdown and section-level differences."
       },
       {
         "title": "AI Content Detector",
@@ -575,8 +599,8 @@
         "description": "Upload any resume PDF or Word document and WiseResume parses it into a fully editable resume."
       },
       {
-        "title": "OCR image import",
-        "description": "Snap a photo of a printed resume and the OCR engine extracts all your content automatically."
+        "title": "Photo import",
+        "description": "Snap a photo of a printed resume and WiseResume extracts all your content automatically."
       },
       {
         "title": "Resume Examples Gallery",
@@ -587,8 +611,8 @@
         "description": "Share a read-only link to your resume with anyone — no account required to view it."
       },
       {
-        "title": "PWA install & offline mode",
-        "description": "Install WiseResume as an app on your home screen and keep working even without a connection."
+        "title": "Install as an app",
+        "description": "Add WiseResume to your home screen and keep working even without an internet connection."
       }
     ]
   },
