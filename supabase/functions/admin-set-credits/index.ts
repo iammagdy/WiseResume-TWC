@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify(data),
+      JSON.stringify({ success: true, ...(data && typeof data === 'object' ? data : {}) }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err) {

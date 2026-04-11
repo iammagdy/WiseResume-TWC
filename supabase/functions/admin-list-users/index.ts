@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
       supabase.from('subscriptions').select('user_id, plan_name, status, plan_updated_at, trial_plan, trial_expires_at'),
       supabase.from('resumes').select('user_id'),
       supabase.from('short_links').select('owner_user_id'),
-      supabase.from('ai_credits').select('user_id, credits_used, daily_limit'),
+      supabase.from('ai_credits').select('user_id, daily_usage, daily_limit, usage_date'),
     ]);
 
     if (authResult.error) {
@@ -100,6 +100,8 @@ Deno.serve(async (req) => {
       (creditsResult.data ?? []).map((c: Record<string, unknown>) => [c.user_id as string, c])
     );
 
+    const todayDate = new Date().toISOString().split('T')[0];
+
     // Build user records
     type UserRecord = {
       user_id: string;
@@ -124,6 +126,9 @@ Deno.serve(async (req) => {
       const p = (profileMap.get(au.id) ?? {}) as Record<string, unknown>;
       const s = (subsMap.get(au.id) ?? {}) as Record<string, unknown>;
       const ac = (creditsMap.get(au.id) ?? {}) as Record<string, unknown>;
+      // Only count daily_usage when usage_date matches today — stale rows count as 0
+      const usageDate = ac.usage_date as string | undefined;
+      const creditsUsedToday = usageDate === todayDate ? ((ac.daily_usage as number) ?? 0) : 0;
       return {
         user_id: au.id,
         email: au.email ?? null,
@@ -139,7 +144,7 @@ Deno.serve(async (req) => {
         last_sign_in_at: au.last_sign_in_at ?? null,
         resume_count: resumeCountMap.get(au.id) ?? 0,
         link_count: linkCountMap.get(au.id) ?? 0,
-        credits_used_today: (ac.credits_used as number) ?? 0,
+        credits_used_today: creditsUsedToday,
         daily_limit: (ac.daily_limit as number) ?? null,
       };
     });
