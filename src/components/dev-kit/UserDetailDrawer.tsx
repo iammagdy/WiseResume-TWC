@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react';
-import { X, Crown, Shield, ShieldOff, Zap, StickyNote, Copy, Check, Clock } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, Crown, Shield, ShieldOff, Zap, StickyNote, Copy, Check, Clock, UserPen, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { supabase } from '@/integrations/supabase/safeClient';
+import { useAuth } from '@/hooks/useAuth';
 import type { AdminUser } from './AdminUsersPanel';
 
 interface UserDetailDrawerProps {
@@ -73,11 +76,22 @@ function summarizeAction(action: string, meta: Record<string, unknown>): string 
     if (meta.bonus_credits) parts.push(`+${meta.bonus_credits} bonus`);
     return parts.join(', ') || 'Credits updated';
   }
+  if (action === 'profile_update') {
+    const changed = meta.changed_fields as Record<string, { old: unknown; new: unknown }> | undefined;
+    if (!changed) return 'Profile updated';
+    const parts: string[] = [];
+    if (changed.full_name) parts.push(`name: "${changed.full_name.old}" → "${changed.full_name.new}"`);
+    if (changed.username) parts.push(`username: "${changed.username.old}" → "${changed.username.new}"`);
+    return parts.join(', ') || 'Profile updated';
+  }
   return action.replace(/_/g, ' ');
 }
 
 export function UserDetailDrawer({ user: userProp, password, open, onClose, onUserUpdated }: UserDetailDrawerProps) {
   // Local copy of user so we can reflect mutations immediately without waiting for parent refetch
+  const queryClient = useQueryClient();
+  const { user: authUser } = useAuth();
+
   const [user, setUser] = useState<AdminUser>(userProp);
   useEffect(() => { setUser(userProp); }, [userProp]);
 
@@ -99,6 +113,17 @@ export function UserDetailDrawer({ user: userProp, password, open, onClose, onUs
   const [auditHistory, setAuditHistory] = useState<AuditEntry[]>([]);
   const [notesHistory, setNotesHistory] = useState<NoteEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Profile edit state
+  const [profileFullName, setProfileFullName] = useState(user.full_name || '');
+  const [profileUsername, setProfileUsername] = useState('');
+  const [profileUsernameLoaded, setProfileUsernameLoaded] = useState(false);
+  const [profileEnabled, setProfileEnabled] = useState<boolean | null>(null);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [usernameChangedOldValue, setUsernameChangedOldValue] = useState<string | null>(null);
+  const usernameCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -127,6 +152,109 @@ export function UserDetailDrawer({ user: userProp, password, open, onClose, onUs
 
     return () => { cancelled = true; };
   }, [open, user.user_id, password]);
+
+  // Load current profile username when drawer opens
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setProfileFullName(user.full_name || '');
+    setProfileUsernameLoaded(false);
+    setProfileEnabled(null);
+    setUsernameAvailable(null);
+    setUsernameChangedOldValue(null);
+
+    supabase
+      .from('profiles')
+      .select('username, portfolio_enabled')
+      .eq('user_id', user.user_id)
+      .single()
+      .then(({ data }) => {
+        if (cancelled) return;
+        const profileData = data as { username?: string | null; portfolio_enabled?: boolean | null } | null;
+        setProfileUsername(profileData?.username ?? '');
+        setProfileEnabled(profileData?.portfolio_enabled ?? false);
+        setProfileUsernameLoaded(true);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setProfileUsernameLoaded(true);
+          setProfileEnabled(false);
+        }
+      });
+
+    return () => { cancelled = true; };
+  }, [open, user.user_id, user.full_name]);
+
+  // Debounced username availability check
+  const handleUsernameChange = (val: string) => {
+    setProfileUsername(val);
+    setUsernameAvailable(null);
+    if (usernameCheckRef.current) clearTimeout(usernameCheckRef.current);
+    if (!val.trim() || val.trim().length < 3) {
+      setCheckingUsername(false);
+      return;
+    }
+    setCheckingUsername(true);
+    usernameCheckRef.current = setTimeout(async () => {
+      try {
+        // Using same pattern as PortfolioEditorPage.tsx for RPC call
+        const { data, error } = await supabase.rpc('check_username_available', {
+          p_username: val.trim().toLowerCase(),
+          p_user_id: user.user_id,
+        });
+        if (error) throw error;
+        setUsernameAvailable(data === true);
+      } catch {
+        setUsernameAvailable(null);
+      } finally {
+        setCheckingUsername(false);
+      }
+    }, 500);
+  };
+
+  const handleSaveProfile = async () => {
+    setSavingProfile(true);
+    try {
+      const trimmedUsername = profileUsername.trim().toLowerCase();
+      const trimmedName = profileFullName.trim();
+
+      const { data, error } = await edgeFunctions.functions.invoke('admin-update-profile', {
+        body: {
+          password,
+          target_user_id: user.user_id,
+          full_name: trimmedName || null,
+          username: trimmedUsername || undefined,
+          actor_email: authUser?.email ?? 'admin (dev-kit)',
+        },
+      });
+      if (error) throw new Error(error.message);
+      const result = data as { success?: boolean; error?: string; changed_fields?: Record<string, { old: unknown; new: unknown }> };
+      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+
+      const changed = result?.changed_fields ?? {};
+      if (Object.keys(changed).length === 0) {
+        toast.info('No changes to save');
+        return;
+      }
+
+      if (changed.username) {
+        setUsernameChangedOldValue(changed.username.old as string | null);
+        // Invalidate the public portfolio cache for the old and new username
+        queryClient.invalidateQueries({ queryKey: ['public-portfolio'] });
+      }
+
+      toast.success('Profile updated successfully');
+      setUser(prev => ({
+        ...prev,
+        full_name: trimmedName || null,
+      }));
+      onUserUpdated();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to update profile');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   if (!open) return null;
 
@@ -342,6 +470,91 @@ export function UserDetailDrawer({ user: userProp, password, open, onClose, onUs
                 <span className="text-xs text-muted-foreground">{formatDate(user.plan_updated_at)}</span>
               </div>
             )}
+          </div>
+
+          {/* Edit Profile */}
+          <div className="space-y-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <UserPen className="w-4 h-4 text-indigo-500" />
+              Edit Profile
+            </h3>
+
+            {usernameChangedOldValue !== null && (
+              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400">
+                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                <span>
+                  The old portfolio URL <span className="font-mono">resume.thewise.cloud/p/{usernameChangedOldValue}</span> will no longer work. The user should be notified.
+                </span>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <div>
+                <label className="text-xs text-muted-foreground font-medium">Full name</label>
+                <Input
+                  value={profileFullName}
+                  onChange={(e) => setProfileFullName(e.target.value)}
+                  placeholder="e.g. Jane Smith"
+                  className="mt-1 h-9 text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-muted-foreground font-medium">Portfolio username</label>
+                <div className="relative mt-1">
+                  <Input
+                    value={profileUsername}
+                    onChange={(e) => handleUsernameChange(e.target.value)}
+                    placeholder={profileUsernameLoaded ? 'e.g. janesmith' : 'Loading…'}
+                    disabled={!profileUsernameLoaded}
+                    className="h-9 text-xs pr-8"
+                  />
+                  {checkingUsername && (
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">…</span>
+                  )}
+                  {!checkingUsername && usernameAvailable === true && (
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-green-600 font-bold">✓</span>
+                  )}
+                  {!checkingUsername && usernameAvailable === false && (
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-destructive font-bold">✗</span>
+                  )}
+                </div>
+                {!checkingUsername && usernameAvailable === false && (
+                  <p className="text-[10px] text-destructive mt-0.5">Username is already taken</p>
+                )}
+                {!checkingUsername && usernameAvailable === true && (
+                  <p className="text-[10px] text-green-600 mt-0.5">Username is available</p>
+                )}
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  Portfolio URL: <span className="font-mono">resume.thewise.cloud/p/{profileUsername || '…'}</span>
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between py-1">
+                <span className="text-xs text-muted-foreground font-medium">Portfolio enabled</span>
+                {profileEnabled === null ? (
+                  <span className="text-[10px] text-muted-foreground">Loading…</span>
+                ) : (
+                  <Badge
+                    variant="outline"
+                    className={profileEnabled
+                      ? 'text-[10px] bg-green-500/10 text-green-600 border-green-500/20'
+                      : 'text-[10px] bg-muted text-muted-foreground border-border'}
+                  >
+                    {profileEnabled ? 'Enabled' : 'Disabled'}
+                  </Badge>
+                )}
+              </div>
+
+              <Button
+                onClick={handleSaveProfile}
+                disabled={savingProfile || usernameAvailable === false || checkingUsername}
+                size="sm"
+                className="w-full mt-1"
+              >
+                {savingProfile ? 'Saving…' : 'Save profile changes'}
+              </Button>
+            </div>
           </div>
 
           {/* Plan Controls */}
