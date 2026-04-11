@@ -442,7 +442,14 @@ export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAv
       <QuestionBankSheet
         open={showQuestionBank}
         onOpenChange={setShowQuestionBank}
-        jobTitle={jobDescription ? (jobDescription.split(/[\n\r]/)[0].substring(0, 50).trim() || 'Target Role') : undefined}
+        jobTitle={jobDescription ? (() => {
+          const lines = jobDescription.split(/[\n\r]+/);
+          const title = lines.find(l => {
+            const trimmed = l.trim();
+            return trimmed.length > 0 && trimmed.length < 80 && !trimmed.startsWith('http');
+          });
+          return title ? title.trim().substring(0, 80) : 'Target Role';
+        })() : undefined}
         jobDescription={jobDescription}
         resumeSummary={resumeData?.summary}
         onPracticeQuestion={(q) => {

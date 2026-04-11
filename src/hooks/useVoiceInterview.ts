@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/safeClient';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { ResumeData } from '@/types/resume';
 import { useElevenLabsScribe } from './useElevenLabsScribe';
@@ -267,6 +266,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const noSpeechCountRef = useRef(0);
   const isSubmittingTextRef = useRef(false);
   const endInterviewFnRef = useRef<() => Promise<void>>();
+  const lastCallAIWasEndRef = useRef(false);
 
   // Shared transcript handlers
   const handlePartialTranscript = useCallback((text: string) => {
@@ -428,8 +428,12 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
         utterance.lang = 'en-US';
         utteranceRef.current = utterance;
 
+        let onendFired = false;
+
         utterance.onend = async () => {
           if (ttsSafetyTimer) clearTimeout(ttsSafetyTimer);
+          if (onendFired) return;
+          onendFired = true;
           try {
             for (let i = COUNTDOWN_SECONDS; i >= 1; i--) {
               setCountdown(i);
@@ -445,14 +449,17 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
         };
         utterance.onerror = () => {
           if (ttsSafetyTimer) clearTimeout(ttsSafetyTimer);
+          onendFired = true;
           setStatus('idle');
           resolve();
         };
 
-        // Fix #10: TTS onend safety timeout — auto-resolve if onend doesn't fire
+        // TTS onend safety timeout — auto-resolve if onend doesn't fire
         const wordCount = text.split(/\s+/).length;
         const estimatedDurationMs = Math.max(3000, (wordCount / 2.5) * 1000 + 2000);
         const ttsSafetyTimer = setTimeout(async () => {
+          if (onendFired) return;
+          onendFired = true;
           console.warn('[VoiceInterview] TTS onend safety timeout triggered after', estimatedDurationMs, 'ms');
           window.speechSynthesis?.cancel();
           try {
@@ -481,6 +488,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
 
   const callAI = useCallback(
     async (endInterview = false) => {
+      lastCallAIWasEndRef.current = endInterview;
       const hasCredits = await checkCredits();
       if (!hasCredits) {
         setStatus('idle');
@@ -591,7 +599,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const retryAI = useCallback(() => {
     setError(null);
     setStatus('idle');
-    callAI(); // We just retry the same call
+    callAI(lastCallAIWasEndRef.current);
   }, [callAI]);
 
   const skipAITurn = useCallback(() => {
@@ -707,11 +715,16 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       if (!text.trim() || isSubmittingTextRef.current) return;
       isSubmittingTextRef.current = true;
       
-      // Clear STT state so it doesn't fire a duplicate
+      // Disconnect any active STT stream so it cannot fire a duplicate AI call
       isListeningRef.current = false;
+      disconnectCurrentSTT();
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
         silenceTimerRef.current = null;
+      }
+      if (noSpeechTimerRef.current) {
+        clearTimeout(noSpeechTimerRef.current);
+        noSpeechTimerRef.current = null;
       }
       setSilenceDetected(false);
       finalTextRef.current = '';
@@ -723,7 +736,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       
       isSubmittingTextRef.current = false;
     },
-    [addEntry, callAI]
+    [addEntry, callAI, disconnectCurrentSTT]
   );
 
   const analyzeRole = useCallback(async (jobDescription: string) => {
@@ -731,7 +744,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     if (!hasCredits) return;
     setIsAnalyzingRole(true);
     try {
-      const { data, error: fnError } = await supabase.functions.invoke('interview-chat', {
+      const { data, error: fnError } = await edgeFunctions.functions.invoke('interview-chat', {
         body: {
           analyzeRole: true,
           resumeData: resumeDataRef.current,

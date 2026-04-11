@@ -291,6 +291,13 @@ function InterviewPageContent() {
   if (phase === 'summary') {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 pt-safe">
+          <div className="flex items-center gap-3">
+            <BackButton onBeforeBack={() => { handleReset(); return true; }} />
+            <Sparkles className="w-5 h-5 text-primary" />
+            <h1 className="text-page-title flex-1">Interview Results</h1>
+          </div>
+        </header>
         <div className="flex-1 overflow-y-auto">
           <InterviewSummary
             summary={parsedSummary.displayText}
@@ -610,7 +617,7 @@ function InterviewPageContent() {
         <SheetContent side="bottom" hideCloseButton className="px-6 pb-8">
           <SheetTitle className="text-lg font-bold text-foreground text-center">End Interview?</SheetTitle>
           <SheetDescription className="text-sm text-muted-foreground text-center mt-1">
-            Your progress will be saved and you'll receive your feedback.
+            {user ? "Your progress will be saved and you'll receive your feedback." : "You'll receive your feedback summary."}
           </SheetDescription>
           <div className="flex flex-col gap-3 mt-6">
             <Button
