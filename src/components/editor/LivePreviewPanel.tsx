@@ -6,6 +6,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { applyCustomizationCSS, generateCustomizationCSS } from '@/lib/templateCustomization';
 // pdfGenerator is dynamically imported in handleDownload to reduce initial bundle
 import { downloadFile } from '@/lib/downloadUtils';
+import { computePreviewBreaks, estimatePageCount, getPageDimensionsForFormat } from '@/lib/pdfUtils';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -120,20 +121,31 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
   const [hiddenSections, setHiddenSections] = useState<Set<string>>(new Set());
   const [showSectionToggles, setShowSectionToggles] = useState(false);
   const [showPageBreaks, setShowPageBreaks] = useState(true);
-  const [resumeHeight, setResumeHeight] = useState(792);
+  const [pageBreaks, setPageBreaks] = useState<number[]>([]);
+  const [pageCount, setPageCount] = useState(1);
   const resumeRef = useRef<HTMLDivElement>(null);
 
   const TemplateComponent = templateComponents[selectedTemplate];
 
-  // Track resume height for page break indicators
+  // Track resume content and compute snap-aware page break positions
   useEffect(() => {
     const el = resumeRef.current;
     if (!el) return;
-    const update = () => setResumeHeight(el.scrollHeight || el.offsetHeight || 792);
-    update();
+    const format = currentResume?.customization?.pageFormat || 'letter';
+    const { pageWidth, pageHeight } = getPageDimensionsForFormat(format);
+    const update = () => {
+      const breaks = computePreviewBreaks(el, pageWidth, pageHeight);
+      setPageBreaks(breaks);
+      setPageCount(estimatePageCount(el, pageWidth, pageHeight));
+    };
+    // Delay initial calculation to allow layout to settle after template render
+    const timer = setTimeout(update, 150);
     const obs = new ResizeObserver(update);
     obs.observe(el);
-    return () => obs.disconnect();
+    return () => {
+      clearTimeout(timer);
+      obs.disconnect();
+    };
   }, [currentResume, selectedTemplate]);
 
   const toggleSection = useCallback((section: string) => {
@@ -232,6 +244,14 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
             {showSectionToggles ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
 
+          {/* Live page count badge */}
+          <span className={cn(
+            'text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap',
+            pageCount > 1 ? 'bg-destructive/10 text-destructive' : 'bg-muted text-muted-foreground'
+          )}>
+            {pageCount} {pageCount === 1 ? 'page' : 'pages'}
+          </span>
+
           {/* Download */}
           <Button
             size="sm"
@@ -317,23 +337,19 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
               <TemplateComponent resume={filteredResume} />
             </Suspense>
 
-            {/* Page break indicators */}
-            {showPageBreaks && resumeHeight > 792 && (() => {
-              const PAGE_H = 792;
-              const numBreaks = Math.floor(resumeHeight / PAGE_H);
-              return Array.from({ length: numBreaks }, (_, i) => (
-                <div
-                  key={i}
-                  className="absolute left-0 w-full z-10 pointer-events-none"
-                  style={{ top: `${(i + 1) * PAGE_H}px` }}
-                >
-                  <div className="border-t border-dashed border-destructive/50 w-full" />
-                  <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-destructive text-[9px] font-medium px-1.5 py-0.5 rounded-full shadow-sm whitespace-nowrap">
-                    Page {i + 1} · Page {i + 2}
-                  </span>
-                </div>
-              ));
-            })()}
+            {/* Page break indicators — positions match PDF export snap algorithm */}
+            {showPageBreaks && pageBreaks.map((breakY, i) => (
+              <div
+                key={i}
+                className="absolute left-0 w-full z-10 pointer-events-none"
+                style={{ top: `${breakY}px` }}
+              >
+                <div className="border-t border-dashed border-destructive/50 w-full" />
+                <span className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-destructive text-[9px] font-medium px-1.5 py-0.5 rounded-full shadow-sm whitespace-nowrap">
+                  Page {i + 1} · Page {i + 2}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       </div>

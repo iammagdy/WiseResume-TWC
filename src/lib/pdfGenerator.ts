@@ -298,7 +298,7 @@ export async function captureTemplateAsCanvas(
   cleanupTags();
 
   const expectedHeight = sourceElement.scrollHeight * scale;
-  if (canvas.height < expectedHeight * 0.5) {
+  if (canvas.height < expectedHeight * 0.8) {
     throw new PdfGenerationError(
       `Canvas capture is truncated (got ${canvas.height}px, expected ~${expectedHeight}px). ` +
       `The resume preview may be off-screen or clipped.`,
@@ -358,14 +358,28 @@ export async function generatePDFPages(
     const imgData = cropCanvas.toDataURL('image/png');
     const pngImage = await pdfDoc.embedPng(imgData);
 
+    // Render height of this segment in PDF points at full page width
+    // Since pagination uses printableHeight for sourceHeightPerPage, each full slice
+    // maps to exactly printableHeight = pageHeight - FOOTER_RESERVED_PT
     const segmentPdfHeight = pageWidth * (cropCanvas.height / cropCanvas.width);
-    const actualPageHeight = segmentPdfHeight + FOOTER_RESERVED_PT;
 
-    const page = pdfDoc.addPage([pageWidth, actualPageHeight]);
+    // Always use standard page height — every page is the same size
+    const page = pdfDoc.addPage([pageWidth, pageHeight]);
 
+    // Fill entire page with white (covers short last page padding and footer zone)
+    page.drawRectangle({
+      x: 0,
+      y: 0,
+      width: pageWidth,
+      height: pageHeight,
+      color: rgb(1, 1, 1),
+    });
+
+    // Draw content starting at the top of the page, above the footer zone
+    // FOOTER_RESERVED_PT is reserved at the bottom for page numbers / branding
     page.drawImage(pngImage, {
       x: 0,
-      y: FOOTER_RESERVED_PT,
+      y: pageHeight - segmentPdfHeight,
       width: pageWidth,
       height: segmentPdfHeight,
     });
@@ -375,7 +389,7 @@ export async function generatePDFPages(
       try {
         const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
         const textLines = extractResumeText(resume);
-        renderTextLayerForPage(page, font, textLines, pageNum, numPages, pageWidth, actualPageHeight);
+        renderTextLayerForPage(page, font, textLines, pageNum, numPages, pageWidth, pageHeight);
       } catch (e) {
         console.warn('[PDF] Text layer rendering failed, PDF will still work as image-only', e);
       }
@@ -385,11 +399,14 @@ export async function generatePDFPages(
 
 /**
  * Estimates the number of pages for a resume based on content height.
+ * Accepts optional page dimensions to support different formats (Letter, A4).
  */
 export function estimatePageCount(
-  sourceElement: HTMLElement
+  sourceElement: HTMLElement,
+  pageWidth: number = DEFAULT_PAGE_WIDTH,
+  pageHeight: number = DEFAULT_PAGE_HEIGHT
 ): number {
-  const { sourceHeightPerPage, totalHeight } = calculatePDFDimensions(sourceElement);
+  const { sourceHeightPerPage, totalHeight } = calculatePDFDimensions(sourceElement, pageWidth, pageHeight);
   
   if (totalHeight <= sourceHeightPerPage * 1.05) {
     return 1;
@@ -403,8 +420,8 @@ export function estimatePageCount(
  * Snaps fixed-interval break positions to avoid splitting elements marked
  * with [data-break-avoid]. Uses a tiered strategy:
  * Tier 1: if element fits on one page → always push to next page (no shift limit)
- * Tier 2: oversized elements → snap to nearest [data-break-child] (shift ≤ 30%)
- * Tier 3: oversized elements → snap to nearest direct child (shift ≤ 30%)
+ * Tier 2: oversized elements → snap to nearest [data-break-child] (shift ≤ 50%)
+ * Tier 3: oversized elements → snap to nearest direct child (shift ≤ 50%)
  */
 function snapBreaksToContent(
   fixedBreaks: number[],
@@ -449,7 +466,7 @@ function snapBreaksToContent(
     return fixedBreaks;
   }
 
-  const maxShift = Math.min(sourceHeightPerPage * 0.30, 200); // hard cap at 200px
+  const maxShift = Math.min(sourceHeightPerPage * 0.50, 350); // hard cap at 350px
   const HEADING_GUARD = 60; // px — protect section headings from orphaning
 
   // --- Sequential break processing: each break is relative to the previous ---
@@ -535,7 +552,14 @@ function snapBreaksToContent(
     // Don't exceed total content height
     if (nextBreak >= totalHeight) break;
 
-    nextBreak = Math.max(snapOne(nextBreak), prevBreak + HEADING_GUARD);
+    const snapped = snapOne(nextBreak);
+    // Clamp to [prevBreak + HEADING_GUARD, prevBreak + sourceHeightPerPage] so that
+    // downward snaps never create a segment larger than one printable page, preventing
+    // content clipping when rendering to fixed-height PDF pages.
+    nextBreak = Math.min(
+      Math.max(snapped, prevBreak + HEADING_GUARD),
+      prevBreak + sourceHeightPerPage
+    );
     if (nextBreak >= totalHeight) break;
     result.push(nextBreak);
     prevBreak = nextBreak;
@@ -566,7 +590,7 @@ export async function generatePDF(
 
   onProgress?.('preparing', 10);
 
-  const { pageWidth, pageHeight } = getPageDimensions(resume);
+  const { pageWidth, pageHeight, printableHeight } = getPageDimensions(resume);
 
    const cleanup = prepareForCapture(sourceElement, pageWidth);
 
@@ -576,7 +600,7 @@ export async function generatePDF(
        totalHeight,
        globalScaleFactor,
        sourceHeightPerPage
-     } = calculatePDFDimensions(sourceElement, pageWidth, pageHeight);
+     } = calculatePDFDimensions(sourceElement, pageWidth, printableHeight);
 
       // Fixed-interval breaks, then snap to avoid splitting content blocks
       const fixedBreaks: number[] = [];
