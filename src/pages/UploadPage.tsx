@@ -656,6 +656,56 @@ export default function UploadPage() {
     navigate('/editor');
   }, [navigate]);
 
+  const handleStartBlankResume = useCallback(async () => {
+    setShowErrorRecovery(false);
+    if (!user) {
+      const { v4: uuidv4 } = await import('uuid');
+      const guestId = uuidv4();
+      setCurrentResumeId(guestId);
+      setCurrentResume({
+        id: guestId,
+        contactInfo: { fullName: '', email: '', phone: '', location: '', linkedin: '' },
+        summary: '',
+        experience: [],
+        education: [],
+        skills: [],
+        certifications: [],
+        templateId: 'modern',
+      });
+      navigate('/editor');
+      return;
+    }
+    try {
+      const newResume = await createResume.mutateAsync({
+        resume: {
+          contactInfo: { fullName: '', email: '', phone: '', location: '', linkedin: '' },
+          summary: '',
+          experience: [],
+          education: [],
+          skills: [],
+          certifications: [],
+          templateId: 'modern',
+        },
+        title: 'My Resume',
+      });
+      setCurrentResumeId(newResume.id);
+      setCurrentResume({
+        id: newResume.id,
+        contactInfo: newResume.contact_info,
+        summary: newResume.summary,
+        experience: newResume.experience || [],
+        education: newResume.education || [],
+        skills: newResume.skills || [],
+        certifications: newResume.certifications || [],
+        templateId: newResume.template_id,
+      });
+      navigate('/editor');
+    } catch (error) {
+      console.error(error);
+      navigate('/editor');
+    }
+  }, [user, createResume, setCurrentResume, setCurrentResumeId, navigate]);
+
   const handleTryDifferentFile = useCallback(() => {
     setShowErrorRecovery(false);
     setFileName(null);
@@ -759,6 +809,7 @@ export default function UploadPage() {
                 extractedSections={extractedSections}
                 onTryOCR={errorType === 'NO_TEXT' ? handleTryOCRFromRecovery : undefined}
                 onStartFresh={handleStartFresh}
+                onStartBlankResume={handleStartBlankResume}
                 onTryDifferentFile={handleTryDifferentFile}
                 hasOCROption={errorType === 'NO_TEXT'}
               />

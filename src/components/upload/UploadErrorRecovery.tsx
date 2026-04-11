@@ -30,6 +30,7 @@ interface UploadErrorRecoveryProps {
   extractedSections?: ExtractedSections;
   onTryOCR?: () => void;
   onStartFresh: () => void;
+  onStartBlankResume?: () => void;
   onTryDifferentFile: () => void;
   onContinuePartial?: () => void;
   onAIFillGaps?: () => void;
@@ -41,6 +42,7 @@ export function UploadErrorRecovery({
   extractedSections,
   onTryOCR,
   onStartFresh,
+  onStartBlankResume,
   onTryDifferentFile,
   onContinuePartial,
   onAIFillGaps,
@@ -197,16 +199,31 @@ export function UploadErrorRecovery({
           </Button>
         )}
 
+        {/* Start with blank resume — for unreadable file error states */}
+        {onStartBlankResume && (errorType === 'CORRUPTED' || errorType === 'PASSWORD_PROTECTED' || errorType === 'NO_TEXT' || errorType === 'UNKNOWN') && (
+          <Button
+            variant="outline"
+            size="lg"
+            className="w-full h-14 gap-3"
+            onClick={() => handleAction(onStartBlankResume)}
+          >
+            <PenLine className="w-5 h-5" />
+            Start with blank resume
+          </Button>
+        )}
+
         {/* Start Fresh */}
-        <Button
-          variant={errorType === 'PARTIAL_EXTRACTION' ? 'ghost' : 'outline'}
-          size="lg"
-          className="w-full h-14 gap-3"
-          onClick={() => handleAction(onStartFresh)}
-        >
-          <PenLine className="w-5 h-5" />
-          Start Fresh Instead
-        </Button>
+        {!onStartBlankResume && (
+          <Button
+            variant={errorType === 'PARTIAL_EXTRACTION' ? 'ghost' : 'outline'}
+            size="lg"
+            className="w-full h-14 gap-3"
+            onClick={() => handleAction(onStartFresh)}
+          >
+            <PenLine className="w-5 h-5" />
+            Start Fresh Instead
+          </Button>
+        )}
 
         {/* Try Different File */}
         <Button
