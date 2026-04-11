@@ -106,7 +106,7 @@ export default function QrScanPage() {
   const Icon = result ? ICON_MAP[result.kind] : QrCode;
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 pb-20 lg:pb-6 pt-safe">
+    <div className="flex-1 flex flex-col min-h-0 pb-20 lg:pb-6">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
         <Button variant="ghost" size="icon" onClick={() => navigate('/qr-code')} className="shrink-0">

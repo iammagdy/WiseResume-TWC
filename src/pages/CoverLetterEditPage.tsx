@@ -181,8 +181,8 @@ export default function CoverLetterEditPage() {
       </div>
 
       {/* Bottom Toolbar */}
-      <div className="fixed bottom-20 left-0 right-0 z-40 px-4 pb-safe">
-        <div className="bg-background/95 backdrop-blur-sm border-b border-border rounded-2xl p-2.5 flex gap-1.5">
+      <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] lg:bottom-0 left-0 right-0 z-40 px-4 lg:px-6 lg:pb-4">
+        <div className="bg-background/95 backdrop-blur-sm border border-border rounded-2xl p-2.5 flex gap-1.5 shadow-lg">
           <Button variant="outline" size="sm" className="gap-1 flex-1 h-10" onClick={handleSave}>
             <Save className="w-4 h-4" /> Save
           </Button>

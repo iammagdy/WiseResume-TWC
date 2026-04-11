@@ -75,7 +75,7 @@ export default function ExamplesPage() {
   return (
     <div className="min-h-full flex flex-col">
       {/* Header */}
-      <header className="pt-safe pt-3 pb-2 px-4 flex items-center gap-3 bg-background/95 backdrop-blur-sm border-b border-border">
+      <header className="pt-3 pb-2 px-4 flex items-center gap-3 bg-background/95 backdrop-blur-sm border-b border-border">
         <BackButton />
         <h1 className="text-fluid-lg font-bold text-foreground">Resume Examples</h1>
       </header>

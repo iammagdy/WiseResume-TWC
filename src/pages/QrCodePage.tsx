@@ -218,7 +218,7 @@ export default function QrCodePage() {
   const lowContrast = contrast < 3;
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 pb-20 lg:pb-6 pt-safe">
+    <div className="flex-1 flex flex-col min-h-0">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
         <Button variant="ghost" size="icon" onClick={() => navigate('/ai-studio')} className="shrink-0">
@@ -238,7 +238,7 @@ export default function QrCodePage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-24">
         {/* Preview */}
         <div className="flex flex-col items-center py-4 px-4">
           <div className={cn(
@@ -492,7 +492,7 @@ export default function QrCodePage() {
       </div>
 
       {/* Sticky bottom */}
-      <div className="fixed bottom-20 lg:bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur-sm px-4 py-3 pb-safe flex gap-2 z-20">
+      <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] lg:bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur-sm px-4 py-3 lg:pb-safe flex gap-2 z-20">
         <Button variant="outline" className="flex-1 h-12 rounded-xl active:scale-95 font-medium" onClick={handleCopy}>
           <Copy className="w-4 h-4 mr-2" /> Copy
         </Button>

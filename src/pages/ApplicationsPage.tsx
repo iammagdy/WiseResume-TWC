@@ -251,7 +251,7 @@ export default function ApplicationsPage() {
   return (
     <div className="flex-1 flex flex-col min-h-0 pb-4">
       {/* Header */}
-      <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 pt-safe">
+      <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
         <div className="flex items-center justify-between lg:max-w-none mx-auto w-full">
           <div className="flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-primary" />

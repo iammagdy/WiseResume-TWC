@@ -381,8 +381,8 @@ export default function ResignationLetterNewPage() {
       </div>
 
       {/* Bottom Navigation */}
-      <div className="fixed bottom-20 left-0 right-0 z-40 px-4 pb-safe">
-        <div className="bg-background/95 backdrop-blur-sm border-b border-border rounded-2xl p-3 flex gap-2">
+      <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] lg:bottom-0 left-0 right-0 z-40 px-4 lg:px-6 lg:pb-4">
+        <div className="bg-background/95 backdrop-blur-sm border border-border rounded-2xl p-3 flex gap-2 shadow-lg">
           {step < 2 && (
             <Button
               className="flex-1 gap-2 h-12 rounded-xl"

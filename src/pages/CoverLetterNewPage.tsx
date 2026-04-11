@@ -155,7 +155,7 @@ export default function CoverLetterNewPage() {
       <div className="flex-1 overflow-y-auto overscroll-y-contain">
         <div className="px-4 pt-4 pb-32 space-y-5">
           {/* Job Info */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Job Title *</label>
               <Input placeholder="e.g. Product Manager" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} />
@@ -276,8 +276,8 @@ export default function CoverLetterNewPage() {
 
       {/* Bottom Toolbar */}
       {result && (
-        <div className="fixed bottom-20 left-0 right-0 z-40 px-4 pb-safe">
-          <div className="bg-background/95 backdrop-blur-sm border-b border-border rounded-2xl p-3 flex gap-2">
+        <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] lg:bottom-0 left-0 right-0 z-40 px-4 lg:px-6 lg:pb-4">
+          <div className="bg-background/95 backdrop-blur-sm border border-border rounded-2xl p-3 flex gap-2 shadow-lg">
             <Button variant="outline" size="sm" className="gap-1.5 flex-1" onClick={handleCopy}>
               <Copy className="w-4 h-4" /> Copy
             </Button>

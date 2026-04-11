@@ -80,7 +80,7 @@ export default function GuidePage() {
       </div>
 
       {/* Header */}
-      <header className="pt-safe pt-2 pb-2 px-4 flex items-center gap-2 bg-background/95 backdrop-blur-sm border-b border-border">
+      <header className="pt-2 pb-2 px-4 flex items-center gap-2 bg-background/95 backdrop-blur-sm border-b border-border">
         <BackButton />
         <span className="flex-1 min-w-0 text-sm font-medium truncate">{guide.title}</span>
         <button

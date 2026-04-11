@@ -516,7 +516,7 @@ export default function PortfolioEditorPage() {
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-background">
       {/* Header */}
-      <div className="shrink-0 flex items-center gap-3 px-4 h-14 pt-safe border-b border-border bg-background/95 backdrop-blur-sm">
+      <div className="shrink-0 flex items-center gap-3 px-4 h-12 border-b border-border bg-background/95 backdrop-blur-sm">
         <BackButton onBeforeBack={() => {
           if (lastSavedSnapshot && getCurrentSnapshot() !== lastSavedSnapshot) {
             handleNavigateAway('/dashboard');

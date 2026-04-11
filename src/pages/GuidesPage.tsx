@@ -49,7 +49,7 @@ export default function GuidesPage() {
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Header */}
-      <header className="pt-safe pt-3 pb-2 px-4 flex items-center gap-3 bg-background/95 backdrop-blur-sm border-b border-border">
+      <header className="pt-3 pb-2 px-4 flex items-center gap-3 bg-background/95 backdrop-blur-sm border-b border-border">
         <BackButton />
         <h1 className="text-lg font-bold flex-1 min-w-0 truncate">Career Guides</h1>
       </header>

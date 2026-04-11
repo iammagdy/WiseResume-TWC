@@ -120,7 +120,7 @@ export default function QrBatchPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 pb-20 lg:pb-6 pt-safe">
+    <div className="flex-1 flex flex-col min-h-0">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
         <Button variant="ghost" size="icon" onClick={() => navigate('/qr-code')} className="shrink-0">
@@ -140,7 +140,7 @@ export default function QrBatchPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-24">
         {/* Input */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
@@ -211,7 +211,7 @@ export default function QrBatchPage() {
       </div>
 
       {/* Bottom action */}
-      <div className="fixed bottom-20 lg:bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur-sm px-4 py-3 pb-safe z-20">
+      <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] lg:bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur-sm px-4 py-3 z-20">
         <Button
           className="w-full h-12 rounded-xl active:scale-95 font-medium"
           disabled={entries.length === 0 || generating}
