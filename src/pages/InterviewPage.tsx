@@ -304,6 +304,8 @@ function InterviewPageContent() {
             onRestart={() => { setSessionSaved(false); handleReset(); }}
             onGoHome={() => navigate('/ai-studio')}
             onShowTips={() => setShowTips(true)}
+            transcript={transcript}
+            candidateName={currentResume?.contactInfo?.fullName || user?.email}
           />
           <InterviewTipsSheet open={showTips} onOpenChange={setShowTips} />
         </div>

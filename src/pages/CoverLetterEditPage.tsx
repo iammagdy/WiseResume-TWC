@@ -85,12 +85,14 @@ export default function CoverLetterEditPage() {
     if (!content || !letter) return;
     try {
       const { downloadCoverLetterPDF } = await import('@/lib/coverLetterPdfGenerator');
-      await downloadCoverLetterPDF({ ...letter, content });
+      const linkedResume = resumes?.find(r => r.id === letter.resume_id);
+      const accentHex = linkedResume ? dbToResumeData(linkedResume).customization?.accentColor : undefined;
+      await downloadCoverLetterPDF({ ...letter, content, accentHex });
       toast.success('PDF downloaded!');
     } catch {
       toast.error('Failed to generate PDF');
     }
-  }, [content, letter]);
+  }, [content, letter, resumes]);
 
   const handleTailor = useCallback(async () => {
     if (!tailorJobDesc.trim() || !letter?.resume_id) {

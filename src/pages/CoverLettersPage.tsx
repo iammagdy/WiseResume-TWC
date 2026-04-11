@@ -10,6 +10,7 @@ import { CoverLetterCard } from '@/components/cover-letter/CoverLetterCard';
 import { EmptyCoverLetters } from '@/components/cover-letter/EmptyCoverLetters';
 import { CoverLetterActionSheet } from '@/components/cover-letter/CoverLetterActionSheet';
 import { useCoverLetters, useCoverLetterMutations } from '@/hooks/useCoverLetters';
+import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
@@ -33,6 +34,7 @@ export default function CoverLettersPage() {
   const { isPro, isLoading: planLoading } = usePlan();
   const { data: letters, isLoading, refetch } = useCoverLetters();
   const { saveCoverLetter, deleteCoverLetter } = useCoverLetterMutations();
+  const { data: resumes } = useResumes();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [actionSheetId, setActionSheetId] = useState<string | null>(null);
@@ -62,12 +64,14 @@ export default function CoverLettersPage() {
     if (!letter) return;
     try {
       const { downloadCoverLetterPDF } = await import('@/lib/coverLetterPdfGenerator');
-      await downloadCoverLetterPDF(letter);
+      const linkedResume = resumes?.find(r => r.id === letter.resume_id);
+      const accentHex = linkedResume ? dbToResumeData(linkedResume).customization?.accentColor : undefined;
+      await downloadCoverLetterPDF({ ...letter, accentHex });
       toast.success('PDF downloaded!');
     } catch {
       toast.error('Failed to generate PDF');
     }
-  }, [letters]);
+  }, [letters, resumes]);
 
   const confirmDelete = useCallback(() => {
     if (!deleteId) return;

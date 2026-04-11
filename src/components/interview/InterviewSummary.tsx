@@ -5,7 +5,7 @@ import { InterviewResultsCardSheet } from './InterviewResultsCardSheet';
 import ReactMarkdown from 'react-markdown';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import type { AnswerScore } from '@/hooks/useVoiceInterview';
+import type { AnswerScore, TranscriptEntry } from '@/hooks/useVoiceInterview';
 
 interface InterviewSummaryProps {
   summary: string;
@@ -14,6 +14,8 @@ interface InterviewSummaryProps {
   onRestart: () => void;
   onGoHome: () => void;
   onShowTips?: () => void;
+  transcript?: TranscriptEntry[];
+  candidateName?: string;
 }
 
 function ScoreBadge({ score }: { score: number }) {
@@ -46,7 +48,7 @@ function extractScore(summary: string): number | null {
   return null;
 }
 
-export function InterviewSummary({ summary, duration, scores, onRestart, onGoHome, onShowTips }: InterviewSummaryProps) {
+export function InterviewSummary({ summary, duration, scores, onRestart, onGoHome, onShowTips, transcript, candidateName }: InterviewSummaryProps) {
   const mins = Math.floor(duration / 60);
   const secs = duration % 60;
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
@@ -70,9 +72,25 @@ export function InterviewSummary({ summary, duration, scores, onRestart, onGoHom
       : 'text-red-400 border-red-500/60'
     : 'text-muted-foreground border-border';
 
-  const handleSaveAsPdf = () => {
-    import('sonner').then(({ toast }) => toast.info('Opening print dialog...'));
-    setTimeout(() => window.print(), 300);
+  const handleSaveAsPdf = async () => {
+    const { toast } = await import('sonner');
+    const toastId = toast.loading('Generating PDF...');
+    try {
+      const { downloadInterviewSummaryPDF } = await import('@/lib/interviewSummaryPdfGenerator');
+      await downloadInterviewSummaryPDF({
+        summary,
+        duration,
+        scores,
+        overallScore,
+        transcript,
+        candidateName,
+        date: new Date(),
+      });
+      toast.success('PDF saved!', { id: toastId });
+    } catch (err) {
+      console.error('[InterviewSummary] PDF generation failed', err);
+      toast.error('Could not generate PDF. Please try again.', { id: toastId });
+    }
   };
 
   return (
