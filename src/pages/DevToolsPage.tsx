@@ -380,7 +380,7 @@ export default function DevToolsPage() {
             {DEV_KIT_VERSION} · Build {new Date().toISOString().split('T')[0].replace(/-/g, '')}
           </p>
           <p className="text-[10px] text-muted-foreground/30 mt-0.5">
-            Edge functions require deployment · DEV_KIT_PASSWORD must be set in Supabase secrets
+            Secrets (DEV_KIT_PASSWORD, GITHUB_TOKEN, etc.) must be set in Supabase → Edge Functions → Secrets
           </p>
         </footer>
       </div>

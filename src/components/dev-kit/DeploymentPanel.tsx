@@ -59,10 +59,11 @@ function formatRelative(iso: string): string {
   return `${days}d ago`;
 }
 
-const SUPABASE_PROJECT_REF = import.meta.env.VITE_SUPABASE_URL?.match(/https:\/\/([^.]+)/)?.[1] ?? null;
-const SUPABASE_SECRETS_URL = SUPABASE_PROJECT_REF
-  ? `https://supabase.com/dashboard/project/${SUPABASE_PROJECT_REF}/settings/vault`
-  : 'https://supabase.com/dashboard';
+const SUPABASE_PROJECT_REF =
+  import.meta.env.VITE_SUPABASE_URL?.match(/https:\/\/([^.]+)/)?.[1] ??
+  'jnsfmkzgxsviuthaqlyy';
+const SUPABASE_SECRETS_URL =
+  `https://supabase.com/dashboard/project/${SUPABASE_PROJECT_REF}/functions`;
 
 export function DeploymentPanel({ password }: DeploymentPanelProps) {
   const [data, setData] = useState<DeploymentData | null>(null);
@@ -190,18 +191,20 @@ export function DeploymentPanel({ password }: DeploymentPanelProps) {
               <p className="text-sm font-semibold text-destructive">Failed to load deployment data</p>
               <p className="text-xs text-destructive/70">{fetchError}</p>
               <p className="text-xs text-muted-foreground">
-                The <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">admin-github-status</code> and{' '}
-                <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">admin-env-check</code> edge functions
-                must be deployed to Supabase, and the following secrets must be set:
+                The following secrets must be added to <strong>Supabase → Edge Functions → Secrets</strong> (not the Vault).
+                These are read via <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">Deno.env.get()</code> and must be set as Edge Function environment secrets:
               </p>
               <div className="grid grid-cols-1 gap-1.5 pt-1">
-                {(['GITHUB_TOKEN', 'GITHUB_OWNER', 'GITHUB_REPO'] as const).map(k => (
+                {(['DEV_KIT_PASSWORD', 'GITHUB_TOKEN', 'GITHUB_OWNER', 'GITHUB_REPO'] as const).map(k => (
                   <div key={k} className="flex items-center gap-2 rounded-md bg-muted/60 px-2.5 py-1.5">
                     <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                     <code className="font-mono text-xs text-foreground">{k}</code>
                   </div>
                 ))}
               </div>
+              <p className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded px-2 py-1.5">
+                Note: The Supabase <strong>Vault</strong> is different — secrets stored there are NOT available as environment variables in edge functions.
+              </p>
               <a
                 href={SUPABASE_SECRETS_URL}
                 target="_blank"
@@ -209,7 +212,7 @@ export function DeploymentPanel({ password }: DeploymentPanelProps) {
                 className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline pt-1"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
-                Open Supabase Secrets to add them
+                Open Supabase Edge Functions → manage secrets there
               </a>
             </div>
           </div>
@@ -293,7 +296,8 @@ export function DeploymentPanel({ password }: DeploymentPanelProps) {
                   <p className="text-xs text-muted-foreground">
                     Set <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">GITHUB_TOKEN</code>,{' '}
                     <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">GITHUB_OWNER</code>, and{' '}
-                    <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">GITHUB_REPO</code> in Supabase secrets.
+                    <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded">GITHUB_REPO</code> in{' '}
+                    <strong>Edge Functions → Secrets</strong> (not the Vault).
                   </p>
                   <a
                     href={SUPABASE_SECRETS_URL}
@@ -302,7 +306,7 @@ export function DeploymentPanel({ password }: DeploymentPanelProps) {
                     className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                   >
                     <ExternalLink className="w-3 h-3" />
-                    Open Supabase Secrets
+                    Open Supabase Edge Functions
                   </a>
                 </div>
               </div>
