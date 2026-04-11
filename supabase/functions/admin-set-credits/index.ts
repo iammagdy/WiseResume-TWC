@@ -53,10 +53,10 @@ Deno.serve(async (req) => {
     const today = new Date().toISOString().split('T')[0];
     const now = new Date().toISOString();
 
-    // Fetch current row so we can compute new daily_usage when bonus_credits is set
+    // Fetch current row to compute correct values for the upsert
     const { data: currentRow, error: fetchError } = await supabase
       .from('ai_credits')
-      .select('daily_usage, daily_limit, usage_date')
+      .select('daily_usage, daily_limit, usage_date, total_usage')
       .eq('user_id', target_user_id)
       .maybeSingle();
 
@@ -68,55 +68,54 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!currentRow) {
-      // No ai_credits row yet — insert a fresh row with the given values
-      const limitToSet = parsedLimit !== undefined ? parsedLimit : 5;
+    // Compute new daily_usage (bonus_credits reduce today's usage, floored at 0)
+    const existingUsage: number =
+      currentRow && currentRow.usage_date === today ? (currentRow.daily_usage ?? 0) : 0;
+    const newUsage: number =
+      parsedBonus > 0 ? Math.max(0, existingUsage - parsedBonus) : existingUsage;
 
-      const { error: insertError } = await supabase
-        .from('ai_credits')
-        .insert({
+    // Determine the correct daily_limit for the upsert:
+    //  - If admin explicitly set one → use it
+    //  - If row exists → keep it unchanged
+    //  - If no row AND bonus-only → look up subscription to get the plan's limit
+    let newLimit: number;
+    if (parsedLimit !== undefined) {
+      newLimit = parsedLimit;
+    } else if (currentRow?.daily_limit !== undefined && currentRow.daily_limit !== null) {
+      newLimit = currentRow.daily_limit;
+    } else {
+      // No row and no explicit limit: infer from subscription plan (fallback Free=5)
+      const { data: sub } = await supabase
+        .from('subscriptions')
+        .select('plan_name')
+        .eq('user_id', target_user_id)
+        .maybeSingle();
+      const planName = String((sub as { plan_name?: string } | null)?.plan_name ?? 'free').toLowerCase();
+      const PLAN_LIMITS: Record<string, number> = { free: 5, pro: 100, premium: -1 };
+      newLimit = PLAN_LIMITS[planName] ?? 5;
+    }
+
+    // Single upsert — no race window, handles both new and existing rows
+    const { error: upsertError } = await supabase
+      .from('ai_credits')
+      .upsert(
+        {
           user_id: target_user_id,
-          daily_limit: limitToSet,
-          daily_usage: 0,
-          total_usage: 0,
+          daily_limit: newLimit,
+          daily_usage: newUsage,
+          total_usage: currentRow?.total_usage ?? 0,
           usage_date: today,
           updated_at: now,
-        });
+        },
+        { onConflict: 'user_id' }
+      );
 
-      if (insertError && insertError.code !== '23505') {
-        console.error('[admin-set-credits] insert error:', insertError);
-        return new Response(
-          JSON.stringify({ success: false, error: insertError.message }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    } else {
-      // Existing row — build update payload
-      const updates: Record<string, unknown> = { updated_at: now };
-
-      if (parsedLimit !== undefined) {
-        updates.daily_limit = parsedLimit;
-      }
-
-      if (parsedBonus > 0) {
-        // Bonus credits reduce today's usage (gives the user more remaining credits today)
-        const currentUsage: number =
-          currentRow.usage_date === today ? (currentRow.daily_usage ?? 0) : 0;
-        updates.daily_usage = Math.max(0, currentUsage - parsedBonus);
-      }
-
-      const { error: updateError } = await supabase
-        .from('ai_credits')
-        .update(updates)
-        .eq('user_id', target_user_id);
-
-      if (updateError) {
-        console.error('[admin-set-credits] update error:', updateError);
-        return new Response(
-          JSON.stringify({ success: false, error: updateError.message }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+    if (upsertError) {
+      console.error('[admin-set-credits] upsert error:', upsertError);
+      return new Response(
+        JSON.stringify({ success: false, error: upsertError.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Write audit log — non-fatal
@@ -129,6 +128,7 @@ Deno.serve(async (req) => {
         metadata: {
           daily_limit: parsedLimit ?? null,
           bonus_credits: parsedBonus,
+          resolved_daily_limit: newLimit,
           updated_by: 'dev-kit',
           updated_at: now,
         },
@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        daily_limit: parsedLimit ?? null,
+        daily_limit: newLimit,
         bonus_credits: parsedBonus,
         updated_at: now,
       }),
