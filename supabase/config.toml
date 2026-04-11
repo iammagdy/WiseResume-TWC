@@ -125,6 +125,8 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.validate-api-key]
     verify_jwt = false
+  [functions.validate-coupon]
+    verify_jwt = false
   [functions.verify-dev-kit]
     verify_jwt = false
   [functions.weekly-digest]
