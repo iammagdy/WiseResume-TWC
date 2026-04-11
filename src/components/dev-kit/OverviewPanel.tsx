@@ -10,6 +10,7 @@ interface OverviewPanelProps {
 
 interface OverviewStats {
   total: number;
+  loadedCount: number;
   free: number;
   pro: number;
   premium: number;
@@ -130,7 +131,7 @@ export function OverviewPanel({ password }: OverviewPanelProps) {
 
       const newestUser = users.length > 0 ? users[0].created_at : null;
 
-      setStats({ total, free, pro, premium, trial, suspended, totalResumes, totalLinks, newestUser, lastLoadedAt: new Date() });
+      setStats({ total, loadedCount: users.length, free, pro, premium, trial, suspended, totalResumes, totalLinks, newestUser, lastLoadedAt: new Date() });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load overview');
     } finally {
@@ -159,6 +160,11 @@ export function OverviewPanel({ password }: OverviewPanelProps) {
           {stats && (
             <p className="text-xs text-muted-foreground mt-0.5">
               Last updated {stats.lastLoadedAt.toLocaleTimeString()}
+              {stats.loadedCount < stats.total && (
+                <span className="ml-1.5 text-amber-600 dark:text-amber-400">
+                  · Plan breakdown sampled from first {stats.loadedCount.toLocaleString()} of {stats.total.toLocaleString()} users
+                </span>
+              )}
             </p>
           )}
         </div>

@@ -372,12 +372,12 @@ export default function DevToolsPage() {
           </div>
         </div>
 
-        <footer className="py-6 border-t border-border text-center space-y-1">
+        <footer className="py-6 border-t border-border text-center">
           <p className="text-[11px] text-muted-foreground/50 font-mono">
             {DEV_KIT_VERSION} · Build {new Date().toISOString().split('T')[0].replace(/-/g, '')}
           </p>
-          <p className="text-[10px] text-muted-foreground/30">
-            Edge functions require deployment · Supabase: jnsfmkzgxsviuthaqlyy
+          <p className="text-[10px] text-muted-foreground/30 mt-0.5">
+            Edge functions require deployment · DEV_KIT_PASSWORD must be set in Supabase secrets
           </p>
         </footer>
       </div>
