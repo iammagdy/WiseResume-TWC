@@ -752,7 +752,7 @@ export default function EditorPage() {
                   healthScore={localHealthScore}
                   compact
                   defaultOpen
-                  onImprove={() => setShowTailor(true)}
+                  onImprove={handleImproveSection}
                 />
               </div>
             )}

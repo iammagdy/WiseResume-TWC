@@ -7,7 +7,6 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { useNavigate } from 'react-router-dom';
 
@@ -32,12 +31,8 @@ export function UpgradeDialog({
 }: UpgradeDialogProps) {
   const navigate = useNavigate();
 
-  const handleUpgrade = () => {
-    haptics.light();
-    toast(`Upgrade to ${planLabel(requiredPlan)} — coming soon!`, { icon: '🚀' });
-  };
-
   const handleViewPlans = () => {
+    haptics.light();
     onClose();
     navigate('/subscription');
   };
@@ -59,16 +54,16 @@ export function UpgradeDialog({
         </DialogHeader>
 
         <div className="flex flex-col gap-2 pt-2">
-          <Button className="w-full gap-2" onClick={handleUpgrade}>
+          <Button className="w-full gap-2" onClick={handleViewPlans}>
             <Crown className="w-4 h-4" />
-            Upgrade to {planLabel(requiredPlan)} — coming soon
+            View plans
           </Button>
           <Button
             variant="ghost"
             className="w-full text-muted-foreground"
-            onClick={handleViewPlans}
+            onClick={onClose}
           >
-            View all plans
+            Cancel
           </Button>
         </div>
       </DialogContent>
