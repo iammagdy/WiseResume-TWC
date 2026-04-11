@@ -28,6 +28,7 @@ import { calculateProfileCompletion } from '@/hooks/useProfile';
 import { AIHealthBadge } from '@/components/ai/AIHealthBadge';
 import { AICreditsIndicator } from '@/components/editor/ai/AICreditsIndicator';
 import { useChangelogBadge } from '@/hooks/useChangelogBadge';
+import { getReferralTeaser } from '@/lib/referralData';
 
 // Lazy-loaded dialogs
 const CreateResumeDialog = lazy(() => import('@/components/dashboard/CreateResumeDialog').then(m => ({ default: m.CreateResumeDialog })));
@@ -708,7 +709,7 @@ function DashboardPageContent() {
                   iconBg: 'bg-emerald-500/10',
                   iconColor: 'text-emerald-600 dark:text-emerald-400',
                   label: 'Referral',
-                  desc: 'Invite friends, earn credits',
+                  desc: getReferralTeaser(),
                   path: '/referral',
                 },
                 {

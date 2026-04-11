@@ -7,13 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { getAppUrl } from '@/lib/portfolioUrl';
-
-const REWARDS = [
-  { friends: 1, reward: '3 extra AI credits/day for 1 week' },
-  { friends: 3, reward: '1 week of Pro features' },
-  { friends: 5, reward: '1 month of Pro features' },
-  { friends: 10, reward: 'Lifetime Premium badge' },
-];
+import { REFERRAL_REWARDS } from '@/lib/referralData';
 
 export default function ReferralPage() {
   const { user } = useAuth();
@@ -130,7 +124,7 @@ export default function ReferralPage() {
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Rewards</h2>
           <Card>
             <CardContent className="p-0 divide-y divide-border">
-              {REWARDS.map((tier, i) => (
+              {REFERRAL_REWARDS.map((tier, i) => (
                 <div key={i} className="flex items-center gap-3 p-4">
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                     <Star className="w-4 h-4 text-primary" />
