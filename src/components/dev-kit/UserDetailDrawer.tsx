@@ -274,10 +274,11 @@ export function UserDetailDrawer({ user: userProp, password, open, onClose, onUs
       const result = data as { success?: boolean; error?: string };
       if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
       toast.success(`Plan set to ${selectedPlan}`, {
-        description: "The user's app will reflect this within 30 seconds on next interaction.",
+        description: "The user's app will reflect this within 10 seconds.",
         duration: 5000,
       });
       setUser(prev => ({ ...prev, plan_name: selectedPlan, plan_updated_at: new Date().toISOString() }));
+      queryClient.invalidateQueries({ queryKey: ['me'] });
       onUserUpdated();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to set plan');
@@ -373,6 +374,7 @@ export function UserDetailDrawer({ user: userProp, password, open, onClose, onUs
       }));
       setNewDailyLimit(parsedLimit !== undefined ? String(parsedLimit) : '');
       setBonusCredits('');
+      queryClient.invalidateQueries({ queryKey: ['me'] });
       onUserUpdated();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to update credits');

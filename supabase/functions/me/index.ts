@@ -22,10 +22,13 @@ serve(async (req) => {
       kindeSub = (claims.kinde_sub as string) || null;
     } catch { /* ignore — kinde_sub is optional */ }
 
-    // Fetch profile and preferences in parallel
-    const [profileResult, prefsResult] = await Promise.all([
+    // Fetch profile, preferences, subscription, and ai_credits in parallel.
+    // Using service client (from requireAuth) bypasses RLS — no auth.uid() dependency.
+    const [profileResult, prefsResult, subsResult, creditsResult] = await Promise.all([
       client.from('profiles').select('*').eq('user_id', userId).maybeSingle(),
       client.from('user_preferences').select('*').eq('user_id', userId).maybeSingle(),
+      client.from('subscriptions').select('plan_name, status, plan_updated_at').eq('user_id', userId).maybeSingle(),
+      client.from('ai_credits').select('daily_usage, daily_limit, usage_date, total_usage, updated_at').eq('user_id', userId).maybeSingle(),
     ]);
 
     // Suspension check — return 403 if account is suspended
@@ -50,6 +53,8 @@ serve(async (req) => {
         kinde_sub: kindeSub,
         profile: profile || null,
         preferences: prefsResult.data || null,
+        subscription: subsResult.data || null,
+        ai_credits: creditsResult.data || null,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );

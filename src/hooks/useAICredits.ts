@@ -1,8 +1,7 @@
-import { useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { getToken } from '@/lib/supabaseBridge';
 import { useAuth } from './useAuth';
+import { useMe } from './useMe';
 import { toast } from 'sonner';
 import { useSettingsStore } from '@/store/settingsStore';
 
@@ -26,101 +25,78 @@ function useIsBYOK(): boolean {
   return (aiProvider === 'gemini' && geminiKeyValidated) || (aiProvider === 'ollama' && ollamaKeyValidated);
 }
 
+/**
+ * Returns the current user's AI credits data.
+ *
+ * Reads credits from the shared `useMe` query which calls the `me` edge
+ * function. This avoids the silent-failure bug where an expired bridge token
+ * causes `auth.uid()` to return null in direct DB queries, making credits
+ * appear incorrect or empty.
+ *
+ * Realtime invalidation and 10-second polling are handled inside `useMe`.
+ */
 export function useAICredits() {
   const { user } = useAuth();
   const isBYOK = useIsBYOK();
-  const queryClient = useQueryClient();
+  const { data: meData, isLoading, error, refetch } = useMe();
 
-  useEffect(() => {
-    if (!user || isBYOK) return;
-
-    const token = getToken();
-    if (token) {
-      supabase.realtime.setAuth(token);
-    }
-
-    const channel = supabase
-      .channel(`ai-credits-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'ai_credits',
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['ai-credits'], refetchType: 'all' });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
+  if (isBYOK) {
+    const byokData: Partial<AICredits> = {
+      daily_usage: 0,
+      daily_limit: Infinity,
+      usage_date: new Date().toISOString().split('T')[0],
+      total_usage: 0,
     };
-  }, [user?.id, isBYOK, queryClient]);
+    return {
+      data: byokData,
+      isLoading: false,
+      error: null,
+      refetch,
+    };
+  }
 
-  const query = useQuery({
-    queryKey: ['ai-credits', user?.id, isBYOK],
-    queryFn: async () => {
-      if (!user) return null;
+  const rawCredits = meData?.ai_credits ?? null;
 
-      if (isBYOK) {
-        return {
-          daily_usage: 0,
-          daily_limit: Infinity,
-          usage_date: new Date().toISOString().split('T')[0],
-          total_usage: 0,
-        } as Partial<AICredits>;
-      }
+  let data: Partial<AICredits> | null = null;
 
-      const { data, error } = await supabase
-        .from('ai_credits')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
+  if (!user) {
+    data = null;
+  } else if (!rawCredits) {
+    data = {
+      daily_usage: 0,
+      daily_limit: 5,
+      usage_date: new Date().toISOString().split('T')[0],
+      total_usage: 0,
+    };
+  } else if (rawCredits.daily_limit === UNLIMITED_SENTINEL) {
+    data = {
+      ...rawCredits,
+      daily_limit: Infinity,
+    } as unknown as AICredits;
+  } else {
+    const today = new Date().toISOString().split('T')[0];
+    if (rawCredits.usage_date !== today) {
+      data = {
+        ...rawCredits,
+        daily_usage: 0,
+        usage_date: today,
+      } as AICredits;
+    } else {
+      data = rawCredits as unknown as AICredits;
+    }
+  }
 
-      if (error) throw error;
-
-      if (!data) {
-        return {
-          daily_usage: 0,
-          daily_limit: 5,
-          usage_date: new Date().toISOString().split('T')[0],
-          total_usage: 0,
-        } as Partial<AICredits>;
-      }
-
-      if (data.daily_limit === UNLIMITED_SENTINEL) {
-        return {
-          ...data,
-          daily_limit: Infinity,
-        } as unknown as AICredits;
-      }
-
-      const today = new Date().toISOString().split('T')[0];
-      if (data.usage_date !== today) {
-        return {
-          ...data,
-          daily_usage: 0,
-          usage_date: today,
-        } as AICredits;
-      }
-
-      return data as unknown as AICredits;
-    },
-    enabled: !!user,
-    refetchInterval: isBYOK ? false : 10 * 1000,
-    refetchIntervalInBackground: false,
-  });
-
-  return query;
+  return {
+    data,
+    isLoading,
+    error,
+    refetch,
+  };
 }
 
 export function useAICreditsMutations() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const isBYOK = useIsBYOK();
 
   const incrementUsage = useMutation({
     mutationFn: async () => {
@@ -136,7 +112,7 @@ export function useAICreditsMutations() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ai-credits'], refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: ['me'], refetchType: 'all' });
       queryClient.invalidateQueries({ queryKey: ['ai-usage-breakdown'], refetchType: 'all' });
     },
   });
@@ -147,11 +123,9 @@ export function useAICreditsMutations() {
     if (aiProvider === 'gemini' && geminiKeyValidated) return true;
     if (aiProvider === 'ollama' && ollamaKeyValidated) return true;
 
-    const { data } = await supabase
-      .from('ai_credits')
-      .select('daily_usage, daily_limit, usage_date')
-      .eq('user_id', user.id)
-      .maybeSingle();
+    // Read from the cached 'me' query for the credits check
+    const cached = queryClient.getQueryData<{ ai_credits: { daily_usage: number; daily_limit: number; usage_date: string } | null } | null>(['me', user.id]);
+    const data = cached?.ai_credits ?? null;
 
     if (!data) return true;
 

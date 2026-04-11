@@ -1,7 +1,4 @@
-import { useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
-import { getToken } from '@/lib/supabaseBridge';
+import { useMe } from './useMe';
 import { useAuth } from './useAuth';
 
 export type PlanName = 'free' | 'pro' | 'premium';
@@ -14,13 +11,6 @@ export interface PlanResult {
   refetch?: () => void;
 }
 
-interface GetMyPlanResponse {
-  plan_name: string;
-  daily_limit: number;
-  ai_credits_monthly: number;
-  status: string;
-}
-
 const FALLBACK: PlanResult = {
   plan: 'free',
   isPro: false,
@@ -28,66 +18,24 @@ const FALLBACK: PlanResult = {
   isLoading: false,
 };
 
+/**
+ * Returns the current user's active plan.
+ *
+ * Reads plan data from the shared `useMe` query which calls the `me` edge
+ * function. This avoids the silent-failure bug where an expired bridge token
+ * causes `auth.uid()` to return null in direct DB queries, making the plan
+ * always appear as 'free'.
+ *
+ * Realtime invalidation and 10-second polling are handled inside `useMe`.
+ */
 export function usePlan(): PlanResult {
-  const { user, isAuthenticated } = useAuth();
-  const queryClient = useQueryClient();
-
-  useEffect(() => {
-    if (!user) return;
-
-    const token = getToken();
-    if (token) {
-      supabase.realtime.setAuth(token);
-    }
-
-    const channel = supabase
-      .channel(`subscriptions-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'subscriptions',
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['plan'], refetchType: 'all' });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id, queryClient]);
-
-  const { data, isLoading, refetch } = useQuery({
-    queryKey: ['plan', user?.id],
-    queryFn: async (): Promise<PlanName> => {
-      const { data, error } = await supabase.rpc('get_my_plan');
-      if (error) {
-        console.error('[usePlan] RPC error:', error);
-        return 'free';
-      }
-      const obj = data as GetMyPlanResponse | null;
-      const raw = String(obj?.plan_name ?? 'free').toLowerCase();
-      if (raw === 'pro' || raw === 'premium') return raw as PlanName;
-      return 'free';
-    },
-    enabled: !!user && isAuthenticated,
-    staleTime: 5 * 1000,
-    gcTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: true,
-    refetchOnMount: 'always',
-    refetchInterval: 10 * 1000,
-    refetchIntervalInBackground: false,
-    retry: 2,
-    retryDelay: (i) => Math.min(1000 * 2 ** i, 5000),
-  });
+  const { isAuthenticated } = useAuth();
+  const { data: meData, isLoading, refetch } = useMe();
 
   if (!isAuthenticated) return FALLBACK;
 
-  const plan = data ?? 'free';
+  const raw = String(meData?.subscription?.plan_name ?? 'free').toLowerCase();
+  const plan: PlanName = (raw === 'pro' || raw === 'premium') ? (raw as PlanName) : 'free';
 
   return {
     plan,
