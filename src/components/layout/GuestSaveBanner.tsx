@@ -1,31 +1,20 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Cloud, X } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumeStore } from '@/store/resumeStore';
 
-const DISMISS_KEY = 'wr-guest-banner-dismissed';
-
 export function GuestSaveBanner() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { currentResume } = useResumeStore();
-  const [dismissed, setDismissed] = useState(() => sessionStorage.getItem(DISMISS_KEY) === '1');
 
-  const handleDismiss = () => {
-    setDismissed(true);
-    sessionStorage.setItem(DISMISS_KEY, '1');
-  };
-
-  // Only show for guests with a resume in progress
-  if (user || !currentResume || dismissed) {
+  if (user || !currentResume) {
     return null;
   }
 
-  // Check if user has made meaningful progress
-  const hasProgress = 
+  const hasProgress =
     currentResume.contactInfo?.fullName ||
     currentResume.summary?.length > 20 ||
     currentResume.experience?.length > 0 ||
@@ -37,40 +26,28 @@ export function GuestSaveBanner() {
   }
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -20 }}
-        className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2.5"
-      >
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <Cloud className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-            <p className="text-sm text-foreground truncate">
-              <span className="font-medium">Your work is saved locally.</span>
-              <span className="text-muted-foreground hidden sm:inline"> Sign up to save it to the cloud.</span>
-            </p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              size="sm"
-              variant="default"
-              className="h-7 text-xs px-3"
-              onClick={() => navigate('/auth')}
-            >
-              Sign Up
-            </Button>
-            <button
-              onClick={handleDismiss}
-              className="p-1 rounded-full hover:bg-muted transition-colors"
-              aria-label="Dismiss"
-            >
-              <X className="w-4 h-4 text-muted-foreground" />
-            </button>
-          </div>
+    <motion.div
+      initial={{ opacity: 0, y: -16 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-destructive/10 border-b-2 border-destructive/40 px-4 py-3"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
+          <p className="text-sm text-foreground">
+            <span className="font-semibold text-destructive">Your resume will be lost</span>
+            <span className="text-muted-foreground"> if you leave without signing in.</span>
+          </p>
         </div>
-      </motion.div>
-    </AnimatePresence>
+        <Button
+          size="sm"
+          variant="destructive"
+          className="h-8 text-xs px-3 shrink-0"
+          onClick={() => navigate('/auth')}
+        >
+          Sign Up Free
+        </Button>
+      </div>
+    </motion.div>
   );
 }

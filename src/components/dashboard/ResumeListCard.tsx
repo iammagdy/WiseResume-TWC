@@ -1,4 +1,4 @@
-import { useState, useMemo, memo, useCallback } from 'react';
+import { useState, useMemo, memo, useCallback, useEffect } from 'react';
 import { getAppUrl } from '@/lib/portfolioUrl';
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -19,8 +19,11 @@ import {
   Eye,
   Download,
   Share2,
-  CloudOff
+  CloudOff,
+  ArrowLeft,
+  ArrowRight
 } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
 import { useOfflineSyncStore } from '@/store/offlineSyncStore';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -83,6 +86,25 @@ export const ResumeListCard = memo(function ResumeListCard({
   const [showActionsSheet, setShowActionsSheet] = useState(false);
   const navigateToEditor = useNavigate();
 
+  const SWIPE_HINT_KEY = 'wr-swipe-hint-seen';
+  const [showSwipeHint, setShowSwipeHint] = useState(() => {
+    try {
+      return !localStorage.getItem(SWIPE_HINT_KEY);
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    if (showSwipeHint) {
+      const timer = setTimeout(() => {
+        setShowSwipeHint(false);
+        try { localStorage.setItem(SWIPE_HINT_KEY, '1'); } catch {}
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSwipeHint]);
+
   // Fit score badge from tailor history
   const getTailorHistoryForResume = useResumeStore(s => s.getTailorHistoryForResume);
 
@@ -102,6 +124,10 @@ export const ResumeListCard = memo(function ResumeListCard({
 
   const handleDragStart = () => {
     setIsDragging(true);
+    if (showSwipeHint) {
+      setShowSwipeHint(false);
+      try { localStorage.setItem(SWIPE_HINT_KEY, '1'); } catch {}
+    }
   };
 
   const handleDrag = (_: unknown, info: PanInfo) => {
@@ -221,6 +247,37 @@ export const ResumeListCard = memo(function ResumeListCard({
         onClick={handleCardClick}
         whileTap={{ scale: isDragging ? 1 : 0.98 }}
       >
+        {/* Swipe hint overlay — shown once on first load */}
+        <AnimatePresence>
+          {showSwipeHint && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="absolute inset-0 flex items-center justify-between px-5 pointer-events-none z-10 bg-background/60 backdrop-blur-[2px] rounded-2xl"
+            >
+              <motion.div
+                animate={{ x: [-6, 6, -6] }}
+                transition={{ repeat: Infinity, duration: 1.2, ease: 'easeInOut' }}
+                className="flex items-center gap-1.5 text-success text-xs font-medium"
+              >
+                <ArrowRight className="w-4 h-4" />
+                <span>Duplicate</span>
+              </motion.div>
+              <span className="text-[11px] text-muted-foreground">swipe cards</span>
+              <motion.div
+                animate={{ x: [6, -6, 6] }}
+                transition={{ repeat: Infinity, duration: 1.2, ease: 'easeInOut' }}
+                className="flex items-center gap-1.5 text-destructive text-xs font-medium"
+              >
+                <span>Delete</span>
+                <ArrowLeft className="w-4 h-4" />
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="flex items-start justify-between gap-3">
           {/* Left: Icon and Content */}
           <div className="flex items-start gap-3 flex-1 min-w-0">
