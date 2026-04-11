@@ -67,7 +67,10 @@ Deno.serve(async (req) => {
     if (!resp.ok) {
       const errText = await resp.text();
       return new Response(
-        JSON.stringify({ success: false, error: `GitHub API error ${resp.status}: ${errText.slice(0, 200)}` }),
+        JSON.stringify({
+          success: false,
+          error: `GitHub API error ${resp.status}: ${errText.slice(0, 200)}\n\nAttempted URL: ${apiUrl}\n\nCheck that GITHUB_OWNER ("${githubOwner}") and GITHUB_REPO ("${githubRepo}") match your actual GitHub repository URL.`,
+        }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
