@@ -98,18 +98,12 @@ export default function CoverLettersPage() {
   if (planLoading) return null;
   if (!isPro) {
     return (
-      <div className="min-h-full flex flex-col">
-        <header className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 flex items-center gap-3">
-          <BackButton />
-          <h1 className="text-lg font-bold flex-1">Cover Letters</h1>
-        </header>
-        <div className="flex-1 flex items-center justify-center">
-          <UpgradeWall
-            requiredPlan="pro"
-            featureName="Cover Letters"
-            description="Generate tailored cover letters that match your resume and any job description."
-          />
-        </div>
+      <div className="flex-1 flex items-center justify-center">
+        <UpgradeWall
+          requiredPlan="pro"
+          featureName="Cover Letters"
+          description="Generate tailored cover letters that match your resume and any job description."
+        />
       </div>
     );
   }

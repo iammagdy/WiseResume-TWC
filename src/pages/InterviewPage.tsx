@@ -260,17 +260,12 @@ function InterviewPageContent() {
   // Feature gate: Interview Coaching is Pro+
   if (!isPro) {
     return (
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 pt-safe">
-          <BackButton />
-        </header>
-        <div className="flex-1 flex items-center justify-center">
-          <UpgradeWall
-            requiredPlan="pro"
-            featureName="Interview Coaching"
-            description="Practice real voice interviews with AI that listens, responds, and scores you live."
-          />
-        </div>
+      <div className="flex-1 flex items-center justify-center">
+        <UpgradeWall
+          requiredPlan="pro"
+          featureName="Interview Coaching"
+          description="Practice real voice interviews with AI that listens, responds, and scores you live."
+        />
       </div>
     );
   }
