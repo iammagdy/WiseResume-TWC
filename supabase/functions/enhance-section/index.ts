@@ -650,8 +650,10 @@ serve(async (req) => {
         }
       }
 
-      if (variants.length === 0) {
-        return new Response(JSON.stringify({ error: 'enhancement_failed', message: 'AI variants generation failed. Please try again.' }), {
+      // All 3 variants must succeed — partial results are not acceptable for the pick-one UX
+      if (variants.length < 3) {
+        console.error(`Variants mode: only ${variants.length}/3 variants succeeded`);
+        return new Response(JSON.stringify({ error: 'enhancement_failed', message: 'Could not generate all 3 variants. Please try again.' }), {
           status: 502,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
