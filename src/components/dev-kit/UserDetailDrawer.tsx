@@ -273,7 +273,10 @@ export function UserDetailDrawer({ user: userProp, password, open, onClose, onUs
       if (error) throw new Error(error.message);
       const result = data as { success?: boolean; error?: string };
       if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
-      toast.success(`Plan set to ${selectedPlan}`);
+      toast.success(`Plan set to ${selectedPlan}`, {
+        description: "The user's app will reflect this within 30 seconds on next interaction.",
+        duration: 5000,
+      });
       setUser(prev => ({ ...prev, plan_name: selectedPlan, plan_updated_at: new Date().toISOString() }));
       onUserUpdated();
     } catch (e) {

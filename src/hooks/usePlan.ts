@@ -12,6 +12,13 @@ export interface PlanResult {
   refetch?: () => void;
 }
 
+interface GetMyPlanResponse {
+  plan_name: string;
+  daily_limit: number;
+  ai_credits_monthly: number;
+  status: string;
+}
+
 const FALLBACK: PlanResult = {
   plan: 'free',
   isPro: false,
@@ -30,14 +37,16 @@ export function usePlan(): PlanResult {
         console.error('[usePlan] RPC error:', error);
         return 'free';
       }
-      const raw = String(data ?? 'free').toLowerCase();
+      const obj = data as GetMyPlanResponse | null;
+      const raw = String(obj?.plan_name ?? 'free').toLowerCase();
       if (raw === 'pro' || raw === 'premium') return raw as PlanName;
       return 'free';
     },
     enabled: !!user && isAuthenticated,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,
+    refetchOnMount: 'always',
     retry: 2,
     retryDelay: (i) => Math.min(1000 * 2 ** i, 5000),
   });
