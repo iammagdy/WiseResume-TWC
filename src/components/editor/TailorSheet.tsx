@@ -988,7 +988,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
 
               {activeTab === 'intelligence' && (
                 <div className="space-y-4">
-                  {tailorResult.jobIntelligence && (
+                  {tailorResult.jobIntelligence ? (
                     <JobIntelligenceCard
                       jobIntelligence={tailorResult.jobIntelligence}
                       atsAnalysis={tailorResult.atsAnalysis}
@@ -996,6 +996,12 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                       jobTitle={parsedJobInfo?.title || tailorResult.jobParsed?.title}
                       company={parsedJobInfo?.company || tailorResult.jobParsed?.company}
                     />
+                  ) : (
+                    <div className="p-8 text-center text-muted-foreground">
+                      <Sparkles className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                      <p className="font-medium">Job intelligence not available</p>
+                      <p className="text-sm">Re-tailor your resume to generate job intelligence insights.</p>
+                    </div>
                   )}
                 </div>
               )}

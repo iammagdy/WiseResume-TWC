@@ -92,27 +92,29 @@ serve(async (req) => {
       );
     }
 
-    if (!rawJobDescription || typeof rawJobDescription !== 'string') {
+    // JD is optional — we use industry baseline keywords when absent or short
+    const rawJD = typeof rawJobDescription === 'string' ? rawJobDescription : '';
+    const jobDescription = rawJD ? sanitizeInputText(rawJD, 15_000) : '';
+    if (rawJD && jobDescription.length < rawJD.length) {
+      console.log(`[analyze] Job description truncated from ${rawJD.length} to ${jobDescription.length} chars`);
+    }
+
+    if (jobDescription && jobDescription.length > MAX_JOB_DESCRIPTION_SIZE) {
       return new Response(
-        JSON.stringify({ error: 'Job description is required and must be a string' }),
+        JSON.stringify({ error: `Job description is too large. Maximum size is ${MAX_JOB_DESCRIPTION_SIZE / 1024}KB.` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Sanitize and truncate job description
-    const jobDescription = sanitizeInputText(rawJobDescription, 15_000);
-    if (jobDescription.length < rawJobDescription.length) {
-      console.log(`[analyze] Job description truncated from ${rawJobDescription.length} to ${jobDescription.length} chars`);
-    }
-
-    // Detect short JD and prepare industry baseline note
+    // Inject industry baseline when JD is missing or short (<150 words)
     const jdWordCount = jobDescription.split(/\s+/).filter(Boolean).length;
+    const category = detectIndustryCategory(resume);
+    const baselineKeywords = INDUSTRY_KEYWORDS[category] || INDUSTRY_KEYWORDS.general;
     let baselineKeywordsNote = '';
     if (jdWordCount < 150) {
-      const category = detectIndustryCategory(resume);
-      const keywords = INDUSTRY_KEYWORDS[category] || INDUSTRY_KEYWORDS.general;
-      baselineKeywordsNote = `\n\nINDUSTRY BASELINE (${category} sector): The job description is brief (${jdWordCount} words). Also evaluate the candidate against these standard ${category} industry keywords when identifying gaps: ${keywords.join(', ')}.`;
-      console.log(`[analyze] Short JD (${jdWordCount} words), injecting ${category} baseline keywords`);
+      const reason = jdWordCount === 0 ? 'No job description provided.' : `The job description is brief (${jdWordCount} words).`;
+      baselineKeywordsNote = `\n\nINDUSTRY BASELINE (${category} sector): ${reason} Evaluate the candidate against these standard ${category} industry keywords when identifying gaps and scoring: ${baselineKeywords.join(', ')}.`;
+      console.log(`[analyze] Short/missing JD (${jdWordCount} words), injecting ${category} baseline keywords`);
     }
 
     const resumeStr = JSON.stringify(resume);
@@ -147,7 +149,7 @@ Certifications: ${resume.certifications?.map((c: any) => `${c.name} by ${c.issue
 Awards: ${resume.awards?.map((a: any) => `${a.title} from ${a.issuer}`).join(', ') || 'Not provided'}
 
 JOB DESCRIPTION:
-${jobDescription}${baselineKeywordsNote}
+${jobDescription || '(No job description provided — use industry baseline keywords above to assess the candidate)'}${baselineKeywordsNote}
 
 Provide analysis in this exact JSON format:
 {

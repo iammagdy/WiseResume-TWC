@@ -339,7 +339,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     if (newResults.length > 0) {
       toast.success(`Enhanced ${newResults.length} section${newResults.length > 1 ? 's' : ''}`);
     }
-  }, [currentResume, selectedSections, effectiveAction, checkCredits, incrementUsage]);
+  }, [currentResume, selectedSections, effectiveAction, variantsMode, atsMode, checkCredits, incrementUsage]);
 
   const selectVariant = useCallback((resultIndex: number, variantIndex: number) => {
     haptics.light();

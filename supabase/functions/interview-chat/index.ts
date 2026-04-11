@@ -124,6 +124,20 @@ Return JSON with this exact structure: {"title":"exact job title","keySkills":["
       }
     }
 
+    // --- Server-side follow-up sequencing (non-quickPractice only) ---
+    // Turn logic: message 1 = start trigger, message 2 = first main answer,
+    // even counts = just answered main question → require follow-up,
+    // odd counts > 1 = just answered follow-up → move to next main question.
+    let followUpDirective = '';
+    if (!quickPractice && !effectiveEndInterview && messages) {
+      const userMessageCount = messages.filter((m: any) => m.role === 'user').length;
+      if (userMessageCount > 0 && userMessageCount % 2 === 0) {
+        followUpDirective = '\n\nFOLLOW-UP REQUIRED: The candidate just answered a main interview question. You MUST ask exactly ONE targeted follow-up question — probe for specific outcomes, metrics, examples, or STAR elements they omitted. Do NOT ask the next main question yet.';
+      } else if (userMessageCount > 1 && userMessageCount % 2 === 1) {
+        followUpDirective = '\n\nNEXT MAIN QUESTION: The candidate just answered your follow-up. Move on to the next main interview question now.';
+      }
+    }
+
     // --- Build system prompt ---
     const maxTokens = effectiveEndInterview ? 1500 : 1024;
 
@@ -164,7 +178,7 @@ INTERVIEW RULES:
 5. For behavioral questions, if the candidate's answer lacks structure, gently guide them to use the STAR method (Situation, Task, Action, Result).
 6. Keep your responses concise — no more than 150 words per turn.
 7. SILENCE HANDLING: If the candidate sends "(no response)" or "(silence)", respond naturally like a real interviewer would — gently encourage them ("No worries, take your time"), offer to rephrase the question, or suggest moving to the next one. Never ignore these markers or treat them as actual answers.
-${quickPractice ? '8. QUICK PRACTICE MODE: Ask exactly 5 questions total. Move directly to the next question after each answer — no follow-up questions. After the 5th answer, provide your summary automatically without being asked.\n' : ''}
+${quickPractice ? '8. QUICK PRACTICE MODE: Ask exactly 5 questions total. Move directly to the next question after each answer — no follow-up questions. After the 5th answer, provide your summary automatically without being asked.\n' : ''}${followUpDirective}
 You MUST return your response as a strict JSON object matching this schema:
 {
   "reply": "Your conversational response to the candidate (max 150 words)",
