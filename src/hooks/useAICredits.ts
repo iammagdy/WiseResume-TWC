@@ -1,5 +1,7 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { getToken } from '@/lib/supabaseBridge';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -27,13 +29,42 @@ function useIsBYOK(): boolean {
 export function useAICredits() {
   const { user } = useAuth();
   const isBYOK = useIsBYOK();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!user || isBYOK) return;
+
+    const token = getToken();
+    if (token) {
+      supabase.realtime.setAuth(token);
+    }
+
+    const channel = supabase
+      .channel(`ai-credits-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'ai_credits',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['ai-credits'], refetchType: 'all' });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, isBYOK, queryClient]);
 
   const query = useQuery({
     queryKey: ['ai-credits', user?.id, isBYOK],
     queryFn: async () => {
       if (!user) return null;
 
-      // BYOK users get unlimited credits
       if (isBYOK) {
         return {
           daily_usage: 0,
@@ -60,7 +91,6 @@ export function useAICredits() {
         } as Partial<AICredits>;
       }
 
-      // -1 sentinel = unlimited (Premium)
       if (data.daily_limit === UNLIMITED_SENTINEL) {
         return {
           ...data,
@@ -80,6 +110,8 @@ export function useAICredits() {
       return data as unknown as AICredits;
     },
     enabled: !!user,
+    refetchInterval: isBYOK ? false : 10 * 1000,
+    refetchIntervalInBackground: false,
   });
 
   return query;
@@ -93,7 +125,6 @@ export function useAICreditsMutations() {
   const incrementUsage = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error('Not authenticated');
-      // BYOK: skip credit deduction — read fresh state to avoid stale closures
       const { aiProvider, geminiKeyValidated, ollamaKeyValidated } = useSettingsStore.getState();
       if (aiProvider === 'gemini' && geminiKeyValidated) return;
       if (aiProvider === 'ollama' && ollamaKeyValidated) return;
@@ -112,7 +143,6 @@ export function useAICreditsMutations() {
 
   const checkCredits = async (): Promise<boolean> => {
     if (!user) return true;
-    // Read fresh state to avoid stale closures after provider switch
     const { aiProvider, geminiKeyValidated, ollamaKeyValidated } = useSettingsStore.getState();
     if (aiProvider === 'gemini' && geminiKeyValidated) return true;
     if (aiProvider === 'ollama' && ollamaKeyValidated) return true;
@@ -125,7 +155,6 @@ export function useAICreditsMutations() {
 
     if (!data) return true;
 
-    // -1 sentinel = unlimited (Premium plan)
     if (data.daily_limit === UNLIMITED_SENTINEL) return true;
 
     const today = new Date().toISOString().split('T')[0];

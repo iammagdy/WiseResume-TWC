@@ -1,9 +1,33 @@
 project_id = "jnsfmkzgxsviuthaqlyy"
 
 [functions]
-  [functions.admin-set-plan]
+  [functions.admin-audit-logs]
+    verify_jwt = false
+  [functions.admin-env-check]
+    verify_jwt = false
+  [functions.admin-get-settings]
+    verify_jwt = false
+  [functions.admin-github-status]
+    verify_jwt = false
+  [functions.admin-grant-trial]
     verify_jwt = false
   [functions.admin-list-users]
+    verify_jwt = false
+  [functions.admin-manage-coupons]
+    verify_jwt = false
+  [functions.admin-revoke-trial]
+    verify_jwt = false
+  [functions.admin-save-note]
+    verify_jwt = false
+  [functions.admin-set-credits]
+    verify_jwt = false
+  [functions.admin-set-plan]
+    verify_jwt = false
+  [functions.admin-suspend-user]
+    verify_jwt = false
+  [functions.admin-update-profile]
+    verify_jwt = false
+  [functions.admin-update-settings]
     verify_jwt = false
   [functions.agentic-chat]
     verify_jwt = false
@@ -47,6 +71,8 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.generate-store-screenshots]
     verify_jwt = false
+  [functions.hard-purge]
+    verify_jwt = false
   [functions.interview-chat]
     verify_jwt = false
   [functions.manage-api-keys]
@@ -71,11 +97,15 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.recruiter-simulation]
     verify_jwt = false
+  [functions.redeem-coupon]
+    verify_jwt = false
   [functions.resolve-short-link]
     verify_jwt = false
   [functions.score-resume]
     verify_jwt = false
   [functions.send-bug-report]
+    verify_jwt = false
+  [functions.send-contact-email]
     verify_jwt = false
   [functions.send-contact-inquiry]
     verify_jwt = false
@@ -89,11 +119,13 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.tailor-resume]
     verify_jwt = false
+  [functions.token-exchange]
+    verify_jwt = false
   [functions.track-portfolio-view]
     verify_jwt = false
   [functions.validate-api-key]
     verify_jwt = false
-  [functions.weekly-digest]
+  [functions.verify-dev-kit]
     verify_jwt = false
-  [functions.token-exchange]
+  [functions.weekly-digest]
     verify_jwt = false
