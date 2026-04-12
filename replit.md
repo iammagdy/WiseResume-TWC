@@ -178,6 +178,17 @@ bash scripts/deploy-functions.sh                      # redeploy all edge functi
 - **LiveActivityPanel** (`src/components/dev-kit/LiveActivityPanel.tsx`): Real-time 30s auto-refresh feed of last 50 usage_events, edge function health cards (green/amber/red status dots), manual "Run health check" button.
 - **DeploymentPanel** (`src/components/dev-kit/DeploymentPanel.tsx`): Last 5 GitHub commits from main branch via `admin-github-status` edge function, "Last deployed" timestamp, env var checklist via `admin-env-check` edge function (boolean presence only).
 
+## Landing Page Visual System (Bento Collage Redesign)
+- Landing page (`src/pages/Index.tsx`) always renders with a warm parchment background (`#F5F0EB`) via `data-theme="landing"` and scoped CSS custom properties (`--lp-bg`, `--lp-brand`, `--lp-card-white`, `--lp-card-muted`, `--lp-card-dark`, etc.)
+- Dark mode has zero visual effect on the landing page — `color-scheme: light` and all colors are hardcoded via `--lp-*` variables
+- Hero: massive clamped headline (`clamp(56px, 9vw, 110px)`, weight 800, -0.03em tracking) with word-by-word entrance animation (staggered 80ms, starting 150ms) and a typewriter cycling subheadline (55ms/char, 1600ms hold, then erase/cycle)
+- Bento collage: 6 scattered floating cards positioned behind the headline (hidden on mobile) with scale/opacity entrance animation (staggered 100ms, starting 400ms)
+- CTA pulse: `lp-pulse` keyframe animation triggers at 1600ms after mount
+- Feature sections: alternating full-width bands (brand indigo / warm beige / near-black / brand tint), each using `FeatureSection` with `bandColor` prop
+- Scroll animations: `.lp-animate` / `.lp-visible` CSS classes driven by IntersectionObserver; staggered children via inline `transitionDelay`
+- No italic text anywhere on the landing page (`font-style: normal !important`)
+- `FeatureTicker`, `StickyCtaBar`, `Footer` all support `lpMode` prop to use `--lp-*` variables
+
 ## Bug Fixes (Post-Redesign Audit)
 - **AuthContext `user.id`**: Now uses only the bridge UUID (from `token-exchange`), never the raw Kinde ID (`kp_xxx`). If bridge hasn't settled, `user` is null to prevent UUID type errors.
 - **Data query gating**: All hooks with `enabled: !!user` naturally wait for the bridge since `user` is null until bridge provides a UUID.

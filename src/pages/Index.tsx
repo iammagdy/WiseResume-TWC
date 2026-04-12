@@ -1,34 +1,31 @@
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Target, Wand2, Mic, LayoutDashboard, Settings, LogOut, Globe, ArrowRight, FileText, BarChart3, PenTool, CheckCircle2, Check, User, Zap, ShieldCheck, Gift, Briefcase } from 'lucide-react';
+import { Sparkles, Target, Wand2, Mic, LayoutDashboard, Settings, LogOut, Globe, ArrowRight, BarChart3, PenTool, CheckCircle2, Check, User, Zap, ShieldCheck, Gift, Briefcase } from 'lucide-react';
 import { Footer } from '@/components/landing/Footer';
 import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
-import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import triggerHaptic from '@/lib/haptics';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
-import { motion, useReducedMotion, type Easing } from 'framer-motion';
-import { useEffect, useState, useRef } from 'react';
+import { useReducedMotion } from 'framer-motion';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
 import { QuickTailorSheet } from '@/components/landing/QuickTailorSheet';
-import { useTheme } from '@/hooks/use-theme';
 import { InstallButton } from '@/components/pwa/InstallButton';
 import { useThemeLogo } from '@/hooks/useThemeLogo';
-import { Sun, Moon } from 'lucide-react';
 import { FeatureTicker } from '@/components/landing/FeatureTicker';
 import { StickyCtaBar } from '@/components/landing/StickyCtaBar';
 import { FeatureSection, FeatureDotNav, type FeatureSectionData } from '@/components/landing/FeatureSection';
 
 const features = [
-  { icon: Sparkles, title: 'AI Resume Writing', desc: 'AI rewrites vague bullets into quantified achievements that recruiters remember.', color: 'text-primary', bg: 'bg-primary/10' },
-  { icon: Target, title: 'ATS Score Analysis', desc: 'Real-time ATS match percentage against any job posting — fix gaps instantly.', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10' },
-  { icon: Wand2, title: 'Smart Tailoring', desc: 'Paste a job description and AI rewrites your resume to match in 30 seconds.', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-500/10' },
-  { icon: Mic, title: 'Interview Coaching', desc: 'Real voice interview practice with AI that listens, responds, and scores you live.', color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-500/10' },
-  { icon: PenTool, title: 'Cover Letters', desc: 'Generate tailored cover letters that match your resume and the job requirements.', color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-500/10' },
-  { icon: BarChart3, title: 'Application Tracker', desc: 'Track all your job applications in one place with status updates and analytics.', color: 'text-pink-600 dark:text-pink-400', bg: 'bg-pink-500/10' },
+  { icon: Sparkles, title: 'AI Resume Writing', desc: 'AI rewrites vague bullets into quantified achievements that recruiters remember.', color: 'text-indigo-600', bg: 'bg-indigo-100' },
+  { icon: Target, title: 'ATS Score Analysis', desc: 'Real-time ATS match percentage against any job posting — fix gaps instantly.', color: 'text-emerald-600', bg: 'bg-emerald-100' },
+  { icon: Wand2, title: 'Smart Tailoring', desc: 'Paste a job description and AI rewrites your resume to match in 30 seconds.', color: 'text-blue-600', bg: 'bg-blue-100' },
+  { icon: Mic, title: 'Interview Coaching', desc: 'Real voice interview practice with AI that listens, responds, and scores you live.', color: 'text-orange-600', bg: 'bg-orange-100' },
+  { icon: PenTool, title: 'Cover Letters', desc: 'Generate tailored cover letters that match your resume and the job requirements.', color: 'text-purple-600', bg: 'bg-purple-100' },
+  { icon: BarChart3, title: 'Application Tracker', desc: 'Track all your job applications in one place with status updates and analytics.', color: 'text-pink-600', bg: 'bg-pink-100' },
 ];
 
 const valueProps = [
@@ -48,7 +45,7 @@ const featureSections: FeatureSectionData[] = [
   {
     id: 'editor',
     direction: 'ltr',
-    badge: { icon: Sparkles, label: 'AI Resume Editor', color: 'bg-primary/10 text-primary' },
+    badge: { icon: Sparkles, label: 'AI Resume Editor', color: 'bg-indigo-100 text-indigo-700' },
     bigLabel: 'Resume',
     title: 'AI-Powered Resume Writing',
     desc: 'Watch AI turn weak bullets into quantified achievements — with a live ATS score that updates as you write.',
@@ -58,11 +55,12 @@ const featureSections: FeatureSectionData[] = [
       'One-click enhancement for any section of your resume',
     ],
     demo: 'editor',
+    bandColor: 'brand',
   },
   {
     id: 'tailoring',
     direction: 'rtl',
-    badge: { icon: Wand2, label: 'Smart Tailoring', color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
+    badge: { icon: Wand2, label: 'Smart Tailoring', color: 'bg-blue-100 text-blue-700' },
     bigLabel: 'Tailoring',
     title: 'Keyword Injection in Seconds',
     desc: 'Paste a job description and AI rewrites your resume to match in 30 seconds. See the before and after instantly.',
@@ -72,11 +70,12 @@ const featureSections: FeatureSectionData[] = [
       'Raises your ATS match score with precision',
     ],
     demo: 'tailoring',
+    bandColor: 'beige',
   },
   {
     id: 'portfolio',
     direction: 'ltr',
-    badge: { icon: Globe, label: 'Live Portfolio', color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
+    badge: { icon: Globe, label: 'Live Portfolio', color: 'bg-emerald-100 text-emerald-700' },
     bigLabel: 'Portfolio',
     title: 'Public Portfolio Website',
     desc: 'Turn your resume into a beautiful personal site with themes, projects, and a shareable link — zero design skills needed.',
@@ -86,11 +85,12 @@ const featureSections: FeatureSectionData[] = [
       'Themed layouts that update with one click',
     ],
     demo: 'portfolio',
+    bandColor: 'dark',
   },
   {
     id: 'interview',
     direction: 'rtl',
-    badge: { icon: Mic, label: 'Interview Coach', color: 'bg-orange-500/10 text-orange-600 dark:text-orange-400' },
+    badge: { icon: Mic, label: 'Interview Coach', color: 'bg-orange-100 text-orange-700' },
     bigLabel: 'Interview',
     title: 'AI Interview Practice',
     desc: 'Get scored on real interview questions with AI feedback on every answer. Practice any role, any industry.',
@@ -100,11 +100,12 @@ const featureSections: FeatureSectionData[] = [
       'Practice any industry, role, or question type',
     ],
     demo: 'interview',
+    bandColor: 'tint',
   },
   {
     id: 'tracker',
     direction: 'ltr',
-    badge: { icon: BarChart3, label: 'Application Tracker', color: 'bg-pink-500/10 text-pink-600 dark:text-pink-400' },
+    badge: { icon: BarChart3, label: 'Application Tracker', color: 'bg-pink-100 text-pink-700' },
     bigLabel: 'Tracker',
     title: 'Kanban Job Tracker',
     desc: 'Visualize every application at a glance. Drag cards across your pipeline and never lose track of an opportunity.',
@@ -114,23 +115,119 @@ const featureSections: FeatureSectionData[] = [
       'Analytics show your application funnel at a glance',
     ],
     demo: 'tracker',
+    bandColor: 'brand',
   },
 ];
 
 const FEATURE_IDS = featureSections.map((s) => s.id);
 
-const Index = () => {
+const TYPEWRITER_PHRASES = [
+  'more job interviews.',
+  'your dream career.',
+  'a standout portfolio.',
+  'the offer you deserve.',
+  'AI-optimized resumes.',
+];
+
+const BENTO_CARDS = [
+  { id: 'c1', label: 'ATS Score', sub: '92 / 100', style: { top: '8%', left: '-3%', width: 176, height: 70, borderRadius: 35 }, dark: true },
+  { id: 'c2', label: 'AI-Powered', sub: 'Resume writing', style: { top: '6%', right: '-2%', width: 156, height: 66, borderRadius: 33 }, brand: true },
+  { id: 'c3', label: 'Smart Tailoring', sub: 'Match keywords instantly', style: { top: '42%', left: '-5%', width: 196, height: 86, borderRadius: 26 }, white: true },
+  { id: 'c4', label: 'Interview Coach', sub: 'Practice any role', style: { top: '44%', right: '-4%', width: 184, height: 82, borderRadius: 26 }, white: true },
+  { id: 'c5', label: 'Applications', sub: '12 tracked', style: { bottom: '8%', left: '4%', width: 128, height: 128, borderRadius: 64 }, muted: true },
+  { id: 'c6', label: 'Portfolio', sub: 'Live site', style: { bottom: '7%', right: '5%', width: 118, height: 118, borderRadius: 59 }, muted: true },
+];
+
+function useTypewriter(phrases: string[]) {
+  const [displayed, setDisplayed] = useState('');
+  const [phraseIdx, setPhraseIdx] = useState(0);
+  const [charIdx, setCharIdx] = useState(0);
+  const [phase, setPhase] = useState<'typing' | 'erasing'>('typing');
+
+  useEffect(() => {
+    const current = phrases[phraseIdx];
+    if (phase === 'typing') {
+      if (charIdx < current.length) {
+        const t = setTimeout(() => {
+          setDisplayed(current.slice(0, charIdx + 1));
+          setCharIdx((i) => i + 1);
+        }, 55);
+        return () => clearTimeout(t);
+      } else {
+        const t = setTimeout(() => setPhase('erasing'), 1600);
+        return () => clearTimeout(t);
+      }
+    } else {
+      if (charIdx > 0) {
+        const t = setTimeout(() => {
+          setCharIdx((i) => i - 1);
+          setDisplayed(current.slice(0, charIdx - 1));
+        }, Math.max(20, 400 / current.length));
+        return () => clearTimeout(t);
+      } else {
+        setPhraseIdx((i) => (i + 1) % phrases.length);
+        setCharIdx(0);
+        setDisplayed('');
+        setPhase('typing');
+      }
+    }
+  }, [phase, charIdx, phraseIdx, phrases]);
+
+  return displayed;
+}
+
+function useScrollAnimation() {
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('lp-visible');
+          }
+        });
+      },
+      { threshold: 0, rootMargin: '0px 0px -80px 0px' }
+    );
+
+    const observe = () => {
+      document.querySelectorAll('.lp-animate:not(.lp-visible)').forEach((el) => observer.observe(el));
+    };
+
+    observe();
+    const t = setInterval(observe, 500);
+    return () => {
+      observer.disconnect();
+      clearInterval(t);
+    };
+  }, []);
+}
+
+  const Index = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const { profile } = useProfile(isAuthenticated ? user?.id : undefined, user);
   const prefersReducedMotion = useReducedMotion();
   const themeLogo = useThemeLogo();
-  const { isDark, toggleTheme } = useTheme();
   const [scrolled, setScrolled] = useState(false);
   const progressRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [tailorOpen, setTailorOpen] = useState(false);
+  const [headlineVisible, setHeadlineVisible] = useState(false);
+  const [collageVisible, setCollageVisible] = useState(false);
+  const [ctaPulse, setCtaPulse] = useState(false);
+
+  const typewriterText = useTypewriter(TYPEWRITER_PHRASES);
+  useScrollAnimation();
+
+  const headlineWords = useMemo(() => 'Land your dream job with'.split(' '), []);
+
+  useEffect(() => {
+    const t1 = setTimeout(() => setHeadlineVisible(true), 150);
+    const t2 = setTimeout(() => setCollageVisible(true), 400);
+    const t3 = setTimeout(() => setCtaPulse(true), 1600);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, []);
 
   useEffect(() => {
     const hash = window.location.hash;
@@ -179,15 +276,6 @@ const Index = () => {
     return null;
   };
 
-  const fade = (delay: number) =>
-    prefersReducedMotion
-      ? {}
-      : {
-          initial: { opacity: 0, y: 20 } as const,
-          animate: { opacity: 1, y: 0 } as const,
-          transition: { delay, duration: 0.5, ease: 'easeOut' as Easing },
-        };
-
   const { login: kindeLogin, register: kindeRegister } = useKindeAuth();
 
   const handleCTA = (plan?: string) => {
@@ -204,36 +292,123 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div
+      className="lp-root min-h-screen"
+      data-theme="landing"
+      style={{ colorScheme: 'light' }}
+    >
+      <style>{`
+        .lp-root {
+          --lp-bg: #F5F0EB;
+          --lp-brand: #4F46E5;
+          --lp-brand-dark: #3730A3;
+          --lp-brand-tint: #EEF2FF;
+          --lp-card-white: #FFFFFF;
+          --lp-card-muted: #EDE8E3;
+          --lp-card-dark: #1A1A2E;
+          --lp-text: #1A1A2E;
+          --lp-text-muted: #6B6670;
+          --lp-beige: #E8E0D6;
+          background: var(--lp-bg);
+          color: var(--lp-text);
+        }
+        .lp-root * { font-style: normal !important; }
+
+        /* Headline word entrance */
+        .lp-word {
+          display: inline-block;
+          opacity: 0;
+          transform: translateY(20px);
+          transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+        .lp-word.lp-word-visible {
+          opacity: 1;
+          transform: translateY(0);
+        }
+
+        /* Bento card entrance */
+        .lp-bento-card {
+          opacity: 0;
+          transform: scale(0.93);
+          transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+        .lp-bento-card.lp-bento-visible {
+          opacity: 1;
+          transform: scale(1);
+        }
+
+        /* Scroll animations — 600ms cubic-bezier */
+        .lp-animate {
+          opacity: 0;
+          transform: translateY(32px);
+          transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1), transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .lp-animate.lp-visible {
+          opacity: 1;
+          transform: translateY(0);
+        }
+
+        /* CTA pulse — starts at 1600ms after mount */
+        @keyframes lp-pulse {
+          0%, 100% { box-shadow: 0 4px 14px -2px rgba(79, 70, 229, 0.3); }
+          50% { box-shadow: 0 4px 28px 4px rgba(79, 70, 229, 0.6); }
+        }
+        .lp-cta-pulse {
+          animation: lp-pulse 2.8s ease-in-out infinite;
+        }
+
+        /* Header scrolled style */
+        .lp-header-scrolled {
+          background: rgba(245, 240, 235, 0.88) !important;
+          backdrop-filter: blur(12px);
+          border-bottom: 1px solid rgba(26,26,46,0.1);
+          box-shadow: 0 1px 8px rgba(26,26,46,0.06);
+        }
+
+        /* Separator */
+        .lp-separator {
+          height: 1px;
+          background: linear-gradient(90deg, transparent 0%, rgba(79,70,229,0.35) 25%, rgba(79,70,229,0.55) 50%, rgba(79,70,229,0.35) 75%, transparent 100%);
+          box-shadow: 0 0 10px 1px rgba(79,70,229,0.15);
+        }
+
+        /* Typewriter cursor */
+        .lp-cursor {
+          display: inline-block;
+          width: 2px;
+          height: 0.8em;
+          background: var(--lp-brand);
+          margin-left: 2px;
+          vertical-align: middle;
+          animation: lp-blink 1s step-end infinite;
+        }
+        @keyframes lp-blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
+        }
+
+        /* Scroll arrow bounce */
+        @keyframes lp-bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(6px); }
+        }
+      `}</style>
+
       <a
         href="#landing-main"
-        className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:p-4 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:m-2"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:p-4 focus:rounded-md focus:m-2"
+        style={{ background: 'var(--lp-brand)', color: '#fff' }}
       >
         Skip to content
       </a>
 
-      {/* Background: deep gradient with floating blobs */}
-      <div
-        className="fixed inset-0 -z-10 pointer-events-none overflow-hidden"
-        aria-hidden="true"
-      >
-        <div className="absolute inset-0 hero-gradient-bg" />
-        <div className="hero-blob hero-blob-1" />
-        <div className="hero-blob hero-blob-2" />
-        <div className="hero-blob hero-blob-3" />
-      </div>
-
       <div className="fixed top-0 left-0 right-0 h-[2px] z-[60] pointer-events-none" style={{ display: 'none' }}>
-        <div ref={progressRef} className="h-full bg-primary transition-[width] duration-75 ease-out" />
+        <div ref={progressRef} className="h-full transition-[width] duration-75 ease-out" style={{ background: 'var(--lp-brand)' }} />
       </div>
 
-      {/* Sticky Header — backdrop-blur on scroll */}
+      {/* Sticky Header */}
       <header
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          scrolled
-            ? 'bg-background/80 backdrop-blur-md border-b border-border shadow-soft-sm'
-            : 'bg-transparent'
-        }`}
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'lp-header-scrolled' : 'bg-transparent'}`}
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         <div className="flex items-center justify-between px-4 sm:px-6 h-14 max-w-6xl mx-auto">
@@ -243,30 +418,17 @@ const Index = () => {
             aria-label="WiseResume – scroll to top"
           >
             <img alt="WiseResume" loading="lazy" className="w-8 h-8 object-contain rounded-lg" src={themeLogo} />
-            <span className="font-display font-bold text-sm text-foreground">WiseResume</span>
+            <span className="font-display font-bold text-sm" style={{ color: 'var(--lp-text)' }}>WiseResume</span>
           </button>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={toggleTheme}
-              className="relative flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              <Sun
-                className={`w-4 h-4 absolute transition-all duration-200 ${isDark ? 'opacity-100 rotate-0' : 'opacity-0 rotate-90'}`}
-              />
-              <Moon
-                className={`w-4 h-4 absolute transition-all duration-200 ${isDark ? 'opacity-0 -rotate-90' : 'opacity-100 rotate-0'}`}
-              />
-            </button>
-
             {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="touch-manipulation active:scale-95 transition-transform" aria-label="Account menu">
-                    <Avatar className="h-8 w-8 border border-border">
+                    <Avatar className="h-8 w-8" style={{ border: '1px solid rgba(26,26,46,0.15)' }}>
                       <AvatarImage src={profile?.avatarUrl ?? undefined} />
-                      <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
+                      <AvatarFallback className="text-xs font-semibold" style={{ background: 'rgba(79,70,229,0.1)', color: 'var(--lp-brand)' }}>
                         {getInitials() ?? <User className="w-3.5 h-3.5" />}
                       </AvatarFallback>
                     </Avatar>
@@ -289,360 +451,395 @@ const Index = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Button
-                variant="ghost"
-                size="sm"
+              <button
                 onClick={() => { triggerHaptic.light(); kindeLogin(); }}
-                className="text-sm font-medium"
+                className="text-sm font-medium px-4 py-1.5 rounded-lg transition-colors"
+                style={{ color: 'var(--lp-text)', background: 'rgba(26,26,46,0.07)' }}
               >
                 Sign In
-              </Button>
+              </button>
             )}
           </div>
         </div>
       </header>
 
-      <main id="landing-main" className="max-w-6xl mx-auto w-full">
+      <main id="landing-main" className="w-full">
         {/* Hero Section */}
         <section
           ref={heroRef}
-          className="flex flex-col items-center text-center px-4 sm:px-6 pt-[calc(7rem+env(safe-area-inset-top))] pb-12 sm:pb-16 relative"
+          className="relative flex flex-col items-center text-center px-4 sm:px-6 pt-[calc(7rem+env(safe-area-inset-top))] pb-16 sm:pb-24 overflow-hidden"
+          style={{ minHeight: '82vh' }}
         >
-          <motion.div className="mb-6" {...fade(0)}>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold border border-primary/20">
+          {/* Bento Collage Background — desktop only */}
+          <div className="absolute inset-0 pointer-events-none hidden md:block" aria-hidden="true">
+            {BENTO_CARDS.map((card, i) => (
+              <div
+                key={card.id}
+                className={`lp-bento-card absolute flex flex-col justify-center px-5 py-3 shadow-lg ${collageVisible && !prefersReducedMotion ? 'lp-bento-visible' : prefersReducedMotion ? 'lp-bento-visible' : ''}`}
+                style={{
+                  ...card.style,
+                  transitionDelay: `${400 + i * 100}ms`,
+                  background: card.dark
+                    ? 'var(--lp-card-dark)'
+                    : card.brand
+                    ? 'var(--lp-brand)'
+                    : card.muted
+                    ? 'var(--lp-card-muted)'
+                    : 'var(--lp-card-white)',
+                  color: card.dark || card.brand ? '#fff' : 'var(--lp-text)',
+                  position: 'absolute',
+                }}
+              >
+                <p style={{ opacity: 0.6, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.07em', lineHeight: 1, marginBottom: 4, fontWeight: 600 }}>{card.label}</p>
+                <p style={{ fontSize: 13, lineHeight: 1.3, fontWeight: 700 }}>{card.sub}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Category label */}
+          <div className="relative z-10 mb-5">
+            <span
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+              style={{ background: 'rgba(79,70,229,0.1)', color: 'var(--lp-brand)', border: '1px solid rgba(79,70,229,0.2)' }}
+            >
               <Sparkles className="w-3 h-3" />
               AI-Powered Career Platform
             </span>
-          </motion.div>
+          </div>
 
-          <motion.h1
-            className="text-5xl sm:text-6xl lg:text-7xl font-bold text-foreground leading-[1.05] tracking-tight mb-5 max-w-3xl"
-            {...fade(0.08)}
+          {/* Headline — word-by-word entrance */}
+          <h1
+            className="relative z-10 font-extrabold leading-[1.05] mb-5 max-w-4xl"
+            style={{ fontSize: 'clamp(56px, 9vw, 110px)', color: 'var(--lp-text)', letterSpacing: '-0.03em' }}
           >
-            Land your dream job with a{' '}
-            <span className="gradient-text">perfect resume</span>
-          </motion.h1>
+            {headlineWords.map((word, i) => (
+              <span key={i} style={{ display: 'inline-block', marginRight: '0.25em' }}>
+                <span
+                  className={`lp-word ${headlineVisible && !prefersReducedMotion ? 'lp-word-visible' : prefersReducedMotion ? 'lp-word-visible' : ''}`}
+                  style={{ transitionDelay: `${150 + i * 80}ms` }}
+                >
+                  {word}
+                </span>
+              </span>
+            ))}
+          </h1>
 
-          <motion.p
-            className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-lg leading-relaxed"
-            {...fade(0.14)}
+          {/* Typewriter subheadline — cycles through 4–6 phrases */}
+          <p
+            className="relative z-10 mb-9"
+            style={{ fontSize: '1.2rem', lineHeight: 1.65, color: 'var(--lp-text-muted)', maxWidth: 540 }}
+          >
+            AI tools to help you land{' '}
+            <span style={{ color: 'var(--lp-brand)', fontWeight: 600 }}>
+              {typewriterText}
+              <span className="lp-cursor" aria-hidden="true" />
+            </span>
+          </p>
+
+          {/* Body text */}
+          <p
+            className="relative z-10 mb-8 lp-animate"
+            style={{ fontSize: '1rem', lineHeight: 1.65, color: 'var(--lp-text-muted)', maxWidth: 460 }}
           >
             Build, tailor, and optimize your resume with AI. Practice interviews, track applications, and create your portfolio — all in one place.
-          </motion.p>
+          </p>
 
-          <motion.div className="w-full flex flex-col items-center gap-4" {...fade(0.2)}>
+          {/* CTA */}
+          <div className="relative z-10 w-full flex flex-col items-center gap-4 lp-animate">
             {isAuthenticated ? (
               <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
-                <Button
-                  size="lg"
+                <button
                   onClick={() => { triggerHaptic.light(); navigate('/dashboard'); }}
-                  className="h-12 text-base font-semibold rounded-xl flex-1"
+                  className="h-12 px-6 text-base font-semibold rounded-xl flex items-center justify-center gap-2 transition-all"
+                  style={{ background: 'var(--lp-brand)', color: '#fff', flex: 1 }}
                 >
                   Go to Dashboard
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+                <button
                   onClick={() => { triggerHaptic.light(); setTailorOpen(true); }}
-                  className="h-12 text-base font-semibold rounded-xl flex-1"
+                  className="h-12 px-6 text-base font-semibold rounded-xl flex items-center justify-center gap-2 transition-all"
+                  style={{ background: 'rgba(79,70,229,0.08)', color: 'var(--lp-brand)', border: '1.5px solid rgba(79,70,229,0.2)', flex: 1 }}
                 >
-                  <Sparkles className="w-4 h-4 mr-2 text-primary" />
+                  <Sparkles className="w-4 h-4" />
                   Quick Tailor
-                </Button>
+                </button>
               </div>
             ) : (
               <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
-                <Button
-                  size="lg"
+                <button
                   onClick={handleCTA}
-                  className="h-12 text-base font-semibold rounded-xl flex-1 shadow-soft-lg cta-glow-pulse"
+                  className={`h-12 px-6 text-base font-semibold rounded-xl flex items-center justify-center gap-2 transition-all ${ctaPulse ? 'lp-cta-pulse' : ''}`}
+                  style={{ background: 'var(--lp-brand)', color: '#fff', flex: 1 }}
                 >
                   Get Started Free
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+                <button
                   onClick={() => { triggerHaptic.light(); kindeLogin(); }}
-                  className="h-12 text-base font-semibold rounded-xl flex-1"
+                  className="h-12 px-6 text-base font-semibold rounded-xl flex items-center justify-center gap-2 transition-all"
+                  style={{ background: 'rgba(26,26,46,0.05)', color: 'var(--lp-text)', border: '1.5px solid rgba(26,26,46,0.12)', flex: 1 }}
                 >
                   Sign In
-                </Button>
+                </button>
               </div>
             )}
-          </motion.div>
+          </div>
 
-          <motion.div className="mt-5 flex items-center gap-4 sm:gap-6 text-sm text-muted-foreground flex-wrap justify-center" {...fade(0.25)}>
+          <div className="relative z-10 mt-6 flex items-center gap-4 sm:gap-6 text-sm flex-wrap justify-center lp-animate">
             {['Free to start', 'No credit card', 'AI-powered'].map((item) => (
-              <span key={item} className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-primary" />
+              <span key={item} className="flex items-center gap-1.5" style={{ color: 'var(--lp-text-muted)' }}>
+                <CheckCircle2 className="w-4 h-4" style={{ color: 'var(--lp-brand)' }} />
                 {item}
               </span>
             ))}
-          </motion.div>
+          </div>
 
-          {/* Scroll to explore arrow */}
-          <motion.div
-            className="mt-10 flex flex-col items-center gap-1.5 text-muted-foreground/60"
-            {...fade(0.35)}
-          >
+          {/* Scroll arrow */}
+          <div className="relative z-10 mt-10 flex flex-col items-center gap-1.5" style={{ color: 'rgba(107,102,112,0.55)' }}>
             <span className="text-xs tracking-widest uppercase">Scroll to explore</span>
-            <motion.div
-              animate={prefersReducedMotion ? {} : { y: [0, 6, 0] }}
-              transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
-            >
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-                <path d="M9 3v12M4 10l5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </motion.div>
-          </motion.div>
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true" style={{ animation: 'lp-bounce 1.6s ease-in-out infinite' }}>
+              <path d="M9 3v12M4 10l5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
         </section>
 
-        {/* Feature Ticker — looping marquee strip */}
-        <FeatureTicker />
+        {/* Feature Ticker */}
+        <FeatureTicker lpMode />
 
-        {/* Glowing separator */}
-        <div className="hero-separator mx-4 sm:mx-6 mb-12" aria-hidden="true" />
+        {/* Separator */}
+        <div className="lp-separator mx-4 sm:mx-6 mb-12" aria-hidden="true" />
 
-        {/* Value Props Strip — honest, no invented numbers */}
-        <section className="px-4 sm:px-6 pb-16">
-          <motion.div
-            className="flex items-center justify-center gap-4 sm:gap-8 flex-wrap"
-            initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-40px' }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-          >
+        {/* Value Props */}
+        <section className="px-4 sm:px-6 pb-16 max-w-6xl mx-auto">
+          <div className="flex items-center justify-center gap-3 sm:gap-6 flex-wrap lp-animate">
             {valueProps.map(({ icon: Icon, label }) => (
-              <div key={label} className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-border bg-card/60 backdrop-blur-sm">
-                <Icon className="w-4 h-4 text-primary" />
-                <span className="text-sm font-medium text-foreground">{label}</span>
+              <div
+                key={label}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-full"
+                style={{ border: '1px solid rgba(26,26,46,0.12)', background: 'var(--lp-card-white)' }}
+              >
+                <Icon className="w-4 h-4" style={{ color: 'var(--lp-brand)' }} />
+                <span className="text-sm font-medium" style={{ color: 'var(--lp-text)' }}>{label}</span>
               </div>
             ))}
-          </motion.div>
+          </div>
         </section>
 
         {/* Section heading */}
-        <motion.div
-          className="text-center px-4 sm:px-6 mb-4"
-          initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-50px' }}
-          transition={{ duration: 0.4, ease: 'easeOut' }}
-        >
-          <h2 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight mb-2">
+        <div className="text-center px-4 sm:px-6 mb-4 max-w-6xl mx-auto lp-animate">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2" style={{ color: 'var(--lp-text)', letterSpacing: '-0.02em' }}>
             See it in action
           </h2>
-          <p className="text-muted-foreground max-w-md mx-auto">
+          <p style={{ color: 'var(--lp-text-muted)' }} className="max-w-md mx-auto">
             Five powerful features, one seamless platform
           </p>
-        </motion.div>
+        </div>
 
-        {/* Alternating Feature Sections */}
+        {/* Alternating Feature Band Sections */}
         {featureSections.map((section) => (
           <FeatureSection key={section.id} data={section} />
         ))}
 
-        {/* Features — Uniform 2-column grid */}
-        <section className="px-4 sm:px-6 pb-20">
-          <motion.div
-            className="text-center mb-12"
-            initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-50px' }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-          >
-            <h2 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight mb-2">
-              Everything you need
-            </h2>
-            <p className="text-muted-foreground max-w-md mx-auto">
-              One platform for your entire job search
-            </p>
-          </motion.div>
+        {/* Features grid */}
+        <section className="px-4 sm:px-6 py-20" style={{ background: 'var(--lp-beige)' }}>
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-12 lp-animate">
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2" style={{ color: 'var(--lp-text)', letterSpacing: '-0.02em' }}>
+                Everything you need
+              </h2>
+              <p style={{ color: 'var(--lp-text-muted)' }} className="max-w-md mx-auto">
+                One platform for your entire job search
+              </p>
+            </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto">
-            {features.map((f, i) => (
-              <motion.div
-                key={f.title}
-                className="flex items-start gap-4 p-5 rounded-2xl border border-border bg-card shadow-soft"
-                initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-20px' }}
-                transition={{ duration: 0.4, delay: i * 0.06, ease: 'easeOut' }}
-              >
-                <div className={`w-11 h-11 rounded-xl ${f.bg} flex items-center justify-center shrink-0`}>
-                  <f.icon className={`w-5 h-5 ${f.color}`} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto">
+              {features.map((f, i) => (
+                <div
+                  key={f.title}
+                  className="flex items-start gap-4 p-5 lp-animate"
+                  style={{
+                    borderRadius: 20,
+                    background: 'var(--lp-card-white)',
+                    boxShadow: '0 2px 16px rgba(26,26,46,0.06)',
+                    transitionDelay: `${i * 70}ms`,
+                  }}
+                >
+                  <div className={`w-11 h-11 rounded-xl ${f.bg} flex items-center justify-center shrink-0`}>
+                    <f.icon className={`w-5 h-5 ${f.color}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-base mb-1" style={{ color: 'var(--lp-text)' }}>{f.title}</h3>
+                    <p className="text-sm leading-relaxed" style={{ color: 'var(--lp-text-muted)' }}>{f.desc}</p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-foreground text-base mb-1">{f.title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
-                </div>
-              </motion.div>
-            ))}
+              ))}
+            </div>
           </div>
         </section>
 
         {/* Pricing */}
-        <section className="px-4 sm:px-6 pb-20">
-          <motion.div
-            className="text-center mb-10"
-            initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-50px' }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-          >
-            <h2 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight mb-2">
-              Simple pricing
-            </h2>
-            <p className="text-muted-foreground max-w-md mx-auto">
-              Start free, upgrade when you need more
-            </p>
-          </motion.div>
+        <section className="px-4 sm:px-6 py-20" style={{ background: 'var(--lp-card-dark)' }}>
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-10 lp-animate">
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2" style={{ color: '#fff', letterSpacing: '-0.02em' }}>
+                Simple pricing
+              </h2>
+              <p style={{ color: 'rgba(255,255,255,0.6)' }} className="max-w-md mx-auto">
+                Start free, upgrade when you need more
+              </p>
+            </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 max-w-4xl mx-auto">
-            {/* Free */}
-            <motion.div
-              className="pricing-card rounded-2xl border border-border bg-card p-6 flex flex-col"
-              initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-20px' }}
-              transition={{ duration: 0.4, delay: 0.04, ease: 'easeOut' }}
-            >
-              <h3 className="text-base font-semibold text-foreground mb-1">Free</h3>
-              <p className="text-3xl font-bold text-foreground mb-1">$0<span className="text-sm font-normal text-muted-foreground">/mo</span></p>
-              <p className="text-sm text-muted-foreground mb-5">Perfect to get started</p>
-              <ul className="space-y-2.5 mb-7 flex-1">
-                {pricingFeatures.free.map((item) => (
-                  <li key={item} className="flex items-center gap-2.5 text-sm text-foreground">
-                    <Check className="w-4 h-4 text-primary shrink-0" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <Button variant="outline" size="lg" className="w-full h-11 rounded-xl" aria-label="Get started with the Free plan" onClick={() => handleCTA('free')}>
-                Get Started
-              </Button>
-            </motion.div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 max-w-4xl mx-auto">
+              {/* Free */}
+              <div
+                className="lp-animate flex flex-col p-6"
+                style={{ borderRadius: 24, background: 'rgba(255,255,255,0.07)', transitionDelay: '0ms' }}
+              >
+                <h3 className="text-base font-semibold mb-1" style={{ color: '#fff' }}>Free</h3>
+                <p className="text-3xl font-bold mb-1" style={{ color: '#fff' }}>$0<span className="text-sm font-normal" style={{ color: 'rgba(255,255,255,0.5)' }}>/mo</span></p>
+                <p className="text-sm mb-5" style={{ color: 'rgba(255,255,255,0.55)' }}>Perfect to get started</p>
+                <ul className="space-y-2.5 mb-7 flex-1">
+                  {pricingFeatures.free.map((item) => (
+                    <li key={item} className="flex items-center gap-2.5 text-sm" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                      <Check className="w-4 h-4 shrink-0" style={{ color: 'var(--lp-brand)' }} />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  className="w-full h-11 rounded-xl text-sm font-semibold transition-all"
+                  style={{ border: '1.5px solid rgba(255,255,255,0.2)', color: '#fff', background: 'transparent' }}
+                  onClick={() => handleCTA('free')}
+                  aria-label="Get started with the Free plan"
+                >
+                  Get Started
+                </button>
+              </div>
 
-            {/* Pro — highlighted with ring */}
-            <motion.div
-              className="pricing-card pricing-card-pro rounded-2xl border-2 border-primary bg-card p-6 flex flex-col relative"
-              initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-20px' }}
-              transition={{ duration: 0.4, delay: 0.08, ease: 'easeOut' }}
-            >
-              <span className="absolute -top-3 left-6 px-3 py-0.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold">
-                Most Popular
-              </span>
-              <h3 className="text-base font-semibold text-foreground mb-1">Pro</h3>
-              <p className="text-3xl font-bold text-foreground mb-1">$9<span className="text-sm font-normal text-muted-foreground">/mo</span></p>
-              <p className="text-sm text-muted-foreground mb-5">For serious job seekers</p>
-              <ul className="space-y-2.5 mb-7 flex-1">
-                {pricingFeatures.pro.map((item) => (
-                  <li key={item} className="flex items-center gap-2.5 text-sm text-foreground">
-                    <Check className="w-4 h-4 text-primary shrink-0" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <Button size="lg" className="w-full h-11 rounded-xl" aria-label="Get started with the Pro plan" onClick={() => handleCTA('pro')}>
-                Get Started
-              </Button>
-            </motion.div>
+              {/* Pro */}
+              <div
+                className="lp-animate flex flex-col p-6 relative"
+                style={{ borderRadius: 24, background: 'var(--lp-brand)', transitionDelay: '70ms' }}
+              >
+                <span
+                  className="absolute -top-3 left-6 px-3 py-0.5 rounded-full text-xs font-semibold"
+                  style={{ background: '#fff', color: 'var(--lp-brand)' }}
+                >
+                  Most Popular
+                </span>
+                <h3 className="text-base font-semibold mb-1" style={{ color: '#fff' }}>Pro</h3>
+                <p className="text-3xl font-bold mb-1" style={{ color: '#fff' }}>$9<span className="text-sm font-normal" style={{ color: 'rgba(255,255,255,0.6)' }}>/mo</span></p>
+                <p className="text-sm mb-5" style={{ color: 'rgba(255,255,255,0.65)' }}>For serious job seekers</p>
+                <ul className="space-y-2.5 mb-7 flex-1">
+                  {pricingFeatures.pro.map((item) => (
+                    <li key={item} className="flex items-center gap-2.5 text-sm" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                      <Check className="w-4 h-4 shrink-0" style={{ color: '#fff' }} />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  className="w-full h-11 rounded-xl text-sm font-semibold transition-all"
+                  style={{ background: '#fff', color: 'var(--lp-brand)' }}
+                  onClick={() => handleCTA('pro')}
+                  aria-label="Get started with the Pro plan"
+                >
+                  Get Started
+                </button>
+              </div>
 
-            {/* Premium */}
-            <motion.div
-              className="pricing-card rounded-2xl border border-amber-400/40 bg-card p-6 flex flex-col relative"
-              initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-20px' }}
-              transition={{ duration: 0.4, delay: 0.12, ease: 'easeOut' }}
-            >
-              <span className="absolute -top-3 left-6 px-3 py-0.5 rounded-full bg-amber-500 text-white text-xs font-semibold">
-                Power Users
-              </span>
-              <h3 className="text-base font-semibold text-foreground mb-1">Premium</h3>
-              <p className="text-3xl font-bold text-foreground mb-1">$19<span className="text-sm font-normal text-muted-foreground">/mo</span></p>
-              <p className="text-sm text-muted-foreground mb-5">For career professionals</p>
-              <ul className="space-y-2.5 mb-7 flex-1">
-                {pricingFeatures.premium.map((item) => (
-                  <li key={item} className="flex items-center gap-2.5 text-sm text-foreground">
-                    <Check className="w-4 h-4 text-amber-500 shrink-0" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <Button size="lg" variant="outline" className="w-full h-11 rounded-xl border-amber-400/50 hover:bg-amber-50 dark:hover:bg-amber-950/20" aria-label="Get started with the Premium plan" onClick={() => handleCTA('premium')}>
-                Get Started
-              </Button>
-            </motion.div>
+              {/* Premium */}
+              <div
+                className="lp-animate flex flex-col p-6 relative"
+                style={{ borderRadius: 24, background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(245,158,11,0.35)', transitionDelay: '140ms' }}
+              >
+                <span
+                  className="absolute -top-3 left-6 px-3 py-0.5 rounded-full text-xs font-semibold"
+                  style={{ background: '#F59E0B', color: '#fff' }}
+                >
+                  Power Users
+                </span>
+                <h3 className="text-base font-semibold mb-1" style={{ color: '#fff' }}>Premium</h3>
+                <p className="text-3xl font-bold mb-1" style={{ color: '#fff' }}>$19<span className="text-sm font-normal" style={{ color: 'rgba(255,255,255,0.5)' }}>/mo</span></p>
+                <p className="text-sm mb-5" style={{ color: 'rgba(255,255,255,0.55)' }}>For career professionals</p>
+                <ul className="space-y-2.5 mb-7 flex-1">
+                  {pricingFeatures.premium.map((item) => (
+                    <li key={item} className="flex items-center gap-2.5 text-sm" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                      <Check className="w-4 h-4 shrink-0" style={{ color: '#F59E0B' }} />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  className="w-full h-11 rounded-xl text-sm font-semibold transition-all"
+                  style={{ border: '1.5px solid rgba(245,158,11,0.45)', color: '#F59E0B', background: 'transparent' }}
+                  onClick={() => handleCTA('premium')}
+                  aria-label="Get started with the Premium plan"
+                >
+                  Get Started
+                </button>
+              </div>
+            </div>
           </div>
         </section>
 
         {/* Install CTA */}
-        <section className="px-4 sm:px-6 pb-16">
-          <motion.div
-            className="flex flex-col sm:flex-row items-center gap-5 p-6 rounded-2xl border border-border bg-card max-w-lg mx-auto"
-            initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-30px' }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-          >
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <Sparkles className="w-6 h-6 text-primary" />
+        <section className="px-4 sm:px-6 py-16" style={{ background: 'var(--lp-bg)' }}>
+          <div className="max-w-6xl mx-auto">
+            <div
+              className="flex flex-col sm:flex-row items-center gap-5 p-6 max-w-lg mx-auto lp-animate"
+              style={{ borderRadius: 20, background: 'var(--lp-card-white)', boxShadow: '0 2px 16px rgba(26,26,46,0.07)', border: '1px solid rgba(26,26,46,0.08)' }}
+            >
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(79,70,229,0.1)' }}>
+                <Sparkles className="w-6 h-6" style={{ color: 'var(--lp-brand)' }} />
+              </div>
+              <div className="flex-1 text-center sm:text-left">
+                <h3 className="text-base font-semibold mb-0.5" style={{ color: 'var(--lp-text)' }}>Get the App</h3>
+                <p className="text-sm" style={{ color: 'var(--lp-text-muted)' }}>
+                  Install WiseResume for quick access — works like a native app.
+                </p>
+              </div>
+              <InstallButton className="w-full sm:w-auto" />
             </div>
-            <div className="flex-1 text-center sm:text-left">
-              <h3 className="text-base font-semibold text-foreground mb-0.5">Get the App</h3>
-              <p className="text-sm text-muted-foreground">
-                Install WiseResume for quick access — works like a native app.
-              </p>
-            </div>
-            <InstallButton className="w-full sm:w-auto" />
-          </motion.div>
+          </div>
         </section>
 
         {/* Final CTA */}
         {!isAuthenticated && (
-          <section className="px-4 sm:px-6 pb-20">
-            <motion.div
-              className="flex flex-col items-center text-center gap-5 max-w-lg mx-auto"
-              initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-30px' }}
-              transition={{ duration: 0.4, ease: 'easeOut' }}
-            >
-              <h2 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
+          <section className="px-4 sm:px-6 pb-0" style={{ background: 'var(--lp-brand-tint)' }}>
+            <div className="max-w-6xl mx-auto flex flex-col items-center text-center gap-5 max-w-lg mx-auto py-20 lp-animate">
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: 'var(--lp-text)', letterSpacing: '-0.02em' }}>
                 Ready to land your dream job?
               </h2>
-              <p className="text-base text-muted-foreground">
+              <p className="text-base" style={{ color: 'var(--lp-text-muted)' }}>
                 Your next opportunity is waiting — start building a resume that gets noticed.
               </p>
-              <Button
-                size="lg"
+              <button
                 onClick={handleCTA}
-                className="h-12 text-base font-semibold rounded-xl px-8 shadow-soft-lg cta-glow-pulse"
+                className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2 lp-cta-pulse"
+                style={{ background: 'var(--lp-brand)', color: '#fff' }}
               >
                 Get Started Free
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </motion.div>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
           </section>
         )}
 
-        <Footer />
+        <Footer lpMode />
       </main>
 
-      {/* Dot navigation — desktop only, tracks active feature section */}
+      {/* Dot navigation */}
       <FeatureDotNav sectionIds={FEATURE_IDS} />
 
-      {/* Sticky bottom CTA bar — non-authenticated users only */}
+      {/* Sticky bottom CTA bar */}
       {!isAuthenticated && (
         <StickyCtaBar
           heroRef={heroRef}
           onGetStarted={handleCTA}
           onSignIn={() => { triggerHaptic.light(); kindeLogin(); }}
+          lpMode
         />
       )}
 
