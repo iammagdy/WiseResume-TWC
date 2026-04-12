@@ -10,7 +10,14 @@ const UNLIMITED_SENTINEL = -1;
 const PRO_DAILY_LIMIT = 30;
 const FREE_DAILY_LIMIT = 5;
 
-/** Compute effective plan from subscription row data. */
+/** Returns the authoritative daily limit for an effective plan. */
+function planDailyLimit(plan: string): number {
+  if (plan === 'premium') return UNLIMITED_SENTINEL;
+  if (plan === 'pro') return PRO_DAILY_LIMIT;
+  return FREE_DAILY_LIMIT;
+}
+
+/** Derives the user's effective plan from a subscription row, respecting active trials. */
 function computeEffectivePlan(
   planName: string | null,
   trialPlan: string | null,
@@ -22,25 +29,22 @@ function computeEffectivePlan(
   return planName ?? 'free';
 }
 
-/** Returns the daily limit for a given effective plan. */
-function planDailyLimit(plan: string): number {
-  if (plan === 'premium') return UNLIMITED_SENTINEL;
-  if (plan === 'pro') return PRO_DAILY_LIMIT;
-  return FREE_DAILY_LIMIT;
-}
-
 /**
  * Checks if a user has sufficient AI credits (or BYOK setup) to perform an action.
- * Fetches both the ai_credits row and the subscription in parallel so that plan-based
- * overrides (e.g. premium trial) are applied even when a stale ai_credits row exists.
+ *
+ * The authoritative daily limit is ALWAYS derived from the user's current effective
+ * plan (subscription + active trial). The stored ai_credits.daily_limit is NOT used
+ * for the limit check — only daily_usage and usage_date are read from that table.
+ * This prevents stale stored limits from granting elevated credits after downgrades
+ * or trial expirations.
  */
 export async function checkUserCreditBalance(userId: string): Promise<CreditCheckResult> {
   const supabase = getServiceClient();
 
-  // Fetch BYOK preference, credits, and subscription concurrently.
+  // Fetch BYOK preference, credits usage, and subscription concurrently.
   const [prefsRes, creditsRes, subRes] = await Promise.all([
     supabase.from('user_preferences').select('ai_provider').eq('user_id', userId).maybeSingle(),
-    supabase.from('ai_credits').select('daily_usage, daily_limit, usage_date').eq('user_id', userId).maybeSingle(),
+    supabase.from('ai_credits').select('daily_usage, usage_date').eq('user_id', userId).maybeSingle(),
     supabase.from('subscriptions').select('plan_name, trial_plan, trial_expires_at').eq('user_id', userId).maybeSingle(),
   ]);
 
@@ -55,48 +59,36 @@ export async function checkUserCreditBalance(userId: string): Promise<CreditChec
     return { hasCredits: false, remaining: 0 };
   }
 
-  // 2. Compute effective plan and the plan-entitled daily limit
+  // 2. Derive authoritative daily limit from the current effective plan.
+  //    This is the canonical source of truth — stale ai_credits.daily_limit is ignored.
   const sub = subRes.data;
   const effectivePlan = computeEffectivePlan(
     sub?.plan_name as string | null,
     sub?.trial_plan as string | null,
     sub?.trial_expires_at as string | null,
   );
-  const entitledLimit = planDailyLimit(effectivePlan);
+  const authoritativeLimit = planDailyLimit(effectivePlan);
 
-  // 3. If no credits row, use the plan-entitled limit
+  // 3. Premium users are always unlimited
+  if (authoritativeLimit === UNLIMITED_SENTINEL) {
+    return { hasCredits: true, remaining: 999999 };
+  }
+
+  // 4. No credits row → no usage yet today, full limit available
   if (!creditsRes.data) {
-    if (entitledLimit === UNLIMITED_SENTINEL) return { hasCredits: true, remaining: 999999 };
-    return { hasCredits: true, remaining: entitledLimit };
+    return { hasCredits: true, remaining: authoritativeLimit };
   }
 
   const credits = creditsRes.data;
-
-  // 4. Apply plan-based override: use the higher of stored limit vs plan entitlement.
-  //    This ensures premium/pro trial users aren't blocked by a stale free-tier row.
-  let effectiveLimit = credits.daily_limit as number;
-  if (entitledLimit === UNLIMITED_SENTINEL) {
-    // Premium — always unlimited regardless of stored value
-    return { hasCredits: true, remaining: 999999 };
-  }
-  if (effectiveLimit !== UNLIMITED_SENTINEL && effectiveLimit < entitledLimit) {
-    // Stored limit is lower than plan entitlement (stale) — use the plan limit
-    effectiveLimit = entitledLimit;
-  }
-
-  // 5. -1 sentinel = unlimited
-  if (effectiveLimit === UNLIMITED_SENTINEL) {
-    return { hasCredits: true, remaining: 999999 };
-  }
-
   const today = new Date().toISOString().split('T')[0];
 
-  // If last usage wasn't today, the daily counter resets implicitly
+  // 5. If last usage wasn't today, the daily counter resets implicitly
   if ((credits.usage_date as string) !== today) {
-    return { hasCredits: true, remaining: effectiveLimit };
+    return { hasCredits: true, remaining: authoritativeLimit };
   }
 
-  const remaining = effectiveLimit - ((credits.daily_usage as number) || 0);
+  // 6. Compute remaining against the authoritative plan-based limit
+  const remaining = authoritativeLimit - ((credits.daily_usage as number) || 0);
 
   return {
     hasCredits: remaining > 0,
