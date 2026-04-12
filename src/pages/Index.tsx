@@ -290,7 +290,6 @@ const Index = () => {
   const heroRef = useRef<HTMLElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [tailorOpen, setTailorOpen] = useState(false);
-  const [headlineVisible, setHeadlineVisible] = useState(false);
   const [ctaPulse, setCtaPulse] = useState(false);
 
   const typewriterWord = useTypewriterWord(TYPEWRITER_WORDS);
@@ -299,9 +298,8 @@ const Index = () => {
   const FEATURE_NAV_LABELS = ['01  Resume Builder', '02  AI Tailoring', '03  Portfolio', '04  Interview Coach', '05  Job Tracker'];
 
   useEffect(() => {
-    const t1 = setTimeout(() => setHeadlineVisible(true), 100);
     const t2 = setTimeout(() => setCtaPulse(true), 1800);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    return () => { clearTimeout(t2); };
   }, []);
 
   useEffect(() => {
@@ -755,39 +753,15 @@ const Index = () => {
               transition: 'color 0.3s ease',
             }}
           >
-            {/* Line 1: "Your resume is being" */}
+            {/* Line 1: static "Stand out as a" */}
             <span style={{ display: 'block' }}>
-              {['Your', 'resume', 'is', 'being'].map((word, i) => (
-                <span key={i} style={{ display: 'inline-block', marginRight: '0.22em' }}>
-                  <span
-                    className={`lp-word ${headlineVisible && !prefersReducedMotion ? 'lp-word-visible' : prefersReducedMotion ? 'lp-word-visible' : ''}`}
-                    style={{ transitionDelay: `${80 + i * 100}ms` }}
-                  >
-                    {word}
-                  </span>
-                </span>
-              ))}
+              Stand out as a
             </span>
-            {/* Line 2: "ignored as a [typewriter]" */}
+            {/* Line 2: typewriter role title only */}
             <span style={{ display: 'block' }}>
-              {['ignored', 'as', 'a'].map((word, i) => (
-                <span key={i} style={{ display: 'inline-block', marginRight: '0.22em' }}>
-                  <span
-                    className={`lp-word ${headlineVisible && !prefersReducedMotion ? 'lp-word-visible' : prefersReducedMotion ? 'lp-word-visible' : ''}`}
-                    style={{ transitionDelay: `${480 + i * 100}ms` }}
-                  >
-                    {word}
-                  </span>
-                </span>
-              ))}
-              <span style={{ display: 'inline-block' }}>
-                <span
-                  className={`lp-word lp-gradient-text ${headlineVisible && !prefersReducedMotion ? 'lp-word-visible' : prefersReducedMotion ? 'lp-word-visible' : ''}`}
-                  style={{ transitionDelay: '780ms', minWidth: '2ch' }}
-                >
-                  {typewriterWord || '\u00A0'}
-                  <span className="lp-cursor" aria-hidden="true" />
-                </span>
+              <span className="lp-gradient-text" style={{ minWidth: '2ch' }}>
+                {typewriterWord || '\u00A0'}
+                <span className="lp-cursor" aria-hidden="true" />
               </span>
             </span>
           </h1>
