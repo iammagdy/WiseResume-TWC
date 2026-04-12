@@ -1356,3 +1356,52 @@ export function parseAIJSON<T = unknown>(text: string): T | null {
 
   return null;
 }
+
+/**
+ * Parses JSON from an AI response, with one automatic retry on malformed output.
+ *
+ * If `parseAIJSON` fails to extract valid JSON from `text`, this function makes
+ * a single additional AI call with a corrective prompt asking the model to return
+ * only valid JSON.  If the retry also fails to parse, `null` is returned — no
+ * infinite loops.
+ *
+ * @param text          The raw AI response text to parse.
+ * @param retryOptions  AI call options (model, userId, etc.) used for the retry
+ *                      call.  The `messages` field is overridden internally.
+ */
+export async function parseAIJSONWithRetry<T = unknown>(
+  text: string,
+  retryOptions: Omit<AICallOptions, 'messages'>,
+): Promise<T | null> {
+  const first = parseAIJSON<T>(text);
+  if (first !== null) return first;
+
+  console.warn('[parseAIJSONWithRetry] Initial JSON parse failed — attempting corrective retry');
+
+  try {
+    const retryResponse = await callAI({
+      ...retryOptions,
+      messages: [
+        {
+          role: 'user',
+          content: `The following text was supposed to be valid JSON but could not be parsed. Return ONLY the corrected valid JSON with no markdown, no code blocks, and no explanation.\n\n${text}`,
+        },
+      ],
+      temperature: 0,
+    });
+
+    if (!retryResponse.content) {
+      console.error('[parseAIJSONWithRetry] Retry returned no content');
+      return null;
+    }
+
+    const retried = parseAIJSON<T>(retryResponse.content);
+    if (retried === null) {
+      console.error('[parseAIJSONWithRetry] Retry response still not valid JSON:', retryResponse.content.slice(0, 500));
+    }
+    return retried;
+  } catch (err) {
+    console.error('[parseAIJSONWithRetry] Retry AI call failed:', err instanceof Error ? err.message : err);
+    return null;
+  }
+}

@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAIWithRetry, isAIError, parseAIJSON, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
+import { callAIWithRetry, isAIError, parseAIJSONWithRetry, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage, getUserPlan } from "../_shared/rateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
@@ -114,7 +114,11 @@ Return JSON with this exact structure: {"title":"exact job title","keySkills":["
         temperature: 0.3,
       });
 
-      const roleAnalysis = parseAIJSON(aiResponse.content || '{}');
+      const roleAnalysis = await parseAIJSONWithRetry(aiResponse.content || '{}', {
+        model: 'google/gemini-2.5-flash',
+        userId,
+        temperature: 0.3,
+      });
       if (!roleAnalysis) {
         console.error("Failed to parse role analysis:", aiResponse.content?.slice(0, 500));
         return new Response(
@@ -225,7 +229,10 @@ Do not include markdown blocks globally. Ensure the output is valid JSON.`;
     // The system prompt instructs the model to return { reply, score }.
     // We extract them here so the client receives clean text, not a raw JSON blob.
     const rawContent = aiResponse.content || '';
-    const parsed = parseAIJSON<{ reply?: string; score?: { score?: number; tip?: string; improved_answer?: string } }>(rawContent);
+    const parsed = await parseAIJSONWithRetry<{ reply?: string; score?: { score?: number; tip?: string; improved_answer?: string } }>(rawContent, {
+      model: 'google/gemini-2.5-flash',
+      userId,
+    });
 
     // If model returned valid structured JSON, use the reply field; fall back to raw content.
     const replyText = parsed?.reply || rawContent || "I couldn't generate a response. Let's try again.";

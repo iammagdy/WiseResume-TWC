@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAIWithRetry, isAIError, parseAIJSON, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
+import { callAIWithRetry, isAIError, parseAIJSONWithRetry, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
@@ -394,77 +394,37 @@ Analyze deeply, then return this exact JSON structure:
 
     console.log("SUPERCHARGED AI response received, parsing...");
 
-    // Parse the JSON from the AI response - robust 3-tier strategy
-    let tailoredResult;
-    try {
-      // Step 1: Strip markdown code fences if present
-      const cleaned = content.replace(/```(?:json)?\s*/gi, '').replace(/```\s*$/g, '').trim();
-      
-      // Step 2: Extract JSON object
-      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error("No JSON found in response");
-      }
-      
-      let jsonStr = jsonMatch[0];
-      
-      // Step 3: Try parsing directly
-      try {
-        tailoredResult = JSON.parse(jsonStr);
-      } catch {
-        // Step 4: Attempt to fix truncated JSON by closing open braces/brackets
-        let openBraces = 0, openBrackets = 0;
-        for (const ch of jsonStr) {
-          if (ch === '{') openBraces++;
-          else if (ch === '}') openBraces--;
-          else if (ch === '[') openBrackets++;
-          else if (ch === ']') openBrackets--;
-        }
-        
-        // Remove trailing comma or incomplete value
-        jsonStr = jsonStr.replace(/,\s*$/, '');
-        // Remove incomplete key-value pairs
-        jsonStr = jsonStr.replace(/,\s*"[^"]*"\s*:\s*$/, '');
-        jsonStr = jsonStr.replace(/,\s*"[^"]*"\s*:\s*"[^"]*$/, '');
-        jsonStr = jsonStr.replace(/,\s*\{[^}]*$/, '');
-        
-        // Close open brackets and braces
-        for (let i = 0; i < openBrackets; i++) jsonStr += ']';
-        for (let i = 0; i < openBraces; i++) jsonStr += '}';
-        
-        try {
-          tailoredResult = JSON.parse(jsonStr);
-          console.log("Recovered truncated JSON successfully");
-        } catch (e2) {
-          console.error("Failed to parse AI response even after recovery:", content.slice(0, 500));
-          throw e2;
-        }
-      }
-    } catch (parseError) {
+    // Parse the JSON from the AI response — with automatic corrective retry on malformed output
+    const parsedResult = await parseAIJSONWithRetry<Record<string, unknown>>(content, {
+      model: 'google/gemini-3-flash-preview',
+      userId,
+    });
+
+    if (!parsedResult) {
       console.error("Failed to parse AI response:", content.slice(0, 500));
       return new Response(
         JSON.stringify({ error: "Failed to parse AI response. Please try again." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     // Ensure all required fields have defaults with enhanced structure
-    tailoredResult = {
-      ...tailoredResult,
-      sectionScores: tailoredResult.sectionScores || null,
-      overallScore: tailoredResult.overallScore || null,
-      missingSkills: tailoredResult.missingSkills || [],
-      boostableSkills: tailoredResult.boostableSkills || [],
-      jobParsed: tailoredResult.jobParsed || {
+    const tailoredResult = {
+      ...parsedResult,
+      sectionScores: parsedResult.sectionScores || null,
+      overallScore: parsedResult.overallScore || null,
+      missingSkills: parsedResult.missingSkills || [],
+      boostableSkills: parsedResult.boostableSkills || [],
+      jobParsed: parsedResult.jobParsed || {
         title: 'Position',
         company: 'Company',
         keyRequirements: [],
         niceToHaves: [],
       },
-      projects: tailoredResult.projects || [],
-      certifications: tailoredResult.certifications || [],
-      awards: tailoredResult.awards || [],
-      jobIntelligence: tailoredResult.jobIntelligence || {
+      projects: parsedResult.projects || [],
+      certifications: parsedResult.certifications || [],
+      awards: parsedResult.awards || [],
+      jobIntelligence: parsedResult.jobIntelligence || {
         experienceLevel: 'mid',
         workMode: 'unknown',
         mustHaveSkills: [],
@@ -473,15 +433,15 @@ Analyze deeply, then return this exact JSON structure:
         redFlags: [],
         industryDetected: 'General',
       },
-      atsAnalysis: tailoredResult.atsAnalysis || {
+      atsAnalysis: parsedResult.atsAnalysis || {
         originalKeywordDensity: 0,
         optimizedKeywordDensity: 0,
         criticalKeywords: [],
         stuffingWarnings: [],
       },
-      bulletTransformations: tailoredResult.bulletTransformations || [],
-      interviewTalkingPoints: tailoredResult.interviewTalkingPoints || [],
-      strengthsAnalysis: tailoredResult.strengthsAnalysis || [],
+      bulletTransformations: parsedResult.bulletTransformations || [],
+      interviewTalkingPoints: parsedResult.interviewTalkingPoints || [],
+      strengthsAnalysis: parsedResult.strengthsAnalysis || [],
     };
 
     console.log("Successfully tailored resume with SUPERCHARGED data");

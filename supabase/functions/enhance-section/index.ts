@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
-import { callAIWithRetry, isAIError, parseAIJSON, sanitizeInputText } from "../_shared/aiClient.ts";
+import { callAIWithRetry, isAIError, parseAIJSONWithRetry, sanitizeInputText } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage, getUserPlan } from "../_shared/rateLimiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
@@ -762,7 +762,10 @@ serve(async (req) => {
       for (let i = 0; i < variantResponses.length; i++) {
         const result = variantResponses[i];
         if (result.status === 'fulfilled' && result.value.content) {
-          const parsed = parseAIJSON(result.value.content) as Record<string, unknown> | null;
+          const parsed = await parseAIJSONWithRetry<Record<string, unknown>>(result.value.content, {
+            model: 'google/gemini-3-flash-preview',
+            userId,
+          });
           if (parsed && parsed.improved !== undefined) {
             variants.push({ improved: parsed.improved, label: styleLabels[i] });
             if (i === 1 && Array.isArray(parsed.changes)) {
@@ -813,7 +816,11 @@ serve(async (req) => {
     console.log('AI response received, parsing...');
 
     // Parse the JSON from the AI response — never inject raw text into resume
-    const enhancedContent = parseAIJSON(content);
+    const enhancedContent = await parseAIJSONWithRetry(content, {
+      model: 'google/gemini-3-flash-preview',
+      userId,
+      temperature,
+    });
 
     if (!enhancedContent) {
       console.error("Failed to parse enhance AI response:", content?.slice(0, 500));

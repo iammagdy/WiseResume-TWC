@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAIWithRetry, isAIError, parseAIJSON, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
+import { callAIWithRetry, isAIError, parseAIJSONWithRetry, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage, getUserPlan } from "../_shared/rateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
@@ -168,7 +168,10 @@ Provide analysis in this exact JSON format:
     }
 
     // Parse the JSON from the AI response — never return fake scores
-    const analysisResult = parseAIJSON(aiResponse.content);
+    const analysisResult = await parseAIJSONWithRetry(aiResponse.content, {
+      model: 'google/gemini-3-flash-preview',
+      userId,
+    });
 
     if (!analysisResult) {
       console.error("Failed to parse AI analysis response:", aiResponse.content?.slice(0, 500));
