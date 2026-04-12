@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Target, Wand2, Mic, LayoutDashboard, Settings, LogOut, Globe, ArrowRight, BarChart3, PenTool, CheckCircle2, Check, User, Zap, ShieldCheck, Gift, Briefcase } from 'lucide-react';
+import { Sparkles, Target, Wand2, Mic, LayoutDashboard, Settings, LogOut, Globe, ArrowRight, BarChart3, PenTool, CheckCircle2, Check, User, Quote } from 'lucide-react';
 import { Footer } from '@/components/landing/Footer';
 import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -17,22 +17,15 @@ import { InstallButton } from '@/components/pwa/InstallButton';
 import { useThemeLogo } from '@/hooks/useThemeLogo';
 import { FeatureTicker } from '@/components/landing/FeatureTicker';
 import { StickyCtaBar } from '@/components/landing/StickyCtaBar';
-import { FeatureSection, FeatureDotNav, type FeatureSectionData } from '@/components/landing/FeatureSection';
+import { FeatureSection, type FeatureSectionData } from '@/components/landing/FeatureSection';
 
 const features = [
-  { icon: Sparkles, title: 'AI Resume Writing', desc: 'AI rewrites vague bullets into quantified achievements that recruiters remember.', color: 'text-indigo-600', bg: 'bg-indigo-100' },
-  { icon: Target, title: 'ATS Score Analysis', desc: 'Real-time ATS match percentage against any job posting — fix gaps instantly.', color: 'text-emerald-600', bg: 'bg-emerald-100' },
-  { icon: Wand2, title: 'Smart Tailoring', desc: 'Paste a job description and AI rewrites your resume to match in 30 seconds.', color: 'text-blue-600', bg: 'bg-blue-100' },
-  { icon: Mic, title: 'Interview Coaching', desc: 'Real voice interview practice with AI that listens, responds, and scores you live.', color: 'text-orange-600', bg: 'bg-orange-100' },
-  { icon: PenTool, title: 'Cover Letters', desc: 'Generate tailored cover letters that match your resume and the job requirements.', color: 'text-purple-600', bg: 'bg-purple-100' },
-  { icon: BarChart3, title: 'Application Tracker', desc: 'Track all your job applications in one place with status updates and analytics.', color: 'text-pink-600', bg: 'bg-pink-100' },
-];
-
-const valueProps = [
-  { icon: Zap, label: 'AI-Powered' },
-  { icon: ShieldCheck, label: 'ATS-Optimized' },
-  { icon: Gift, label: 'Free to Start' },
-  { icon: Briefcase, label: 'Built for 2025' },
+  { icon: Sparkles, title: 'AI Resume Writing', desc: 'AI rewrites vague bullets into quantified achievements that recruiters remember.', color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
+  { icon: Target, title: 'ATS Score Analysis', desc: 'Real-time ATS match percentage against any job posting — fix gaps instantly.', color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+  { icon: Wand2, title: 'Smart Tailoring', desc: 'Paste a job description and AI rewrites your resume to match in 30 seconds.', color: 'text-blue-400', bg: 'bg-blue-500/10' },
+  { icon: Mic, title: 'Interview Coaching', desc: 'Real voice interview practice with AI that listens, responds, and scores you live.', color: 'text-orange-400', bg: 'bg-orange-500/10' },
+  { icon: PenTool, title: 'Cover Letters', desc: 'Generate tailored cover letters that match your resume and the job requirements.', color: 'text-purple-400', bg: 'bg-purple-500/10' },
+  { icon: BarChart3, title: 'Application Tracker', desc: 'Track all your job applications in one place with status updates and analytics.', color: 'text-pink-400', bg: 'bg-pink-500/10' },
 ];
 
 const pricingFeatures = {
@@ -46,6 +39,7 @@ const featureSections: FeatureSectionData[] = [
     id: 'editor',
     direction: 'ltr',
     badge: { icon: Sparkles, label: 'AI Resume Editor', color: 'bg-indigo-100 text-indigo-700' },
+    categoryLabel: '01 — Resume Builder',
     bigLabel: 'Resume',
     title: 'AI-Powered Resume Writing',
     desc: 'Watch AI turn weak bullets into quantified achievements — with a live ATS score that updates as you write.',
@@ -55,12 +49,13 @@ const featureSections: FeatureSectionData[] = [
       'One-click enhancement for any section of your resume',
     ],
     demo: 'editor',
-    bandColor: 'brand',
+    bandColor: 'dark1',
   },
   {
     id: 'tailoring',
     direction: 'rtl',
     badge: { icon: Wand2, label: 'Smart Tailoring', color: 'bg-blue-100 text-blue-700' },
+    categoryLabel: '02 — AI Tailoring',
     bigLabel: 'Tailoring',
     title: 'Keyword Injection in Seconds',
     desc: 'Paste a job description and AI rewrites your resume to match in 30 seconds. See the before and after instantly.',
@@ -70,12 +65,13 @@ const featureSections: FeatureSectionData[] = [
       'Raises your ATS match score with precision',
     ],
     demo: 'tailoring',
-    bandColor: 'beige',
+    bandColor: 'dark2',
   },
   {
     id: 'portfolio',
     direction: 'ltr',
     badge: { icon: Globe, label: 'Live Portfolio', color: 'bg-emerald-100 text-emerald-700' },
+    categoryLabel: '03 — Portfolio',
     bigLabel: 'Portfolio',
     title: 'Public Portfolio Website',
     desc: 'Turn your resume into a beautiful personal site with themes, projects, and a shareable link — zero design skills needed.',
@@ -85,12 +81,13 @@ const featureSections: FeatureSectionData[] = [
       'Themed layouts that update with one click',
     ],
     demo: 'portfolio',
-    bandColor: 'dark',
+    bandColor: 'dark3',
   },
   {
     id: 'interview',
     direction: 'rtl',
     badge: { icon: Mic, label: 'Interview Coach', color: 'bg-orange-100 text-orange-700' },
+    categoryLabel: '04 — Interview Coach',
     bigLabel: 'Interview',
     title: 'AI Interview Practice',
     desc: 'Get scored on real interview questions with AI feedback on every answer. Practice any role, any industry.',
@@ -100,12 +97,13 @@ const featureSections: FeatureSectionData[] = [
       'Practice any industry, role, or question type',
     ],
     demo: 'interview',
-    bandColor: 'tint',
+    bandColor: 'dark1',
   },
   {
     id: 'tracker',
     direction: 'ltr',
     badge: { icon: BarChart3, label: 'Application Tracker', color: 'bg-pink-100 text-pink-700' },
+    categoryLabel: '05 — Job Tracker',
     bigLabel: 'Tracker',
     title: 'Kanban Job Tracker',
     desc: 'Visualize every application at a glance. Drag cards across your pipeline and never lose track of an opportunity.',
@@ -115,44 +113,60 @@ const featureSections: FeatureSectionData[] = [
       'Analytics show your application funnel at a glance',
     ],
     demo: 'tracker',
-    bandColor: 'brand',
+    bandColor: 'dark2',
   },
 ];
 
 const FEATURE_IDS = featureSections.map((s) => s.id);
 
-const TYPEWRITER_PHRASES = [
-  'more job interviews.',
-  'your dream career.',
-  'a standout portfolio.',
-  'the offer you deserve.',
-  'AI-optimized resumes.',
+const TYPEWRITER_WORDS = [
+  'interviews',
+  'offers',
+  'your dream role',
+  'callbacks',
+  'top companies',
 ];
 
-const STAT_PILLS = [
-  { icon: Target, countId: 'ats' as const, suffix: '/100', label: 'ATS Score' },
-  { icon: Sparkles, countId: null, suffix: null, label: 'AI-Powered' },
-  { icon: Zap, countId: 'resumes' as const, suffix: 'k+', label: 'Resumes Built' },
-  { icon: Mic, countId: null, suffix: null, label: 'Interview Coach' },
+const TESTIMONIALS = [
+  {
+    quote: "I went from zero callbacks to three interviews in two weeks. The AI tailoring alone is worth it.",
+    name: "Priya S.",
+    role: "Product Manager, landed at Stripe",
+  },
+  {
+    quote: "WiseResume's ATS score showed me exactly why my resume wasn't passing screening. Fixed it in minutes.",
+    name: "James K.",
+    role: "Software Engineer, landed at Shopify",
+  },
+  {
+    quote: "The interview coach is unreal. I practiced the same question 10 times and could see myself improving.",
+    name: "Maria L.",
+    role: "Marketing Lead, landed at HubSpot",
+  },
+  {
+    quote: "I'd been job hunting for months. Within a week of using WiseResume I had offers on the table.",
+    name: "David T.",
+    role: "Data Analyst, landed at Notion",
+  },
 ];
 
-function useTypewriter(phrases: string[]) {
+function useTypewriterWord(words: string[]) {
   const [displayed, setDisplayed] = useState('');
-  const [phraseIdx, setPhraseIdx] = useState(0);
+  const [wordIdx, setWordIdx] = useState(0);
   const [charIdx, setCharIdx] = useState(0);
   const [phase, setPhase] = useState<'typing' | 'erasing'>('typing');
 
   useEffect(() => {
-    const current = phrases[phraseIdx];
+    const current = words[wordIdx];
     if (phase === 'typing') {
       if (charIdx < current.length) {
         const t = setTimeout(() => {
           setDisplayed(current.slice(0, charIdx + 1));
           setCharIdx((i) => i + 1);
-        }, 55);
+        }, 60);
         return () => clearTimeout(t);
       } else {
-        const t = setTimeout(() => setPhase('erasing'), 1600);
+        const t = setTimeout(() => setPhase('erasing'), 2000);
         return () => clearTimeout(t);
       }
     } else {
@@ -160,16 +174,16 @@ function useTypewriter(phrases: string[]) {
         const t = setTimeout(() => {
           setCharIdx((i) => i - 1);
           setDisplayed(current.slice(0, charIdx - 1));
-        }, Math.max(20, 400 / current.length));
+        }, Math.max(22, 350 / current.length));
         return () => clearTimeout(t);
       } else {
-        setPhraseIdx((i) => (i + 1) % phrases.length);
+        setWordIdx((i) => (i + 1) % words.length);
         setCharIdx(0);
         setDisplayed('');
         setPhase('typing');
       }
     }
-  }, [phase, charIdx, phraseIdx, phrases]);
+  }, [phase, charIdx, wordIdx, words]);
 
   return displayed;
 }
@@ -188,9 +202,7 @@ function useScrollAnimation() {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('lp-visible');
-          }
+          if (entry.isIntersecting) entry.target.classList.add('lp-visible');
         });
       },
       { threshold: 0, rootMargin: '0px 0px -60px 0px' }
@@ -204,118 +216,56 @@ function useScrollAnimation() {
 
     observe();
     const t = setInterval(observe, 500);
-    return () => {
-      observer.disconnect();
-      clearInterval(t);
-    };
+    return () => { observer.disconnect(); clearInterval(t); };
   }, []);
 }
 
-function useStatCounters() {
-  const [ats, setAts] = useState(0);
-  const [resumes, setResumes] = useState(0);
-  const pillsRef = useRef<HTMLDivElement>(null);
-  const startedRef = useRef(false);
+function FeatureNumberedNav({ sectionIds, labels }: { sectionIds: string[]; labels: string[] }) {
+  const [activeIdx, setActiveIdx] = useState(-1);
+  const prefersReducedMotion =
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   useEffect(() => {
-    let raf: number | null = null;
-    const startCount = () => {
-      if (startedRef.current) return;
-      startedRef.current = true;
-      const duration = 1400;
-      const startTime = performance.now();
-      const tick = (now: number) => {
-        const p = Math.min((now - startTime) / duration, 1);
-        const eased = 1 - Math.pow(1 - p, 3);
-        setAts(Math.round(eased * 92));
-        setResumes(Math.round(eased * 12));
-        if (p < 1) { raf = requestAnimationFrame(tick); }
-      };
-      raf = requestAnimationFrame(tick);
-    };
+    const observers: IntersectionObserver[] = [];
+    sectionIds.forEach((id, idx) => {
+      const el = document.getElementById(`feature-${id}`);
+      if (!el) return;
+      const obs = new IntersectionObserver(
+        ([entry]) => { if (entry.isIntersecting) setActiveIdx(idx); },
+        { threshold: 0.4 }
+      );
+      obs.observe(el);
+      observers.push(obs);
+    });
+    return () => observers.forEach((o) => o.disconnect());
+  }, [sectionIds]);
 
-    const cleanup = () => { if (raf !== null) cancelAnimationFrame(raf); };
+  const scrollTo = (id: string) => {
+    const el = document.getElementById(`feature-${id}`);
+    if (el) el.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
+  };
 
-    const el = pillsRef.current;
-    if (!el) { startCount(); return cleanup; }
-
-    const rect = el.getBoundingClientRect();
-    if (rect.top < window.innerHeight) {
-      startCount();
-      return cleanup;
-    }
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) { startCount(); observer.disconnect(); }
-      },
-      { threshold: 0 }
-    );
-    observer.observe(el);
-    return () => {
-      observer.disconnect();
-      cleanup();
-    };
-  }, []);
-
-  return { ats, resumes, pillsRef };
-}
-
-function ResumeScoreCard() {
-  const rings = [
-    { label: 'Work Experience', pct: 88 },
-    { label: 'Keywords Match', pct: 94 },
-    { label: 'Skills Section', pct: 76 },
-  ];
-  const circumference = 2 * Math.PI * 22;
   return (
     <div
-      style={{
-        width: 300,
-        borderRadius: 20,
-        background: 'rgba(255,255,255,0.05)',
-        border: '1px solid rgba(255,255,255,0.10)',
-        padding: '20px 22px',
-        backdropFilter: 'blur(12px)',
-        animation: 'lp-float 4.5s ease-in-out infinite',
-      }}
+      className="w-full overflow-x-auto py-4 px-4 sm:px-6"
+      style={{ background: '#0a0a0f', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
-        <div style={{ position: 'relative', width: 54, height: 54, flexShrink: 0 }}>
-          <svg width="54" height="54" viewBox="0 0 54 54" style={{ transform: 'rotate(-90deg)' }}>
-            <circle cx="27" cy="27" r="22" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="4" />
-            <circle
-              cx="27" cy="27" r="22" fill="none" stroke="#6366F1" strokeWidth="4"
-              strokeDasharray={`${circumference * 0.92} ${circumference}`}
-              strokeLinecap="round"
-            />
-          </svg>
-          <span style={{
-            position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 12, fontWeight: 800, color: '#818CF8',
-          }}>92</span>
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.42)', marginBottom: 2, letterSpacing: '0.05em', textTransform: 'uppercase' }}>ATS Score</p>
-          <p style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 0 }}>Excellent</p>
-        </div>
-        <span style={{
-          fontSize: 10, padding: '3px 9px', borderRadius: 100, flexShrink: 0,
-          background: 'rgba(16,185,129,0.15)', color: '#34D399',
-          border: '1px solid rgba(16,185,129,0.25)', fontWeight: 600,
-        }}>↑ +12</span>
+      <div className="flex items-center justify-center gap-1 sm:gap-2 min-w-max mx-auto">
+        {sectionIds.map((id, idx) => (
+          <button
+            key={id}
+            onClick={() => scrollTo(id)}
+            className="transition-all duration-200 text-xs sm:text-sm font-medium px-3 sm:px-4 py-1.5 rounded-full whitespace-nowrap"
+            style={{
+              background: activeIdx === idx ? 'rgba(99,102,241,0.18)' : 'transparent',
+              color: activeIdx === idx ? '#818CF8' : 'rgba(255,255,255,0.38)',
+              border: activeIdx === idx ? '1px solid rgba(99,102,241,0.3)' : '1px solid transparent',
+            }}
+          >
+            {labels[idx]}
+          </button>
+        ))}
       </div>
-      {rings.map(({ label, pct }) => (
-        <div key={label} style={{ marginBottom: 11 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.48)' }}>{label}</span>
-            <span style={{ fontSize: 10, fontWeight: 700, color: '#818CF8' }}>{pct}%</span>
-          </div>
-          <div style={{ height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.08)' }}>
-            <div style={{ height: '100%', borderRadius: 2, width: `${pct}%`, background: 'linear-gradient(90deg, #6366F1, #818CF8)' }} />
-          </div>
-        </div>
-      ))}
     </div>
   );
 }
@@ -329,26 +279,19 @@ const Index = () => {
   const [scrolled, setScrolled] = useState(false);
   const progressRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLElement>(null);
-  const glowRef = useRef<HTMLDivElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [tailorOpen, setTailorOpen] = useState(false);
   const [headlineVisible, setHeadlineVisible] = useState(false);
   const [ctaPulse, setCtaPulse] = useState(false);
 
-  const typewriterText = useTypewriter(TYPEWRITER_PHRASES);
-  const { ats, resumes, pillsRef } = useStatCounters();
+  const typewriterWord = useTypewriterWord(TYPEWRITER_WORDS);
   useScrollAnimation();
 
-  const headlineWords = useMemo(() => [
-    { text: 'Land', gradient: false },
-    { text: 'your', gradient: false },
-    { text: 'dream', gradient: true },
-    { text: 'job', gradient: true },
-  ], []);
+  const FEATURE_NAV_LABELS = ['01  Resume', '02  Tailoring', '03  Portfolio', '04  Interview', '05  Tracker'];
 
   useEffect(() => {
-    const t1 = setTimeout(() => setHeadlineVisible(true), 150);
-    const t2 = setTimeout(() => setCtaPulse(true), 1600);
+    const t1 = setTimeout(() => setHeadlineVisible(true), 100);
+    const t2 = setTimeout(() => setCtaPulse(true), 1800);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
@@ -378,15 +321,11 @@ const Index = () => {
   useEffect(() => {
     let rafId: number | null = null;
     let lastY = 0;
-
     const onScroll = () => {
       lastY = window.scrollY;
       setScrolled(lastY > 80);
       if (rafId !== null) return;
       rafId = requestAnimationFrame(() => {
-        if (glowRef.current) {
-          glowRef.current.style.transform = `translateX(-50%) translateY(${lastY * 0.18}px)`;
-        }
         if (progressRef.current) {
           const max = document.documentElement.scrollHeight - window.innerHeight;
           const pct = max > 0 ? lastY / max * 100 : 0;
@@ -397,7 +336,6 @@ const Index = () => {
         rafId = null;
       });
     };
-
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => {
       window.removeEventListener('scroll', onScroll);
@@ -425,29 +363,26 @@ const Index = () => {
     }
   };
 
-  if (authLoading) {
-    return <PageLoadingSpinner />;
-  }
+  if (authLoading) return <PageLoadingSpinner />;
 
   return (
     <div
       className="lp-root min-h-screen"
       data-theme="landing"
-      style={{ colorScheme: 'light' }}
+      style={{ colorScheme: 'dark' }}
     >
       <style>{`
         .lp-root {
-          --lp-bg: #F5F0EB;
-          --lp-brand: #4F46E5;
-          --lp-brand-dark: #3730A3;
-          --lp-brand-tint: #EEF2FF;
-          --lp-card-white: #FFFFFF;
-          --lp-card-muted: #EDE8E3;
-          --lp-card-dark: #1A1A2E;
-          --lp-text: #1A1A2E;
-          --lp-text-muted: #6B6670;
-          --lp-beige: #E8E0D6;
-          --lp-hero-bg: #0D0F14;
+          --lp-bg: #0a0a0f;
+          --lp-brand: #6366F1;
+          --lp-brand-dark: #4F46E5;
+          --lp-brand-tint: rgba(99,102,241,0.12);
+          --lp-card: #111118;
+          --lp-card-border: rgba(255,255,255,0.07);
+          --lp-card-border-hover: rgba(255,255,255,0.14);
+          --lp-text: #f0f0f5;
+          --lp-text-muted: rgba(240,240,245,0.5);
+          --lp-text-subtle: rgba(240,240,245,0.28);
           background: var(--lp-bg);
           color: var(--lp-text);
         }
@@ -457,133 +392,113 @@ const Index = () => {
         .lp-word {
           display: inline-block;
           opacity: 0;
-          transform: translateY(22px);
-          transition: opacity 0.55s ease, transform 0.55s ease;
+          transform: translateY(24px);
+          transition: opacity 0.6s cubic-bezier(0.22,1,0.36,1), transform 0.6s cubic-bezier(0.22,1,0.36,1);
         }
-        .lp-word.lp-word-visible {
-          opacity: 1;
-          transform: translateY(0);
-        }
+        .lp-word.lp-word-visible { opacity: 1; transform: translateY(0); }
 
-        /* Scroll animations — 600ms cubic-bezier */
+        /* Scroll animations */
         .lp-animate {
           opacity: 0;
-          transform: translateY(32px);
-          transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1), transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+          transform: translateY(28px);
+          transition: opacity 0.65s cubic-bezier(0.22, 1, 0.36, 1), transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
         }
-        .lp-animate.lp-visible {
-          opacity: 1;
-          transform: translateY(0);
-        }
+        .lp-animate.lp-visible { opacity: 1; transform: translateY(0); }
 
-        /* CTA pulse — starts at 1600ms after mount */
+        /* Directional slides */
+        .lp-animate.lp-from-left  { transform: translateX(-40px); }
+        .lp-animate.lp-from-right { transform: translateX(40px); }
+        .lp-animate.lp-from-left.lp-visible,
+        .lp-animate.lp-from-right.lp-visible { transform: translateX(0); }
+
+        /* CTA pulse */
         @keyframes lp-pulse {
-          0%, 100% { box-shadow: 0 4px 14px -2px rgba(79, 70, 229, 0.3); }
-          50% { box-shadow: 0 4px 28px 4px rgba(79, 70, 229, 0.6); }
+          0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0); }
+          50% { box-shadow: 0 0 0 8px rgba(99,102,241,0.12); }
         }
-        .lp-cta-pulse {
-          animation: lp-pulse 2.8s ease-in-out infinite;
+        .lp-cta-pulse { animation: lp-pulse 2.8s ease-in-out infinite; }
+
+        /* Hero entrance */
+        @keyframes lp-hero-in {
+          from { opacity: 0; transform: translateY(20px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .lp-hero-sub   { animation: lp-hero-in 0.6s cubic-bezier(0.22,1,0.36,1) 0.45s both; }
+        .lp-hero-cta   { animation: lp-hero-in 0.6s cubic-bezier(0.22,1,0.36,1) 0.65s both; }
+        .lp-hero-trust { animation: lp-hero-in 0.5s cubic-bezier(0.22,1,0.36,1) 0.82s both; }
+
+        @media (prefers-reduced-motion: reduce) {
+          .lp-hero-sub,.lp-hero-cta,.lp-hero-trust { animation: none; opacity: 1; transform: none; }
+          .lp-word { opacity: 1; transform: none; transition: none; }
+          .lp-animate { opacity: 1; transform: none; transition: none; }
         }
 
-        /* Header scrolled style */
+        /* Header scrolled */
         .lp-header-scrolled {
-          background: rgba(245, 240, 235, 0.88) !important;
-          backdrop-filter: blur(12px);
-          border-bottom: 1px solid rgba(26,26,46,0.1);
-          box-shadow: 0 1px 8px rgba(26,26,46,0.06);
+          background: rgba(10,10,15,0.88) !important;
+          backdrop-filter: blur(16px);
+          border-bottom: 1px solid rgba(255,255,255,0.07);
         }
 
         /* Typewriter cursor */
         .lp-cursor {
           display: inline-block;
-          width: 2px;
-          height: 0.8em;
+          width: 3px;
+          height: 0.85em;
           background: #818CF8;
           margin-left: 2px;
           vertical-align: middle;
+          border-radius: 1px;
           animation: lp-blink 1s step-end infinite;
         }
-        @keyframes lp-blink {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0; }
-        }
+        @keyframes lp-blink { 0%,100%{opacity:1} 50%{opacity:0} }
 
-        /* Scroll arrow bounce */
-        @keyframes lp-bounce {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(6px); }
-        }
-
-        /* Hero entrance animations — time-delay stagger, no scroll required */
-        @keyframes lp-hero-in {
-          from { opacity: 0; transform: translateY(18px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        .lp-hero-badge      { animation: lp-hero-in 0.55s cubic-bezier(0.22,1,0.36,1) 0.05s both; }
-        .lp-hero-typewriter { animation: lp-hero-in 0.55s cubic-bezier(0.22,1,0.36,1) 0.35s both; }
-        .lp-hero-body       { animation: lp-hero-in 0.55s cubic-bezier(0.22,1,0.36,1) 0.50s both; }
-        .lp-hero-cta        { animation: lp-hero-in 0.55s cubic-bezier(0.22,1,0.36,1) 0.65s both; }
-        .lp-hero-trust      { animation: lp-hero-in 0.50s cubic-bezier(0.22,1,0.36,1) 0.80s both; }
-        .lp-hero-pills      { animation: lp-hero-in 0.50s cubic-bezier(0.22,1,0.36,1) 0.94s both; }
-        .lp-hero-card       { animation: lp-hero-in 0.55s cubic-bezier(0.22,1,0.36,1) 1.08s both; }
-        .lp-hero-scroll     { animation: lp-hero-in 0.40s ease 1.40s both; }
-
-        @media (prefers-reduced-motion: reduce) {
-          .lp-hero-badge,.lp-hero-typewriter,.lp-hero-body,.lp-hero-cta,.lp-hero-trust,
-          .lp-hero-pills,.lp-hero-card,.lp-hero-scroll {
-            animation: none; opacity: 1; transform: none;
-          }
-        }
-
-        /* Directional slide modifiers — override translateY with translateX */
-        .lp-animate.lp-from-left  { transform: translateX(-44px); }
-        .lp-animate.lp-from-right { transform: translateX(44px); }
-        .lp-animate.lp-from-left.lp-visible,
-        .lp-animate.lp-from-right.lp-visible { transform: translateX(0); }
-
-        /* Float for hero product card */
-        @keyframes lp-float {
-          0%,100% { transform: translateY(0px); }
-          50%      { transform: translateY(-9px); }
-        }
-
-        /* Feature grid card hover lift */
+        /* Feature card hover */
         .lp-feature-card {
-          transition: transform 0.25s ease, box-shadow 0.25s ease;
+          transition: border-color 0.22s ease, background 0.22s ease, transform 0.22s ease;
+          cursor: default;
         }
         .lp-feature-card:hover {
-          transform: translateY(-5px) !important;
-          box-shadow: 0 10px 36px rgba(26,26,46,0.14) !important;
+          border-color: rgba(99,102,241,0.22) !important;
+          background: rgba(255,255,255,0.05) !important;
+          transform: translateY(-3px);
         }
 
-        /* Section accent underline */
-        .lp-section-accent {
-          display: block;
-          width: 44px;
-          height: 3px;
-          border-radius: 2px;
-          background: linear-gradient(90deg, #6366F1, #A78BFA);
-          margin: 10px auto 0;
+        /* Testimonial card */
+        .lp-testimonial-card {
+          transition: border-color 0.22s ease, transform 0.22s ease;
+        }
+        .lp-testimonial-card:hover {
+          border-color: rgba(99,102,241,0.2) !important;
+          transform: translateY(-2px);
         }
 
-        /* Stronger separator */
+        /* Separator */
         .lp-separator {
           height: 1px;
-          background: linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.5) 25%, rgba(99,102,241,0.7) 50%, rgba(99,102,241,0.5) 75%, transparent 100%);
-          box-shadow: 0 0 14px 2px rgba(99,102,241,0.18);
+          background: linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.35) 30%, rgba(99,102,241,0.55) 50%, rgba(99,102,241,0.35) 70%, transparent 100%);
+        }
+
+        /* Gradient text */
+        .lp-gradient-text {
+          background: linear-gradient(135deg, #a5b4fc 0%, #818CF8 50%, #c4b5fd 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
         }
       `}</style>
 
       <a
         href="#landing-main"
         className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:p-4 focus:rounded-md focus:m-2"
-        style={{ background: 'var(--lp-brand)', color: '#fff' }}
+        style={{ background: '#6366F1', color: '#fff' }}
       >
         Skip to content
       </a>
 
+      {/* Progress bar */}
       <div className="fixed top-0 left-0 right-0 h-[2px] z-[60] pointer-events-none" style={{ display: 'none' }}>
-        <div ref={progressRef} className="h-full transition-[width] duration-75 ease-out" style={{ background: 'var(--lp-brand)' }} />
+        <div ref={progressRef} className="h-full transition-[width] duration-75 ease-out" style={{ background: '#6366F1' }} />
       </div>
 
       {/* Sticky Header */}
@@ -598,7 +513,7 @@ const Index = () => {
             aria-label="WiseResume – scroll to top"
           >
             <img alt="WiseResume" loading="lazy" className="w-8 h-8 object-contain rounded-lg" src={themeLogo} />
-            <span className="font-display font-bold text-sm" style={{ color: scrolled ? 'var(--lp-text)' : '#fff' }}>WiseResume</span>
+            <span className="font-display font-bold text-sm" style={{ color: 'rgba(255,255,255,0.88)' }}>WiseResume</span>
           </button>
 
           <div className="flex items-center gap-2">
@@ -606,9 +521,9 @@ const Index = () => {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="touch-manipulation active:scale-95 transition-transform" aria-label="Account menu">
-                    <Avatar className="h-8 w-8" style={{ border: '1px solid rgba(26,26,46,0.15)' }}>
+                    <Avatar className="h-8 w-8" style={{ border: '1px solid rgba(255,255,255,0.12)' }}>
                       <AvatarImage src={profile?.avatarUrl ?? undefined} />
-                      <AvatarFallback className="text-xs font-semibold" style={{ background: 'rgba(79,70,229,0.1)', color: 'var(--lp-brand)' }}>
+                      <AvatarFallback className="text-xs font-semibold" style={{ background: 'rgba(99,102,241,0.15)', color: '#818CF8' }}>
                         {getInitials() ?? <User className="w-3.5 h-3.5" />}
                       </AvatarFallback>
                     </Avatar>
@@ -633,10 +548,11 @@ const Index = () => {
             ) : (
               <button
                 onClick={() => { triggerHaptic.light(); kindeLogin(); }}
-                className="text-sm font-medium px-4 py-1.5 rounded-lg transition-all duration-300"
+                className="text-sm font-medium px-4 py-1.5 rounded-lg transition-all duration-200"
                 style={{
-                  color: scrolled ? 'var(--lp-text)' : '#fff',
-                  background: scrolled ? 'rgba(26,26,46,0.07)' : 'rgba(255,255,255,0.12)',
+                  color: 'rgba(255,255,255,0.75)',
+                  background: 'rgba(255,255,255,0.07)',
+                  border: '1px solid rgba(255,255,255,0.1)',
                 }}
               >
                 Sign In
@@ -647,249 +563,197 @@ const Index = () => {
       </header>
 
       <main id="landing-main" className="w-full">
-        {/* Hero Section */}
+        {/* ─── HERO ─── */}
         <section
           ref={heroRef}
-          className="relative flex flex-col items-center text-center px-4 sm:px-6 pt-[calc(7rem+env(safe-area-inset-top))] pb-20 sm:pb-28 overflow-hidden"
-          style={{ minHeight: '86vh', background: '#0D0F14' }}
+          className="relative flex flex-col items-center text-center px-4 sm:px-6 overflow-hidden"
+          style={{
+            background: '#0a0a0f',
+            paddingTop: 'calc(7rem + env(safe-area-inset-top))',
+            paddingBottom: '6rem',
+            minHeight: '88vh',
+          }}
         >
-          {/* Indigo radial glow — parallaxes on scroll via glowRef */}
+          {/* Subtle indigo radial glow */}
           <div
-            ref={glowRef}
             aria-hidden="true"
-            className="pointer-events-none absolute"
+            className="pointer-events-none absolute inset-0"
             style={{
-              top: '-15%',
-              left: '50%',
-              transform: 'translateX(-50%) translateY(0)',
-              width: '90%',
-              maxWidth: 800,
-              height: '65%',
-              background: 'radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.26) 0%, rgba(79,70,229,0.12) 45%, transparent 72%)',
-              filter: 'blur(48px)',
+              background: 'radial-gradient(ellipse 80% 55% at 50% 0%, rgba(99,102,241,0.18) 0%, transparent 65%)',
             }}
           />
 
-          {/* Category label */}
-          <div className="relative z-10 mb-6 lp-hero-badge">
-            <span
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold"
-              style={{
-                background: 'rgba(99,102,241,0.15)',
-                color: '#818CF8',
-                border: '1px solid rgba(99,102,241,0.28)',
-              }}
-            >
-              <Sparkles className="w-3 h-3" />
-              AI-Powered Career Platform
-            </span>
-          </div>
-
-          {/* Headline — word-by-word entrance, gradient on "dream job" */}
-          <h1
-            className="relative z-10 font-extrabold leading-[1.05] mb-5 max-w-4xl"
-            style={{ fontSize: 'clamp(40px, 5.5vw, 76px)', color: '#fff', letterSpacing: '-0.03em' }}
+          {/* Eyebrow */}
+          <p
+            className="relative z-10 mb-7"
+            style={{
+              fontSize: '0.8rem',
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              color: '#818CF8',
+              fontWeight: 600,
+            }}
           >
-            {headlineWords.map((word, i) => (
-              <span key={i} style={{ display: 'inline-block', marginRight: '0.25em' }}>
+            AI-Powered Career Platform
+          </p>
+
+          {/* Main headline — typewriter word lives inside H1 */}
+          <h1
+            className="relative z-10 font-extrabold leading-[1.05] max-w-4xl"
+            style={{
+              fontSize: 'clamp(44px, 6.5vw, 84px)',
+              color: '#f0f0f5',
+              letterSpacing: '-0.035em',
+            }}
+          >
+            {['Land', 'more'].map((word, i) => (
+              <span key={i} style={{ display: 'inline-block', marginRight: '0.22em' }}>
                 <span
                   className={`lp-word ${headlineVisible && !prefersReducedMotion ? 'lp-word-visible' : prefersReducedMotion ? 'lp-word-visible' : ''}`}
-                  style={{
-                    transitionDelay: `${150 + i * 80}ms`,
-                    ...(word.gradient ? {
-                      background: 'linear-gradient(135deg, #818CF8 0%, #6366F1 50%, #A78BFA 100%)',
-                      backgroundClip: 'text',
-                      WebkitBackgroundClip: 'text',
-                      color: 'transparent',
-                    } : {}),
-                  }}
+                  style={{ transitionDelay: `${80 + i * 100}ms` }}
                 >
-                  {word.text}
+                  {word}
                 </span>
               </span>
             ))}
+            <span style={{ display: 'inline-block' }}>
+              <span
+                className={`lp-word lp-gradient-text ${headlineVisible && !prefersReducedMotion ? 'lp-word-visible' : prefersReducedMotion ? 'lp-word-visible' : ''}`}
+                style={{ transitionDelay: '280ms', minWidth: '2ch' }}
+              >
+                {typewriterWord || '\u00A0'}
+                <span className="lp-cursor" aria-hidden="true" />
+              </span>
+            </span>
           </h1>
 
-          {/* Typewriter subheadline */}
+          {/* Subheading */}
           <p
-            className="relative z-10 mb-3 lp-hero-typewriter"
-            style={{ fontSize: '1.15rem', lineHeight: 1.65, color: 'rgba(255,255,255,0.62)', maxWidth: 520 }}
-          >
-            AI tools to help you land{' '}
-            <span style={{ color: '#818CF8', fontWeight: 600 }}>
-              {typewriterText}
-              <span className="lp-cursor" aria-hidden="true" />
-            </span>
-          </p>
-
-          {/* Body text */}
-          <p
-            className="relative z-10 mb-9 lp-hero-body"
-            style={{ fontSize: '0.97rem', lineHeight: 1.65, color: 'rgba(255,255,255,0.48)', maxWidth: 440 }}
+            className="relative z-10 mt-6 mb-10 lp-hero-sub"
+            style={{
+              fontSize: 'clamp(1rem, 2.2vw, 1.2rem)',
+              lineHeight: 1.6,
+              color: 'rgba(240,240,245,0.52)',
+              maxWidth: 500,
+            }}
           >
             Build, tailor, and optimise your resume with AI. Practice interviews, track applications, and launch your portfolio — all in one place.
           </p>
 
-          {/* CTA */}
-          <div className="relative z-10 w-full flex flex-col items-center gap-4 lp-hero-cta">
+          {/* CTA row */}
+          <div className="relative z-10 flex flex-col sm:flex-row items-center gap-3 lp-hero-cta">
             {isAuthenticated ? (
-              <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
+              <>
                 <button
                   onClick={() => { triggerHaptic.light(); navigate('/dashboard'); }}
-                  className="h-12 px-6 text-base font-semibold rounded-xl flex items-center justify-center gap-2 transition-all"
-                  style={{ background: '#4F46E5', color: '#fff', flex: 1 }}
+                  className={`h-12 px-7 text-base font-semibold rounded-xl flex items-center gap-2 transition-all ${ctaPulse ? 'lp-cta-pulse' : ''}`}
+                  style={{ background: '#6366F1', color: '#fff' }}
                 >
                   Go to Dashboard
                   <ArrowRight className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => { triggerHaptic.light(); setTailorOpen(true); }}
-                  className="h-12 px-6 text-base font-semibold rounded-xl flex items-center justify-center gap-2 transition-all"
-                  style={{ background: 'rgba(255,255,255,0.07)', color: '#818CF8', border: '1.5px solid rgba(99,102,241,0.28)', flex: 1 }}
+                  className="h-12 px-7 text-base font-semibold rounded-xl flex items-center gap-2 transition-all"
+                  style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.8)', border: '1px solid rgba(255,255,255,0.12)' }}
                 >
-                  <Sparkles className="w-4 h-4" />
+                  <Sparkles className="w-4 h-4 text-indigo-400" />
                   Quick Tailor
                 </button>
-              </div>
+              </>
             ) : (
-              <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
+              <>
                 <button
                   onClick={handleCTA}
-                  className={`h-12 px-6 text-base font-semibold rounded-xl flex items-center justify-center gap-2 transition-all ${ctaPulse ? 'lp-cta-pulse' : ''}`}
-                  style={{ background: '#4F46E5', color: '#fff', flex: 1 }}
+                  className={`h-12 px-7 text-base font-semibold rounded-xl flex items-center gap-2 transition-all ${ctaPulse ? 'lp-cta-pulse' : ''}`}
+                  style={{ background: '#6366F1', color: '#fff' }}
                 >
                   Get Started Free
                   <ArrowRight className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => { triggerHaptic.light(); kindeLogin(); }}
-                  className="h-12 px-6 text-base font-semibold rounded-xl flex items-center justify-center gap-2 transition-all"
-                  style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.82)', border: '1.5px solid rgba(255,255,255,0.13)', flex: 1 }}
+                  className="h-12 px-7 text-base font-semibold rounded-xl flex items-center gap-2 transition-all"
+                  style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.8)', border: '1px solid rgba(255,255,255,0.12)' }}
                 >
                   Sign In
                 </button>
-              </div>
+              </>
             )}
           </div>
 
           {/* Trust badges */}
-          <div className="relative z-10 mt-5 flex items-center gap-4 sm:gap-6 text-sm flex-wrap justify-center lp-hero-trust">
+          <div className="relative z-10 mt-8 flex items-center gap-5 sm:gap-7 text-xs flex-wrap justify-center lp-hero-trust">
             {['Free to start', 'No credit card', 'AI-powered'].map((item) => (
-              <span key={item} className="flex items-center gap-1.5" style={{ color: 'rgba(255,255,255,0.42)' }}>
-                <CheckCircle2 className="w-3.5 h-3.5" style={{ color: '#6366F1' }} />
+              <span key={item} className="flex items-center gap-1.5" style={{ color: 'rgba(240,240,245,0.35)' }}>
+                <CheckCircle2 className="w-3.5 h-3.5" style={{ color: 'rgba(99,102,241,0.7)' }} />
                 {item}
               </span>
             ))}
           </div>
-
-          {/* Stat pills — fully contained, no overflow */}
-          <div ref={pillsRef} className="relative z-10 flex flex-wrap items-center justify-center gap-2.5 mt-8 lp-hero-pills">
-            {STAT_PILLS.map(({ icon: Icon, countId, suffix, label }) => {
-              const animatedCount = countId === 'ats' ? ats : countId === 'resumes' ? resumes : null;
-              const displayPrefix = animatedCount !== null ? `${animatedCount}${suffix}` : null;
-              return (
-                <div
-                  key={label}
-                  className="flex items-center gap-2 px-3.5 py-2 rounded-full"
-                  style={{
-                    background: 'rgba(255,255,255,0.07)',
-                    border: '1px solid rgba(255,255,255,0.11)',
-                  }}
-                >
-                  <Icon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#818CF8' }} />
-                  <span className="text-xs font-medium whitespace-nowrap" style={{ color: 'rgba(255,255,255,0.72)' }}>
-                    {displayPrefix && (
-                      <span style={{ color: '#818CF8', fontWeight: 700 }}>{displayPrefix} </span>
-                    )}
-                    {label}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Floating product preview card */}
-          <div className="relative z-10 mt-8 lp-hero-card">
-            <ResumeScoreCard />
-          </div>
-
-          {/* Scroll arrow */}
-          <div className="relative z-10 mt-8 flex flex-col items-center gap-1.5 lp-hero-scroll" style={{ color: 'rgba(255,255,255,0.22)' }}>
-            <span className="text-xs tracking-widest uppercase">Scroll to explore</span>
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true" style={{ animation: 'lp-bounce 1.6s ease-in-out infinite' }}>
-              <path d="M9 3v12M4 10l5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
         </section>
 
-        {/* Feature Ticker */}
+        {/* ─── FEATURE TICKER ─── */}
         <FeatureTicker lpMode />
 
-        {/* Separator */}
-        <div className="lp-separator mx-4 sm:mx-6 mb-12" aria-hidden="true" />
+        {/* ─── SEPARATOR ─── */}
+        <div className="lp-separator" aria-hidden="true" />
 
-        {/* Value Props */}
-        <section className="px-4 sm:px-6 pb-16 max-w-6xl mx-auto">
-          <div className="flex items-center justify-center gap-3 sm:gap-6 flex-wrap lp-animate">
-            {valueProps.map(({ icon: Icon, label }) => (
-              <div
-                key={label}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-full"
-                style={{ border: '1px solid rgba(26,26,46,0.12)', background: 'var(--lp-card-white)' }}
-              >
-                <Icon className="w-4 h-4" style={{ color: 'var(--lp-brand)' }} />
-                <span className="text-sm font-medium" style={{ color: 'var(--lp-text)' }}>{label}</span>
-              </div>
-            ))}
-          </div>
-        </section>
+        {/* ─── NUMBERED FEATURE NAV ─── */}
+        <FeatureNumberedNav sectionIds={FEATURE_IDS} labels={FEATURE_NAV_LABELS} />
 
-        {/* Section heading */}
-        <div className="text-center px-4 sm:px-6 mb-6 max-w-6xl mx-auto lp-animate">
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight" style={{ color: 'var(--lp-text)', letterSpacing: '-0.02em' }}>
+        {/* ─── FEATURE SECTIONS HEADING ─── */}
+        <div className="text-center px-4 sm:px-6 py-16 max-w-4xl mx-auto lp-animate">
+          <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#818CF8', fontWeight: 600, marginBottom: '0.75rem' }}>
             See it in action
-          </h2>
-          <span className="lp-section-accent" aria-hidden="true" />
-          <p style={{ color: 'var(--lp-text-muted)' }} className="max-w-md mx-auto mt-3">
-            Five powerful features, one seamless platform
           </p>
+          <h2
+            className="font-bold leading-tight"
+            style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', color: '#f0f0f5', letterSpacing: '-0.02em' }}
+          >
+            Five tools. One platform.<br />
+            <span className="lp-gradient-text">Your complete career OS.</span>
+          </h2>
         </div>
 
-        {/* Alternating Feature Band Sections */}
+        {/* ─── ALTERNATING FEATURE BAND SECTIONS ─── */}
         {featureSections.map((section) => (
           <FeatureSection key={section.id} data={section} />
         ))}
 
-        {/* Features grid */}
-        <section className="px-4 sm:px-6 py-20" style={{ background: 'var(--lp-beige)' }}>
+        {/* ─── EVERYTHING YOU NEED GRID ─── */}
+        <section className="px-4 sm:px-6 py-20" style={{ background: '#0a0a0f' }}>
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-12 lp-animate">
-              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2" style={{ color: 'var(--lp-text)', letterSpacing: '-0.02em' }}>
+              <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#818CF8', fontWeight: 600, marginBottom: '0.75rem' }}>
+                Full toolkit
+              </p>
+              <h2 className="font-bold" style={{ fontSize: 'clamp(1.75rem, 3vw, 2.5rem)', color: '#f0f0f5', letterSpacing: '-0.02em', marginBottom: '0.5rem' }}>
                 Everything you need
               </h2>
-              <p style={{ color: 'var(--lp-text-muted)' }} className="max-w-md mx-auto">
+              <p style={{ color: 'rgba(240,240,245,0.45)' }} className="max-w-md mx-auto">
                 One platform for your entire job search
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-3xl mx-auto">
               {features.map((f, i) => (
                 <div
                   key={f.title}
                   className="flex items-start gap-4 p-5 lp-animate lp-feature-card"
                   style={{
-                    borderRadius: 20,
-                    background: 'var(--lp-card-white)',
-                    boxShadow: '0 2px 16px rgba(26,26,46,0.06)',
+                    borderRadius: 16,
+                    background: '#111118',
+                    border: '1px solid rgba(255,255,255,0.07)',
                     transitionDelay: `${i * 60}ms`,
                   }}
                 >
-                  <div className={`w-11 h-11 rounded-xl ${f.bg} flex items-center justify-center shrink-0`}>
+                  <div className={`w-10 h-10 rounded-xl ${f.bg} flex items-center justify-center shrink-0`}>
                     <f.icon className={`w-5 h-5 ${f.color}`} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-base mb-1" style={{ color: 'var(--lp-text)' }}>{f.title}</h3>
-                    <p className="text-sm leading-relaxed" style={{ color: 'var(--lp-text-muted)' }}>{f.desc}</p>
+                    <h3 className="font-semibold text-sm mb-1" style={{ color: '#f0f0f5' }}>{f.title}</h3>
+                    <p className="text-xs leading-relaxed" style={{ color: 'rgba(240,240,245,0.48)' }}>{f.desc}</p>
                   </div>
                 </div>
               ))}
@@ -897,40 +761,86 @@ const Index = () => {
           </div>
         </section>
 
-        {/* Pricing */}
-        <section className="px-4 sm:px-6 py-20" style={{ background: 'var(--lp-card-dark)' }}>
+        {/* ─── SEPARATOR ─── */}
+        <div className="lp-separator" aria-hidden="true" />
+
+        {/* ─── TESTIMONIALS ─── */}
+        <section className="px-4 sm:px-6 py-20" style={{ background: '#0a0a0f' }}>
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-14 lp-animate">
+              <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#818CF8', fontWeight: 600, marginBottom: '0.75rem' }}>
+                Social proof
+              </p>
+              <h2 className="font-bold" style={{ fontSize: 'clamp(1.75rem, 3vw, 2.5rem)', color: '#f0f0f5', letterSpacing: '-0.02em' }}>
+                Job seekers rely on WiseResume
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {TESTIMONIALS.map((t, i) => (
+                <div
+                  key={t.name}
+                  className="lp-animate lp-testimonial-card flex flex-col gap-4 p-5"
+                  style={{
+                    borderRadius: 16,
+                    background: '#111118',
+                    border: '1px solid rgba(255,255,255,0.07)',
+                    transitionDelay: `${i * 80}ms`,
+                  }}
+                >
+                  <Quote className="w-5 h-5 flex-shrink-0" style={{ color: 'rgba(99,102,241,0.5)' }} />
+                  <p className="text-sm leading-relaxed flex-1" style={{ color: 'rgba(240,240,245,0.68)' }}>
+                    "{t.quote}"
+                  </p>
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: '#f0f0f5' }}>{t.name}</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'rgba(240,240,245,0.38)' }}>{t.role}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ─── SEPARATOR ─── */}
+        <div className="lp-separator" aria-hidden="true" />
+
+        {/* ─── PRICING ─── */}
+        <section className="px-4 sm:px-6 py-20" style={{ background: '#0a0a0f' }}>
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-10 lp-animate">
-              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2" style={{ color: '#fff', letterSpacing: '-0.02em' }}>
+              <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#818CF8', fontWeight: 600, marginBottom: '0.75rem' }}>
+                Pricing
+              </p>
+              <h2 className="font-bold mb-2" style={{ fontSize: 'clamp(1.75rem, 3vw, 2.5rem)', color: '#f0f0f5', letterSpacing: '-0.02em' }}>
                 Simple pricing
               </h2>
-              <p style={{ color: 'rgba(255,255,255,0.6)' }} className="max-w-md mx-auto">
+              <p style={{ color: 'rgba(240,240,245,0.45)' }} className="max-w-md mx-auto">
                 Start free, upgrade when you need more
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-4xl mx-auto">
               {/* Free */}
               <div
                 className="lp-animate flex flex-col p-6"
-                style={{ borderRadius: 24, background: 'rgba(255,255,255,0.07)', transitionDelay: '0ms' }}
+                style={{ borderRadius: 20, background: '#111118', border: '1px solid rgba(255,255,255,0.08)', transitionDelay: '0ms' }}
               >
-                <h3 className="text-base font-semibold mb-1" style={{ color: '#fff' }}>Free</h3>
-                <p className="text-3xl font-bold mb-1" style={{ color: '#fff' }}>$0<span className="text-sm font-normal" style={{ color: 'rgba(255,255,255,0.5)' }}>/mo</span></p>
-                <p className="text-sm mb-5" style={{ color: 'rgba(255,255,255,0.55)' }}>Perfect to get started</p>
+                <h3 className="text-base font-semibold mb-1" style={{ color: '#f0f0f5' }}>Free</h3>
+                <p className="text-3xl font-bold mb-1" style={{ color: '#f0f0f5' }}>$0<span className="text-sm font-normal" style={{ color: 'rgba(240,240,245,0.4)' }}>/mo</span></p>
+                <p className="text-xs mb-5" style={{ color: 'rgba(240,240,245,0.45)' }}>Perfect to get started</p>
                 <ul className="space-y-2.5 mb-7 flex-1">
                   {pricingFeatures.free.map((item) => (
-                    <li key={item} className="flex items-center gap-2.5 text-sm" style={{ color: 'rgba(255,255,255,0.8)' }}>
-                      <Check className="w-4 h-4 shrink-0" style={{ color: 'var(--lp-brand)' }} />
+                    <li key={item} className="flex items-center gap-2.5 text-sm" style={{ color: 'rgba(240,240,245,0.7)' }}>
+                      <Check className="w-4 h-4 shrink-0" style={{ color: '#6366F1' }} />
                       {item}
                     </li>
                   ))}
                 </ul>
                 <button
                   className="w-full h-11 rounded-xl text-sm font-semibold transition-all"
-                  style={{ border: '1.5px solid rgba(255,255,255,0.2)', color: '#fff', background: 'transparent' }}
+                  style={{ border: '1px solid rgba(255,255,255,0.15)', color: '#f0f0f5', background: 'transparent' }}
                   onClick={() => handleCTA('free')}
-                  aria-label="Get started with the Free plan"
                 >
                   Get Started
                 </button>
@@ -939,17 +849,17 @@ const Index = () => {
               {/* Pro */}
               <div
                 className="lp-animate flex flex-col p-6 relative"
-                style={{ borderRadius: 24, background: 'var(--lp-brand)', transitionDelay: '60ms' }}
+                style={{ borderRadius: 20, background: '#6366F1', border: '1px solid rgba(255,255,255,0.15)', transitionDelay: '60ms' }}
               >
                 <span
                   className="absolute -top-3 left-6 px-3 py-0.5 rounded-full text-xs font-semibold"
-                  style={{ background: '#fff', color: 'var(--lp-brand)' }}
+                  style={{ background: '#fff', color: '#6366F1' }}
                 >
                   Most Popular
                 </span>
                 <h3 className="text-base font-semibold mb-1" style={{ color: '#fff' }}>Pro</h3>
                 <p className="text-3xl font-bold mb-1" style={{ color: '#fff' }}>$9<span className="text-sm font-normal" style={{ color: 'rgba(255,255,255,0.6)' }}>/mo</span></p>
-                <p className="text-sm mb-5" style={{ color: 'rgba(255,255,255,0.65)' }}>For serious job seekers</p>
+                <p className="text-xs mb-5" style={{ color: 'rgba(255,255,255,0.65)' }}>For serious job seekers</p>
                 <ul className="space-y-2.5 mb-7 flex-1">
                   {pricingFeatures.pro.map((item) => (
                     <li key={item} className="flex items-center gap-2.5 text-sm" style={{ color: 'rgba(255,255,255,0.9)' }}>
@@ -960,9 +870,8 @@ const Index = () => {
                 </ul>
                 <button
                   className="w-full h-11 rounded-xl text-sm font-semibold transition-all"
-                  style={{ background: '#fff', color: 'var(--lp-brand)' }}
+                  style={{ background: '#fff', color: '#6366F1' }}
                   onClick={() => handleCTA('pro')}
-                  aria-label="Get started with the Pro plan"
                 >
                   Get Started
                 </button>
@@ -971,7 +880,7 @@ const Index = () => {
               {/* Premium */}
               <div
                 className="lp-animate flex flex-col p-6 relative"
-                style={{ borderRadius: 24, background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(245,158,11,0.35)', transitionDelay: '120ms' }}
+                style={{ borderRadius: 20, background: '#111118', border: '1px solid rgba(245,158,11,0.28)', transitionDelay: '120ms' }}
               >
                 <span
                   className="absolute -top-3 left-6 px-3 py-0.5 rounded-full text-xs font-semibold"
@@ -979,12 +888,12 @@ const Index = () => {
                 >
                   Power Users
                 </span>
-                <h3 className="text-base font-semibold mb-1" style={{ color: '#fff' }}>Premium</h3>
-                <p className="text-3xl font-bold mb-1" style={{ color: '#fff' }}>$19<span className="text-sm font-normal" style={{ color: 'rgba(255,255,255,0.5)' }}>/mo</span></p>
-                <p className="text-sm mb-5" style={{ color: 'rgba(255,255,255,0.55)' }}>For career professionals</p>
+                <h3 className="text-base font-semibold mb-1" style={{ color: '#f0f0f5' }}>Premium</h3>
+                <p className="text-3xl font-bold mb-1" style={{ color: '#f0f0f5' }}>$19<span className="text-sm font-normal" style={{ color: 'rgba(240,240,245,0.4)' }}>/mo</span></p>
+                <p className="text-xs mb-5" style={{ color: 'rgba(240,240,245,0.45)' }}>For career professionals</p>
                 <ul className="space-y-2.5 mb-7 flex-1">
                   {pricingFeatures.premium.map((item) => (
-                    <li key={item} className="flex items-center gap-2.5 text-sm" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                    <li key={item} className="flex items-center gap-2.5 text-sm" style={{ color: 'rgba(240,240,245,0.72)' }}>
                       <Check className="w-4 h-4 shrink-0" style={{ color: '#F59E0B' }} />
                       {item}
                     </li>
@@ -992,9 +901,8 @@ const Index = () => {
                 </ul>
                 <button
                   className="w-full h-11 rounded-xl text-sm font-semibold transition-all"
-                  style={{ border: '1.5px solid rgba(245,158,11,0.45)', color: '#F59E0B', background: 'transparent' }}
+                  style={{ border: '1px solid rgba(245,158,11,0.4)', color: '#F59E0B', background: 'transparent' }}
                   onClick={() => handleCTA('premium')}
-                  aria-label="Get started with the Premium plan"
                 >
                   Get Started
                 </button>
@@ -1003,45 +911,38 @@ const Index = () => {
           </div>
         </section>
 
-        {/* Install CTA */}
-        <section className="px-4 sm:px-6 py-16" style={{ background: 'var(--lp-bg)' }}>
-          <div className="max-w-6xl mx-auto">
-            <div
-              className="flex flex-col sm:flex-row items-center gap-5 p-6 max-w-lg mx-auto lp-animate"
-              style={{ borderRadius: 20, background: 'var(--lp-card-white)', boxShadow: '0 2px 16px rgba(26,26,46,0.07)', border: '1px solid rgba(26,26,46,0.08)' }}
-            >
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(79,70,229,0.1)' }}>
-                <Sparkles className="w-6 h-6" style={{ color: 'var(--lp-brand)' }} />
-              </div>
-              <div className="flex-1 text-center sm:text-left">
-                <h3 className="text-base font-semibold mb-0.5" style={{ color: 'var(--lp-text)' }}>Get the App</h3>
-                <p className="text-sm" style={{ color: 'var(--lp-text-muted)' }}>
-                  Install WiseResume for quick access — works like a native app.
-                </p>
-              </div>
-              <InstallButton className="w-full sm:w-auto" />
-            </div>
+        {/* ─── PWA INSTALL STRIP ─── */}
+        <section className="px-4 sm:px-6 py-10" style={{ background: '#0d0d14', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+          <div className="max-w-xl mx-auto text-center lp-animate">
+            <p className="font-semibold mb-1" style={{ color: '#f0f0f5' }}>Install WiseResume</p>
+            <p className="text-sm mb-4" style={{ color: 'rgba(240,240,245,0.45)' }}>Add to your home screen for a native app experience</p>
+            <InstallButton />
           </div>
         </section>
 
-        {/* Final CTA */}
+        {/* ─── FINAL CTA ─── */}
         {!isAuthenticated && (
-          <section className="px-4 sm:px-6 pb-0" style={{ background: 'var(--lp-brand-tint)' }}>
-            <div className="max-w-6xl mx-auto flex flex-col items-center text-center gap-5 max-w-lg mx-auto py-20 lp-animate">
-              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: 'var(--lp-text)', letterSpacing: '-0.02em' }}>
-                Ready to land your dream job?
+          <section className="px-4 sm:px-6 py-24 text-center" style={{ background: '#0a0a0f' }}>
+            <div className="max-w-2xl mx-auto lp-animate">
+              <h2
+                className="font-extrabold mb-4"
+                style={{ fontSize: 'clamp(2rem, 4.5vw, 3.25rem)', color: '#f0f0f5', letterSpacing: '-0.03em', lineHeight: 1.1 }}
+              >
+                Ready to land your<br />
+                <span className="lp-gradient-text">dream job?</span>
               </h2>
-              <p className="text-base" style={{ color: 'var(--lp-text-muted)' }}>
-                Your next opportunity is waiting — start building a resume that gets noticed.
+              <p className="mb-8" style={{ color: 'rgba(240,240,245,0.48)', fontSize: '1.05rem' }}>
+                Join thousands of job seekers who've transformed their career with WiseResume.
               </p>
               <button
                 onClick={handleCTA}
-                className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2 lp-cta-pulse"
-                style={{ background: 'var(--lp-brand)', color: '#fff' }}
+                className="h-13 px-10 text-base font-semibold rounded-xl inline-flex items-center gap-2.5 transition-all"
+                style={{ background: '#6366F1', color: '#fff', height: '3.25rem' }}
               >
                 Get Started Free
                 <ArrowRight className="w-4 h-4" />
               </button>
+              <p className="mt-5 text-xs" style={{ color: 'rgba(240,240,245,0.28)' }}>No credit card required · Free plan forever</p>
             </div>
           </section>
         )}
@@ -1049,20 +950,18 @@ const Index = () => {
         <Footer lpMode />
       </main>
 
-      {/* Dot navigation */}
-      <FeatureDotNav sectionIds={FEATURE_IDS} />
+      {/* Sticky CTA bar */}
+      <StickyCtaBar
+        heroRef={heroRef}
+        onGetStarted={handleCTA}
+        onSignIn={() => { triggerHaptic.light(); kindeLogin(); }}
+        lpMode
+      />
 
-      {/* Sticky bottom CTA bar */}
-      {!isAuthenticated && (
-        <StickyCtaBar
-          heroRef={heroRef}
-          onGetStarted={handleCTA}
-          onSignIn={() => { triggerHaptic.light(); kindeLogin(); }}
-          lpMode
-        />
+      {/* Quick tailor sheet */}
+      {isAuthenticated && (
+        <QuickTailorSheet open={tailorOpen} onOpenChange={setTailorOpen} />
       )}
-
-      <QuickTailorSheet open={tailorOpen} onOpenChange={setTailorOpen} />
     </div>
   );
 };

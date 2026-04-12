@@ -13,8 +13,8 @@ export function Footer({ lpMode }: FooterProps) {
       style={
         lpMode
           ? {
-              borderTop: '1px solid rgba(26,26,46,0.1)',
-              background: 'var(--lp-bg, #F5F0EB)',
+              borderTop: '1px solid rgba(255,255,255,0.07)',
+              background: '#0a0a0f',
               marginTop: 0,
             }
           : undefined
@@ -30,11 +30,11 @@ export function Footer({ lpMode }: FooterProps) {
 
         <div
           className="flex items-center gap-1.5 text-xs"
-          style={lpMode ? { color: 'rgba(26,26,46,0.5)' } : undefined}
+          style={lpMode ? { color: 'rgba(240,240,245,0.35)' } : undefined}
         >
           <ShieldCheck
             className="w-3.5 h-3.5"
-            style={lpMode ? { color: '#4F46E5' } : undefined}
+            style={lpMode ? { color: 'rgba(99,102,241,0.7)' } : undefined}
           />
           <span>Your data is encrypted and secure</span>
         </div>
@@ -45,7 +45,7 @@ export function Footer({ lpMode }: FooterProps) {
             className="transition-colors"
             style={
               lpMode
-                ? { color: 'rgba(26,26,46,0.5)' }
+                ? { color: 'rgba(240,240,245,0.35)' }
                 : undefined
             }
           >
@@ -53,14 +53,14 @@ export function Footer({ lpMode }: FooterProps) {
           </Link>
           <span
             className="w-px h-3"
-            style={lpMode ? { background: 'rgba(26,26,46,0.15)' } : undefined}
+            style={lpMode ? { background: 'rgba(255,255,255,0.1)' } : undefined}
           />
           <Link
             to="/terms-of-service"
             className="transition-colors"
             style={
               lpMode
-                ? { color: 'rgba(26,26,46,0.5)' }
+                ? { color: 'rgba(240,240,245,0.35)' }
                 : undefined
             }
           >
@@ -70,7 +70,7 @@ export function Footer({ lpMode }: FooterProps) {
 
         <p
           className="text-xs"
-          style={lpMode ? { color: 'rgba(26,26,46,0.4)' } : undefined}
+          style={lpMode ? { color: 'rgba(240,240,245,0.25)' } : undefined}
         >
           &copy; 2026 WiseResume &mdash; The Wise Cloud.
         </p>
