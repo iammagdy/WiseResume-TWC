@@ -635,7 +635,7 @@ const Index = () => {
             aria-label="WiseResume – scroll to top"
           >
             <img alt="WiseResume" loading="lazy" className="w-10 h-10 object-contain rounded-xl" src={themeLogo} />
-            <span className="font-display font-bold text-base tracking-tight" style={{ color: 'var(--lp-logo-text)' }}>WiseResume</span>
+            <span className="font-display font-extrabold text-base tracking-tight" style={{ color: 'var(--lp-logo-text)' }}>WiseResume</span>
           </button>
 
           <div className="flex items-center gap-2">
