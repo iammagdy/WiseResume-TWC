@@ -321,7 +321,7 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
 
   const handleSignIn = () => {
     onOpenChange(false);
-    navigate('/auth');
+    navigate('/auth?mode=login');
   };
 
   const handleSelectResume = (resume: typeof allResumes[0]) => {

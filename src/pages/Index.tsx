@@ -363,7 +363,7 @@ const Index = () => {
   const handleCTA = (plan?: string) => {
     triggerHaptic.medium();
     if (plan) {
-      navigate(`/auth?plan=${plan}`);
+      navigate(`/auth?mode=signup&plan=${plan}`);
     } else {
       kindeRegister();
     }
@@ -822,7 +822,7 @@ const Index = () => {
               </button>
             ) : (
               <button
-                onClick={handleCTA}
+                onClick={() => handleCTA()}
                 className={`h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2 transition-all ${ctaPulse ? 'lp-cta-pulse' : ''}`}
                 style={{ background: '#9E1B22', color: '#fff' }}
               >
@@ -1085,7 +1085,7 @@ const Index = () => {
                 Join thousands of professionals who've accelerated their career with WiseResume.
               </p>
               <button
-                onClick={handleCTA}
+                onClick={() => handleCTA()}
                 className="px-10 text-base font-semibold rounded-xl inline-flex items-center gap-2.5 transition-all"
                 style={{ background: '#9E1B22', color: '#fff', height: '3.25rem' }}
               >
