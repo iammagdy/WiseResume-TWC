@@ -2,6 +2,9 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, parseAIJSON, toUserError, sanitizeInputText } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
+import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
+import { deductCredits } from "../_shared/deductCredits.ts";
+import { getServiceClient } from "../_shared/dbClient.ts";
 
 interface ResumeData {
   contactInfo: { fullName: string; email: string; phone: string; location: string; linkedin?: string; portfolio?: string };
@@ -60,6 +63,15 @@ Deno.serve(async (req) => {
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const creditCheck = await checkUserCreditBalance(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'Insufficient AI credits. Add your own Gemini API key for unlimited access.' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const isByok = creditCheck.remaining === 9999;
 
     const bodyText = await req.text();
     if (bodyText.length > MAX_PAYLOAD_SIZE) {
@@ -135,6 +147,9 @@ Return ONLY a JSON object with this EXACT structure (no markdown, no code fences
     }
 
     await recordUsage(userId, 'one_page', { provider: aiResponse.providerUsed || 'unknown' });
+
+    // Atomically deduct credits server-side before returning results (cost=1 for one-page-optimizer)
+    await deductCredits(userId, 1, isByok, getServiceClient());
 
     return new Response(
       JSON.stringify({ success: true, ...result }),

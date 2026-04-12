@@ -5,6 +5,7 @@ import { callAIWithRetry, isAIError, parseAIJSON, sanitizeInputText, toUserError
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
+import { deductCredits } from "../_shared/deductCredits.ts";
 import { getProfileContext } from "../_shared/profileContext.ts";
 
 /** Safely extract skills as a comma-separated string */
@@ -483,27 +484,18 @@ Analyze deeply, then return this exact JSON structure:
 
     await recordUsage(userId, 'tailor', { provider: aiResponse.providerUsed || 'unknown' });
 
+    // Atomically deduct credits server-side before returning results (cost=2 for tailor)
+    const svcClient = getServiceClient();
+    await deductCredits(userId, 2, isByok, svcClient);
+
     // Fire-and-forget usage event insert
     try {
-      const svcClient = getServiceClient();
       svcClient.from('usage_events').insert({
         user_id: userId,
         event_type: 'ai.tailor_resume',
         metadata: { model: aiResponse.providerUsed || 'unknown' },
       }).then(() => {});
     } catch { /* non-critical */ }
-
-    // Decrement AI credit for non-BYOK users (fire-and-forget)
-    if (!isByok) {
-      try {
-        const svcClient = getServiceClient();
-        svcClient.rpc('increment_ai_usage', { p_user_id: userId }).catch((err: any) => {
-          console.error('[credit] increment_ai_usage failed for user:', userId, err);
-        });
-      } catch (err: any) {
-        console.error('[credit] increment_ai_usage failed for user:', userId, err);
-      }
-    }
 
     return new Response(
       JSON.stringify({ ...tailoredResult, _providerUsed: aiResponse.providerUsed || 'unknown' }),

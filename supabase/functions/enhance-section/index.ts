@@ -4,6 +4,8 @@ import { callAIWithRetry, isAIError, parseAIJSON, sanitizeInputText } from "../_
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
+import { deductCredits } from "../_shared/deductCredits.ts";
+import { getServiceClient } from "../_shared/dbClient.ts";
 
 // ============= SECURITY: Input validation limits =============
 const MAX_CONTENT_SIZE = 50 * 1024; // 50KB for current content
@@ -661,6 +663,7 @@ serve(async (req) => {
         { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    const isByok = creditCheck.remaining === 9999;
 
     const body = await req.json() as EnhanceRequest & { content?: string; instruction?: string; variants?: boolean };
     const section = body.section;
@@ -777,6 +780,9 @@ serve(async (req) => {
 
       await recordUsage(userId, 'enhance', { section, action, provider: providerUsed, variantsCount: variants.length });
 
+      // Atomically deduct credits server-side before returning results (cost=1 for enhance)
+      await deductCredits(userId, 1, isByok, getServiceClient());
+
       return new Response(JSON.stringify({
         variants,
         changes: representativeChanges,
@@ -819,6 +825,9 @@ serve(async (req) => {
 
     // Record usage for rate limiting — include which provider handled the request
     await recordUsage(userId, 'enhance', { section, action, provider: aiResponse.providerUsed || 'unknown' });
+
+    // Atomically deduct credits server-side before returning results (cost=1 for enhance)
+    await deductCredits(userId, 1, isByok, getServiceClient());
 
     const responseBody: Record<string, unknown> = { ...(enhancedContent as Record<string, unknown>) };
     responseBody._providerUsed = aiResponse.providerUsed || 'unknown';

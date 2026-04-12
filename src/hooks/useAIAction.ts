@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { toast } from 'sonner';
-import { useAICreditsMutations } from './useAICredits';
-import { getAICost } from '@/lib/aiCostEstimates';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from './useAuth';
 
 interface UseAIActionOptions {
   /** The operation type key from AI_COST_MAP (e.g. 'enhance', 'tailor') */
@@ -117,23 +117,19 @@ function parseErrorMessage(err: unknown): string {
 
 /**
  * Universal wrapper for all AI actions.
- * Handles: check credits → execute action → deduct credits → show feedback toast.
+ * Credits are now deducted atomically server-side inside each edge function.
+ * This hook only handles error display and cache invalidation after the call.
  *
  * Usage:
  *   const { execute } = useAIAction({ operation: 'tailor' });
  *   const result = await execute(async () => { ... });
  */
 export function useAIAction({ operation }: UseAIActionOptions) {
-  const { incrementUsage, checkCredits } = useAICreditsMutations();
-  const cost = getAICost(operation);
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const execute = useCallback(
     async <T>(action: () => Promise<T>): Promise<T | null> => {
-      // 1. Check credits
-      const hasCredits = await checkCredits();
-      if (!hasCredits) return null;
-
-      // 2. Execute
       let result: T;
       try {
         result = await action();
@@ -142,27 +138,16 @@ export function useAIAction({ operation }: UseAIActionOptions) {
         return null;
       }
 
-      // 3. Deduct — await each call sequentially to avoid race conditions
-      try {
-        for (let i = 0; i < cost; i++) {
-          await incrementUsage.mutateAsync();
-        }
-      } catch (deductErr) {
-        toast.error('Credits partially deducted — please contact support if this persists');
-        throw deductErr;
+      // Invalidate credits cache so the UI reflects the server-side deduction
+      if (user) {
+        queryClient.invalidateQueries({ queryKey: ['me'], refetchType: 'all' });
+        queryClient.invalidateQueries({ queryKey: ['ai-usage-breakdown'], refetchType: 'all' });
       }
-
-      // 4. Feedback toast — only show after all deductions are confirmed
-      toast.success(`${cost} credit${cost > 1 ? 's' : ''} used`, {
-        description: `AI ${operation} completed`,
-        duration: 2500,
-        icon: '⚡',
-      });
 
       return result;
     },
-    [checkCredits, incrementUsage, cost, operation],
+    [queryClient, user, operation],
   );
 
-  return { execute, cost };
+  return { execute };
 }

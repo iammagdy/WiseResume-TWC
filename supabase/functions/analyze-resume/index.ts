@@ -4,6 +4,7 @@ import { callAIWithRetry, isAIError, parseAIJSON, sanitizeInputText, toUserError
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
+import { deductCredits } from "../_shared/deductCredits.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { INDUSTRY_KEYWORDS, detectIndustryCategory } from "../_shared/industryKeywords.ts";
 import { getProfileContext } from "../_shared/profileContext.ts";
@@ -172,18 +173,10 @@ Provide analysis in this exact JSON format:
       );
     }
 
-    if (!isByok) {
-      try {
-        const svcClient = getServiceClient();
-        svcClient.rpc('increment_ai_usage', { p_user_id: userId }).catch((err: any) => {
-          console.error('[credit] increment_ai_usage failed for user:', userId, err);
-        });
-      } catch (err) {
-        console.error('[credit] increment_ai_usage failed for user:', userId, err);
-      }
-    }
-
     await recordUsage(userId, 'analyze', { provider: aiResponse.providerUsed || 'unknown' });
+
+    // Atomically deduct credits server-side before returning results (cost=1 for analyze)
+    await deductCredits(userId, 1, isByok, getServiceClient());
 
     return new Response(
       JSON.stringify({ ...analysisResult as Record<string, unknown>, _providerUsed: aiResponse.providerUsed || 'unknown' }),

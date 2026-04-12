@@ -1,8 +1,6 @@
 import { useQueryClient, useMutation } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from './useAuth';
 import { useMe } from './useMe';
-import { toast } from 'sonner';
 import { useSettingsStore } from '@/store/settingsStore';
 
 export interface AICredits {
@@ -149,49 +147,22 @@ export function useAICredits() {
   };
 }
 
+/**
+ * Provides a no-op `incrementUsage` mutation that only invalidates the credits
+ * cache. Credit deduction is now handled atomically server-side inside each
+ * edge function — the client must NOT call `increment_ai_usage` directly.
+ *
+ * `checkCredits` is kept for legacy callers but should be phased out; the
+ * authoritative credit check now lives in the edge function itself.
+ */
 export function useAICreditsMutations() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const isByokProvider = (): boolean => {
-    const { aiProvider, geminiKeyValidated, ollamaKeyValidated, openaiKeyValidated, anthropicKeyValidated, groqKeyValidated, mistralKeyValidated, xaiKeyValidated, cohereKeyValidated, openrouterKeyValidated } = useSettingsStore.getState();
-    return (
-      (aiProvider === 'gemini' && geminiKeyValidated) ||
-      (aiProvider === 'ollama' && ollamaKeyValidated) ||
-      (aiProvider === 'openai' && openaiKeyValidated) ||
-      (aiProvider === 'anthropic' && anthropicKeyValidated) ||
-      (aiProvider === 'groq' && groqKeyValidated) ||
-      (aiProvider === 'mistral' && mistralKeyValidated) ||
-      (aiProvider === 'xai' && xaiKeyValidated) ||
-      (aiProvider === 'cohere' && cohereKeyValidated) ||
-      (aiProvider === 'openrouter' && openrouterKeyValidated)
-    );
-  };
-
-  const logUsageOnly = async (): Promise<void> => {
-    if (!user) return;
-    const { error } = await supabase.rpc('increment_ai_usage', {
-      p_user_id: user.id,
-      p_skip_limit_check: true,
-    });
-    if (error) {
-      console.warn('[useAICredits] logUsageOnly failed (non-fatal):', error);
-    }
-  };
-
+  // No-op mutation: just invalidates cache so the UI refreshes after an AI call.
   const incrementUsage = useMutation({
     mutationFn: async () => {
-      if (!user) throw new Error('Not authenticated');
-      if (isByokProvider()) {
-        await logUsageOnly();
-        return;
-      }
-
-      const { error } = await supabase.rpc('increment_ai_usage', {
-        p_user_id: user.id,
-      });
-
-      if (error) throw error;
+      // Credit deduction is handled server-side. Nothing to do here.
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['me'], refetchType: 'all' });
@@ -212,26 +183,9 @@ export function useAICreditsMutations() {
     if (aiProvider === 'cohere' && cohereKeyValidated) return true;
     if (aiProvider === 'openrouter' && openrouterKeyValidated) return true;
 
-    // Use cached 'me' data, but fetch fresh if the cache is cold to avoid
-    // bypassing credit checks before the initial query hydrates.
+    // Use cached 'me' data for a fast optimistic check (server will enforce the hard limit)
     type MeCacheShape = { ai_credits: { daily_usage: number; daily_limit: number; usage_date: string } | null } | null;
-    let cached = queryClient.getQueryData<MeCacheShape>(['me', user.id]);
-    if (cached === undefined) {
-      try {
-        cached = await queryClient.fetchQuery<MeCacheShape>({
-          queryKey: ['me', user.id],
-          queryFn: async () => {
-            const { edgeFunctions } = await import('@/integrations/supabase/edgeFunctions');
-            const { data, error } = await edgeFunctions.functions.invoke('me', { body: {} });
-            if (error) throw new Error(error.message ?? 'Failed to fetch credits');
-            return data as MeCacheShape;
-          },
-          staleTime: 5 * 1000,
-        });
-      } catch {
-        return true;
-      }
-    }
+    const cached = queryClient.getQueryData<MeCacheShape>(['me', user.id]);
 
     const data = (cached as { ai_credits?: { daily_usage: number; daily_limit: number; usage_date: string } | null } | null)?.ai_credits ?? null;
 
@@ -243,13 +197,7 @@ export function useAICreditsMutations() {
     if (data.usage_date !== today) return true;
 
     if ((data.daily_usage || 0) >= (data.daily_limit || 5)) {
-      toast.error('Daily AI credit limit reached. Try again tomorrow or upgrade your plan!');
       return false;
-    }
-
-    const remaining = (data.daily_limit || 5) - (data.daily_usage || 0);
-    if (remaining <= 2) {
-      toast.warning(`Only ${remaining} AI credit${remaining === 1 ? '' : 's'} remaining today`);
     }
 
     return true;

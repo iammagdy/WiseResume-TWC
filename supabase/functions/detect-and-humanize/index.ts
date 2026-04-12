@@ -2,6 +2,9 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
+import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
+import { deductCredits } from "../_shared/deductCredits.ts";
+import { getServiceClient } from "../_shared/dbClient.ts";
 
 interface DetectAndHumanizeRequest {
   text: string;
@@ -34,6 +37,15 @@ Deno.serve(async (req) => {
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const creditCheck = await checkUserCreditBalance(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'Insufficient AI credits. Add your own Gemini API key for unlimited access.' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const isByok = creditCheck.remaining === 9999;
 
     const { text, action, tone = 'professional' }: DetectAndHumanizeRequest = await req.json();
 
@@ -130,6 +142,9 @@ Return a JSON object:
     }
 
     await recordUsage(userId, 'detect_humanize', { provider: lastProviderUsed || 'unknown' });
+
+    // Atomically deduct credits server-side before returning results (cost=1 for detect-and-humanize)
+    await deductCredits(userId, 1, isByok, getServiceClient());
 
     return new Response(
       JSON.stringify({ success: true, ...result, _providerUsed: lastProviderUsed || 'unknown' }),

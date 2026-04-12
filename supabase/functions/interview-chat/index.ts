@@ -3,6 +3,9 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAIWithRetry, isAIError, parseAIJSON, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
+import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
+import { deductCredits } from "../_shared/deductCredits.ts";
+import { getServiceClient } from "../_shared/dbClient.ts";
 
 const safeSkillsString = (skills: any[] | undefined): string =>
   (skills || []).map((s: any) => (typeof s === 'string' ? s : s?.name || '')).filter(Boolean).join(', ');
@@ -30,6 +33,15 @@ serve(async (req) => {
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const creditCheck = await checkUserCreditBalance(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'Insufficient AI credits. Add your own Gemini API key for unlimited access.' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const isByok = creditCheck.remaining === 9999;
 
     const { messages, resumeData, jobDescription, endInterview, analyzeRole, quickPractice } = await req.json();
 
@@ -108,6 +120,9 @@ Return JSON with this exact structure: {"title":"exact job title","keySkills":["
 
       // Fix #7: Record usage for analyzeRole path
       await recordUsage(userId, 'interview', { provider: aiResponse.providerUsed || 'unknown' });
+
+      // Atomically deduct credits server-side before returning results (cost=1 for interview)
+      await deductCredits(userId, 1, isByok, getServiceClient());
 
       return new Response(JSON.stringify({ reply: "Role analyzed", roleAnalysis }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -212,6 +227,9 @@ Do not include markdown blocks globally. Ensure the output is valid JSON.`;
     const scoreData = parsed?.score || null;
 
     await recordUsage(userId, 'interview', { provider: aiResponse.providerUsed || 'unknown' });
+
+    // Atomically deduct credits server-side before returning results (cost=1 for interview)
+    await deductCredits(userId, 1, isByok, getServiceClient());
 
     return new Response(JSON.stringify({ reply: replyText, score: scoreData }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

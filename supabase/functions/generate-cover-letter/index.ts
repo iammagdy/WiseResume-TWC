@@ -4,6 +4,7 @@ import { callAIWithRetry, isAIError, sanitizeInputText, toUserError } from "../_
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
+import { deductCredits } from "../_shared/deductCredits.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 
 const safeSkillsString = (skills: any[] | undefined): string =>
@@ -144,22 +145,10 @@ ${jobDescription}
     const coverLetter = aiResponse.content;
     if (!coverLetter) throw new Error("No content in AI response");
 
-    if (!isByok) {
-      // Cover letters cost 2 credits
-      try {
-        const svcClient = getServiceClient();
-        svcClient.rpc('increment_ai_usage', { p_user_id: userId }).catch((err: any) => {
-          console.error('[credit] increment_ai_usage 1/2 failed for user:', userId, err);
-        });
-        svcClient.rpc('increment_ai_usage', { p_user_id: userId }).catch((err: any) => {
-          console.error('[credit] increment_ai_usage 2/2 failed for user:', userId, err);
-        });
-      } catch (err) {
-        console.error('[credit] increment_ai_usage failed for user:', userId, err);
-      }
-    }
-
     await recordUsage(userId, 'cover_letter', { provider: aiResponse.providerUsed || 'unknown' });
+
+    // Atomically deduct credits server-side before returning results (cost=2 for cover letter)
+    await deductCredits(userId, 2, isByok, getServiceClient());
 
     return new Response(
       JSON.stringify({ coverLetter, _providerUsed: aiResponse.providerUsed || 'unknown' }),
