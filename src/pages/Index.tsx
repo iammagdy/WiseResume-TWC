@@ -407,6 +407,8 @@ const Index = () => {
           --lp-toggle-bg: rgba(255,255,255,0.07);
           --lp-toggle-border: rgba(255,255,255,0.1);
           --lp-toggle-color: rgba(255,255,255,0.55);
+          --lp-brand-pill-bg: rgba(158,27,34,0.1);
+          --lp-brand-pill-border: rgba(158,27,34,0.28);
           background: var(--lp-bg);
           color: var(--lp-text);
           transition: background 0.3s ease, color 0.3s ease;
@@ -439,6 +441,8 @@ const Index = () => {
           --lp-toggle-bg: rgba(0,0,0,0.05);
           --lp-toggle-border: rgba(0,0,0,0.1);
           --lp-toggle-color: rgba(15,15,26,0.55);
+          --lp-brand-pill-bg: rgba(158,27,34,0.07);
+          --lp-brand-pill-border: rgba(158,27,34,0.2);
         }
 
         .lp-root * { font-style: normal !important; }
@@ -628,8 +632,8 @@ const Index = () => {
             className="flex items-center gap-2.5 touch-manipulation"
             aria-label="WiseResume – scroll to top"
           >
-            <img alt="WiseResume" loading="lazy" className="w-8 h-8 object-contain rounded-lg" src={themeLogo} />
-            <span className="font-display font-bold text-sm" style={{ color: 'var(--lp-logo-text)' }}>WiseResume</span>
+            <img alt="WiseResume" loading="lazy" className="w-10 h-10 object-contain rounded-xl" src={themeLogo} />
+            <span className="font-display font-bold text-base tracking-tight" style={{ color: 'var(--lp-logo-text)' }}>WiseResume</span>
           </button>
 
           <div className="flex items-center gap-2">
@@ -725,6 +729,32 @@ const Index = () => {
               transition: 'background 0.3s ease',
             }}
           />
+
+          {/* Brand pill */}
+          <div
+            className="relative z-10 flex items-center gap-2 px-4 py-1.5 rounded-full mb-6"
+            style={{
+              background: 'var(--lp-brand-pill-bg, rgba(158,27,34,0.08))',
+              border: '1px solid var(--lp-brand-pill-border, rgba(158,27,34,0.22))',
+              boxShadow: '0 0 18px 0 rgba(158,27,34,0.13)',
+            }}
+          >
+            <img
+              alt=""
+              aria-hidden="true"
+              src={themeLogo}
+              className="w-5 h-5 object-contain rounded-md"
+            />
+            <span
+              className="font-display font-semibold tracking-tight"
+              style={{
+                fontSize: '0.85rem',
+                color: 'var(--lp-eyebrow)',
+              }}
+            >
+              WiseResume
+            </span>
+          </div>
 
           {/* Eyebrow */}
           <p
