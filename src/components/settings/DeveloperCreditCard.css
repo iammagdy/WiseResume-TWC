@@ -21,7 +21,6 @@
   position: absolute;
   width: 8px;
   height: 8px;
-  animation: dev-sparkle 2s ease-in-out infinite;
 }
 
 .dev-sparkle::before,
@@ -52,6 +51,12 @@
 .dev-sparkle:nth-child(3) { bottom: 20%; left: -10px; animation-delay: 1s; }
 .dev-sparkle:nth-child(4) { bottom: 0; right: 25%; animation-delay: 1.5s; }
 
+@media (prefers-reduced-motion: no-preference) {
+  .dev-sparkle {
+    animation: dev-sparkle 2s ease-in-out infinite;
+  }
+}
+
 @keyframes dev-sparkle {
   0%, 100% { opacity: 0; transform: scale(0) rotate(0deg); }
   50% { opacity: 1; transform: scale(1) rotate(180deg); }
@@ -65,11 +70,9 @@
   border-radius: 1.25rem;
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.4) 0%,
-    rgba(255, 255, 255, 0.2) 100%
+    rgba(255, 255, 255, 0.15) 0%,
+    rgba(255, 255, 255, 0.08) 100%
   );
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(0, 0, 0, 0.1);
   overflow: hidden;
   transform-style: preserve-3d;
@@ -103,10 +106,16 @@
     transparent 60%
   );
   background-size: 250% 100%;
-  animation: dev-sweep 5s ease-in-out infinite;
+  background-position: 200% center;
   pointer-events: none;
   border-radius: inherit;
   z-index: 2;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dev-holo-sweep {
+    animation: dev-sweep 5s ease-in-out infinite;
+  }
 }
 
 @keyframes dev-sweep {
@@ -125,7 +134,12 @@
 .dev-particles span {
   position: absolute;
   border-radius: 50%;
-  animation: dev-float ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dev-particles span {
+    animation: dev-float ease-in-out infinite;
+  }
 }
 
 .dev-particles span:nth-child(1) { width: 4px; height: 4px; top: 15%; left: 8%; background: hsl(var(--primary) / 0.6); animation-duration: 5s; }
@@ -190,9 +204,14 @@
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: dev-name-shimmer 3s linear infinite;
   line-height: 1.3;
   filter: drop-shadow(0 0 6px hsl(var(--primary) / 0.4));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dev-name {
+    animation: dev-name-shimmer 3s linear infinite;
+  }
 }
 
 @keyframes dev-name-shimmer {

@@ -19,7 +19,7 @@ interface DeveloperCreditCardProps {
 
 const containerVariants = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.15 } }
+  visible: { transition: { staggerChildren: 0.15, duration: 0.3 } }
 };
 
 const itemVariants = {
@@ -53,8 +53,8 @@ export function DeveloperCreditCard({
       className="dev-card-wrapper"
       initial={{ opacity: 0, y: 30, scale: 0.97 }}
       whileInView={{ opacity: 1, y: 0, scale: 1 }}
-      viewport={{ once: true, amount: 0.3, margin: "200px 0px 0px 0px" }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
+      viewport={{ once: true, amount: 0.8 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
       style={{ willChange: "transform" }}>
       
       {/* Sparkle elements */}
@@ -79,7 +79,7 @@ export function DeveloperCreditCard({
             variants={containerVariants}
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, amount: 0.3 }}>
+            viewport={{ once: true, amount: 0.8 }}>
             
             <div className="flex flex-col gap-3 w-full">
               {/* Top section: avatar + info */}

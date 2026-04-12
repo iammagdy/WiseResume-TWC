@@ -157,9 +157,18 @@ const ElectricBorder: React.FC<ElectricBorderProps> = ({
 
     let { width, height } = updateSize();
 
+    const FRAME_INTERVAL = 100; // ~10fps throttle
+
     const drawElectricBorder = (currentTime: number) => {
       if (!canvas || !ctx) return;
-      const deltaTime = (currentTime - lastFrameTimeRef.current) / 1000;
+      const elapsed = currentTime - lastFrameTimeRef.current;
+      if (elapsed < FRAME_INTERVAL) {
+        if (animationRef.current !== null) {
+          animationRef.current = requestAnimationFrame(drawElectricBorder);
+        }
+        return;
+      }
+      const deltaTime = elapsed / 1000;
       timeRef.current += deltaTime * speed;
       lastFrameTimeRef.current = currentTime;
 
@@ -218,7 +227,7 @@ const ElectricBorder: React.FC<ElectricBorderProps> = ({
       animationRef.current = null;
     };
 
-    // Pause the canvas loop when off-screen, resume when visible
+    // Pause the canvas loop when off-screen, resume only when fully in viewport
     const intersectionObserver = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
@@ -227,7 +236,7 @@ const ElectricBorder: React.FC<ElectricBorderProps> = ({
           stopLoop();
         }
       },
-      { threshold: 0 }
+      { threshold: 1.0 }
     );
     intersectionObserver.observe(container);
 
