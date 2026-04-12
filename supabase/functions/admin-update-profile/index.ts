@@ -1,4 +1,5 @@
 import { getServiceClient } from '../_shared/dbClient.ts';
+import { requireAdminAuth } from '../_shared/adminAuth.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,14 +12,6 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const SECRET_PASSWORD = Deno.env.get('DEV_KIT_PASSWORD');
-  if (!SECRET_PASSWORD) {
-    return new Response(
-      JSON.stringify({ success: false, error: 'Admin functions are not configured' }),
-      { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-
   try {
     const body = await req.json();
     const { password, target_user_id, full_name, username, actor_email } = body as {
@@ -29,18 +22,11 @@ Deno.serve(async (req) => {
       actor_email?: string;
     };
 
-    if (!password) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Password required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (password !== SECRET_PASSWORD) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    try {
+      await requireAdminAuth(req, password);
+    } catch (authErr) {
+      if (authErr instanceof Response) return authErr;
+      throw authErr;
     }
 
     if (!target_user_id) {

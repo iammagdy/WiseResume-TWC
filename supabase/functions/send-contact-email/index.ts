@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -87,6 +88,18 @@ Deno.serve(async (req) => {
       const { data: { user } } = await supabaseAdmin.auth.getUser(authHeader.replace("Bearer ", ""));
       if (user) userId = user.id;
     }
+
+    // Per-user/IP rate limiting (5 requests per 5 minutes)
+    // Use verified user ID when authenticated, otherwise fall back to caller IP
+    const rateLimitKey = userId ?? clientIp;
+    const { allowed: rlAllowed } = await checkRateLimit(rateLimitKey, { actionType: 'contact_email', maxRequests: 5, windowSeconds: 300 });
+    if (!rlAllowed) {
+      return new Response(
+        JSON.stringify({ error: "Too many requests. Please wait 5 minutes before sending another message." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    await recordUsage(rateLimitKey, 'contact_email');
 
     // Save to DB first — always, even if email sending fails
     const { data: insertedRow, error: dbError } = await supabaseAdmin

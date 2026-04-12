@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -42,26 +43,38 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    let resolvedUserId = user_id;
+    let resolvedUserId: string | null = null;
     let resolvedEmail = user_email || "anonymous";
 
     const authHeader = req.headers.get("Authorization");
     if (authHeader?.startsWith("Bearer ")) {
-      const token = authHeader.replace("Bearer ", "");
       try {
-        const parts = token.split(".");
-        if (parts.length === 3) {
-          const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-          const json = atob(b64.padEnd(b64.length + (4 - b64.length % 4) % 4, "="));
-          const claims = JSON.parse(json);
-          if (claims.sub) {
-            resolvedUserId = resolvedUserId || claims.sub;
-            resolvedEmail = resolvedEmail === "anonymous" ? (claims.email || resolvedEmail) : resolvedEmail;
-          }
+        const { data: { user } } = await supabaseAdmin.auth.getUser(authHeader.replace("Bearer ", ""));
+        if (user) {
+          resolvedUserId = user.id;
+          resolvedEmail = resolvedEmail === "anonymous" ? (user.email || resolvedEmail) : resolvedEmail;
         }
       } catch { /* ignore */ }
     }
 
+    // Determine rate limit key: verified user ID when authenticated, otherwise caller IP
+    const callerIp = req.headers.get("x-forwarded-for") ?? req.headers.get("cf-connecting-ip") ?? "unknown";
+    const rateLimitKey = resolvedUserId ?? callerIp;
+
+    if (rateLimitKey === "unknown" && !resolvedUserId) {
+      console.warn("[send-feature-request] Could not determine caller identity for rate limiting");
+    }
+
+    const { allowed } = await checkRateLimit(rateLimitKey, { actionType: 'feature_request', maxRequests: 5, windowSeconds: 300 });
+    if (!allowed) {
+      return new Response(
+        JSON.stringify({ error: "Too many requests. Please wait 5 minutes before sending another feature request." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    await recordUsage(rateLimitKey, 'feature_request');
+
+    // Require authentication to proceed (after rate limit check to count attempts)
     if (!resolvedUserId) {
       return new Response(
         JSON.stringify({ error: "Authentication required" }),

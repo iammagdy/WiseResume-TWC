@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { callAI } from "../_shared/aiClient.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
+import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get("origin"));
@@ -12,6 +13,14 @@ serve(async (req) => {
   try {
     const { userId, client } = await requireAuth(req);
     console.log('Authenticated user:', userId);
+
+    const { allowed } = await checkRateLimit(userId, { actionType: 'generate_headshot', maxRequests: 10, windowSeconds: 60 });
+    if (!allowed) {
+      return new Response(
+        JSON.stringify({ error: "Rate limit exceeded. Please wait before generating another headshot." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const { imageBase64 } = await req.json();
 
@@ -101,6 +110,8 @@ serve(async (req) => {
 
     const generatedImageUrl = `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
     console.log("Professional headshot generated successfully");
+
+    await recordUsage(userId, 'generate_headshot');
 
     return new Response(
       JSON.stringify({ imageUrl: generatedImageUrl }),

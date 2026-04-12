@@ -1,6 +1,7 @@
 import { callAI, sanitizeInputText } from '../_shared/aiClient.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
+import { checkRateLimit, recordUsage } from '../_shared/rateLimiter.ts';
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
@@ -18,6 +19,15 @@ Deno.serve(async (req) => {
     } catch (authErr) {
       return authErrorResponse(authErr, req.headers.get('origin'));
     }
+
+    const { allowed } = await checkRateLimit(userId, { actionType: 'portfolio_bio', maxRequests: 20, windowSeconds: 60 });
+    if (!allowed) {
+      return new Response(
+        JSON.stringify({ error: 'Rate limit exceeded. Please wait before generating more bio content.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    await recordUsage(userId, 'portfolio_bio');
 
     const body = await req.json();
     const { action = 'bio', summary, fullName, jobTitle, experience, skills, careerLevel } = body;
