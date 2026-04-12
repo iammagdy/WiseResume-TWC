@@ -118,6 +118,7 @@ export function regenerateResumeIds(data: ResumeData): ResumeData {
     volunteering: data.volunteering?.map(v => ({ ...v, id: crypto.randomUUID() })) || [],
     hobbies: data.hobbies?.map(h => ({ ...h, id: crypto.randomUUID() })) || [],
     references: data.references?.map(r => ({ ...r, id: crypto.randomUUID() })) || [],
+    languages: data.languages?.map(l => ({ ...l, id: crypto.randomUUID() })) || [],
   };
 }
 

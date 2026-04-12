@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useScrollFade } from '@/hooks/useScrollFade';
 import { useShallow } from 'zustand/react/shallow';
 import { motion } from 'framer-motion';
 import { Target, Sparkles, AlertCircle, CheckCircle, TrendingUp } from 'lucide-react';
@@ -22,6 +23,7 @@ interface JobAnalysisSheetProps {
 
 export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) {
   const { execute } = useAIAction({ operation: 'analyze' });
+  const scrollRef = useScrollFade<HTMLDivElement>();
 
   useEffect(() => {
     if (open) { activityTracker.setActiveFeature('Job Match Analysis'); }
@@ -112,7 +114,7 @@ export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) 
           <AIProviderVia className="mt-0.5" />
         </SheetHeader>
 
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-20 ai-output-scroll-fade">
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-20 ai-output-scroll-fade">
           {/* Job Description Input */}
           <div>
             <label className="text-sm font-medium mb-2 block">
@@ -143,6 +145,24 @@ export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) 
               </>
             )}
           </Button>
+
+          {/* Skeleton while analyzing */}
+          {isAnalyzing && !matchScore && (
+            <div className="space-y-4 animate-pulse">
+              <div className="p-6 rounded-2xl bg-card border border-border text-center">
+                <div className="h-4 w-24 bg-muted rounded mx-auto mb-3" />
+                <div className="h-12 w-20 bg-muted rounded mx-auto" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {[0, 1, 2, 3].map(i => (
+                  <div key={i} className="p-3 rounded-xl bg-card border border-border">
+                    <div className="h-3 w-20 bg-muted rounded mb-2" />
+                    <div className="h-2 bg-muted rounded" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Results */}
           {matchScore && (

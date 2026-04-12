@@ -158,6 +158,10 @@ function AppRoutes() {
     }
   });
 
+  // Theme persistence: settingsStore persists `theme` to localStorage via Zustand persist
+  // (key: 'wiseresume-settings'). On startup, Zustand hydrates from localStorage first.
+  // When theme === 'system', the resolved value falls back to matchMedia system preference.
+  // No additional localStorage read is needed — the store already handles localStorage-first behavior.
   const theme = useSettingsStore((s) => s.theme);
   useEffect(() => {
     if (!isBrowser) return;

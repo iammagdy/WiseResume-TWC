@@ -158,7 +158,7 @@ export function usePublicPortfolio(username: string | undefined) {
     queryKey: ['public-portfolio', username],
     queryFn: () => fetchPublicPortfolio(username!),
     enabled: !!username,
-    staleTime: 30 * 1000,
-    gcTime: 30 * 60 * 1000,
+    staleTime: 0,
+    gcTime: 5 * 60 * 1000,
   });
 }

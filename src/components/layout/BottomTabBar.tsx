@@ -18,7 +18,7 @@ const moreItems = [
   { icon: Globe, label: 'Portfolio', path: '/portfolio', iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-600 dark:text-emerald-400' },
   { icon: QrCode, label: 'QR Code', path: '/qr-code', iconBg: 'bg-violet-500/10', iconColor: 'text-violet-600 dark:text-violet-400' },
   { icon: Bell, label: 'Notifications', path: '/notifications', iconBg: 'bg-blue-500/10', iconColor: 'text-blue-600 dark:text-blue-400' },
-  { icon: TrendingUp, label: 'Analytics', path: '/analytics', iconBg: 'bg-indigo-500/10', iconColor: 'text-indigo-600 dark:text-indigo-400' },
+  { icon: TrendingUp, label: 'Analytics', path: '/analytics', iconBg: 'bg-rose-500/10', iconColor: 'text-rose-600 dark:text-rose-400' },
   { icon: Trophy, label: 'Achievements', path: '/achievements', iconBg: 'bg-amber-500/10', iconColor: 'text-amber-600 dark:text-amber-400' },
   { icon: Users, label: 'Referral', path: '/referral', iconBg: 'bg-pink-500/10', iconColor: 'text-pink-600 dark:text-pink-400' },
   { icon: HelpCircle, label: 'Help', path: '/help', iconBg: 'bg-muted', iconColor: 'text-muted-foreground' },

@@ -1,6 +1,6 @@
-import { useState, memo, useCallback, useMemo, lazy, Suspense } from 'react';
+import { useState, memo, useCallback, lazy, Suspense } from 'react';
 
-import { Plus, Briefcase, Linkedin, Sparkles } from 'lucide-react';
+import { Plus, Briefcase, Linkedin, Sparkles, MoreHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
 import { Experience } from '@/types/resume';
@@ -16,7 +16,14 @@ import { GapInfo } from '@/lib/dateUtils';
 import { SectionEmptyState } from './SectionEmptyState';
 import { experienceExample } from '@/lib/emptyStateExamples';
 import { ExperienceItem } from './ExperienceItem';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 const BoostAllExperienceSheet = lazy(() => import('./BoostAllExperienceSheet').then(m => ({ default: m.BoostAllExperienceSheet })));
+const LinkedInOptimizerSheet = lazy(() => import('./ai/LinkedInOptimizerSheet').then(m => ({ default: m.LinkedInOptimizerSheet })));
 
 export const ExperienceSection = memo(function ExperienceSection() {
   const experience = useResumeStore(state => state.currentResume?.experience);
@@ -27,6 +34,7 @@ export const ExperienceSection = memo(function ExperienceSection() {
   const [enhancingExpId, setEnhancingExpId] = useState<string | null>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [originalDescription, setOriginalDescription] = useState('');
+  const [showLinkedIn, setShowLinkedIn] = useState(false);
 
   const [improvedEntry, setImprovedEntry] = useState<{
     description?: string;
@@ -84,6 +92,22 @@ export const ExperienceSection = memo(function ExperienceSection() {
     setExpandedId(newExp.id);
   };
 
+  const useExampleEntry = () => {
+    const rangeParts = experienceExample.dateRange.split(/[\s–\-]+/);
+    const exampleExp: Experience = {
+      id: uuidv4(),
+      company: experienceExample.company,
+      position: experienceExample.position,
+      startDate: rangeParts[0] || '',
+      endDate: rangeParts[1] && rangeParts[1] !== 'Present' ? rangeParts[1] : '',
+      current: experienceExample.dateRange.toLowerCase().includes('present'),
+      description: '',
+      achievements: experienceExample.bullets,
+    };
+    updateResume({ experience: [...experience, exampleExp] });
+    setExpandedId(exampleExp.id);
+  };
+
   const updateExperience = useCallback((id: string, updates: Partial<Experience>) => {
     updateResume({
       experience: experience.map((exp) =>
@@ -127,7 +151,6 @@ export const ExperienceSection = memo(function ExperienceSection() {
     );
     
     if (enhanceResult) {
-      // The edge function returns improved as an array — extract the matching entry
       const improved = enhanceResult.improved;
       let entry: Record<string, unknown> | null = null;
       if (Array.isArray(improved)) {
@@ -150,13 +173,6 @@ export const ExperienceSection = memo(function ExperienceSection() {
     setShowGapFiller(true);
   }, []);
 
-  // Use a map of callbacks, or just rely on a new ExperienceItem component to keep it clean.
-  // Actually, extracting to ExperienceItem is the cleanest approach.
-  // We'll leave the InlineAIButton and AIContextualNudge callbacks as simple closures for now,
-  // but wait! If we do that, we lose memoization.
-  // We will create a stable callback that takes the experience ID and then calls the main function.
-  // But wait! `handleAIAction` needs `exp`, not just `id`. We can find `exp` from `id`.
-
   const handleAIActionById = useCallback(async (actionId: string, expId: string) => {
     const exp = experience.find(e => e.id === expId);
     if (exp) {
@@ -173,15 +189,6 @@ export const ExperienceSection = memo(function ExperienceSection() {
     dismissNudge(trigger);
   }, [dismissNudge]);
 
-  const handleHeaderAction = async (actionId: string) => {
-    if (experience.length > 0) {
-      const firstExp = experience[0];
-      await handleAIAction(actionId, firstExp);
-    } else {
-      addExperience();
-    }
-  };
-
   const handleNudgeAction = () => {
     if (nudge) {
       if (experience.length === 0) {
@@ -196,19 +203,39 @@ export const ExperienceSection = memo(function ExperienceSection() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-end gap-2">
+      <div className="flex items-center justify-end gap-2 flex-wrap">
+        {/* Overflow menu for import/example — always visible */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="gap-1.5 min-h-[44px] min-w-[44px] px-2">
+              <MoreHorizontal className="w-4 h-4" />
+              <span className="sr-only">More actions</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setShowLinkedIn(true)}>
+              <Linkedin className="w-4 h-4 mr-2" />
+              Import from LinkedIn
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={useExampleEntry}>
+              <Briefcase className="w-4 h-4 mr-2" />
+              Use Example Entry
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         {experience.length > 0 && (
           <Button
             variant="outline"
             size="sm"
             onClick={() => setShowBoostAll(true)}
-            className="gap-1.5 w-full sm:w-auto min-h-[56px] sm:min-h-0 border-primary/30 text-primary hover:bg-primary/5"
+            className="gap-1.5 min-h-[44px] sm:min-h-0 border-primary/30 text-primary hover:bg-primary/5"
           >
             <Sparkles className="w-4 h-4" />
-            Boost All
+            Boost All with AI
           </Button>
         )}
-        <Button variant="outline" size="sm" onClick={addExperience} className="gap-2 w-full sm:w-auto min-h-[56px] sm:min-h-0">
+        <Button variant="outline" size="sm" onClick={addExperience} className="gap-2 min-h-[44px] sm:min-h-0">
           <Plus className="w-4 h-4" />
           Add
         </Button>
@@ -250,7 +277,7 @@ export const ExperienceSection = memo(function ExperienceSection() {
             }
             actions={[
               { label: 'Add Your First Job', variant: 'outline', icon: Plus, onClick: addExperience },
-              { label: 'Import from LinkedIn', variant: 'outline', icon: Linkedin, onClick: () => { /* navigating handled below */ } },
+              { label: 'Import from LinkedIn', variant: 'outline', icon: Linkedin, onClick: () => setShowLinkedIn(true) },
             ]}
           />
         ) : (
@@ -323,7 +350,6 @@ export const ExperienceSection = memo(function ExperienceSection() {
         gap={selectedGapForFill}
         experiences={experience}
         onAddExperience={(newExp) => {
-          // Insert at correct chronological position
           const newExpYear = parseInt(newExp.startDate.match(/\d{4}/)?.[0] || '0');
           const insertIndex = experience.findIndex((exp) => {
             const expYear = parseInt(exp.startDate.match(/\d{4}/)?.[0] || '9999');
@@ -343,6 +369,11 @@ export const ExperienceSection = memo(function ExperienceSection() {
       {/* Boost All Sheet */}
       <Suspense fallback={null}>
         <BoostAllExperienceSheet open={showBoostAll} onOpenChange={setShowBoostAll} />
+      </Suspense>
+
+      {/* LinkedIn Import Sheet */}
+      <Suspense fallback={null}>
+        {showLinkedIn && <LinkedInOptimizerSheet open={showLinkedIn} onOpenChange={setShowLinkedIn} />}
       </Suspense>
     </div>
   );

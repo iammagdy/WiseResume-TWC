@@ -11,7 +11,6 @@ interface TemplateProps {
 export const ExecutiveTemplate = memo(function ExecutiveTemplate({ resume }: TemplateProps) {
   return (
     <div className="p-10 font-serif text-sm leading-relaxed bg-white">
-      {/* Elegant Header */}
       <header className="text-center mb-8 pb-6 border-b border-amber-600">
         <h1 className="text-3xl font-light tracking-wide text-gray-900 mb-2">
           {resume.contactInfo.fullName?.toUpperCase() || 'YOUR NAME'}
@@ -22,11 +21,10 @@ export const ExecutiveTemplate = memo(function ExecutiveTemplate({ resume }: Tem
           </p>
         )}
         <div className="flex justify-center">
-          <ContactLinks contact={resume.contactInfo} className="text-gray-500 text-xs" iconSize={3} separator="•" />
+          <ContactLinks contact={resume.contactInfo} className="text-gray-500 text-xs" iconSize={3} separator="|" />
         </div>
       </header>
 
-      {/* Executive Summary */}
       {resume.summary && (
         <section data-section="summary" className="mb-8">
           <h2 className="text-xs font-semibold text-amber-700 uppercase tracking-[0.2em] mb-3">
@@ -36,24 +34,6 @@ export const ExecutiveTemplate = memo(function ExecutiveTemplate({ resume }: Tem
         </section>
       )}
 
-      {/* Key Achievements highlight - using first experience's achievements */}
-      {resume.experience[0]?.achievements && resume.experience[0].achievements.length > 0 && (
-        <section data-break-avoid className="mb-8 bg-amber-50 p-4 border-l-4 border-amber-600">
-          <h2 className="text-xs font-semibold text-amber-700 uppercase tracking-[0.2em] mb-3">
-            Key Achievements
-          </h2>
-          <ul className="space-y-2">
-            {resume.experience[0].achievements.slice(0, 3).map((achievement, i) => (
-              <li key={i} className="text-gray-700 flex items-start gap-2">
-                <span className="text-amber-600 mt-1">◆</span>
-                {achievement}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* Professional Experience */}
       {resume.experience.length > 0 && (
         <section data-section="experience" className="mb-8">
           <h2 className="text-xs font-semibold text-amber-700 uppercase tracking-[0.2em] mb-4">
@@ -72,15 +52,33 @@ export const ExecutiveTemplate = memo(function ExecutiveTemplate({ resume }: Tem
                 {exp.description && (
                   <p data-break-child className="text-gray-600 text-xs">{exp.description}</p>
                 )}
+                {exp.achievements && exp.achievements.length > 0 && (
+                  <ul data-break-child className="mt-2 space-y-1">
+                    {exp.achievements.map((a, i) => (
+                      <li key={i} className="text-gray-700 text-xs flex items-start gap-2">
+                        <span className="text-amber-600 mt-0.5">-</span>
+                        {a}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {exp.responsibilities && exp.responsibilities.length > 0 && (
+                  <ul data-break-child className="mt-2 space-y-1">
+                    {exp.responsibilities.map((r, i) => (
+                      <li key={i} className="text-gray-700 text-xs flex items-start gap-2">
+                        <span className="text-amber-600 mt-0.5">-</span>
+                        {r}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             ))}
           </div>
         </section>
       )}
 
-      {/* Two Column Footer: Education & Skills */}
       <div className="grid grid-cols-2 gap-8">
-        {/* Education */}
         {resume.education.length > 0 && (
           <section data-section="education">
             <h2 className="text-xs font-semibold text-amber-700 uppercase tracking-[0.2em] mb-3">
@@ -100,7 +98,6 @@ export const ExecutiveTemplate = memo(function ExecutiveTemplate({ resume }: Tem
           </section>
         )}
 
-        {/* Core Competencies */}
         {resume.skills.length > 0 && (
           <section data-section="skills">
             <h2 className="text-xs font-semibold text-amber-700 uppercase tracking-[0.2em] mb-3">
@@ -110,7 +107,7 @@ export const ExecutiveTemplate = memo(function ExecutiveTemplate({ resume }: Tem
               {resume.skills.map((skill, i) => (
                 <span
                   key={i}
-                  className="text-gray-700 text-xs after:content-['•'] after:mx-1 after:text-amber-600 last:after:content-none"
+                  className="text-gray-700 text-xs after:content-[','] after:mx-0.5 last:after:content-none"
                 >
                   {skill}
                 </span>

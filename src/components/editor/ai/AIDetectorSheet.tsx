@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useScrollFade } from '@/hooks/useScrollFade';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Shield, 
@@ -236,6 +237,7 @@ function applySectionText(
 
 export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
   const { currentResume, updateResume } = useResumeStore(useShallow((s) => ({ currentResume: s.currentResume, updateResume: s.updateResume })));
+  const scrollRef = useScrollFade<HTMLDivElement>();
   const [viewState, setViewState] = useState<ViewState>('input');
   const [inputText, setInputText] = useState('');
   const [selectedTone, setSelectedTone] = useState<ToneOption>('professional');
@@ -380,7 +382,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
           <AIProviderVia className="mt-0.5" />
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto min-h-0 ai-output-scroll-fade">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0 ai-output-scroll-fade">
           <AnimatePresence mode="wait">
             {/* Input State */}
             {viewState === 'input' && (
@@ -559,7 +561,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
                       Humanized Version
                     </h4>
                     <div className="p-4 rounded-xl bg-success/10 border border-success/30">
-                      <p className="text-sm whitespace-pre-wrap">{humanized.humanized}</p>
+                      <p className="text-sm whitespace-pre-wrap break-words">{humanized.humanized}</p>
                     </div>
                     {humanized.changes && humanized.changes.length > 0 && (
                       <div className="p-3 rounded-xl bg-muted border border-border">

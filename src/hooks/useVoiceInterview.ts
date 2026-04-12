@@ -63,26 +63,29 @@ function pickBestVoice(gender: VoiceGender): SpeechSynthesisVoice | null {
   return premiumVoice || englishVoices[0];
 }
 
-let sharedAudioContext: AudioContext | null = null;
+type AudioContextRef = { current: AudioContext | null };
 
-function getAudioContext(): AudioContext | null {
-  if (!sharedAudioContext) {
+function makeAudioContextRef(): AudioContextRef {
+  return { current: null };
+}
+
+function getAudioContext(ref: AudioContextRef): AudioContext | null {
+  if (!ref.current || ref.current.state === 'closed') {
     const ContextClass = (window as unknown as { AudioContext: typeof AudioContext; webkitAudioContext: typeof AudioContext }).AudioContext || 
                          (window as unknown as { AudioContext: typeof AudioContext; webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (ContextClass) sharedAudioContext = new ContextClass();
-  } else if (sharedAudioContext.state === 'closed') {
-    const ContextClass = (window as unknown as { AudioContext: typeof AudioContext; webkitAudioContext: typeof AudioContext }).AudioContext || 
-                         (window as unknown as { AudioContext: typeof AudioContext; webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (ContextClass) sharedAudioContext = new ContextClass();
+    if (ContextClass) ref.current = new ContextClass();
   }
-  return sharedAudioContext;
+  return ref.current;
+}
+
+export function cleanupAudioContextRef(ref: AudioContextRef) {
+  if (ref.current && ref.current.state !== 'closed') {
+    ref.current.close().catch(() => {});
+  }
+  ref.current = null;
 }
 
 export function cleanupAudioContext() {
-  if (sharedAudioContext && sharedAudioContext.state !== 'closed') {
-    sharedAudioContext.close().catch(() => {});
-  }
-  sharedAudioContext = null;
 }
 
 function ensureAudioReady(ctx: AudioContext): Promise<AudioContext> {
@@ -90,10 +93,10 @@ function ensureAudioReady(ctx: AudioContext): Promise<AudioContext> {
   return Promise.resolve(ctx);
 }
 
-function playBeep(): Promise<void> {
+function playBeep(audioCtxRef: AudioContextRef): Promise<void> {
   return new Promise((resolve) => {
     try {
-      const ctx = getAudioContext();
+      const ctx = getAudioContext(audioCtxRef);
       if (!ctx) { resolve(); return; }
 
       const play = () => {
@@ -115,8 +118,8 @@ function playBeep(): Promise<void> {
   });
 }
 
-function playDoubleBeep(): void {
-  const ctx = getAudioContext();
+function playDoubleBeep(audioCtxRef: AudioContextRef): void {
+  const ctx = getAudioContext(audioCtxRef);
   if (!ctx) return;
 
   ensureAudioReady(ctx).then(() => {
@@ -250,6 +253,8 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const [audioLevel, setAudioLevel] = useState(0);
   const [sttEngine, setSttEngine] = useState<SttEngine>('none');
 
+  const audioCtxRef = useRef<AudioContextRef>(makeAudioContextRef());
+
   const messagesRef = useRef<{ role: string; content: string }[]>([]);
   const jobDescriptionRef = useRef<string>('');
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -264,6 +269,15 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const usingFallbackRef = useRef(false);
   const quickPracticeRef = useRef(false);
   const noSpeechCountRef = useRef(0);
+  /**
+   * Mutual-exclusion lock for AI submission.
+   * Both the STT-commit path (stopListening) and the text-send path (sendTextMessage)
+   * must acquire this flag before calling callAI(). Only the first path to set it
+   * to true proceeds; the second path sees it already set and bails out.
+   * Released (set back to false) after callAI() resolves.
+   */
+  const submissionInFlightRef = useRef(false);
+  /** @deprecated kept for backward compat — same as submissionInFlightRef */
   const isSubmittingTextRef = useRef(false);
   const endInterviewFnRef = useRef<() => Promise<void>>();
   const lastCallAIWasEndRef = useRef(false);
@@ -321,7 +335,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
         description: 'Speak when you\'re ready, or tap the Type button.',
         duration: 4000,
       });
-      playDoubleBeep();
+      playDoubleBeep(audioCtxRef.current);
       // Set another timeout for second escalation (15s more = 30s total)
       noSpeechTimerRef.current = setTimeout(() => {
         if (isListeningRef.current && !finalTextRef.current.trim()) {
@@ -395,7 +409,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       if (noSpeechTimerRef.current) clearTimeout(noSpeechTimerRef.current);
       window.speechSynthesis?.cancel();
-      cleanupAudioContext();
+      cleanupAudioContextRef(audioCtxRef.current);
     };
   }, []);
 
@@ -440,7 +454,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
               await new Promise(r => setTimeout(r, 1000));
             }
             setCountdown(null);
-            await playBeep();
+            await playBeep(audioCtxRef.current);
             startListeningAfterSpeakRef.current?.();
           } catch (e) {
             console.error('Error in speak onend:', e);
@@ -454,10 +468,18 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
           resolve();
         };
 
-        // TTS onend safety timeout — auto-resolve if onend doesn't fire
+        // TTS onend safety timeout — waits conservatively for slow speech rates.
+        // Uses words-per-second of 1.5 (slow speaker) with a generous buffer.
+        // Also polls speechSynthesis.speaking to detect early completion.
         const wordCount = text.split(/\s+/).length;
-        const estimatedDurationMs = Math.max(3000, (wordCount / 2.5) * 1000 + 2000);
+        const estimatedDurationMs = Math.max(5000, (wordCount / 1.5) * 1000 + 3000);
         const ttsSafetyTimer = setTimeout(async () => {
+          if (onendFired) return;
+          // Poll until speaking truly stops before advancing (max 10s extra)
+          const pollStart = Date.now();
+          while (window.speechSynthesis?.speaking && Date.now() - pollStart < 10000) {
+            await new Promise(r => setTimeout(r, 200));
+          }
           if (onendFired) return;
           onendFired = true;
           console.warn('[VoiceInterview] TTS onend safety timeout triggered after', estimatedDurationMs, 'ms');
@@ -468,7 +490,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
               await new Promise(r => setTimeout(r, 1000));
             }
             setCountdown(null);
-            await playBeep();
+            await playBeep(audioCtxRef.current);
             startListeningAfterSpeakRef.current?.();
           } catch (e) {
             console.error('Error in TTS safety timeout:', e);
@@ -505,11 +527,29 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       }, 8000);
 
       try {
-        // Fix #5: Sliding window — keep first 2 messages + last 16 to manage context size
+        // Sliding window — preserve system/job-description messages and keep last 16 conversation turns.
         const allMessages = messagesRef.current;
-        const windowedMessages = allMessages.length > 18
-          ? [...allMessages.slice(0, 2), ...allMessages.slice(-16)]
-          : allMessages;
+        let windowedMessages: typeof allMessages;
+        if (allMessages.length > 18) {
+          // Identify protected messages: those that contain the job description or the system start prompt
+          const jobDesc = jobDescriptionRef.current;
+          const protectedMessages = allMessages.filter(
+            (m, i) =>
+              i === 0 ||
+              (jobDesc && m.content.includes(jobDesc)) ||
+              m.role === 'system'
+          );
+          const conversationMessages = allMessages.filter(
+            (m, i) =>
+              i !== 0 &&
+              !(jobDesc && m.content.includes(jobDesc)) &&
+              m.role !== 'system'
+          );
+          const recentConversation = conversationMessages.slice(-16);
+          windowedMessages = [...protectedMessages, ...recentConversation];
+        } else {
+          windowedMessages = allMessages;
+        }
 
         const aiPromise = edgeFunctions.functions.invoke('interview-chat', {
           body: {
@@ -639,6 +679,16 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   }, [addEntry, callAI, clearSilenceTimer, disconnectCurrentSTT]);
 
   const stopListening = useCallback(async () => {
+    // Mutual exclusion: acquire the submission lock before proceeding.
+    // If text send already holds the lock, abandon this STT-commit path.
+    if (submissionInFlightRef.current) {
+      clearSilenceTimer();
+      finalTextRef.current = '';
+      setInterimText('');
+      return;
+    }
+    submissionInFlightRef.current = true;
+
     clearSilenceTimer();
     isListeningRef.current = false;
     if (noSpeechTimerRef.current) {
@@ -651,17 +701,21 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     finalTextRef.current = '';
     setInterimText('');
 
-    if (!userText) {
-      // Send silence marker so AI re-prompts naturally
-      addEntry('user', '(silence)');
-      messagesRef.current.push({ role: 'user', content: '(silence)' });
-      await callAI();
-      return;
-    }
+    try {
+      if (!userText) {
+        // Send silence marker so AI re-prompts naturally
+        addEntry('user', '(silence)');
+        messagesRef.current.push({ role: 'user', content: '(silence)' });
+        await callAI();
+        return;
+      }
 
-    addEntry('user', userText);
-    messagesRef.current.push({ role: 'user', content: userText });
-    await callAI();
+      addEntry('user', userText);
+      messagesRef.current.push({ role: 'user', content: userText });
+      await callAI();
+    } finally {
+      submissionInFlightRef.current = false;
+    }
   }, [addEntry, callAI, clearSilenceTimer, disconnectCurrentSTT]);
 
   useEffect(() => {
@@ -712,10 +766,14 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
 
   const sendTextMessage = useCallback(
     async (text: string) => {
-      if (!text.trim() || isSubmittingTextRef.current) return;
-      isSubmittingTextRef.current = true;
-      
-      // Disconnect any active STT stream so it cannot fire a duplicate AI call
+      if (!text.trim()) return;
+      // Mutual exclusion: acquire the submission lock before proceeding.
+      // If STT commit path already holds the lock, discard this text send.
+      if (submissionInFlightRef.current) return;
+      submissionInFlightRef.current = true;
+      isSubmittingTextRef.current = true; // backward compat
+
+      // Disconnect any active STT stream and cancel pending timers
       isListeningRef.current = false;
       disconnectCurrentSTT();
       if (silenceTimerRef.current) {
@@ -729,12 +787,15 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       setSilenceDetected(false);
       finalTextRef.current = '';
       setInterimText('');
-      
-      addEntry('user', text);
-      messagesRef.current.push({ role: 'user', content: text });
-      await callAI();
-      
-      isSubmittingTextRef.current = false;
+
+      try {
+        addEntry('user', text);
+        messagesRef.current.push({ role: 'user', content: text });
+        await callAI();
+      } finally {
+        submissionInFlightRef.current = false;
+        isSubmittingTextRef.current = false;
+      }
     },
     [addEntry, callAI, disconnectCurrentSTT]
   );

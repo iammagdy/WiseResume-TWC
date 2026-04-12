@@ -328,7 +328,7 @@ export default function SettingsPage() {
               <EditorExportSection
                 isSignedIn={!!user}
                 onManageExports={() => setDataExportSheetOpen(true)}
-                onNavigateAuth={() => navigate('/auth')}
+                onNavigateAuth={() => navigate('/auth?mode=login')}
               />
             </div>
           </div>
@@ -648,7 +648,7 @@ function GuestCtaCard({ navigate }: {navigate: (path: string) => void;}) {
                 AI-powered enhancements
               </li>
             </ul>
-            <Button size="sm" onClick={() => navigate('/auth')} className="w-full mt-4">
+            <Button size="sm" onClick={() => navigate('/auth?mode=signup')} className="w-full mt-4">
               Get Started Free
             </Button>
           </div>
@@ -665,7 +665,7 @@ function GuestCtaCard({ navigate }: {navigate: (path: string) => void;}) {
           type="navigation"
           label="Sign in to unlock all features"
           icon={<AppIcon size={20} showSparkle={false} />}
-          onClick={() => navigate('/auth')} />
+          onClick={() => navigate('/auth?mode=login')} />
         
         </motion.div>
       }

@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { FileText, Copy, Check, Download, Sparkles, History, Edit3, Eye, X, Circle } from 'lucide-react';
+import { FileText, Copy, Check, Download, Sparkles, History, Edit3, Eye, X, Circle, AlertTriangle } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { CoverLetterHistorySheet } from './CoverLetterHistorySheet';
 import { AICostBadge } from '@/components/ai/AICostBadge';
 import { useAIAction } from '@/hooks/useAIAction';
+import { useAIDraft } from '@/hooks/useAIDraft';
 
 interface CoverLetterGeneratorProps {
   open: boolean;
@@ -27,6 +28,29 @@ interface CoverLetterGeneratorProps {
 }
 
 type Tone = 'professional' | 'enthusiastic' | 'conversational';
+
+function getMissingContactFields(contactInfo: ContactInfo | undefined): string[] {
+  if (!contactInfo) return ['name', 'email', 'phone'];
+  const missing: string[] = [];
+  if (!contactInfo.fullName?.trim()) missing.push('name');
+  if (!contactInfo.email?.trim()) missing.push('email');
+  if (!contactInfo.phone?.trim()) missing.push('phone');
+  return missing;
+}
+
+function highlightPlaceholders(text: string): React.ReactNode[] {
+  const placeholderRegex = /(\[[^\]]{1,60}\])/g;
+  const parts = text.split(placeholderRegex);
+  return parts.map((part, i) =>
+    placeholderRegex.test(part) ? (
+      <mark key={i} className="bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 rounded px-0.5">
+        {part}
+      </mark>
+    ) : (
+      part
+    )
+  );
+}
 
 /** Replace AI placeholder brackets with real contact info */
 function injectContactInfo(letter: string, contactInfo: ContactInfo): string {
@@ -53,6 +77,7 @@ export function CoverLetterGenerator({
   jobTitle,
   jobCompany,
 }: CoverLetterGeneratorProps) {
+  const resumeId = (resume as { id?: string } | null)?.id;
   const [tone, setTone] = useState<Tone>('professional');
   const [isGenerating, setIsGenerating] = useState(false);
   const [coverLetter, setCoverLetter] = useState<string | null>(null);
@@ -62,9 +87,20 @@ export function CoverLetterGenerator({
   const [isDownloading, setIsDownloading] = useState(false);
   const [generationStep, setGenerationStep] = useState(0);
   const [generationElapsed, setGenerationElapsed] = useState(0);
+  const [showDraftBanner, setShowDraftBanner] = useState(false);
+  const [missingFields, setMissingFields] = useState<string[]>([]);
+  const [showMissingFieldsWarning, setShowMissingFieldsWarning] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const generationStartRef = useRef(0);
+  const editSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { execute: executeAI } = useAIAction({ operation: 'cover-letter' });
+  const { draft, saveDraft, clearDraft, hasDraft } = useAIDraft<string>('cover-letter', resumeId);
+
+  useEffect(() => {
+    if (open && hasDraft && !coverLetter) {
+      setShowDraftBanner(true);
+    }
+  }, [open, hasDraft, coverLetter]);
 
   const GENERATION_STEPS = [
     'Analyzing Job Description...',
@@ -107,11 +143,21 @@ export function CoverLetterGenerator({
     clearCoverLetterHistory: s.clearCoverLetterHistory,
   })));
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (force = false) => {
     if (!resume || !jobDescription) {
       toast.error('Resume and job description are required');
       return;
     }
+
+    if (!force) {
+      const missing = getMissingContactFields(resume.contactInfo);
+      if (missing.length > 0) {
+        setMissingFields(missing);
+        setShowMissingFieldsWarning(true);
+        return;
+      }
+    }
+    setShowMissingFieldsWarning(false);
 
     setIsGenerating(true);
     abortRef.current = new AbortController();
@@ -125,6 +171,7 @@ export function CoverLetterGenerator({
       if (!letter) return;
       
       setCoverLetter(letter);
+      saveDraft(letter);
       
       // Save to store for combined PDF export
       setGeneratedCoverLetter(letter, {
@@ -185,6 +232,17 @@ export function CoverLetterGenerator({
     toast.success('Text file downloaded!');
   };
 
+  const handleEditChange = useCallback((newText: string) => {
+    setCoverLetter(newText);
+    if (editSyncTimerRef.current) clearTimeout(editSyncTimerRef.current);
+    editSyncTimerRef.current = setTimeout(() => {
+      setGeneratedCoverLetter(newText, {
+        title: jobTitle || 'Position',
+        company: jobCompany || 'Company',
+      });
+    }, 500);
+  }, [setGeneratedCoverLetter, jobTitle, jobCompany]);
+
   const handleViewHistoryEntry = (entry: CoverLetterHistory) => {
     setCoverLetter(entry.coverLetter);
     setIsEditing(false);
@@ -216,6 +274,20 @@ export function CoverLetterGenerator({
           </SheetHeader>
 
           <div className="flex-1 min-h-0 overflow-y-auto space-y-4 ai-output-scroll-fade">
+            {showDraftBanner && draft && !coverLetter && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-2 mx-1">
+                <p className="text-xs text-amber-700 dark:text-amber-400">Resume from last session?</p>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => { setCoverLetter(draft); setShowDraftBanner(false); }}>
+                    <Circle className="w-2.5 h-2.5 fill-current" />
+                    Restore
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { clearDraft(); setShowDraftBanner(false); }}>
+                    Dismiss
+                  </Button>
+                </div>
+              </div>
+            )}
             {!coverLetter ? (
               <>
                 {/* Settings */}
@@ -304,14 +376,35 @@ export function CoverLetterGenerator({
                     )}
                   </div>
                 ) : (
-                  <Button
-                    className="w-full h-12 gradient-primary font-semibold"
-                    onClick={handleGenerate}
-                    disabled={!resume || !jobDescription}
-                  >
-                    <FileText className="w-5 h-5 mr-2" />
-                    Generate Cover Letter
-                  </Button>
+                  <>
+                    {showMissingFieldsWarning && (
+                      <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 space-y-2">
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                          <div className="text-xs text-amber-700 dark:text-amber-400">
+                            <p className="font-medium mb-0.5">Missing contact info:</p>
+                            <p>Your profile is missing <strong>{missingFields.join(', ')}</strong>. These will appear as placeholders in the letter that you can fill in later.</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" className="flex-1 text-xs" onClick={() => setShowMissingFieldsWarning(false)}>
+                            Cancel
+                          </Button>
+                          <Button size="sm" className="flex-1 text-xs gradient-primary" onClick={() => handleGenerate(true)}>
+                            Generate Anyway
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    <Button
+                      className="w-full h-12 gradient-primary font-semibold"
+                      onClick={() => handleGenerate()}
+                      disabled={!resume || !jobDescription}
+                    >
+                      <FileText className="w-5 h-5 mr-2" />
+                      Generate Cover Letter
+                    </Button>
+                  </>
                 )}
 
                 {(!resume || !jobDescription) && (
@@ -379,12 +472,12 @@ export function CoverLetterGenerator({
                   {isEditing ? (
                     <Textarea
                       value={coverLetter}
-                      onChange={(e) => setCoverLetter(e.target.value)}
+                      onChange={(e) => handleEditChange(e.target.value)}
                       className="min-h-[400px] text-sm leading-relaxed resize-none font-mono"
                     />
                   ) : (
-                    <div className="p-5 rounded-xl bg-card border border-border min-h-[400px] whitespace-pre-wrap text-sm leading-relaxed cover-letter-paper">
-                      {coverLetter}
+                    <div className="p-5 rounded-xl bg-card border border-border min-h-[400px] text-sm leading-relaxed cover-letter-paper whitespace-pre-wrap">
+                      {highlightPlaceholders(coverLetter)}
                     </div>
                   )}
                 </div>
@@ -439,6 +532,7 @@ export function CoverLetterGenerator({
                   onClick={() => {
                     setCoverLetter(null);
                     setIsEditing(false);
+                    clearDraft();
                   }}
                 >
                   <Sparkles className="w-4 h-4 mr-2" />

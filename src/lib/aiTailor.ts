@@ -35,14 +35,14 @@ export interface TailorResult {
 }
 
 const FUN_FACTS = [
-  "💡 Tailored resumes are 3x more likely to get interviews",
-  "📊 75% of resumes never pass ATS screening",
-  "🎯 Hiring managers spend 7 seconds on initial resume review",
-  "✨ Action verbs increase resume effectiveness by 140%",
-  "🔑 Including metrics makes achievements 40% more compelling",
-  "🏆 Top resumes use 11-14 unique skills on average",
-  "📈 Quantified achievements get 40% more callbacks",
-  "🚀 Keywords from job descriptions boost ATS scores by 60%",
+  "💡 Tailored resumes are significantly more likely to pass initial screening (Jobscan, 2023)",
+  "📊 Studies suggest most resumes are filtered out before a recruiter sees them — keywords matter",
+  "🎯 Research shows hiring managers spend roughly 6–10 seconds on an initial resume scan (The Ladders)",
+  "✨ Starting bullets with strong action verbs makes achievements clearer and more impactful",
+  "🔑 Including measurable results helps recruiters quickly gauge the scope of your contributions",
+  "🏆 LinkedIn data shows profiles with diverse skill sets receive more recruiter outreach",
+  "📈 Quantified achievements give hiring managers concrete evidence of your impact",
+  "🚀 Matching keywords from the job description improves ATS compatibility (Jobscan research)",
 ];
 
 const ENHANCED_STEPS: { step: EnhancedTailorStep; message: string; funFact: string }[] = [

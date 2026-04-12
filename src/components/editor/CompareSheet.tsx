@@ -47,7 +47,7 @@ export function CompareSheet({
   };
 
   const renderDiffText = (diffs: TextDiff[]) => (
-    <p className="text-sm leading-relaxed">
+    <p className="text-sm leading-relaxed break-words">
       {diffs.map((diff, i) => (
         <span
           key={i}
@@ -67,7 +67,7 @@ export function CompareSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[95vh] rounded-t-3xl flex flex-col">
+      <SheetContent side="bottom" className="max-h-[85dvh] rounded-t-3xl flex flex-col">
         <SheetHeader className="pb-4 shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <GitCompare className="w-5 h-5 text-primary" />

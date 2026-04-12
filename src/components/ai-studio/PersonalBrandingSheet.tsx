@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { Star, Loader2, Copy, Check, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Star, Loader2, Copy, Check, RefreshCw, RotateCcw } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { useAIAction } from '@/hooks/useAIAction';
+import { useAIDraft } from '@/hooks/useAIDraft';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { useResumeStore } from '@/store/resumeStore';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
@@ -62,11 +63,20 @@ function getExperienceSummary(resume: ResumeData | null): string {
 
 export function PersonalBrandingSheet({ open, onOpenChange }: PersonalBrandingSheetProps) {
   const currentResume = useResumeStore(s => s.currentResume);
+  const resumeId = (currentResume as { id?: string } | null)?.id;
   const [result, setResult] = useState<BrandingResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selected, setSelected] = useState<keyof BrandingResult | null>(null);
+  const [showDraftBanner, setShowDraftBanner] = useState(false);
   const { execute } = useAIAction({ operation: 'personal-branding' });
+  const { draft, saveDraft, clearDraft, hasDraft } = useAIDraft<BrandingResult>('personal-branding', resumeId);
+
+  useEffect(() => {
+    if (open && hasDraft && !result) {
+      setShowDraftBanner(true);
+    }
+  }, [open, hasDraft, result]);
 
   const handleGenerate = async () => {
     if (!currentResume) {
@@ -76,6 +86,7 @@ export function PersonalBrandingSheet({ open, onOpenChange }: PersonalBrandingSh
     haptics.medium();
     setIsLoading(true);
     setResult(null);
+    setShowDraftBanner(false);
     try {
       const data = await execute(async () => {
         const name = currentResume.contactInfo?.fullName ?? 'Professional';
@@ -115,7 +126,10 @@ Respond ONLY with valid JSON:
         const content = extractAIContent(responseData);
         return parseAIJson(content, isBrandingResult);
       });
-      if (data) setResult(data);
+      if (data) {
+        setResult(data);
+        saveDraft(data);
+      }
     } catch {
       toast.error('Failed to generate branding statements. Please try again.');
     } finally {
@@ -146,6 +160,21 @@ Respond ONLY with valid JSON:
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4">
+          {showDraftBanner && draft && !result && (
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-2">
+              <p className="text-xs text-amber-700 dark:text-amber-400">Resume from last session?</p>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setResult(draft); setShowDraftBanner(false); }}>
+                  <RotateCcw className="w-3 h-3 mr-1" />
+                  Restore
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { clearDraft(); setShowDraftBanner(false); }}>
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+          )}
+
           {!result ? (
             <>
               <div className="text-center py-6 space-y-3">

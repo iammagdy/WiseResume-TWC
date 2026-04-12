@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { useScrollFade } from '@/hooks/useScrollFade';
 import { Sparkles, Loader2, Check, X, ArrowRight, ChevronDown, ChevronUp, CheckCircle2, AlertTriangle, Layers } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { useResumeStore } from '@/store/resumeStore';
 import { getSupabaseToken } from '@/lib/supabaseAuth';
-import { trackGeminiUsage } from '@/lib/aiProvider';
 import { useAICreditsMutations } from '@/hooks/useAICredits';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
@@ -17,6 +17,9 @@ import { AICostBadge } from '@/components/ai/AICostBadge';
 import { activityTracker } from '@/lib/activityTracker';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import type { ActionType, SectionType } from '@/hooks/useAIEnhance';
+import { EDGE_FUNCTIONS_URL as CLOUD_URL, EDGE_FUNCTIONS_ANON_KEY as CLOUD_KEY } from '@/lib/supabaseConstants';
+import { trackGeminiUsage } from '@/lib/aiProvider';
+import { useAIAction } from '@/hooks/useAIAction';
 
 interface AIEnhanceSheetProps {
   open: boolean;
@@ -192,9 +195,13 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [results, setResults] = useState<SectionResult[]>([]);
   const [expandedResults, setExpandedResults] = useState<Set<number>>(new Set());
+  const [expandedDiffText, setExpandedDiffText] = useState<Set<string>>(new Set());
+  const scrollRef = useScrollFade<HTMLDivElement>();
   const currentResume = useResumeStore(s => s.currentResume);
   const updateResume = useResumeStore(s => s.updateResume);
   const { incrementUsage, checkCredits } = useAICreditsMutations();
+  const { execute: executeAI } = useAIAction({ operation: 'enhance' });
+  const abortRef = useRef(false);
 
   useEffect(() => {
     if (open) { activityTracker.setActiveFeature('AI Enhance'); }
@@ -228,6 +235,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     setIsEnhancing(true);
     setResults([]);
     setExpandedResults(new Set());
+    abortRef.current = false;
     haptics.medium();
 
     const hasCredits = await checkCredits();
@@ -240,58 +248,53 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
 
     for (const sectionInfo of ALL_SECTIONS) {
       if (!selectedSections.has(sectionInfo.id)) continue;
+      if (abortRef.current) break;
 
       const content = getSectionContent(currentResume as unknown as Record<string, unknown>, sectionInfo.id);
 
       try {
-        const token = await getSupabaseToken();
-        if (!token) throw new Error('No session – please sign in');
+        const data = await executeAI(async () => {
+          const token = await getSupabaseToken();
+          if (!token) throw new Error('401 Unauthorized – no session');
 
-        const { EDGE_FUNCTIONS_URL: CLOUD_URL, EDGE_FUNCTIONS_ANON_KEY: CLOUD_KEY } = await import('@/lib/supabaseConstants');
+          const res = await fetch(`${CLOUD_URL}/functions/v1/enhance-section`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+              'apikey': CLOUD_KEY,
+            },
+            body: JSON.stringify({
+              section: sectionInfo.id,
+              action: effectiveAction,
+              currentContent: content,
+              context: { resume: currentResume },
+              ...(variantsMode && !atsMode ? { variants: true } : {}),
+            }),
+          });
 
-        const res = await fetch(`${CLOUD_URL}/functions/v1/enhance-section`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-            'apikey': CLOUD_KEY,
-          },
-          body: JSON.stringify({
-            section: sectionInfo.id,
-            action: effectiveAction,
-            currentContent: content,
-            context: { resume: currentResume },
-            ...(variantsMode && !atsMode ? { variants: true } : {}),
-          }),
+          if (!res.ok) {
+            const status = res.status;
+            if (status === 401 || status === 403) throw new Error('401 Unauthorized – no session');
+            if (status === 429) throw new Error('rate_limit');
+            if (status === 402) throw new Error('payment_required');
+            throw new Error('server_error');
+          }
+
+          const respData = await res.json();
+          if (respData?.error) {
+            if (respData.error === 'rate_limit') throw new Error('rate_limit');
+            if (respData.error === 'payment_required') throw new Error('payment_required');
+            if (respData.error === 'invalid_key') throw new Error('invalid_key');
+            throw new Error('server_error');
+          }
+
+          trackGeminiUsage();
+          incrementUsage.mutate();
+          return respData;
         });
 
-        if (!res.ok) {
-          const status = res.status;
-          if (status === 401 || status === 403) {
-            toast.error('Session expired — please sign in again to use AI features.');
-          } else if (status === 429) {
-            toast.error('Too many requests — please wait a moment and try again.');
-          } else {
-            toast.error('AI is temporarily unavailable — please try again in a moment.');
-          }
-          continue;
-        }
-        const data = await res.json();
-        if (data?.error) {
-          if (data.error === 'rate_limit') {
-            toast.error('Too many requests — please wait a moment and try again.');
-          } else if (data.error === 'payment_required') {
-            toast.error('AI credits exhausted. Please check your account.');
-          } else if (data.error === 'invalid_key') {
-            toast.error('Invalid API key — please check your AI settings.');
-          } else {
-            toast.error('AI is temporarily unavailable — please try again in a moment.');
-          }
-          continue;
-        }
-
-        trackGeminiUsage();
-        incrementUsage.mutate();
+        if (!data) continue;
 
         if (data.variants && Array.isArray(data.variants) && data.variants.length > 0) {
           const firstVariant = data.variants[0];
@@ -319,7 +322,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
             section: sectionInfo.id,
             label: sectionInfo.label,
             original: content,
-            improved: data.improved,
+            improved: sanitizeAIContent(data.improved),
             rawImproved: data.improved,
             changes: data.changes || [],
             suggestions: data.suggestions,
@@ -331,7 +334,25 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
         setResults([...newResults]);
       } catch (err) {
         console.error(`Enhancement error for ${sectionInfo.id}:`, err);
-        toast.error(`Failed to enhance ${sectionInfo.label}`);
+        const errMsg = err instanceof Error ? err.message : '';
+        const is401 = errMsg.includes('401') || errMsg.toLowerCase().includes('unauthorized');
+        if (!navigator.onLine) {
+          toast.warning("You're offline — AI features need an internet connection.");
+          abortRef.current = true;
+        } else if (is401) {
+          toast.error('Session expired — please sign in again to use AI features.');
+          abortRef.current = true;
+        } else if (errMsg === 'rate_limit') {
+          toast.error('Too many requests — please wait a moment and try again.');
+        } else if (errMsg === 'payment_required') {
+          toast.error('AI credits exhausted. Please check your account.');
+          abortRef.current = true;
+        } else if (errMsg === 'invalid_key') {
+          toast.error('Invalid API key — please check your AI settings.');
+          abortRef.current = true;
+        } else {
+          toast.error(`Failed to enhance ${sectionInfo.label} — please try again.`);
+        }
       }
     }
 
@@ -339,7 +360,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     if (newResults.length > 0) {
       toast.success(`Enhanced ${newResults.length} section${newResults.length > 1 ? 's' : ''}`);
     }
-  }, [currentResume, selectedSections, effectiveAction, variantsMode, atsMode, checkCredits, incrementUsage]);
+  }, [currentResume, selectedSections, effectiveAction, variantsMode, atsMode, checkCredits, incrementUsage, executeAI]);
 
   const selectVariant = useCallback((resultIndex: number, variantIndex: number) => {
     haptics.light();
@@ -350,7 +371,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     }));
   }, []);
 
-  const applyResult = useCallback((index: number) => {
+  const applyResult = useCallback((index: number, silent = false) => {
     const result = results[index];
     if (!result || !currentResume) return;
     haptics.medium();
@@ -447,7 +468,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
 
     setResults(prev => prev.map((r, i) => i === index ? { ...r, applied: true } : r));
     onEnhanced?.([result.section]);
-    toast.success(`${result.label} updated!`);
+    if (!silent) toast.success(`${result.label} updated!`);
   }, [results, currentResume, updateResume]);
 
   const discardResult = useCallback((index: number) => {
@@ -489,15 +510,34 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
         </div>
       );
     }
-    // For summary/skills: readable text
+    // For summary/skills: readable text with expand toggle
     const text = formatSectionContent(sectionId, content);
-    const maxLen = variant === 'original' ? 300 : 500;
+    const key = `${sectionId}-${variant}`;
+    const isExpanded = expandedDiffText.has(key);
+    const PREVIEW_LEN = 280;
+    const isLong = text.length > PREVIEW_LEN;
+    const displayText = isLong && !isExpanded ? text.slice(0, PREVIEW_LEN) + '…' : text;
     return (
       <div className={cn(
-        "p-2.5 rounded-lg text-xs whitespace-pre-wrap",
+        "p-2.5 rounded-lg text-xs whitespace-pre-wrap break-words",
         variant === 'original' ? "bg-muted line-through opacity-60" : "bg-primary/5 border border-primary/20"
       )}>
-        {text.slice(0, maxLen)}{text.length > maxLen ? '…' : ''}
+        {displayText}
+        {isLong && (
+          <button
+            className="block mt-1 text-primary/80 hover:text-primary underline font-medium"
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpandedDiffText(prev => {
+                const next = new Set(prev);
+                if (next.has(key)) next.delete(key); else next.add(key);
+                return next;
+              });
+            }}
+          >
+            {isExpanded ? 'Show less' : 'Show full'}
+          </button>
+        )}
       </div>
     );
   };
@@ -517,7 +557,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
           </div>
         </SheetHeader>
 
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-5 py-4 ai-output-scroll-fade">
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto space-y-5 py-4 ai-output-scroll-fade">
           {/* Mode Selector - hidden in ATS mode */}
           {!atsMode && (
             <div>
@@ -654,9 +694,13 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
                     className="text-xs min-h-[44px] active:scale-95 transition-transform touch-manipulation"
                     onClick={() => {
                       haptics.medium();
+                      let applied = 0;
                       results.forEach((r, i) => {
-                        if (!r.applied) applyResult(i);
+                        if (!r.applied) { applyResult(i, true); applied++; }
                       });
+                      if (applied > 0) {
+                        toast.success(`${applied} section${applied !== 1 ? 's' : ''} applied to your resume.`);
+                      }
                     }}
                   >
                     <Check className="w-3.5 h-3.5 mr-1" /> Apply All

@@ -119,10 +119,51 @@ const parseResumeTool = {
           },
         },
         hobbies: { type: "array", items: { type: "string" } },
+        languages: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              language: { type: "string", description: "Language name (e.g. English, Spanish, Arabic)" },
+              proficiency: { type: "string", description: "Proficiency level: native, fluent, professional, basic" },
+            },
+            required: ["language", "proficiency"],
+          },
+        },
+        references: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              title: { type: "string" },
+              company: { type: "string" },
+              contact: { type: "string", description: "Email or phone of reference" },
+            },
+            required: ["name"],
+          },
+        },
+        projects: {
+          type: "array",
+          description: "Dedicated projects section entries (not work experience). Only use when the resume has a Projects section or clearly personal/academic projects separate from paid work.",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              description: { type: "string" },
+              technologies: { type: "array", items: { type: "string" }, description: "Tech stack used" },
+              url: { type: "string", description: "Live URL or demo link" },
+              startDate: { type: "string" },
+              endDate: { type: "string" },
+            },
+            required: ["name", "description"],
+          },
+        },
       },
       required: [
         "contactInfo", "summary", "experience", "education",
         "skills", "certifications", "awards", "publications", "volunteering", "hobbies",
+        "languages", "references", "projects",
       ],
     },
   },
@@ -134,12 +175,15 @@ const systemPrompt = `You are an expert resume parser. Extract ALL structured in
 1. Process ALL content from the entire text. Do NOT stop after the first page.
 2. Extract 100% of text in work experience. Do NOT summarize.
 3. Copy each bullet point EXACTLY as written. Never combine or condense.
-4. Extract EVERYTHING - all jobs, education, projects, skills, certifications, awards, publications, volunteering, hobbies.
+4. Extract EVERYTHING - all jobs, education, projects, skills, certifications, awards, publications, volunteering, hobbies, languages, references.
 5. Empty fields: use "" for strings, [] for arrays, false for booleans.
 6. Dates: Accept ANY format. Current roles: endDate="Present", current=true.
-7. Skills: Parse as individual items. Include languages with proficiency.
-8. Projects: If a section is labelled "Projects" or an entry is clearly a personal/academic project (not a paid job), set isProject=true. Otherwise ALWAYS set isProject=false. NEVER omit isProject.
-9. Awards / Publications / Volunteering / Hobbies: Extract them into their own arrays even if they appear as bullets inside another section.
+7. Skills: Parse as individual items.
+8. Projects (top-level field): Extract entries from a dedicated "Projects" section into the projects[] array with name, description, technologies[], url, startDate, endDate. Do NOT put these in experience[]. If no Projects section exists, return projects=[].
+9. Experience isProject flag: For entries that remain in experience[], set isProject=true ONLY if the entry is clearly a personal/academic project mixed inside the Experience section. Otherwise ALWAYS set isProject=false.
+10. Awards / Publications / Volunteering / Hobbies: Extract them into their own arrays even if they appear as bullets inside another section.
+11. Languages: Extract into languages[] with language name and proficiency (native/fluent/professional/basic).
+12. References: Extract into references[] with name, title, company, contact if a References section exists.
 
 === CONTACT INFO RULES ===
 - email: MUST contain "@" and a domain. If no email found, return "".
@@ -147,6 +191,8 @@ const systemPrompt = `You are an expert resume parser. Extract ALL structured in
 - location: MUST be a geographic place (city, state, country). NEVER put skills, technologies, or programming languages here. If no location found, return "".
   - VALID locations: "New York, NY", "London, UK", "Cairo, Egypt", "Remote"
   - INVALID locations: "Python", "JavaScript", "React" -- these are SKILLS, not locations.
+- linkedin: Full LinkedIn URL or profile path. Do NOT include "https://" prefix here; that will be added in post-processing.
+- portfolio: Website URL for portfolio or personal site. Do NOT include "https://" prefix if already missing; that will be normalized.
 
 === SKILLS RULES ===
 - Programming languages (Python, JavaScript, Java, C++, etc.) are ALWAYS skills.
@@ -162,7 +208,32 @@ const systemPrompt = `You are an expert resume parser. Extract ALL structured in
 const retryPrompt = `You are an expert resume parser doing a SECOND PASS. The first extraction missed some fields.
 Focus on finding these missing fields in the text. Extract ONLY the fields that were missed.
 Be more aggressive in your extraction - look for implicit information, infer from context.
-Return empty strings/arrays only if truly not present in the text.`;
+Return empty strings/arrays only if truly not present in the text.
+
+=== CRITICAL RULES (apply on retry too) ===
+1. Process ALL content from the entire text. Do NOT stop after the first page.
+2. Extract 100% of text in work experience. Do NOT summarize.
+3. Empty fields: use "" for strings, [] for arrays, false for booleans.
+4. Dates: Accept ANY format. Current roles: endDate="Present", current=true.
+5. Projects (top-level field): Entries from a dedicated "Projects" section go into projects[] array. Do NOT put these in experience[].
+6. Languages: Extract into languages[] with language name and proficiency.
+7. References: Extract into references[] if a References section exists.
+
+=== CONTACT INFO RULES ===
+- email: MUST contain "@" and a domain. If no email found, return "".
+- phone: MUST be digits with optional separators. If no phone found, return "".
+- location: MUST be a geographic place. NEVER put skills or technologies here.
+- VALID locations: "New York, NY", "London, UK", "Cairo, Egypt", "Remote"
+- INVALID locations: "Python", "JavaScript", "React" -- these are SKILLS, not locations.
+
+=== SKILLS RULES ===
+- Programming languages and frameworks are ALWAYS skills.
+- NEVER place technology names in contactInfo.location or contactInfo.fullName.
+
+=== NAME DETECTION ===
+- The name is usually on the VERY FIRST LINE
+- Never use emails, phone numbers, URLs, or section headers as names
+- If unsure, set fullName to ""`;
 
 /**
  * Assess text quality to decide if AI cleaning is needed.
@@ -275,8 +346,21 @@ function computeFieldConfidence(data: any): { completeness: number; fieldConfide
   // Summary
   fc.summary = (data.summary?.trim()?.length || 0) > 20 ? 1.0 : data.summary?.trim() ? 0.5 : 0;
 
-  // Weighted completeness
-  const weights = { name: 15, email: 10, phone: 5, summary: 15, experience: 25, education: 15, skills: 10 };
+  // Certifications
+  const certCount = data.certifications?.length || 0;
+  fc.certifications = certCount >= 1 ? 1.0 : 0;
+
+  // Awards
+  const awardCount = data.awards?.length || 0;
+  fc.awards = awardCount >= 1 ? 1.0 : 0;
+
+  // Volunteering
+  const volCount = data.volunteering?.length || 0;
+  fc.volunteering = volCount >= 1 ? 1.0 : 0;
+
+  // Weighted completeness — certifications/awards/volunteering each contribute a small bonus
+  // so rich resumes with these sections don't score artificially low and trigger needless retries
+  const weights = { name: 14, email: 9, phone: 5, summary: 14, experience: 23, education: 14, skills: 10, certifications: 3, awards: 2, volunteering: 2 };
   let completeness = 0;
   for (const [key, weight] of Object.entries(weights)) {
     completeness += (fc[key] || 0) * weight;
@@ -553,17 +637,61 @@ serve(async (req) => {
         description: vol.description || '',
       })),
       hobbies: parsedResume.hobbies || [],
-      projects: (parsedResume.projects || []).map((proj: any) => ({
+      languages: (parsedResume.languages || []).map((lang: any) => ({
         id: generateId(),
-        name: proj.name || '',
-        role: proj.role || '',
-        startDate: proj.startDate || '',
-        endDate: proj.endDate || '',
-        technologies: proj.technologies || [],
-        description: proj.description || '',
-        url: proj.url || undefined,
-        githubUrl: proj.githubUrl || undefined,
+        // AI schema uses 'language' as the field name; our ResumeData type uses 'name'
+        name: lang.language || lang.name || '',
+        proficiency: lang.proficiency || 'professional',
       })),
+      references: (parsedResume.references || []).map((ref: any) => ({
+        id: generateId(),
+        name: ref.name || '',
+        title: ref.title || '',
+        company: ref.company || '',
+        // AI schema uses 'contact' — map to email/phone as appropriate
+        email: ref.email || (ref.contact?.includes('@') ? ref.contact : ''),
+        phone: ref.phone || (ref.contact && !ref.contact.includes('@') ? ref.contact : ''),
+        relationship: ref.relationship || '',
+      })),
+      projects: (() => {
+        // Start with dedicated top-level projects from AI
+        const topLevelProjects = (parsedResume.projects || []).map((proj: any) => ({
+          id: generateId(),
+          name: proj.name || '',
+          role: proj.role || '',
+          startDate: proj.startDate || '',
+          endDate: proj.endDate || '',
+          technologies: proj.technologies || [],
+          description: proj.description || '',
+          url: proj.url || undefined,
+          githubUrl: proj.githubUrl || undefined,
+        }));
+
+        // Also include any experience entries flagged as isProject (legacy support)
+        const projectsFromExp = (parsedResume.experience || [])
+          .filter((exp: any) => exp.isProject === true)
+          .map((exp: any) => ({
+            id: generateId(),
+            name: exp.company || exp.position || 'Untitled Project',
+            role: exp.position || '',
+            startDate: exp.startDate || '',
+            endDate: exp.endDate || '',
+            technologies: [],
+            description: [exp.description || '', ...(exp.achievements || [])].filter(Boolean).join('\n').slice(0, 1000),
+            url: undefined,
+            githubUrl: undefined,
+          }));
+
+        // Merge: top-level projects first, then legacy isProject entries
+        // Dedupe by normalized name + startDate to avoid semantic duplicates
+        const seenProjectKeys = new Set<string>();
+        return [...topLevelProjects, ...projectsFromExp].filter(p => {
+          const key = (p.name || '').toLowerCase().trim() + '|' + (p.startDate || '').trim();
+          if (seenProjectKeys.has(key)) return false;
+          seenProjectKeys.add(key);
+          return true;
+        });
+      })(),
     };
 
     // Final confidence scoring
@@ -688,6 +816,7 @@ serve(async (req) => {
           })),
           publications: [],
           hobbies: [],
+          references: [],
         };
 
         return new Response(JSON.stringify({
@@ -756,8 +885,29 @@ function validateAndFixFields(data: any): any {
     data.contactInfo.phone = '';
   }
 
-  // Deduplicate skills
-  data.skills = [...new Set(skills.map(s => s.trim()).filter(Boolean))];
+  // Deduplicate skills (case-insensitive — keep first occurrence)
+  const seenSkills = new Set<string>();
+  data.skills = skills
+    .map(s => s.trim())
+    .filter(s => {
+      if (!s) return false;
+      const lower = s.toLowerCase();
+      if (seenSkills.has(lower)) return false;
+      seenSkills.add(lower);
+      return true;
+    });
+
+  // Normalize LinkedIn URL — ensure https:// prefix
+  const linkedin = data.contactInfo?.linkedin?.trim() || '';
+  if (linkedin && !/^https?:\/\//i.test(linkedin)) {
+    data.contactInfo.linkedin = 'https://' + linkedin.replace(/^\/\//, '');
+  }
+
+  // Normalize portfolio URL — ensure https:// prefix
+  const portfolio = data.contactInfo?.portfolio?.trim() || '';
+  if (portfolio && !/^https?:\/\//i.test(portfolio)) {
+    data.contactInfo.portfolio = 'https://' + portfolio.replace(/^\/\//, '');
+  }
 
   return data;
 }
@@ -811,6 +961,12 @@ function mergeParseResults(pass1: any, pass2: any, pass1Confidence: Record<strin
   }
   if ((!merged.projects || merged.projects.length === 0) && pass2.projects?.length > 0) {
     merged.projects = pass2.projects;
+  }
+  if ((!merged.languages || merged.languages.length === 0) && pass2.languages?.length > 0) {
+    merged.languages = pass2.languages;
+  }
+  if ((!merged.references || merged.references.length === 0) && pass2.references?.length > 0) {
+    merged.references = pass2.references;
   }
 
   return merged;

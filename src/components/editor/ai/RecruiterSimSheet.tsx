@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useScrollFade } from '@/hooks/useScrollFade';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   UserCheck, 
@@ -12,6 +13,7 @@ import {
   HelpCircle,
   Loader2,
   Wand2,
+  RotateCcw,
 } from 'lucide-react';
 import {
   Sheet,
@@ -35,6 +37,7 @@ import {
 import { findTargetContent } from '@/lib/ai/fixHelpers';
 import { Experience, Education } from '@/types/resume';
 import { useAIAction } from '@/hooks/useAIAction';
+import { useAIDraft } from '@/hooks/useAIDraft';
 import { activityTracker } from '@/lib/activityTracker';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 
@@ -46,24 +49,41 @@ interface RecruiterSimSheetProps {
 
 type ViewState = 'persona_select' | 'analyzing' | 'results';
 
+interface RecruiterDraft {
+  analysis: RecruiterAnalysis;
+  personaId: string;
+}
+
 export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps) {
   const { currentResume, updateResume } = useResumeStore(useShallow((s) => ({ currentResume: s.currentResume, updateResume: s.updateResume })));
+  const resumeId = (currentResume as { id?: string } | null)?.id;
+  const scrollRef = useScrollFade<HTMLDivElement>();
   const [viewState, setViewState] = useState<ViewState>('persona_select');
   const [selectedPersona, setSelectedPersona] = useState<RecruiterPersonaInfo | null>(null);
   const [analysis, setAnalysis] = useState<RecruiterAnalysis | null>(null);
   const [isApplyingFix, setIsApplyingFix] = useState<string | null>(null);
+  const [showDraftBanner, setShowDraftBanner] = useState(false);
+  const [fixedFlags, setFixedFlags] = useState<Set<string>>(new Set());
   const { execute: executeAI } = useAIAction({ operation: 'recruiter-sim' });
+  const { draft, saveDraft, clearDraft, hasDraft } = useAIDraft<RecruiterDraft>('recruiter-sim', resumeId);
 
   useEffect(() => {
     if (open) { activityTracker.setActiveFeature('Recruiter Simulator'); }
     return () => { activityTracker.setActiveFeature(null); };
   }, [open]);
 
+  useEffect(() => {
+    if (open && hasDraft && viewState === 'persona_select' && !analysis) {
+      setShowDraftBanner(true);
+    }
+  }, [open, hasDraft, viewState, analysis]);
+
   const handleSelectPersona = async (persona: RecruiterPersonaInfo) => {
     if (!currentResume) return;
     
     setSelectedPersona(persona);
     setViewState('analyzing');
+    setShowDraftBanner(false);
 
     try {
       const result = await executeAI(async () => {
@@ -83,6 +103,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
 
       setAnalysis(result.analysis);
       setViewState('results');
+      saveDraft({ analysis: result.analysis, personaId: persona.id });
     } catch (err) {
       console.error('Recruiter simulation error:', err);
       toast.error('Failed to run simulation. Please try again.');
@@ -104,12 +125,26 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
     setIsApplyingFix(redFlag.issue);
     
     try {
-      // 1. Locate the content to fix
+      // 1. Locate the content to fix using fuzzy matching
       const target = findTargetContent(currentResume, redFlag);
 
       if (!target) {
-        toast.error('Could not locate the specific text to fix.', {
-          description: 'Please review and edit the resume manually.',
+        // Could not find any target — show fallback with clipboard copy
+        try { await navigator.clipboard.writeText(redFlag.fix); } catch {}
+        toast.warning("We couldn't locate this text in your resume — the suggestion has been copied to your clipboard.", {
+          description: 'Paste it manually in the relevant section.',
+          duration: 6000,
+        });
+        return;
+      }
+
+      // If fuzzy confidence is too low, offer clipboard fallback instead of auto-applying
+      const confidence = target.fuzzyConfidence ?? 1.0;
+      if (confidence < 0.4 && target.section !== 'summary' && target.section !== 'skills') {
+        try { await navigator.clipboard.writeText(redFlag.fix); } catch {}
+        toast.warning("We couldn't precisely locate this text in your resume — here's the suggestion to paste manually.", {
+          description: 'The suggestion has been copied to your clipboard.',
+          duration: 6000,
         });
         return;
       }
@@ -154,6 +189,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
         updateResume({ education: newEducation });
       }
 
+      setFixedFlags(prev => new Set(prev).add(redFlag.issue));
       toast.success('Fix applied successfully!', {
         description: 'Review the changes in the editor.',
       });
@@ -172,6 +208,9 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
     setViewState('persona_select');
     setSelectedPersona(null);
     setAnalysis(null);
+    clearDraft();
+    setShowDraftBanner(false);
+    setFixedFlags(new Set());
   };
 
   const getVerdictColor = (verdict: string) => {
@@ -221,7 +260,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
           <AIProviderVia className="mt-0.5" />
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto min-h-0 ai-output-scroll-fade">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0 ai-output-scroll-fade">
           <AnimatePresence mode="wait">
             {/* Persona Selection */}
             {viewState === 'persona_select' && (
@@ -232,6 +271,32 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
                 exit={{ opacity: 0, y: -20 }}
                 className="p-4 space-y-4"
               >
+                {showDraftBanner && draft && (
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-2">
+                    <p className="text-xs text-amber-700 dark:text-amber-400">Resume from last session?</p>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={() => {
+                          const persona = RECRUITER_PERSONAS.find(p => p.id === draft.personaId) ?? null;
+                          setSelectedPersona(persona);
+                          setAnalysis(draft.analysis);
+                          setViewState('results');
+                          setShowDraftBanner(false);
+                        }}
+                      >
+                        <RotateCcw className="w-3 h-3 mr-1" />
+                        Restore
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { clearDraft(); setShowDraftBanner(false); }}>
+                        Dismiss
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="text-center mb-6">
                   <h3 className="text-lg font-semibold mb-1">Choose Your Recruiter</h3>
                   <p className="text-sm text-muted-foreground">
@@ -350,44 +415,65 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
                     <AlertTriangle className="w-4 h-4 text-destructive" />
                     Red Flags I'd Notice
                   </h4>
-                  {analysis.redFlags?.map((flag, i) => (
-                    <div 
-                      key={i} 
-                      className={cn(
-                        'p-4 rounded-xl border',
-                        getSeverityColor(flag.severity)
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <p className="font-medium text-sm">{flag.issue}</p>
-                        <Badge variant="outline" className="shrink-0 text-xs">
-                          {flag.severity}
-                        </Badge>
-                      </div>
-                      {flag.quote !== 'N/A' && (
-                        <p className="text-xs text-muted-foreground mb-2 italic">
-                          From resume: "{flag.quote}"
-                        </p>
-                      )}
-                      <div className="flex items-center justify-between gap-2 mt-3">
-                        <p className="text-xs flex-1">💡 {flag.fix}</p>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="shrink-0 h-8"
-                          onClick={() => handleApplyFix(flag)}
-                          disabled={isApplyingFix === flag.issue}
-                        >
-                          {isApplyingFix === flag.issue ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <Wand2 className="w-3.5 h-3.5" />
-                          )}
-                          <span className="ml-1.5">Fix</span>
-                        </Button>
-                      </div>
+                  {(!analysis.redFlags || analysis.redFlags.length === 0) && (
+                    <div className="p-4 rounded-xl bg-success/10 border border-success/30 text-center">
+                      <CheckCircle2 className="w-5 h-5 text-success mx-auto mb-1" />
+                      <p className="text-sm text-success font-medium">No red flags found!</p>
+                      <p className="text-xs text-muted-foreground mt-1">Your resume looks clean to this recruiter.</p>
                     </div>
-                  ))}
+                  )}
+                  {analysis.redFlags?.map((flag, i) => {
+                    const isFixed = fixedFlags.has(flag.issue);
+                    return (
+                      <div 
+                        key={i} 
+                        className={cn(
+                          'p-4 rounded-xl border',
+                          isFixed ? 'bg-success/5 border-success/20 opacity-75' : getSeverityColor(flag.severity)
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <p className="font-medium text-sm">{flag.issue}</p>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {isFixed ? (
+                              <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/30">
+                                <CheckCircle2 className="w-3 h-3 mr-1" />
+                                Fixed
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs">
+                                {flag.severity}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        {flag.quote !== 'N/A' && (
+                          <p className="text-xs text-muted-foreground mb-2 italic">
+                            From resume: "{flag.quote}"
+                          </p>
+                        )}
+                        <div className="flex items-center justify-between gap-2 mt-3">
+                          <p className="text-xs flex-1">💡 {flag.fix}</p>
+                          {!isFixed && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="shrink-0 h-8"
+                              onClick={() => handleApplyFix(flag)}
+                              disabled={isApplyingFix === flag.issue}
+                            >
+                              {isApplyingFix === flag.issue ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Wand2 className="w-3.5 h-3.5" />
+                              )}
+                              <span className="ml-1.5">Fix</span>
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {/* Questions I'd Ask */}

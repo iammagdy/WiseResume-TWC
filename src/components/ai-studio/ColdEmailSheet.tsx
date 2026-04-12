@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Mail, Loader2, Copy, Check, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Mail, Loader2, Copy, Check, RefreshCw, RotateCcw, AlertTriangle } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { useAIAction } from '@/hooks/useAIAction';
+import { useAIDraft } from '@/hooks/useAIDraft';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { useResumeStore } from '@/store/resumeStore';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
@@ -40,23 +41,48 @@ function getRecentExperience(resume: ResumeData | null): string {
     .join(', ');
 }
 
+function hasEnoughResumeContent(resume: ResumeData | null): boolean {
+  if (!resume) return false;
+  const hasSummary = typeof resume.summary === 'string' && resume.summary.trim().length > 20;
+  const expArray = resume.experience as Array<unknown> | undefined;
+  const hasExperience = Array.isArray(expArray) && expArray.length >= 2;
+  return hasSummary || hasExperience;
+}
+
 export function ColdEmailSheet({ open, onOpenChange }: ColdEmailSheetProps) {
   const currentResume = useResumeStore(s => s.currentResume);
+  const resumeId = (currentResume as { id?: string } | null)?.id;
   const [company, setCompany] = useState('');
   const [jobTitle, setJobTitle] = useState('');
   const [jobSnippet, setJobSnippet] = useState('');
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [showDraftBanner, setShowDraftBanner] = useState(false);
+  const [showContentWarning, setShowContentWarning] = useState(false);
   const { execute } = useAIAction({ operation: 'cold-email' });
+  const { draft, saveDraft, clearDraft, hasDraft } = useAIDraft<string>('cold-email', resumeId);
 
-  const handleGenerate = async () => {
+  // Show draft banner when opening with a saved draft
+  useEffect(() => {
+    if (open && hasDraft && !email) {
+      setShowDraftBanner(true);
+    }
+  }, [open, hasDraft, email]);
+
+  const handleGenerate = async (force = false) => {
     if (!company.trim() || !jobTitle.trim()) {
       toast.error('Please enter the company name and job title');
       return;
     }
+    if (!force && !hasEnoughResumeContent(currentResume as unknown as ResumeData | null)) {
+      setShowContentWarning(true);
+      return;
+    }
+    setShowContentWarning(false);
     haptics.medium();
     setIsLoading(true);
+    setShowDraftBanner(false);
     try {
       const data = await execute(async () => {
         const resume = currentResume as unknown as ResumeData | null;
@@ -100,7 +126,10 @@ Subject: [subject line]
         if (!content) throw new Error('Empty response from AI');
         return content;
       });
-      if (data) setEmail(data);
+      if (data) {
+        setEmail(data);
+        saveDraft(data);
+      }
     } catch {
       toast.error('Failed to generate email. Please try again.');
     } finally {
@@ -116,12 +145,19 @@ Subject: [subject line]
     setTimeout(() => setIsCopied(false), 2000);
   };
 
+  const handleRegenerate = () => {
+    setEmail('');
+    clearDraft();
+    setShowDraftBanner(false);
+    haptics.light();
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="max-h-[90dvh] flex flex-col p-0">
         <SheetHeader className="px-4 pt-4 pb-2 border-b border-border shrink-0">
           <SheetTitle className="flex items-center gap-2">
-            <Mail className="w-5 h-5 text-indigo-500" />
+            <Mail className="w-5 h-5 text-rose-500" />
             Cold Email to Recruiter
           </SheetTitle>
           <div className="flex items-center gap-2">
@@ -131,6 +167,21 @@ Subject: [subject line]
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4">
+          {showDraftBanner && draft && !email && (
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-2">
+              <p className="text-xs text-amber-700 dark:text-amber-400">Resume from last session?</p>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setEmail(draft); setShowDraftBanner(false); }}>
+                  <RotateCcw className="w-3 h-3 mr-1" />
+                  Restore
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { clearDraft(); setShowDraftBanner(false); }}>
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+          )}
+
           {!email ? (
             <>
               <div className="space-y-3">
@@ -153,7 +204,25 @@ Subject: [subject line]
                   />
                 </div>
               </div>
-              <Button className="w-full gradient-primary" onClick={handleGenerate} disabled={isLoading}>
+              {showContentWarning && (
+                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-700 dark:text-amber-400">
+                      Your resume may not have enough content for a personalized email. Add a summary or at least two work experiences for best results.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" className="flex-1 text-xs" onClick={() => setShowContentWarning(false)}>
+                      Cancel
+                    </Button>
+                    <Button size="sm" className="flex-1 text-xs gradient-primary" onClick={() => handleGenerate(true)}>
+                      Generate Anyway
+                    </Button>
+                  </div>
+                </div>
+              )}
+              <Button className="w-full gradient-primary" onClick={() => handleGenerate()} disabled={isLoading}>
                 {isLoading ? (
                   <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Generating email...</>
                 ) : (
@@ -168,8 +237,17 @@ Subject: [subject line]
                   {isCopied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
                   Copy Email
                 </Button>
-                <Button variant="ghost" size="sm" className="gap-1.5 ml-auto text-xs" onClick={() => { setEmail(''); haptics.light(); }}>
-                  <RefreshCw className="w-3.5 h-3.5" />
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="gap-1.5 ml-auto text-xs" 
+                  onClick={() => { 
+                    handleRegenerate();
+                    setShowContentWarning(false);
+                  }} 
+                  disabled={isLoading}
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
                   Regenerate
                 </Button>
               </div>

@@ -84,8 +84,11 @@ export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAv
   const handleMicTest = useCallback(async () => {
     setMicTestStatus('testing');
     setMicLevel(0);
+    let stream: MediaStream | null = null;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Wait for getUserMedia promise to resolve before starting the countdown
+      // If permission is denied this throws immediately with a clear error
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const ctx = new AudioContext();
       const source = ctx.createMediaStreamSource(stream);
       const analyser = ctx.createAnalyser();
@@ -93,10 +96,12 @@ export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAv
       source.connect(analyser);
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
       let maxLevel = 0;
+      // Minimum 5-second test duration (starts AFTER permission is granted)
+      const TEST_DURATION_MS = 5000;
       const startTime = Date.now();
       const tick = () => {
-        if (Date.now() - startTime > 3000) {
-          stream.getTracks().forEach(t => t.stop());
+        if (Date.now() - startTime > TEST_DURATION_MS) {
+          if (stream) stream.getTracks().forEach(t => t.stop());
           ctx.close().catch(() => {});
           setMicTestStatus(maxLevel > 0.05 ? 'success' : 'failed');
           setMicLevel(0);
@@ -114,9 +119,18 @@ export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAv
       tick();
     } catch (error) {
       console.error('Microphone test failed:', error);
+      if (stream) stream.getTracks().forEach(t => t.stop());
       setMicTestStatus('failed');
       setMicLevel(0);
-      toast.error('Microphone access denied or unavailable. Please check your browser settings.');
+      // Check for permission denied specifically
+      const isPermissionDenied =
+        error instanceof DOMException &&
+        (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError');
+      if (isPermissionDenied) {
+        toast.error('Microphone permission denied. Please allow microphone access in your browser settings.');
+      } else {
+        toast.error('Microphone not available. Please check your device and browser settings.');
+      }
     }
   }, []);
 

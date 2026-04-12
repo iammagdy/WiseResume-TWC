@@ -175,6 +175,17 @@ ${JSON.stringify((Array.isArray(currentContent) ? currentContent : []).map((e: R
   }
 }
 
+// Universal ATS compliance preamble — injected at the top of every content-producing action prompt.
+// Ensures ATS-grade output from every button the user clicks, not just the dedicated ATS actions.
+const ATS_BULLET_PREAMBLE = `
+ATS COMPLIANCE — mandatory for all output regardless of action:
+- Start every bullet with a strong action verb — BANNED OPENERS: "Responsible for", "Helped with", "Worked on", "Assisted in", "Was involved in", "Participated in", "Tasked with"
+- Follow the XYZ formula for every bullet: ACTION VERB + WHAT YOU DID + MEASURABLE RESULT
+- Include a quantified metric OR bracket placeholder [X%] / [~$X] in every bullet — no metric-free bullets
+- Echo at least 1 of the candidate's skill keywords verbatim in EACH bullet (exact string match, not synonyms)
+- No bullet symbols (•, ●, ■) and no Markdown (**bold**, *italic*) — plain text only
+`;
+
 // Approved action verbs the deterministic scorer checks for
 const ACTION_VERBS = [
   'Led', 'Managed', 'Developed', 'Created', 'Implemented', 'Designed',
@@ -214,7 +225,7 @@ The scorer checks keyword echo — it does textBlob.includes(skillName) to see i
 SECTION-SPECIFIC SCORING RULES FOR EXPERIENCE:
 The scorer checks two things per bullet: (1) starts with an action verb, (2) contains a number/metric.
 - Every bullet in "achievements" and "responsibilities" MUST start with one of these exact action verbs: ${ACTION_VERBS.join(', ')}
-- Every bullet MUST contain at least one quantified metric (number, percentage, dollar amount, team size, or timeframe). If the original has none, add a realistic placeholder like "10+", "15%", "$50K".
+- Every bullet MUST contain at least one quantified metric (number, percentage, dollar amount, team size, or timeframe). If the original bullet has no real metric, insert a bracket placeholder like "[X%]", "[~$X]", or "[N] team members" so the user knows to fill in their actual number — do NOT invent a specific number that wasn't in the original.
 - NEVER remove existing bullets — only improve wording or add new ones
 - Preserve ALL dates, company names, job titles, and "id" values EXACTLY as given — do NOT reformat dates
 - Preserve the exact date format used (if "2020" do not change to "Jan 2020")`;
@@ -427,7 +438,18 @@ function shouldAskQuestions(section: string, action: string, currentContent: unk
 }
 
 function buildPrompt(section: string, action: string, currentContent: unknown, context: unknown, fixInstruction?: string): string {
-  const baseContext = `You are an expert resume writer and career coach. Your goal is to help users create compelling, ATS-friendly resume content.
+  const baseContext = `You are a professional resume writer and ATS optimization specialist with deep expertise in how enterprise Applicant Tracking Systems — Workday, Taleo, Greenhouse, Lever, and iCIMS — parse, rank, and score resumes.
+
+You know that:
+- ATS systems score keyword density using EXACT string matching. A skill listed as "JavaScript" only scores if "JavaScript" appears verbatim in the experience text — synonyms ("JS", "JavaScript development") do not count.
+- Every experience bullet must follow the XYZ formula: "Accomplished [X] as measured by [Y] by doing [Z]" — the standard validated by Jobscan, Resume Worded, and Google's hiring rubric.
+- Bullets MUST start with a strong action verb. BANNED openers that kill ATS scores: "Responsible for", "Helped with", "Worked on", "Assisted in", "Was involved in", "Participated in", "Tasked with", "Duties included".
+- No two bullets in the same role may start with the same verb — verb variety is evaluated by modern ATS parsers.
+- Metrics are mandatory. If no real number exists, insert a bracket placeholder like [X%] or [~$X] — NEVER invent a specific number that was not in the original.
+- Clean parseable text only: no bullet symbols (•, ●, ■), no tables, no multi-column layout, no Markdown (**bold**, *italic*). Plain text only.
+- Summaries must be 3-5 sentences, reflect the candidate's actual seniority level, and echo at least 5 skills from their skills list by exact name.
+- Skills must mirror exact terminology: "JavaScript" not "JavaScript development", "Project Management" not "Managing Projects".
+Every output you produce will be evaluated by Jobscan or Resume Worded — it must score 70%+ on keyword match and content quality without additional manual edits by the user.
 
 Current resume context:
 ${sanitizeInputText(JSON.stringify(context, null, 2), 15000)}
@@ -446,13 +468,41 @@ ${sanitizeInputText(JSON.stringify(currentContent, null, 2), 5000)}
   const projectContext = section === 'projects' ? buildProjectContext(currentContent) : '';
 
   const actionPrompts: Record<string, string> = {
-    generate: summaryOverride && action === 'generate' ? summaryOverride : `${roleContext}${projectContext}Generate a detailed, compelling description for this SPECIFIC role ("${section === 'experience' && typeof currentContent === 'object' && currentContent !== null && !Array.isArray(currentContent) ? (currentContent as Record<string, unknown>).position || '' : ''}") from scratch based on the resume context. Include 4-6 bullet points covering key responsibilities and measurable achievements that are realistic for this exact job title. Use power verbs (Led, Managed, Developed, etc.), include specific metrics (percentages, dollar amounts, team sizes), mention relevant tools/technologies, and describe the scope and impact of the work.
-${section === 'experience' && typeof currentContent === 'object' && currentContent !== null && !Array.isArray(currentContent) && (currentContent as Record<string, unknown>).account ? `ACCOUNT/CLIENT CONTEXT: The user works at "${(currentContent as Record<string, unknown>).company}" but serves the "${(currentContent as Record<string, unknown>).account}" account/client. Research what ${(currentContent as Record<string, unknown>).account} does and tailor the description to reflect the specific products, services, and workflows of ${(currentContent as Record<string, unknown>).account}. Mention the account/client by name in the description and achievements.` : ''}
-${section === 'projects' ? `Generate a compelling project description for "${(currentContent as Record<string, unknown>)?.name || 'this project'}". Focus on what the project does, the technical approach, your specific contributions, and measurable outcomes. Start with a clear one-sentence summary, then add 2-4 bullet points with impact metrics.` : ''}
-Do NOT produce generic one-liner descriptions. Every role must have rich, detailed content.`,
-    improve: summaryOverride && action === 'improve' ? summaryOverride : `${roleContext}${projectContext}Transform this description into a powerful, detailed narrative that accurately reflects the "${section === 'experience' && typeof currentContent === 'object' && currentContent !== null && !Array.isArray(currentContent) ? (currentContent as Record<string, unknown>).position || '' : ''}" role. Expand thin descriptions into 4-6 impactful bullet points. Add quantified metrics (percentages, dollar amounts, team sizes), specific technologies, scope of responsibility, and measurable outcomes. Replace weak/passive language with strong action verbs. If the content is only 1-2 sentences, expand it significantly with realistic details based on the ACTUAL role title, company, and industry context.
-${section === 'experience' && typeof currentContent === 'object' && currentContent !== null && !Array.isArray(currentContent) && (currentContent as Record<string, unknown>).account ? `ACCOUNT/CLIENT CONTEXT: The user works at "${(currentContent as Record<string, unknown>).company}" but serves the "${(currentContent as Record<string, unknown>).account}" account/client. Weave in specific details about ${(currentContent as Record<string, unknown>).account}'s products, services, or industry. Mention the account/client by name.` : ''}
-Do NOT leave thin, generic descriptions. Every bullet must have substance and specificity.`,
+    generate: summaryOverride && action === 'generate' ? summaryOverride : `${roleContext}${projectContext}Generate a detailed, ATS-optimized description from scratch for this SPECIFIC role.
+
+FORMAT — every bullet must follow the XYZ formula:
+ACTION VERB + WHAT YOU DID + MEASURABLE RESULT
+Example: "Engineered CI/CD pipeline reducing deployment time by [X%] across [N] microservices"
+Example: "Led cross-functional team of [N] engineers to deliver $[X]M platform on schedule"
+
+RULES:
+- Generate 4-6 bullet points covering key responsibilities and measurable achievements realistic for this exact job title and industry
+- BANNED OPENERS — NEVER use: "Responsible for", "Helped with", "Worked on", "Assisted in", "Was involved in" — use strong action verbs only
+- VARIED VERBS — no two bullets start with the same verb
+- Include bracket placeholders [X%] or [~$X] for any metric — do not invent specific numbers
+- Echo relevant keywords from the candidate's skills list where they naturally fit
+- Mention specific technologies, tools, or methodologies appropriate for this role and industry
+- PLAIN TEXT — no bullet symbols (•, ●, ■), no Markdown formatting
+${section === 'experience' && typeof currentContent === 'object' && currentContent !== null && !Array.isArray(currentContent) && (currentContent as Record<string, unknown>).account ? `\nACCOUNT/CLIENT CONTEXT: The user works at "${(currentContent as Record<string, unknown>).company}" but serves the "${(currentContent as Record<string, unknown>).account}" account/client. Tailor the description to reflect ${(currentContent as Record<string, unknown>).account}'s specific products, services, and workflows. Mention the account/client by name.` : ''}
+${section === 'projects' ? `\nFor project "${(currentContent as Record<string, unknown>)?.name || 'this project'}": start with a clear one-sentence summary of what it does, then 2-4 XYZ-format bullets covering technical approach, your specific contributions, and measurable outcomes.` : ''}`,
+    improve: summaryOverride && action === 'improve' ? summaryOverride : `${roleContext}${projectContext}Transform this content into a powerful, ATS-optimized description.
+
+BULLET TRANSFORMATION — every bullet (existing and new) must look like the AFTER, not the BEFORE:
+BEFORE: "Worked on frontend development"
+AFTER:  "Architected [N] React components serving [N]+ daily users, reducing load time by [X%]"
+BEFORE: "Responsible for customer service"
+AFTER:  "Resolved [N]+ customer inquiries weekly with [X%] satisfaction rating, reducing escalations by [Y%]"
+BEFORE: "Helped with team projects"
+AFTER:  "Collaborated with cross-functional team of [N] engineers to deliver [project] [X] weeks ahead of schedule"
+
+MANDATORY RULES:
+1. BANNED PHRASES — NEVER start a bullet with: "Responsible for", "Helped with", "Worked on", "Assisted in", "Was involved in", "Participated in", "Tasked with"
+2. XYZ FORMULA — every bullet: ACTION VERB + WHAT YOU DID + MEASURABLE RESULT
+3. VARIED VERBS — no two bullets may start with the same verb
+4. METRICS — use bracket placeholders [X%] or [~$X] if no real metric exists — NEVER invent a specific number
+5. KEYWORD ECHO — weave the candidate's own skill keywords naturally into bullets
+6. EXPAND — if only 1-2 sentences exist, expand to 4-6 bullets with realistic details for this ACTUAL role title and industry
+7. PLAIN TEXT — no bullet symbols (•, ●, ■), no Markdown formatting${section === 'experience' && typeof currentContent === 'object' && currentContent !== null && !Array.isArray(currentContent) && (currentContent as Record<string, unknown>).account ? `\n\nACCOUNT/CLIENT CONTEXT: Weave in specific details about ${(currentContent as Record<string, unknown>).account}'s products, services, or industry. Mention the account/client by name.` : ''}`,
     ats_improve: summaryOverride && action === 'ats_improve' ? summaryOverride : `${roleContext}Optimize this resume section to MAXIMIZE the ATS score. The score is computed by a deterministic algorithm with these 6 weighted pillars:
 
 1. KEYWORD OPTIMIZATION (35% weight): The scorer checks if each skill from the skills list appears verbatim in the resume text using exact string matching. More keyword echoes = higher score.
@@ -468,11 +518,72 @@ ABSOLUTE RULES:
 - NEVER remove, rename, or rephrase existing content in ways that change its meaning
 - NEVER reformat dates — preserve the exact format given
 - Only ADD and IMPROVE — never subtract`,
-    ats_optimize: `Optimize this content for Applicant Tracking Systems (ATS). Add relevant industry keywords, use standard section headers, avoid special characters, and ensure the format is easily parseable by automated systems.`,
-    shorten: `${projectContext}${section === 'projects' ? 'Shorten ONLY the "description" field of this project to be more concise (2-3 sentences max). Remove filler words, combine related points, and keep only the most impactful information. PRESERVE all other fields (name, role, dates, technologies, URLs) exactly as they are — do not modify them.' : 'Make this content more concise while retaining the most impactful information. Remove filler words, combine related points, and prioritize the most impressive achievements.'}`,
-    expand: `Expand this content with more detail. Add context, specific achievements, technologies used, and measurable outcomes where appropriate.`,
-    add_metrics: `Add quantifiable metrics and numbers to this content. Suggest specific percentages, dollar amounts, time saved, team sizes, or other measurable outcomes based on the role and industry.`,
-    generate_bullets: `Convert this description into powerful bullet points. Each bullet should start with a strong action verb and include a specific achievement or responsibility.`,
+    ats_optimize: `${roleContext}Optimize this resume section to MAXIMIZE the ATS score using the same 6-pillar scoring framework that drives the ATS Score meter:
+
+1. KEYWORD OPTIMIZATION (35% weight): Echo EXACT skill names from the resume's skills list verbatim in the experience/summary text. The scorer uses exact string matching — "JavaScript" must appear as "JavaScript", not "JS" or "scripting". Natural placement only — no keyword stuffing.
+2. CONTENT QUALITY (25% weight): Every bullet in "achievements" MUST: (a) start with one of these approved action verbs: ${ACTION_VERBS.join(', ')}, AND (b) contain at least one quantified metric or bracket placeholder like [X%] or [~$X].
+3. SECTION STRUCTURE (15% weight): Standard section headers, logical ordering, all required fields present.
+4. PARSABILITY (10% weight): Clean plain text only — no bullet symbols (•, ●, ■), no tables, no multi-column layout. NEVER mix date formats (e.g. "2020" and "Jan 2020" in the same resume deducts 15 points — preserve the exact format given).
+5. CONTACT COMPLETENESS (10% weight): Ensure all contact fields are populated.
+6. LENGTH & DENSITY (5% weight): 3-5 bullets per experience role, 3-5 sentence summaries — fewer than 3 bullets per role triggers an ATS length penalty.
+
+${sectionAtsRules}
+
+ABSOLUTE RULES:
+- NEVER fabricate metrics — use bracket placeholders [X%] or [~$X] if no real number exists
+- NEVER remove existing bullets — only improve and add
+- NEVER reformat dates — preserve the exact format given
+- BANNED OPENERS: "Responsible for", "Helped with", "Worked on" — replace with action verbs`,
+    shorten: `${projectContext}${section === 'projects' ? 'Shorten ONLY the "description" field of this project to 2-3 sentences max. Remove filler, combine related points, keep the highest-impact information. PRESERVE all other fields (name, role, dates, technologies, URLs) exactly as they are — do not modify them.' : `Make this content more concise while protecting its ATS score.
+
+RULES:
+- KEEP all bullets that contain a quantified metric or a keyword from the candidate's skills list — these directly affect ATS scoring
+- KEEP all bullets that start with a strong action verb and have measurable impact
+- REMOVE or MERGE only filler bullets that have no metrics, no skill keyword echoes, and weak/banned openers ("Responsible for", "Helped with", "Worked on")
+- PRESERVE all date formats and "id" values exactly
+- MINIMUM: 3 bullets per experience role — fewer than 3 triggers an ATS length penalty
+- NEVER drop the only bullet containing a specific metric or skill keyword`}`,
+    expand: `${roleContext}${projectContext}Expand this content into a richer, more detailed description that improves the ATS score.
+
+RULES:
+- Add 1-3 new bullet points, each following the XYZ formula: "Accomplished [X] as measured by [Y] by doing [Z]"
+- Each new bullet must start with a DIFFERENT action verb from any existing bullets — no duplicate verbs
+- Echo at least 1 keyword from the candidate's skills list in each new bullet where natural
+- Use vocabulary specific to this candidate's industry and seniority level
+- For experience: add technologies used, scope of responsibility, team size, or project scale
+- All new metrics must be real or use bracket placeholders [X%] or [~$X] — NEVER invent specific numbers
+- Target: 4-6 total bullets after expansion (ATS-optimal length per role)
+- PLAIN TEXT only — no bullet symbols (•, ●, ■), no Markdown formatting`,
+    add_metrics: `${roleContext}Add quantifiable metrics and impact data to strengthen this content's ATS score.
+
+METRIC TYPES BY DOMAIN — choose what fits this role's industry and seniority:
+- Engineering / Tech: response time (ms), uptime (%), code coverage (%), deploy frequency, team size (N engineers), services or components built (N)
+- Sales / Business Development: revenue generated ($), quota attainment (%), pipeline value ($), accounts managed (N), close rate (%)
+- Operations / Logistics: cost reduction ($), processing time saved (hours/days), error rate reduction (%), monthly volume (N units)
+- Marketing / Growth: campaign reach (N impressions), conversion rate (%), leads generated (N), engagement rate (%), ROI (%)
+- Management / Leadership: direct reports (N), budget managed ($), project delivery on-time rate (%), team performance uplift (%)
+
+RULES:
+- If a real metric already exists, strengthen its framing but preserve the exact number
+- If no real metric exists, insert a bracket placeholder [X%], [~$X], or [N team members] — NEVER invent a specific number
+- After adding the metric, ensure the bullet follows XYZ format: "Action verb + what + [metric] result"
+- Aim for at least 1 metric per bullet — bullets with no metric or placeholder are ATS dead weight
+- PLAIN TEXT — no bullet symbols or Markdown`,
+    generate_bullets: `${roleContext}Convert this description into 4-6 powerful, ATS-optimized bullet points.
+
+REQUIRED FORMAT — every single bullet must follow this pattern:
+ACTION VERB + WHAT YOU DID + MEASURABLE RESULT
+Example: "Reduced API response latency by [X%] by refactoring database queries across [N] microservices"
+Example: "Led cross-functional team of [N] engineers to deliver [product], completing [X] weeks ahead of schedule"
+Example: "Increased customer retention from [X%] to [Y%] by redesigning the onboarding workflow"
+
+STRICT RULES:
+1. BANNED OPENERS — NEVER use: "Responsible for", "Helped with", "Worked on", "Assisted in", "Was involved in", "Participated in", "Tasked with", "Duties included"
+2. VARIED VERBS — no two bullets may start with the same verb. Use verbs from this list: ${ACTION_VERBS.join(', ')}
+3. METRICS REQUIRED — every bullet must contain a metric or bracket placeholder [X%] / [~$X] / [N units] — no metric-free bullets
+4. KEYWORD ECHO — include at least 1 keyword from the candidate's skills list per bullet where natural
+5. COUNT — 4-6 bullets total (3 minimum; ATS systems penalize roles with fewer than 3 bullets)
+6. PLAIN TEXT — no bullet symbols (•, ●, ■), no Markdown bold or italic`,
     generate_with_answers: `${projectContext}Generate a compelling project description using the user's answers to clarifying questions below.
 
 USER ANSWERS:
@@ -496,7 +607,12 @@ Suggest 5-10 relevant technologies. Consider the project context carefully and o
     ? `Return "improved" as a flat JSON array of strings ONLY. Example: ["React", "TypeScript", "Docker"]. Do NOT return objects.`
     : getSchemaInstructions(section, currentContent);
 
-  return baseContext + '\n\nTask: ' + (actionPrompts[action] || actionPrompts.improve) + `
+  // Inject the universal ATS compliance preamble into every content-producing action.
+  // Skipped for utility actions where bullet rules don't apply.
+  const PREAMBLE_SKIP_ACTIONS = new Set(['fix_error', 'custom', 'suggest_technologies']);
+  const actionPreamble = PREAMBLE_SKIP_ACTIONS.has(action) ? '' : ATS_BULLET_PREAMBLE;
+
+  return baseContext + '\n\nTask: ' + actionPreamble + (actionPrompts[action] || actionPrompts.improve) + `
 
 CRITICAL RESPONSE FORMAT: Respond with ONLY valid JSON, no markdown or code blocks. All text values must be plain text WITHOUT any Markdown formatting (no **, *, #, _, or backticks).
 

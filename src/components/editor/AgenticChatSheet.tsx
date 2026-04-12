@@ -109,6 +109,11 @@ function SuggestionCard({
   onAction: (messageId: string, index: number, status: 'accepted' | 'rejected') => void;
 }) {
   const isResolved = proposal.status === 'accepted' || proposal.status === 'rejected';
+  const [showMoreOriginal, setShowMoreOriginal] = useState(false);
+  const [showMoreSuggested, setShowMoreSuggested] = useState(false);
+  const CLAMP_LEN = 200;
+  const originalLong = proposal.original.length > CLAMP_LEN;
+  const suggestedLong = proposal.suggested.length > CLAMP_LEN;
 
   return (
     <motion.div
@@ -146,21 +151,37 @@ function SuggestionCard({
       <div className="space-y-1.5 text-sm">
         <div className="p-2 rounded-lg bg-destructive/5 border border-destructive/10">
           <span className="text-xs text-destructive/70 font-medium">Before:</span>
-          <p className="text-foreground/80 line-through decoration-destructive/40">
-            {proposal.original.slice(0, 200)}
-            {proposal.original.length > 200 && '...'}
+          <p className="text-foreground/80 line-through decoration-destructive/40 break-words">
+            {showMoreOriginal ? proposal.original : proposal.original.slice(0, CLAMP_LEN)}
+            {originalLong && !showMoreOriginal && '...'}
           </p>
+          {originalLong && (
+            <button
+              className="text-xs text-muted-foreground hover:text-foreground mt-1 underline"
+              onClick={() => setShowMoreOriginal(v => !v)}
+            >
+              {showMoreOriginal ? 'Show less' : 'Show more'}
+            </button>
+          )}
         </div>
         <div className="p-2 rounded-lg bg-success/5 border border-success/10">
           <span className="text-xs text-success/70 font-medium">After:</span>
-          <p className="text-foreground">
-            {proposal.suggested.slice(0, 200)}
-            {proposal.suggested.length > 200 && '...'}
+          <p className="text-foreground break-words">
+            {showMoreSuggested ? proposal.suggested : proposal.suggested.slice(0, CLAMP_LEN)}
+            {suggestedLong && !showMoreSuggested && '...'}
           </p>
+          {suggestedLong && (
+            <button
+              className="text-xs text-muted-foreground hover:text-foreground mt-1 underline"
+              onClick={() => setShowMoreSuggested(v => !v)}
+            >
+              {showMoreSuggested ? 'Show less' : 'Show more'}
+            </button>
+          )}
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground italic">{proposal.explanation}</p>
+      <p className="text-xs text-muted-foreground italic break-words">{proposal.explanation}</p>
 
       {!isResolved && (
         <div className="flex gap-2 pt-1" style={{ gap: '8px' }}>
@@ -300,7 +321,7 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
 
   const handleSignIn = () => {
     onOpenChange(false);
-    navigate('/auth');
+    navigate('/auth?mode=login');
   };
 
   const handleSelectResume = (resume: typeof allResumes[0]) => {

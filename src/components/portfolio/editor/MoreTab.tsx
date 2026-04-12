@@ -1,12 +1,11 @@
+import { useState } from 'react';
 import {
-  Eye, Sparkles, Search, Loader2, Link2, Linkedin, Github, History
+  Sparkles, Search, Loader2, Link2, Linkedin, Github, History, AlertCircle, Twitter
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { CollapsibleCard } from './shared';
-import { VisitorsPanel } from '@/components/portfolio/VisitorsPanel';
 import { haptics } from '@/lib/haptics';
 import { normalizeUrl } from '@/lib/urlUtils';
 
@@ -22,11 +21,6 @@ export interface MoreTabProps {
   generatingSEO: boolean;
   seoPlaceholderName: string;
   seoPlaceholderTitle: string;
-  // Visitors
-  portfolioUsername?: string;
-  userId?: string;
-  portfolioEnabled: boolean;
-  views: number;
   // Career Card
   onOpenCareerCard: () => void;
   hasLivePortfolio: boolean;
@@ -46,12 +40,16 @@ export interface MoreTabProps {
   toggleSection: (id: string) => void;
 }
 
+function needsHttpsWarning(url: string): boolean {
+  if (!url.trim()) return false;
+  return !/^https?:\/\//i.test(url.trim());
+}
+
 export function MoreTab(props: MoreTabProps) {
   const {
     onOpenHistory,
     metaTitle, onMetaTitleChange, metaDescription, onMetaDescriptionChange,
     onGenerateSEO, generatingSEO, seoPlaceholderName, seoPlaceholderTitle,
-    portfolioUsername, userId, portfolioEnabled, views,
     onOpenCareerCard, hasLivePortfolio,
     linkedinUrl, onLinkedinUrlChange,
     githubUrl, onGithubUrlChange,
@@ -59,6 +57,12 @@ export function MoreTab(props: MoreTabProps) {
     twitterUrl, onTwitterUrlChange, websiteUrl, onWebsiteUrlChange,
     openSections, toggleSection,
   } = props;
+
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  const markTouched = (field: string) => setTouched(prev => ({ ...prev, [field]: true }));
+
+  const showWarning = (field: string, url: string) => touched[field] && needsHttpsWarning(url);
 
   return (
     <div className="space-y-3">
@@ -75,20 +79,105 @@ export function MoreTab(props: MoreTabProps) {
         <div className="space-y-3">
           <div className="space-y-1">
             <label className="text-xs font-medium text-foreground">Public Contact Email</label>
-            <Input type="email" placeholder="your@email.com" value={contactEmail} onChange={e => onContactEmailChange(e.target.value)} onBlur={() => onContactEmailChange(contactEmail.trim().toLowerCase())} autoComplete="email" autoCapitalize="none" inputMode="email" />
+            <Input
+              type="email"
+              placeholder="your@email.com"
+              value={contactEmail}
+              onChange={e => onContactEmailChange(e.target.value)}
+              onBlur={() => onContactEmailChange(contactEmail.trim().toLowerCase())}
+              autoComplete="email"
+              autoCapitalize="none"
+              inputMode="email"
+            />
             <p className="text-[11px] text-muted-foreground">Shown on your portfolio "Contact me" button. Defaults to your account email if empty.</p>
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
               <Linkedin className="w-3.5 h-3.5" /> LinkedIn URL
             </label>
-            <Input placeholder="https://linkedin.com/in/yourusername" value={linkedinUrl} onChange={e => onLinkedinUrlChange(e.target.value)} onBlur={() => onLinkedinUrlChange(normalizeUrl(linkedinUrl))} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+            <Input
+              placeholder="https://linkedin.com/in/yourusername"
+              value={linkedinUrl}
+              onChange={e => onLinkedinUrlChange(e.target.value)}
+              onBlur={() => { markTouched('linkedin'); onLinkedinUrlChange(normalizeUrl(linkedinUrl)); }}
+              type="url"
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              className={showWarning('linkedin', linkedinUrl) ? 'border-yellow-500' : ''}
+            />
+            {showWarning('linkedin', linkedinUrl) && (
+              <p className="text-[11px] text-yellow-500 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3 shrink-0" /> Missing https:// — will be added on save
+              </p>
+            )}
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
               <Github className="w-3.5 h-3.5" /> GitHub URL
             </label>
-            <Input placeholder="https://github.com/yourusername" value={githubUrl} onChange={e => onGithubUrlChange(e.target.value)} onBlur={() => onGithubUrlChange(normalizeUrl(githubUrl))} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+            <Input
+              placeholder="https://github.com/yourusername"
+              value={githubUrl}
+              onChange={e => onGithubUrlChange(e.target.value)}
+              onBlur={() => { markTouched('github'); onGithubUrlChange(normalizeUrl(githubUrl)); }}
+              type="url"
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              className={showWarning('github', githubUrl) ? 'border-yellow-500' : ''}
+            />
+            {showWarning('github', githubUrl) && (
+              <p className="text-[11px] text-yellow-500 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3 shrink-0" /> Missing https:// — will be added on save
+              </p>
+            )}
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+              <Twitter className="w-3.5 h-3.5" /> X / Twitter URL
+            </label>
+            <Input
+              placeholder="https://x.com/yourusername"
+              value={twitterUrl}
+              onChange={e => onTwitterUrlChange(e.target.value)}
+              onBlur={() => { markTouched('twitter'); onTwitterUrlChange(normalizeUrl(twitterUrl)); }}
+              type="url"
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              className={showWarning('twitter', twitterUrl) ? 'border-yellow-500' : ''}
+            />
+            {showWarning('twitter', twitterUrl) && (
+              <p className="text-[11px] text-yellow-500 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3 shrink-0" /> Missing https:// — will be added on save
+              </p>
+            )}
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+              <Link2 className="w-3.5 h-3.5" /> Website URL
+            </label>
+            <Input
+              placeholder="https://yourwebsite.com"
+              value={websiteUrl}
+              onChange={e => onWebsiteUrlChange(e.target.value)}
+              onBlur={() => { markTouched('website'); onWebsiteUrlChange(normalizeUrl(websiteUrl)); }}
+              type="url"
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              className={showWarning('website', websiteUrl) ? 'border-yellow-500' : ''}
+            />
+            {showWarning('website', websiteUrl) && (
+              <p className="text-[11px] text-yellow-500 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3 shrink-0" /> Missing https:// — will be added on save
+              </p>
+            )}
           </div>
         </div>
       </CollapsibleCard>
@@ -121,27 +210,13 @@ export function MoreTab(props: MoreTabProps) {
         </div>
       </CollapsibleCard>
 
-      {/* Visitors & Analytics */}
-      <CollapsibleCard
-        id="visitors"
-        icon={<Eye className="w-4 h-4" />}
-        title="Visitors & Analytics"
-        hint={views > 0 ? <Badge variant="secondary" className="text-[10px] py-0 px-1.5">{views} views</Badge> : undefined}
-        openSections={openSections}
-        toggleSection={toggleSection}
-      >
-        <VisitorsPanel
-          username={portfolioUsername}
-          userId={userId}
-          portfolioEnabled={portfolioEnabled}
-        />
-        <div className="mt-4 pt-4 border-t border-border">
-          <p className="text-[11px] text-muted-foreground mb-2">View and restore previous versions of your portfolio.</p>
-          <Button variant="outline" size="sm" className="w-full text-xs" onClick={onOpenHistory}>
-            <History className="w-3.5 h-3.5 mr-1.5" /> Revision History
-          </Button>
-        </div>
-      </CollapsibleCard>
+      {/* Revision History */}
+      <div className="rounded-xl border border-border bg-card p-3">
+        <p className="text-[11px] text-muted-foreground mb-2">View and restore previous versions of your portfolio.</p>
+        <Button variant="outline" size="sm" className="w-full text-xs" onClick={onOpenHistory}>
+          <History className="w-3.5 h-3.5 mr-1.5" /> Revision History
+        </Button>
+      </div>
 
       {/* Career Card */}
       {hasLivePortfolio && (

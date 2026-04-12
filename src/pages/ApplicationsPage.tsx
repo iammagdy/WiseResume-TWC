@@ -1,10 +1,9 @@
 import { useState, useCallback, useMemo, useDeferredValue, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { Plus, Bell, BarChart3, Briefcase, FileText, Search, MapPin, Building2, Calendar, Mic, Mail, Scissors, CheckCircle2, FlaskConical, Zap, Wand2, BookOpen } from 'lucide-react';
+import { Plus, Bell, BarChart3, Briefcase, FileText, Search, MapPin, Building2, Calendar, Mic, Mail, Scissors, CheckCircle2, FlaskConical, Zap, Wand2, BookOpen, LayoutGrid, List } from 'lucide-react';
 import { useJobApplications, useJobApplicationMutations, ApplicationStatus } from '@/hooks/useJobApplications';
 import { useJobs, useJobMutations, Job } from '@/hooks/useJobs';
-import { sampleJobs } from '@/lib/sampleJobs';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useJobActivityStats } from '@/hooks/useJobActivityStats';
 import { useAuth } from '@/hooks/useAuth';
@@ -24,7 +23,9 @@ import { SaveJobSheet } from '@/components/applications/SaveJobSheet';
 import { JobMatchScore } from '@/components/applications/JobMatchScore';
 import { StatusFilter } from '@/components/applications/StatusFilter';
 import { FollowUpEmailSheet } from '@/components/applications/FollowUpEmailSheet';
+import { KanbanBoard } from '@/components/applications/KanbanBoard';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
@@ -105,12 +106,16 @@ export default function ApplicationsPage() {
   const [showSearch, setShowSearch] = useState(false);
   const [showSaveJob, setShowSaveJob] = useState(false);
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'all'>('all');
+  const [view, setView] = useState<'list' | 'board'>(
+    () => (localStorage.getItem('activity-view') as 'list' | 'board') || 'list',
+  );
   const [followUpApp, setFollowUpApp] = useState<{company: string;jobTitle: string;} | null>(null);
   const [filters, setFilters] = useState<JobFilters>({ query: '', jobTypes: [], location: '' });
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
   const { data: jobs = [] } = useJobs();
   const { createJob } = useJobMutations();
   const [isSeeding, setIsSeeding] = useState(false);
+  const [showSampleJobsPreview, setShowSampleJobsPreview] = useState(false);
   const { data: applications = [] } = useJobApplications(statusFilter === 'all' ? undefined : statusFilter);
   const { data: resumes } = useResumes();
   const [resumeListOpen, setResumeListOpen] = useState(false);
@@ -209,6 +214,12 @@ export default function ApplicationsPage() {
     });
   }, [jobs, deferredQuery, filters.jobTypes, filters.location]);
 
+  const handleViewChange = useCallback((v: 'list' | 'board') => {
+    haptics.selection();
+    setView(v);
+    localStorage.setItem('activity-view', v);
+  }, []);
+
   const handleRefresh = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ['job-activity-stats'] });
     await queryClient.invalidateQueries({ queryKey: ['activity-timeline'] });
@@ -303,9 +314,40 @@ export default function ApplicationsPage() {
           </div>
           {activeTab === 'applications' ?
           <>
-              {/* Status Filter */}
-              <StatusFilter value={statusFilter} onChange={setStatusFilter} counts={statusCounts} />
+              {/* View toggle row */}
+              <div className="flex items-center gap-2">
+                {view === 'list' ? (
+                  <div className="flex-1 min-w-0">
+                    <StatusFilter value={statusFilter} onChange={setStatusFilter} counts={statusCounts} />
+                  </div>
+                ) : (
+                  <div className="flex-1" />
+                )}
+                <div className="flex items-center gap-0.5 bg-muted/60 border border-border rounded-xl p-1 shrink-0">
+                  <button
+                    onClick={() => handleViewChange('list')}
+                    aria-label="List view"
+                    className={`flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium transition-all touch-manipulation ${view === 'list' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    <List className="w-3.5 h-3.5" />
+                    List
+                  </button>
+                  <button
+                    onClick={() => handleViewChange('board')}
+                    aria-label="Board view"
+                    className={`flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium transition-all touch-manipulation ${view === 'board' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                    Board
+                  </button>
+                </div>
+              </div>
 
+              {/* Board view */}
+              {view === 'board' ? (
+                <KanbanBoard />
+              ) : (
+              <>
               {/* Streak */}
               <ActivityStreak />
 
@@ -465,6 +507,9 @@ export default function ApplicationsPage() {
 
             }
 
+            </>
+              )}
+
             </> :
 
           <>
@@ -550,24 +595,10 @@ export default function ApplicationsPage() {
                         </button>
                     </div>
                     <button
-                  disabled={isSeeding}
-                  onClick={async () => {
-                    setIsSeeding(true);
-                    try {
-                      for (const job of sampleJobs) {
-                        await createJob.mutateAsync(job);
-                      }
-                      toast.success('5 sample jobs added!');
-                    } catch {
-                      toast.error('Failed to add sample jobs');
-                    } finally {
-                      setIsSeeding(false);
-                    }
-                  }}
+                  onClick={() => { haptics.light(); setShowSampleJobsPreview(true); }}
                   className="flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground px-4 py-2 rounded-full border border-dashed border-border hover:border-primary/40 hover:text-primary transition-colors min-h-[44px] touch-manipulation">
-                  
                         <FlaskConical className="w-3.5 h-3.5" />
-                        {isSeeding ? 'Adding...' : 'Try Sample Jobs'}
+                        See Sample Jobs
                       </button>
                   </div>
                 </div>)
@@ -621,6 +652,42 @@ export default function ApplicationsPage() {
         jobTitle={followUpApp.jobTitle} />
 
       }
+
+      {/* Sample Jobs Preview — demo only, no data is saved */}
+      <Dialog open={showSampleJobsPreview} onOpenChange={setShowSampleJobsPreview}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FlaskConical className="w-4 h-4 text-muted-foreground" />
+              Sample Job Listings
+            </DialogTitle>
+            <DialogDescription>
+              These are example job listings to show you what the tracker looks like. Add your own real jobs using "Add Manually" or "Search Jobs" above.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 mt-2">
+            {[
+              { title: 'Frontend Engineer', company: 'Example Corp', location: 'Remote', type: 'Full-time', salary: '$90K–$130K' },
+              { title: 'Product Designer', company: 'Design Co.', location: 'New York, NY', type: 'Full-time', salary: '$85K–$120K' },
+              { title: 'Backend Developer', company: 'Cloud Inc.', location: 'San Francisco, CA', type: 'Contract', salary: '$70–$90/hr' },
+              { title: 'Marketing Manager', company: 'Growth Agency', location: 'Chicago, IL', type: 'Full-time', salary: '$75K–$95K' },
+              { title: 'Data Analyst Intern', company: 'Analytics LLC', location: 'Remote', type: 'Internship', salary: '$25/hr' },
+            ].map((job, i) => (
+              <div key={i} className="border border-border rounded-xl p-3 bg-muted/30 space-y-1">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-medium text-sm">{job.title}</p>
+                  <Badge variant="outline" className="text-[10px] shrink-0">Demo</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">{job.company} · {job.location}</p>
+                <p className="text-xs text-muted-foreground">{job.type} · {job.salary}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground mt-2 text-center">
+            Ready to track real applications? Use the buttons above to add your own.
+          </p>
+        </DialogContent>
+      </Dialog>
     </div>);
 
 }

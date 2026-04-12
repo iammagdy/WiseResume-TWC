@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, useMemo } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { MapPin, Linkedin, Github, Globe, X, Mail, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -32,6 +32,10 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
   allSkills,
 }, ref) => {
   const themeConfig = getThemeById(pStyle);
+  const typewriterPhrases = useMemo(
+    () => buildTypewriterPhrases(profile, allSkills),
+    [profile, allSkills]
+  );
   
   const heroBg: React.CSSProperties = pStyle === 'developer-terminal'
     ? { background: `linear-gradient(180deg, color-mix(in srgb, ${accentColor} 8%, #1a1b26), #1a1b26 70%)` }
@@ -193,10 +197,7 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
             </div>
 
             <div className="pf-fade-entrance" style={{ animationDelay: `${locationDelay}ms` }}>
-              {(() => {
-                const phrases = buildTypewriterPhrases(profile, allSkills);
-                return phrases.length > 0 ? <TypewriterText phrases={phrases} accentColor={accentColor} /> : null;
-              })()}
+              {typewriterPhrases.length > 0 ? <TypewriterText phrases={typewriterPhrases} accentColor={accentColor} /> : null}
             </div>
 
             {(profile.linkedinUrl || profile.githubUrl || profile.websiteUrl || profile.twitterUrl) && (

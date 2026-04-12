@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { DollarSign, Loader2, Copy, Check, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { DollarSign, Loader2, Copy, Check, RefreshCw, RotateCcw } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { useAIAction } from '@/hooks/useAIAction';
+import { useAIDraft } from '@/hooks/useAIDraft';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { useResumeStore } from '@/store/resumeStore';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
@@ -38,8 +39,13 @@ function isNegotiationResult(value: unknown): value is NegotiationResult {
   );
 }
 
+function isNumericValue(value: string): boolean {
+  return value.trim() !== '' && /^\d+([.,]\d+)*$/.test(value.trim().replace(/[\s]/g, ''));
+}
+
 export function SalaryNegotiationSheet({ open, onOpenChange }: SalaryNegotiationSheetProps) {
   const currentResume = useResumeStore(s => s.currentResume);
+  const resumeId = (currentResume as { id?: string } | null)?.id;
   const [jobTitle, setJobTitle] = useState('');
   const [offeredSalary, setOfferedSalary] = useState('');
   const [targetSalary, setTargetSalary] = useState('');
@@ -47,15 +53,37 @@ export function SalaryNegotiationSheet({ open, onOpenChange }: SalaryNegotiation
   const [result, setResult] = useState<NegotiationResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showDraftBanner, setShowDraftBanner] = useState(false);
+  const [salaryErrors, setSalaryErrors] = useState<{ offered?: string; target?: string }>({});
   const { execute } = useAIAction({ operation: 'salary-negotiation' });
+  const { draft, saveDraft, clearDraft, hasDraft } = useAIDraft<NegotiationResult>('salary-negotiation', resumeId);
+
+  useEffect(() => {
+    if (open && hasDraft && !result) {
+      setShowDraftBanner(true);
+    }
+  }, [open, hasDraft, result]);
 
   const handleGenerate = async () => {
     if (!jobTitle.trim() || !offeredSalary.trim() || !targetSalary.trim()) {
       toast.error('Please fill in all required fields');
       return;
     }
+    const errors: { offered?: string; target?: string } = {};
+    if (!isNumericValue(offeredSalary)) {
+      errors.offered = 'Please enter a numeric value (e.g. 90000)';
+    }
+    if (!isNumericValue(targetSalary)) {
+      errors.target = 'Please enter a numeric value (e.g. 110000)';
+    }
+    if (errors.offered || errors.target) {
+      setSalaryErrors(errors);
+      return;
+    }
+    setSalaryErrors({});
     haptics.medium();
     setIsLoading(true);
+    setShowDraftBanner(false);
     try {
       const data = await execute(async () => {
         const candidateName = currentResume?.contactInfo?.fullName ?? 'Candidate';
@@ -89,7 +117,10 @@ Respond ONLY with valid JSON in this exact format:
         const content = extractAIContent(responseData);
         return parseAIJson(content, isNegotiationResult);
       });
-      if (data) setResult(data);
+      if (data) {
+        setResult(data);
+        saveDraft(data);
+      }
     } catch {
       toast.error('Failed to generate negotiation script. Please try again.');
     } finally {
@@ -103,6 +134,12 @@ Respond ONLY with valid JSON in this exact format:
     haptics.light();
     toast.success('Copied!');
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleNew = () => {
+    setResult(null);
+    clearDraft();
+    setShowDraftBanner(false);
   };
 
   const CopyButton = ({ text, id }: { text: string; id: string }) => (
@@ -126,6 +163,21 @@ Respond ONLY with valid JSON in this exact format:
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4">
+          {showDraftBanner && draft && !result && (
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-2">
+              <p className="text-xs text-amber-700 dark:text-amber-400">Resume from last session?</p>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setResult(draft); setShowDraftBanner(false); }}>
+                  <RotateCcw className="w-3 h-3 mr-1" />
+                  Restore
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { clearDraft(); setShowDraftBanner(false); }}>
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+          )}
+
           {!result ? (
             <>
               <div className="grid grid-cols-2 gap-3">
@@ -140,18 +192,28 @@ Respond ONLY with valid JSON in this exact format:
                 <div className="space-y-1.5">
                   <Label>Offered Salary *</Label>
                   <Input
-                    placeholder="e.g. 90,000"
+                    placeholder="e.g. 90000"
                     value={offeredSalary}
-                    onChange={e => setOfferedSalary(e.target.value)}
+                    onChange={e => { setOfferedSalary(e.target.value); if (salaryErrors.offered) setSalaryErrors(prev => ({ ...prev, offered: undefined })); }}
+                    className={salaryErrors.offered ? 'border-destructive' : ''}
+                    inputMode="numeric"
                   />
+                  {salaryErrors.offered && (
+                    <p className="text-xs text-destructive">{salaryErrors.offered}</p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Target Salary *</Label>
                   <Input
-                    placeholder="e.g. 110,000"
+                    placeholder="e.g. 110000"
                     value={targetSalary}
-                    onChange={e => setTargetSalary(e.target.value)}
+                    onChange={e => { setTargetSalary(e.target.value); if (salaryErrors.target) setSalaryErrors(prev => ({ ...prev, target: undefined })); }}
+                    className={salaryErrors.target ? 'border-destructive' : ''}
+                    inputMode="numeric"
                   />
+                  {salaryErrors.target && (
+                    <p className="text-xs text-destructive">{salaryErrors.target}</p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Currency</Label>
@@ -178,7 +240,7 @@ Respond ONLY with valid JSON in this exact format:
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-sm">Your Negotiation Script</h3>
-                <Button variant="ghost" size="sm" onClick={() => setResult(null)} className="gap-1 text-xs">
+                <Button variant="ghost" size="sm" onClick={handleNew} className="gap-1 text-xs">
                   <RefreshCw className="w-3.5 h-3.5" />
                   New
                 </Button>

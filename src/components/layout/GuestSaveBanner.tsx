@@ -43,7 +43,7 @@ export function GuestSaveBanner() {
           size="sm"
           variant="destructive"
           className="h-8 text-xs px-3 shrink-0"
-          onClick={() => navigate('/auth')}
+          onClick={() => navigate('/auth?mode=signup')}
         >
           Sign Up Free
         </Button>

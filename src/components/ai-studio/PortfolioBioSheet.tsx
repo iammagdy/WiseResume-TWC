@@ -44,7 +44,7 @@ const BIO_VARIANTS: Array<{
   bg: string;
 }> = [
   { key: 'short', label: 'Short', desc: '1 sentence', color: 'text-sky-500', bg: 'bg-sky-500/10 border-sky-500/20' },
-  { key: 'medium', label: 'Medium', desc: '2-3 sentences', color: 'text-indigo-500', bg: 'bg-indigo-500/10 border-indigo-500/20' },
+  { key: 'medium', label: 'Medium', desc: '2-3 sentences', color: 'text-rose-500', bg: 'bg-rose-500/10 border-rose-500/20' },
   { key: 'full', label: 'Full Paragraph', desc: '4-5 sentences', color: 'text-violet-500', bg: 'bg-violet-500/10 border-violet-500/20' },
 ];
 

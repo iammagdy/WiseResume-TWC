@@ -43,5 +43,34 @@ events.json
 # Test coverage
 coverage/
 
-# TestSprite runtime config (contains credentials)
-testsprite_tests/tmp/config.json
+# TestSprite (full directory — contains test runner output and credentials)
+testsprite_tests/
+
+# AI conversation assets (screenshots and pasted text from chat sessions)
+attached_assets/
+
+# Legacy documentation archives
+legacy-docs/
+
+# Design exploration sandboxes
+artifacts/
+
+# AI tool configs (agent-specific, not project config)
+.agent/
+.agents/
+.jules/
+.opencode/
+.specify/
+.claude/
+.boltignore
+
+# Build/test output files (generated, never commit)
+coverage.txt
+test_out.txt
+lint_output.txt
+lint_interview.txt
+final_lint.txt
+vitest_*.txt
+vitest_*.json
+*.timestamp-*.mjs
+*.pid
