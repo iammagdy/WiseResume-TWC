@@ -57,6 +57,17 @@ export function useAICredits() {
   const isBYOK = useIsBYOK();
   const { data: meData, isLoading, error, refetch } = useMe();
 
+  // Compute trial info from meData — available for all users regardless of BYOK
+  const trialPlan = meData?.subscription?.trial_plan ?? null;
+  const trialExpiresAt = meData?.subscription?.trial_expires_at ?? null;
+  const isActiveTrial =
+    !!trialPlan &&
+    !!trialExpiresAt &&
+    new Date(trialExpiresAt) > new Date();
+  const trialDaysLeft = isActiveTrial && trialExpiresAt
+    ? Math.max(0, Math.ceil((new Date(trialExpiresAt).getTime() - Date.now()) / 86_400_000))
+    : 0;
+
   if (isBYOK) {
     const byokData: Partial<AICredits> = {
       daily_usage: 0,
@@ -69,6 +80,10 @@ export function useAICredits() {
       isLoading: false,
       error: null,
       refetch,
+      isBYOK: true as const,
+      isActiveTrial: false,
+      trialPlan: null as string | null,
+      trialDaysLeft: 0,
     };
   }
 
@@ -118,6 +133,10 @@ export function useAICredits() {
     isLoading,
     error,
     refetch,
+    isBYOK: false as const,
+    isActiveTrial,
+    trialPlan,
+    trialDaysLeft,
   };
 }
 

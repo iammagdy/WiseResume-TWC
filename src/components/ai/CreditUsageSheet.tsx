@@ -58,12 +58,18 @@ export const CreditUsageSheet = memo(function CreditUsageSheet({
   onOpenChange,
 }: CreditUsageSheetProps) {
   const { user } = useAuth();
-  const { data: credits } = useAICredits();
+  const { data: credits, isBYOK, isActiveTrial, trialDaysLeft } = useAICredits();
 
   const used = credits?.daily_usage ?? 0;
   const limit = credits?.daily_limit ?? 20;
   const isUnlimited = !isFinite(limit);
   const totalLifetime = credits?.total_usage ?? 0;
+
+  const unlimitedSubLabel = isBYOK
+    ? 'using your own API key'
+    : isActiveTrial
+      ? `Trial · ${trialDaysLeft} day${trialDaysLeft === 1 ? '' : 's'} remaining`
+      : 'Premium plan';
 
   const { data: allActivity } = useQuery({
     queryKey: ['ai-usage-breakdown', user?.id],
@@ -128,7 +134,7 @@ export const CreditUsageSheet = memo(function CreditUsageSheet({
               {isUnlimited ? (
                 <>
                   <p className="text-2xl font-bold text-primary">Unlimited</p>
-                  <p className="text-xs text-muted-foreground">using your own API key</p>
+                  <p className="text-xs text-muted-foreground">{unlimitedSubLabel}</p>
                 </>
               ) : (
                 <>

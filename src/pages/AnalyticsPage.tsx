@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { BackButton } from '@/components/ui/BackButton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { usePlan } from '@/hooks/usePlan';
+import { UpgradeWall } from '@/components/plan/UpgradeWall';
 import { Button } from '@/components/ui/button';
 import { FileText, Target, Briefcase, Flame, Download, TrendingUp, TrendingDown, Award, Calendar } from 'lucide-react';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
@@ -17,6 +19,7 @@ import { haptics } from '@/lib/haptics';
 import { format, formatDistanceToNow } from 'date-fns';
 
 export default function AnalyticsPage() {
+  const { isPremium, isLoading: planLoading } = usePlan();
   const { user } = useAuth();
   const { profile } = useProfile(user?.id, user);
   const { data: resumes = [] } = useResumes();
@@ -87,6 +90,32 @@ export default function AnalyticsPage() {
     const interviews = applications.filter(a => a.status === 'interviewing' || a.status === 'offer').length;
     return Math.round((interviews / applications.length) * 100);
   }, [applications]);
+
+  if (!planLoading && !isPremium) {
+    return (
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="pt-safe sticky top-0 z-10 pb-2 px-4 bg-background/95 backdrop-blur-sm border-b border-border">
+          <div className="flex items-center gap-3">
+            <BackButton />
+            <h1 className="text-page-title">Analytics</h1>
+          </div>
+        </header>
+        <div className="flex-1 overflow-y-auto">
+          <UpgradeWall
+            requiredPlan="premium"
+            featureName="Analytics Dashboard"
+            description="Get deep insights into your resume performance, application funnel, and career progress with Premium."
+            features={[
+              'ATS score trends across all resumes',
+              'Application funnel & interview rate',
+              'Resume completion & improvement nudges',
+              'Activity streak and career momentum',
+            ]}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">

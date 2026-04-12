@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/popover';
 
 export function AICreditsIndicator() {
-  const { data: credits } = useAICredits();
+  const { data: credits, isBYOK, isActiveTrial, trialDaysLeft } = useAICredits();
   const [showSheet, setShowSheet] = useState(false);
   const [showPopover, setShowPopover] = useState(false);
 
@@ -22,6 +22,12 @@ export function AICreditsIndicator() {
   const remaining = Math.max(0, limit - used);
   const isUnlimited = !isFinite(limit);
   const isExhausted = !isUnlimited && remaining === 0;
+
+  const unlimitedLabel = isBYOK
+    ? 'Unlimited (your API key)'
+    : isActiveTrial
+      ? `Unlimited · Trial (${trialDaysLeft}d left)`
+      : 'Unlimited · Premium plan';
 
   return (
     <>
@@ -50,7 +56,7 @@ export function AICreditsIndicator() {
           </p>
           <div className="rounded-lg bg-muted px-3 py-2 text-xs space-y-1">
             {isUnlimited ? (
-              <p className="text-primary font-medium">Unlimited (your API key)</p>
+              <p className="text-primary font-medium">{unlimitedLabel}</p>
             ) : (
               <>
                 <div className="flex justify-between">

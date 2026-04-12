@@ -29,6 +29,7 @@ import { usePlan } from '@/hooks/usePlan';
 import { calculateProfileCompletion } from '@/hooks/useProfile';
 import { AIHealthBadge } from '@/components/ai/AIHealthBadge';
 import { AICreditsIndicator } from '@/components/editor/ai/AICreditsIndicator';
+import { TrialCountdownBadge } from '@/components/ui/TrialCountdownBadge';
 import { useChangelogBadge } from '@/hooks/useChangelogBadge';
 import { getReferralTeaser } from '@/lib/referralData';
 
@@ -486,6 +487,7 @@ function DashboardPageContent() {
           >
             <HelpCircle className="w-4.5 h-4.5 text-muted-foreground" />
           </Button>
+          <TrialCountdownBadge />
           <div className="flex">
             <AICreditsIndicator />
           </div>
