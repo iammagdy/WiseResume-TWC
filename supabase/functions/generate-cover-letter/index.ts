@@ -99,7 +99,7 @@ serve(async (req) => {
 - Do NOT use placeholder brackets like [Your Name] or [Company Name]. Use the actual values provided.
 - Do NOT invent achievements, metrics, or experiences not present in the candidate's resume.
 - Mirror exact terminology from the job description — if the JD says "cross-functional collaboration", use that phrase, not "teamwork".
-- Total length: 300-400 words. Recruiters spend 7 seconds on a cover letter — every sentence must earn its place.`;
+- Recruiters spend 7 seconds on a cover letter — every sentence must earn its place. Follow the paragraph word counts above strictly.`;
 
     const userPrompt = `Write a cover letter using the framework in your instructions.
 
