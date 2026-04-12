@@ -1,3 +1,13 @@
+/**
+ * fetch-github-projects — Fetches a user's public GitHub repos and caches them in profiles.
+ *
+ * AUDIT NOTE (2026-04-12): No direct frontend callers found in the current codebase.
+ * This function is retained because it writes to `profiles.github_projects_cache` and
+ * `profiles.github_last_synced`, which may be consumed by portfolio/profile pages that
+ * read from the cache. It should be wired to a frontend "Sync GitHub" button before the
+ * next release, or removed if the GitHub sync feature is dropped entirely.
+ */
+
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders } from '../_shared/cors.ts';

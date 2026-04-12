@@ -72,30 +72,17 @@ export function ReferenceLetterSheet({ open, onOpenChange }: ReferenceLetterShee
 
         const { data: responseData, error } = await edgeFunctions.functions.invoke('wise-ai-chat', {
           body: {
-            messages: [
-              {
-                role: 'user',
-                content: `You are an expert at writing professional reference letters. Generate a formal reference letter template.
-
-Referee Name: ${refereeName}
-Referee Role/Title: ${refereeRole}
-Relationship to Candidate: ${relationship}
-${context ? `Additional Context: ${context}` : ''}
-Candidate Name: ${candidateName}
-${summary ? `Candidate Summary: ${summary}` : ''}
-${experience ? `Candidate Experience: ${experience}` : ''}
-
-Write a complete, professional reference letter that:
-1. Is from ${refereeName}'s perspective as a ${refereeRole}
-2. Addresses the hiring manager
-3. Highlights the candidate's key strengths relevant to their experience
-4. Includes specific examples where possible
-5. Has a professional closing
-
-Return ONLY the letter text, no JSON, no explanation. Start with "Dear Hiring Manager," and end with a proper signature block for ${refereeName}.`,
-              },
-            ],
-            resumeContext: redactedResume ?? null,
+            type: 'reference_letter',
+            payload: {
+              refereeName,
+              refereeRole,
+              relationship,
+              context: context || undefined,
+              candidateName,
+              summary,
+              experience,
+              resumeContext: redactedResume ?? null,
+            },
           },
         });
         if (error) throw new Error(error.message);

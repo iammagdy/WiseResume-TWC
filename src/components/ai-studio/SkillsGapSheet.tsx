@@ -142,34 +142,14 @@ export function SkillsGapSheet({ open, onOpenChange }: SkillsGapSheetProps) {
 
         const { data: responseData, error } = await edgeFunctions.functions.invoke('wise-ai-chat', {
           body: {
-            messages: [
-              {
-                role: 'user',
-                content: `You are a career skills gap analyzer. Compare the candidate's resume against the job description and identify matched and missing skills.
-
-CANDIDATE RESUME SKILLS: ${skills}
-CANDIDATE EXPERIENCE: ${experience}
-CANDIDATE SUMMARY: ${summary}
-
-JOB DESCRIPTION:
-${jobDescription}
-
-Analyze the gap and respond ONLY with valid JSON:
-{
-  "matchedSkills": ["skill1", "skill2"],
-  "missingSkills": [
-    { "skill": "skill name", "importance": "critical|high|medium|low" }
-  ],
-  "learningPlan": [
-    { "week": "Week 1-2", "action": "actionable learning step" },
-    { "week": "Week 3-4", "action": "actionable learning step" },
-    { "week": "Week 5-6", "action": "actionable learning step" },
-    { "week": "Week 7-8", "action": "actionable learning step" }
-  ]
-}`,
-              },
-            ],
-            resumeContext: redactedResume,
+            type: 'skills_gap',
+            payload: {
+              skills,
+              experience,
+              summary,
+              jobDescription,
+              resumeContext: redactedResume,
+            },
           },
         });
         if (error) throw new Error(error.message);

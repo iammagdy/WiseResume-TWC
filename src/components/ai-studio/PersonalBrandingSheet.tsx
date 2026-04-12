@@ -98,30 +98,14 @@ export function PersonalBrandingSheet({ open, onOpenChange }: PersonalBrandingSh
 
         const { data: responseData, error } = await edgeFunctions.functions.invoke('wise-ai-chat', {
           body: {
-            messages: [
-              {
-                role: 'user',
-                content: `You are a personal branding expert. Based on this resume, generate 3 one-sentence personal branding statements.
-
-Name: ${name}
-Summary: ${summary}
-Top Skills: ${topSkills}
-Experience: ${experience}
-
-Generate 3 variants:
-1. Formal - polished and professional for corporate settings
-2. Casual - friendly and approachable for networking
-3. Bold - assertive and memorable, makes a strong impression
-
-Respond ONLY with valid JSON:
-{
-  "formal": "string - one sentence, formal tone",
-  "casual": "string - one sentence, casual tone",
-  "bold": "string - one sentence, bold/punchy tone"
-}`,
-              },
-            ],
-            resumeContext: redactedResume,
+            type: 'personal_branding',
+            payload: {
+              name,
+              summary,
+              topSkills,
+              experience,
+              resumeContext: redactedResume,
+            },
           },
         });
         if (error) throw new Error(error.message);

@@ -93,27 +93,16 @@ export function SalaryNegotiationSheet({ open, onOpenChange }: SalaryNegotiation
         const summary = currentResume?.summary ?? '';
         const { data: responseData, error } = await edgeFunctions.functions.invoke('wise-ai-chat', {
           body: {
-            messages: [
-              {
-                role: 'user',
-                content: `You are a salary negotiation expert. Generate a comprehensive negotiation script for the following situation:
-
-Job Title: ${jobTitle}
-Offered Salary: ${currency} ${offeredSalary}
-Target Salary: ${currency} ${targetSalary}
-${currentResume ? `Candidate Background: ${candidateName}, ${summary}` : ''}
-
-Respond ONLY with valid JSON in this exact format:
-{
-  "openingLine": "string - the first thing to say when negotiating",
-  "justifications": ["string", "string", "string"],
-  "counterOffer": "string - the specific counter-offer framing sentence",
-  "emailTemplate": "string - a professional negotiation email template",
-  "callScript": "string - a phone/video call talking script"
-}`,
-              },
-            ],
-            resumeContext: redactedResume ?? null,
+            type: 'salary_negotiation',
+            payload: {
+              jobTitle,
+              offeredSalary,
+              targetSalary,
+              currency,
+              candidateName,
+              summary,
+              resumeContext: redactedResume ?? null,
+            },
           },
         });
         if (error) throw new Error(error.message);

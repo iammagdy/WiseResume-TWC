@@ -99,30 +99,14 @@ export function PortfolioBioSheet({ open, onOpenChange }: PortfolioBioSheetProps
 
         const { data: responseData, error } = await edgeFunctions.functions.invoke('wise-ai-chat', {
           body: {
-            messages: [
-              {
-                role: 'user',
-                content: `You are a portfolio bio writer. Generate 3 bio variants for a portfolio "About" section based on this resume.
-
-Name: ${name}
-Summary: ${summary}
-Top Skills: ${topSkills}
-Experience: ${experience}
-
-Generate 3 bio variants optimized for a portfolio About section:
-1. Short: 1 compelling sentence that captures who they are and what they do
-2. Medium: 2-3 sentences expanding on their expertise and value
-3. Full: A complete paragraph (4-5 sentences) covering background, expertise, passion, and what they bring
-
-Respond ONLY with valid JSON:
-{
-  "short": "string - 1 sentence bio",
-  "medium": "string - 2-3 sentence bio",
-  "full": "string - full paragraph bio"
-}`,
-              },
-            ],
-            resumeContext: redactedResume,
+            type: 'portfolio_bio',
+            payload: {
+              name,
+              summary,
+              topSkills,
+              experience,
+              resumeContext: redactedResume,
+            },
           },
         });
         if (error) throw new Error(error.message);
