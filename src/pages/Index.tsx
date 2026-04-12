@@ -776,7 +776,7 @@ const Index = () => {
               maxWidth: 500,
             }}
           >
-            Build, tailor, and optimise your resume with AI. Practice interviews, track applications, and launch your portfolio — all in one place.
+            AI that builds, tailors, and lands your next job.
           </p>
 
           {/* CTA — single primary action */}
