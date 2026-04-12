@@ -1,4 +1,5 @@
-import { lazy, Suspense, useEffect, useState, type LucideIcon } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Check } from 'lucide-react';
 

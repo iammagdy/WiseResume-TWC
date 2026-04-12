@@ -38,7 +38,7 @@ export function FeatureTicker() {
       aria-label="Features overview"
       aria-hidden="true"
     >
-      <div className="flex w-max animate-marquee group-hover:[animation-play-state:paused]">
+      <div className="flex w-max animate-marquee group-hover:[animation-play-state:paused] group-focus-within:[animation-play-state:paused]">
         {allItems.map(({ icon: Icon, label, color }, i) => (
           <span
             key={i}

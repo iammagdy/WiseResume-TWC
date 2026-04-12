@@ -9,10 +9,13 @@ interface StickyCtaBarProps {
   onSignIn: () => void;
 }
 
+type BarState = 'hidden' | 'entering' | 'visible' | 'exiting';
+
 export function StickyCtaBar({ heroRef, onGetStarted, onSignIn }: StickyCtaBarProps) {
-  const [visible, setVisible] = useState(false);
+  const [barState, setBarState] = useState<BarState>('hidden');
   const prefersReducedMotion = useReducedMotion();
   const observerRef = useRef<IntersectionObserver | null>(null);
+  const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const el = heroRef.current;
@@ -20,22 +23,43 @@ export function StickyCtaBar({ heroRef, onGetStarted, onSignIn }: StickyCtaBarPr
 
     observerRef.current = new IntersectionObserver(
       ([entry]) => {
-        setVisible(!entry.isIntersecting);
+        if (!entry.isIntersecting) {
+          if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
+          setBarState('entering');
+          const t = setTimeout(() => setBarState('visible'), 10);
+          exitTimerRef.current = t;
+        } else {
+          setBarState((prev) => {
+            if (prev === 'hidden') return 'hidden';
+            if (prefersReducedMotion) return 'hidden';
+            return 'exiting';
+          });
+          exitTimerRef.current = setTimeout(() => setBarState('hidden'), 300);
+        }
       },
       { threshold: 0.1 }
     );
 
     observerRef.current.observe(el);
-    return () => observerRef.current?.disconnect();
-  }, [heroRef]);
+    return () => {
+      observerRef.current?.disconnect();
+      if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
+    };
+  }, [heroRef, prefersReducedMotion]);
 
-  if (!visible) return null;
+  if (barState === 'hidden') return null;
+
+  const animClass = prefersReducedMotion
+    ? ''
+    : barState === 'entering' || barState === 'visible'
+    ? 'animate-slide-up-in'
+    : barState === 'exiting'
+    ? 'animate-slide-down-out'
+    : '';
 
   return (
     <div
-      className={`fixed bottom-0 left-0 right-0 z-40 ${
-        prefersReducedMotion ? '' : 'animate-slide-up-in'
-      }`}
+      className={`fixed bottom-0 left-0 right-0 z-40 ${animClass}`}
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div className="bg-background/95 backdrop-blur-sm border-t border-border shadow-soft-xl">
