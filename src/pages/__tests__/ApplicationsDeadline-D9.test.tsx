@@ -60,10 +60,6 @@ vi.mock("@/lib/activityTracker", () => ({
   activityTracker: { setActiveFeature: vi.fn(), trackAction: vi.fn() },
 }));
 
-vi.mock("@/lib/sampleJobs", () => ({
-  sampleJobs: [],
-}));
-
 vi.mock("@/lib/jobMatchScorer", () => ({
   scoreJobMatch: vi.fn(() => null),
   scoreJobMatchAI: vi.fn(() => Promise.resolve(null)),

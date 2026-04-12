@@ -12,9 +12,3 @@ export async function getResumeExamples(): Promise<ResumeExample[]> {
   _cache = (await res.json()) as ResumeExample[];
   return _cache;
 }
-
-/**
- * @deprecated Use `getResumeExamples()` instead. This is kept for backward compatibility
- * but will be an empty array until the async loader is called.
- */
-export const resumeExamples: ResumeExample[] = [];
