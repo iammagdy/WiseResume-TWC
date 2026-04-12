@@ -10,7 +10,7 @@ import { useProfile } from '@/hooks/useProfile';
 import triggerHaptic from '@/lib/haptics';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { motion, useReducedMotion, type Easing } from 'framer-motion';
-import { useEffect, useState, useRef, lazy, Suspense } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
 import { QuickTailorSheet } from '@/components/landing/QuickTailorSheet';
@@ -18,15 +18,9 @@ import { useTheme } from '@/hooks/use-theme';
 import { InstallButton } from '@/components/pwa/InstallButton';
 import { useThemeLogo } from '@/hooks/useThemeLogo';
 import { Sun, Moon } from 'lucide-react';
-
-const LazyEditorDemo = lazy(() => import('@/components/landing/EditorDemo').then((m) => ({ default: m.EditorDemo })));
-const LazyPortfolioDemo = lazy(() => import('@/components/landing/PortfolioDemo').then((m) => ({ default: m.PortfolioDemo })));
-const LazyTailoringDemo = lazy(() => import('@/components/landing/TailoringDemo').then((m) => ({ default: m.TailoringDemo })));
-const LazyInterviewDemo = lazy(() => import('@/components/landing/InterviewDemo').then((m) => ({ default: m.InterviewDemo })));
-const LazyTrackerDemo = lazy(() => import('@/components/landing/TrackerDemo').then((m) => ({ default: m.TrackerDemo })));
-
-const DemoFallback = () =>
-  <div className="w-[260px] h-[280px] rounded-2xl border border-border bg-muted/50 animate-pulse" />;
+import { FeatureTicker } from '@/components/landing/FeatureTicker';
+import { StickyCtaBar } from '@/components/landing/StickyCtaBar';
+import { FeatureSection, FeatureDotNav, type FeatureSectionData } from '@/components/landing/FeatureSection';
 
 const features = [
   { icon: Sparkles, title: 'AI Resume Writing', desc: 'AI rewrites vague bullets into quantified achievements that recruiters remember.', color: 'text-primary', bg: 'bg-primary/10' },
@@ -50,43 +44,80 @@ const pricingFeatures = {
   premium: ['Everything in Pro', 'Custom branding', 'Analytics dashboard', 'White-label exports', 'Early access features', 'Dedicated support'],
 };
 
-const demos = [
+const featureSections: FeatureSectionData[] = [
   {
+    id: 'editor',
+    direction: 'ltr',
     badge: { icon: Sparkles, label: 'AI Resume Editor', color: 'bg-primary/10 text-primary' },
+    bigLabel: 'Resume',
     title: 'AI-Powered Resume Writing',
-    desc: 'Watch AI turn weak bullets into quantified achievements — with a live ATS score.',
-    delay: 0.05,
-    component: 'editor',
+    desc: 'Watch AI turn weak bullets into quantified achievements — with a live ATS score that updates as you write.',
+    bullets: [
+      'AI rewrites vague bullets into measurable, recruiter-ready results',
+      'Live ATS score that updates with every edit',
+      'One-click enhancement for any section of your resume',
+    ],
+    demo: 'editor',
   },
   {
+    id: 'tailoring',
+    direction: 'rtl',
     badge: { icon: Wand2, label: 'Smart Tailoring', color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
+    bigLabel: 'Tailoring',
     title: 'Keyword Injection in Seconds',
-    desc: 'See how AI matches your resume to a job description before and after tailoring.',
-    delay: 0.1,
-    component: 'tailoring',
+    desc: 'Paste a job description and AI rewrites your resume to match in 30 seconds. See the before and after instantly.',
+    bullets: [
+      'Automatically matches keywords from any job description',
+      'Before/after comparison shows exactly what changed',
+      'Raises your ATS match score with precision',
+    ],
+    demo: 'tailoring',
   },
   {
-    badge: { icon: Globe, label: 'Live Website', color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
+    id: 'portfolio',
+    direction: 'ltr',
+    badge: { icon: Globe, label: 'Live Portfolio', color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
+    bigLabel: 'Portfolio',
     title: 'Public Portfolio Website',
-    desc: 'Turn your resume into a beautiful personal site with themes, projects, and a shareable link.',
-    delay: 0.15,
-    component: 'portfolio',
+    desc: 'Turn your resume into a beautiful personal site with themes, projects, and a shareable link — zero design skills needed.',
+    bullets: [
+      'Auto-synced from your resume — always up to date',
+      'Shareable link with a custom slug',
+      'Themed layouts that update with one click',
+    ],
+    demo: 'portfolio',
   },
   {
+    id: 'interview',
+    direction: 'rtl',
     badge: { icon: Mic, label: 'Interview Coach', color: 'bg-orange-500/10 text-orange-600 dark:text-orange-400' },
+    bigLabel: 'Interview',
     title: 'AI Interview Practice',
-    desc: 'Get scored on real interview questions with AI feedback on every answer.',
-    delay: 0.2,
-    component: 'interview',
+    desc: 'Get scored on real interview questions with AI feedback on every answer. Practice any role, any industry.',
+    bullets: [
+      'Real-time voice recognition — just speak naturally',
+      'AI scores each answer and gives specific tips',
+      'Practice any industry, role, or question type',
+    ],
+    demo: 'interview',
   },
   {
+    id: 'tracker',
+    direction: 'ltr',
     badge: { icon: BarChart3, label: 'Application Tracker', color: 'bg-pink-500/10 text-pink-600 dark:text-pink-400' },
+    bigLabel: 'Tracker',
     title: 'Kanban Job Tracker',
-    desc: 'Visualize every application at a glance and never lose track of an opportunity.',
-    delay: 0.25,
-    component: 'tracker',
+    desc: 'Visualize every application at a glance. Drag cards across your pipeline and never lose track of an opportunity.',
+    bullets: [
+      'Kanban board with drag-and-drop pipeline stages',
+      'Status history so you always know where things stand',
+      'Analytics show your application funnel at a glance',
+    ],
+    demo: 'tracker',
   },
 ];
+
+const FEATURE_IDS = featureSections.map((s) => s.id);
 
 const Index = () => {
   const navigate = useNavigate();
@@ -97,6 +128,7 @@ const Index = () => {
   const { isDark, toggleTheme } = useTheme();
   const [scrolled, setScrolled] = useState(false);
   const progressRef = useRef<HTMLDivElement>(null);
+  const heroRef = useRef<HTMLElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [tailorOpen, setTailorOpen] = useState(false);
 
@@ -267,7 +299,10 @@ const Index = () => {
 
       <main id="landing-main" className="max-w-6xl mx-auto w-full">
         {/* Hero Section */}
-        <section className="flex flex-col items-center text-center px-4 sm:px-6 pt-[calc(7rem+env(safe-area-inset-top))] pb-12 sm:pb-16 relative">
+        <section
+          ref={heroRef}
+          className="flex flex-col items-center text-center px-4 sm:px-6 pt-[calc(7rem+env(safe-area-inset-top))] pb-12 sm:pb-16 relative"
+        >
           <motion.div className="mb-6" {...fade(0)}>
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold border border-primary/20">
               <Sparkles className="w-3 h-3" />
@@ -359,6 +394,9 @@ const Index = () => {
           </motion.div>
         </section>
 
+        {/* Feature Ticker — looping marquee strip */}
+        <FeatureTicker />
+
         {/* Glowing separator */}
         <div className="hero-separator mx-4 sm:mx-6 mb-12" aria-hidden="true" />
 
@@ -380,66 +418,26 @@ const Index = () => {
           </motion.div>
         </section>
 
-        {/* Product Demos — 5 cards */}
-        <section className="px-4 sm:px-6 pb-20">
-          <motion.div
-            className="text-center mb-10"
-            initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-50px' }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-          >
-            <h2 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight mb-2">
-              See it in action
-            </h2>
-            <p className="text-muted-foreground max-w-md mx-auto">
-              Five powerful features, one seamless platform
-            </p>
-          </motion.div>
+        {/* Section heading */}
+        <motion.div
+          className="text-center px-4 sm:px-6 mb-4"
+          initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-50px' }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
+        >
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight mb-2">
+            See it in action
+          </h2>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            Five powerful features, one seamless platform
+          </p>
+        </motion.div>
 
-          {/* Mobile: horizontal scroll; Desktop: 3-col grid */}
-          <div className="flex gap-5 overflow-x-auto pb-4 sm:pb-0 snap-x snap-mandatory sm:overflow-visible sm:grid sm:grid-cols-3 sm:gap-5 max-w-5xl mx-auto -mx-4 px-4 sm:mx-auto sm:px-0 scrollbar-hide">
-            {demos.map((demo, i) => {
-              const BadgeIcon = demo.badge.icon;
-              return (
-                <motion.div
-                  key={demo.component}
-                  className="rounded-2xl border border-border bg-card shadow-soft p-6 flex flex-col items-center gap-4 flex-shrink-0 w-[80vw] sm:w-auto snap-center"
-                  initial={prefersReducedMotion ? false : { opacity: 0, y: 24 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '-20px' }}
-                  transition={{ duration: 0.45, delay: demo.delay, ease: 'easeOut' }}
-                >
-                  <div className="text-center">
-                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold mb-3 ${demo.badge.color}`}>
-                      <BadgeIcon className="w-3 h-3" />
-                      {demo.badge.label}
-                    </span>
-                    <h3 className="text-lg font-bold text-foreground mb-1">{demo.title}</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed max-w-[260px] mx-auto">
-                      {demo.desc}
-                    </p>
-                  </div>
-                  <Suspense fallback={<DemoFallback />}>
-                    {demo.component === 'editor' && <LazyEditorDemo />}
-                    {demo.component === 'tailoring' && <LazyTailoringDemo />}
-                    {demo.component === 'portfolio' && <LazyPortfolioDemo />}
-                    {demo.component === 'interview' && <LazyInterviewDemo />}
-                    {demo.component === 'tracker' && <LazyTrackerDemo />}
-                  </Suspense>
-                </motion.div>
-              );
-            })}
-          </div>
-
-          {/* Scroll affordance — visible only on mobile */}
-          <div className="flex items-center justify-center gap-1.5 mt-3 sm:hidden" aria-hidden="true">
-            {demos.map((_, i) => (
-              <span key={i} className={`rounded-full bg-muted-foreground/30 ${i === 0 ? 'w-4 h-1.5' : 'w-1.5 h-1.5'}`} />
-            ))}
-            <span className="ml-2 text-[11px] text-muted-foreground/60">Swipe for more</span>
-          </div>
-        </section>
+        {/* Alternating Feature Sections */}
+        {featureSections.map((section) => (
+          <FeatureSection key={section.id} data={section} />
+        ))}
 
         {/* Features — Uniform 2-column grid */}
         <section className="px-4 sm:px-6 pb-20">
@@ -630,6 +628,18 @@ const Index = () => {
 
         <Footer />
       </main>
+
+      {/* Dot navigation — desktop only, tracks active feature section */}
+      <FeatureDotNav sectionIds={FEATURE_IDS} />
+
+      {/* Sticky bottom CTA bar — non-authenticated users only */}
+      {!isAuthenticated && (
+        <StickyCtaBar
+          heroRef={heroRef}
+          onGetStarted={handleCTA}
+          onSignIn={() => { triggerHaptic.light(); kindeLogin(); }}
+        />
+      )}
 
       <QuickTailorSheet open={tailorOpen} onOpenChange={setTailorOpen} />
     </div>
