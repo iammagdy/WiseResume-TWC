@@ -632,14 +632,17 @@ const Index = () => {
                 const rect = btn.getBoundingClientRect();
                 const x = Math.round(rect.left + rect.width / 2);
                 const y = Math.round(rect.top + rect.height / 2);
+                // Set on :root so ::view-transition-* pseudo-elements (which live
+                // outside the normal DOM tree) can inherit the CSS variables.
                 document.documentElement.style.setProperty('--lp-ripple-x', x + 'px');
                 document.documentElement.style.setProperty('--lp-ripple-y', y + 'px');
-                const vt = (document as any).startViewTransition;
-                if (!vt || prefersReducedMotion) {
+                type DocWithVT = Document & { startViewTransition?: (cb: () => void) => void };
+                const startVT = (document as DocWithVT).startViewTransition?.bind(document);
+                if (!startVT || prefersReducedMotion) {
                   setIsDark((d) => !d);
                   return;
                 }
-                vt(() => { flushSync(() => setIsDark((d) => !d)); });
+                startVT(() => { flushSync(() => setIsDark((d) => !d)); });
               }}
               aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
               title={isDark ? 'Light mode' : 'Dark mode'}
