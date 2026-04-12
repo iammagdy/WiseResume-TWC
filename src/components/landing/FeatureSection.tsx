@@ -56,7 +56,7 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
         background: 'var(--lp-card-glass)',
         border: '1px solid var(--lp-border-card)',
         minHeight: 280,
-        transition: 'background 0.3s ease, border-color 0.3s ease',
+        transition: 'background 0.3s ease, border-color 0.3s ease, opacity 0.65s cubic-bezier(0.22,1,0.36,1), transform 0.65s cubic-bezier(0.22,1,0.36,1)',
       }}
     >
       {data.categoryLabel && (
@@ -112,8 +112,7 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
         background: 'var(--lp-card-glass)',
         border: '1px solid var(--lp-border-card)',
         minHeight: 280,
-        transitionDelay: '100ms',
-        transition: 'background 0.3s ease, border-color 0.3s ease',
+        transition: 'background 0.3s ease, border-color 0.3s ease, opacity 0.65s cubic-bezier(0.22,1,0.36,1) 100ms, transform 0.65s cubic-bezier(0.22,1,0.36,1) 100ms',
       }}
     >
       <Suspense fallback={<DemoFallback />}>
@@ -133,8 +132,7 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
         borderRadius: 20,
         background: 'var(--lp-card-glass)',
         border: '1px solid var(--lp-border-card)',
-        transitionDelay: '200ms',
-        transition: 'background 0.3s ease, border-color 0.3s ease',
+        transition: 'background 0.3s ease, border-color 0.3s ease, opacity 0.65s cubic-bezier(0.22,1,0.36,1) 200ms, transform 0.65s cubic-bezier(0.22,1,0.36,1) 200ms',
       }}
     >
       <div className="flex items-center gap-2 mb-1">
