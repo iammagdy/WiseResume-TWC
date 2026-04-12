@@ -1,6 +1,6 @@
-import { useState, memo } from 'react';
+import { useState, memo, lazy, Suspense } from 'react';
 
-import { Plus, Trash2, ChevronDown, ChevronUp, GraduationCap, Calendar, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, GraduationCap, Calendar, ArrowUp, ArrowDown, MoreHorizontal, Linkedin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,17 +10,25 @@ import { Education } from '@/types/resume';
 import { v4 as uuidv4 } from 'uuid';
 import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
 import { toast } from 'sonner';
-import { InlineAIButton } from './InlineAIButton';
 import { AIContextualNudge } from './AIContextualNudge';
 import { useResumeNudges } from '@/hooks/useResumeNudges';
 import { SectionEmptyState } from './SectionEmptyState';
 import { educationExample } from '@/lib/emptyStateExamples';
+import { MonthYearPicker } from './MonthYearPicker';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+const LinkedInOptimizerSheet = lazy(() => import('./ai/LinkedInOptimizerSheet').then(m => ({ default: m.LinkedInOptimizerSheet })));
 
 export const EducationSection = memo(function EducationSection() {
   const education = useResumeStore(state => state.currentResume?.education);
   const updateResume = useResumeStore(state => state.updateResume);
   const currentResume = useResumeStore(state => state.currentResume);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showLinkedIn, setShowLinkedIn] = useState(false);
 
   const { enhance, isEnhancing } = useAIEnhance({
     section: 'education',
@@ -48,6 +56,24 @@ export const EducationSection = memo(function EducationSection() {
       education: [...education, newEdu],
     });
     setExpandedId(newEdu.id);
+  };
+
+  const useExampleEntry = () => {
+    const degreeIn = educationExample.degree.toLowerCase().indexOf(' in ');
+    const degreeName = degreeIn >= 0 ? educationExample.degree.substring(0, degreeIn) : educationExample.degree;
+    const fieldName = degreeIn >= 0 ? educationExample.degree.substring(degreeIn + 4) : '';
+    const rangeParts = educationExample.dateRange.split(/[\s–\-]+/);
+    const exampleEdu: Education = {
+      id: uuidv4(),
+      institution: educationExample.institution,
+      degree: degreeName,
+      field: fieldName,
+      startDate: rangeParts[0] || '',
+      endDate: rangeParts[1] || '',
+      gpa: educationExample.gpa,
+    };
+    updateResume({ education: [...education, exampleEdu] });
+    setExpandedId(exampleEdu.id);
   };
 
   const updateEducation = (id: string, updates: Partial<Education>) => {
@@ -102,8 +128,28 @@ export const EducationSection = memo(function EducationSection() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-end">
-        <Button variant="outline" size="sm" onClick={addEducation} className="gap-2">
+      <div className="flex items-center justify-end gap-2">
+        {/* Overflow menu for import/example — always visible */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="gap-1.5 min-h-[44px] min-w-[44px] px-2">
+              <MoreHorizontal className="w-4 h-4" />
+              <span className="sr-only">More actions</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setShowLinkedIn(true)}>
+              <Linkedin className="w-4 h-4 mr-2" />
+              Import from LinkedIn
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={useExampleEntry}>
+              <GraduationCap className="w-4 h-4 mr-2" />
+              Use Example Entry
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Button variant="outline" size="sm" onClick={addEducation} className="gap-2 min-h-[44px]">
           <Plus className="w-4 h-4" />
           Add
         </Button>
@@ -157,14 +203,14 @@ export const EducationSection = memo(function EducationSection() {
                 key={edu.id}
                 className="rounded-xl border border-border overflow-hidden transition-all duration-200"
               >
-                <div className="w-full p-4 flex items-center justify-between hover:bg-muted transition-colors min-h-[56px]">
-                  {/* Reorder arrows */}
-                  <div className="flex flex-col gap-0.5 mr-2 shrink-0">
+                <div className="w-full p-4 flex items-center justify-between hover:bg-muted transition-colors min-h-[72px]">
+                  {/* Reorder arrows — min 44×44px touch targets */}
+                  <div className="flex flex-col gap-0 mr-2 shrink-0">
                     <button
                       type="button"
                       disabled={index === 0}
                       onClick={(e) => { e.stopPropagation(); moveEducation(index, 'up'); }}
-                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors touch-manipulation"
                       aria-label="Move up"
                     >
                       <ArrowUp className="w-4 h-4 text-muted-foreground" />
@@ -173,7 +219,7 @@ export const EducationSection = memo(function EducationSection() {
                       type="button"
                       disabled={index === education.length - 1}
                       onClick={(e) => { e.stopPropagation(); moveEducation(index, 'down'); }}
-                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors touch-manipulation"
                       aria-label="Move down"
                     >
                       <ArrowDown className="w-4 h-4 text-muted-foreground" />
@@ -202,8 +248,7 @@ export const EducationSection = memo(function EducationSection() {
                 </div>
 
                 {expandedId === edu.id && (
-                    <div className="animate-in fade-in-0 duration-200"
-                    >
+                    <div className="animate-in fade-in-0 duration-200">
                       <div className="p-4 pt-0 space-y-4 border-t border-border">
                         <div>
                           <Label className="text-sm flex items-center gap-1.5 mb-2">
@@ -246,25 +291,31 @@ export const EducationSection = memo(function EducationSection() {
                               <Calendar className="w-4 h-4" />
                               Start Date
                             </Label>
-                            <Input
+                            <MonthYearPicker
                               value={edu.startDate}
-                              onChange={(e) => updateEducation(edu.id, { startDate: e.target.value })}
-                              placeholder="2016"
-                              className="h-12"
-                              autoComplete="off"
+                              onChange={(v) => updateEducation(edu.id, { startDate: v })}
                             />
                           </div>
                           <div>
-                            <Label className="text-sm flex items-center gap-1.5 mb-2">
-                              <Calendar className="w-4 h-4" />
-                              End Date
-                            </Label>
-                            <Input
-                              value={edu.endDate}
-                              onChange={(e) => updateEducation(edu.id, { endDate: e.target.value })}
-                              placeholder="2020"
-                              className="h-12"
-                              autoComplete="off"
+                            <div className="flex items-center justify-between mb-2">
+                              <Label className="text-sm flex items-center gap-1.5">
+                                <Calendar className="w-4 h-4" />
+                                End Date
+                              </Label>
+                              <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={edu.endDate === 'Present'}
+                                  onChange={(e) => updateEducation(edu.id, { endDate: e.target.checked ? 'Present' : '' })}
+                                  className="rounded accent-primary w-4 h-4"
+                                />
+                                <span className="text-sm text-muted-foreground">Present</span>
+                              </label>
+                            </div>
+                            <MonthYearPicker
+                              value={edu.endDate === 'Present' ? '' : edu.endDate}
+                              onChange={(v) => updateEducation(edu.id, { endDate: v })}
+                              disabled={edu.endDate === 'Present'}
                             />
                           </div>
                         </div>
@@ -296,7 +347,7 @@ export const EducationSection = memo(function EducationSection() {
                             variant="ghost"
                             size="sm"
                             onClick={() => deleteEducation(edu.id)}
-                            className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 min-h-[44px]"
                           >
                             <Trash2 className="w-4 h-4" />
                             Remove
@@ -309,7 +360,11 @@ export const EducationSection = memo(function EducationSection() {
             ))}
           </div>
         )}
-      
+
+      {/* LinkedIn Import Sheet */}
+      <Suspense fallback={null}>
+        {showLinkedIn && <LinkedInOptimizerSheet open={showLinkedIn} onOpenChange={setShowLinkedIn} />}
+      </Suspense>
     </div>
   );
 });

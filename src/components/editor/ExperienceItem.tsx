@@ -10,6 +10,7 @@ import { InlineAIButton } from './InlineAIButton';
 import { AIContextualNudge } from './AIContextualNudge';
 import { formatDateRange, calculateDuration } from '@/lib/dateUtils';
 import { ResumeNudge } from '@/hooks/useResumeNudges';
+import { MonthYearPicker } from './MonthYearPicker';
 
 interface ExperienceItemProps {
   exp: Experience;
@@ -59,12 +60,12 @@ export const ExperienceItem = memo(function ExperienceItem({
     onUpdate(exp.id, { account: e.target.value });
   }, [exp.id, onUpdate]);
 
-  const handleStartDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    onUpdate(exp.id, { startDate: e.target.value });
+  const handleStartDateChange = useCallback((value: string) => {
+    onUpdate(exp.id, { startDate: value });
   }, [exp.id, onUpdate]);
 
-  const handleEndDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    onUpdate(exp.id, { endDate: e.target.value });
+  const handleEndDateChange = useCallback((value: string) => {
+    onUpdate(exp.id, { endDate: value });
   }, [exp.id, onUpdate]);
 
   const handleCurrentChange = useCallback((checked: boolean) => {
@@ -103,13 +104,13 @@ export const ExperienceItem = memo(function ExperienceItem({
     <div className="rounded-xl border border-border overflow-hidden transition-all duration-200">
       {/* Header - Always visible */}
       <div className="w-full p-4 flex items-center justify-between hover:bg-muted transition-colors min-h-[80px] sm:min-h-[72px]">
-        {/* Reorder arrows */}
-        <div className="flex flex-col gap-0.5 mr-2 shrink-0">
+        {/* Reorder arrows — min 44px touch targets */}
+        <div className="flex flex-col gap-0 mr-2 shrink-0">
           <button
             type="button"
             disabled={index === 0}
             onClick={handleMoveUp}
-            className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors touch-manipulation"
             aria-label="Move up"
           >
             <ArrowUp className="w-4 h-4 text-muted-foreground" />
@@ -118,7 +119,7 @@ export const ExperienceItem = memo(function ExperienceItem({
             type="button"
             disabled={index === totalLength - 1}
             onClick={handleMoveDown}
-            className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors touch-manipulation"
             aria-label="Move down"
           >
             <ArrowDown className="w-4 h-4 text-muted-foreground" />
@@ -213,13 +214,10 @@ export const ExperienceItem = memo(function ExperienceItem({
                   <Calendar className="w-4 h-4" />
                   Start Date
                 </Label>
-                <Input
+                <MonthYearPicker
                   value={exp.startDate}
                   onChange={handleStartDateChange}
-                  placeholder="Jan 2020"
-                  className="h-12"
-                  autoComplete="off"
-                  autoCapitalize="words"
+                  placeholder="Start date"
                 />
               </div>
               <div>
@@ -227,15 +225,18 @@ export const ExperienceItem = memo(function ExperienceItem({
                   <Calendar className="w-4 h-4" />
                   End Date
                 </Label>
-                <Input
-                  value={exp.current ? 'Present' : exp.endDate}
-                  onChange={handleEndDateChange}
-                  placeholder="Present"
-                  disabled={exp.current}
-                  className="h-12"
-                  autoComplete="off"
-                  autoCapitalize="words"
-                />
+                {exp.current ? (
+                  <div className="h-11 flex items-center px-3 rounded-md border border-input bg-muted text-sm text-muted-foreground">
+                    Present
+                  </div>
+                ) : (
+                  <MonthYearPicker
+                    value={exp.endDate}
+                    onChange={handleEndDateChange}
+                    placeholder="End date"
+                    disabled={exp.current}
+                  />
+                )}
               </div>
             </div>
 

@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'react';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { logAudit } from '@/lib/auditLogger';
-import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { Check, Cloud, CloudOff, Sparkles, ChevronDown, BarChart3, Scissors, Save, Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -61,7 +60,6 @@ import { ProgressBar } from '@/components/editor/ProgressBar';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { EditorHeader } from '@/components/editor/EditorHeader';
 import { EditorSectionContent, SectionNavButtons } from '@/components/editor/EditorSectionContent';
-import { AddSectionSheet } from '@/components/editor/AddSectionSheet';
 import { EditorSkeleton } from '@/components/layout/PageSkeletons';
 import { useTierGate } from '@/hooks/useTierGate';
 import { UpgradeDialog } from '@/components/plan/UpgradeDialog';
@@ -453,6 +451,19 @@ export default function EditorPage() {
     if (prevIsSaving.current && !isSaving) {
       setShowSavedCheck(true);
       const timer = setTimeout(() => setShowSavedCheck(false), 2000);
+
+      // One-time autosave reassurance toast for new users
+      const AUTOSAVE_TOAST_KEY = 'wr-autosave-seen';
+      try {
+        if (!localStorage.getItem(AUTOSAVE_TOAST_KEY)) {
+          localStorage.setItem(AUTOSAVE_TOAST_KEY, '1');
+          toast('Your resume saves automatically — no need to press anything', {
+            duration: 4000,
+            icon: '☁️',
+          });
+        }
+      } catch { /* noop */ }
+
       return () => clearTimeout(timer);
     }
     prevIsSaving.current = isSaving;
@@ -1110,63 +1121,3 @@ export default function EditorPage() {
   );
 }
 
-// ─── Add Section FAB ─────────────────────────────────────────────────────────
-function AddSectionFAB({ onSelectSection }: { onSelectSection: (id: string) => void }) {
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [hasSeen, setHasSeen] = useState(() => localStorage.getItem('wr-add-section-seen') === '1');
-  const prefersReduced = useReducedMotion();
-
-  const handleFabTap = () => {
-    haptics.medium();
-    if (!hasSeen) {
-      localStorage.setItem('wr-add-section-seen', '1');
-      setHasSeen(true);
-    }
-    setSheetOpen(true);
-  };
-
-  return (
-    <>
-      <motion.button
-        onClick={handleFabTap}
-        className="fixed z-40 md:hidden w-14 h-14 rounded-full gradient-primary shadow-lg flex items-center justify-center touch-manipulation active:scale-95"
-        style={{
-          bottom: 'calc(8.5rem + env(safe-area-inset-bottom))',
-          right: '1rem',
-          boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)',
-        }}
-        initial={prefersReduced ? { opacity: 1 } : { opacity: 0, scale: 0 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.3 }}
-        aria-label="Add section"
-      >
-        <motion.div
-          animate={{ rotate: sheetOpen ? 45 : 0 }}
-          transition={{ duration: 0.2 }}
-        >
-          <Plus className="w-6 h-6 text-primary-foreground" />
-        </motion.div>
-        {/* First-visit pulse */}
-        {!hasSeen && !sheetOpen && (
-          <span className="absolute inset-0 rounded-full gradient-primary animate-[ping_1.5s_ease-out_4] pointer-events-none" />
-        )}
-      </motion.button>
-
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="bottom" className="max-h-[70vh] overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Add Section</SheetTitle>
-          </SheetHeader>
-          <div className="pt-2">
-            <AddSectionSheet
-              onSelectSection={(id) => {
-                onSelectSection(id);
-                setSheetOpen(false);
-              }}
-            />
-          </div>
-        </SheetContent>
-      </Sheet>
-    </>
-  );
-}
