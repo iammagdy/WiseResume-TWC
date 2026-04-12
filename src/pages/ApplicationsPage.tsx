@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { Plus, Bell, BarChart3, Briefcase, FileText, Search, MapPin, Building2, Calendar, Mic, Mail, Scissors, CheckCircle2, FlaskConical, Zap, Wand2, BookOpen, LayoutGrid, List } from 'lucide-react';
 import { useJobApplications, useJobApplicationMutations, ApplicationStatus } from '@/hooks/useJobApplications';
-import { useJobs, Job } from '@/hooks/useJobs';
+import { useJobs, useJobMutations, Job } from '@/hooks/useJobs';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useJobActivityStats } from '@/hooks/useJobActivityStats';
 import { useAuth } from '@/hooks/useAuth';
@@ -113,6 +113,8 @@ export default function ApplicationsPage() {
   const [filters, setFilters] = useState<JobFilters>({ query: '', jobTypes: [], location: '' });
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
   const { data: jobs = [] } = useJobs();
+  const { createJob } = useJobMutations();
+  const [isSeeding, setIsSeeding] = useState(false);
   const [showSampleJobsPreview, setShowSampleJobsPreview] = useState(false);
   const { data: applications = [] } = useJobApplications(statusFilter === 'all' ? undefined : statusFilter);
   const { data: resumes } = useResumes();

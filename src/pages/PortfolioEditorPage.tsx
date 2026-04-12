@@ -254,8 +254,9 @@ export default function PortfolioEditorPage() {
 
 
 
-  if (!user) return null;
-  if (loading || !profile) return <PortfolioEditorSkeleton />;
+  if (loading) return <PortfolioEditorSkeleton />;
+  if (!user) return <PortfolioEditorSkeleton />;
+  if (!profile) return <PortfolioEditorSkeleton />;
 
   const validateUsername = (value: string) => {
     if (!value) {setUsernameError('');return;}
@@ -272,11 +273,11 @@ export default function PortfolioEditorPage() {
     validateUsername(clean);
   };
 
-  const callPortfolioAI = async (action: string, extraBody?: Record<string, unknown>) => {
-    // Priority: 1. State selectedResumeId, 2. Profile linked resume, 3. Primary resume, 4. Any resume
+  const callPortfolioAI = async (action: string, resumeIdOverride?: string, extraBody?: Record<string, unknown>) => {
+    // Priority: 1. Explicit override (captured at call time), 2. State selectedResumeId, 3. Profile linked resume, 4. Primary resume, 5. Any resume
     const linkedResumeId = profile?.portfolioResumeId;
     const primaryResumeId = resumes.find(r => r.is_primary)?.id;
-    const targetId = selectedResumeId || linkedResumeId || primaryResumeId || resumes[0]?.id;
+    const targetId = resumeIdOverride || selectedResumeId || linkedResumeId || primaryResumeId || resumes[0]?.id;
     
     const selectedResume = resumes.find((r) => r.id === targetId);
 
@@ -304,15 +305,17 @@ export default function PortfolioEditorPage() {
   };
 
   const handleGenerateBio = async () => {
-    const selectedResume = resumes.find((r) => r.id === selectedResumeId) || resumes[0];
-    if (!selectedResume?.summary && !profile?.jobTitle && (!selectedResume?.experience || (selectedResume.experience as unknown[]).length === 0)) {
+    // Capture the resume ID at the moment the button is clicked to avoid stale closures
+    const currentResumeId = selectedResumeId;
+    const currentResume = resumes.find((r) => r.id === currentResumeId) || resumes[0];
+    if (!currentResume?.summary && !profile?.jobTitle && (!currentResume?.experience || (currentResume.experience as unknown[]).length === 0)) {
       toast.error('Selected resume has no data for bio generation.');
       return;
     }
     setGeneratingBio(true);
     haptics.light();
     try {
-      const { bio: generatedBio } = await callPortfolioAI('bio');
+      const { bio: generatedBio } = await callPortfolioAI('bio', currentResumeId);
       setBio(generatedBio);
       toast.success('Bio generated!');
     } catch (err: unknown) {
@@ -523,12 +526,22 @@ export default function PortfolioEditorPage() {
     { ok: metaTitle.length > 0, tip: 'Add a custom page title for SEO' },
     { ok: metaDescription.length > 0, tip: 'Add a meta description for SEO' },
     { ok: Array.isArray(selectedResume?.experience) && (selectedResume?.experience as unknown[]).length >= 1, tip: 'Add work experience to your resume' },
-    { ok: Array.isArray(selectedResume?.skills) && (selectedResume?.skills as unknown[]).length >= 3, tip: 'Add at least 3 skills to your resume' }
+    { ok: Array.isArray(selectedResume?.skills) && (selectedResume?.skills as unknown[]).length >= 3, tip: 'Add at least 3 skills to your resume' },
+    { ok: services.length > 0, tip: 'Add services to showcase what you offer' },
+    { ok: testimonials.length > 0, tip: 'Add testimonials to build credibility' },
   ];
 
   const strengthScore = Math.round(strengthChecks.filter((c) => c.ok).length / strengthChecks.length * 100);
   const strengthMissing = strengthChecks.filter((c) => !c.ok).slice(0, 3);
-  const strengthLabel = strengthScore === 100 ? 'Ready to Publish' : strengthScore < 40 ? 'Needs work' : strengthScore < 70 ? 'Good' : 'Strong';
+  const strengthLabel = portfolioEnabled && strengthScore === 100
+    ? 'Ready to Publish'
+    : !portfolioEnabled && strengthScore >= 70
+    ? 'Publish to go live'
+    : strengthScore < 40
+    ? 'Needs work'
+    : strengthScore < 70
+    ? 'Good'
+    : 'Strong';
 
 
   return (
@@ -725,10 +738,6 @@ export default function PortfolioEditorPage() {
               generatingSEO={generatingSEO}
               seoPlaceholderName={profile?.fullName || 'Name'}
               seoPlaceholderTitle={profile?.jobTitle || 'Job Title'}
-              portfolioUsername={profile?.username || undefined}
-              userId={user?.id}
-              portfolioEnabled={portfolioEnabled}
-              views={profile?.views || 0}
               onOpenCareerCard={() => setShowCareerCard(true)}
               hasLivePortfolio={portfolioEnabled && !!username}
               linkedinUrl={linkedinUrl}
