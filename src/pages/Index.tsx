@@ -10,6 +10,7 @@ import triggerHaptic from '@/lib/haptics';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { useReducedMotion } from 'framer-motion';
 import { useEffect, useState, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
 import { QuickTailorSheet } from '@/components/landing/QuickTailorSheet';
@@ -577,6 +578,20 @@ const Index = () => {
           color: var(--lp-brand);
         }
         .lp-theme-toggle:active { transform: scale(0.96); }
+
+        /* Radial ripple reveal — View Transitions API */
+        ::view-transition-old(root) {
+          animation: none;
+          mix-blend-mode: normal;
+        }
+        ::view-transition-new(root) {
+          animation: lp-ripple-reveal 0.62s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+          mix-blend-mode: normal;
+        }
+        @keyframes lp-ripple-reveal {
+          from { clip-path: circle(0% at var(--lp-ripple-x, 50%) var(--lp-ripple-y, 50%)); }
+          to   { clip-path: circle(150% at var(--lp-ripple-x, 50%) var(--lp-ripple-y, 50%)); }
+        }
       `}</style>
 
       <a
@@ -611,7 +626,21 @@ const Index = () => {
             {/* Theme toggle */}
             <button
               className="lp-theme-toggle"
-              onClick={() => { triggerHaptic.light(); setIsDark((d) => !d); }}
+              onClick={(e) => {
+                triggerHaptic.light();
+                const btn = e.currentTarget;
+                const rect = btn.getBoundingClientRect();
+                const x = Math.round(rect.left + rect.width / 2);
+                const y = Math.round(rect.top + rect.height / 2);
+                document.documentElement.style.setProperty('--lp-ripple-x', x + 'px');
+                document.documentElement.style.setProperty('--lp-ripple-y', y + 'px');
+                const vt = (document as any).startViewTransition;
+                if (!vt || prefersReducedMotion) {
+                  setIsDark((d) => !d);
+                  return;
+                }
+                vt(() => { flushSync(() => setIsDark((d) => !d)); });
+              }}
               aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
               title={isDark ? 'Light mode' : 'Dark mode'}
             >
