@@ -125,12 +125,26 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
     setIsApplyingFix(redFlag.issue);
     
     try {
-      // 1. Locate the content to fix
+      // 1. Locate the content to fix using fuzzy matching
       const target = findTargetContent(currentResume, redFlag);
 
       if (!target) {
-        toast.error('Could not locate the specific text to fix.', {
-          description: 'Please review and edit the resume manually.',
+        // Could not find any target — show fallback with clipboard copy
+        try { await navigator.clipboard.writeText(redFlag.fix); } catch {}
+        toast.warning("We couldn't locate this text in your resume — the suggestion has been copied to your clipboard.", {
+          description: 'Paste it manually in the relevant section.',
+          duration: 6000,
+        });
+        return;
+      }
+
+      // If fuzzy confidence is too low, offer clipboard fallback instead of auto-applying
+      const confidence = target.fuzzyConfidence ?? 1.0;
+      if (confidence < 0.4 && target.section !== 'summary' && target.section !== 'skills') {
+        try { await navigator.clipboard.writeText(redFlag.fix); } catch {}
+        toast.warning("We couldn't precisely locate this text in your resume — here's the suggestion to paste manually.", {
+          description: 'The suggestion has been copied to your clipboard.',
+          duration: 6000,
         });
         return;
       }

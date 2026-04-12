@@ -287,6 +287,11 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
   const [ollamaUrlInput, setOllamaUrlInput] = useState(ollamaBaseUrl || '');
   const [ollamaKeyInput, setOllamaKeyInput] = useState('');
   const [ollamaShowKey, setOllamaShowKey] = useState(false);
+  const [ollamaCorsError, setOllamaCorsError] = useState(false);
+
+  // Dynamic model fetch state per provider (session cache)
+  const [dynamicModelsCache, setDynamicModelsCache] = useState<Record<string, { models: string[]; fetched: boolean }>>({});
+  const [isFetchingModels, setIsFetchingModels] = useState(false);
 
   // ── Test & Cooldown state ──
   const [isTesting, setIsTesting] = useState(false);
@@ -342,6 +347,15 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       setByokProvider(aiProvider as ByokProviderId);
     }
   }, [aiProvider]);
+
+  // ── Fetch dynamic models when byokProvider changes and provider is validated ──
+  useEffect(() => {
+    const dynamicProviders: ByokProviderId[] = ['openai', 'anthropic', 'groq', 'openrouter'];
+    if (dynamicProviders.includes(byokProvider) && isValidated(byokProvider) && !dynamicModelsCache[byokProvider]?.fetched) {
+      fetchDynamicModels(byokProvider);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [byokProvider]);
 
   // ── Cooldown timer ──
   useEffect(() => {
@@ -460,6 +474,29 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
           }
         }).catch(() => {});
       }
+
+      // Fetch dynamic model lists for providers that support it
+      const dynamicProviders: Array<{ id: ByokProviderId; validated: boolean }> = [
+        { id: 'openai', validated: openaiKeyValidated },
+        { id: 'anthropic', validated: anthropicKeyValidated },
+        { id: 'groq', validated: groqKeyValidated },
+      ];
+      for (const { id, validated } of dynamicProviders) {
+        if (validated && !dynamicModelsCache[id]?.fetched) {
+          edgeFunctions.functions.invoke('validate-api-key', {
+            body: { provider: id, modelsOnly: true },
+          }).then(({ data }) => {
+            if (data?.availableModels?.length) {
+              setByokAvailableModels(prev => ({ ...prev, [id]: data.availableModels }));
+              setDynamicModelsCache(prev => ({ ...prev, [id]: { models: data.availableModels, fetched: true } }));
+            } else {
+              setDynamicModelsCache(prev => ({ ...prev, [id]: { models: [], fetched: true } }));
+            }
+          }).catch(() => {
+            setDynamicModelsCache(prev => ({ ...prev, [id]: { models: [], fetched: true } }));
+          });
+        }
+      }
     }).catch(() => {});
 
     // Check WiseResume cooldown
@@ -506,6 +543,28 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     return map[provider] ?? false;
   };
 
+  // ── Fetch dynamic models for a provider (cached per session) ──
+  const fetchDynamicModels = async (provider: ByokProviderId) => {
+    const cached = dynamicModelsCache[provider];
+    if (cached?.fetched) return;
+    setIsFetchingModels(true);
+    try {
+      const { data } = await edgeFunctions.functions.invoke('validate-api-key', {
+        body: { provider, modelsOnly: true },
+      });
+      if (data?.availableModels?.length) {
+        setByokAvailableModels(prev => ({ ...prev, [provider]: data.availableModels }));
+        setDynamicModelsCache(prev => ({ ...prev, [provider]: { models: data.availableModels, fetched: true } }));
+      } else {
+        setDynamicModelsCache(prev => ({ ...prev, [provider]: { models: [], fetched: true } }));
+      }
+    } catch {
+      setDynamicModelsCache(prev => ({ ...prev, [provider]: { models: [], fetched: true } }));
+    } finally {
+      setIsFetchingModels(false);
+    }
+  };
+
   // ── Handle switching to WiseResume AI ──
   const handleSwitchToWiseresume = async () => {
     haptics.selection();
@@ -546,6 +605,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     setByokProvider(provider);
     setByokKeyInput('');
     setByokShowKey(false);
+    setOllamaCorsError(false);
     setShowProviderPicker(false);
     // If this provider is already validated, activate it immediately
     if (isValidated(provider)) {
@@ -556,6 +616,11 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
           supabase.from('user_preferences').update({ ai_provider: provider }).eq('user_id', uid).then(() => {});
         }
       } catch {}
+      // Fetch dynamic models for validated providers
+      const dynamicProviders: ByokProviderId[] = ['openai', 'anthropic', 'groq', 'openrouter'];
+      if (dynamicProviders.includes(provider)) {
+        fetchDynamicModels(provider);
+      }
     }
   };
 
@@ -576,6 +641,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     }
 
     setByokIsValidating(true);
+    setOllamaCorsError(false);
     haptics.light();
 
     try {
@@ -594,7 +660,13 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
 
       if (valError || !result?.isValid) {
         haptics.error();
-        toast.error(result?.error || valError?.message || `${config.label} validation failed`);
+        const errMsg = result?.error || valError?.message || '';
+        // Detect Ollama CORS errors: "Failed to fetch" with no response means browser blocked the request
+        if (provider === 'ollama' && (errMsg.includes('Failed to fetch') || errMsg.includes('CORS') || errMsg.includes('cors') || errMsg.includes('NetworkError') || (!errMsg && valError))) {
+          setOllamaCorsError(true);
+        } else {
+          toast.error(errMsg || `${config.label} validation failed`);
+        }
         return;
       }
 
@@ -650,6 +722,10 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
       if (keyValue) setByokMaskedKey(prev => ({ ...prev, [provider]: maskKey(keyValue) }));
       if (result.availableModels?.length) {
         setByokAvailableModels(prev => ({ ...prev, [provider]: result.availableModels }));
+        setDynamicModelsCache(prev => ({ ...prev, [provider]: { models: result.availableModels, fetched: true } }));
+      } else {
+        // Mark as fetched so we don't re-fetch immediately
+        setDynamicModelsCache(prev => ({ ...prev, [provider]: { models: [], fetched: true } }));
       }
       setByokModelInputs(prev => ({ ...prev, [provider]: savedModel }));
 
@@ -1008,8 +1084,9 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
 
                         {modelList.length > 0 && (
                           <div className="space-y-1 pt-1">
-                            <Label className="text-[11px] text-muted-foreground">
+                            <Label className="text-[11px] text-muted-foreground flex items-center gap-1.5">
                               Model{modelList.length > 1 ? ` · ${modelList.length} available` : ''}
+                              {isFetchingModels && <Loader2 className="w-3 h-3 animate-spin" />}
                             </Label>
                             {byokProvider === 'openrouter' ? (
                               <div className="space-y-1">
@@ -1165,6 +1242,38 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
                         >
                           Connect &amp; Validate
                         </LoadingButton>
+
+                        {/* Ollama CORS error panel */}
+                        {byokProvider === 'ollama' && ollamaCorsError && (
+                          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 space-y-2 text-xs">
+                            <div className="flex items-start gap-2">
+                              <AlertCircle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+                              <div className="space-y-1.5">
+                                <p className="font-semibold text-amber-300">CORS Error — Browser Blocked the Request</p>
+                                <p className="text-amber-200/80">
+                                  Your browser is blocking this connection because Ollama does not allow requests from web pages by default. This is a CORS (Cross-Origin Resource Sharing) restriction.
+                                </p>
+                                <p className="text-amber-200/80">
+                                  To fix it, restart Ollama with the following environment variable on your local machine:
+                                </p>
+                                <div className="bg-black/30 rounded px-2 py-1.5 font-mono text-amber-100 select-all">
+                                  OLLAMA_ORIGINS=* ollama serve
+                                </div>
+                                <p className="text-amber-200/80">
+                                  On macOS/Linux you can also set it permanently in your shell profile:<br />
+                                  <code className="bg-black/30 px-1 rounded">export OLLAMA_ORIGINS=*</code>
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => openExternal('https://github.com/ollama/ollama/blob/main/docs/faq.md#how-do-i-configure-ollama-server')}
+                              className="flex items-center gap-1.5 text-xs text-amber-300 hover:underline ml-6"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              Ollama CORS documentation
+                            </button>
+                          </div>
+                        )}
 
                         {/* Docs link */}
                         <button

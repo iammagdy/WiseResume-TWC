@@ -25,6 +25,7 @@ interface UseEditorAutosaveOptions {
   localLoadedAtRef: React.MutableRefObject<string | null>;
   isSavingRef: React.MutableRefObject<boolean>;
   addPendingChange: (resumeId: string, updates: ResumeData) => void;
+  isAILoadingRef?: React.MutableRefObject<boolean>;
 }
 
 /**
@@ -48,6 +49,7 @@ export function useEditorAutosave({
   localLoadedAtRef,
   isSavingRef,
   addPendingChange,
+  isAILoadingRef,
 }: UseEditorAutosaveOptions): { saveToCloud: () => Promise<void> } {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastScoreTimeRef = useRef<number>(0);
@@ -162,7 +164,12 @@ export function useEditorAutosave({
     // session has time to warm up before we attempt the first network write.
     const debounceMs = lastSavedResumeRef.current === '' ? 5000 : 3000;
     saveTimeoutRef.current = setTimeout(() => {
-      saveToCloud();
+      // If an AI action is in progress, defer by one tick to avoid race conditions
+      if (isAILoadingRef?.current) {
+        setTimeout(() => saveToCloud(), 0);
+      } else {
+        saveToCloud();
+      }
     }, debounceMs);
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);

@@ -127,6 +127,8 @@ export default function EditorPage() {
   // Track last saved version to detect changes (declared here so both hooks share it)
   const lastSavedResumeRef = useRef<string>('');
   const isSavingRef = useRef(false);
+  // Track AI loading state to coordinate with autosave
+  const isAILoadingRef = useRef(false);
 
   // Hook 1: DB→Zustand hydration, ownership check, stale-resume detection
   const { localLoadedAtRef } = useEditorHydration({
@@ -294,6 +296,7 @@ export default function EditorPage() {
     localLoadedAtRef,
     isSavingRef,
     addPendingChange,
+    isAILoadingRef,
   });
 
   // Background ATS scoring uses standalone function (no hook state to avoid re-render loops)
