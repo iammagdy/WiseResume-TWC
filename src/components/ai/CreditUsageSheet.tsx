@@ -39,10 +39,17 @@ interface ActivityEntry {
   cost: number;
 }
 
+const BACKGROUND_ACTION_TYPES: readonly string[] = [
+  'score-resume-background',
+  'ats-score',
+];
+
 function isBackground(metadata: Json | null, actionType?: string): boolean {
   if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
-    return (metadata as Record<string, unknown>).background === true;
+    if ((metadata as Record<string, unknown>).background === true) return true;
   }
+  // Secondary filter: known background-only action types, regardless of metadata flag
+  if (actionType && BACKGROUND_ACTION_TYPES.includes(actionType)) return true;
   // Defensive fallback: score entries with null metadata are background
   if (actionType === 'score' && metadata == null) return true;
   return false;

@@ -60,6 +60,15 @@ export function useAICredits() {
   // Compute trial info from meData — available for all users regardless of BYOK
   const trialPlan = meData?.subscription?.trial_plan ?? null;
   const trialExpiresAt = meData?.subscription?.trial_expires_at ?? null;
+
+  // Dirty state guard: if trial_plan is set but trial_expires_at is null,
+  // treat as indeterminate (not active) and warn during development only.
+  if (trialPlan && !trialExpiresAt && import.meta.env.DEV) {
+    console.warn(
+      '[useAICredits] Dirty trial state detected: trial_plan is set but trial_expires_at is null. Defaulting to isActiveTrial=false.',
+    );
+  }
+
   const isActiveTrial =
     !!trialPlan &&
     !!trialExpiresAt &&
@@ -73,12 +82,12 @@ export function useAICredits() {
       daily_usage: 0,
       daily_limit: Infinity,
       usage_date: new Date().toISOString().split('T')[0],
-      total_usage: 0,
+      total_usage: meData?.ai_credits?.total_usage ?? 0,
     };
     return {
       data: byokData,
-      isLoading: false,
-      error: null,
+      isLoading,
+      error,
       refetch,
       isBYOK: true as const,
       isActiveTrial: false,
@@ -100,7 +109,7 @@ export function useAICredits() {
     if (effectivePlan === 'premium') {
       defaultLimit = Infinity; // Unlimited
     } else if (effectivePlan === 'pro') {
-      defaultLimit = 30;
+      defaultLimit = 100;
     } else {
       defaultLimit = 5;
     }
@@ -144,19 +153,39 @@ export function useAICreditsMutations() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
+  const isByokProvider = (): boolean => {
+    const { aiProvider, geminiKeyValidated, ollamaKeyValidated, openaiKeyValidated, anthropicKeyValidated, groqKeyValidated, mistralKeyValidated, xaiKeyValidated, cohereKeyValidated, openrouterKeyValidated } = useSettingsStore.getState();
+    return (
+      (aiProvider === 'gemini' && geminiKeyValidated) ||
+      (aiProvider === 'ollama' && ollamaKeyValidated) ||
+      (aiProvider === 'openai' && openaiKeyValidated) ||
+      (aiProvider === 'anthropic' && anthropicKeyValidated) ||
+      (aiProvider === 'groq' && groqKeyValidated) ||
+      (aiProvider === 'mistral' && mistralKeyValidated) ||
+      (aiProvider === 'xai' && xaiKeyValidated) ||
+      (aiProvider === 'cohere' && cohereKeyValidated) ||
+      (aiProvider === 'openrouter' && openrouterKeyValidated)
+    );
+  };
+
+  const logUsageOnly = async (): Promise<void> => {
+    if (!user) return;
+    const { error } = await supabase.rpc('increment_ai_usage', {
+      p_user_id: user.id,
+      p_skip_limit_check: true,
+    });
+    if (error) {
+      console.warn('[useAICredits] logUsageOnly failed (non-fatal):', error);
+    }
+  };
+
   const incrementUsage = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error('Not authenticated');
-      const { aiProvider, geminiKeyValidated, ollamaKeyValidated, openaiKeyValidated, anthropicKeyValidated, groqKeyValidated, mistralKeyValidated, xaiKeyValidated, cohereKeyValidated, openrouterKeyValidated } = useSettingsStore.getState();
-      if (aiProvider === 'gemini' && geminiKeyValidated) return;
-      if (aiProvider === 'ollama' && ollamaKeyValidated) return;
-      if (aiProvider === 'openai' && openaiKeyValidated) return;
-      if (aiProvider === 'anthropic' && anthropicKeyValidated) return;
-      if (aiProvider === 'groq' && groqKeyValidated) return;
-      if (aiProvider === 'mistral' && mistralKeyValidated) return;
-      if (aiProvider === 'xai' && xaiKeyValidated) return;
-      if (aiProvider === 'cohere' && cohereKeyValidated) return;
-      if (aiProvider === 'openrouter' && openrouterKeyValidated) return;
+      if (isByokProvider()) {
+        await logUsageOnly();
+        return;
+      }
 
       const { error } = await supabase.rpc('increment_ai_usage', {
         p_user_id: user.id,

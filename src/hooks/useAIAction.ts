@@ -143,25 +143,21 @@ export function useAIAction({ operation }: UseAIActionOptions) {
       }
 
       // 3. Deduct — await each call sequentially to avoid race conditions
-      const deductionErrors: unknown[] = [];
-      for (let i = 0; i < cost; i++) {
-        try {
+      try {
+        for (let i = 0; i < cost; i++) {
           await incrementUsage.mutateAsync();
-        } catch (deductErr) {
-          deductionErrors.push(deductErr);
         }
+      } catch (deductErr) {
+        toast.error('Credits partially deducted — please contact support if this persists');
+        throw deductErr;
       }
 
       // 4. Feedback toast — only show after all deductions are confirmed
-      if (deductionErrors.length > 0) {
-        toast.error(`Credit deduction failed for ${deductionErrors.length} of ${cost} credit${cost > 1 ? 's' : ''}. Please check your account.`);
-      } else {
-        toast.success(`${cost} credit${cost > 1 ? 's' : ''} used`, {
-          description: `AI ${operation} completed`,
-          duration: 2500,
-          icon: '⚡',
-        });
-      }
+      toast.success(`${cost} credit${cost > 1 ? 's' : ''} used`, {
+        description: `AI ${operation} completed`,
+        duration: 2500,
+        icon: '⚡',
+      });
 
       return result;
     },
