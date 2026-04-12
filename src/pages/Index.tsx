@@ -493,13 +493,6 @@ const Index = () => {
           box-shadow: 0 1px 8px rgba(26,26,46,0.06);
         }
 
-        /* Separator */
-        .lp-separator {
-          height: 1px;
-          background: linear-gradient(90deg, transparent 0%, rgba(79,70,229,0.35) 25%, rgba(79,70,229,0.55) 50%, rgba(79,70,229,0.35) 75%, transparent 100%);
-          box-shadow: 0 0 10px 1px rgba(79,70,229,0.15);
-        }
-
         /* Typewriter cursor */
         .lp-cursor {
           display: inline-block;
