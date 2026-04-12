@@ -125,7 +125,7 @@ const TYPEWRITER_WORDS = [
   'Product Manager',
   'Data Analyst',
   'UX Designer',
-  'Software Engineer',
+  'Data Engineer',
   'Marketing Lead',
 ];
 
@@ -747,18 +747,18 @@ const Index = () => {
           <h1
             className="relative z-10 font-extrabold leading-[1.05] max-w-4xl"
             style={{
-              fontSize: 'clamp(4rem, 8vw, 7rem)',
+              fontSize: 'clamp(1.9rem, 9vw, 7rem)',
               color: 'var(--lp-text)',
               letterSpacing: '-0.035em',
               transition: 'color 0.3s ease',
             }}
           >
-            {/* Line 1: static "Stand out as a" */}
-            <span style={{ display: 'block' }}>
+            {/* Line 1: static "Stand out as a" — always one line */}
+            <span style={{ display: 'block', whiteSpace: 'nowrap' }}>
               Stand out as a
             </span>
-            {/* Line 2: typewriter role title only */}
-            <span style={{ display: 'block' }}>
+            {/* Line 2: typewriter role title only — always one line */}
+            <span style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden' }}>
               <span className="lp-gradient-text" style={{ display: 'inline-block', minWidth: '2ch' }}>
                 {typewriterWord || '\u00A0'}
                 <span className="lp-cursor" aria-hidden="true" />
