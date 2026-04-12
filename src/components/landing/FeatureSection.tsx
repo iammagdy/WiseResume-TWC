@@ -155,7 +155,7 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
     </div>
   );
 
-  const iconCard = (
+  const bulletsCard = (
     <div
       className="lp-animate flex flex-col gap-3 p-6"
       style={{
@@ -164,31 +164,21 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
         boxShadow: '0 2px 16px rgba(0,0,0,0.06)',
       }}
     >
-      <div
-        className="w-10 h-10 rounded-xl flex items-center justify-center"
-        style={{ background: s.iconBg }}
-      >
-        <BadgeIcon className="w-5 h-5" style={{ color: band === 'brand' || band === 'dark' ? '#fff' : '#4F46E5' }} />
+      <div className="flex items-center gap-2 mb-1">
+        <div
+          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+          style={{ background: s.iconBg }}
+        >
+          <BadgeIcon className="w-4 h-4" style={{ color: band === 'brand' || band === 'dark' ? '#fff' : '#4F46E5' }} />
+        </div>
+        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: s.textMuted, letterSpacing: '0.06em' }}>Key Benefits</p>
       </div>
-      <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: s.textMuted, letterSpacing: '0.06em' }}>Key Benefits</p>
-    </div>
-  );
-
-  const descCard = (
-    <div
-      className="lp-animate flex flex-col justify-center gap-2.5 p-6"
-      style={{
-        borderRadius: 24,
-        background: s.cardBg,
-        boxShadow: '0 2px 16px rgba(0,0,0,0.06)',
-      }}
-    >
       <ul className="space-y-2">
         {data.bullets.map((bullet, i) => (
           <li
             key={bullet}
             className="flex items-start gap-2 text-sm"
-            style={{ color: s.text, transitionDelay: `${i * 100}ms` }}
+            style={{ color: s.text, transitionDelay: `${i * 80}ms` }}
           >
             <span
               className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
@@ -200,32 +190,6 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
           </li>
         ))}
       </ul>
-    </div>
-  );
-
-  const fullWidthDemoCard = (
-    <div
-      className="lp-animate flex flex-col sm:flex-row items-center justify-between gap-6 p-8"
-      style={{
-        borderRadius: 28,
-        background: s.cardBg,
-        boxShadow: '0 4px 24px rgba(0,0,0,0.07)',
-      }}
-    >
-      <div className="flex-1">
-        <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: s.textMuted, letterSpacing: '0.07em' }}>Live Demo</p>
-        <p className="text-lg font-bold" style={{ color: s.text, letterSpacing: '-0.02em' }}>{data.title}</p>
-        <p className="text-sm mt-1" style={{ color: s.textMuted }}>Interactive preview — see the feature in real time.</p>
-      </div>
-      <div className="flex-shrink-0 flex items-center justify-center">
-        <Suspense fallback={<DemoFallback bandColor={band} />}>
-          {data.demo === 'editor' && <LazyEditorDemo />}
-          {data.demo === 'tailoring' && <LazyTailoringDemo />}
-          {data.demo === 'portfolio' && <LazyPortfolioDemo />}
-          {data.demo === 'interview' && <LazyInterviewDemo />}
-          {data.demo === 'tracker' && <LazyTrackerDemo />}
-        </Suspense>
-      </div>
     </div>
   );
 
@@ -270,14 +234,8 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
           <div style={{ direction: 'ltr' }}>{mediaCard}</div>
         </div>
 
-        {/* Row 2: icon card + description/bullets card */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-5">
-          <div>{iconCard}</div>
-          <div className="sm:col-span-2">{descCard}</div>
-        </div>
-
-        {/* Row 3: full-width demo card */}
-        <div>{fullWidthDemoCard}</div>
+        {/* Row 2: bullets/benefits card (full width) */}
+        <div>{bulletsCard}</div>
       </div>
     </section>
   );

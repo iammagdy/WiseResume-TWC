@@ -130,12 +130,12 @@ const TYPEWRITER_PHRASES = [
 ];
 
 const BENTO_CARDS = [
-  { id: 'c1', label: 'ATS Score', sub: '92 / 100', style: { top: '8%', left: '-3%', width: 176, height: 70, borderRadius: 35 }, dark: true },
-  { id: 'c2', label: 'AI-Powered', sub: 'Resume writing', style: { top: '6%', right: '-2%', width: 156, height: 66, borderRadius: 33 }, brand: true },
-  { id: 'c3', label: 'Smart Tailoring', sub: 'Match keywords instantly', style: { top: '42%', left: '-5%', width: 196, height: 86, borderRadius: 26 }, white: true },
-  { id: 'c4', label: 'Interview Coach', sub: 'Practice any role', style: { top: '44%', right: '-4%', width: 184, height: 82, borderRadius: 26 }, white: true },
-  { id: 'c5', label: 'Applications', sub: '12 tracked', style: { bottom: '8%', left: '4%', width: 128, height: 128, borderRadius: 64 }, muted: true },
-  { id: 'c6', label: 'Portfolio', sub: 'Live site', style: { bottom: '7%', right: '5%', width: 118, height: 118, borderRadius: 59 }, muted: true },
+  { id: 'c1', label: 'ATS Score', sub: '92 / 100', style: { top: '22%', left: '-2%', width: 162, height: 66, borderRadius: 33 }, dark: true },
+  { id: 'c2', label: 'AI-Powered', sub: 'Resume writing', style: { top: '20%', right: '-1%', width: 148, height: 62, borderRadius: 31 }, brand: true },
+  { id: 'c3', label: 'Smart Tailoring', sub: 'Match keywords instantly', style: { top: '52%', left: '-4%', width: 188, height: 80, borderRadius: 24 }, white: true },
+  { id: 'c4', label: 'Interview Coach', sub: 'Practice any role', style: { top: '52%', right: '-3%', width: 172, height: 76, borderRadius: 24 }, white: true },
+  { id: 'c5', label: 'Applications', sub: '12 tracked', style: { bottom: '10%', left: '5%', width: 118, height: 118, borderRadius: 59 }, muted: true },
+  { id: 'c6', label: 'Portfolio', sub: 'Live site', style: { bottom: '10%', right: '5%', width: 108, height: 108, borderRadius: 54 }, muted: true },
 ];
 
 function useTypewriter(phrases: string[]) {
@@ -220,7 +220,7 @@ function useScrollAnimation() {
   const typewriterText = useTypewriter(TYPEWRITER_PHRASES);
   useScrollAnimation();
 
-  const headlineWords = useMemo(() => 'Land your dream job with'.split(' '), []);
+  const headlineWords = useMemo(() => 'Land your dream job'.split(' '), []);
 
   useEffect(() => {
     const t1 = setTimeout(() => setHeadlineVisible(true), 150);
@@ -510,7 +510,7 @@ function useScrollAnimation() {
           {/* Headline — word-by-word entrance */}
           <h1
             className="relative z-10 font-extrabold leading-[1.05] mb-5 max-w-4xl"
-            style={{ fontSize: 'clamp(56px, 9vw, 110px)', color: 'var(--lp-text)', letterSpacing: '-0.03em' }}
+            style={{ fontSize: 'clamp(36px, 4.5vw, 68px)', color: 'var(--lp-text)', letterSpacing: '-0.03em' }}
           >
             {headlineWords.map((word, i) => (
               <span key={i} style={{ display: 'inline-block', marginRight: '0.25em' }}>
