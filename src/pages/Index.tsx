@@ -248,7 +248,14 @@ function FeatureNumberedNav({ sectionIds, labels }: { sectionIds: string[]; labe
   return (
     <div
       className="w-full overflow-x-auto py-4 px-4 sm:px-6"
-      style={{ background: '#0a0a0f', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+      style={{
+        position: 'sticky',
+        top: 56,
+        zIndex: 40,
+        background: 'rgba(10,10,15,0.92)',
+        backdropFilter: 'blur(14px)',
+        borderBottom: '1px solid rgba(255,255,255,0.07)',
+      }}
     >
       <div className="flex items-center justify-center gap-1 sm:gap-2 min-w-max mx-auto">
         {sectionIds.map((id, idx) => (
@@ -640,45 +647,26 @@ const Index = () => {
             Build, tailor, and optimise your resume with AI. Practice interviews, track applications, and launch your portfolio — all in one place.
           </p>
 
-          {/* CTA row */}
-          <div className="relative z-10 flex flex-col sm:flex-row items-center gap-3 lp-hero-cta">
+          {/* CTA — single primary action */}
+          <div className="relative z-10 lp-hero-cta">
             {isAuthenticated ? (
-              <>
-                <button
-                  onClick={() => { triggerHaptic.light(); navigate('/dashboard'); }}
-                  className={`h-12 px-7 text-base font-semibold rounded-xl flex items-center gap-2 transition-all ${ctaPulse ? 'lp-cta-pulse' : ''}`}
-                  style={{ background: '#6366F1', color: '#fff' }}
-                >
-                  Go to Dashboard
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => { triggerHaptic.light(); setTailorOpen(true); }}
-                  className="h-12 px-7 text-base font-semibold rounded-xl flex items-center gap-2 transition-all"
-                  style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.8)', border: '1px solid rgba(255,255,255,0.12)' }}
-                >
-                  <Sparkles className="w-4 h-4 text-indigo-400" />
-                  Quick Tailor
-                </button>
-              </>
+              <button
+                onClick={() => { triggerHaptic.light(); navigate('/dashboard'); }}
+                className={`h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2 transition-all ${ctaPulse ? 'lp-cta-pulse' : ''}`}
+                style={{ background: '#6366F1', color: '#fff' }}
+              >
+                Go to Dashboard
+                <ArrowRight className="w-4 h-4" />
+              </button>
             ) : (
-              <>
-                <button
-                  onClick={handleCTA}
-                  className={`h-12 px-7 text-base font-semibold rounded-xl flex items-center gap-2 transition-all ${ctaPulse ? 'lp-cta-pulse' : ''}`}
-                  style={{ background: '#6366F1', color: '#fff' }}
-                >
-                  Get Started Free
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => { triggerHaptic.light(); kindeLogin(); }}
-                  className="h-12 px-7 text-base font-semibold rounded-xl flex items-center gap-2 transition-all"
-                  style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.8)', border: '1px solid rgba(255,255,255,0.12)' }}
-                >
-                  Sign In
-                </button>
-              </>
+              <button
+                onClick={handleCTA}
+                className={`h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2 transition-all ${ctaPulse ? 'lp-cta-pulse' : ''}`}
+                style={{ background: '#6366F1', color: '#fff' }}
+              >
+                Get Started Free
+                <ArrowRight className="w-4 h-4" />
+              </button>
             )}
           </div>
 
@@ -950,13 +938,15 @@ const Index = () => {
         <Footer lpMode />
       </main>
 
-      {/* Sticky CTA bar */}
-      <StickyCtaBar
-        heroRef={heroRef}
-        onGetStarted={handleCTA}
-        onSignIn={() => { triggerHaptic.light(); kindeLogin(); }}
-        lpMode
-      />
+      {/* Sticky CTA bar — unauthenticated only */}
+      {!isAuthenticated && (
+        <StickyCtaBar
+          heroRef={heroRef}
+          onGetStarted={handleCTA}
+          onSignIn={() => { triggerHaptic.light(); kindeLogin(); }}
+          lpMode
+        />
+      )}
 
       {/* Quick tailor sheet */}
       {isAuthenticated && (
