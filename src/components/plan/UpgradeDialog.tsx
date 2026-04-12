@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Crown, Check, Clock, Ticket } from 'lucide-react';
+import { Crown, Check, Ticket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { LoadingButton } from '@/components/ui/LoadingButton';
