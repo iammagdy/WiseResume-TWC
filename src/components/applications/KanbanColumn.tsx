@@ -130,9 +130,12 @@ export function KanbanColumn({ column, cards, onDelete }: KanbanColumnProps) {
               ))
             ) : (
               <div className="flex flex-col items-center justify-center flex-1 py-8 text-center px-2">
-                <p className="text-[11px] text-muted-foreground/70">Nothing here yet</p>
-                <p className="text-[10px] text-muted-foreground/50 mt-1">
-                  {isRejected ? 'Drag cards here' : 'Drag a card or tap +'}
+                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center mb-2 opacity-60">
+                  <Plus className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <p className="text-[11px] text-muted-foreground/70 font-medium">Nothing here yet</p>
+                <p className="text-[10px] text-muted-foreground/50 mt-0.5">
+                  {isRejected ? 'Drag cards here' : 'Drag a card or add one'}
                 </p>
               </div>
             )}

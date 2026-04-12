@@ -82,15 +82,16 @@ export const KanbanCard = memo(function KanbanCard({ application, onDelete }: Ka
     <div
       ref={setNodeRef}
       style={style}
+      onClick={() => { haptics.light(); navigate(`/application/${application.id}`); }}
       className={cn(
         'bg-card border border-border rounded-xl p-3 space-y-2.5',
-        'transition-shadow hover:shadow-md select-none',
+        'cursor-pointer transition-shadow hover:shadow-md select-none active:scale-[0.99]',
         isDragging && 'opacity-40 shadow-xl ring-2 ring-primary/40',
       )}
     >
       {/* Top row: avatar + info + handle + menu */}
       <div className="flex items-start gap-2">
-        {/* Company avatar */}
+        {/* Company avatar — click propagates to parent card */}
         <div
           className={cn(
             'w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold uppercase',
@@ -101,26 +102,24 @@ export const KanbanCard = memo(function KanbanCard({ application, onDelete }: Ka
           {initial}
         </div>
 
-        {/* Job info — click navigates */}
-        <button
-          className="flex-1 min-w-0 text-left"
-          onClick={() => { haptics.light(); navigate(`/application/${application.id}`); }}
-        >
+        {/* Job info — click propagates to parent card */}
+        <div className="flex-1 min-w-0">
           <p className="text-[13px] font-semibold leading-tight truncate">{application.job_title}</p>
           <p className="text-[11px] text-muted-foreground truncate mt-0.5">{application.company}</p>
-        </button>
+        </div>
 
-        {/* Drag handle */}
+        {/* Drag handle — stops propagation so card navigation doesn't fire */}
         <div
           {...attributes}
           {...listeners}
+          onClick={(e) => e.stopPropagation()}
           className="p-1 cursor-grab active:cursor-grabbing rounded-md hover:bg-muted text-muted-foreground touch-manipulation shrink-0 mt-0.5"
           aria-label="Drag to move card"
         >
           <GripVertical className="w-3.5 h-3.5" />
         </div>
 
-        {/* 3-dot menu */}
+        {/* 3-dot menu — stops propagation so card navigation doesn't fire */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button

@@ -15,6 +15,7 @@ import {
   JobApplication,
   ApplicationStatus,
 } from '@/hooks/useJobApplications';
+
 import { KanbanColumn, KanbanColumnDef } from './KanbanColumn';
 import { getAvatarColor } from './KanbanCard';
 import { cn } from '@/lib/utils';
@@ -88,15 +89,22 @@ function ColumnSkeleton() {
   );
 }
 
-export function KanbanBoard() {
-  const { data: applications = [], isLoading } = useJobApplications();
+export interface KanbanBoardProps {
+  applications?: JobApplication[];
+  onApplicationsChange?: (apps: JobApplication[]) => void;
+}
+
+export function KanbanBoard({ applications: applicationsProp, onApplicationsChange }: KanbanBoardProps = {}) {
+  const { data: internalApps = [], isLoading } = useJobApplications();
+  const serverApplications = applicationsProp ?? internalApps;
   const { updateApplication, deleteApplication } = useJobApplicationMutations();
   const [localCards, setLocalCards] = useState<JobApplication[]>([]);
   const [activeCard, setActiveCard] = useState<JobApplication | null>(null);
 
   useEffect(() => {
-    setLocalCards(applications);
-  }, [applications]);
+    setLocalCards(serverApplications);
+    onApplicationsChange?.(serverApplications);
+  }, [serverApplications]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
