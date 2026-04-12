@@ -759,7 +759,7 @@ const Index = () => {
             </span>
             {/* Line 2: typewriter role title only */}
             <span style={{ display: 'block' }}>
-              <span className="lp-gradient-text" style={{ minWidth: '2ch' }}>
+              <span className="lp-gradient-text" style={{ display: 'inline-block', minWidth: '2ch' }}>
                 {typewriterWord || '\u00A0'}
                 <span className="lp-cursor" aria-hidden="true" />
               </span>
