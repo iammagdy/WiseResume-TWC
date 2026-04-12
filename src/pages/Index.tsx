@@ -815,8 +815,8 @@ const Index = () => {
             })}
           </div>
 
-          {/* Floating product preview card — desktop only */}
-          <div className="relative z-10 mt-8 lp-hero-card hidden sm:block">
+          {/* Floating product preview card */}
+          <div className="relative z-10 mt-8 lp-hero-card">
             <ResumeScoreCard />
           </div>
 
