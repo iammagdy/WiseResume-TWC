@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sparkles, Copy, Download, Save, RotateCcw } from 'lucide-react';
+import { Sparkles, Copy, Download, Save, RotateCcw, AlertTriangle } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
@@ -39,6 +39,8 @@ export default function CoverLetterNewPage() {
   const [result, setResult] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [missingFields, setMissingFields] = useState<string[]>([]);
+  const [showMissingWarning, setShowMissingWarning] = useState(false);
 
   // Auth guard handled by ProtectedRoute
 
@@ -63,11 +65,25 @@ export default function CoverLetterNewPage() {
     );
   }
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (force = false) => {
     if (!selectedResume || !jobDescription.trim()) {
       toast.error('Select a resume and enter a job description');
       return;
     }
+    if (!force) {
+      const resumeData = dbToResumeData(selectedResume);
+      const contactInfo = resumeData.contactInfo;
+      const missing: string[] = [];
+      if (!contactInfo?.fullName?.trim()) missing.push('name');
+      if (!contactInfo?.email?.trim()) missing.push('email');
+      if (!contactInfo?.phone?.trim()) missing.push('phone');
+      if (missing.length > 0) {
+        setMissingFields(missing);
+        setShowMissingWarning(true);
+        return;
+      }
+    }
+    setShowMissingWarning(false);
     setGenerating(true);
     haptics.light();
     try {
@@ -239,10 +255,30 @@ export default function CoverLetterNewPage() {
             </div>
           </div>
 
+          {showMissingWarning && (
+            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 space-y-2">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <div className="text-xs text-amber-700 dark:text-amber-400">
+                  <p className="font-medium mb-0.5">Missing contact info:</p>
+                  <p>Your resume is missing <strong>{missingFields.join(', ')}</strong>. These will appear as placeholders in the letter.</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="flex-1 text-xs" onClick={() => setShowMissingWarning(false)}>
+                  Cancel
+                </Button>
+                <Button size="sm" className="flex-1 text-xs" onClick={() => handleGenerate(true)}>
+                  Generate Anyway
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Generate Button */}
           <Button
             className="w-full gap-2 h-12 rounded-xl text-base"
-            onClick={handleGenerate}
+            onClick={() => handleGenerate()}
             disabled={generating || !selectedResumeId || !jobDescription.trim()}
           >
             {generating ? <MiniSpinner size={20} /> : <Sparkles className="w-5 h-5" />}
@@ -284,8 +320,8 @@ export default function CoverLetterNewPage() {
             <Button variant="outline" size="sm" className="gap-1.5 flex-1" onClick={handleDownloadPDF}>
               <Download className="w-4 h-4" /> PDF
             </Button>
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={handleGenerate} disabled={generating}>
-              <RotateCcw className="w-4 h-4" />
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => handleGenerate()} disabled={generating}>
+              {generating ? <MiniSpinner size={16} /> : <RotateCcw className="w-4 h-4" />}
             </Button>
             <Button size="sm" className="gap-1.5 flex-1" onClick={handleSave} disabled={saveCoverLetter.isPending}>
               <Save className="w-4 h-4" /> Save

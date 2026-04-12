@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Mail, Loader2, Copy, Check, RefreshCw, RotateCcw } from 'lucide-react';
+import { Mail, Loader2, Copy, Check, RefreshCw, RotateCcw, AlertTriangle } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -41,6 +41,14 @@ function getRecentExperience(resume: ResumeData | null): string {
     .join(', ');
 }
 
+function hasEnoughResumeContent(resume: ResumeData | null): boolean {
+  if (!resume) return false;
+  const hasSummary = typeof resume.summary === 'string' && resume.summary.trim().length > 20;
+  const expArray = resume.experience as Array<unknown> | undefined;
+  const hasExperience = Array.isArray(expArray) && expArray.length >= 2;
+  return hasSummary || hasExperience;
+}
+
 export function ColdEmailSheet({ open, onOpenChange }: ColdEmailSheetProps) {
   const currentResume = useResumeStore(s => s.currentResume);
   const resumeId = (currentResume as { id?: string } | null)?.id;
@@ -51,6 +59,7 @@ export function ColdEmailSheet({ open, onOpenChange }: ColdEmailSheetProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [showDraftBanner, setShowDraftBanner] = useState(false);
+  const [showContentWarning, setShowContentWarning] = useState(false);
   const { execute } = useAIAction({ operation: 'cold-email' });
   const { draft, saveDraft, clearDraft, hasDraft } = useAIDraft<string>('cold-email', resumeId);
 
@@ -61,11 +70,16 @@ export function ColdEmailSheet({ open, onOpenChange }: ColdEmailSheetProps) {
     }
   }, [open, hasDraft, email]);
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (force = false) => {
     if (!company.trim() || !jobTitle.trim()) {
       toast.error('Please enter the company name and job title');
       return;
     }
+    if (!force && !hasEnoughResumeContent(currentResume as unknown as ResumeData | null)) {
+      setShowContentWarning(true);
+      return;
+    }
+    setShowContentWarning(false);
     haptics.medium();
     setIsLoading(true);
     setShowDraftBanner(false);
@@ -190,7 +204,25 @@ Subject: [subject line]
                   />
                 </div>
               </div>
-              <Button className="w-full gradient-primary" onClick={handleGenerate} disabled={isLoading}>
+              {showContentWarning && (
+                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-700 dark:text-amber-400">
+                      Your resume may not have enough content for a personalized email. Add a summary or at least two work experiences for best results.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" className="flex-1 text-xs" onClick={() => setShowContentWarning(false)}>
+                      Cancel
+                    </Button>
+                    <Button size="sm" className="flex-1 text-xs gradient-primary" onClick={() => handleGenerate(true)}>
+                      Generate Anyway
+                    </Button>
+                  </div>
+                </div>
+              )}
+              <Button className="w-full gradient-primary" onClick={() => handleGenerate()} disabled={isLoading}>
                 {isLoading ? (
                   <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Generating email...</>
                 ) : (
@@ -205,8 +237,17 @@ Subject: [subject line]
                   {isCopied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
                   Copy Email
                 </Button>
-                <Button variant="ghost" size="sm" className="gap-1.5 ml-auto text-xs" onClick={handleRegenerate}>
-                  <RefreshCw className="w-3.5 h-3.5" />
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="gap-1.5 ml-auto text-xs" 
+                  onClick={() => { 
+                    handleRegenerate();
+                    setShowContentWarning(false);
+                  }} 
+                  disabled={isLoading}
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
                   Regenerate
                 </Button>
               </div>

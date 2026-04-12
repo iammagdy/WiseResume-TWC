@@ -39,6 +39,10 @@ function isNegotiationResult(value: unknown): value is NegotiationResult {
   );
 }
 
+function isNumericValue(value: string): boolean {
+  return value.trim() !== '' && /^\d+([.,]\d+)*$/.test(value.trim().replace(/[\s]/g, ''));
+}
+
 export function SalaryNegotiationSheet({ open, onOpenChange }: SalaryNegotiationSheetProps) {
   const currentResume = useResumeStore(s => s.currentResume);
   const resumeId = (currentResume as { id?: string } | null)?.id;
@@ -50,6 +54,7 @@ export function SalaryNegotiationSheet({ open, onOpenChange }: SalaryNegotiation
   const [isLoading, setIsLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showDraftBanner, setShowDraftBanner] = useState(false);
+  const [salaryErrors, setSalaryErrors] = useState<{ offered?: string; target?: string }>({});
   const { execute } = useAIAction({ operation: 'salary-negotiation' });
   const { draft, saveDraft, clearDraft, hasDraft } = useAIDraft<NegotiationResult>('salary-negotiation', resumeId);
 
@@ -64,6 +69,18 @@ export function SalaryNegotiationSheet({ open, onOpenChange }: SalaryNegotiation
       toast.error('Please fill in all required fields');
       return;
     }
+    const errors: { offered?: string; target?: string } = {};
+    if (!isNumericValue(offeredSalary)) {
+      errors.offered = 'Please enter a numeric value (e.g. 90000)';
+    }
+    if (!isNumericValue(targetSalary)) {
+      errors.target = 'Please enter a numeric value (e.g. 110000)';
+    }
+    if (errors.offered || errors.target) {
+      setSalaryErrors(errors);
+      return;
+    }
+    setSalaryErrors({});
     haptics.medium();
     setIsLoading(true);
     setShowDraftBanner(false);
@@ -175,18 +192,28 @@ Respond ONLY with valid JSON in this exact format:
                 <div className="space-y-1.5">
                   <Label>Offered Salary *</Label>
                   <Input
-                    placeholder="e.g. 90,000"
+                    placeholder="e.g. 90000"
                     value={offeredSalary}
-                    onChange={e => setOfferedSalary(e.target.value)}
+                    onChange={e => { setOfferedSalary(e.target.value); if (salaryErrors.offered) setSalaryErrors(prev => ({ ...prev, offered: undefined })); }}
+                    className={salaryErrors.offered ? 'border-destructive' : ''}
+                    inputMode="numeric"
                   />
+                  {salaryErrors.offered && (
+                    <p className="text-xs text-destructive">{salaryErrors.offered}</p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Target Salary *</Label>
                   <Input
-                    placeholder="e.g. 110,000"
+                    placeholder="e.g. 110000"
                     value={targetSalary}
-                    onChange={e => setTargetSalary(e.target.value)}
+                    onChange={e => { setTargetSalary(e.target.value); if (salaryErrors.target) setSalaryErrors(prev => ({ ...prev, target: undefined })); }}
+                    className={salaryErrors.target ? 'border-destructive' : ''}
+                    inputMode="numeric"
                   />
+                  {salaryErrors.target && (
+                    <p className="text-xs text-destructive">{salaryErrors.target}</p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label>Currency</Label>
