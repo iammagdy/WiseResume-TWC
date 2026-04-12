@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
+import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { UserDetailDrawer } from './UserDetailDrawer';
 
 export interface AdminUser {
@@ -27,7 +28,6 @@ export interface AdminUser {
 }
 
 interface AdminUsersPanelProps {
-  password: string;
   onCountChange?: (count: number) => void;
 }
 
@@ -81,7 +81,7 @@ function CopyableId({ id }: { id: string }) {
   );
 }
 
-export function AdminUsersPanel({ password, onCountChange }: AdminUsersPanelProps) {
+export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
   const { user: adminUser } = useKindeAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [total, setTotal] = useState(0);
@@ -101,6 +101,7 @@ export function AdminUsersPanel({ password, onCountChange }: AdminUsersPanelProp
     setLoading(true);
     if (!append) setError(null);
     try {
+      const password = getDevKitToken();
       const { data, error: err } = await edgeFunctions.functions.invoke('admin-list-users', {
         body: {
           password,
@@ -135,7 +136,7 @@ export function AdminUsersPanel({ password, onCountChange }: AdminUsersPanelProp
     } finally {
       setLoading(false);
     }
-  }, [password, planFilter, sort, query, onCountChange]);
+  }, [planFilter, sort, query, onCountChange]);
 
   useEffect(() => {
     setPage(1);
@@ -163,6 +164,7 @@ export function AdminUsersPanel({ password, onCountChange }: AdminUsersPanelProp
   const handleExportCSV = async () => {
     setExportingCSV(true);
     try {
+      const password = getDevKitToken();
       // Fetch all matching users (up to 5000) for the current filter/search
       const allUsers: AdminUser[] = [];
       let p = 1;
@@ -475,7 +477,6 @@ export function AdminUsersPanel({ password, onCountChange }: AdminUsersPanelProp
       {selectedUser && (
         <UserDetailDrawer
           user={selectedUser}
-          password={password}
           open={!!selectedUser}
           onClose={() => setSelectedUser(null)}
           onUserUpdated={handleUserUpdated}

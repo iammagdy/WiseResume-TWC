@@ -13,6 +13,7 @@ import {
   EyeOff,
   BarChart2,
   Rocket,
+  ShieldOff,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,7 @@ import { DeploymentPanel } from '@/components/dev-kit/DeploymentPanel';
 import { DEV_KIT_VERSION } from '@/components/dev-kit/config';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { DevKitSessionProvider, useDevKitSession } from '@/contexts/DevKitSessionContext';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
@@ -46,20 +48,51 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
 ];
 
 type ConnectionStatus = 'checking' | 'connected' | 'disconnected';
+type AccessStatus = 'checking' | 'allowed' | 'denied' | 'unknown';
 
-export default function DevToolsPage() {
-  const [unlocked, setUnlocked] = useState(false);
+function DevToolsInner() {
+  const { isUnlocked, unlock, lock } = useDevKitSession();
+  const unlocked = isUnlocked;
+
   const [pw, setPw] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [pwError, setPwError] = useState(false);
-  const [emailDenied, setEmailDenied] = useState<'not_in_list' | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [userCount, setUserCount] = useState<number | null>(null);
   const [couponCount, setCouponCount] = useState<number | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('checking');
+  const [accessStatus, setAccessStatus] = useState<AccessStatus>('checking');
   const navigate = useNavigate();
   const { user } = useKindeAuth();
+
+  useEffect(() => {
+    let cancelled = false;
+    async function checkAccess() {
+      try {
+        const { data, error } = await edgeFunctions.functions.invoke('admin-check-access', {
+          body: {},
+        });
+        if (cancelled) return;
+        if (error) {
+          navigate('/dashboard');
+          return;
+        }
+        const result = data as { allowed?: boolean; reason?: string } | null;
+        if (result?.allowed === true) {
+          setAccessStatus('allowed');
+        } else if (result?.reason === 'not_configured' || result?.reason === 'error') {
+          navigate('/dashboard');
+        } else {
+          setAccessStatus('denied');
+        }
+      } catch {
+        if (!cancelled) navigate('/dashboard');
+      }
+    }
+    checkAccess();
+    return () => { cancelled = true; };
+  }, [navigate]);
 
   const checkConnection = useCallback(async () => {
     try {
@@ -83,11 +116,13 @@ export default function DevToolsPage() {
 
     setIsVerifying(true);
     setPwError(false);
-    setEmailDenied(null);
+
+    const submittedPw = pw;
+    setPw('');
 
     try {
       const { data, error } = await edgeFunctions.functions.invoke('verify-dev-kit', {
-        body: { password: pw },
+        body: { password: submittedPw },
       });
 
       if (error) {
@@ -102,10 +137,10 @@ export default function DevToolsPage() {
         return;
       }
 
-      if (data?.success) {
-        setUnlocked(true);
+      if (data?.success && data?.token) {
+        unlock(data.token as string);
       } else if (data?.reason === 'email_not_allowed') {
-        setEmailDenied('not_in_list');
+        setAccessStatus('denied');
       } else {
         setPwError(true);
       }
@@ -117,15 +152,50 @@ export default function DevToolsPage() {
   };
 
   const handleLock = () => {
-    setUnlocked(false);
+    lock();
     setPw('');
     setPwError(false);
-    setEmailDenied(null);
     setActiveTab('overview');
     setUserCount(null);
     setCouponCount(null);
     setConnectionStatus('checking');
   };
+
+  if (accessStatus === 'checking') {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 relative z-10">
+        <div className="flex items-center gap-3 text-muted-foreground">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span className="text-sm">Checking access…</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (accessStatus === 'denied') {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 relative z-10">
+        <div className="w-full max-w-sm space-y-6 text-center">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-destructive/10 border border-destructive/20 shadow-lg mx-auto">
+            <ShieldOff className="w-7 h-7 text-destructive" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-foreground">Access Denied</h1>
+            <p className="text-sm text-muted-foreground mt-2">
+              Your account is not authorised to access the admin panel.
+            </p>
+            {user?.email && (
+              <p className="text-xs text-muted-foreground/60 mt-1 font-mono">{user.email}</p>
+            )}
+          </div>
+          <Button variant="outline" onClick={() => navigate('/dashboard')} className="inline-flex items-center gap-2">
+            <ArrowLeft className="w-4 h-4" />
+            Back to dashboard
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (!unlocked) {
     return (
@@ -154,7 +224,7 @@ export default function DevToolsPage() {
                     type={showPw ? 'text' : 'password'}
                     placeholder="Enter your dev-kit password"
                     value={pw}
-                    onChange={(e) => { setPw(e.target.value); setPwError(false); setEmailDenied(null); }}
+                    onChange={(e) => { setPw(e.target.value); setPwError(false); }}
                     disabled={isVerifying}
                     autoFocus
                     className={cn(
@@ -177,11 +247,6 @@ export default function DevToolsPage() {
                   </p>
                 )}
               </div>
-              {emailDenied === 'not_in_list' && (
-                <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2.5 text-xs text-destructive font-medium">
-                  Access denied — your account is not on the admin allowlist.
-                </div>
-              )}
               <Button
                 type="submit"
                 disabled={isVerifying || !pw.trim()}
@@ -306,19 +371,19 @@ export default function DevToolsPage() {
           <div className="p-6">
 
             {activeTab === 'overview' && (
-              <OverviewPanel password={pw} />
+              <OverviewPanel />
             )}
 
             {activeTab === 'analytics' && (
-              <AnalyticsPanel password={pw} />
+              <AnalyticsPanel />
             )}
 
             {activeTab === 'live' && (
-              <LiveActivityPanel password={pw} adminPassword={pw} />
+              <LiveActivityPanel />
             )}
 
             {activeTab === 'deployment' && (
-              <DeploymentPanel password={pw} />
+              <DeploymentPanel />
             )}
 
             {activeTab === 'users' && (
@@ -335,7 +400,7 @@ export default function DevToolsPage() {
                     View all registered users. Click any row to manage — set plans, grant trials, suspend accounts, adjust credits, and add admin notes.
                   </p>
                 </div>
-                <AdminUsersPanel password={pw} onCountChange={setUserCount} />
+                <AdminUsersPanel onCountChange={setUserCount} />
               </div>
             )}
 
@@ -350,7 +415,7 @@ export default function DevToolsPage() {
                     Create and manage discount codes. Users can redeem codes on the subscription page to get free plan upgrades or discounts.
                   </p>
                 </div>
-                <CouponsPanel password={pw} onCountChange={setCouponCount} />
+                <CouponsPanel onCountChange={setCouponCount} />
               </div>
             )}
 
@@ -365,7 +430,7 @@ export default function DevToolsPage() {
                     Control app-wide settings. Toggle maintenance mode, post announcements, enable or disable features, and manage AI credit limits for all users.
                   </p>
                 </div>
-                <AppSettingsPanel password={pw} />
+                <AppSettingsPanel />
               </div>
             )}
 
@@ -380,7 +445,7 @@ export default function DevToolsPage() {
                     A record of all admin actions — plan changes, trial grants, suspensions, credit overrides, and coupon redemptions.
                   </p>
                 </div>
-                <AuditLogPanel password={pw} />
+                <AuditLogPanel />
               </div>
             )}
 
@@ -397,5 +462,13 @@ export default function DevToolsPage() {
         </footer>
       </div>
     </div>
+  );
+}
+
+export default function DevToolsPage() {
+  return (
+    <DevKitSessionProvider>
+      <DevToolsInner />
+    </DevKitSessionProvider>
   );
 }

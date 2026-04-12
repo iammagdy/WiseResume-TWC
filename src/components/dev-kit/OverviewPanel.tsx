@@ -3,11 +3,8 @@ import type { ElementType } from 'react';
 import { RefreshCw, Users, Crown, AlertTriangle, Shield, Clock, FileText, TrendingUp, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import type { AdminUser } from './AdminUsersPanel';
-
-interface OverviewPanelProps {
-  password: string;
-}
 
 interface OverviewStats {
   total: number;
@@ -91,7 +88,7 @@ function PlanBar({ free, pro, premium, trial, suspended, total }: {
   );
 }
 
-export function OverviewPanel({ password }: OverviewPanelProps) {
+export function OverviewPanel() {
   const [stats, setStats] = useState<OverviewStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -100,6 +97,7 @@ export function OverviewPanel({ password }: OverviewPanelProps) {
     setLoading(true);
     setError(null);
     try {
+      const password = getDevKitToken();
       const PAGE_SIZE = 200;
       const allUsers: AdminUser[] = [];
       let page = 1;

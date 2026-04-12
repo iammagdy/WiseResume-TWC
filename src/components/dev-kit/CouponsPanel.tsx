@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 
 interface Coupon {
   id: string;
@@ -29,7 +30,6 @@ interface Coupon {
 }
 
 interface CouponsPanelProps {
-  password: string;
   onCountChange?: (n: number) => void;
 }
 
@@ -38,7 +38,7 @@ function formatDate(iso: string | null) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-export function CouponsPanel({ password, onCountChange }: CouponsPanelProps) {
+export function CouponsPanel({ onCountChange }: CouponsPanelProps) {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +57,7 @@ export function CouponsPanel({ password, onCountChange }: CouponsPanelProps) {
     setLoading(true);
     setError(null);
     try {
+      const password = getDevKitToken();
       const { data, error: err } = await edgeFunctions.functions.invoke('admin-manage-coupons', {
         body: { password, action: 'list' },
       });
@@ -71,14 +72,14 @@ export function CouponsPanel({ password, onCountChange }: CouponsPanelProps) {
     } finally {
       setLoading(false);
     }
-  }, [password, onCountChange]);
+  }, [onCountChange]);
 
   useEffect(() => { fetchCoupons(); }, [fetchCoupons]);
 
   const handleToggle = async (coupon: Coupon) => {
     try {
       const { data, error: err } = await edgeFunctions.functions.invoke('admin-manage-coupons', {
-        body: { password, action: 'toggle', coupon_id: coupon.id, is_active: !coupon.is_active },
+        body: { password: getDevKitToken(), action: 'toggle', coupon_id: coupon.id, is_active: !coupon.is_active },
       });
       if (err) throw new Error(err.message);
       const result = data as { success?: boolean; error?: string };
@@ -94,7 +95,7 @@ export function CouponsPanel({ password, onCountChange }: CouponsPanelProps) {
     if (!confirm(`Delete coupon "${coupon.code}"? This cannot be undone.`)) return;
     try {
       const { data, error: err } = await edgeFunctions.functions.invoke('admin-manage-coupons', {
-        body: { password, action: 'delete', coupon_id: coupon.id },
+        body: { password: getDevKitToken(), action: 'delete', coupon_id: coupon.id },
       });
       if (err) throw new Error(err.message);
       const result = data as { success?: boolean; error?: string };
@@ -112,7 +113,7 @@ export function CouponsPanel({ password, onCountChange }: CouponsPanelProps) {
     try {
       const { data, error: err } = await edgeFunctions.functions.invoke('admin-manage-coupons', {
         body: {
-          password,
+          password: getDevKitToken(),
           action: 'create',
           code: newCode.trim().toUpperCase(),
           discount_type: newType,

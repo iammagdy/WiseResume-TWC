@@ -3,12 +3,8 @@ import { RefreshCw, Activity, CheckCircle, AlertCircle, Clock, PlayCircle, Loade
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { DevKitRunner } from './DevKitRunner';
-
-interface LiveActivityPanelProps {
-  password: string;
-  adminPassword: string;
-}
 
 interface UsageEvent {
   id: string;
@@ -216,7 +212,7 @@ function formatTimestamp(iso: string): string {
   });
 }
 
-export function LiveActivityPanel({ password, adminPassword }: LiveActivityPanelProps) {
+export function LiveActivityPanel() {
   const [events, setEvents] = useState<UsageEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [eventsError, setEventsError] = useState<string | null>(null);
@@ -300,7 +296,7 @@ export function LiveActivityPanel({ password, adminPassword }: LiveActivityPanel
     for (const def of defs) {
       const start = Date.now();
       try {
-        const body = def.buildBody(adminPassword);
+        const body = def.buildBody(getDevKitToken());
         const { data, error } = await edgeFunctions.functions.invoke(def.name, { body });
         const durationMs = Date.now() - start;
         const status = def.classify(data, error);
@@ -344,7 +340,7 @@ export function LiveActivityPanel({ password, adminPassword }: LiveActivityPanel
     if (errorLogsMissing && newErrors.length > 0) {
       setRecentErrors(newErrors);
     }
-  }, [adminPassword, errorLogsMissing]);
+  }, [errorLogsMissing]);
 
   const runAllHealthChecks = useCallback(() => {
     return runHealthChecksForDefs(ALL_FN_DEFS);
@@ -715,7 +711,7 @@ export function LiveActivityPanel({ password, adminPassword }: LiveActivityPanel
             Deep end-to-end smoke tests across all platform services — auth, AI, DB, routing, credits and more.
           </p>
         </div>
-        <DevKitRunner adminPassword={adminPassword} />
+        <DevKitRunner />
       </div>
     </div>
   );

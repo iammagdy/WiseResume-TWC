@@ -5,10 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
-
-interface AppSettingsPanelProps {
-  password: string;
-}
+import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 
 const FEATURE_FLAGS: { key: string; label: string; description: string }[] = [
   { key: 'feature_cover_letters', label: 'Cover Letters', description: 'Enable cover letter generation feature' },
@@ -19,7 +16,7 @@ const FEATURE_FLAGS: { key: string; label: string; description: string }[] = [
   { key: 'feature_career_advisor', label: 'Career Advisor', description: 'Enable career path advisory tools' },
 ];
 
-export function AppSettingsPanel({ password }: AppSettingsPanelProps) {
+export function AppSettingsPanel() {
   const [settings, setSettings] = useState<Record<string, boolean | string | null>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +30,7 @@ export function AppSettingsPanel({ password }: AppSettingsPanelProps) {
     setError(null);
     try {
       const { data, error: err } = await edgeFunctions.functions.invoke('admin-get-settings', {
-        body: { password },
+        body: { password: getDevKitToken() },
       });
       if (err) throw new Error(err.message);
       const result = data as { success?: boolean; settings?: Record<string, unknown>; error?: string };
@@ -56,7 +53,7 @@ export function AppSettingsPanel({ password }: AppSettingsPanelProps) {
     } finally {
       setLoading(false);
     }
-  }, [password]);
+  }, []);
 
   useEffect(() => { fetchSettings(); }, [fetchSettings]);
 
@@ -64,7 +61,7 @@ export function AppSettingsPanel({ password }: AppSettingsPanelProps) {
     setSaving(key);
     try {
       const { data, error: err } = await edgeFunctions.functions.invoke('admin-update-settings', {
-        body: { password, key, value },
+        body: { password: getDevKitToken(), key, value },
       });
       if (err) throw new Error(err.message);
       const result = data as { success?: boolean; error?: string };
@@ -98,7 +95,7 @@ export function AppSettingsPanel({ password }: AppSettingsPanelProps) {
     setResettingCredits(true);
     try {
       const { data, error: err } = await edgeFunctions.functions.invoke('admin-reset-credits', {
-        body: { password },
+        body: { password: getDevKitToken() },
       });
       if (err) {
         const errStatus = typeof err === 'object' && err !== null && 'status' in err ? (err as { status: unknown }).status : undefined;

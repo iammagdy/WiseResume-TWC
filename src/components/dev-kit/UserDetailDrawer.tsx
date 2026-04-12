@@ -9,11 +9,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from '@/hooks/useAuth';
+import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import type { AdminUser } from './AdminUsersPanel';
 
 interface UserDetailDrawerProps {
   user: AdminUser;
-  password: string;
   open: boolean;
   onClose: () => void;
   onUserUpdated: () => void;
@@ -87,7 +87,7 @@ function summarizeAction(action: string, meta: Record<string, unknown>): string 
   return action.replace(/_/g, ' ');
 }
 
-export function UserDetailDrawer({ user: userProp, password, open, onClose, onUserUpdated }: UserDetailDrawerProps) {
+export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated }: UserDetailDrawerProps) {
   // Local copy of user so we can reflect mutations immediately without waiting for parent refetch
   const queryClient = useQueryClient();
   const { user: authUser } = useAuth();
@@ -147,8 +147,9 @@ export function UserDetailDrawer({ user: userProp, password, open, onClose, onUs
     let cancelled = false;
     setHistoryLoading(true);
 
+    const pw = getDevKitToken();
     edgeFunctions.functions.invoke('admin-audit-logs', {
-      body: { password, limit: 500 },
+      body: { password: pw, limit: 500 },
     }).then(({ data }) => {
       if (cancelled) return;
       const result = data as { success?: boolean; logs?: AuditEntry[] };
@@ -158,7 +159,7 @@ export function UserDetailDrawer({ user: userProp, password, open, onClose, onUs
     }).catch(() => {});
 
     edgeFunctions.functions.invoke('admin-save-note', {
-      body: { password, target_user_id: user.user_id, action: 'list' },
+      body: { password: pw, target_user_id: user.user_id, action: 'list' },
     }).then(({ data }) => {
       if (cancelled) return;
       const result = data as { success?: boolean; notes?: NoteEntry[] };
@@ -168,7 +169,7 @@ export function UserDetailDrawer({ user: userProp, password, open, onClose, onUs
     });
 
     return () => { cancelled = true; };
-  }, [open, user.user_id, password]);
+  }, [open, user.user_id]);
 
   // Load current profile username when drawer opens
   useEffect(() => {
@@ -237,7 +238,7 @@ export function UserDetailDrawer({ user: userProp, password, open, onClose, onUs
 
       const { data, error } = await edgeFunctions.functions.invoke('admin-update-profile', {
         body: {
-          password,
+          password: getDevKitToken(),
           target_user_id: user.user_id,
           full_name: trimmedName || null,
           username: trimmedUsername || undefined,
@@ -285,7 +286,7 @@ export function UserDetailDrawer({ user: userProp, password, open, onClose, onUs
     setSavingPlan(true);
     try {
       const { data, error } = await edgeFunctions.functions.invoke('admin-set-plan', {
-        body: { password, target_user_id: user.user_id, plan: selectedPlan },
+        body: { password: getDevKitToken(), target_user_id: user.user_id, plan: selectedPlan },
       });
       if (error) throw new Error(error.message);
       const result = data as { success?: boolean; error?: string };
@@ -308,7 +309,7 @@ export function UserDetailDrawer({ user: userProp, password, open, onClose, onUs
     setSavingTrial(true);
     try {
       const { data, error } = await edgeFunctions.functions.invoke('admin-grant-trial', {
-        body: { password, target_user_id: user.user_id, plan: trialPlan, days: trialDays },
+        body: { password: getDevKitToken(), target_user_id: user.user_id, plan: trialPlan, days: trialDays },
       });
       if (error) throw new Error(error.message);
       const result = data as { success?: boolean; error?: string };
@@ -328,7 +329,7 @@ export function UserDetailDrawer({ user: userProp, password, open, onClose, onUs
     setRevokingTrial(true);
     try {
       const { data, error } = await edgeFunctions.functions.invoke('admin-revoke-trial', {
-        body: { password, target_user_id: user.user_id },
+        body: { password: getDevKitToken(), target_user_id: user.user_id },
       });
       if (error) throw new Error(error.message);
       const result = data as { success?: boolean; error?: string };
@@ -348,7 +349,7 @@ export function UserDetailDrawer({ user: userProp, password, open, onClose, onUs
     try {
       const suspend = !user.is_suspended;
       const { data, error } = await edgeFunctions.functions.invoke('admin-suspend-user', {
-        body: { password, target_user_id: user.user_id, suspend, reason: suspend ? suspendReason : null },
+        body: { password: getDevKitToken(), target_user_id: user.user_id, suspend, reason: suspend ? suspendReason : null },
       });
       if (error) throw new Error(error.message);
       const result = data as { success?: boolean; error?: string };
@@ -374,7 +375,7 @@ export function UserDetailDrawer({ user: userProp, password, open, onClose, onUs
       const parsedBonus = bonusCredits ? Number(bonusCredits) : 0;
       const { data, error } = await edgeFunctions.functions.invoke('admin-set-credits', {
         body: {
-          password,
+          password: getDevKitToken(),
           target_user_id: user.user_id,
           daily_limit: parsedLimit,
           bonus_credits: parsedBonus,
@@ -405,7 +406,7 @@ export function UserDetailDrawer({ user: userProp, password, open, onClose, onUs
     setSavingNote(true);
     try {
       const { data, error } = await edgeFunctions.functions.invoke('admin-save-note', {
-        body: { password, target_user_id: user.user_id, note_text: noteText },
+        body: { password: getDevKitToken(), target_user_id: user.user_id, note_text: noteText },
       });
       if (error) throw new Error(error.message);
       const result = data as { success?: boolean; error?: string };

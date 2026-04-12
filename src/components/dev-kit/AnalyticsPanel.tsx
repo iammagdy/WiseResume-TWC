@@ -7,9 +7,6 @@ import {
   LineChart, Line,
 } from 'recharts';
 
-interface AnalyticsPanelProps {
-  password: string;
-}
 
 interface AnalyticsData {
   pageViewsAllTime: number;
@@ -108,7 +105,7 @@ const CUSTOM_TOOLTIP_STYLE = {
   color: 'hsl(var(--foreground))',
 };
 
-export function AnalyticsPanel({ password: _password }: AnalyticsPanelProps) {
+export function AnalyticsPanel() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

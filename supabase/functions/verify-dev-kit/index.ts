@@ -7,6 +7,19 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+async function signSessionToken(email: string, secretKey: string): Promise<string> {
+  const expiresAt = Date.now() + 8 * 60 * 60 * 1000;
+  const payload = `${email}:${expiresAt}`;
+  const keyData = new TextEncoder().encode(secretKey);
+  const msgData = new TextEncoder().encode(payload);
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  const sig = await crypto.subtle.sign('HMAC', cryptoKey, msgData);
+  const sigHex = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return `${btoa(payload)}.${sigHex}`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -30,9 +43,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check email allowlist using caller identity from auth token (server-side only).
-    // ADMIN_EMAILS must be configured — if absent or empty, fail closed to prevent
-    // silent bypass when the secret is not set up in production.
     const ADMIN_EMAILS = Deno.env.get("ADMIN_EMAILS");
     const allowed = (ADMIN_EMAILS ?? "")
       .split(",")
@@ -48,7 +58,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Derive caller identity from auth token — never trust client-supplied identity
     const authHeader = req.headers.get("Authorization");
     let callerEmail: string | null = null;
     let callerId: string | null = null;
@@ -72,7 +81,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Per-user brute-force protection: 10 password attempts per hour per authenticated user
     if (callerId) {
       const bruteForceCheck = await checkUserRateLimit(callerId, 'verify-dev-kit-password', 10, 3600);
       if (!bruteForceCheck.allowed) {
@@ -83,8 +91,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Constant-time comparison to eliminate timing side-channel on the password check.
-    // Both strings are padded to equal length before comparison.
     const encoder = new TextEncoder();
     const a = encoder.encode(password.padEnd(64));
     const b = encoder.encode(SECRET_PASSWORD.padEnd(64));
@@ -102,8 +108,10 @@ Deno.serve(async (req) => {
       );
     }
 
+    const sessionToken = await signSessionToken(callerEmail, SECRET_PASSWORD);
+
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ success: true, token: sessionToken }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
