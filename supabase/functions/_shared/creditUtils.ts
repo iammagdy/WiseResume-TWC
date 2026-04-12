@@ -7,7 +7,7 @@ export interface CreditCheckResult {
 
 /** Sentinel value stored in ai_credits.daily_limit for unlimited plans (Premium). */
 const UNLIMITED_SENTINEL = -1;
-const PRO_DAILY_LIMIT = 30;
+const PRO_DAILY_LIMIT = 100;
 const FREE_DAILY_LIMIT = 5;
 
 /** Returns the authoritative daily limit for an effective plan. */

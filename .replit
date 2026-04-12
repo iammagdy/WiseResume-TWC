@@ -46,10 +46,10 @@ localPort = 23637
 externalPort = 3002
 
 [deployment]
-deploymentTarget = "autoscale"
+deploymentTarget = "static"
 build = ["npm", "run", "build"]
 publicDir = "dist"
-run = ["node", "./dist/index.cjs"]
+run = ["npx", "serve", "dist", "-s"]
 
 [userenv]
 
