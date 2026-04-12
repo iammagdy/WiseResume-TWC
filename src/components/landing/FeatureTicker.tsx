@@ -17,7 +17,7 @@ interface FeatureTickerProps {
 const Dot = () => (
   <span
     className="mx-6 flex-shrink-0"
-    style={{ width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,0.12)' }}
+    style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--lp-border, rgba(255,255,255,0.12))' }}
     aria-hidden="true"
   />
 );
@@ -25,14 +25,18 @@ const Dot = () => (
 export function FeatureTicker({ lpMode }: FeatureTickerProps) {
   const prefersReducedMotion = useReducedMotion();
 
-  const bgColor = '#0a0a0f';
-  const textColor = 'rgba(240,240,245,0.45)';
-
   if (prefersReducedMotion) {
     return (
-      <div className="flex items-center justify-center gap-6 flex-wrap py-5 px-4" style={{ background: bgColor }}>
+      <div
+        className="flex items-center justify-center gap-6 flex-wrap py-5 px-4"
+        style={{ background: lpMode ? 'var(--lp-bg)' : 'hsl(var(--background))' }}
+      >
         {ITEMS.map(({ icon: Icon, label, color }) => (
-          <span key={label} className="flex items-center gap-2 text-sm" style={{ color: textColor }}>
+          <span
+            key={label}
+            className="flex items-center gap-2 text-sm"
+            style={{ color: lpMode ? 'var(--lp-text-subtle)' : 'hsl(var(--muted-foreground))' }}
+          >
             <Icon className="w-4 h-4" style={{ color }} />
             {label}
           </span>
@@ -46,7 +50,10 @@ export function FeatureTicker({ lpMode }: FeatureTickerProps) {
   return (
     <div
       className="relative overflow-hidden py-5 group select-none"
-      style={{ background: bgColor }}
+      style={{
+        background: lpMode ? 'var(--lp-bg)' : 'hsl(var(--background))',
+        transition: 'background 0.3s ease',
+      }}
       aria-label="Features overview"
       tabIndex={0}
     >
@@ -55,7 +62,7 @@ export function FeatureTicker({ lpMode }: FeatureTickerProps) {
           <span
             key={i}
             className="flex items-center gap-2 text-sm font-medium whitespace-nowrap"
-            style={{ color: textColor }}
+            style={{ color: lpMode ? 'var(--lp-text-subtle)' : 'hsl(var(--muted-foreground))' }}
           >
             <Icon className="w-4 h-4 flex-shrink-0" style={{ color }} />
             {label}
@@ -66,11 +73,19 @@ export function FeatureTicker({ lpMode }: FeatureTickerProps) {
 
       <div
         className="pointer-events-none absolute inset-y-0 left-0 w-20 z-10"
-        style={{ background: `linear-gradient(to right, ${bgColor}, transparent)` }}
+        style={{
+          background: lpMode
+            ? 'linear-gradient(to right, var(--lp-bg), transparent)'
+            : 'linear-gradient(to right, hsl(var(--background)), transparent)',
+        }}
       />
       <div
         className="pointer-events-none absolute inset-y-0 right-0 w-20 z-10"
-        style={{ background: `linear-gradient(to left, ${bgColor}, transparent)` }}
+        style={{
+          background: lpMode
+            ? 'linear-gradient(to left, var(--lp-bg), transparent)'
+            : 'linear-gradient(to left, hsl(var(--background)), transparent)',
+        }}
       />
     </div>
   );

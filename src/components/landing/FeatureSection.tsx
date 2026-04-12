@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { Check } from 'lucide-react';
 
@@ -29,135 +29,36 @@ interface FeatureSectionProps {
   sectionRef?: React.Ref<HTMLElement>;
 }
 
-interface BandStyle {
-  bg: string;
-  cardBg: string;
-  cardBorder: string;
-  text: string;
-  textMuted: string;
-  checkColor: string;
-  badgeBg: string;
-  badgeText: string;
-  badgeBorder: string;
-  iconBg: string;
-  bigLabelColor: string;
-}
-
-const BAND_STYLES: Record<BandColor, BandStyle> = {
-  dark1: {
-    bg: '#0d0d14',
-    cardBg: 'rgba(255,255,255,0.04)',
-    cardBorder: 'rgba(255,255,255,0.08)',
-    text: '#f0f0f5',
-    textMuted: 'rgba(240,240,245,0.52)',
-    checkColor: '#818CF8',
-    badgeBg: 'rgba(99,102,241,0.14)',
-    badgeText: '#a5b4fc',
-    badgeBorder: 'rgba(99,102,241,0.25)',
-    iconBg: 'rgba(99,102,241,0.12)',
-    bigLabelColor: 'rgba(255,255,255,0.025)',
-  },
-  dark2: {
-    bg: '#111118',
-    cardBg: 'rgba(255,255,255,0.04)',
-    cardBorder: 'rgba(255,255,255,0.08)',
-    text: '#f0f0f5',
-    textMuted: 'rgba(240,240,245,0.52)',
-    checkColor: '#818CF8',
-    badgeBg: 'rgba(99,102,241,0.14)',
-    badgeText: '#a5b4fc',
-    badgeBorder: 'rgba(99,102,241,0.25)',
-    iconBg: 'rgba(99,102,241,0.12)',
-    bigLabelColor: 'rgba(255,255,255,0.025)',
-  },
-  dark3: {
-    bg: '#0f0f18',
-    cardBg: 'rgba(255,255,255,0.04)',
-    cardBorder: 'rgba(255,255,255,0.08)',
-    text: '#f0f0f5',
-    textMuted: 'rgba(240,240,245,0.52)',
-    checkColor: '#818CF8',
-    badgeBg: 'rgba(99,102,241,0.14)',
-    badgeText: '#a5b4fc',
-    badgeBorder: 'rgba(99,102,241,0.25)',
-    iconBg: 'rgba(99,102,241,0.12)',
-    bigLabelColor: 'rgba(255,255,255,0.025)',
-  },
-  brand: {
-    bg: '#0d0d14',
-    cardBg: 'rgba(255,255,255,0.04)',
-    cardBorder: 'rgba(255,255,255,0.08)',
-    text: '#f0f0f5',
-    textMuted: 'rgba(240,240,245,0.52)',
-    checkColor: '#818CF8',
-    badgeBg: 'rgba(99,102,241,0.14)',
-    badgeText: '#a5b4fc',
-    badgeBorder: 'rgba(99,102,241,0.25)',
-    iconBg: 'rgba(99,102,241,0.12)',
-    bigLabelColor: 'rgba(255,255,255,0.025)',
-  },
-  beige: {
-    bg: '#111118',
-    cardBg: 'rgba(255,255,255,0.04)',
-    cardBorder: 'rgba(255,255,255,0.08)',
-    text: '#f0f0f5',
-    textMuted: 'rgba(240,240,245,0.52)',
-    checkColor: '#818CF8',
-    badgeBg: 'rgba(99,102,241,0.14)',
-    badgeText: '#a5b4fc',
-    badgeBorder: 'rgba(99,102,241,0.25)',
-    iconBg: 'rgba(99,102,241,0.12)',
-    bigLabelColor: 'rgba(255,255,255,0.025)',
-  },
-  dark: {
-    bg: '#0d0d14',
-    cardBg: 'rgba(255,255,255,0.04)',
-    cardBorder: 'rgba(255,255,255,0.08)',
-    text: '#f0f0f5',
-    textMuted: 'rgba(240,240,245,0.52)',
-    checkColor: '#818CF8',
-    badgeBg: 'rgba(99,102,241,0.14)',
-    badgeText: '#a5b4fc',
-    badgeBorder: 'rgba(99,102,241,0.25)',
-    iconBg: 'rgba(99,102,241,0.12)',
-    bigLabelColor: 'rgba(255,255,255,0.025)',
-  },
-  tint: {
-    bg: '#111118',
-    cardBg: 'rgba(255,255,255,0.04)',
-    cardBorder: 'rgba(255,255,255,0.08)',
-    text: '#f0f0f5',
-    textMuted: 'rgba(240,240,245,0.52)',
-    checkColor: '#818CF8',
-    badgeBg: 'rgba(99,102,241,0.14)',
-    badgeText: '#a5b4fc',
-    badgeBorder: 'rgba(99,102,241,0.25)',
-    iconBg: 'rgba(99,102,241,0.12)',
-    bigLabelColor: 'rgba(255,255,255,0.025)',
-  },
+const BAND_BG: Record<BandColor, string> = {
+  dark1: 'var(--lp-section-alt)',
+  dark2: 'var(--lp-bg)',
+  dark3: 'var(--lp-section-alt2)',
+  brand: 'var(--lp-section-alt)',
+  beige: 'var(--lp-bg)',
+  dark: 'var(--lp-section-alt)',
+  tint: 'var(--lp-section-alt2)',
 };
 
 const DemoFallback = () => (
-  <div style={{ width: 260, height: 280, borderRadius: 20, background: 'rgba(255,255,255,0.04)' }} />
+  <div style={{ width: 260, height: 280, borderRadius: 20, background: 'var(--lp-card-glass)' }} />
 );
 
 export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
   const BadgeIcon = data.badge.icon;
   const isRtl = data.direction === 'rtl';
-  const band = data.bandColor ?? 'dark1';
-  const s = BAND_STYLES[band];
+  const sectionBg = BAND_BG[data.bandColor ?? 'dark1'];
 
   const textCard = (
     <div
       className={`lp-animate ${isRtl ? 'lp-from-right' : 'lp-from-left'} flex flex-col justify-center gap-5 p-8`}
       style={{
         borderRadius: 24,
-        background: s.cardBg,
-        border: `1px solid ${s.cardBorder}`,
+        background: 'var(--lp-card-glass)',
+        border: '1px solid var(--lp-border-card)',
         minHeight: 280,
+        transition: 'background 0.3s ease, border-color 0.3s ease',
       }}
     >
-      {/* Category label */}
       {data.categoryLabel && (
         <p
           style={{
@@ -165,8 +66,9 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
             letterSpacing: '0.1em',
             textTransform: 'uppercase',
             fontWeight: 700,
-            color: '#818CF8',
+            color: 'var(--lp-eyebrow)',
             marginBottom: '-6px',
+            transition: 'color 0.3s ease',
           }}
         >
           {data.categoryLabel}
@@ -175,7 +77,11 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
 
       <span
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold w-fit"
-        style={{ background: s.badgeBg, color: s.badgeText, border: `1px solid ${s.badgeBorder}` }}
+        style={{
+          background: 'rgba(99,102,241,0.12)',
+          color: 'var(--lp-eyebrow)',
+          border: '1px solid rgba(99,102,241,0.22)',
+        }}
       >
         <BadgeIcon className="w-3.5 h-3.5" />
         {data.badge.label}
@@ -184,13 +90,13 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
       <div>
         <h2
           className="text-2xl sm:text-3xl font-bold leading-tight mb-3"
-          style={{ color: s.text, letterSpacing: '-0.025em' }}
+          style={{ color: 'var(--lp-text)', letterSpacing: '-0.025em', transition: 'color 0.3s ease' }}
         >
           {data.title}
         </h2>
         <p
           className="text-sm leading-relaxed"
-          style={{ color: s.textMuted, lineHeight: 1.7 }}
+          style={{ color: 'var(--lp-text-muted)', lineHeight: 1.7, transition: 'color 0.3s ease' }}
         >
           {data.desc}
         </p>
@@ -203,10 +109,11 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
       className={`lp-animate ${isRtl ? 'lp-from-left' : 'lp-from-right'} flex items-center justify-center p-6`}
       style={{
         borderRadius: 24,
-        background: s.cardBg,
-        border: `1px solid ${s.cardBorder}`,
+        background: 'var(--lp-card-glass)',
+        border: '1px solid var(--lp-border-card)',
         minHeight: 280,
         transitionDelay: '100ms',
+        transition: 'background 0.3s ease, border-color 0.3s ease',
       }}
     >
       <Suspense fallback={<DemoFallback />}>
@@ -224,32 +131,38 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
       className="lp-animate flex flex-col gap-3 p-6"
       style={{
         borderRadius: 20,
-        background: s.cardBg,
-        border: `1px solid ${s.cardBorder}`,
+        background: 'var(--lp-card-glass)',
+        border: '1px solid var(--lp-border-card)',
         transitionDelay: '200ms',
+        transition: 'background 0.3s ease, border-color 0.3s ease',
       }}
     >
       <div className="flex items-center gap-2 mb-1">
         <div
           className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ background: s.iconBg }}
+          style={{ background: 'rgba(99,102,241,0.12)' }}
         >
           <BadgeIcon className="w-4 h-4" style={{ color: '#818CF8' }} />
         </div>
-        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: s.textMuted, letterSpacing: '0.06em' }}>Key Benefits</p>
+        <p
+          className="text-xs font-semibold uppercase tracking-wider"
+          style={{ color: 'var(--lp-text-muted)', letterSpacing: '0.06em' }}
+        >
+          Key Benefits
+        </p>
       </div>
       <ul className="flex flex-wrap gap-2">
         {data.bullets.map((bullet, i) => (
           <li
             key={bullet}
             className="flex items-start gap-2 text-sm"
-            style={{ color: s.text, transitionDelay: `${i * 70}ms`, minWidth: '240px', flex: '1 1 240px' }}
+            style={{ color: 'var(--lp-text)', transitionDelay: `${i * 70}ms`, minWidth: '240px', flex: '1 1 240px', transition: 'color 0.3s ease' }}
           >
             <span
               className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
-              style={{ background: s.iconBg }}
+              style={{ background: 'rgba(99,102,241,0.12)' }}
             >
-              <Check className="w-2.5 h-2.5" style={{ color: s.checkColor }} />
+              <Check className="w-2.5 h-2.5" style={{ color: '#818CF8' }} />
             </span>
             <span style={{ lineHeight: 1.55 }}>{bullet}</span>
           </li>
@@ -263,7 +176,13 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
       ref={sectionRef as React.Ref<HTMLElement>}
       id={`feature-${data.id}`}
       aria-label={data.title}
-      style={{ background: s.bg, width: '100%', position: 'relative', overflow: 'hidden' }}
+      style={{
+        background: sectionBg,
+        width: '100%',
+        position: 'relative',
+        overflow: 'hidden',
+        transition: 'background 0.3s ease',
+      }}
     >
       {/* Watermark big label */}
       <span
@@ -276,11 +195,12 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
           justifyContent: 'center',
           fontSize: 'clamp(5rem, 14vw, 10rem)',
           fontWeight: 900,
-          color: s.bigLabelColor,
+          color: 'var(--lp-card-glass)',
           pointerEvents: 'none',
           userSelect: 'none',
           letterSpacing: '-0.05em',
           lineHeight: 1,
+          opacity: 0.6,
         }}
       >
         {data.bigLabel}
@@ -290,7 +210,6 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
         className="max-w-6xl mx-auto w-full relative"
         style={{ padding: 'clamp(48px, 6vw, 80px) clamp(20px, 4vw, 40px)' }}
       >
-        {/* Row 1: text card + media card */}
         <div
           className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4"
           style={{ direction: isRtl ? 'rtl' : 'ltr' }}
@@ -298,8 +217,6 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
           <div style={{ direction: 'ltr' }} data-direction={isRtl ? 'right' : 'left'}>{textCard}</div>
           <div style={{ direction: 'ltr' }} data-direction={isRtl ? 'left' : 'right'}>{mediaCard}</div>
         </div>
-
-        {/* Row 2: bullets card (full width) */}
         <div>{bulletsCard}</div>
       </div>
     </section>

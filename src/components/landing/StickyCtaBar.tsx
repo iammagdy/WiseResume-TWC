@@ -66,10 +66,11 @@ export function StickyCtaBar({ heroRef, onGetStarted, onSignIn, lpMode }: Sticky
         style={
           lpMode
             ? {
-                background: 'rgba(10,10,15,0.92)',
+                background: 'var(--lp-nav-bg)',
                 backdropFilter: 'blur(16px)',
-                borderTop: '1px solid rgba(255,255,255,0.08)',
-                boxShadow: '0 -4px 24px rgba(0,0,0,0.4)',
+                borderTop: '1px solid var(--lp-nav-border)',
+                boxShadow: '0 -4px 24px rgba(0,0,0,0.15)',
+                transition: 'background 0.3s ease, border-color 0.3s ease',
               }
             : undefined
         }
@@ -78,20 +79,20 @@ export function StickyCtaBar({ heroRef, onGetStarted, onSignIn, lpMode }: Sticky
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <p
             className="text-sm font-medium hidden sm:block"
-            style={lpMode ? { color: 'rgba(240,240,245,0.6)' } : undefined}
+            style={lpMode ? { color: 'var(--lp-text-muted)', transition: 'color 0.3s ease' } : undefined}
           >
             Start building your perfect resume today
           </p>
           <p
             className="text-sm font-medium sm:hidden"
-            style={lpMode ? { color: 'rgba(240,240,245,0.6)' } : undefined}
+            style={lpMode ? { color: 'var(--lp-text-muted)', transition: 'color 0.3s ease' } : undefined}
           >
             Ready to land your dream job?
           </p>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
               className="text-sm px-3 py-1.5 rounded-lg font-medium transition-colors"
-              style={lpMode ? { color: 'rgba(240,240,245,0.45)', background: 'transparent' } : undefined}
+              style={lpMode ? { color: 'var(--lp-text-subtle)', background: 'transparent' } : undefined}
               onClick={onSignIn}
             >
               Sign In
@@ -100,11 +101,7 @@ export function StickyCtaBar({ heroRef, onGetStarted, onSignIn, lpMode }: Sticky
               className="flex items-center gap-1.5 text-sm font-semibold px-5 py-2 rounded-xl transition-all"
               style={
                 lpMode
-                  ? {
-                      background: '#6366F1',
-                      color: '#fff',
-                      boxShadow: '0 2px 12px rgba(99,102,241,0.3)',
-                    }
+                  ? { background: '#6366F1', color: '#fff', boxShadow: '0 2px 12px rgba(99,102,241,0.3)' }
                   : undefined
               }
               onClick={onGetStarted}

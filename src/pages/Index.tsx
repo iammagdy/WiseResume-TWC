@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Target, Wand2, Mic, LayoutDashboard, Settings, LogOut, Globe, ArrowRight, BarChart3, PenTool, CheckCircle2, Check, User, Quote } from 'lucide-react';
+import { Sparkles, Target, Wand2, Mic, LayoutDashboard, Settings, LogOut, Globe, ArrowRight, BarChart3, PenTool, CheckCircle2, Check, User, Quote, Sun, Moon } from 'lucide-react';
 import { Footer } from '@/components/landing/Footer';
 import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -9,7 +9,7 @@ import { useProfile } from '@/hooks/useProfile';
 import triggerHaptic from '@/lib/haptics';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { useReducedMotion } from 'framer-motion';
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
 import { QuickTailorSheet } from '@/components/landing/QuickTailorSheet';
@@ -20,12 +20,12 @@ import { StickyCtaBar } from '@/components/landing/StickyCtaBar';
 import { FeatureSection, type FeatureSectionData } from '@/components/landing/FeatureSection';
 
 const features = [
-  { icon: Sparkles, title: 'AI Resume Writing', desc: 'AI rewrites vague bullets into quantified achievements that recruiters remember.', color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
-  { icon: Target, title: 'ATS Score Analysis', desc: 'Real-time ATS match percentage against any job posting — fix gaps instantly.', color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-  { icon: Wand2, title: 'Smart Tailoring', desc: 'Paste a job description and AI rewrites your resume to match in 30 seconds.', color: 'text-blue-400', bg: 'bg-blue-500/10' },
-  { icon: Mic, title: 'Interview Coaching', desc: 'Real voice interview practice with AI that listens, responds, and scores you live.', color: 'text-orange-400', bg: 'bg-orange-500/10' },
-  { icon: PenTool, title: 'Cover Letters', desc: 'Generate tailored cover letters that match your resume and the job requirements.', color: 'text-purple-400', bg: 'bg-purple-500/10' },
-  { icon: BarChart3, title: 'Application Tracker', desc: 'Track all your job applications in one place with status updates and analytics.', color: 'text-pink-400', bg: 'bg-pink-500/10' },
+  { icon: Sparkles, title: 'AI Resume Writing', desc: 'AI rewrites vague bullets into quantified achievements that recruiters remember.', colorDark: 'text-indigo-400', colorLight: 'text-indigo-600', bgDark: 'bg-indigo-500/10', bgLight: 'bg-indigo-100' },
+  { icon: Target, title: 'ATS Score Analysis', desc: 'Real-time ATS match percentage against any job posting — fix gaps instantly.', colorDark: 'text-emerald-400', colorLight: 'text-emerald-600', bgDark: 'bg-emerald-500/10', bgLight: 'bg-emerald-100' },
+  { icon: Wand2, title: 'Smart Tailoring', desc: 'Paste a job description and AI rewrites your resume to match in 30 seconds.', colorDark: 'text-blue-400', colorLight: 'text-blue-600', bgDark: 'bg-blue-500/10', bgLight: 'bg-blue-100' },
+  { icon: Mic, title: 'Interview Coaching', desc: 'Real voice interview practice with AI that listens, responds, and scores you live.', colorDark: 'text-orange-400', colorLight: 'text-orange-600', bgDark: 'bg-orange-500/10', bgLight: 'bg-orange-100' },
+  { icon: PenTool, title: 'Cover Letters', desc: 'Generate tailored cover letters that match your resume and the job requirements.', colorDark: 'text-purple-400', colorLight: 'text-purple-600', bgDark: 'bg-purple-500/10', bgLight: 'bg-purple-100' },
+  { icon: BarChart3, title: 'Application Tracker', desc: 'Track all your job applications in one place with status updates and analytics.', colorDark: 'text-pink-400', colorLight: 'text-pink-600', bgDark: 'bg-pink-500/10', bgLight: 'bg-pink-100' },
 ];
 
 const pricingFeatures = {
@@ -38,7 +38,7 @@ const featureSections: FeatureSectionData[] = [
   {
     id: 'editor',
     direction: 'ltr',
-    badge: { icon: Sparkles, label: 'AI Resume Editor', color: 'bg-indigo-100 text-indigo-700' },
+    badge: { icon: Sparkles, label: 'AI Resume Editor', color: '' },
     categoryLabel: '01 — Resume Builder',
     bigLabel: 'Resume',
     title: 'AI-Powered Resume Writing',
@@ -54,7 +54,7 @@ const featureSections: FeatureSectionData[] = [
   {
     id: 'tailoring',
     direction: 'rtl',
-    badge: { icon: Wand2, label: 'Smart Tailoring', color: 'bg-blue-100 text-blue-700' },
+    badge: { icon: Wand2, label: 'Smart Tailoring', color: '' },
     categoryLabel: '02 — AI Tailoring',
     bigLabel: 'Tailoring',
     title: 'Keyword Injection in Seconds',
@@ -70,7 +70,7 @@ const featureSections: FeatureSectionData[] = [
   {
     id: 'portfolio',
     direction: 'ltr',
-    badge: { icon: Globe, label: 'Live Portfolio', color: 'bg-emerald-100 text-emerald-700' },
+    badge: { icon: Globe, label: 'Live Portfolio', color: '' },
     categoryLabel: '03 — Portfolio',
     bigLabel: 'Portfolio',
     title: 'Public Portfolio Website',
@@ -86,7 +86,7 @@ const featureSections: FeatureSectionData[] = [
   {
     id: 'interview',
     direction: 'rtl',
-    badge: { icon: Mic, label: 'Interview Coach', color: 'bg-orange-100 text-orange-700' },
+    badge: { icon: Mic, label: 'Interview Coach', color: '' },
     categoryLabel: '04 — Interview Coach',
     bigLabel: 'Interview',
     title: 'AI Interview Practice',
@@ -102,7 +102,7 @@ const featureSections: FeatureSectionData[] = [
   {
     id: 'tracker',
     direction: 'ltr',
-    badge: { icon: BarChart3, label: 'Application Tracker', color: 'bg-pink-100 text-pink-700' },
+    badge: { icon: BarChart3, label: 'Application Tracker', color: '' },
     categoryLabel: '05 — Job Tracker',
     bigLabel: 'Tracker',
     title: 'Kanban Job Tracker',
@@ -198,7 +198,6 @@ function useScrollAnimation() {
       }
       return false;
     };
-
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -207,13 +206,11 @@ function useScrollAnimation() {
       },
       { threshold: 0, rootMargin: '0px 0px -60px 0px' }
     );
-
     const observe = () => {
       document.querySelectorAll('.lp-animate:not(.lp-visible)').forEach((el) => {
         if (!markIfVisible(el)) observer.observe(el);
       });
     };
-
     observe();
     const t = setInterval(observe, 500);
     return () => { observer.disconnect(); clearInterval(t); };
@@ -252,9 +249,10 @@ function FeatureNumberedNav({ sectionIds, labels }: { sectionIds: string[]; labe
         position: 'sticky',
         top: 56,
         zIndex: 40,
-        background: 'rgba(10,10,15,0.92)',
+        background: 'var(--lp-nav-bg)',
         backdropFilter: 'blur(14px)',
-        borderBottom: '1px solid rgba(255,255,255,0.07)',
+        borderBottom: '1px solid var(--lp-nav-border)',
+        transition: 'background 0.3s ease',
       }}
     >
       <div className="flex items-center justify-center gap-1 sm:gap-2 min-w-max mx-auto">
@@ -264,9 +262,9 @@ function FeatureNumberedNav({ sectionIds, labels }: { sectionIds: string[]; labe
             onClick={() => scrollTo(id)}
             className="transition-all duration-200 text-xs sm:text-sm font-medium px-3 sm:px-4 py-1.5 rounded-full whitespace-nowrap"
             style={{
-              background: activeIdx === idx ? 'rgba(99,102,241,0.18)' : 'transparent',
-              color: activeIdx === idx ? '#818CF8' : 'rgba(255,255,255,0.38)',
-              border: activeIdx === idx ? '1px solid rgba(99,102,241,0.3)' : '1px solid transparent',
+              background: activeIdx === idx ? 'rgba(99,102,241,0.14)' : 'transparent',
+              color: activeIdx === idx ? 'var(--lp-brand)' : 'var(--lp-text-subtle)',
+              border: activeIdx === idx ? '1px solid rgba(99,102,241,0.28)' : '1px solid transparent',
             }}
           >
             {labels[idx]}
@@ -284,6 +282,7 @@ const Index = () => {
   const prefersReducedMotion = useReducedMotion();
   const themeLogo = useThemeLogo();
   const [scrolled, setScrolled] = useState(false);
+  const [isDark, setIsDark] = useState(true);
   const progressRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -376,23 +375,72 @@ const Index = () => {
     <div
       className="lp-root min-h-screen"
       data-theme="landing"
-      style={{ colorScheme: 'dark' }}
+      data-lp-scheme={isDark ? 'dark' : 'light'}
+      style={{ colorScheme: isDark ? 'dark' : 'light' }}
     >
       <style>{`
+        /* ── DARK THEME (default) ───────────────────────────────── */
         .lp-root {
-          --lp-bg: #0a0a0f;
           --lp-brand: #6366F1;
-          --lp-brand-dark: #4F46E5;
-          --lp-brand-tint: rgba(99,102,241,0.12);
+          --lp-bg: #0a0a0f;
           --lp-card: #111118;
-          --lp-card-border: rgba(255,255,255,0.07);
-          --lp-card-border-hover: rgba(255,255,255,0.14);
+          --lp-card-glass: rgba(255,255,255,0.04);
+          --lp-border: rgba(255,255,255,0.07);
+          --lp-border-card: rgba(255,255,255,0.08);
           --lp-text: #f0f0f5;
-          --lp-text-muted: rgba(240,240,245,0.5);
-          --lp-text-subtle: rgba(240,240,245,0.28);
+          --lp-text-muted: rgba(240,240,245,0.52);
+          --lp-text-subtle: rgba(240,240,245,0.32);
+          --lp-header-scrolled-bg: rgba(10,10,15,0.9);
+          --lp-header-scrolled-border: rgba(255,255,255,0.07);
+          --lp-nav-bg: rgba(10,10,15,0.92);
+          --lp-nav-border: rgba(255,255,255,0.07);
+          --lp-hero-glow: rgba(99,102,241,0.18);
+          --lp-section-alt: #0d0d14;
+          --lp-section-alt2: #0f0f18;
+          --lp-eyebrow: #818CF8;
+          --lp-logo-text: rgba(255,255,255,0.88);
+          --lp-signin-color: rgba(255,255,255,0.72);
+          --lp-signin-bg: rgba(255,255,255,0.07);
+          --lp-signin-border: rgba(255,255,255,0.1);
+          --lp-trust-color: rgba(240,240,245,0.35);
+          --lp-trust-icon: rgba(99,102,241,0.7);
+          --lp-toggle-bg: rgba(255,255,255,0.07);
+          --lp-toggle-border: rgba(255,255,255,0.1);
+          --lp-toggle-color: rgba(255,255,255,0.55);
           background: var(--lp-bg);
           color: var(--lp-text);
+          transition: background 0.3s ease, color 0.3s ease;
         }
+
+        /* ── LIGHT THEME ─────────────────────────────────────────── */
+        .lp-root[data-lp-scheme="light"] {
+          --lp-bg: #f5f5fb;
+          --lp-card: #ffffff;
+          --lp-card-glass: rgba(0,0,0,0.03);
+          --lp-border: rgba(0,0,0,0.06);
+          --lp-border-card: rgba(0,0,0,0.08);
+          --lp-text: #0f0f1a;
+          --lp-text-muted: rgba(15,15,26,0.55);
+          --lp-text-subtle: rgba(15,15,26,0.35);
+          --lp-header-scrolled-bg: rgba(245,245,251,0.94);
+          --lp-header-scrolled-border: rgba(0,0,0,0.08);
+          --lp-nav-bg: rgba(245,245,251,0.96);
+          --lp-nav-border: rgba(0,0,0,0.08);
+          --lp-hero-glow: rgba(99,102,241,0.09);
+          --lp-section-alt: #ededf5;
+          --lp-section-alt2: #e8e8f2;
+          --lp-eyebrow: #6366F1;
+          --lp-logo-text: #0f0f1a;
+          --lp-signin-color: rgba(15,15,26,0.7);
+          --lp-signin-bg: rgba(0,0,0,0.05);
+          --lp-signin-border: rgba(0,0,0,0.1);
+          --lp-trust-color: rgba(15,15,26,0.4);
+          --lp-trust-icon: rgba(99,102,241,0.75);
+          --lp-toggle-bg: rgba(0,0,0,0.05);
+          --lp-toggle-border: rgba(0,0,0,0.1);
+          --lp-toggle-color: rgba(15,15,26,0.55);
+        }
+
         .lp-root * { font-style: normal !important; }
 
         /* Headline word entrance */
@@ -442,9 +490,9 @@ const Index = () => {
 
         /* Header scrolled */
         .lp-header-scrolled {
-          background: rgba(10,10,15,0.88) !important;
+          background: var(--lp-header-scrolled-bg) !important;
           backdrop-filter: blur(16px);
-          border-bottom: 1px solid rgba(255,255,255,0.07);
+          border-bottom: 1px solid var(--lp-header-scrolled-border);
         }
 
         /* Typewriter cursor */
@@ -465,9 +513,14 @@ const Index = () => {
           transition: border-color 0.22s ease, background 0.22s ease, transform 0.22s ease;
           cursor: default;
         }
-        .lp-feature-card:hover {
+        .lp-root[data-lp-scheme="dark"] .lp-feature-card:hover {
           border-color: rgba(99,102,241,0.22) !important;
           background: rgba(255,255,255,0.05) !important;
+          transform: translateY(-3px);
+        }
+        .lp-root[data-lp-scheme="light"] .lp-feature-card:hover {
+          border-color: rgba(99,102,241,0.2) !important;
+          background: rgba(99,102,241,0.04) !important;
           transform: translateY(-3px);
         }
 
@@ -483,16 +536,47 @@ const Index = () => {
         /* Separator */
         .lp-separator {
           height: 1px;
-          background: linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.35) 30%, rgba(99,102,241,0.55) 50%, rgba(99,102,241,0.35) 70%, transparent 100%);
+          background: linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.3) 30%, rgba(99,102,241,0.5) 50%, rgba(99,102,241,0.3) 70%, transparent 100%);
         }
 
-        /* Gradient text */
+        /* Gradient text — dark */
         .lp-gradient-text {
           background: linear-gradient(135deg, #a5b4fc 0%, #818CF8 50%, #c4b5fd 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
         }
+
+        /* Gradient text — light (darker indigo so it reads on light bg) */
+        .lp-root[data-lp-scheme="light"] .lp-gradient-text {
+          background: linear-gradient(135deg, #6366F1 0%, #4F46E5 50%, #7C3AED 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }
+
+        /* Theme toggle button */
+        .lp-theme-toggle {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 36px;
+          height: 36px;
+          border-radius: 10px;
+          cursor: pointer;
+          transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+          background: var(--lp-toggle-bg);
+          border: 1px solid var(--lp-toggle-border);
+          color: var(--lp-toggle-color);
+          flex-shrink: 0;
+        }
+        .lp-theme-toggle:hover {
+          transform: scale(1.08);
+          background: rgba(99,102,241,0.12);
+          border-color: rgba(99,102,241,0.25);
+          color: var(--lp-brand);
+        }
+        .lp-theme-toggle:active { transform: scale(0.96); }
       `}</style>
 
       <a
@@ -520,15 +604,25 @@ const Index = () => {
             aria-label="WiseResume – scroll to top"
           >
             <img alt="WiseResume" loading="lazy" className="w-8 h-8 object-contain rounded-lg" src={themeLogo} />
-            <span className="font-display font-bold text-sm" style={{ color: 'rgba(255,255,255,0.88)' }}>WiseResume</span>
+            <span className="font-display font-bold text-sm" style={{ color: 'var(--lp-logo-text)' }}>WiseResume</span>
           </button>
 
           <div className="flex items-center gap-2">
+            {/* Theme toggle */}
+            <button
+              className="lp-theme-toggle"
+              onClick={() => { triggerHaptic.light(); setIsDark((d) => !d); }}
+              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={isDark ? 'Light mode' : 'Dark mode'}
+            >
+              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+
             {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="touch-manipulation active:scale-95 transition-transform" aria-label="Account menu">
-                    <Avatar className="h-8 w-8" style={{ border: '1px solid rgba(255,255,255,0.12)' }}>
+                    <Avatar className="h-8 w-8" style={{ border: '1px solid var(--lp-border-card)' }}>
                       <AvatarImage src={profile?.avatarUrl ?? undefined} />
                       <AvatarFallback className="text-xs font-semibold" style={{ background: 'rgba(99,102,241,0.15)', color: '#818CF8' }}>
                         {getInitials() ?? <User className="w-3.5 h-3.5" />}
@@ -557,9 +651,9 @@ const Index = () => {
                 onClick={() => { triggerHaptic.light(); kindeLogin(); }}
                 className="text-sm font-medium px-4 py-1.5 rounded-lg transition-all duration-200"
                 style={{
-                  color: 'rgba(255,255,255,0.75)',
-                  background: 'rgba(255,255,255,0.07)',
-                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: 'var(--lp-signin-color)',
+                  background: 'var(--lp-signin-bg)',
+                  border: '1px solid var(--lp-signin-border)',
                 }}
               >
                 Sign In
@@ -575,18 +669,19 @@ const Index = () => {
           ref={heroRef}
           className="relative flex flex-col items-center text-center px-4 sm:px-6 overflow-hidden"
           style={{
-            background: '#0a0a0f',
+            background: 'var(--lp-bg)',
             paddingTop: 'calc(7rem + env(safe-area-inset-top))',
             paddingBottom: '6rem',
             minHeight: '88vh',
           }}
         >
-          {/* Subtle indigo radial glow */}
+          {/* Indigo radial glow */}
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-0"
             style={{
-              background: 'radial-gradient(ellipse 80% 55% at 50% 0%, rgba(99,102,241,0.18) 0%, transparent 65%)',
+              background: 'radial-gradient(ellipse 80% 55% at 50% 0%, var(--lp-hero-glow) 0%, transparent 65%)',
+              transition: 'background 0.3s ease',
             }}
           />
 
@@ -597,8 +692,9 @@ const Index = () => {
               fontSize: '0.8rem',
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
-              color: '#818CF8',
+              color: 'var(--lp-eyebrow)',
               fontWeight: 600,
+              transition: 'color 0.3s ease',
             }}
           >
             AI-Powered Career Platform
@@ -609,8 +705,9 @@ const Index = () => {
             className="relative z-10 font-extrabold leading-[1.05] max-w-4xl"
             style={{
               fontSize: 'clamp(4rem, 8vw, 7rem)',
-              color: '#f0f0f5',
+              color: 'var(--lp-text)',
               letterSpacing: '-0.035em',
+              transition: 'color 0.3s ease',
             }}
           >
             {['Land', 'more'].map((word, i) => (
@@ -640,7 +737,7 @@ const Index = () => {
             style={{
               fontSize: 'clamp(1rem, 2.2vw, 1.2rem)',
               lineHeight: 1.6,
-              color: 'rgba(240,240,245,0.52)',
+              color: 'var(--lp-text-muted)',
               maxWidth: 500,
             }}
           >
@@ -673,8 +770,8 @@ const Index = () => {
           {/* Trust badges */}
           <div className="relative z-10 mt-8 flex items-center gap-5 sm:gap-7 text-xs flex-wrap justify-center lp-hero-trust">
             {['Free to start', 'No credit card', 'AI-powered'].map((item) => (
-              <span key={item} className="flex items-center gap-1.5" style={{ color: 'rgba(240,240,245,0.35)' }}>
-                <CheckCircle2 className="w-3.5 h-3.5" style={{ color: 'rgba(99,102,241,0.7)' }} />
+              <span key={item} className="flex items-center gap-1.5" style={{ color: 'var(--lp-trust-color)', transition: 'color 0.3s ease' }}>
+                <CheckCircle2 className="w-3.5 h-3.5" style={{ color: 'var(--lp-trust-icon)', transition: 'color 0.3s ease' }} />
                 {item}
               </span>
             ))}
@@ -691,13 +788,13 @@ const Index = () => {
         <FeatureNumberedNav sectionIds={FEATURE_IDS} labels={FEATURE_NAV_LABELS} />
 
         {/* ─── FEATURE SECTIONS HEADING ─── */}
-        <div className="text-center px-4 sm:px-6 py-16 max-w-4xl mx-auto lp-animate">
-          <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#818CF8', fontWeight: 600, marginBottom: '0.75rem' }}>
+        <div className="text-center px-4 sm:px-6 py-16 max-w-4xl mx-auto lp-animate" style={{ background: 'var(--lp-bg)' }}>
+          <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--lp-eyebrow)', fontWeight: 600, marginBottom: '0.75rem' }}>
             See it in action
           </p>
           <h2
             className="font-bold leading-tight"
-            style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', color: '#f0f0f5', letterSpacing: '-0.02em' }}
+            style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', color: 'var(--lp-text)', letterSpacing: '-0.02em' }}
           >
             Five tools. One platform.<br />
             <span className="lp-gradient-text">Your complete career OS.</span>
@@ -710,16 +807,16 @@ const Index = () => {
         ))}
 
         {/* ─── EVERYTHING YOU NEED GRID ─── */}
-        <section className="px-4 sm:px-6 py-20" style={{ background: '#0a0a0f' }}>
+        <section className="px-4 sm:px-6 py-20" style={{ background: 'var(--lp-bg)' }}>
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-12 lp-animate">
-              <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#818CF8', fontWeight: 600, marginBottom: '0.75rem' }}>
+              <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--lp-eyebrow)', fontWeight: 600, marginBottom: '0.75rem' }}>
                 Full toolkit
               </p>
-              <h2 className="font-bold" style={{ fontSize: 'clamp(1.75rem, 3vw, 2.5rem)', color: '#f0f0f5', letterSpacing: '-0.02em', marginBottom: '0.5rem' }}>
+              <h2 className="font-bold" style={{ fontSize: 'clamp(1.75rem, 3vw, 2.5rem)', color: 'var(--lp-text)', letterSpacing: '-0.02em', marginBottom: '0.5rem' }}>
                 Everything you need
               </h2>
-              <p style={{ color: 'rgba(240,240,245,0.45)' }} className="max-w-md mx-auto">
+              <p style={{ color: 'var(--lp-text-muted)' }} className="max-w-md mx-auto">
                 One platform for your entire job search
               </p>
             </div>
@@ -731,17 +828,17 @@ const Index = () => {
                   className="flex items-start gap-4 p-5 lp-animate lp-feature-card"
                   style={{
                     borderRadius: 16,
-                    background: '#111118',
-                    border: '1px solid rgba(255,255,255,0.07)',
+                    background: 'var(--lp-card)',
+                    border: '1px solid var(--lp-border-card)',
                     transitionDelay: `${i * 60}ms`,
                   }}
                 >
-                  <div className={`w-10 h-10 rounded-xl ${f.bg} flex items-center justify-center shrink-0`}>
-                    <f.icon className={`w-5 h-5 ${f.color}`} />
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isDark ? f.bgDark : f.bgLight}`}>
+                    <f.icon className={`w-5 h-5 ${isDark ? f.colorDark : f.colorLight}`} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-sm mb-1" style={{ color: '#f0f0f5' }}>{f.title}</h3>
-                    <p className="text-xs leading-relaxed" style={{ color: 'rgba(240,240,245,0.48)' }}>{f.desc}</p>
+                    <h3 className="font-semibold text-sm mb-1" style={{ color: 'var(--lp-text)' }}>{f.title}</h3>
+                    <p className="text-xs leading-relaxed" style={{ color: 'var(--lp-text-muted)' }}>{f.desc}</p>
                   </div>
                 </div>
               ))}
@@ -753,13 +850,13 @@ const Index = () => {
         <div className="lp-separator" aria-hidden="true" />
 
         {/* ─── TESTIMONIALS ─── */}
-        <section className="px-4 sm:px-6 py-20" style={{ background: '#0a0a0f' }}>
+        <section className="px-4 sm:px-6 py-20" style={{ background: 'var(--lp-section-alt)' }}>
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-14 lp-animate">
-              <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#818CF8', fontWeight: 600, marginBottom: '0.75rem' }}>
+              <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--lp-eyebrow)', fontWeight: 600, marginBottom: '0.75rem' }}>
                 Social proof
               </p>
-              <h2 className="font-bold" style={{ fontSize: 'clamp(1.75rem, 3vw, 2.5rem)', color: '#f0f0f5', letterSpacing: '-0.02em' }}>
+              <h2 className="font-bold" style={{ fontSize: 'clamp(1.75rem, 3vw, 2.5rem)', color: 'var(--lp-text)', letterSpacing: '-0.02em' }}>
                 Job seekers rely on WiseResume
               </h2>
             </div>
@@ -771,18 +868,18 @@ const Index = () => {
                   className="lp-animate lp-testimonial-card flex flex-col gap-4 p-5"
                   style={{
                     borderRadius: 16,
-                    background: '#111118',
-                    border: '1px solid rgba(255,255,255,0.07)',
+                    background: 'var(--lp-card)',
+                    border: '1px solid var(--lp-border-card)',
                     transitionDelay: `${i * 80}ms`,
                   }}
                 >
                   <Quote className="w-5 h-5 flex-shrink-0" style={{ color: 'rgba(99,102,241,0.5)' }} />
-                  <p className="text-sm leading-relaxed flex-1" style={{ color: 'rgba(240,240,245,0.68)' }}>
+                  <p className="text-sm leading-relaxed flex-1" style={{ color: 'var(--lp-text-muted)' }}>
                     "{t.quote}"
                   </p>
                   <div>
-                    <p className="text-sm font-semibold" style={{ color: '#f0f0f5' }}>{t.name}</p>
-                    <p className="text-xs mt-0.5" style={{ color: 'rgba(240,240,245,0.38)' }}>{t.role}</p>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--lp-text)' }}>{t.name}</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--lp-text-subtle)' }}>{t.role}</p>
                   </div>
                 </div>
               ))}
@@ -794,16 +891,16 @@ const Index = () => {
         <div className="lp-separator" aria-hidden="true" />
 
         {/* ─── PRICING ─── */}
-        <section className="px-4 sm:px-6 py-20" style={{ background: '#0a0a0f' }}>
+        <section className="px-4 sm:px-6 py-20" style={{ background: 'var(--lp-bg)' }}>
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-10 lp-animate">
-              <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#818CF8', fontWeight: 600, marginBottom: '0.75rem' }}>
+              <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--lp-eyebrow)', fontWeight: 600, marginBottom: '0.75rem' }}>
                 Pricing
               </p>
-              <h2 className="font-bold mb-2" style={{ fontSize: 'clamp(1.75rem, 3vw, 2.5rem)', color: '#f0f0f5', letterSpacing: '-0.02em' }}>
+              <h2 className="font-bold mb-2" style={{ fontSize: 'clamp(1.75rem, 3vw, 2.5rem)', color: 'var(--lp-text)', letterSpacing: '-0.02em' }}>
                 Simple pricing
               </h2>
-              <p style={{ color: 'rgba(240,240,245,0.45)' }} className="max-w-md mx-auto">
+              <p style={{ color: 'var(--lp-text-muted)' }} className="max-w-md mx-auto">
                 Start free, upgrade when you need more
               </p>
             </div>
@@ -812,14 +909,14 @@ const Index = () => {
               {/* Free */}
               <div
                 className="lp-animate flex flex-col p-6"
-                style={{ borderRadius: 20, background: '#111118', border: '1px solid rgba(255,255,255,0.08)', transitionDelay: '0ms' }}
+                style={{ borderRadius: 20, background: 'var(--lp-card)', border: '1px solid var(--lp-border-card)', transitionDelay: '0ms' }}
               >
-                <h3 className="text-base font-semibold mb-1" style={{ color: '#f0f0f5' }}>Free</h3>
-                <p className="text-3xl font-bold mb-1" style={{ color: '#f0f0f5' }}>$0<span className="text-sm font-normal" style={{ color: 'rgba(240,240,245,0.4)' }}>/mo</span></p>
-                <p className="text-xs mb-5" style={{ color: 'rgba(240,240,245,0.45)' }}>Perfect to get started</p>
+                <h3 className="text-base font-semibold mb-1" style={{ color: 'var(--lp-text)' }}>Free</h3>
+                <p className="text-3xl font-bold mb-1" style={{ color: 'var(--lp-text)' }}>$0<span className="text-sm font-normal" style={{ color: 'var(--lp-text-muted)' }}>/mo</span></p>
+                <p className="text-xs mb-5" style={{ color: 'var(--lp-text-muted)' }}>Perfect to get started</p>
                 <ul className="space-y-2.5 mb-7 flex-1">
                   {pricingFeatures.free.map((item) => (
-                    <li key={item} className="flex items-center gap-2.5 text-sm" style={{ color: 'rgba(240,240,245,0.7)' }}>
+                    <li key={item} className="flex items-center gap-2.5 text-sm" style={{ color: 'var(--lp-text-muted)' }}>
                       <Check className="w-4 h-4 shrink-0" style={{ color: '#6366F1' }} />
                       {item}
                     </li>
@@ -827,7 +924,7 @@ const Index = () => {
                 </ul>
                 <button
                   className="w-full h-11 rounded-xl text-sm font-semibold transition-all"
-                  style={{ border: '1px solid rgba(255,255,255,0.15)', color: '#f0f0f5', background: 'transparent' }}
+                  style={{ border: '1px solid var(--lp-border-card)', color: 'var(--lp-text)', background: 'transparent' }}
                   onClick={() => handleCTA('free')}
                 >
                   Get Started
@@ -868,7 +965,7 @@ const Index = () => {
               {/* Premium */}
               <div
                 className="lp-animate flex flex-col p-6 relative"
-                style={{ borderRadius: 20, background: '#111118', border: '1px solid rgba(245,158,11,0.28)', transitionDelay: '120ms' }}
+                style={{ borderRadius: 20, background: 'var(--lp-card)', border: '1px solid rgba(245,158,11,0.28)', transitionDelay: '120ms' }}
               >
                 <span
                   className="absolute -top-3 left-6 px-3 py-0.5 rounded-full text-xs font-semibold"
@@ -876,12 +973,12 @@ const Index = () => {
                 >
                   Power Users
                 </span>
-                <h3 className="text-base font-semibold mb-1" style={{ color: '#f0f0f5' }}>Premium</h3>
-                <p className="text-3xl font-bold mb-1" style={{ color: '#f0f0f5' }}>$19<span className="text-sm font-normal" style={{ color: 'rgba(240,240,245,0.4)' }}>/mo</span></p>
-                <p className="text-xs mb-5" style={{ color: 'rgba(240,240,245,0.45)' }}>For career professionals</p>
+                <h3 className="text-base font-semibold mb-1" style={{ color: 'var(--lp-text)' }}>Premium</h3>
+                <p className="text-3xl font-bold mb-1" style={{ color: 'var(--lp-text)' }}>$19<span className="text-sm font-normal" style={{ color: 'var(--lp-text-muted)' }}>/mo</span></p>
+                <p className="text-xs mb-5" style={{ color: 'var(--lp-text-muted)' }}>For career professionals</p>
                 <ul className="space-y-2.5 mb-7 flex-1">
                   {pricingFeatures.premium.map((item) => (
-                    <li key={item} className="flex items-center gap-2.5 text-sm" style={{ color: 'rgba(240,240,245,0.72)' }}>
+                    <li key={item} className="flex items-center gap-2.5 text-sm" style={{ color: 'var(--lp-text-muted)' }}>
                       <Check className="w-4 h-4 shrink-0" style={{ color: '#F59E0B' }} />
                       {item}
                     </li>
@@ -900,37 +997,37 @@ const Index = () => {
         </section>
 
         {/* ─── PWA INSTALL STRIP ─── */}
-        <section className="px-4 sm:px-6 py-10" style={{ background: '#0d0d14', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+        <section className="px-4 sm:px-6 py-10" style={{ background: 'var(--lp-section-alt)', borderTop: '1px solid var(--lp-border)' }}>
           <div className="max-w-xl mx-auto text-center lp-animate">
-            <p className="font-semibold mb-1" style={{ color: '#f0f0f5' }}>Install WiseResume</p>
-            <p className="text-sm mb-4" style={{ color: 'rgba(240,240,245,0.45)' }}>Add to your home screen for a native app experience</p>
+            <p className="font-semibold mb-1" style={{ color: 'var(--lp-text)' }}>Install WiseResume</p>
+            <p className="text-sm mb-4" style={{ color: 'var(--lp-text-muted)' }}>Add to your home screen for a native app experience</p>
             <InstallButton />
           </div>
         </section>
 
         {/* ─── FINAL CTA ─── */}
         {!isAuthenticated && (
-          <section className="px-4 sm:px-6 py-24 text-center" style={{ background: '#0a0a0f' }}>
+          <section className="px-4 sm:px-6 py-24 text-center" style={{ background: 'var(--lp-bg)' }}>
             <div className="max-w-2xl mx-auto lp-animate">
               <h2
                 className="font-extrabold mb-4"
-                style={{ fontSize: 'clamp(2rem, 4.5vw, 3.25rem)', color: '#f0f0f5', letterSpacing: '-0.03em', lineHeight: 1.1 }}
+                style={{ fontSize: 'clamp(2rem, 4.5vw, 3.25rem)', color: 'var(--lp-text)', letterSpacing: '-0.03em', lineHeight: 1.1 }}
               >
                 Ready to land your<br />
                 <span className="lp-gradient-text">dream job?</span>
               </h2>
-              <p className="mb-8" style={{ color: 'rgba(240,240,245,0.48)', fontSize: '1.05rem' }}>
+              <p className="mb-8" style={{ color: 'var(--lp-text-muted)', fontSize: '1.05rem' }}>
                 Join thousands of job seekers who've transformed their career with WiseResume.
               </p>
               <button
                 onClick={handleCTA}
-                className="h-13 px-10 text-base font-semibold rounded-xl inline-flex items-center gap-2.5 transition-all"
+                className="px-10 text-base font-semibold rounded-xl inline-flex items-center gap-2.5 transition-all"
                 style={{ background: '#6366F1', color: '#fff', height: '3.25rem' }}
               >
                 Get Started Free
                 <ArrowRight className="w-4 h-4" />
               </button>
-              <p className="mt-5 text-xs" style={{ color: 'rgba(240,240,245,0.28)' }}>No credit card required · Free plan forever</p>
+              <p className="mt-5 text-xs" style={{ color: 'var(--lp-text-subtle)' }}>No credit card required · Free plan forever</p>
             </div>
           </section>
         )}
