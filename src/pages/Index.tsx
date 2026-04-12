@@ -58,8 +58,8 @@ const featureSections: FeatureSectionData[] = [
     badge: { icon: Wand2, label: 'Smart Tailoring', color: '' },
     categoryLabel: '02 — AI Tailoring',
     bigLabel: 'Tailoring',
-    title: 'Keyword Injection in Seconds',
-    desc: 'Paste a job description and AI rewrites your resume to match in 30 seconds. See the before and after instantly.',
+    title: 'Precision Resume Tailoring',
+    desc: 'Paste any job description and receive a precisely tailored resume in seconds. Review every change before applying.',
     bullets: [
       'Automatically matches keywords from any job description',
       'Before/after comparison shows exactly what changed',
@@ -78,7 +78,7 @@ const featureSections: FeatureSectionData[] = [
     desc: 'Turn your resume into a beautiful personal site with themes, projects, and a shareable link — zero design skills needed.',
     bullets: [
       'Auto-synced from your resume — always up to date',
-      'Shareable link with a custom slug',
+      'Personalised URL you can share with any employer',
       'Themed layouts that update with one click',
     ],
     demo: 'portfolio',
@@ -122,15 +122,15 @@ const FEATURE_IDS = featureSections.map((s) => s.id);
 
 const TYPEWRITER_WORDS = [
   'interviews',
-  'offers',
-  'your dream role',
-  'callbacks',
-  'top companies',
+  'competitive offers',
+  'your target role',
+  'recruiter responses',
+  'top-tier positions',
 ];
 
 const TESTIMONIALS = [
   {
-    quote: "I went from zero callbacks to three interviews in two weeks. The AI tailoring alone is worth it.",
+    quote: "I went from zero responses to three interviews in two weeks. The AI tailoring alone is worth it.",
     name: "Priya S.",
     role: "Product Manager, landed at Stripe",
   },
@@ -140,7 +140,7 @@ const TESTIMONIALS = [
     role: "Software Engineer, landed at Shopify",
   },
   {
-    quote: "The interview coach is unreal. I practiced the same question 10 times and could see myself improving.",
+    quote: "The interview coach is exceptional. I rehearsed the same question ten times and the improvement was measurable.",
     name: "Maria L.",
     role: "Marketing Lead, landed at HubSpot",
   },
@@ -205,7 +205,7 @@ function useScrollAnimation() {
           if (entry.isIntersecting) entry.target.classList.add('lp-visible');
         });
       },
-      { threshold: 0, rootMargin: '0px 0px -60px 0px' }
+      { threshold: 0, rootMargin: '0px 0px -80px 0px' }
     );
     const observe = () => {
       document.querySelectorAll('.lp-animate:not(.lp-visible)').forEach((el) => {
@@ -829,7 +829,7 @@ const Index = () => {
             style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', color: 'var(--lp-text)', letterSpacing: '-0.02em' }}
           >
             Five tools. One platform.<br />
-            <span className="lp-gradient-text">Your complete career OS.</span>
+            <span className="lp-gradient-text">Your unfair advantage in hiring.</span>
           </h2>
         </div>
 
@@ -857,7 +857,7 @@ const Index = () => {
               {features.map((f, i) => (
                 <div
                   key={f.title}
-                  className="flex items-start gap-4 p-5 lp-animate lp-feature-card"
+                  className={`flex items-start gap-4 p-5 lp-animate ${i % 2 === 0 ? 'lp-from-left' : 'lp-from-right'} lp-feature-card`}
                   style={{
                     borderRadius: 16,
                     background: 'var(--lp-card)',
@@ -886,7 +886,7 @@ const Index = () => {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-14 lp-animate">
               <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--lp-eyebrow)', fontWeight: 600, marginBottom: '0.75rem' }}>
-                Social proof
+                Success Stories
               </p>
               <h2 className="font-bold" style={{ fontSize: 'clamp(1.75rem, 3vw, 2.5rem)', color: 'var(--lp-text)', letterSpacing: '-0.02em' }}>
                 Job seekers rely on WiseResume
@@ -897,7 +897,7 @@ const Index = () => {
               {TESTIMONIALS.map((t, i) => (
                 <div
                   key={t.name}
-                  className="lp-animate lp-testimonial-card flex flex-col gap-4 p-5"
+                  className={`lp-animate ${i % 2 === 0 ? 'lp-from-left' : 'lp-from-right'} lp-testimonial-card flex flex-col gap-4 p-5`}
                   style={{
                     borderRadius: 16,
                     background: 'var(--lp-card)',
@@ -940,7 +940,7 @@ const Index = () => {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-4xl mx-auto">
               {/* Free */}
               <div
-                className="lp-animate flex flex-col p-6"
+                className="lp-animate lp-from-left flex flex-col p-6"
                 style={{ borderRadius: 20, background: 'var(--lp-card)', border: '1px solid var(--lp-border-card)', transitionDelay: '0ms' }}
               >
                 <h3 className="text-base font-semibold mb-1" style={{ color: 'var(--lp-text)' }}>Free</h3>
@@ -996,7 +996,7 @@ const Index = () => {
 
               {/* Premium */}
               <div
-                className="lp-animate flex flex-col p-6 relative"
+                className="lp-animate lp-from-right flex flex-col p-6 relative"
                 style={{ borderRadius: 20, background: 'var(--lp-card)', border: '1px solid rgba(245,158,11,0.28)', transitionDelay: '120ms' }}
               >
                 <span
@@ -1045,11 +1045,11 @@ const Index = () => {
                 className="font-extrabold mb-4"
                 style={{ fontSize: 'clamp(2rem, 4.5vw, 3.25rem)', color: 'var(--lp-text)', letterSpacing: '-0.03em', lineHeight: 1.1 }}
               >
-                Ready to land your<br />
-                <span className="lp-gradient-text">dream job?</span>
+                Ready to accelerate<br />
+                <span className="lp-gradient-text">your job search?</span>
               </h2>
               <p className="mb-8" style={{ color: 'var(--lp-text-muted)', fontSize: '1.05rem' }}>
-                Join thousands of job seekers who've transformed their career with WiseResume.
+                Join thousands of professionals who've accelerated their career with WiseResume.
               </p>
               <button
                 onClick={handleCTA}
