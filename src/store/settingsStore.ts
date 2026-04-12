@@ -191,7 +191,7 @@ const defaultSettings = {
   analyticsEnabled: true,
   biometricLockEnabled: false,
   biometricLockTimeout: 30000 as BiometricLockTimeout,
-  redactPiiBeforeAI: false,
+  redactPiiBeforeAI: true,
   defaultTemplate: 'modern' as TemplateId,
   pdfDefaults: {
     showPageNumbers: true,

@@ -40,7 +40,7 @@ export const AIVoiceSection = memo(function AIVoiceSection({
             <SettingsRow
                 type="toggle"
                 label="Redact personal info before AI processing"
-                description="Replaces your name, email, phone, and address with placeholders before sending to AI providers."
+                description="On by default. Replaces your name, email, phone, and address with placeholders before sending to AI providers. Toggle off to send your real details."
                 checked={redactPiiBeforeAI}
                 icon={<ShieldCheck className="w-4 h-4" />}
                 onCheckedChange={setRedactPiiBeforeAI}
