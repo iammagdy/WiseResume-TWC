@@ -189,6 +189,14 @@ bash scripts/deploy-functions.sh                      # redeploy all edge functi
 - No italic text anywhere on the landing page (`font-style: normal !important`)
 - `FeatureTicker`, `StickyCtaBar`, `Footer` all support `lpMode` prop to use `--lp-*` variables
 
+## Kanban Job Tracker (Task #5 — Completed)
+- Board view toggle added to `ApplicationsPage.tsx` — List (default) / Board view, persisted to `localStorage('activity-view')`
+- `src/components/applications/KanbanCard.tsx` — Draggable card: `useDraggable` on a GripVertical handle, company initial avatar (deterministic color hash), deadline countdown badge, reminder/resume/letter indicators, 3-dot dropdown (View details, Job posting, Delete). Click body navigates to `/application/:id`.
+- `src/components/applications/QuickAddInline.tsx` — Inline add form inside columns: Company + Job Title + URL, auto-focus, Escape/click-outside dismiss, calls `createApplication.mutateAsync`.
+- `src/components/applications/KanbanColumn.tsx` — Droppable column (`useDroppable`), colour-coded header + count badge, `+ Add` button opens QuickAddInline, drag-over ring highlight, Rejected column collapses to a slim droppable target by default.
+- `src/components/applications/KanbanBoard.tsx` — `DndContext` with PointerSensor (distance:8) + TouchSensor (delay:200ms), all-app `useJobApplications()`, optimistic `localCards` state with server sync + rollback on error, 6 columns, `DragOverlay` with simplified card preview.
+- Dependencies: `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities` installed.
+
 ## Bug Fixes (Post-Redesign Audit)
 - **AuthContext `user.id`**: Now uses only the bridge UUID (from `token-exchange`), never the raw Kinde ID (`kp_xxx`). If bridge hasn't settled, `user` is null to prevent UUID type errors.
 - **Data query gating**: All hooks with `enabled: !!user` naturally wait for the bridge since `user` is null until bridge provides a UUID.

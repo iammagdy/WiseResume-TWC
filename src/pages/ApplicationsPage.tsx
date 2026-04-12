@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useDeferredValue, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { Plus, Bell, BarChart3, Briefcase, FileText, Search, MapPin, Building2, Calendar, Mic, Mail, Scissors, CheckCircle2, FlaskConical, Zap, Wand2, BookOpen } from 'lucide-react';
+import { Plus, Bell, BarChart3, Briefcase, FileText, Search, MapPin, Building2, Calendar, Mic, Mail, Scissors, CheckCircle2, FlaskConical, Zap, Wand2, BookOpen, LayoutGrid, List } from 'lucide-react';
 import { useJobApplications, useJobApplicationMutations, ApplicationStatus } from '@/hooks/useJobApplications';
 import { useJobs, useJobMutations, Job } from '@/hooks/useJobs';
 import { sampleJobs } from '@/lib/sampleJobs';
@@ -24,6 +24,7 @@ import { SaveJobSheet } from '@/components/applications/SaveJobSheet';
 import { JobMatchScore } from '@/components/applications/JobMatchScore';
 import { StatusFilter } from '@/components/applications/StatusFilter';
 import { FollowUpEmailSheet } from '@/components/applications/FollowUpEmailSheet';
+import { KanbanBoard } from '@/components/applications/KanbanBoard';
 import { Badge } from '@/components/ui/badge';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { haptics } from '@/lib/haptics';
@@ -105,6 +106,9 @@ export default function ApplicationsPage() {
   const [showSearch, setShowSearch] = useState(false);
   const [showSaveJob, setShowSaveJob] = useState(false);
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'all'>('all');
+  const [view, setView] = useState<'list' | 'board'>(
+    () => (localStorage.getItem('activity-view') as 'list' | 'board') || 'list',
+  );
   const [followUpApp, setFollowUpApp] = useState<{company: string;jobTitle: string;} | null>(null);
   const [filters, setFilters] = useState<JobFilters>({ query: '', jobTypes: [], location: '' });
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
@@ -209,6 +213,12 @@ export default function ApplicationsPage() {
     });
   }, [jobs, deferredQuery, filters.jobTypes, filters.location]);
 
+  const handleViewChange = useCallback((v: 'list' | 'board') => {
+    haptics.selection();
+    setView(v);
+    localStorage.setItem('activity-view', v);
+  }, []);
+
   const handleRefresh = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ['job-activity-stats'] });
     await queryClient.invalidateQueries({ queryKey: ['activity-timeline'] });
@@ -303,9 +313,38 @@ export default function ApplicationsPage() {
           </div>
           {activeTab === 'applications' ?
           <>
-              {/* Status Filter */}
-              <StatusFilter value={statusFilter} onChange={setStatusFilter} counts={statusCounts} />
+              {/* View toggle row */}
+              <div className="flex items-center gap-2">
+                {view === 'list' ? (
+                  <div className="flex-1 min-w-0">
+                    <StatusFilter value={statusFilter} onChange={setStatusFilter} counts={statusCounts} />
+                  </div>
+                ) : (
+                  <div className="flex-1" />
+                )}
+                <div className="flex items-center gap-0.5 bg-muted/60 border border-border rounded-xl p-1 shrink-0">
+                  <button
+                    onClick={() => handleViewChange('list')}
+                    aria-label="List view"
+                    className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all touch-manipulation ${view === 'list' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    <List className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleViewChange('board')}
+                    aria-label="Board view"
+                    className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all touch-manipulation ${view === 'board' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
 
+              {/* Board view */}
+              {view === 'board' ? (
+                <KanbanBoard />
+              ) : (
+              <>
               {/* Streak */}
               <ActivityStreak />
 
@@ -464,6 +503,9 @@ export default function ApplicationsPage() {
                   </div>)
 
             }
+
+            </>
+              )}
 
             </> :
 
