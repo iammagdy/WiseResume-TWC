@@ -19,6 +19,7 @@ import {
   OCRProgressCallback,
 } from '@/lib/pdfParser';
 import { extractTextFromImage } from '@/lib/pdf/ocrExtractor';
+import { preprocessResumeText, extractContactHints } from '@/lib/pdf/textPreprocessor';
 import { validateAndCleanResumeData, extractTextFromHTML } from '@/lib/jsonResumeValidator';
 import { OCRPromptDialog } from '@/components/upload/OCRPromptDialog';
 import { UploadErrorRecovery, UploadErrorType } from '@/components/upload/UploadErrorRecovery';
@@ -110,38 +111,17 @@ export default function UploadPage() {
         setParseRecoveryWarnings(ocrWarnings);
         setShowParseRecoveryBanner(true);
       }
-      
-      // If user is authenticated, save to cloud
-      if (user) {
-        try {
-          const newResume = await createResume.mutateAsync({
-            resume: resumeData,
-            title: resumeData.contactInfo.fullName || 'Uploaded Resume',
-          });
-          setCurrentResumeId(newResume.id);
-          setCurrentResume({
-            ...resumeData,
-            id: newResume.id,
-          });
-        } catch (error) {
-          console.error('Failed to save to cloud:', error);
-          // Still set locally even if cloud save fails
-          setCurrentResume(resumeData);
-        }
-      } else {
-        setCurrentResume(resumeData);
+
+      if (extraction.isEmpty) {
+        setErrorType('NO_TEXT');
+        setShowErrorRecovery(true);
+        return;
       }
-      
-      toast.warning(
-        'Resume extracted via OCR. Please review all sections for accuracy.',
-        { duration: 6000 }
-      );
-      
-      if (extraction.isPartial) {
-        toast.info(extraction.summary, { duration: 4000 });
-      }
-      
-      navigate('/editor');
+
+      // Route through ImportReviewSheet + ValidationChecklist like all other paths
+      setPendingResumeData(resumeData);
+      setShowImportReview(true);
+      triggerATSScoring(resumeData);
     } catch (error) {
       console.error('OCR extraction failed:', error);
       if (error instanceof Error && error.message === 'AI_UNREACHABLE') {
@@ -161,7 +141,7 @@ export default function UploadPage() {
       setPendingFile(null);
       setOcrProgress(null);
     }
-  }, [pendingFile, user, createResume, setCurrentResume, setCurrentResumeId, navigate]);
+  }, [pendingFile, triggerATSScoring]);
 
   const handleOCRCancel = useCallback(() => {
     setShowOCRPrompt(false);
@@ -349,8 +329,23 @@ export default function UploadPage() {
         return;
       }
 
+      // Apply same preprocessing pipeline as PDFs
+      let cleanedText: string;
+      try {
+        cleanedText = preprocessResumeText(text);
+      } catch {
+        cleanedText = text;
+      }
+      let textWithHints: string;
+      try {
+        const hints = extractContactHints(cleanedText);
+        textWithHints = hints ? cleanedText + hints : cleanedText;
+      } catch {
+        textWithHints = cleanedText;
+      }
+
       setParseStep('analyzing');
-      const resumeData = await parseTextWithAI(text);
+      const resumeData = await parseTextWithAI(textWithHints);
       const extraction = getExtractionSummary(resumeData);
 
       if (extraction.isEmpty) {
@@ -431,8 +426,23 @@ export default function UploadPage() {
         return;
       }
 
+      // Apply same preprocessing pipeline as PDFs
+      let cleanedText: string;
+      try {
+        cleanedText = preprocessResumeText(text);
+      } catch {
+        cleanedText = text;
+      }
+      let textWithHints: string;
+      try {
+        const hints = extractContactHints(cleanedText);
+        textWithHints = hints ? cleanedText + hints : cleanedText;
+      } catch {
+        textWithHints = cleanedText;
+      }
+
       setParseStep('analyzing');
-      const resumeData = await parseTextWithAI(text);
+      const resumeData = await parseTextWithAI(textWithHints);
       const extraction = getExtractionSummary(resumeData);
 
       if (extraction.isEmpty) {

@@ -37,7 +37,7 @@ function isTextItem(item: any): item is TextItem {
 
 interface LineGroup {
   y: number;
-  items: { x: number; str: string }[];
+  items: { x: number; str: string; width?: number }[];
 }
 
 // Custom error types for better error handling
@@ -292,7 +292,7 @@ function reconstructPageText(items: any[]): string {
       group = { y, items: [] };
       lineGroups.push(group);
     }
-    group.items.push({ x, str: item.str });
+    group.items.push({ x, str: item.str, width: typeof item.width === 'number' ? item.width : undefined });
   }
 
   // Sort lines by Y (descending, since PDF Y increases upward)
@@ -320,8 +320,10 @@ function reconstructPageText(items: any[]): string {
 
 /**
  * Split a line into multiple lines if there's a large gap (two-column layout).
+ * Uses the actual glyph width from the PDF text item when available,
+ * falling back to a ~6px-per-character estimate when it is not.
  */
-function splitByColumnGap(items: { x: number; str: string }[]): { x: number; str: string }[][] {
+function splitByColumnGap(items: { x: number; str: string; width?: number }[]): { x: number; str: string }[][] {
   if (items.length < 2) return [items];
 
   const COLUMN_GAP_THRESHOLD = 60; // pixels - lowered for sidebar/two-column CVs
@@ -329,7 +331,12 @@ function splitByColumnGap(items: { x: number; str: string }[]): { x: number; str
   let currentGroup: { x: number; str: string }[] = [items[0]];
 
   for (let i = 1; i < items.length; i++) {
-    const gap = items[i].x - (items[i - 1].x + items[i - 1].str.length * 6); // ~6px per character
+    const prev = items[i - 1];
+    // Prefer the actual rendered width; fall back to 6px-per-char estimate
+    const prevWidth = (typeof prev.width === 'number' && prev.width > 0)
+      ? prev.width
+      : prev.str.length * 6;
+    const gap = items[i].x - (prev.x + prevWidth);
 
     if (gap > COLUMN_GAP_THRESHOLD) {
       result.push(currentGroup);
