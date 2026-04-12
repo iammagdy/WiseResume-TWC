@@ -397,7 +397,7 @@ const Index = () => {
           --lp-hero-glow: rgba(158,27,34,0.18);
           --lp-section-alt: #0d0d14;
           --lp-section-alt2: #0f0f18;
-          --lp-eyebrow: #F87171;
+          --lp-eyebrow: #E53E3E;
           --lp-logo-text: rgba(255,255,255,0.88);
           --lp-signin-color: rgba(255,255,255,0.72);
           --lp-signin-bg: rgba(255,255,255,0.07);
@@ -508,7 +508,7 @@ const Index = () => {
           display: inline-block;
           width: 3px;
           height: 0.85em;
-          background: #F87171;
+          background: #E53E3E;
           margin-left: 2px;
           vertical-align: middle;
           border-radius: 1px;
@@ -549,7 +549,7 @@ const Index = () => {
 
         /* Gradient text — dark */
         .lp-gradient-text {
-          background: linear-gradient(135deg, #fca5a5 0%, #F87171 50%, #fda4af 100%);
+          background: linear-gradient(135deg, #E53E3E 0%, #C41E3A 50%, #9E1B22 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
@@ -666,7 +666,7 @@ const Index = () => {
                   <button className="touch-manipulation active:scale-95 transition-transform" aria-label="Account menu">
                     <Avatar className="h-8 w-8" style={{ border: '1px solid var(--lp-border-card)' }}>
                       <AvatarImage src={profile?.avatarUrl ?? undefined} />
-                      <AvatarFallback className="text-xs font-semibold" style={{ background: 'rgba(158,27,34,0.15)', color: '#F87171' }}>
+                      <AvatarFallback className="text-xs font-semibold" style={{ background: 'rgba(158,27,34,0.15)', color: '#E53E3E' }}>
                         {getInitials() ?? <User className="w-3.5 h-3.5" />}
                       </AvatarFallback>
                     </Avatar>
