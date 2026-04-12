@@ -662,7 +662,7 @@ const Index = () => {
             style={{
               top: '-15%',
               left: '50%',
-              transform: 'translateX(-50%)',
+              transform: 'translateX(-50%) translateY(0)',
               width: '90%',
               maxWidth: 800,
               height: '65%',
@@ -882,7 +882,7 @@ const Index = () => {
                     borderRadius: 20,
                     background: 'var(--lp-card-white)',
                     boxShadow: '0 2px 16px rgba(26,26,46,0.06)',
-                    transitionDelay: `${i * 70}ms`,
+                    transitionDelay: `${i * 60}ms`,
                   }}
                 >
                   <div className={`w-11 h-11 rounded-xl ${f.bg} flex items-center justify-center shrink-0`}>
