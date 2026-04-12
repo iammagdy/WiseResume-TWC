@@ -1,5 +1,5 @@
-import { memo, useCallback } from 'react';
-import { Trash2, ChevronDown, ChevronUp, Building2, Briefcase, Calendar, ArrowUp, ArrowDown } from 'lucide-react';
+import { memo, useCallback, useMemo } from 'react';
+import { Trash2, ChevronDown, ChevronUp, Building2, Briefcase, Calendar, ArrowUp, ArrowDown, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -92,6 +92,12 @@ export const ExperienceItem = memo(function ExperienceItem({
   const handleInlineAIAction = useCallback((actionId: string) => {
     onAIAction(actionId, exp.id);
   }, [exp.id, onAIAction]);
+
+  const hasBracketPlaceholders = useMemo(() => {
+    const BRACKET_RE = /\[[^\]]*?\]/;
+    return BRACKET_RE.test(exp.description || '') ||
+      (exp.achievements || []).some(a => BRACKET_RE.test(a));
+  }, [exp.description, exp.achievements]);
 
   return (
     <div className="rounded-xl border border-border overflow-hidden transition-all duration-200">
@@ -264,6 +270,14 @@ export const ExperienceItem = memo(function ExperienceItem({
                 placeholder="Describe your responsibilities and achievements..."
                 className="min-h-[120px] resize-none text-base"
               />
+              {hasBracketPlaceholders && (
+                <div className="flex items-start gap-2 p-2.5 rounded-lg bg-warning/10 border border-warning/30 text-warning-foreground mt-2">
+                  <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-warning" />
+                  <p className="text-xs leading-snug">
+                    <span className="font-medium">Fill in your real numbers:</span> The AI left placeholders like <span className="font-mono bg-warning/20 px-0.5 rounded">[X%]</span> or <span className="font-mono bg-warning/20 px-0.5 rounded">[~$X]</span> where it couldn't find your actual metrics. Replace each one with your real figures before submitting your resume.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Per-entry AI nudge chips */}
