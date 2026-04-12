@@ -130,10 +130,10 @@ const TYPEWRITER_PHRASES = [
 ];
 
 const STAT_PILLS = [
-  { icon: Target, label: '92/100 ATS Score' },
-  { icon: Sparkles, label: 'AI-Powered' },
-  { icon: Zap, label: '12k+ Resumes Built' },
-  { icon: Mic, label: 'Interview Coach' },
+  { icon: Target, numericPrefix: '92/100', label: 'ATS Score' },
+  { icon: Sparkles, numericPrefix: null, label: 'AI-Powered' },
+  { icon: Zap, numericPrefix: '12k+', label: 'Resumes Built' },
+  { icon: Mic, numericPrefix: null, label: 'Interview Coach' },
 ];
 
 function useTypewriter(phrases: string[]) {
@@ -594,17 +594,22 @@ function useScrollAnimation() {
 
           {/* Stat pills — fully contained, no overflow */}
           <div className="relative z-10 flex flex-wrap items-center justify-center gap-2.5 mt-8 lp-animate">
-            {STAT_PILLS.map(({ icon: Icon, label }) => (
+            {STAT_PILLS.map(({ icon: Icon, numericPrefix, label }) => (
               <div
                 key={label}
                 className="flex items-center gap-2 px-3.5 py-2 rounded-full"
                 style={{
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.10)',
+                  background: 'rgba(255,255,255,0.07)',
+                  border: '1px solid rgba(255,255,255,0.11)',
                 }}
               >
                 <Icon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#818CF8' }} />
-                <span className="text-xs font-medium whitespace-nowrap" style={{ color: 'rgba(255,255,255,0.72)' }}>{label}</span>
+                <span className="text-xs font-medium whitespace-nowrap" style={{ color: 'rgba(255,255,255,0.72)' }}>
+                  {numericPrefix && (
+                    <span style={{ color: '#818CF8', fontWeight: 700 }}>{numericPrefix} </span>
+                  )}
+                  {label}
+                </span>
               </div>
             ))}
           </div>
