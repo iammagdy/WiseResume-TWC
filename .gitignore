@@ -70,8 +70,7 @@ test_out.txt
 lint_output.txt
 lint_interview.txt
 final_lint.txt
-vitest_out.txt
-vitest_err.txt
+vitest_*.txt
 vitest_*.json
 *.timestamp-*.mjs
 *.pid
