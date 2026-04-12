@@ -66,27 +66,29 @@ import { getSafeMatchMedia, isBrowser } from "@/lib/envUtils";
 // Eagerly load Index for LCP
 import Index from "./pages/Index";
 
-// Kinde configuration — PRIMARY PATH: VITE_KINDE_CLIENT_ID and VITE_KINDE_DOMAIN
-// are injected at build time from Replit secrets. Hardcoded fallbacks below are
-// last-resort for local dev only and must never be active in production.
-const _kindeClientId = import.meta.env.VITE_KINDE_CLIENT_ID;
-const _kindeDomain = import.meta.env.VITE_KINDE_DOMAIN;
-if (!_kindeClientId) {
+// Kinde configuration — VITE_KINDE_CLIENT_ID and VITE_KINDE_DOMAIN must be set
+// as Replit secrets. The app throws in production if they are missing.
+const KINDE_CLIENT_ID = import.meta.env.VITE_KINDE_CLIENT_ID as string | undefined;
+const KINDE_DOMAIN = import.meta.env.VITE_KINDE_DOMAIN as string | undefined;
+
+if (!KINDE_CLIENT_ID || !KINDE_DOMAIN) {
+  const missing = [
+    !KINDE_CLIENT_ID && 'VITE_KINDE_CLIENT_ID',
+    !KINDE_DOMAIN && 'VITE_KINDE_DOMAIN',
+  ].filter(Boolean).join(', ');
+
   if (import.meta.env.PROD) {
-    console.error('[Kinde] CRITICAL: VITE_KINDE_CLIENT_ID is not set. Add it as a Replit secret.');
+    throw new Error(
+      `[Kinde] Missing required environment variable(s): ${missing}. ` +
+      'Add them as Replit secrets before deploying.'
+    );
   } else {
-    console.warn('[Kinde] VITE_KINDE_CLIENT_ID not set — using hardcoded fallback. Set as a Replit secret.');
+    console.warn(
+      `[Kinde] Missing environment variable(s): ${missing}. ` +
+      'Auth will not work until these are set as Replit secrets.'
+    );
   }
 }
-if (!_kindeDomain) {
-  if (import.meta.env.PROD) {
-    console.error('[Kinde] CRITICAL: VITE_KINDE_DOMAIN is not set. Add it as a Replit secret.');
-  } else {
-    console.warn('[Kinde] VITE_KINDE_DOMAIN not set — using hardcoded fallback. Set as a Replit secret.');
-  }
-}
-const KINDE_CLIENT_ID = _kindeClientId ?? '629174acb2874e6bbf53cd4a95497425';
-const KINDE_DOMAIN = _kindeDomain ?? 'https://thewisecloud.kinde.com';
 
 // Lazy load other pages with retry
 const UploadPage = lazyWithRetry(() => import("./pages/UploadPage"));
@@ -389,8 +391,8 @@ const App = () => {
             <Toaster />
              <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                <KindeProvider
-              clientId={KINDE_CLIENT_ID}
-              domain={KINDE_DOMAIN}
+              clientId={KINDE_CLIENT_ID ?? ''}
+              domain={KINDE_DOMAIN ?? ''}
               redirectUri={window.location.origin + '/auth/callback'}
               logoutUri={window.location.origin}>
               

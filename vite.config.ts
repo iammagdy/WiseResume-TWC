@@ -4,9 +4,8 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { VitePWA } from "vite-plugin-pwa";
 
-const CSP = [
+const CSP_BASE = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' data: blob: https:",
@@ -14,14 +13,20 @@ const CSP = [
   "frame-src 'none'",
   "object-src 'none'",
   "base-uri 'self'",
-].join('; ');
+];
+
+// Production CSP — served via meta tag injected at build time (not in dev).
+const CSP = [...CSP_BASE, "script-src 'self'"].join('; ');
 
 function cspPlugin(): Plugin {
   return {
     name: 'inject-csp',
     transformIndexHtml: {
       order: 'post',
-      handler(html) {
+      handler(html, ctx) {
+        // Skip in dev mode — no CSP is enforced there (server headers are empty).
+        // Only inject the meta tag during production builds.
+        if (!ctx.bundle) return html;
         const tag = `  <meta http-equiv="Content-Security-Policy" content="${CSP}" />\n`;
         return html.replace('<head>', '<head>\n' + tag);
       },
@@ -53,7 +58,7 @@ function prefetchPlugin(): Plugin {
 }
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig(() => ({
   base: '/',
   server: {
     host: "0.0.0.0",
@@ -62,9 +67,10 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
-    headers: {
-      'Content-Security-Policy': CSP,
-    },
+    // No CSP header in dev — the production build injects it via meta tag.
+    // Vite's own dev-server scripts (HMR, module preload) use inline scripts
+    // and event handlers that would require 'unsafe-inline' to pass.
+    headers: {},
   },
   build: {
     sourcemap: false,
