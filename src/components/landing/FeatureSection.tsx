@@ -78,9 +78,9 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
       <span
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold w-fit"
         style={{
-          background: 'rgba(99,102,241,0.12)',
+          background: 'rgba(206,40,28,0.10)',
           color: 'var(--lp-eyebrow)',
-          border: '1px solid rgba(99,102,241,0.22)',
+          border: '1px solid rgba(206,40,28,0.22)',
         }}
       >
         <BadgeIcon className="w-3.5 h-3.5" />
@@ -138,9 +138,9 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
       <div className="flex items-center gap-2 mb-1">
         <div
           className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ background: 'rgba(99,102,241,0.12)' }}
+          style={{ background: 'rgba(206,40,28,0.10)' }}
         >
-          <BadgeIcon className="w-4 h-4" style={{ color: '#818CF8' }} />
+          <BadgeIcon className="w-4 h-4" style={{ color: 'var(--lp-eyebrow)' }} />
         </div>
         <p
           className="text-xs font-semibold uppercase tracking-wider"
@@ -158,9 +158,9 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
           >
             <span
               className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
-              style={{ background: 'rgba(99,102,241,0.12)' }}
+              style={{ background: 'rgba(206,40,28,0.10)' }}
             >
-              <Check className="w-2.5 h-2.5" style={{ color: '#818CF8' }} />
+              <Check className="w-2.5 h-2.5" style={{ color: 'var(--lp-eyebrow)' }} />
             </span>
             <span style={{ lineHeight: 1.55 }}>{bullet}</span>
           </li>

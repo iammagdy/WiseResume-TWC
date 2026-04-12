@@ -45,7 +45,7 @@ try {
       <h1>⚠️ App Initialization Error</h1>
       <p>The app failed to start. Please check the console for details.</p>
       <pre style="background: #1f2937; padding: 15px; border-radius: 8px; overflow: auto;">${error instanceof Error ? error.message : String(error)}</pre>
-      <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; background: #6366f1; color: white; border: none; border-radius: 8px; cursor: pointer;">
+      <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; background: #CE281C; color: white; border: none; border-radius: 8px; cursor: pointer;">
         Reload App
       </button>
     </div>

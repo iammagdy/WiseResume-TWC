@@ -101,7 +101,7 @@ export function StickyCtaBar({ heroRef, onGetStarted, onSignIn, lpMode }: Sticky
               className="flex items-center gap-1.5 text-sm font-semibold px-5 py-2 rounded-xl transition-all"
               style={
                 lpMode
-                  ? { background: '#6366F1', color: '#fff', boxShadow: '0 2px 12px rgba(99,102,241,0.3)' }
+                  ? { background: '#CE281C', color: '#fff', boxShadow: '0 2px 12px rgba(206,40,28,0.3)' }
                   : undefined
               }
               onClick={onGetStarted}

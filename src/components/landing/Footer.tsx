@@ -31,7 +31,7 @@ export function Footer({ lpMode }: FooterProps) {
         >
           <ShieldCheck
             className="w-3.5 h-3.5"
-            style={lpMode ? { color: 'rgba(99,102,241,0.65)' } : undefined}
+            style={lpMode ? { color: 'rgba(206,40,28,0.65)' } : undefined}
           />
           <span>Your data is encrypted and secure</span>
         </div>
