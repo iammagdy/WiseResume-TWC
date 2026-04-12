@@ -8,6 +8,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 // Tooltip removed – Radix Popper causes infinite setRef loop on this page
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { StepperNav } from '@/components/editor/StepperNav';
+import { SectionSidebar } from '@/components/editor/SectionSidebar';
 import { useResumeStore, useResumeStoreHydration } from '@/store/resumeStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -60,6 +61,7 @@ import { ProgressBar } from '@/components/editor/ProgressBar';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { EditorHeader } from '@/components/editor/EditorHeader';
 import { EditorSectionContent, SectionNavButtons } from '@/components/editor/EditorSectionContent';
+import { EditorScrollForm } from '@/components/editor/EditorScrollForm';
 import { EditorSkeleton } from '@/components/layout/PageSkeletons';
 import { useTierGate } from '@/hooks/useTierGate';
 import { UpgradeDialog } from '@/components/plan/UpgradeDialog';
@@ -184,8 +186,9 @@ export default function EditorPage() {
   const [lastAppliedJobInfo, setLastAppliedJobInfo] = useState<{ title: string; company: string; resumeId?: string; jobUrl?: string } | null>(null);
   const [moreSubSection, setMoreSubSection] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(() => {
-    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
-      return localStorage.getItem('wr-live-preview') === 'true';
+    if (typeof window !== 'undefined' && window.innerWidth >= 900) {
+      const stored = localStorage.getItem('wr-live-preview');
+      return stored === null ? true : stored === 'true';
     }
     return false;
   });
@@ -217,6 +220,8 @@ export default function EditorPage() {
   }, [currentResume, selectedTemplate]);
   const [mobileEditorTab, setMobileEditorTab] = useState<'editor' | 'preview' | 'ats'>('editor');
   const [desktopPreviewMode, setDesktopPreviewMode] = useState<'visual' | 'ats'>('visual');
+  // Desktop scrollspy: track which section is currently visible
+  const [activeSection, setActiveSection] = useState('contact');
   const isMobile = useIsMobile();
   // Auto-open Tailor sheet if navigated with ?openTailor=1 or ?tailor=true.
   // Track intent with a ref so the plan gate can be applied once planLoading settles.
@@ -290,6 +295,26 @@ export default function EditorPage() {
   }, [resumeFromDb?.id]);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const scrollToSection = useCallback((sectionId: string) => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const target = container.querySelector(`[data-section-id="${sectionId}"]`);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, []);
+
+  // Called by desktop scrollspy/sidebar. Keeps activeTab in sync for preview highlight and ATS.
+  const handleDesktopSectionChange = useCallback((sectionId: string) => {
+    setActiveSection(sectionId);
+    const optionalIds = ['awards', 'projects', 'certifications', 'publications', 'volunteering', 'languages', 'hobbies', 'references'];
+    if (optionalIds.includes(sectionId)) {
+      setActiveTab('more');
+    } else {
+      setActiveTab(sectionId);
+    }
+  }, []);
 
   // Hook 2: debounced cloud save, conflict guard, offline queue, ATS re-score, lifecycle flush
   const resumeRef = useRef(currentResume);
@@ -630,7 +655,7 @@ export default function EditorPage() {
     return [quickActions, aiFeatures];
   }, [user, currentResumeId, handleCustomize, handleTailor]);
 
-  // EditorSectionContent props (assembled once, used in 3 layout slots below)
+  // EditorSectionContent props — used in mobile tab layout
   const editorSectionProps = {
     activeTab,
     sectionScores,
@@ -645,6 +670,23 @@ export default function EditorPage() {
     deepResults,
     handleApplyDeep,
     clearDeepResult,
+  } as const;
+
+  // EditorScrollForm props — used in desktop scrollable layout
+  const editorScrollFormProps = {
+    steps,
+    sectionScores,
+    moreSubSection,
+    setMoreSubSection,
+    jobDescription,
+    getATSSuggestions,
+    isAnalyzingSection,
+    fetchDeepSuggestions,
+    deepResults,
+    handleApplyDeep,
+    clearDeepResult,
+    onActiveSectionChange: handleDesktopSectionChange,
+    scrollContainerRef,
   } as const;
 
 
@@ -817,20 +859,22 @@ export default function EditorPage() {
         </div>
       )}
 
-      {/* Stepper Nav */}
-      <div className="shrink-0">
-        <StepperNav
-          steps={steps}
-          activeStep={activeTab}
-          completedSteps={sectionStatus}
-          sectionScores={sectionScores}
-          onStepClick={handleTabChange}
-          justCompletedStep={justCompletedStep}
-          onMoreSectionSelect={handleMoreSectionSelect}
-          activeMoreSection={moreSubSection}
-          availableMoreCount={availableMoreCount}
-        />
-      </div>
+      {/* Stepper Nav — shown on mobile only (< 900px); desktop uses the sidebar */}
+      {isMobile && (
+        <div className="shrink-0">
+          <StepperNav
+            steps={steps}
+            activeStep={activeTab}
+            completedSteps={sectionStatus}
+            sectionScores={sectionScores}
+            onStepClick={handleTabChange}
+            justCompletedStep={justCompletedStep}
+            onMoreSectionSelect={handleMoreSectionSelect}
+            activeMoreSection={moreSubSection}
+            availableMoreCount={availableMoreCount}
+          />
+        </div>
+      )}
 
       {/* Editor + Preview layout */}
       {isMobile ? (
@@ -893,12 +937,25 @@ export default function EditorPage() {
       ) : showPreview ? (
         <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
           <ResizablePanel defaultSize={55} minSize={35}>
-            <div className="flex flex-col h-full min-h-0 overflow-hidden">
-              <div
-                className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-4 space-y-0"
-                ref={scrollContainerRef}
-              >
-                <EditorSectionContent {...editorSectionProps} />
+            <div className="flex h-full min-h-0 overflow-hidden">
+              {/* Section sidebar — desktop only inside split panel */}
+              <SectionSidebar
+                steps={steps}
+                activeSection={activeSection}
+                sectionScores={sectionScores}
+                completedSteps={sectionStatus}
+                onSectionClick={(id) => {
+                  handleDesktopSectionChange(id);
+                  scrollToSection(id);
+                }}
+              />
+              <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
+                <div
+                  className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-4 space-y-0"
+                  ref={scrollContainerRef}
+                >
+                  <EditorScrollForm {...editorScrollFormProps} />
+                </div>
               </div>
             </div>
           </ResizablePanel>
@@ -944,17 +1001,26 @@ export default function EditorPage() {
           </ResizablePanel>
         </ResizablePanelGroup>
       ) : (
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div className="flex-1 flex min-h-0 overflow-hidden">
+          {/* Section sidebar — visible on desktop (≥900px) when preview is hidden */}
+          {!isMobile && (
+            <SectionSidebar
+              steps={steps}
+              activeSection={activeSection}
+              sectionScores={sectionScores}
+              completedSteps={sectionStatus}
+              onSectionClick={(id) => {
+                handleDesktopSectionChange(id);
+                scrollToSection(id);
+              }}
+            />
+          )}
           <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
             <div
               className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-4 space-y-0"
               ref={scrollContainerRef}
             >
-              <EditorSectionContent {...editorSectionProps} />
-            </div>
-            {/* Pinned nav — always visible */}
-            <div className="shrink-0 px-4 border-t border-border bg-background">
-              <SectionNavButtons steps={steps} activeTab={activeTab} handleTabChange={handleTabChange} navigate={navigate} />
+              <EditorScrollForm {...editorScrollFormProps} />
             </div>
           </div>
         </div>
