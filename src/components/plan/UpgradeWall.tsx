@@ -108,6 +108,18 @@ export function UpgradeWall({ requiredPlan, featureName, description, features, 
           <p className="text-sm font-semibold text-foreground">{featureName} requires {planLabel(requiredPlan)}</p>
           {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
         </div>
+        {features && features.length > 0 && (
+          <ul className="w-full text-left space-y-1.5">
+            {features.map((f) => (
+              <li key={f} className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="flex-shrink-0 w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Check className="w-2.5 h-2.5 text-primary" />
+                </span>
+                {f}
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="flex gap-2">
           <Button
             size="sm"

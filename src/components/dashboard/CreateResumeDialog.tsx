@@ -326,6 +326,12 @@ export function CreateResumeDialog({
               requiredPlan="pro"
               featureName="Multiple Resumes"
               description="Free plan includes 1 resume. Upgrade to Pro for unlimited resumes, tailored versions, and more."
+              features={[
+                'Unlimited resumes for every role & industry',
+                'AI-tailored resume versions in seconds',
+                'Side-by-side resume comparison',
+                'Version history & restore',
+              ]}
               compact
             />
           </div>
