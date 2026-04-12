@@ -62,9 +62,19 @@ export function useAICredits() {
   if (!user) {
     data = null;
   } else if (!rawCredits) {
+    // No ai_credits row — derive the correct limit from the effective plan
+    const effectivePlan = meData?.subscription?.effective_plan ?? 'free';
+    let defaultLimit: number;
+    if (effectivePlan === 'premium') {
+      defaultLimit = Infinity; // Unlimited
+    } else if (effectivePlan === 'pro') {
+      defaultLimit = 30;
+    } else {
+      defaultLimit = 5;
+    }
     data = {
       daily_usage: 0,
-      daily_limit: 5,
+      daily_limit: defaultLimit,
       usage_date: new Date().toISOString().split('T')[0],
       total_usage: 0,
     };

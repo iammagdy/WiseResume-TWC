@@ -70,13 +70,34 @@ serve(async (req) => {
     // Sentinel -1 means "unlimited" (handled on the client side).
     const PRO_DAILY_LIMIT = 30;
     const rawCredits = creditsResult.data;
-    let aiCreditsPayload: typeof rawCredits | null = rawCredits ?? null;
+    const today = new Date().toISOString().split('T')[0];
+    let aiCreditsPayload: typeof rawCredits | { daily_usage: number; daily_limit: number; usage_date: string; total_usage: number; updated_at: string } | null = null;
     if (rawCredits) {
       if (effectivePlan === 'premium') {
         aiCreditsPayload = { ...rawCredits, daily_limit: -1 };
       } else if (effectivePlan === 'pro') {
         aiCreditsPayload = { ...rawCredits, daily_limit: PRO_DAILY_LIMIT };
+      } else {
+        aiCreditsPayload = rawCredits;
       }
+    } else {
+      // No ai_credits row yet — synthesize a default payload from effective plan
+      // so the frontend always receives accurate credit info.
+      let defaultLimit: number;
+      if (effectivePlan === 'premium') {
+        defaultLimit = -1; // Unlimited sentinel
+      } else if (effectivePlan === 'pro') {
+        defaultLimit = PRO_DAILY_LIMIT;
+      } else {
+        defaultLimit = 5;
+      }
+      aiCreditsPayload = {
+        daily_usage: 0,
+        daily_limit: defaultLimit,
+        usage_date: today,
+        total_usage: 0,
+        updated_at: new Date().toISOString(),
+      };
     }
 
     return new Response(

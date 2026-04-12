@@ -40,8 +40,26 @@ export async function checkUserCreditBalance(userId: string): Promise<CreditChec
     return { hasCredits: false, remaining: 0 };
   }
 
-  // If no record, default to free tier (5/day)
+  // If no record, check the subscription to return the correct plan limit
   if (!credits) {
+    const { data: sub } = await supabase
+      .from('subscriptions')
+      .select('plan_name, trial_plan, trial_expires_at')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    let effectivePlan = sub?.plan_name ?? 'free';
+    if (sub?.trial_plan && sub?.trial_expires_at) {
+      if (new Date(sub.trial_expires_at as string) > new Date()) {
+        effectivePlan = sub.trial_plan as string;
+      }
+    }
+
+    if (effectivePlan === 'premium') {
+      return { hasCredits: true, remaining: 999999 };
+    } else if (effectivePlan === 'pro') {
+      return { hasCredits: true, remaining: 30 };
+    }
     return { hasCredits: true, remaining: 5 };
   }
 

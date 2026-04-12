@@ -89,6 +89,36 @@ Deno.serve(async (req) => {
       );
     }
 
+    // After a successful redemption, sync ai_credits.daily_limit to match the
+    // new plan so the backend credit gate immediately sees the right limit.
+    if (data?.success && data?.plan_override) {
+      const planOverride = data.plan_override as string;
+      let newDailyLimit: number;
+      if (planOverride === 'premium') {
+        newDailyLimit = -1; // Unlimited sentinel
+      } else if (planOverride === 'pro') {
+        newDailyLimit = 30;
+      } else {
+        newDailyLimit = 5; // Free tier default
+      }
+
+      const today = new Date().toISOString().split('T')[0];
+
+      // Atomically upsert: insert a new row or update only daily_limit on conflict.
+      // daily_usage is excluded from the ON CONFLICT update so existing usage is
+      // preserved (the user may have already consumed credits today).
+      const { error: upsertError } = await supabase.rpc('upsert_ai_credits_limit', {
+        p_user_id: userId,
+        p_daily_limit: newDailyLimit,
+        p_usage_date: today,
+      });
+
+      if (upsertError) {
+        console.error('[redeem-coupon] Failed to sync ai_credits:', upsertError);
+        // Non-fatal — the redemption itself succeeded, log and continue
+      }
+    }
+
     return new Response(
       JSON.stringify(data),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
