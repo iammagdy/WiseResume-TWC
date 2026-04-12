@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { supabase } from '@/integrations/supabase/safeClient';
@@ -44,14 +44,26 @@ export function useMe() {
   const { user, isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
 
+  // Track which supabaseUserId the active channels were created for, so we only
+  // tear-down and re-subscribe when a genuinely different user signs in — not on
+  // every re-render or bridgeReady flip that changes user?.id mid-session.
+  const subscribedUserIdRef = useRef<string | null>(null);
+
   // Realtime subscriptions for immediate invalidation when data changes.
-  // Uses the v5 UUID (supabase user ID) from the bridge, not the Kinde user ID,
-  // so the filter correctly matches the database rows.
+  // Channel names are stable session-lifetime constants ('me-subscriptions' /
+  // 'me-ai-credits') — they do NOT embed the userId, preventing duplicate channel
+  // windows when user.id transitions while the bridge is resolving.
+  // The per-user filtering is handled exclusively by the postgres_changes `filter`
+  // option so the correct rows are still observed after any session transition.
   useEffect(() => {
     if (!user || !isAuthenticated) return;
 
     const supabaseUserId = getUserId();
     if (!supabaseUserId) return;
+
+    // Only re-subscribe when the underlying user actually changes.
+    if (subscribedUserIdRef.current === supabaseUserId) return;
+    subscribedUserIdRef.current = supabaseUserId;
 
     const token = getToken();
     if (token) {
@@ -59,7 +71,7 @@ export function useMe() {
     }
 
     const subChannel = supabase
-      .channel(`me-subscriptions-${supabaseUserId}`)
+      .channel('me-subscriptions')
       .on(
         'postgres_changes',
         {
@@ -75,7 +87,7 @@ export function useMe() {
       .subscribe();
 
     const credChannel = supabase
-      .channel(`me-ai-credits-${supabaseUserId}`)
+      .channel('me-ai-credits')
       .on(
         'postgres_changes',
         {
@@ -93,6 +105,7 @@ export function useMe() {
     return () => {
       supabase.removeChannel(subChannel);
       supabase.removeChannel(credChannel);
+      subscribedUserIdRef.current = null;
     };
   }, [user?.id, isAuthenticated, queryClient]);
 

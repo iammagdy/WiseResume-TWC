@@ -364,7 +364,7 @@ const App = () => {
       <TooltipProvider>
           <ErrorBoundary>
             <Toaster />
-             <BrowserRouter>
+             <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                <KindeProvider
               clientId={import.meta.env.VITE_KINDE_CLIENT_ID ?? '629174acb2874e6bbf53cd4a95497425'}
               domain={import.meta.env.VITE_KINDE_DOMAIN ?? 'https://thewisecloud.kinde.com'}
