@@ -58,8 +58,13 @@ export const HealthcareTemplate = memo(function HealthcareTemplate({ resume }: H
                   <p className="font-medium" style={{ color: tealColor }}>{exp.company}</p>
                   {exp.description && <p data-break-child className="text-gray-600 text-sm mt-1">{exp.description}</p>}
                   {exp.achievements.length > 0 && (
-                    <ul data-break-child className="mt-2 space-y-1">
-                      {exp.achievements.map((a, idx) => (<li key={idx} data-break-child className="text-gray-700 text-sm flex items-start gap-2"><span style={{ color: tealColor }}>✓</span>{a}</li>))}
+                    <ul data-break-child className="mt-2 space-y-1 list-none">
+                      {exp.achievements.map((a, idx) => (<li key={idx} data-break-child className="text-gray-700 text-sm pl-3 relative before:content-['-'] before:absolute before:left-0">{a}</li>))}
+                    </ul>
+                  )}
+                  {exp.responsibilities && exp.responsibilities.length > 0 && (
+                    <ul data-break-child className="mt-1 space-y-1 list-none">
+                      {exp.responsibilities.map((r, idx) => (<li key={idx} data-break-child className="text-gray-700 text-sm pl-3 relative before:content-['-'] before:absolute before:left-0">{r}</li>))}
                     </ul>
                   )}
                 </div>

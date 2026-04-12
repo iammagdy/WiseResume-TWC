@@ -28,6 +28,20 @@ export const FederalTemplate = memo(function FederalTemplate({ resume }: Templat
                 <h3 className="font-bold text-gray-900">{exp.position}</h3>
                 <p className="text-gray-600 text-xs">{exp.company} | {formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</p>
                 {exp.description && <p data-break-child className="text-gray-700 mt-1 text-xs">{exp.description}</p>}
+                {exp.achievements && exp.achievements.length > 0 && (
+                  <ul data-break-child className="mt-1 space-y-0.5 list-none">
+                    {exp.achievements.map((a, i) => (
+                      <li key={i} className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{a}</li>
+                    ))}
+                  </ul>
+                )}
+                {exp.responsibilities && exp.responsibilities.length > 0 && (
+                  <ul data-break-child className="mt-1 space-y-0.5 list-none">
+                    {exp.responsibilities.map((r, i) => (
+                      <li key={i} className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{r}</li>
+                    ))}
+                  </ul>
+                )}
               </div>
             ))}
           </div>
@@ -42,7 +56,7 @@ export const FederalTemplate = memo(function FederalTemplate({ resume }: Templat
       {resume.skills.length > 0 && (
         <section data-section="skills">
           <h2 className="text-sm font-bold text-gray-900 uppercase border-b border-gray-400 pb-1 mb-2">Skills & Qualifications</h2>
-          <ul className="grid grid-cols-2 gap-1 text-xs text-gray-700">{resume.skills.map((s, i) => <li key={i}>• {s}</li>)}</ul>
+          <ul className="grid grid-cols-2 gap-1 text-xs text-gray-700">{resume.skills.map((s, i) => <li key={i}>- {s}</li>)}</ul>
         </section>
       )}
       <ExtraSections resume={resume} variant="federal" />

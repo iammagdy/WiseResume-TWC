@@ -50,11 +50,11 @@ export const DeveloperTemplate = memo(function DeveloperTemplate({ resume }: Tem
           <section data-section="skills">
             <h2 className="text-green-600 font-bold mb-2"><span className="text-gray-400">//</span> TECH_STACK</h2>
             <div className="border-l-2 border-gray-200 pl-3 space-y-1">
-              {skillCategories.languages.length > 0 && <div className="flex flex-wrap gap-x-2"><span className="text-purple-600 w-20">Languages:</span><span className="text-gray-700">{skillCategories.languages.join(' • ')}</span></div>}
-              {skillCategories.frameworks.length > 0 && <div className="flex flex-wrap gap-x-2"><span className="text-purple-600 w-20">Frameworks:</span><span className="text-gray-700">{skillCategories.frameworks.join(' • ')}</span></div>}
-              {skillCategories.databases.length > 0 && <div className="flex flex-wrap gap-x-2"><span className="text-purple-600 w-20">Databases:</span><span className="text-gray-700">{skillCategories.databases.join(' • ')}</span></div>}
-              {skillCategories.tools.length > 0 && <div className="flex flex-wrap gap-x-2"><span className="text-purple-600 w-20">Tools:</span><span className="text-gray-700">{skillCategories.tools.join(' • ')}</span></div>}
-              {skillCategories.other.length > 0 && <div className="flex flex-wrap gap-x-2"><span className="text-purple-600 w-20">Other:</span><span className="text-gray-700">{skillCategories.other.join(' • ')}</span></div>}
+              {skillCategories.languages.length > 0 && <div className="flex flex-wrap gap-x-2"><span className="text-purple-600 w-20">Languages:</span><span className="text-gray-700">{skillCategories.languages.join(', ')}</span></div>}
+              {skillCategories.frameworks.length > 0 && <div className="flex flex-wrap gap-x-2"><span className="text-purple-600 w-20">Frameworks:</span><span className="text-gray-700">{skillCategories.frameworks.join(', ')}</span></div>}
+              {skillCategories.databases.length > 0 && <div className="flex flex-wrap gap-x-2"><span className="text-purple-600 w-20">Databases:</span><span className="text-gray-700">{skillCategories.databases.join(', ')}</span></div>}
+              {skillCategories.tools.length > 0 && <div className="flex flex-wrap gap-x-2"><span className="text-purple-600 w-20">Tools:</span><span className="text-gray-700">{skillCategories.tools.join(', ')}</span></div>}
+              {skillCategories.other.length > 0 && <div className="flex flex-wrap gap-x-2"><span className="text-purple-600 w-20">Other:</span><span className="text-gray-700">{skillCategories.other.join(', ')}</span></div>}
             </div>
           </section>
         )}
@@ -72,6 +72,11 @@ export const DeveloperTemplate = memo(function DeveloperTemplate({ resume }: Tem
                   {exp.achievements && exp.achievements.length > 0 && (
                     <ul data-break-child className="mt-1 ml-4 space-y-0.5">
                       {exp.achievements.map((a, i) => <li key={i} data-break-child className="text-gray-600"><span className="text-gray-400">-</span> {a}</li>)}
+                    </ul>
+                  )}
+                  {exp.responsibilities && exp.responsibilities.length > 0 && (
+                    <ul data-break-child className="mt-1 ml-4 space-y-0.5">
+                      {exp.responsibilities.map((r, i) => <li key={i} data-break-child className="text-gray-600"><span className="text-gray-400">-</span> {r}</li>)}
                     </ul>
                   )}
                 </div>

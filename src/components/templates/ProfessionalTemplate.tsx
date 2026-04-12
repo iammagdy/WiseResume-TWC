@@ -11,7 +11,6 @@ interface TemplateProps {
 export const ProfessionalTemplate = memo(function ProfessionalTemplate({ resume }: TemplateProps) {
   return (
     <div className="p-8 font-sans text-sm">
-      {/* Header */}
       <header className="bg-gray-900 text-white -m-8 mb-6 p-6">
         <h1 className="text-2xl font-bold mb-2">
           {resume.contactInfo.fullName || 'Your Name'}
@@ -19,7 +18,6 @@ export const ProfessionalTemplate = memo(function ProfessionalTemplate({ resume 
         <ContactLinks contact={resume.contactInfo} className="text-gray-300 text-xs" iconSize={3} />
       </header>
 
-      {/* Summary */}
       {resume.summary && (
         <section data-section="summary" className="mb-5">
           <h2 className="text-sm font-bold text-gray-900 mb-2 pb-1 border-b-2 border-gray-900">
@@ -29,7 +27,6 @@ export const ProfessionalTemplate = memo(function ProfessionalTemplate({ resume 
         </section>
       )}
 
-      {/* Experience */}
       {resume.experience.length > 0 && (
         <section data-section="experience" className="mb-5">
           <h2 className="text-sm font-bold text-gray-900 mb-3 pb-1 border-b-2 border-gray-900">
@@ -50,27 +47,35 @@ export const ProfessionalTemplate = memo(function ProfessionalTemplate({ resume 
                 {exp.description && (
                   <p data-break-child className="text-gray-700 mt-1 text-xs">{exp.description}</p>
                 )}
+                {exp.achievements && exp.achievements.length > 0 && (
+                  <ul data-break-child className="mt-1 space-y-0.5 list-none">
+                    {exp.achievements.map((a, i) => (
+                      <li key={i} className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{a}</li>
+                    ))}
+                  </ul>
+                )}
+                {exp.responsibilities && exp.responsibilities.length > 0 && (
+                  <ul data-break-child className="mt-1 space-y-0.5 list-none">
+                    {exp.responsibilities.map((r, i) => (
+                      <li key={i} className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{r}</li>
+                    ))}
+                  </ul>
+                )}
               </div>
             ))}
           </div>
         </section>
       )}
 
-      {/* Skills */}
       {resume.skills.length > 0 && (
         <section data-section="skills" className="mb-5">
           <h2 className="text-sm font-bold text-gray-900 mb-2 pb-1 border-b-2 border-gray-900">
             SKILLS
           </h2>
-          <ul className="space-y-1">
-            {resume.skills.map((skill, i) => (
-              <li key={i} className="text-xs text-gray-700">• {skill}</li>
-            ))}
-          </ul>
+          <p className="text-xs text-gray-700">{resume.skills.join(', ')}</p>
         </section>
       )}
 
-      {/* Education */}
       {resume.education.length > 0 && (
         <section data-section="education" className="mb-5">
           <h2 className="text-sm font-bold text-gray-900 mb-2 pb-1 border-b-2 border-gray-900">

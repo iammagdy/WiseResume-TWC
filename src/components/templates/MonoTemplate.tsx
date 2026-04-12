@@ -28,6 +28,20 @@ export const MonoTemplate = memo(function MonoTemplate({ resume }: TemplateProps
                 <h3 className="font-medium text-gray-900">{exp.position} <span className="font-normal text-gray-500">— {exp.company}</span></h3>
                 <p className="text-xs text-gray-400">{formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</p>
                 {exp.description && <p data-break-child className="text-gray-600 mt-1 text-xs">{exp.description}</p>}
+                {exp.achievements && exp.achievements.length > 0 && (
+                  <ul data-break-child className="mt-1 space-y-0.5 list-none">
+                    {exp.achievements.map((a, i) => (
+                      <li key={i} className="text-gray-600 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{a}</li>
+                    ))}
+                  </ul>
+                )}
+                {exp.responsibilities && exp.responsibilities.length > 0 && (
+                  <ul data-break-child className="mt-1 space-y-0.5 list-none">
+                    {exp.responsibilities.map((r, i) => (
+                      <li key={i} className="text-gray-600 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{r}</li>
+                    ))}
+                  </ul>
+                )}
               </div>
             ))}
           </div>
@@ -42,7 +56,7 @@ export const MonoTemplate = memo(function MonoTemplate({ resume }: TemplateProps
       {resume.skills.length > 0 && (
         <section data-section="skills">
           <h2 className="text-xs font-medium text-gray-500 uppercase tracking-widest mb-2">Skills</h2>
-          <p className="text-xs text-gray-700">{resume.skills.join(' / ')}</p>
+          <p className="text-xs text-gray-700">{resume.skills.join(', ')}</p>
         </section>
       )}
       <ExtraSections resume={resume} variant="mono" />

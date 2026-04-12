@@ -17,7 +17,7 @@ export const ElegantTemplate = memo(function ElegantTemplate({ resume }: Elegant
       <header className="px-8 py-8 text-center" style={{ backgroundColor: roseLight }}>
         <h1 className="text-3xl font-light tracking-wide mb-2" style={{ color: roseColor }}>{contactInfo.fullName}</h1>
         <div className="flex justify-center">
-          <ContactLinks contact={contactInfo} className="text-gray-600 text-sm" iconSize={3} separator="•" />
+          <ContactLinks contact={contactInfo} className="text-gray-600 text-sm" iconSize={3} separator="|" />
         </div>
       </header>
 
@@ -46,9 +46,17 @@ export const ElegantTemplate = memo(function ElegantTemplate({ resume }: Elegant
                   {exp.achievements.length > 0 && (
                     <ul data-break-child className="mt-2 space-y-1">
                       {exp.achievements.map((a, idx) => (
-                        <li key={idx} data-break-child className="text-gray-700 text-sm pl-3 relative">
-                          <span className="absolute left-0 top-2 w-1 h-1 rounded-full" style={{ backgroundColor: roseMuted }} />
+                        <li key={idx} data-break-child className="text-gray-700 text-sm pl-3 relative before:content-['-'] before:absolute before:left-0">
                           {a}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {exp.responsibilities && exp.responsibilities.length > 0 && (
+                    <ul data-break-child className="mt-1 space-y-1">
+                      {exp.responsibilities.map((r, idx) => (
+                        <li key={idx} data-break-child className="text-gray-700 text-sm pl-3 relative before:content-['-'] before:absolute before:left-0">
+                          {r}
                         </li>
                       ))}
                     </ul>
@@ -92,7 +100,7 @@ export const ElegantTemplate = memo(function ElegantTemplate({ resume }: Elegant
                 {certifications.map((cert) => (
                   <div key={cert.id} data-break-avoid className="p-2 rounded" style={{ backgroundColor: roseLight }}>
                     <p className="font-medium text-gray-900 text-sm">{cert.name}</p>
-                    <p className="text-gray-600 text-xs">{cert.issuer} • {cert.date}</p>
+                    <p className="text-gray-600 text-xs">{cert.issuer}{cert.date ? `, ${cert.date}` : ''}</p>
                   </div>
                 ))}
               </div>

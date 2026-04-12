@@ -14,14 +14,12 @@ export const MinimalTemplate = memo(function MinimalTemplate({ resume }: Templat
         <ContactLinks contact={resume.contactInfo} className="text-gray-500 text-xs" iconSize={3} />
       </header>
 
-      {/* Summary */}
       {resume.summary && (
         <section data-section="summary" className="mb-8">
           <p className="text-gray-600 leading-relaxed">{resume.summary}</p>
         </section>
       )}
 
-      {/* Experience */}
       {resume.experience.length > 0 && (
         <section data-section="experience" className="mb-8">
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">
@@ -40,13 +38,26 @@ export const MinimalTemplate = memo(function MinimalTemplate({ resume }: Templat
                 {exp.description && (
                   <p data-break-child className="text-gray-600 text-xs">{exp.description}</p>
                 )}
+                {exp.achievements && exp.achievements.length > 0 && (
+                  <ul data-break-child className="mt-1 space-y-0.5 list-none">
+                    {exp.achievements.map((a, i) => (
+                      <li key={i} className="text-gray-600 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{a}</li>
+                    ))}
+                  </ul>
+                )}
+                {exp.responsibilities && exp.responsibilities.length > 0 && (
+                  <ul data-break-child className="mt-1 space-y-0.5 list-none">
+                    {exp.responsibilities.map((r, i) => (
+                      <li key={i} className="text-gray-600 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{r}</li>
+                    ))}
+                  </ul>
+                )}
               </div>
             ))}
           </div>
         </section>
       )}
 
-      {/* Education */}
       {resume.education.length > 0 && (
         <section data-section="education" className="mb-8">
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">
@@ -58,7 +69,7 @@ export const MinimalTemplate = memo(function MinimalTemplate({ resume }: Templat
                 <h3 className="font-medium text-gray-900">
                   {edu.degree} {edu.field && `in ${edu.field}`}
                 </h3>
-                <p className="text-gray-500 text-xs">{edu.institution} • {formatDisplayDate(edu.endDate)}</p>
+                <p className="text-gray-500 text-xs">{edu.institution} - {formatDisplayDate(edu.endDate)}</p>
                 {edu.description && <p className="text-gray-600 text-xs mt-0.5">{edu.description}</p>}
               </div>
             ))}
@@ -66,7 +77,6 @@ export const MinimalTemplate = memo(function MinimalTemplate({ resume }: Templat
         </section>
       )}
 
-      {/* Skills */}
       {resume.skills.length > 0 && (
         <section data-section="skills">
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">

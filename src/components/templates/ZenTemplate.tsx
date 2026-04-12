@@ -30,6 +30,20 @@ export const ZenTemplate = memo(function ZenTemplate({ resume }: TemplateProps) 
                 <h3 className="font-medium text-gray-800">{exp.position}</h3>
                 <p className="text-gray-500 text-xs">{exp.company} · {formatDisplayDate(exp.startDate)} – {exp.current ? 'Present' : formatDisplayDate(exp.endDate)}</p>
                 {exp.description && <p data-break-child className="text-gray-600 mt-2 text-xs max-w-sm mx-auto">{exp.description}</p>}
+                {exp.achievements && exp.achievements.length > 0 && (
+                  <ul data-break-child className="mt-1 space-y-0.5 list-none text-left max-w-sm mx-auto">
+                    {exp.achievements.map((a, i) => (
+                      <li key={i} className="text-gray-600 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{a}</li>
+                    ))}
+                  </ul>
+                )}
+                {exp.responsibilities && exp.responsibilities.length > 0 && (
+                  <ul data-break-child className="mt-1 space-y-0.5 list-none text-left max-w-sm mx-auto">
+                    {exp.responsibilities.map((r, i) => (
+                      <li key={i} className="text-gray-600 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{r}</li>
+                    ))}
+                  </ul>
+                )}
               </div>
             ))}
           </div>
@@ -44,7 +58,7 @@ export const ZenTemplate = memo(function ZenTemplate({ resume }: TemplateProps) 
       {resume.skills.length > 0 && (
         <section data-section="skills">
           <h2 className="text-center text-xs font-light text-gray-500 uppercase tracking-[0.3em] mb-4">Skills</h2>
-          <p className="text-center text-xs text-gray-600">{resume.skills.join('  ·  ')}</p>
+          <p className="text-center text-xs text-gray-600">{resume.skills.join(', ')}</p>
         </section>
       )}
       <ExtraSections resume={resume} variant="zen" />

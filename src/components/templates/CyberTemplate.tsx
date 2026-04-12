@@ -22,7 +22,7 @@ export const CyberTemplate = memo(function CyberTemplate({ resume }: TemplatePro
       {resume.skills.length > 0 && (
         <section data-section="skills" className="mb-5">
           <h2 className="text-xs font-bold text-red-600 uppercase tracking-widest mb-2">Security Toolkit</h2>
-          <div className="grid grid-cols-3 gap-1">{resume.skills.map((s, i) => <span key={i} className="px-2 py-0.5 bg-red-50 text-red-700 border border-red-200 rounded text-[10px] text-center">{s}</span>)}</div>
+          <div className="grid grid-cols-3 gap-1">{resume.skills.map((s, i) => <span key={i} className="px-2 py-0.5 bg-red-50 text-red-700 border border-red-200 rounded text-xs text-center">{s}</span>)}</div>
         </section>
       )}
       {resume.experience.length > 0 && (
@@ -34,6 +34,20 @@ export const CyberTemplate = memo(function CyberTemplate({ resume }: TemplatePro
                 <h3 className="font-bold text-gray-900">{exp.position}</h3>
                 <p className="text-red-600 text-xs">{exp.company} | {formatDisplayDate(exp.startDate)} – {exp.current ? 'Active' : formatDisplayDate(exp.endDate)}</p>
                 {exp.description && <p data-break-child className="text-gray-700 mt-1 text-xs">{exp.description}</p>}
+                {exp.achievements && exp.achievements.length > 0 && (
+                  <ul data-break-child className="mt-1 space-y-0.5 list-none">
+                    {exp.achievements.map((a, i) => (
+                      <li key={i} className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{a}</li>
+                    ))}
+                  </ul>
+                )}
+                {exp.responsibilities && exp.responsibilities.length > 0 && (
+                  <ul data-break-child className="mt-1 space-y-0.5 list-none">
+                    {exp.responsibilities.map((r, i) => (
+                      <li key={i} className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{r}</li>
+                    ))}
+                  </ul>
+                )}
               </div>
             ))}
           </div>

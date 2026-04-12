@@ -30,6 +30,20 @@ export const StartupTemplate = memo(function StartupTemplate({ resume }: Templat
               <div key={exp.id} data-break-avoid>
                 <div className="flex justify-between items-start"><div><h3 className="font-bold text-gray-900">{exp.position}</h3><p className="text-emerald-600 text-xs font-medium">{exp.company}</p></div><span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{formatDisplayDate(exp.startDate)} – {exp.current ? 'Now' : formatDisplayDate(exp.endDate)}</span></div>
                 {exp.description && <p data-break-child className="text-gray-700 mt-1 text-xs">{exp.description}</p>}
+                {exp.achievements && exp.achievements.length > 0 && (
+                  <ul data-break-child className="mt-1 space-y-0.5 list-none">
+                    {exp.achievements.map((a, i) => (
+                      <li key={i} className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{a}</li>
+                    ))}
+                  </ul>
+                )}
+                {exp.responsibilities && exp.responsibilities.length > 0 && (
+                  <ul data-break-child className="mt-1 space-y-0.5 list-none">
+                    {exp.responsibilities.map((r, i) => (
+                      <li key={i} className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{r}</li>
+                    ))}
+                  </ul>
+                )}
               </div>
             ))}
           </div>
