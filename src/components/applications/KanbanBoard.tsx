@@ -103,8 +103,11 @@ export function KanbanBoard({ applications: applicationsProp, onApplicationsChan
 
   useEffect(() => {
     setLocalCards(serverApplications);
-    onApplicationsChange?.(serverApplications);
   }, [serverApplications]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    onApplicationsChange?.(localCards);
+  }, [localCards]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -158,12 +161,13 @@ export function KanbanBoard({ applications: applicationsProp, onApplicationsChan
 
   const handleDelete = useCallback(
     (id: string) => {
+      const snapshot = [...localCards];
       setLocalCards((prev) => prev.filter((c) => c.id !== id));
       deleteApplication.mutate(id, {
-        onError: () => setLocalCards(applications),
+        onError: () => setLocalCards(snapshot),
       });
     },
-    [deleteApplication, applications],
+    [deleteApplication, localCards],
   );
 
   if (isLoading) {
