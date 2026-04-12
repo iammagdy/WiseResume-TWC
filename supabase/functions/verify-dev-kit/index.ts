@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { checkUserRateLimit } from '../_shared/userRateLimiter.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -29,25 +30,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Constant-time comparison to eliminate timing side-channel on the password check.
-    // Both strings are padded to equal length before comparison.
-    const encoder = new TextEncoder();
-    const a = encoder.encode(password.padEnd(64));
-    const b = encoder.encode(SECRET_PASSWORD.padEnd(64));
-    let isValid = a.length === b.length;
-    try {
-      isValid = isValid && await crypto.subtle.timingSafeEqual(a, b);
-    } catch {
-      isValid = false;
-    }
-
-    if (!isValid) {
-      return new Response(
-        JSON.stringify({ success: false }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     // Check email allowlist using caller identity from auth token (server-side only).
     // ADMIN_EMAILS must be configured — if absent or empty, fail closed to prevent
     // silent bypass when the secret is not set up in production.
@@ -66,9 +48,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Derive caller email from auth token — never trust client-supplied email
+    // Derive caller identity from auth token — never trust client-supplied identity
     const authHeader = req.headers.get("Authorization");
     let callerEmail: string | null = null;
+    let callerId: string | null = null;
 
     if (authHeader?.startsWith("Bearer ")) {
       const token = authHeader.replace("Bearer ", "");
@@ -79,11 +62,42 @@ Deno.serve(async (req) => {
       );
       const { data: { user } } = await supabase.auth.getUser();
       callerEmail = user?.email ?? null;
+      callerId = user?.id ?? null;
     }
 
     if (!callerEmail || !allowed.includes(callerEmail.toLowerCase())) {
       return new Response(
         JSON.stringify({ success: false, authorized: false, reason: "email_not_allowed" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Per-user brute-force protection: 10 password attempts per hour per authenticated user
+    if (callerId) {
+      const bruteForceCheck = await checkUserRateLimit(callerId, 'verify-dev-kit-password', 10, 3600);
+      if (!bruteForceCheck.allowed) {
+        return new Response(
+          JSON.stringify({ error: "Too many password attempts. Please try again later." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // Constant-time comparison to eliminate timing side-channel on the password check.
+    // Both strings are padded to equal length before comparison.
+    const encoder = new TextEncoder();
+    const a = encoder.encode(password.padEnd(64));
+    const b = encoder.encode(SECRET_PASSWORD.padEnd(64));
+    let isValid = a.length === b.length;
+    try {
+      isValid = isValid && await crypto.subtle.timingSafeEqual(a, b);
+    } catch {
+      isValid = false;
+    }
+
+    if (!isValid) {
+      return new Response(
+        JSON.stringify({ success: false }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

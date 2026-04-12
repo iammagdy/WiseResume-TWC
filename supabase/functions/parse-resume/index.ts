@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, toUserError, sanitizeInputText, parseAIJSON } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
+import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { localParseResume } from "./localParser.ts";
 import { decodeJwtPayloadUnsafe } from "../_shared/jwtUtils.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
@@ -407,6 +408,14 @@ serve(async (req) => {
       if (!rateCheck.allowed) {
         return new Response(
           JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const serverRateCheck = await checkUserRateLimit(userId, 'parse_resume', 10, 60);
+      if (!serverRateCheck.allowed) {
+        return new Response(
+          JSON.stringify({ error: `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.` }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }

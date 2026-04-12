@@ -1,6 +1,7 @@
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { callAIWithRetry, sanitizeInputText, toUserError, parseAIJSON } from '../_shared/aiClient.ts';
 import { checkRateLimit, recordUsage } from '../_shared/rateLimiter.ts';
+import { checkUserRateLimit } from '../_shared/userRateLimiter.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { checkUserCreditBalance } from '../_shared/creditUtils.ts';
 import { deductCredits } from '../_shared/deductCredits.ts';
@@ -174,6 +175,13 @@ Deno.serve(async (req) => {
     const rl = await checkRateLimit(userId, { maxRequests: 10, windowSeconds: 60, actionType: 'company_briefing' });
     if (!rl.allowed) {
       return new Response(JSON.stringify({ error: 'Rate limit exceeded', retryAfter: rl.retryAfterSeconds }), {
+        status: 429, headers: { ...cors, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const serverRateCheck = await checkUserRateLimit(userId, 'company_briefing', 10, 60);
+    if (!serverRateCheck.allowed) {
+      return new Response(JSON.stringify({ error: 'Rate limit exceeded', retryAfter: serverRateCheck.retryAfterSeconds }), {
         status: 429, headers: { ...cors, 'Content-Type': 'application/json' },
       });
     }

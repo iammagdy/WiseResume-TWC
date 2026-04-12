@@ -3,6 +3,7 @@ import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { callAI, toUserError, parseAIJSON } from '../_shared/aiClient.ts';
 import { checkRateLimit, recordUsage } from '../_shared/rateLimiter.ts';
+import { checkUserRateLimit } from '../_shared/userRateLimiter.ts';
 import { checkPayloadSize } from '../_shared/requestUtils.ts';
 
 serve(async (req) => {
@@ -23,6 +24,14 @@ serve(async (req) => {
     if (!allowed) {
       return new Response(
         JSON.stringify({ error: 'Rate limit exceeded. Please wait before generating more questions.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const serverRateCheck = await checkUserRateLimit(userId, 'question_bank', 10, 60);
+    if (!serverRateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.` }),
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

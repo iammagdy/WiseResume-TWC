@@ -2,6 +2,7 @@ import { callAI, sanitizeInputText } from '../_shared/aiClient.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { checkRateLimit, recordUsage } from '../_shared/rateLimiter.ts';
+import { checkUserRateLimit } from '../_shared/userRateLimiter.ts';
 import { checkPayloadSize } from '../_shared/requestUtils.ts';
 
 Deno.serve(async (req) => {
@@ -31,6 +32,15 @@ Deno.serve(async (req) => {
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const serverRateCheck = await checkUserRateLimit(userId, 'portfolio_bio', 20, 60);
+    if (!serverRateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     await recordUsage(userId, 'portfolio_bio');
 
     const body = await req.json();
