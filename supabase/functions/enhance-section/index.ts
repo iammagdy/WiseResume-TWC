@@ -175,6 +175,17 @@ ${JSON.stringify((Array.isArray(currentContent) ? currentContent : []).map((e: R
   }
 }
 
+// Universal ATS compliance preamble — injected at the top of every content-producing action prompt.
+// Ensures ATS-grade output from every button the user clicks, not just the dedicated ATS actions.
+const ATS_BULLET_PREAMBLE = `
+ATS COMPLIANCE — mandatory for all output regardless of action:
+- Start every bullet with a strong action verb — BANNED OPENERS: "Responsible for", "Helped with", "Worked on", "Assisted in", "Was involved in", "Participated in", "Tasked with"
+- Follow the XYZ formula for every bullet: ACTION VERB + WHAT YOU DID + MEASURABLE RESULT
+- Include a quantified metric OR bracket placeholder [X%] / [~$X] in every bullet — no metric-free bullets
+- Echo the candidate's skill keywords verbatim in the content (exact string match, not synonyms)
+- No bullet symbols (•, ●, ■) and no Markdown (**bold**, *italic*) — plain text only
+`;
+
 // Approved action verbs the deterministic scorer checks for
 const ACTION_VERBS = [
   'Led', 'Managed', 'Developed', 'Created', 'Implemented', 'Designed',
@@ -596,7 +607,12 @@ Suggest 5-10 relevant technologies. Consider the project context carefully and o
     ? `Return "improved" as a flat JSON array of strings ONLY. Example: ["React", "TypeScript", "Docker"]. Do NOT return objects.`
     : getSchemaInstructions(section, currentContent);
 
-  return baseContext + '\n\nTask: ' + (actionPrompts[action] || actionPrompts.improve) + `
+  // Inject the universal ATS compliance preamble into every content-producing action.
+  // Skipped for utility actions where bullet rules don't apply.
+  const PREAMBLE_SKIP_ACTIONS = new Set(['fix_error', 'custom', 'suggest_technologies']);
+  const actionPreamble = PREAMBLE_SKIP_ACTIONS.has(action) ? '' : ATS_BULLET_PREAMBLE;
+
+  return baseContext + '\n\nTask: ' + actionPreamble + (actionPrompts[action] || actionPrompts.improve) + `
 
 CRITICAL RESPONSE FORMAT: Respond with ONLY valid JSON, no markdown or code blocks. All text values must be plain text WITHOUT any Markdown formatting (no **, *, #, _, or backticks).
 
