@@ -264,6 +264,15 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const usingFallbackRef = useRef(false);
   const quickPracticeRef = useRef(false);
   const noSpeechCountRef = useRef(0);
+  /**
+   * Mutual-exclusion lock for AI submission.
+   * Both the STT-commit path (stopListening) and the text-send path (sendTextMessage)
+   * must acquire this flag before calling callAI(). Only the first path to set it
+   * to true proceeds; the second path sees it already set and bails out.
+   * Released (set back to false) after callAI() resolves.
+   */
+  const submissionInFlightRef = useRef(false);
+  /** @deprecated kept for backward compat — same as submissionInFlightRef */
   const isSubmittingTextRef = useRef(false);
   const endInterviewFnRef = useRef<() => Promise<void>>();
   const lastCallAIWasEndRef = useRef(false);
@@ -639,6 +648,16 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   }, [addEntry, callAI, clearSilenceTimer, disconnectCurrentSTT]);
 
   const stopListening = useCallback(async () => {
+    // Mutual exclusion: acquire the submission lock before proceeding.
+    // If text send already holds the lock, abandon this STT-commit path.
+    if (submissionInFlightRef.current) {
+      clearSilenceTimer();
+      finalTextRef.current = '';
+      setInterimText('');
+      return;
+    }
+    submissionInFlightRef.current = true;
+
     clearSilenceTimer();
     isListeningRef.current = false;
     if (noSpeechTimerRef.current) {
@@ -651,17 +670,21 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     finalTextRef.current = '';
     setInterimText('');
 
-    if (!userText) {
-      // Send silence marker so AI re-prompts naturally
-      addEntry('user', '(silence)');
-      messagesRef.current.push({ role: 'user', content: '(silence)' });
-      await callAI();
-      return;
-    }
+    try {
+      if (!userText) {
+        // Send silence marker so AI re-prompts naturally
+        addEntry('user', '(silence)');
+        messagesRef.current.push({ role: 'user', content: '(silence)' });
+        await callAI();
+        return;
+      }
 
-    addEntry('user', userText);
-    messagesRef.current.push({ role: 'user', content: userText });
-    await callAI();
+      addEntry('user', userText);
+      messagesRef.current.push({ role: 'user', content: userText });
+      await callAI();
+    } finally {
+      submissionInFlightRef.current = false;
+    }
   }, [addEntry, callAI, clearSilenceTimer, disconnectCurrentSTT]);
 
   useEffect(() => {
@@ -712,10 +735,14 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
 
   const sendTextMessage = useCallback(
     async (text: string) => {
-      if (!text.trim() || isSubmittingTextRef.current) return;
-      isSubmittingTextRef.current = true;
-      
-      // Disconnect any active STT stream so it cannot fire a duplicate AI call
+      if (!text.trim()) return;
+      // Mutual exclusion: acquire the submission lock before proceeding.
+      // If STT commit path already holds the lock, discard this text send.
+      if (submissionInFlightRef.current) return;
+      submissionInFlightRef.current = true;
+      isSubmittingTextRef.current = true; // backward compat
+
+      // Disconnect any active STT stream and cancel pending timers
       isListeningRef.current = false;
       disconnectCurrentSTT();
       if (silenceTimerRef.current) {
@@ -729,12 +756,15 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       setSilenceDetected(false);
       finalTextRef.current = '';
       setInterimText('');
-      
-      addEntry('user', text);
-      messagesRef.current.push({ role: 'user', content: text });
-      await callAI();
-      
-      isSubmittingTextRef.current = false;
+
+      try {
+        addEntry('user', text);
+        messagesRef.current.push({ role: 'user', content: text });
+        await callAI();
+      } finally {
+        submissionInFlightRef.current = false;
+        isSubmittingTextRef.current = false;
+      }
     },
     [addEntry, callAI, disconnectCurrentSTT]
   );

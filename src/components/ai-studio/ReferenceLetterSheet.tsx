@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { FileCheck, Loader2, Copy, Check, Download } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { FileCheck, Loader2, Copy, Check, Download, RotateCcw } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { useAIAction } from '@/hooks/useAIAction';
+import { useAIDraft } from '@/hooks/useAIDraft';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { useResumeStore } from '@/store/resumeStore';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
@@ -32,6 +33,7 @@ function getTopExperience(resume: ResumeData | null): string {
 
 export function ReferenceLetterSheet({ open, onOpenChange }: ReferenceLetterSheetProps) {
   const currentResume = useResumeStore(s => s.currentResume);
+  const resumeId = (currentResume as { id?: string } | null)?.id;
   const [refereeName, setRefereeName] = useState('');
   const [refereeRole, setRefereeRole] = useState('');
   const [relationship, setRelationship] = useState('');
@@ -40,10 +42,18 @@ export function ReferenceLetterSheet({ open, onOpenChange }: ReferenceLetterShee
   const [isLoading, setIsLoading] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [showDraftBanner, setShowDraftBanner] = useState(false);
   const { execute } = useAIAction({ operation: 'reference-letter' });
+  const { draft, saveDraft, clearDraft, hasDraft } = useAIDraft<string>('reference-letter', resumeId);
 
   const resume = currentResume as unknown as ResumeData | null;
   const candidateName = resume?.contactInfo?.fullName ?? 'the candidate';
+
+  useEffect(() => {
+    if (open && hasDraft && !letter) {
+      setShowDraftBanner(true);
+    }
+  }, [open, hasDraft, letter]);
 
   const handleGenerate = async () => {
     if (!refereeName.trim() || !refereeRole.trim() || !relationship.trim()) {
@@ -52,6 +62,7 @@ export function ReferenceLetterSheet({ open, onOpenChange }: ReferenceLetterShee
     }
     haptics.medium();
     setIsLoading(true);
+    setShowDraftBanner(false);
     try {
       const data = await execute(async () => {
         const summary = resume?.summary ?? '';
@@ -90,7 +101,10 @@ Return ONLY the letter text, no JSON, no explanation. Start with "Dear Hiring Ma
         if (!content) throw new Error('Empty response from AI');
         return content;
       });
-      if (data) setLetter(data);
+      if (data) {
+        setLetter(data);
+        saveDraft(data);
+      }
     } catch {
       toast.error('Failed to generate reference letter. Please try again.');
     } finally {
@@ -149,6 +163,21 @@ Return ONLY the letter text, no JSON, no explanation. Start with "Dear Hiring Ma
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4">
+          {showDraftBanner && draft && !letter && (
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-2">
+              <p className="text-xs text-amber-700 dark:text-amber-400">Resume from last session?</p>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setLetter(draft); setShowDraftBanner(false); }}>
+                  <RotateCcw className="w-3 h-3 mr-1" />
+                  Restore
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { clearDraft(); setShowDraftBanner(false); }}>
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+          )}
+
           {!letter ? (
             <>
               <div className="grid grid-cols-2 gap-3">
@@ -194,7 +223,7 @@ Return ONLY the letter text, no JSON, no explanation. Start with "Dear Hiring Ma
                   {isDownloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                   Download .docx
                 </Button>
-                <Button variant="ghost" size="sm" className="gap-1.5 ml-auto text-xs" onClick={() => setLetter('')}>
+                <Button variant="ghost" size="sm" className="gap-1.5 ml-auto text-xs" onClick={() => { setLetter(''); clearDraft(); }}>
                   Regenerate
                 </Button>
               </div>

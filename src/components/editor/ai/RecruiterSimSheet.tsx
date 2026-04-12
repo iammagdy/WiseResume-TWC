@@ -12,6 +12,7 @@ import {
   HelpCircle,
   Loader2,
   Wand2,
+  RotateCcw,
 } from 'lucide-react';
 import {
   Sheet,
@@ -35,6 +36,7 @@ import {
 import { findTargetContent } from '@/lib/ai/fixHelpers';
 import { Experience, Education } from '@/types/resume';
 import { useAIAction } from '@/hooks/useAIAction';
+import { useAIDraft } from '@/hooks/useAIDraft';
 import { activityTracker } from '@/lib/activityTracker';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 
@@ -46,24 +48,39 @@ interface RecruiterSimSheetProps {
 
 type ViewState = 'persona_select' | 'analyzing' | 'results';
 
+interface RecruiterDraft {
+  analysis: RecruiterAnalysis;
+  personaId: string;
+}
+
 export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps) {
   const { currentResume, updateResume } = useResumeStore(useShallow((s) => ({ currentResume: s.currentResume, updateResume: s.updateResume })));
+  const resumeId = (currentResume as { id?: string } | null)?.id;
   const [viewState, setViewState] = useState<ViewState>('persona_select');
   const [selectedPersona, setSelectedPersona] = useState<RecruiterPersonaInfo | null>(null);
   const [analysis, setAnalysis] = useState<RecruiterAnalysis | null>(null);
   const [isApplyingFix, setIsApplyingFix] = useState<string | null>(null);
+  const [showDraftBanner, setShowDraftBanner] = useState(false);
   const { execute: executeAI } = useAIAction({ operation: 'recruiter-sim' });
+  const { draft, saveDraft, clearDraft, hasDraft } = useAIDraft<RecruiterDraft>('recruiter-sim', resumeId);
 
   useEffect(() => {
     if (open) { activityTracker.setActiveFeature('Recruiter Simulator'); }
     return () => { activityTracker.setActiveFeature(null); };
   }, [open]);
 
+  useEffect(() => {
+    if (open && hasDraft && viewState === 'persona_select' && !analysis) {
+      setShowDraftBanner(true);
+    }
+  }, [open, hasDraft, viewState, analysis]);
+
   const handleSelectPersona = async (persona: RecruiterPersonaInfo) => {
     if (!currentResume) return;
     
     setSelectedPersona(persona);
     setViewState('analyzing');
+    setShowDraftBanner(false);
 
     try {
       const result = await executeAI(async () => {
@@ -83,6 +100,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
 
       setAnalysis(result.analysis);
       setViewState('results');
+      saveDraft({ analysis: result.analysis, personaId: persona.id });
     } catch (err) {
       console.error('Recruiter simulation error:', err);
       toast.error('Failed to run simulation. Please try again.');
@@ -172,6 +190,8 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
     setViewState('persona_select');
     setSelectedPersona(null);
     setAnalysis(null);
+    clearDraft();
+    setShowDraftBanner(false);
   };
 
   const getVerdictColor = (verdict: string) => {
@@ -232,6 +252,32 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
                 exit={{ opacity: 0, y: -20 }}
                 className="p-4 space-y-4"
               >
+                {showDraftBanner && draft && (
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-2">
+                    <p className="text-xs text-amber-700 dark:text-amber-400">Resume from last session?</p>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={() => {
+                          const persona = RECRUITER_PERSONAS.find(p => p.id === draft.personaId) ?? null;
+                          setSelectedPersona(persona);
+                          setAnalysis(draft.analysis);
+                          setViewState('results');
+                          setShowDraftBanner(false);
+                        }}
+                      >
+                        <RotateCcw className="w-3 h-3 mr-1" />
+                        Restore
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { clearDraft(); setShowDraftBanner(false); }}>
+                        Dismiss
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="text-center mb-6">
                   <h3 className="text-lg font-semibold mb-1">Choose Your Recruiter</h3>
                   <p className="text-sm text-muted-foreground">

@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { CoverLetterHistorySheet } from './CoverLetterHistorySheet';
 import { AICostBadge } from '@/components/ai/AICostBadge';
 import { useAIAction } from '@/hooks/useAIAction';
+import { useAIDraft } from '@/hooks/useAIDraft';
 
 interface CoverLetterGeneratorProps {
   open: boolean;
@@ -53,6 +54,7 @@ export function CoverLetterGenerator({
   jobTitle,
   jobCompany,
 }: CoverLetterGeneratorProps) {
+  const resumeId = (resume as { id?: string } | null)?.id;
   const [tone, setTone] = useState<Tone>('professional');
   const [isGenerating, setIsGenerating] = useState(false);
   const [coverLetter, setCoverLetter] = useState<string | null>(null);
@@ -62,9 +64,17 @@ export function CoverLetterGenerator({
   const [isDownloading, setIsDownloading] = useState(false);
   const [generationStep, setGenerationStep] = useState(0);
   const [generationElapsed, setGenerationElapsed] = useState(0);
+  const [showDraftBanner, setShowDraftBanner] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const generationStartRef = useRef(0);
   const { execute: executeAI } = useAIAction({ operation: 'cover-letter' });
+  const { draft, saveDraft, clearDraft, hasDraft } = useAIDraft<string>('cover-letter', resumeId);
+
+  useEffect(() => {
+    if (open && hasDraft && !coverLetter) {
+      setShowDraftBanner(true);
+    }
+  }, [open, hasDraft, coverLetter]);
 
   const GENERATION_STEPS = [
     'Analyzing Job Description...',
@@ -125,6 +135,7 @@ export function CoverLetterGenerator({
       if (!letter) return;
       
       setCoverLetter(letter);
+      saveDraft(letter);
       
       // Save to store for combined PDF export
       setGeneratedCoverLetter(letter, {
@@ -216,6 +227,20 @@ export function CoverLetterGenerator({
           </SheetHeader>
 
           <div className="flex-1 min-h-0 overflow-y-auto space-y-4 ai-output-scroll-fade">
+            {showDraftBanner && draft && !coverLetter && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-2 mx-1">
+                <p className="text-xs text-amber-700 dark:text-amber-400">Resume from last session?</p>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => { setCoverLetter(draft); setShowDraftBanner(false); }}>
+                    <Circle className="w-2.5 h-2.5 fill-current" />
+                    Restore
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { clearDraft(); setShowDraftBanner(false); }}>
+                    Dismiss
+                  </Button>
+                </div>
+              </div>
+            )}
             {!coverLetter ? (
               <>
                 {/* Settings */}
@@ -439,6 +464,7 @@ export function CoverLetterGenerator({
                   onClick={() => {
                     setCoverLetter(null);
                     setIsEditing(false);
+                    clearDraft();
                   }}
                 >
                   <Sparkles className="w-4 h-4 mr-2" />
