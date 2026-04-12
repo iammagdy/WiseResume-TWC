@@ -130,10 +130,10 @@ const TYPEWRITER_PHRASES = [
 ];
 
 const STAT_PILLS = [
-  { icon: Target, numericPrefix: '92/100', label: 'ATS Score' },
-  { icon: Sparkles, numericPrefix: null, label: 'AI-Powered' },
-  { icon: Zap, numericPrefix: '12k+', label: 'Resumes Built' },
-  { icon: Mic, numericPrefix: null, label: 'Interview Coach' },
+  { icon: Target, countId: 'ats' as const, suffix: '/100', label: 'ATS Score' },
+  { icon: Sparkles, countId: null, suffix: null, label: 'AI-Powered' },
+  { icon: Zap, countId: 'resumes' as const, suffix: 'k+', label: 'Resumes Built' },
+  { icon: Mic, countId: null, suffix: null, label: 'Interview Coach' },
 ];
 
 function useTypewriter(phrases: string[]) {
@@ -176,6 +176,15 @@ function useTypewriter(phrases: string[]) {
 
 function useScrollAnimation() {
   useEffect(() => {
+    const markIfVisible = (el: Element) => {
+      const rect = el.getBoundingClientRect();
+      if (rect.top < window.innerHeight && rect.bottom > 0) {
+        el.classList.add('lp-visible');
+        return true;
+      }
+      return false;
+    };
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -184,11 +193,13 @@ function useScrollAnimation() {
           }
         });
       },
-      { threshold: 0, rootMargin: '0px 0px -80px 0px' }
+      { threshold: 0, rootMargin: '0px 0px -60px 0px' }
     );
 
     const observe = () => {
-      document.querySelectorAll('.lp-animate:not(.lp-visible)').forEach((el) => observer.observe(el));
+      document.querySelectorAll('.lp-animate:not(.lp-visible)').forEach((el) => {
+        if (!markIfVisible(el)) observer.observe(el);
+      });
     };
 
     observe();
@@ -200,7 +211,89 @@ function useScrollAnimation() {
   }, []);
 }
 
-  const Index = () => {
+function useStatCounters() {
+  const [ats, setAts] = useState(0);
+  const [resumes, setResumes] = useState(0);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const duration = 1400;
+      const startTime = performance.now();
+      const tick = (now: number) => {
+        const p = Math.min((now - startTime) / duration, 1);
+        const eased = 1 - Math.pow(1 - p, 3);
+        setAts(Math.round(eased * 92));
+        setResumes(Math.round(eased * 12));
+        if (p < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }, 1000);
+    return () => clearTimeout(t);
+  }, []);
+
+  return { ats, resumes };
+}
+
+function ResumeScoreCard() {
+  const rings = [
+    { label: 'Work Experience', pct: 88 },
+    { label: 'Keywords Match', pct: 94 },
+    { label: 'Skills Section', pct: 76 },
+  ];
+  const circumference = 2 * Math.PI * 22;
+  return (
+    <div
+      style={{
+        width: 300,
+        borderRadius: 20,
+        background: 'rgba(255,255,255,0.05)',
+        border: '1px solid rgba(255,255,255,0.10)',
+        padding: '20px 22px',
+        backdropFilter: 'blur(12px)',
+        animation: 'lp-float 4.5s ease-in-out infinite',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+        <div style={{ position: 'relative', width: 54, height: 54, flexShrink: 0 }}>
+          <svg width="54" height="54" viewBox="0 0 54 54" style={{ transform: 'rotate(-90deg)' }}>
+            <circle cx="27" cy="27" r="22" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="4" />
+            <circle
+              cx="27" cy="27" r="22" fill="none" stroke="#6366F1" strokeWidth="4"
+              strokeDasharray={`${circumference * 0.92} ${circumference}`}
+              strokeLinecap="round"
+            />
+          </svg>
+          <span style={{
+            position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 12, fontWeight: 800, color: '#818CF8',
+          }}>92</span>
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.42)', marginBottom: 2, letterSpacing: '0.05em', textTransform: 'uppercase' }}>ATS Score</p>
+          <p style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 0 }}>Excellent</p>
+        </div>
+        <span style={{
+          fontSize: 10, padding: '3px 9px', borderRadius: 100, flexShrink: 0,
+          background: 'rgba(16,185,129,0.15)', color: '#34D399',
+          border: '1px solid rgba(16,185,129,0.25)', fontWeight: 600,
+        }}>↑ +12</span>
+      </div>
+      {rings.map(({ label, pct }) => (
+        <div key={label} style={{ marginBottom: 11 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.48)' }}>{label}</span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#818CF8' }}>{pct}%</span>
+          </div>
+          <div style={{ height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.08)' }}>
+            <div style={{ height: '100%', borderRadius: 2, width: `${pct}%`, background: 'linear-gradient(90deg, #6366F1, #818CF8)' }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const Index = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const { profile } = useProfile(isAuthenticated ? user?.id : undefined, user);
@@ -209,12 +302,14 @@ function useScrollAnimation() {
   const [scrolled, setScrolled] = useState(false);
   const progressRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLElement>(null);
+  const glowRef = useRef<HTMLDivElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [tailorOpen, setTailorOpen] = useState(false);
   const [headlineVisible, setHeadlineVisible] = useState(false);
   const [ctaPulse, setCtaPulse] = useState(false);
 
   const typewriterText = useTypewriter(TYPEWRITER_PHRASES);
+  const { ats, resumes } = useStatCounters();
   useScrollAnimation();
 
   const headlineWords = useMemo(() => [
@@ -262,6 +357,10 @@ function useScrollAnimation() {
         progressRef.current.style.width = `${pct}%`;
         const parent = progressRef.current.parentElement;
         if (parent) parent.style.display = pct > 0 ? '' : 'none';
+      }
+      if (glowRef.current) {
+        const offset = window.scrollY * 0.18;
+        glowRef.current.style.transform = `translateX(-50%) translateY(${offset}px)`;
       }
     };
     window.addEventListener('scroll', onScroll, { passive: true });
@@ -383,6 +482,64 @@ function useScrollAnimation() {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(6px); }
         }
+
+        /* Hero entrance animations — time-delay stagger, no scroll required */
+        @keyframes lp-hero-in {
+          from { opacity: 0; transform: translateY(18px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .lp-hero-badge     { animation: lp-hero-in 0.55s cubic-bezier(0.22,1,0.36,1) 0.05s both; }
+        .lp-hero-body      { animation: lp-hero-in 0.55s cubic-bezier(0.22,1,0.36,1) 0.50s both; }
+        .lp-hero-cta       { animation: lp-hero-in 0.55s cubic-bezier(0.22,1,0.36,1) 0.65s both; }
+        .lp-hero-trust     { animation: lp-hero-in 0.50s cubic-bezier(0.22,1,0.36,1) 0.80s both; }
+        .lp-hero-pills     { animation: lp-hero-in 0.50s cubic-bezier(0.22,1,0.36,1) 0.94s both; }
+        .lp-hero-card      { animation: lp-hero-in 0.55s cubic-bezier(0.22,1,0.36,1) 1.08s both; }
+        .lp-hero-scroll    { animation: lp-hero-in 0.40s ease 1.40s both; }
+
+        @media (prefers-reduced-motion: reduce) {
+          .lp-hero-badge,.lp-hero-body,.lp-hero-cta,.lp-hero-trust,
+          .lp-hero-pills,.lp-hero-card,.lp-hero-scroll {
+            animation: none; opacity: 1; transform: none;
+          }
+        }
+
+        /* Directional slide modifiers — override translateY with translateX */
+        .lp-animate.lp-from-left  { transform: translateX(-44px); }
+        .lp-animate.lp-from-right { transform: translateX(44px); }
+        .lp-animate.lp-from-left.lp-visible,
+        .lp-animate.lp-from-right.lp-visible { transform: translateX(0); }
+
+        /* Float for hero product card */
+        @keyframes lp-float {
+          0%,100% { transform: translateY(0px); }
+          50%      { transform: translateY(-9px); }
+        }
+
+        /* Feature grid card hover lift */
+        .lp-feature-card {
+          transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+        .lp-feature-card:hover {
+          transform: translateY(-5px) !important;
+          box-shadow: 0 10px 36px rgba(26,26,46,0.14) !important;
+        }
+
+        /* Section accent underline */
+        .lp-section-accent {
+          display: block;
+          width: 44px;
+          height: 3px;
+          border-radius: 2px;
+          background: linear-gradient(90deg, #6366F1, #A78BFA);
+          margin: 10px auto 0;
+        }
+
+        /* Stronger separator */
+        .lp-separator {
+          height: 1px;
+          background: linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.5) 25%, rgba(99,102,241,0.7) 50%, rgba(99,102,241,0.5) 75%, transparent 100%);
+          box-shadow: 0 0 14px 2px rgba(99,102,241,0.18);
+        }
       `}</style>
 
       <a
@@ -464,8 +621,9 @@ function useScrollAnimation() {
           className="relative flex flex-col items-center text-center px-4 sm:px-6 pt-[calc(7rem+env(safe-area-inset-top))] pb-20 sm:pb-28 overflow-hidden"
           style={{ minHeight: '86vh', background: '#0D0F14' }}
         >
-          {/* Indigo radial glow — decorative, clipped by overflow:hidden */}
+          {/* Indigo radial glow — parallaxes on scroll via glowRef */}
           <div
+            ref={glowRef}
             aria-hidden="true"
             className="pointer-events-none absolute"
             style={{
@@ -475,13 +633,13 @@ function useScrollAnimation() {
               width: '90%',
               maxWidth: 800,
               height: '65%',
-              background: 'radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.22) 0%, rgba(79,70,229,0.10) 45%, transparent 72%)',
+              background: 'radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.26) 0%, rgba(79,70,229,0.12) 45%, transparent 72%)',
               filter: 'blur(48px)',
             }}
           />
 
           {/* Category label */}
-          <div className="relative z-10 mb-6">
+          <div className="relative z-10 mb-6 lp-hero-badge">
             <span
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold"
               style={{
@@ -534,14 +692,14 @@ function useScrollAnimation() {
 
           {/* Body text */}
           <p
-            className="relative z-10 mb-9 lp-animate"
+            className="relative z-10 mb-9 lp-hero-body"
             style={{ fontSize: '0.97rem', lineHeight: 1.65, color: 'rgba(255,255,255,0.48)', maxWidth: 440 }}
           >
             Build, tailor, and optimise your resume with AI. Practice interviews, track applications, and launch your portfolio — all in one place.
           </p>
 
           {/* CTA */}
-          <div className="relative z-10 w-full flex flex-col items-center gap-4 lp-animate">
+          <div className="relative z-10 w-full flex flex-col items-center gap-4 lp-hero-cta">
             {isAuthenticated ? (
               <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
                 <button
@@ -583,7 +741,7 @@ function useScrollAnimation() {
           </div>
 
           {/* Trust badges */}
-          <div className="relative z-10 mt-5 flex items-center gap-4 sm:gap-6 text-sm flex-wrap justify-center lp-animate">
+          <div className="relative z-10 mt-5 flex items-center gap-4 sm:gap-6 text-sm flex-wrap justify-center lp-hero-trust">
             {['Free to start', 'No credit card', 'AI-powered'].map((item) => (
               <span key={item} className="flex items-center gap-1.5" style={{ color: 'rgba(255,255,255,0.42)' }}>
                 <CheckCircle2 className="w-3.5 h-3.5" style={{ color: '#6366F1' }} />
@@ -593,29 +751,38 @@ function useScrollAnimation() {
           </div>
 
           {/* Stat pills — fully contained, no overflow */}
-          <div className="relative z-10 flex flex-wrap items-center justify-center gap-2.5 mt-8 lp-animate">
-            {STAT_PILLS.map(({ icon: Icon, numericPrefix, label }) => (
-              <div
-                key={label}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-full"
-                style={{
-                  background: 'rgba(255,255,255,0.07)',
-                  border: '1px solid rgba(255,255,255,0.11)',
-                }}
-              >
-                <Icon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#818CF8' }} />
-                <span className="text-xs font-medium whitespace-nowrap" style={{ color: 'rgba(255,255,255,0.72)' }}>
-                  {numericPrefix && (
-                    <span style={{ color: '#818CF8', fontWeight: 700 }}>{numericPrefix} </span>
-                  )}
-                  {label}
-                </span>
-              </div>
-            ))}
+          <div className="relative z-10 flex flex-wrap items-center justify-center gap-2.5 mt-8 lp-hero-pills">
+            {STAT_PILLS.map(({ icon: Icon, countId, suffix, label }) => {
+              const animatedCount = countId === 'ats' ? ats : countId === 'resumes' ? resumes : null;
+              const displayPrefix = animatedCount !== null ? `${animatedCount}${suffix}` : null;
+              return (
+                <div
+                  key={label}
+                  className="flex items-center gap-2 px-3.5 py-2 rounded-full"
+                  style={{
+                    background: 'rgba(255,255,255,0.07)',
+                    border: '1px solid rgba(255,255,255,0.11)',
+                  }}
+                >
+                  <Icon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#818CF8' }} />
+                  <span className="text-xs font-medium whitespace-nowrap" style={{ color: 'rgba(255,255,255,0.72)' }}>
+                    {displayPrefix && (
+                      <span style={{ color: '#818CF8', fontWeight: 700 }}>{displayPrefix} </span>
+                    )}
+                    {label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Floating product preview card — desktop only */}
+          <div className="relative z-10 mt-8 lp-hero-card hidden sm:block">
+            <ResumeScoreCard />
           </div>
 
           {/* Scroll arrow */}
-          <div className="relative z-10 mt-10 flex flex-col items-center gap-1.5" style={{ color: 'rgba(255,255,255,0.22)' }}>
+          <div className="relative z-10 mt-8 flex flex-col items-center gap-1.5 lp-hero-scroll" style={{ color: 'rgba(255,255,255,0.22)' }}>
             <span className="text-xs tracking-widest uppercase">Scroll to explore</span>
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true" style={{ animation: 'lp-bounce 1.6s ease-in-out infinite' }}>
               <path d="M9 3v12M4 10l5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -646,11 +813,12 @@ function useScrollAnimation() {
         </section>
 
         {/* Section heading */}
-        <div className="text-center px-4 sm:px-6 mb-4 max-w-6xl mx-auto lp-animate">
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2" style={{ color: 'var(--lp-text)', letterSpacing: '-0.02em' }}>
+        <div className="text-center px-4 sm:px-6 mb-6 max-w-6xl mx-auto lp-animate">
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight" style={{ color: 'var(--lp-text)', letterSpacing: '-0.02em' }}>
             See it in action
           </h2>
-          <p style={{ color: 'var(--lp-text-muted)' }} className="max-w-md mx-auto">
+          <span className="lp-section-accent" aria-hidden="true" />
+          <p style={{ color: 'var(--lp-text-muted)' }} className="max-w-md mx-auto mt-3">
             Five powerful features, one seamless platform
           </p>
         </div>
@@ -676,7 +844,7 @@ function useScrollAnimation() {
               {features.map((f, i) => (
                 <div
                   key={f.title}
-                  className="flex items-start gap-4 p-5 lp-animate"
+                  className="flex items-start gap-4 p-5 lp-animate lp-feature-card"
                   style={{
                     borderRadius: 20,
                     background: 'var(--lp-card-white)',

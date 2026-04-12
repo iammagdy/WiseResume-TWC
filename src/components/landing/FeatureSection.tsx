@@ -102,7 +102,7 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
 
   const textCard = (
     <div
-      className="lp-animate flex flex-col justify-center gap-5 p-8"
+      className={`lp-animate ${isRtl ? 'lp-from-right' : 'lp-from-left'} flex flex-col justify-center gap-5 p-8`}
       style={{
         borderRadius: 28,
         background: s.cardBg,
@@ -137,12 +137,13 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
 
   const mediaCard = (
     <div
-      className="lp-animate flex items-center justify-center p-6"
+      className={`lp-animate ${isRtl ? 'lp-from-left' : 'lp-from-right'} flex items-center justify-center p-6`}
       style={{
         borderRadius: 28,
         background: s.cardBg,
         boxShadow: '0 4px 24px rgba(0,0,0,0.07)',
         minHeight: 280,
+        transitionDelay: '120ms',
       }}
     >
       <Suspense fallback={<DemoFallback bandColor={band} />}>
@@ -162,6 +163,7 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
         borderRadius: 24,
         background: s.cardBg,
         boxShadow: '0 2px 16px rgba(0,0,0,0.06)',
+        transitionDelay: '240ms',
       }}
     >
       <div className="flex items-center gap-2 mb-1">
