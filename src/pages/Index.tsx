@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Target, Wand2, Mic, LayoutDashboard, Settings, LogOut, Globe, ArrowRight, BarChart3, PenTool, CheckCircle2, Check, User, Quote, Sun, Moon } from 'lucide-react';
+import { Sparkles, Target, Wand2, Mic, LayoutDashboard, Settings, LogOut, Globe, ArrowRight, BarChart3, PenTool, CheckCircle2, Check, User, Sun, Moon } from 'lucide-react';
 import { Footer } from '@/components/landing/Footer';
 import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -128,28 +128,6 @@ const TYPEWRITER_WORDS = [
   'Marketing Lead',
 ];
 
-const TESTIMONIALS = [
-  {
-    quote: "I went from zero responses to three interviews in two weeks. The AI tailoring alone is worth it.",
-    name: "Priya S.",
-    role: "Product Manager, landed at Stripe",
-  },
-  {
-    quote: "WiseResume's ATS score showed me exactly why my resume wasn't passing screening. Fixed it in minutes.",
-    name: "James K.",
-    role: "Software Engineer, landed at Shopify",
-  },
-  {
-    quote: "The interview coach is exceptional. I practiced the same question 10 times and could see myself improving.",
-    name: "Maria L.",
-    role: "Marketing Lead, landed at HubSpot",
-  },
-  {
-    quote: "I'd been job hunting for months. Within a week of using WiseResume I had offers on the table.",
-    name: "David T.",
-    role: "Data Analyst, landed at Notion",
-  },
-];
 
 function useTypewriterWord(words: string[]) {
   const [displayed, setDisplayed] = useState('');
@@ -914,47 +892,6 @@ const Index = () => {
         {/* ─── SEPARATOR ─── */}
         <div className="lp-separator" aria-hidden="true" />
 
-        {/* ─── TESTIMONIALS ─── */}
-        <section className="px-4 sm:px-6 py-20" style={{ background: 'var(--lp-section-alt)' }}>
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-14 lp-animate">
-              <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--lp-eyebrow)', fontWeight: 600, marginBottom: '0.75rem' }}>
-                Success Stories
-              </p>
-              <h2 className="font-bold" style={{ fontSize: 'clamp(1.75rem, 3vw, 2.5rem)', color: 'var(--lp-text)', letterSpacing: '-0.02em' }}>
-                Job seekers rely on WiseResume
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {TESTIMONIALS.map((t, i) => (
-                <div
-                  key={t.name}
-                  className={`lp-animate ${i % 2 === 0 ? 'lp-from-left' : 'lp-from-right'} lp-testimonial-card flex flex-col gap-4 p-5`}
-                  style={{
-                    borderRadius: 16,
-                    background: 'var(--lp-card)',
-                    border: '1px solid var(--lp-border-card)',
-                    transitionDelay: `${i * 80}ms`,
-                  }}
-                >
-                  <Quote className="w-5 h-5 flex-shrink-0" style={{ color: 'rgba(158,27,34,0.5)' }} />
-                  <p className="text-sm leading-relaxed flex-1" style={{ color: 'var(--lp-text-muted)' }}>
-                    "{t.quote}"
-                  </p>
-                  <div>
-                    <p className="text-sm font-semibold" style={{ color: 'var(--lp-text)' }}>{t.name}</p>
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--lp-text-subtle)' }}>{t.role}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ─── SEPARATOR ─── */}
-        <div className="lp-separator" aria-hidden="true" />
-
         {/* ─── PRICING ─── */}
         <section className="px-4 sm:px-6 py-20" style={{ background: 'var(--lp-bg)' }}>
           <div className="max-w-6xl mx-auto">
@@ -1069,33 +1006,6 @@ const Index = () => {
             <InstallButton />
           </div>
         </section>
-
-        {/* ─── FINAL CTA ─── */}
-        {!isAuthenticated && (
-          <section className="px-4 sm:px-6 py-24 text-center" style={{ background: 'var(--lp-bg)' }}>
-            <div className="max-w-2xl mx-auto lp-animate">
-              <h2
-                className="font-extrabold mb-4"
-                style={{ fontSize: 'clamp(2rem, 4.5vw, 3.25rem)', color: 'var(--lp-text)', letterSpacing: '-0.03em', lineHeight: 1.1 }}
-              >
-                Ready to accelerate<br />
-                <span className="lp-gradient-text">your job search?</span>
-              </h2>
-              <p className="mb-8" style={{ color: 'var(--lp-text-muted)', fontSize: '1.05rem' }}>
-                Join thousands of professionals who've accelerated their career with WiseResume.
-              </p>
-              <button
-                onClick={() => handleCTA()}
-                className="px-10 text-base font-semibold rounded-xl inline-flex items-center gap-2.5 transition-all"
-                style={{ background: '#9E1B22', color: '#fff', height: '3.25rem' }}
-              >
-                Get Started Free
-                <ArrowRight className="w-4 h-4" />
-              </button>
-              <p className="mt-5 text-xs" style={{ color: 'var(--lp-text-subtle)' }}>No credit card required · Free plan forever</p>
-            </div>
-          </section>
-        )}
 
         <Footer lpMode />
       </main>
