@@ -95,9 +95,9 @@ function InterviewContent() {
 }
 
 const DEMO_RESPONSES = [
-  { content: <BulletContent /> },
-  { content: <TailorContent /> },
-  { content: <InterviewContent /> },
+  { chip: 'Improve my resume bullet', cardTitle: 'AI Bullet Improver', content: <BulletContent /> },
+  { chip: 'Tailor my resume', cardTitle: 'Resume Tailoring', content: <TailorContent /> },
+  { chip: 'Mock interview me', cardTitle: 'Interview Coach', content: <InterviewContent /> },
 ];
 
 export function HeroDemoBlock({ onCTA, isAuthenticated }: HeroDemoBlockProps) {
@@ -222,7 +222,7 @@ export function HeroDemoBlock({ onCTA, isAuthenticated }: HeroDemoBlockProps) {
               padding: 0,
             }}
           >
-            {isAuthenticated ? 'Open full editor' : 'Start free'}
+            {isAuthenticated ? 'Go to dashboard' : 'Start free'}
             <ArrowRight style={{ width: 13, height: 13 }} />
           </button>
         </div>
