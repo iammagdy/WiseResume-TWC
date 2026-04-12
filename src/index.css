@@ -2269,8 +2269,3 @@ button,
   background: linear-gradient(to bottom, transparent, hsl(var(--background) / 0.85));
   border-radius: 0 0 var(--radius) var(--radius);
 }
-
-@keyframes lp-blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
-}

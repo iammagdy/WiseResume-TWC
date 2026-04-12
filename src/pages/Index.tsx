@@ -19,7 +19,6 @@ import { useThemeLogo } from '@/hooks/useThemeLogo';
 import { FeatureTicker } from '@/components/landing/FeatureTicker';
 import { StickyCtaBar } from '@/components/landing/StickyCtaBar';
 import { FeatureSection, type FeatureSectionData } from '@/components/landing/FeatureSection';
-import { HeroDemoBlock } from '@/components/landing/HeroDemoBlock';
 
 const features = [
   { icon: Sparkles, title: 'AI Resume Writing', desc: 'AI rewrites vague bullets into quantified achievements that recruiters remember.', colorDark: 'text-indigo-400', colorLight: 'text-indigo-600', bgDark: 'bg-indigo-500/10', bgLight: 'bg-indigo-100' },
@@ -714,9 +713,8 @@ const Index = () => {
           className="relative flex flex-col items-center text-center px-4 sm:px-6 overflow-hidden"
           style={{
             background: 'var(--lp-bg)',
-            paddingTop: 'calc(7rem + env(safe-area-inset-top))',
-            paddingBottom: '6rem',
-            minHeight: '88vh',
+            paddingTop: 'calc(5.5rem + env(safe-area-inset-top))',
+            paddingBottom: '4rem',
           }}
         >
           {/* Indigo radial glow */}
@@ -812,12 +810,6 @@ const Index = () => {
               </span>
             ))}
           </div>
-
-          {/* ─── HERO DEMO BLOCK ─── */}
-          <HeroDemoBlock
-            onCTA={isAuthenticated ? () => { triggerHaptic.light(); navigate('/dashboard'); } : kindeRegister}
-            isAuthenticated={isAuthenticated}
-          />
         </section>
 
         {/* ─── FEATURE TICKER ─── */}
