@@ -187,7 +187,7 @@ bash scripts/deploy-functions.sh                      # redeploy all edge functi
 - Feature sections: alternating full-width bands (brand indigo / warm beige / near-black / brand tint), each using `FeatureSection` with `bandColor` prop
 - Scroll animations: `.lp-animate` / `.lp-visible` CSS classes driven by IntersectionObserver; staggered children via inline `transitionDelay`
 - No italic text anywhere on the landing page (`font-style: normal !important`)
-- `FeatureTicker`, `StickyCtaBar`, `Footer` all support `lpMode` prop to use `--lp-*` variables
+- `FeatureTicker`, `Footer` all support `lpMode` prop to use `--lp-*` variables
 
 ## Kanban Job Tracker (Task #5 — Completed)
 - Board view toggle added to `ApplicationsPage.tsx` — List (default) / Board view, persisted to `localStorage('activity-view')`

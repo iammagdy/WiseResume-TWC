@@ -17,7 +17,6 @@ import { QuickTailorSheet } from '@/components/landing/QuickTailorSheet';
 import { InstallButton } from '@/components/pwa/InstallButton';
 import { useThemeLogo } from '@/hooks/useThemeLogo';
 import { FeatureTicker } from '@/components/landing/FeatureTicker';
-import { StickyCtaBar } from '@/components/landing/StickyCtaBar';
 import { FeatureSection, type FeatureSectionData } from '@/components/landing/FeatureSection';
 
 const features = [
@@ -1069,15 +1068,6 @@ const Index = () => {
         <Footer lpMode />
       </main>
 
-      {/* Sticky CTA bar — unauthenticated only */}
-      {!isAuthenticated && (
-        <StickyCtaBar
-          heroRef={heroRef}
-          onGetStarted={handleCTA}
-          onSignIn={() => { triggerHaptic.light(); kindeLogin(); }}
-          lpMode
-        />
-      )}
 
       {/* Quick tailor sheet */}
       {isAuthenticated && (
