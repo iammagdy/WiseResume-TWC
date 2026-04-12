@@ -5,7 +5,7 @@ export const contactExample = {
   email: 'your.name@email.com',
   phone: '(XXX) XXX-XXXX',
   location: 'City, Country',
-  linkedin: 'linkedin.com/in/your-handle',
+  linkedin: 'linkedin.com/in/yourhandle',
 };
 
 export const summaryExample =
