@@ -2252,11 +2252,11 @@ button,
   box-shadow: 0 12px 32px -8px hsl(var(--primary) / 0.35), 0 4px 12px -4px rgb(0 0 0 / 0.1);
 }
 
-/* AI output scroll-fade: adds a bottom fade gradient to indicate more content below */
+/* AI output scroll-fade: adds a bottom fade gradient only when content overflows */
 .ai-output-scroll-fade {
   position: relative;
 }
-.ai-output-scroll-fade::after {
+.ai-output-scroll-fade.is-overflowing::after {
   content: '';
   position: sticky;
   bottom: 0;

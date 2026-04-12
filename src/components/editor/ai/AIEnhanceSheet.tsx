@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useScrollFade } from '@/hooks/useScrollFade';
 import { Sparkles, Loader2, Check, X, ArrowRight, ChevronDown, ChevronUp, CheckCircle2, AlertTriangle, Layers } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -192,6 +193,8 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [results, setResults] = useState<SectionResult[]>([]);
   const [expandedResults, setExpandedResults] = useState<Set<number>>(new Set());
+  const [expandedDiffText, setExpandedDiffText] = useState<Set<string>>(new Set());
+  const scrollRef = useScrollFade<HTMLDivElement>();
   const currentResume = useResumeStore(s => s.currentResume);
   const updateResume = useResumeStore(s => s.updateResume);
   const { incrementUsage, checkCredits } = useAICreditsMutations();
@@ -350,7 +353,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     }));
   }, []);
 
-  const applyResult = useCallback((index: number) => {
+  const applyResult = useCallback((index: number, silent = false) => {
     const result = results[index];
     if (!result || !currentResume) return;
     haptics.medium();
@@ -447,7 +450,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
 
     setResults(prev => prev.map((r, i) => i === index ? { ...r, applied: true } : r));
     onEnhanced?.([result.section]);
-    toast.success(`${result.label} updated!`);
+    if (!silent) toast.success(`${result.label} updated!`);
   }, [results, currentResume, updateResume]);
 
   const discardResult = useCallback((index: number) => {
@@ -489,15 +492,34 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
         </div>
       );
     }
-    // For summary/skills: readable text
+    // For summary/skills: readable text with expand toggle
     const text = formatSectionContent(sectionId, content);
-    const maxLen = variant === 'original' ? 300 : 500;
+    const key = `${sectionId}-${variant}`;
+    const isExpanded = expandedDiffText.has(key);
+    const PREVIEW_LEN = 280;
+    const isLong = text.length > PREVIEW_LEN;
+    const displayText = isLong && !isExpanded ? text.slice(0, PREVIEW_LEN) + '…' : text;
     return (
       <div className={cn(
-        "p-2.5 rounded-lg text-xs whitespace-pre-wrap",
+        "p-2.5 rounded-lg text-xs whitespace-pre-wrap break-words",
         variant === 'original' ? "bg-muted line-through opacity-60" : "bg-primary/5 border border-primary/20"
       )}>
-        {text.slice(0, maxLen)}{text.length > maxLen ? '…' : ''}
+        {displayText}
+        {isLong && (
+          <button
+            className="block mt-1 text-primary/80 hover:text-primary underline font-medium"
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpandedDiffText(prev => {
+                const next = new Set(prev);
+                if (next.has(key)) next.delete(key); else next.add(key);
+                return next;
+              });
+            }}
+          >
+            {isExpanded ? 'Show less' : 'Show full'}
+          </button>
+        )}
       </div>
     );
   };
@@ -517,7 +539,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
           </div>
         </SheetHeader>
 
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-5 py-4 ai-output-scroll-fade">
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto space-y-5 py-4 ai-output-scroll-fade">
           {/* Mode Selector - hidden in ATS mode */}
           {!atsMode && (
             <div>
@@ -654,9 +676,13 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
                     className="text-xs min-h-[44px] active:scale-95 transition-transform touch-manipulation"
                     onClick={() => {
                       haptics.medium();
+                      let applied = 0;
                       results.forEach((r, i) => {
-                        if (!r.applied) applyResult(i);
+                        if (!r.applied) { applyResult(i, true); applied++; }
                       });
+                      if (applied > 0) {
+                        toast.success(`${applied} section${applied !== 1 ? 's' : ''} applied to your resume.`);
+                      }
                     }}
                   >
                     <Check className="w-3.5 h-3.5 mr-1" /> Apply All

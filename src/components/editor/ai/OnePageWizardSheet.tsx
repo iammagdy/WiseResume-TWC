@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useScrollFade } from '@/hooks/useScrollFade';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FileText, 
@@ -73,8 +74,10 @@ export function OnePageWizardSheet({ open, onOpenChange, onExportOnePage }: OneP
   const { currentResume, updateResume } = useResumeStore(useShallow((s) => ({ currentResume: s.currentResume, updateResume: s.updateResume })));
   const [viewState, setViewState] = useState<ViewState>('preview');
   const [isLoading, setIsLoading] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
   const [result, setResult] = useState<OnePageResult | null>(null);
   const { execute: executeAI } = useAIAction({ operation: 'one-page' });
+  const scrollRef = useScrollFade<HTMLDivElement>();
 
   const handleAnalyze = async () => {
     if (!currentResume) {
@@ -139,19 +142,29 @@ export function OnePageWizardSheet({ open, onOpenChange, onExportOnePage }: OneP
     updateResume(updatedResume);
   };
 
-  const handleApplyChanges = () => {
-    applyCondensedChanges();
-    haptics.success();
-    toast.success('Resume condensed successfully!');
-    onOpenChange(false);
+  const handleApplyChanges = async () => {
+    setIsApplying(true);
+    try {
+      applyCondensedChanges();
+      haptics.success();
+      toast.success('Resume condensed successfully!');
+      onOpenChange(false);
+    } finally {
+      setIsApplying(false);
+    }
   };
 
-  const handleApplyAndDownload = () => {
-    applyCondensedChanges();
-    haptics.success();
-    toast.success('Changes applied! Generating one-page PDF...');
-    onOpenChange(false);
-    onExportOnePage?.();
+  const handleApplyAndDownload = async () => {
+    setIsApplying(true);
+    try {
+      applyCondensedChanges();
+      haptics.success();
+      toast.success('Changes applied! Generating one-page PDF...');
+      onOpenChange(false);
+      onExportOnePage?.();
+    } finally {
+      setIsApplying(false);
+    }
   };
 
   const handleReset = () => {
@@ -170,7 +183,7 @@ export function OnePageWizardSheet({ open, onOpenChange, onExportOnePage }: OneP
           <AIProviderVia className="mt-0.5" />
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto min-h-0 ai-output-scroll-fade">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0 ai-output-scroll-fade">
           <AnimatePresence mode="wait">
             {/* Preview State */}
             {viewState === 'preview' && (
@@ -259,7 +272,7 @@ export function OnePageWizardSheet({ open, onOpenChange, onExportOnePage }: OneP
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm font-medium">Page Reduction</span>
                     <Badge variant="outline" className="bg-success/20 text-success border-success/30">
-                      {result.currentEstimatedPages} → {result.optimizedEstimatedPages} page
+                      {result.currentEstimatedPages} → {result.optimizedEstimatedPages} {result.optimizedEstimatedPages === 1 ? 'page' : 'pages'}
                     </Badge>
                   </div>
                   <div className="flex items-center gap-3">
@@ -322,7 +335,7 @@ export function OnePageWizardSheet({ open, onOpenChange, onExportOnePage }: OneP
                             {item.section}
                           </Badge>
                         </div>
-                        <p className="text-sm font-medium">{item.item || (item as any).name || (item as any).title || JSON.stringify(item)}</p>
+                        <p className="text-sm font-medium truncate" title={item.item || (item as any).name || (item as any).title || ''}>{item.item || (item as any).name || (item as any).title || JSON.stringify(item)}</p>
                         <p className="text-xs text-muted-foreground mt-1">{item.reason || (item as any).description || ''}</p>
                       </div>
                     ))}
@@ -363,15 +376,15 @@ export function OnePageWizardSheet({ open, onOpenChange, onExportOnePage }: OneP
 
           {viewState === 'results' && result && (
             <>
-              <Button className="w-full" onClick={handleApplyAndDownload}>
-                <Download className="w-4 h-4 mr-2" />
+              <Button className="w-full" onClick={handleApplyAndDownload} disabled={isApplying}>
+                {isApplying ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
                 Apply & Download One-Page PDF
               </Button>
-              <Button variant="outline" className="w-full" onClick={handleApplyChanges}>
-                <CheckCircle2 className="w-4 h-4 mr-2" />
+              <Button variant="outline" className="w-full" onClick={handleApplyChanges} disabled={isApplying}>
+                {isApplying ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
                 Apply Changes Only
               </Button>
-              <Button variant="ghost" className="w-full" onClick={handleReset}>
+              <Button variant="ghost" className="w-full" onClick={handleReset} disabled={isApplying}>
                 Cancel
               </Button>
             </>

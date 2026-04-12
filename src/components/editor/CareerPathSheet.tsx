@@ -261,7 +261,7 @@ export function CareerPathSheet({ open, onOpenChange }: CareerPathSheetProps) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[85vh] flex flex-col p-0">
+      <SheetContent side="bottom" className="max-h-[90dvh] flex flex-col p-0">
         <SheetHeader className="px-4 pt-4 pb-2 shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-primary" />
