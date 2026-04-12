@@ -47,11 +47,9 @@ export function KanbanColumn({ column, cards, onDelete }: KanbanColumnProps) {
               <span className={cn('text-[11px] font-bold uppercase tracking-widest', column.headerColorClass)}>
                 {column.label}
               </span>
-              {cards.length > 0 && (
-                <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0', column.badgeColorClass)}>
+              <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0', column.badgeColorClass)}>
                   {cards.length}
                 </span>
-              )}
             </button>
             {/* + Add button also available on rejected column */}
             <button
@@ -72,11 +70,9 @@ export function KanbanColumn({ column, cards, onDelete }: KanbanColumnProps) {
             <span className={cn('text-[11px] font-bold uppercase tracking-widest flex-1', column.headerColorClass)}>
               {column.label}
             </span>
-            {cards.length > 0 && (
-              <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0', column.badgeColorClass)}>
-                {cards.length}
-              </span>
-            )}
+            <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0', column.badgeColorClass)}>
+              {cards.length}
+            </span>
             <button
               onClick={() => setShowQuickAdd((v) => !v)}
               className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-muted text-muted-foreground transition-colors touch-manipulation"

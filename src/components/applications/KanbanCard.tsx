@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { JobApplication } from '@/hooks/useJobApplications';
 import { cn } from '@/lib/utils';
-import { formatDistanceToNow, differenceInDays, differenceInHours } from 'date-fns';
+import { format, differenceInDays, differenceInHours } from 'date-fns';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,7 +66,7 @@ export const KanbanCard = memo(function KanbanCard({ application, onDelete }: Ka
   const avatarColor = getAvatarColor(application.company);
   const deadlineBadge = getDeadlineBadge(application.deadline);
   const hasReminder = !!application.remind_at;
-  const timeAgo = formatDistanceToNow(new Date(application.applied_at), { addSuffix: true });
+  const appliedDate = format(new Date(application.applied_at), 'MMM d, yyyy');
   const initial = application.company.charAt(0).toUpperCase();
 
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -197,8 +197,8 @@ export const KanbanCard = memo(function KanbanCard({ application, onDelete }: Ka
         </div>
       )}
 
-      {/* Time ago */}
-      <p className="text-[10px] text-muted-foreground">{timeAgo}</p>
+      {/* Applied date */}
+      <p className="text-[10px] text-muted-foreground">Applied {appliedDate}</p>
     </div>
   );
 });
