@@ -91,7 +91,7 @@ body.wr-security-curtain [data-biometric-lock] {
     --accent: 38 92% 50%;
     --accent-foreground: 0 0% 100%;
 
-    /* Surfaces — Light Mode (default for :root, dark overrides below) */
+    /* Surfaces — Light Mode (default for :root) */
     --background: 0 0% 100%;
     --foreground: 240 6% 10%;
 
@@ -118,6 +118,12 @@ body.wr-security-curtain [data-biometric-lock] {
 
     --warning: 38 92% 50%;
     --warning-foreground: 38 92% 15%;
+
+    --error: 0 72% 51%;
+    --error-foreground: 0 0% 100%;
+
+    --info: 210 80% 50%;
+    --info-foreground: 0 0% 100%;
 
     /* Sidebar (compatibility) */
     --sidebar-background: 220 14% 96%;
@@ -165,6 +171,12 @@ body.wr-security-curtain [data-biometric-lock] {
     --warning: 38 92% 50%;
     --warning-foreground: 38 92% 15%;
 
+    --error: 0 72% 51%;
+    --error-foreground: 0 0% 100%;
+
+    --info: 210 80% 50%;
+    --info-foreground: 0 0% 100%;
+
     --sidebar-background: 220 14% 96%;
     --sidebar-foreground: 240 6% 10%;
     --sidebar-primary: 239 84% 67%;
@@ -209,6 +221,12 @@ body.wr-security-curtain [data-biometric-lock] {
     --warning: 38 92% 50%;
     --warning-foreground: 38 92% 15%;
 
+    --error: 0 72% 51%;
+    --error-foreground: 0 0% 100%;
+
+    --info: 210 80% 50%;
+    --info-foreground: 0 0% 100%;
+
     --sidebar-background: 240 5% 9%;
     --sidebar-foreground: 220 14% 96%;
     --sidebar-primary: 239 84% 67%;
@@ -218,6 +236,78 @@ body.wr-security-curtain [data-biometric-lock] {
     --sidebar-border: 240 4% 18%;
     --sidebar-ring: 239 84% 67%;
   }
+}
+
+/* ============================================================
+   App-shell scoped palette — deeper near-black surfaces.
+   Applied only within the AppShell wrapper (.app-theme),
+   which covers all non-landing app routes. Landing page
+   (src/pages/Index.tsx) is excluded and retains the global
+   palette defined in :root / .light / .dark above.
+   ============================================================ */
+
+/* App light palette: #F7F7F8 surface / #EFEFEF elevated */
+.light .app-theme {
+  --background: 240 4% 97%;
+  --card: 0 0% 94%;
+  --popover: 0 0% 94%;
+  --muted: 0 0% 94%;
+  --border: 220 13% 88%;
+  --input: 220 13% 88%;
+  --sidebar-background: 0 0% 94%;
+  --sidebar-accent: 0 0% 94%;
+  --sidebar-border: 220 13% 88%;
+  /* Semantic */
+  --success: 142 71% 38%;
+  --success-foreground: 0 0% 100%;
+  --warning: 38 92% 44%;
+  --warning-foreground: 38 92% 12%;
+  --error: 0 72% 51%;
+  --error-foreground: 0 0% 100%;
+  --info: 210 80% 50%;
+  --info-foreground: 0 0% 100%;
+}
+
+/* App dark palette: #0C0C0E base / #161618 surface / #1F1F23 elevated / #0A0A0C sunken */
+.dark .app-theme {
+  /* Base: #0C0C0E = hsl(240 6% 5%) */
+  --background: 240 6% 5%;
+  --foreground: 220 14% 93%;
+
+  /* Surface: #161618 = hsl(240 3% 9%) */
+  --card: 240 3% 9%;
+  --card-foreground: 220 14% 93%;
+
+  /* Elevated: #1F1F23 = hsl(240 5% 13%) — popover/modal sits above surface */
+  --popover: 240 5% 13%;
+  --popover-foreground: 220 14% 93%;
+
+  /* Muted uses elevated layer */
+  --muted: 240 5% 13%;
+  --muted-foreground: 220 9% 58%;
+
+  /* Border: #2A2A30 = hsl(240 7% 18%) */
+  --border: 240 7% 18%;
+  /* Input: sunken #0A0A0C = hsl(240 9% 4%) */
+  --input: 240 9% 4%;
+
+  /* Semantic — exact dark-mode values (#22C55E, #F59E0B, #EF4444, #3B82F6) */
+  --success: 142 71% 45%;
+  --success-foreground: 0 0% 100%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 38 80% 10%;
+  --error: 0 84% 60%;
+  --error-foreground: 0 0% 100%;
+  --info: 217 91% 60%;
+  --info-foreground: 0 0% 100%;
+
+  /* Sidebar: surface level */
+  --sidebar-background: 240 3% 9%;
+  --sidebar-foreground: 220 14% 93%;
+  --sidebar-accent: 240 5% 13%;
+  --sidebar-accent-foreground: 220 14% 93%;
+  /* Strong border: #3D3D46 = hsl(240 7% 26%) */
+  --sidebar-border: 240 7% 26%;
 }
 
 @layer base {
@@ -232,6 +322,11 @@ body.wr-security-curtain [data-biometric-lock] {
     -moz-osx-font-smoothing: grayscale;
     scroll-behavior: smooth;
     font-size: 16px;
+    transition: background-color 250ms ease, color 250ms ease;
+  }
+
+  body {
+    transition: background-color 250ms ease, color 250ms ease;
   }
 
   #root {
