@@ -59,7 +59,7 @@ const featureSections: FeatureSectionData[] = [
     categoryLabel: '02 — AI Tailoring',
     bigLabel: 'Tailoring',
     title: 'Precision Resume Tailoring',
-    desc: 'Paste any job description and receive a precisely tailored resume in seconds. Review every change before applying.',
+    desc: 'Paste a job description and AI rewrites your resume to match in 30 seconds. See the before and after instantly.',
     bullets: [
       'Automatically matches keywords from any job description',
       'Before/after comparison shows exactly what changed',
@@ -78,7 +78,7 @@ const featureSections: FeatureSectionData[] = [
     desc: 'Turn your resume into a beautiful personal site with themes, projects, and a shareable link — zero design skills needed.',
     bullets: [
       'Auto-synced from your resume — always up to date',
-      'Personalised URL you can share with any employer',
+      'Shareable link with a custom slug',
       'Themed layouts that update with one click',
     ],
     demo: 'portfolio',
@@ -122,7 +122,7 @@ const FEATURE_IDS = featureSections.map((s) => s.id);
 
 const TYPEWRITER_WORDS = [
   'interviews',
-  'competitive offers',
+  'offers',
   'your target role',
   'recruiter responses',
   'top-tier positions',
@@ -140,7 +140,7 @@ const TESTIMONIALS = [
     role: "Software Engineer, landed at Shopify",
   },
   {
-    quote: "The interview coach is exceptional. I rehearsed the same question ten times and the improvement was measurable.",
+    quote: "The interview coach is exceptional. I practiced the same question 10 times and could see myself improving.",
     name: "Maria L.",
     role: "Marketing Lead, landed at HubSpot",
   },
