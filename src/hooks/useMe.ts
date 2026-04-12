@@ -107,11 +107,11 @@ export function useMe() {
       return data as MeData;
     },
     enabled: !!user && isAuthenticated,
-    staleTime: 5 * 1000,
+    staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',
-    refetchInterval: 4 * 1000,
+    refetchInterval: false,
     refetchIntervalInBackground: false,
     retry: 2,
     retryDelay: (i: number) => Math.min(1000 * 2 ** i, 5000),

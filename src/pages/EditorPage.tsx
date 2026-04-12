@@ -72,6 +72,12 @@ export default function EditorPage() {
   const isBYOK = useSettingsStore((s) =>
     (s.aiProvider === 'gemini' && s.geminiKeyValidated) ||
     (s.aiProvider === 'ollama' && s.ollamaKeyValidated) ||
+    (s.aiProvider === 'openai' && s.openaiKeyValidated) ||
+    (s.aiProvider === 'anthropic' && s.anthropicKeyValidated) ||
+    (s.aiProvider === 'groq' && s.groqKeyValidated) ||
+    (s.aiProvider === 'mistral' && s.mistralKeyValidated) ||
+    (s.aiProvider === 'xai' && s.xaiKeyValidated) ||
+    (s.aiProvider === 'cohere' && s.cohereKeyValidated) ||
     (s.aiProvider === 'openrouter' && s.openrouterKeyValidated)
   );
   const { gate, triggerGate, dialogOpen: tierGateOpen, dialogState: tierGateState, closeDialog: closeTierGate, isPro, isLoading: planLoading } = useTierGate();

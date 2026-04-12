@@ -22,7 +22,24 @@ function useIsBYOK(): boolean {
   const aiProvider = useSettingsStore((s) => s.aiProvider);
   const geminiKeyValidated = useSettingsStore((s) => s.geminiKeyValidated);
   const ollamaKeyValidated = useSettingsStore((s) => s.ollamaKeyValidated);
-  return (aiProvider === 'gemini' && geminiKeyValidated) || (aiProvider === 'ollama' && ollamaKeyValidated);
+  const openaiKeyValidated = useSettingsStore((s) => s.openaiKeyValidated);
+  const anthropicKeyValidated = useSettingsStore((s) => s.anthropicKeyValidated);
+  const groqKeyValidated = useSettingsStore((s) => s.groqKeyValidated);
+  const mistralKeyValidated = useSettingsStore((s) => s.mistralKeyValidated);
+  const xaiKeyValidated = useSettingsStore((s) => s.xaiKeyValidated);
+  const cohereKeyValidated = useSettingsStore((s) => s.cohereKeyValidated);
+  const openrouterKeyValidated = useSettingsStore((s) => s.openrouterKeyValidated);
+  return (
+    (aiProvider === 'gemini' && geminiKeyValidated) ||
+    (aiProvider === 'ollama' && ollamaKeyValidated) ||
+    (aiProvider === 'openai' && openaiKeyValidated) ||
+    (aiProvider === 'anthropic' && anthropicKeyValidated) ||
+    (aiProvider === 'groq' && groqKeyValidated) ||
+    (aiProvider === 'mistral' && mistralKeyValidated) ||
+    (aiProvider === 'xai' && xaiKeyValidated) ||
+    (aiProvider === 'cohere' && cohereKeyValidated) ||
+    (aiProvider === 'openrouter' && openrouterKeyValidated)
+  );
 }
 
 /**
@@ -111,9 +128,16 @@ export function useAICreditsMutations() {
   const incrementUsage = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error('Not authenticated');
-      const { aiProvider, geminiKeyValidated, ollamaKeyValidated } = useSettingsStore.getState();
+      const { aiProvider, geminiKeyValidated, ollamaKeyValidated, openaiKeyValidated, anthropicKeyValidated, groqKeyValidated, mistralKeyValidated, xaiKeyValidated, cohereKeyValidated, openrouterKeyValidated } = useSettingsStore.getState();
       if (aiProvider === 'gemini' && geminiKeyValidated) return;
       if (aiProvider === 'ollama' && ollamaKeyValidated) return;
+      if (aiProvider === 'openai' && openaiKeyValidated) return;
+      if (aiProvider === 'anthropic' && anthropicKeyValidated) return;
+      if (aiProvider === 'groq' && groqKeyValidated) return;
+      if (aiProvider === 'mistral' && mistralKeyValidated) return;
+      if (aiProvider === 'xai' && xaiKeyValidated) return;
+      if (aiProvider === 'cohere' && cohereKeyValidated) return;
+      if (aiProvider === 'openrouter' && openrouterKeyValidated) return;
 
       const { error } = await supabase.rpc('increment_ai_usage', {
         p_user_id: user.id,
@@ -129,9 +153,16 @@ export function useAICreditsMutations() {
 
   const checkCredits = async (): Promise<boolean> => {
     if (!user) return true;
-    const { aiProvider, geminiKeyValidated, ollamaKeyValidated } = useSettingsStore.getState();
+    const { aiProvider, geminiKeyValidated, ollamaKeyValidated, openaiKeyValidated, anthropicKeyValidated, groqKeyValidated, mistralKeyValidated, xaiKeyValidated, cohereKeyValidated, openrouterKeyValidated } = useSettingsStore.getState();
     if (aiProvider === 'gemini' && geminiKeyValidated) return true;
     if (aiProvider === 'ollama' && ollamaKeyValidated) return true;
+    if (aiProvider === 'openai' && openaiKeyValidated) return true;
+    if (aiProvider === 'anthropic' && anthropicKeyValidated) return true;
+    if (aiProvider === 'groq' && groqKeyValidated) return true;
+    if (aiProvider === 'mistral' && mistralKeyValidated) return true;
+    if (aiProvider === 'xai' && xaiKeyValidated) return true;
+    if (aiProvider === 'cohere' && cohereKeyValidated) return true;
+    if (aiProvider === 'openrouter' && openrouterKeyValidated) return true;
 
     // Use cached 'me' data, but fetch fresh if the cache is cold to avoid
     // bypassing credit checks before the initial query hydrates.

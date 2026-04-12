@@ -76,7 +76,11 @@ serve(async (req) => {
       if (effectivePlan === 'premium') {
         aiCreditsPayload = { ...rawCredits, daily_limit: -1 };
       } else if (effectivePlan === 'pro') {
-        aiCreditsPayload = { ...rawCredits, daily_limit: PRO_DAILY_LIMIT };
+        // Only apply plan default if the stored limit is at or below it.
+        // A higher value indicates an admin override — preserve it.
+        const planDefault = PRO_DAILY_LIMIT;
+        const effectiveLimit = rawCredits.daily_limit > planDefault ? rawCredits.daily_limit : planDefault;
+        aiCreditsPayload = { ...rawCredits, daily_limit: effectiveLimit };
       } else {
         aiCreditsPayload = rawCredits;
       }
