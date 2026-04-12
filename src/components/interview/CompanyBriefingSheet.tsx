@@ -472,7 +472,7 @@ function BriefingContent({ briefing }: { briefing: CompanyBriefing }) {
   sections.push({
     icon: HelpCircle,
     title: 'Questions to Ask',
-    accent: 'border-l-indigo-500',
+    accent: 'border-l-rose-500',
     content: (
       <ul className="space-y-2">
         {briefing.questionsToAsk.map((q, i) => (
@@ -523,7 +523,7 @@ function BriefingContent({ briefing }: { briefing: CompanyBriefing }) {
               <ul className="space-y-1.5">
                 {topQuestions.map((q, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm">
-                    <HelpCircle className="w-3.5 h-3.5 text-indigo-500 mt-0.5 shrink-0" />
+                    <HelpCircle className="w-3.5 h-3.5 text-rose-500 mt-0.5 shrink-0" />
                     <span className="text-foreground leading-snug">"{q.question}"</span>
                   </li>
                 ))}

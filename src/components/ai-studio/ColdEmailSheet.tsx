@@ -121,7 +121,7 @@ Subject: [subject line]
       <SheetContent side="bottom" className="max-h-[90dvh] flex flex-col p-0">
         <SheetHeader className="px-4 pt-4 pb-2 border-b border-border shrink-0">
           <SheetTitle className="flex items-center gap-2">
-            <Mail className="w-5 h-5 text-indigo-500" />
+            <Mail className="w-5 h-5 text-rose-500" />
             Cold Email to Recruiter
           </SheetTitle>
           <div className="flex items-center gap-2">
