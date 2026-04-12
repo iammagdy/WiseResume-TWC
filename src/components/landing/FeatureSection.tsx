@@ -93,7 +93,7 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
     <section
       ref={sectionRef as React.Ref<HTMLElement>}
       id={`feature-${data.id}`}
-      className="relative py-16 sm:py-24 px-4 sm:px-6 overflow-hidden"
+      className="relative py-16 sm:py-24 px-4 sm:px-6 overflow-hidden min-h-[70vh] flex flex-col justify-center"
       aria-label={data.title}
     >
       <span

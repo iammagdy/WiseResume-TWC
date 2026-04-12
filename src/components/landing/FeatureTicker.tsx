@@ -36,7 +36,6 @@ export function FeatureTicker() {
     <div
       className="relative overflow-hidden py-5 group select-none"
       aria-label="Features overview"
-      aria-hidden="true"
       tabIndex={0}
     >
       <div className="flex w-max animate-marquee group-hover:[animation-play-state:paused] group-focus-within:[animation-play-state:paused]">
