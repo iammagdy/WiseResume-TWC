@@ -3,7 +3,6 @@ import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAuth } from '../_shared/authMiddleware.ts';
 
 const PLAN_TIER: Record<string, number> = { free: 0, pro: 1, premium: 2 };
-const PRO_DAILY_LIMIT = 30;
 
 /** Computes the user's effective plan, accounting for active trials. */
 function effectivePlan(planName: string | null, trialPlan: string | null, trialExpiresAt: string | null): string {
@@ -11,37 +10,6 @@ function effectivePlan(planName: string | null, trialPlan: string | null, trialE
     return trialPlan;
   }
   return planName ?? 'free';
-}
-
-/**
- * Syncs ai_credits.daily_limit for the user to match their new plan.
- * Uses a 2-step update-then-insert approach to avoid resetting daily_usage
- * for users who already consumed credits today. No SQL RPC dependency.
- */
-async function syncCreditLimit(supabase: ReturnType<typeof getServiceClient>, userId: string, newDailyLimit: number): Promise<void> {
-  const today = new Date().toISOString().split('T')[0];
-
-  // 1. Try to update the existing row (preserves daily_usage)
-  const { count } = await supabase
-    .from('ai_credits')
-    .update({ daily_limit: newDailyLimit })
-    .eq('user_id', userId)
-    .select('user_id', { count: 'exact', head: true });
-
-  // 2. If no row existed, insert a fresh one
-  if (!count || count === 0) {
-    const { error: insertError } = await supabase.from('ai_credits').insert({
-      user_id: userId,
-      daily_limit: newDailyLimit,
-      daily_usage: 0,
-      usage_date: today,
-      total_usage: 0,
-    });
-    if (insertError && insertError.code !== '23505') {
-      // 23505 = unique_violation (race — another insert just beat us, that's fine)
-      console.error('[redeem-coupon] ai_credits insert error:', insertError);
-    }
-  }
 }
 
 Deno.serve(async (req) => {
@@ -123,24 +91,30 @@ Deno.serve(async (req) => {
 
     // After a successful redemption, sync ai_credits.daily_limit to match the
     // new plan so the backend credit gate immediately sees the right limit.
-    // Uses direct update/insert rather than an SQL RPC to avoid a dependency
-    // on the upsert_ai_credits_limit migration.
+    // upsert_ai_credits_limit RPC: inserts a new row or updates only daily_limit
+    // on conflict, preserving any daily_usage already recorded today.
     if (data?.success && data?.plan_override) {
       const planOverride = data.plan_override as string;
       let newDailyLimit: number;
       if (planOverride === 'premium') {
         newDailyLimit = -1; // Unlimited sentinel
       } else if (planOverride === 'pro') {
-        newDailyLimit = PRO_DAILY_LIMIT;
+        newDailyLimit = 30;
       } else {
         newDailyLimit = 5; // Free tier default
       }
 
-      try {
-        await syncCreditLimit(supabase, userId, newDailyLimit);
-      } catch (syncErr) {
-        console.error('[redeem-coupon] Failed to sync ai_credits:', syncErr);
-        // Non-fatal — the redemption itself succeeded
+      const today = new Date().toISOString().split('T')[0];
+
+      const { error: upsertError } = await supabase.rpc('upsert_ai_credits_limit', {
+        p_user_id: userId,
+        p_daily_limit: newDailyLimit,
+        p_usage_date: today,
+      });
+
+      if (upsertError) {
+        console.error('[redeem-coupon] Failed to sync ai_credits:', upsertError);
+        // Non-fatal — the redemption itself succeeded, log and continue
       }
     }
 

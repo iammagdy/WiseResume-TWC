@@ -28,7 +28,7 @@ jobs:
           BODY=$(echo "$RESPONSE" | head -n -1)
           echo "HTTP status: $HTTP_CODE"
           echo "Response: $BODY"
-          if [ "$HTTP_CODE" != "200" ]; then
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
             echo "::error::Failed to apply migration (HTTP $HTTP_CODE): $BODY"
             exit 1
           fi
