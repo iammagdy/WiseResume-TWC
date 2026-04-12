@@ -14,8 +14,11 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { getUserId } from '@/lib/supabaseBridge';
 import { useQueryClient } from '@tanstack/react-query';
 import { INDUSTRY_OPTIONS } from '@/hooks/useProfile';
+import { useMe } from '@/hooks/useMe';
+import { toast } from 'sonner';
 
 const ONBOARDING_KEY = 'wr-onboarding-completed';
+const ONBOARDING_DRAFT_KEY = 'wr-onboarding-draft';
 const TOTAL_STEPS = 6;
 
 // Career level options matching the DB enum exactly
@@ -31,6 +34,7 @@ export default function OnboardingPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { data: meData } = useMe();
 
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
@@ -39,19 +43,57 @@ export default function OnboardingPage() {
   const [careerLevel, setCareerLevel] = useState<string | null>(null);
   const [location, setLocation] = useState('');
   const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [linkedinError, setLinkedinError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Redirect completed users
   useEffect(() => {
     if (localStorage.getItem(ONBOARDING_KEY) === 'true') {
       navigate('/dashboard', { replace: true });
     }
   }, [navigate]);
 
+  // Restore draft on mount
+  useEffect(() => {
+    if (localStorage.getItem(ONBOARDING_KEY) === 'true') return;
+    try {
+      const raw = localStorage.getItem(ONBOARDING_DRAFT_KEY);
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      if (draft.full_name !== undefined) setName(draft.full_name);
+      if (draft.job_title !== undefined) setJobTitle(draft.job_title);
+      if (draft.industry !== undefined) setIndustry(draft.industry);
+      if (draft.career_level !== undefined) setCareerLevel(draft.career_level);
+      if (draft.location !== undefined) setLocation(draft.location);
+      if (draft.linkedin_url !== undefined) setLinkedinUrl(draft.linkedin_url);
+      if (draft.currentStep !== undefined) setStep(draft.currentStep);
+    } catch {
+      // Invalid draft — ignore
+    }
+  }, []);
+
+  // Persist draft on every step or field change
+  useEffect(() => {
+    if (localStorage.getItem(ONBOARDING_KEY) === 'true') return;
+    const draft = {
+      full_name: name,
+      job_title: jobTitle,
+      industry,
+      career_level: careerLevel,
+      location,
+      linkedin_url: linkedinUrl,
+      currentStep: step,
+    };
+    localStorage.setItem(ONBOARDING_DRAFT_KEY, JSON.stringify(draft));
+  }, [name, jobTitle, industry, careerLevel, location, linkedinUrl, step]);
+
   const markCompleted = async (skip: boolean = false) => {
     setIsSubmitting(true);
 
     // Use the Supabase bridge UUID — falls back to user.id only if it's already a UUID
     const effectiveId = getUserId() || user?.id;
+
+    let saveSucceeded = !effectiveId; // if no user id, treat as success (anonymous/edge case)
 
     if (effectiveId) {
       try {
@@ -75,11 +117,14 @@ export default function OnboardingPage() {
 
         if (error) {
           console.error('[Onboarding] Failed to save profile data:', error);
+          saveSucceeded = false;
         } else {
+          saveSucceeded = true;
           queryClient.invalidateQueries({ queryKey: ['profile'] });
         }
       } catch (err) {
         console.error('[Onboarding] Unexpected error saving onboarding status:', err);
+        saveSucceeded = false;
       }
     }
 
@@ -87,12 +132,31 @@ export default function OnboardingPage() {
       localStorage.setItem(ONBOARDING_KEY, 'true');
     }
 
+    // Only clear the draft once the profile has been persisted successfully
+    if (saveSucceeded) {
+      localStorage.removeItem(ONBOARDING_DRAFT_KEY);
+    }
+
     setIsSubmitting(false);
     navigate('/dashboard', { replace: true });
   };
 
+  const validateLinkedin = (value: string) => {
+    if (!value.trim()) {
+      setLinkedinError('');
+      return true;
+    }
+    if (!value.includes('linkedin.com/in/')) {
+      setLinkedinError('Please enter a valid LinkedIn profile URL, e.g. linkedin.com/in/yourname');
+      return false;
+    }
+    setLinkedinError('');
+    return true;
+  };
+
   const handleSkip = () => markCompleted(true);
   const handleNext = () => {
+    if (step === 3 && !validateLinkedin(linkedinUrl)) return;
     if (step === TOTAL_STEPS - 1) {
       markCompleted(false);
       return;
@@ -112,7 +176,7 @@ export default function OnboardingPage() {
     step === 5 ||
     (step === 1 && name.trim().length > 0) ||
     step === 2 ||
-    step === 3;
+    (step === 3 && !linkedinError);
 
   return (
     <motion.div
@@ -328,11 +392,15 @@ export default function OnboardingPage() {
                     </label>
                     <Input
                       value={linkedinUrl}
-                      onChange={e => setLinkedinUrl(e.target.value)}
+                      onChange={e => { setLinkedinUrl(e.target.value); if (linkedinError) setLinkedinError(''); }}
+                      onBlur={e => validateLinkedin(e.target.value)}
                       placeholder="https://linkedin.com/in/yourname"
                       type="url"
-                      className="h-12 rounded-xl"
+                      className={`h-12 rounded-xl ${linkedinError ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                     />
+                    {linkedinError && (
+                      <p className="text-xs text-destructive">{linkedinError}</p>
+                    )}
                   </div>
                 </div>
 
@@ -383,42 +451,64 @@ export default function OnboardingPage() {
                 </div>
 
                 <div className="space-y-3">
-                  {[
-                    {
-                      icon: Target,
-                      title: 'Build your resume',
-                      description: 'Import or create an AI-polished resume in minutes.',
-                      action: () => { markCompleted(false); navigate('/dashboard'); },
-                    },
-                    {
-                      icon: BookOpen,
-                      title: 'Practice interviews',
-                      description: 'Answer questions with our AI coach and get instant scoring.',
-                      action: () => { markCompleted(false); navigate('/interview'); },
-                    },
-                    {
-                      icon: Sparkles,
-                      title: 'Launch your portfolio',
-                      description: 'Turn your resume into a shareable web portfolio in one click.',
-                      action: () => { markCompleted(false); navigate('/portfolio'); },
-                    },
-                  ].map(({ icon: Icon, title, description, action }) => (
-                    <button
-                      key={title}
-                      onClick={action}
-                      disabled={isSubmitting}
-                      className="w-full flex items-center gap-4 p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:bg-primary/5 transition-all text-left group"
-                    >
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
-                        <Icon className="w-5 h-5 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm text-foreground">{title}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
-                    </button>
-                  ))}
+                  {(() => {
+                    const effectivePlan = meData?.subscription?.effective_plan ?? 'free';
+                    const trialPlan = meData?.subscription?.trial_plan ?? null;
+                    const trialExpiresAt = meData?.subscription?.trial_expires_at ?? null;
+                    const isActiveTrial = !!trialPlan && !!trialExpiresAt && new Date(trialExpiresAt) > new Date();
+                    const isFreeUser = effectivePlan === 'free' && !isActiveTrial;
+
+                    const items = [
+                      {
+                        icon: Target,
+                        title: 'Build your resume',
+                        description: 'Import or create an AI-polished resume in minutes.',
+                        action: () => { markCompleted(false); navigate('/dashboard'); },
+                        gated: false,
+                      },
+                      {
+                        icon: BookOpen,
+                        title: 'Practice interviews',
+                        description: 'Answer questions with our AI coach and get instant scoring.',
+                        action: isFreeUser
+                          ? () => toast.info('Interview Coach is available on Pro and Premium plans — you can upgrade anytime from Settings.')
+                          : () => { markCompleted(false); navigate('/interview'); },
+                        gated: isFreeUser,
+                      },
+                      {
+                        icon: Sparkles,
+                        title: 'Launch your portfolio',
+                        description: 'Turn your resume into a shareable web portfolio in one click.',
+                        action: () => { markCompleted(false); navigate('/portfolio'); },
+                        gated: false,
+                      },
+                    ];
+
+                    return items.map(({ icon: Icon, title, description, action, gated }) => (
+                      <button
+                        key={title}
+                        onClick={action}
+                        disabled={isSubmitting}
+                        className={`w-full flex items-center gap-4 p-4 rounded-2xl border bg-card transition-all text-left group ${
+                          gated
+                            ? 'border-border opacity-60 cursor-default'
+                            : 'border-border hover:border-primary/40 hover:bg-primary/5'
+                        }`}
+                      >
+                        <div className={`w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 ${gated ? '' : 'group-hover:bg-primary/15 transition-colors'}`}>
+                          <Icon className="w-5 h-5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm text-foreground">{title}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+                          {gated && (
+                            <p className="text-xs text-primary mt-0.5">Pro & Premium only</p>
+                          )}
+                        </div>
+                        <ChevronRight className={`w-4 h-4 shrink-0 ${gated ? 'text-muted-foreground/40' : 'text-muted-foreground group-hover:text-primary transition-colors'}`} />
+                      </button>
+                    ));
+                  })()}
                 </div>
               </div>
             )}

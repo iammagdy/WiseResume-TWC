@@ -6,6 +6,7 @@ import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { INDUSTRY_KEYWORDS, detectIndustryCategory } from "../_shared/industryKeywords.ts";
+import { getProfileContext } from "../_shared/profileContext.ts";
 
 // ============= SECURITY: Input validation limits =============
 const MAX_RESUME_SIZE = 100 * 1024; // 100KB
@@ -44,6 +45,9 @@ serve(async (req) => {
       );
     }
     const isByok = creditCheck.remaining === 9999;
+
+    // Fetch profile context for personalized AI prompts
+    const profileCtx = await getProfileContext(userId);
 
     const body = await req.json();
     const resume = body.resume;
@@ -97,7 +101,11 @@ serve(async (req) => {
       );
     }
 
-    const systemPrompt = `You are an expert ATS (Applicant Tracking System) analyzer and resume consultant. Analyze the provided resume against the job description and provide detailed scoring and gap analysis.
+    const profileNote = profileCtx.contextString
+      ? ` ${profileCtx.contextString} Calibrate your feedback and scoring to this seniority level — for example, do not penalize an Entry-level candidate for lacking executive leadership experience, and hold a Senior candidate to a higher standard of impact and scope.`
+      : '';
+
+    const systemPrompt = `You are an expert ATS (Applicant Tracking System) analyzer and resume consultant. Analyze the provided resume against the job description and provide detailed scoring and gap analysis.${profileNote}
 
 IMPORTANT: Respond ONLY with valid JSON, no markdown or code blocks. The response must be parseable JSON.`;
 

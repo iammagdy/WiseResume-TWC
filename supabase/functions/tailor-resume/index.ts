@@ -5,6 +5,7 @@ import { callAIWithRetry, isAIError, parseAIJSON, sanitizeInputText, toUserError
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
+import { getProfileContext } from "../_shared/profileContext.ts";
 
 /** Safely extract skills as a comma-separated string */
 function safeSkillsString(skills: unknown): string {
@@ -51,6 +52,9 @@ serve(async (req) => {
       );
     }
     const isByok = creditCheck.remaining === 9999;
+
+    // Fetch profile context for personalized AI prompts
+    const profileCtx = await getProfileContext(userId);
 
     const body = await req.json();
     const resume = body.resume;
@@ -121,9 +125,13 @@ serve(async (req) => {
 - Position every piece of experience to directly map to job requirements.`,
     };
 
+    const profilePreamble = profileCtx.contextString
+      ? `## CANDIDATE PROFILE\n${profileCtx.contextString} Use this context to calibrate the tone, seniority expectations, and industry-specific language throughout all tailoring decisions.\n\n`
+      : '';
+
     const systemPrompt = `You are a LEGENDARY resume writer, career strategist, and ATS optimization expert with 20+ years of experience helping candidates land jobs at top companies.
 
-${intensityInstructions[tailorIntensity] || intensityInstructions.moderate}
+${profilePreamble}${intensityInstructions[tailorIntensity] || intensityInstructions.moderate}
 
 ## YOUR MISSION
 Transform this resume into a PERFECT match for the target job while maintaining complete authenticity.
