@@ -1,1 +1,0 @@
-This folder is a legacy archive meant for historical context only. It is NOT an active source of truth. Please rely strictly on the project-governance/ files.
