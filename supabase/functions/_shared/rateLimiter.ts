@@ -6,12 +6,16 @@
 import { getServiceClient } from './dbClient.ts';
 
 export interface RateLimitConfig {
-  /** Max requests allowed in the window */
+  /** Max requests allowed in the window for Free plan users */
   maxRequests: number;
+  /** Max requests allowed in the window for Pro plan users */
+  proMaxRequests?: number;
   /** Time window in seconds */
   windowSeconds: number;
   /** Action type to track (e.g. 'score', 'enhance', 'tailor') */
   actionType: string;
+  /** The user's effective plan: 'free' | 'pro' | 'premium' */
+  plan?: string;
 }
 
 const DEFAULT_CONFIG: RateLimitConfig = {
@@ -23,12 +27,34 @@ const DEFAULT_CONFIG: RateLimitConfig = {
 /**
  * Check if a user has exceeded their rate limit.
  * Returns { allowed: boolean, remaining: number, retryAfterSeconds?: number }
+ *
+ * Plan-aware limits:
+ *  - Premium users: no effective rate limit (very high ceiling of 10000)
+ *  - Pro users: proMaxRequests (defaults to 5x maxRequests)
+ *  - Free users: maxRequests
+ *
+ * Fail-open: if the DB query itself errors, the request is allowed through
+ * with a warning log, so a DB issue never blocks legitimate users.
  */
 export async function checkRateLimit(
   userId: string,
   config: Partial<RateLimitConfig> = {}
 ): Promise<{ allowed: boolean; remaining: number; retryAfterSeconds?: number }> {
-  const { maxRequests, windowSeconds, actionType } = { ...DEFAULT_CONFIG, ...config };
+  const merged = { ...DEFAULT_CONFIG, ...config };
+  const { windowSeconds, actionType, plan } = merged;
+
+  // Premium users are not rate-limited
+  if (plan === 'premium') {
+    return { allowed: true, remaining: 10000 };
+  }
+
+  // Determine effective max requests based on plan
+  let maxRequests: number;
+  if (plan === 'pro') {
+    maxRequests = merged.proMaxRequests ?? merged.maxRequests * 5;
+  } else {
+    maxRequests = merged.maxRequests;
+  }
 
   const supabase = getServiceClient();
 
@@ -42,9 +68,9 @@ export async function checkRateLimit(
     .gte('created_at', windowStart);
 
   if (error) {
-    console.error('Rate limit check error:', error);
-    // Fail closed — don't block users if the check itself fails
-    return { allowed: false, remaining: 0, retryAfterSeconds: windowSeconds };
+    console.warn('Rate limit check failed — failing open to avoid blocking users:', error);
+    // Fail open — allow the request through when the DB check itself errors
+    return { allowed: true, remaining: maxRequests };
   }
 
   const used = count ?? 0;
@@ -78,4 +104,40 @@ export async function recordUsage(
   if (error) {
     console.error('Record usage error:', error);
   }
+}
+
+/**
+ * Fetch the user's effective plan from the profiles/subscriptions table.
+ * Returns 'free' | 'pro' | 'premium'.
+ * Defaults to 'free' if not found or on error.
+ */
+export async function getUserPlan(userId: string): Promise<string> {
+  const supabase = getServiceClient();
+
+  const { data, error } = await supabase
+    .from('subscriptions')
+    .select('plan_name, trial_plan, trial_expires_at')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error || !data) {
+    if (error) {
+      console.warn('Failed to fetch user plan for rate limiting, defaulting to free:', error);
+    }
+    return 'free';
+  }
+
+  const KNOWN_PLANS = new Set(['free', 'pro', 'premium']);
+
+  const normalizePlan = (raw: unknown): string => {
+    const lowered = typeof raw === 'string' ? raw.toLowerCase().trim() : '';
+    return KNOWN_PLANS.has(lowered) ? lowered : 'free';
+  };
+
+  // Respect active trial
+  if (data.trial_plan && data.trial_expires_at && new Date(data.trial_expires_at) > new Date()) {
+    return normalizePlan(data.trial_plan);
+  }
+
+  return normalizePlan(data.plan_name);
 }

@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAIWithRetry, isAIError, parseAIJSON, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
-import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
+import { checkRateLimit, recordUsage, getUserPlan } from "../_shared/rateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
 import { deductCredits } from "../_shared/deductCredits.ts";
@@ -30,7 +30,8 @@ serve(async (req) => {
   try {
     const { userId, client } = await requireAuth(req);
 
-    const rateCheck = await checkRateLimit(userId, { maxRequests: 60, windowSeconds: 60, actionType: 'interview' });
+    const userPlan = await getUserPlan(userId);
+    const rateCheck = await checkRateLimit(userId, { maxRequests: 60, proMaxRequests: 200, windowSeconds: 60, actionType: 'interview', plan: userPlan });
     if (!rateCheck.allowed) {
       return new Response(
         JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
