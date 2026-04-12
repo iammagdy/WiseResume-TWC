@@ -158,9 +158,13 @@ const Index = () => {
 
   const { login: kindeLogin, register: kindeRegister } = useKindeAuth();
 
-  const handleCTA = () => {
+  const handleCTA = (plan?: string) => {
     triggerHaptic.medium();
-    kindeRegister();
+    if (plan) {
+      navigate(`/auth?plan=${plan}`);
+    } else {
+      kindeRegister();
+    }
   };
 
   if (authLoading) {
@@ -169,6 +173,13 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <a
+        href="#landing-main"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:p-4 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:m-2"
+      >
+        Skip to content
+      </a>
+
       {/* Background: deep gradient with floating blobs */}
       <div
         className="fixed inset-0 -z-10 pointer-events-none overflow-hidden"
@@ -197,6 +208,7 @@ const Index = () => {
           <button
             onClick={() => { triggerHaptic.light(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
             className="flex items-center gap-2.5 touch-manipulation"
+            aria-label="WiseResume – scroll to top"
           >
             <img alt="WiseResume" loading="lazy" className="w-8 h-8 object-contain rounded-lg" src={themeLogo} />
             <span className="font-display font-bold text-sm text-foreground">WiseResume</span>
@@ -214,7 +226,7 @@ const Index = () => {
             {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="touch-manipulation active:scale-95 transition-transform">
+                  <button className="touch-manipulation active:scale-95 transition-transform" aria-label="Account menu">
                     <Avatar className="h-8 w-8 border border-border">
                       <AvatarImage src={profile?.avatarUrl ?? undefined} />
                       <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
@@ -253,7 +265,7 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto w-full">
+      <main id="landing-main" className="max-w-6xl mx-auto w-full">
         {/* Hero Section */}
         <section className="flex flex-col items-center text-center px-4 sm:px-6 pt-[calc(7rem+env(safe-area-inset-top))] pb-12 sm:pb-16 relative">
           <motion.div className="mb-6" {...fade(0)}>
@@ -386,7 +398,7 @@ const Index = () => {
           </motion.div>
 
           {/* Mobile: horizontal scroll; Desktop: 3-col grid */}
-          <div className="flex gap-5 overflow-x-auto pb-4 sm:pb-0 snap-x snap-mandatory sm:overflow-visible sm:grid sm:grid-cols-3 sm:gap-5 max-w-5xl mx-auto -mx-4 px-4 sm:mx-auto sm:px-0">
+          <div className="flex gap-5 overflow-x-auto pb-4 sm:pb-0 snap-x snap-mandatory sm:overflow-visible sm:grid sm:grid-cols-3 sm:gap-5 max-w-5xl mx-auto -mx-4 px-4 sm:mx-auto sm:px-0 scrollbar-hide">
             {demos.map((demo, i) => {
               const BadgeIcon = demo.badge.icon;
               return (
@@ -418,6 +430,14 @@ const Index = () => {
                 </motion.div>
               );
             })}
+          </div>
+
+          {/* Scroll affordance — visible only on mobile */}
+          <div className="flex items-center justify-center gap-1.5 mt-3 sm:hidden" aria-hidden="true">
+            {demos.map((_, i) => (
+              <span key={i} className={`rounded-full bg-muted-foreground/30 ${i === 0 ? 'w-4 h-1.5' : 'w-1.5 h-1.5'}`} />
+            ))}
+            <span className="ml-2 text-[11px] text-muted-foreground/60">Swipe for more</span>
           </div>
         </section>
 
@@ -497,7 +517,7 @@ const Index = () => {
                   </li>
                 ))}
               </ul>
-              <Button variant="outline" size="lg" className="w-full h-11 rounded-xl" onClick={handleCTA}>
+              <Button variant="outline" size="lg" className="w-full h-11 rounded-xl" aria-label="Get started with the Free plan" onClick={() => handleCTA('free')}>
                 Get Started
               </Button>
             </motion.div>
@@ -524,7 +544,7 @@ const Index = () => {
                   </li>
                 ))}
               </ul>
-              <Button size="lg" className="w-full h-11 rounded-xl" onClick={handleCTA}>
+              <Button size="lg" className="w-full h-11 rounded-xl" aria-label="Get started with the Pro plan" onClick={() => handleCTA('pro')}>
                 Get Started
               </Button>
             </motion.div>
@@ -551,7 +571,7 @@ const Index = () => {
                   </li>
                 ))}
               </ul>
-              <Button size="lg" variant="outline" className="w-full h-11 rounded-xl border-amber-400/50 hover:bg-amber-50 dark:hover:bg-amber-950/20" onClick={handleCTA}>
+              <Button size="lg" variant="outline" className="w-full h-11 rounded-xl border-amber-400/50 hover:bg-amber-50 dark:hover:bg-amber-950/20" aria-label="Get started with the Premium plan" onClick={() => handleCTA('premium')}>
                 Get Started
               </Button>
             </motion.div>

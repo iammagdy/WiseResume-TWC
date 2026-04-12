@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Globe, Home, BarChart3, Sparkles, Lock } from 'lucide-react';
-import { motion, useReducedMotion, LayoutGroup } from 'framer-motion';
+import { FileText, Globe, Home, BarChart3, Sparkles, Lock, MoreHorizontal, QrCode, Bell, TrendingUp, Trophy, Users, HelpCircle, CreditCard, X } from 'lucide-react';
+import { motion, useReducedMotion, LayoutGroup, AnimatePresence } from 'framer-motion';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
@@ -13,6 +13,17 @@ import { useChangelogBadge } from '@/hooks/useChangelogBadge';
 import { useCareerAssessment } from '@/hooks/useCareerAssessment';
 import { usePlan } from '@/hooks/usePlan';
 import { toast } from 'sonner';
+
+const moreItems = [
+  { icon: Globe, label: 'Portfolio', path: '/portfolio', iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-600 dark:text-emerald-400' },
+  { icon: QrCode, label: 'QR Code', path: '/qr-code', iconBg: 'bg-violet-500/10', iconColor: 'text-violet-600 dark:text-violet-400' },
+  { icon: Bell, label: 'Notifications', path: '/notifications', iconBg: 'bg-blue-500/10', iconColor: 'text-blue-600 dark:text-blue-400' },
+  { icon: TrendingUp, label: 'Analytics', path: '/analytics', iconBg: 'bg-indigo-500/10', iconColor: 'text-indigo-600 dark:text-indigo-400' },
+  { icon: Trophy, label: 'Achievements', path: '/achievements', iconBg: 'bg-amber-500/10', iconColor: 'text-amber-600 dark:text-amber-400' },
+  { icon: Users, label: 'Referral', path: '/referral', iconBg: 'bg-pink-500/10', iconColor: 'text-pink-600 dark:text-pink-400' },
+  { icon: HelpCircle, label: 'Help', path: '/help', iconBg: 'bg-muted', iconColor: 'text-muted-foreground' },
+  { icon: CreditCard, label: 'Subscription', path: '/subscription', iconBg: 'bg-primary/10', iconColor: 'text-primary' },
+];
 
 interface TabItem {
   path: string;
@@ -98,6 +109,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
   const pendingCount = useOfflineSyncStore(s => s.pendingChanges.length);
   const { isPro } = usePlan();
   const prefersReducedMotion = useReducedMotion();
+  const [showMore, setShowMore] = useState(false);
 
   const hasCareerReminder = !!careerAssessment?.result?.skillGaps?.length &&
     careerAssessment.completed_milestones.filter((m: string) => m.startsWith('skill:')).length < careerAssessment.result.skillGaps.length;
@@ -135,6 +147,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
       toast.info('Upgrade to Pro to unlock this feature', {
         action: { label: 'Upgrade', onClick: () => navigate('/subscription') }
       });
+      navigate('/subscription');
       return;
     }
     if (tab.path === '/ai-studio') {
@@ -186,7 +199,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
           className="flex items-center justify-around h-16 relative max-w-3xl mx-auto w-full"
           role="tablist"
         >
-          {tabs.map((tab) => {
+          {tabs.slice(0, 4).map((tab) => {
             const active = isActive(tab);
             const Icon = tab.icon;
             return (
@@ -196,11 +209,11 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                 aria-selected={active}
                 aria-label={tab.label}
                 tabIndex={0}
-                onClick={() => handleTabPress(tab)}
+                onClick={() => { setShowMore(false); handleTabPress(tab); }}
                 className={cn(
                   'flex flex-col items-center justify-center gap-0.5 flex-1 h-full min-h-[48px]',
                   'touch-manipulation active:scale-95 transition-colors duration-200 touch-ripple',
-                  'min-w-[52px] relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset'
+                  'min-w-[44px] relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset'
                 )}
               >
                 {active && (
@@ -312,8 +325,94 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
               </button>
             );
           })}
+
+          {/* More button */}
+          <button
+            role="tab"
+            aria-selected={showMore}
+            aria-label="More"
+            tabIndex={0}
+            onClick={() => { haptics.selection(); setShowMore(v => !v); }}
+            className={cn(
+              'flex flex-col items-center justify-center gap-0.5 flex-1 h-full min-h-[48px]',
+              'touch-manipulation active:scale-95 transition-colors duration-200',
+              'min-w-[44px] relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset'
+            )}
+          >
+            {showMore && (
+              <motion.div
+                layoutId="active-tab-pill"
+                className="absolute inset-x-3 top-1.5 bottom-1.5 rounded-xl bg-primary/8"
+                transition={springTransition}
+              />
+            )}
+            <div className="relative z-10">
+              <MoreHorizontal
+                className={cn(
+                  'w-[22px] h-[22px] sm:w-5 sm:h-5 transition-colors duration-200',
+                  showMore ? 'text-primary' : 'text-muted-foreground'
+                )}
+                aria-hidden="true"
+              />
+            </div>
+            <span className={cn(
+              'text-[11px] whitespace-nowrap relative z-10 transition-colors duration-200',
+              showMore ? 'text-primary font-semibold' : 'text-muted-foreground font-medium'
+            )}>More</span>
+          </button>
         </div>
       </LayoutGroup>
+
+      {/* More sheet */}
+      <AnimatePresence>
+        {showMore && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="fixed inset-0 z-40 bg-black/20"
+              onClick={() => setShowMore(false)}
+            />
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', stiffness: 400, damping: 40 }}
+              className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-0 right-0 z-50 bg-background border-t border-border rounded-t-2xl shadow-xl pb-2"
+            >
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                <span className="text-sm font-semibold text-foreground">More</span>
+                <button
+                  onClick={() => setShowMore(false)}
+                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted transition-colors"
+                  aria-label="Close"
+                >
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </div>
+              <div className="grid grid-cols-4 gap-1 p-3">
+                {moreItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.path}
+                      onClick={() => { haptics.light(); setShowMore(false); navigate(item.path); }}
+                      className="flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-muted active:scale-95 transition-all touch-manipulation"
+                    >
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.iconBg}`}>
+                        <Icon className={`w-5 h-5 ${item.iconColor}`} aria-hidden="true" />
+                      </div>
+                      <span className="text-[10px] font-medium text-foreground leading-tight text-center">{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </nav>
   );
 }

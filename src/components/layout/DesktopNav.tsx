@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { FileText, Globe, Home, BarChart3, Sparkles, MessageCircle, Sun, Moon, Search, Settings, LogOut, CreditCard, Lock } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -87,6 +87,7 @@ export function DesktopNav() {
       toast.info('Upgrade to Pro to unlock this feature', {
         action: { label: 'Upgrade', onClick: () => navigate('/subscription') }
       });
+      navigate('/subscription');
       return;
     }
     if (tab.guarded && !currentResumeId) {
@@ -116,7 +117,7 @@ export function DesktopNav() {
       className="hidden lg:flex items-center gap-1 px-6 h-14 border-b border-border bg-background/95 backdrop-blur-sm shrink-0"
       aria-label="Main navigation">
       
-      <span className="text-base font-bold text-primary mr-4 select-none tracking-tight">WiseResume</span>
+      <Link to="/" className="text-base font-bold text-primary mr-4 tracking-tight hover:opacity-80 transition-opacity" aria-label="WiseResume – back to home">WiseResume</Link>
 
       <div className="flex items-center gap-0.5">
         {tabs.map((tab) => {
@@ -166,7 +167,7 @@ export function DesktopNav() {
         <button
           onClick={() => {
             haptics.selection();
-            window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
+            window.dispatchEvent(new Event('open-command-palette'));
           }}
           className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted text-sm transition-colors active:scale-95"
           aria-label="Search actions"
@@ -176,6 +177,14 @@ export function DesktopNav() {
           <kbd className="hidden xl:inline-flex items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
             <span className="text-xs">⌘</span>K
           </kbd>
+        </button>
+
+        <button
+          onClick={() => { haptics.selection(); navigate('/settings'); }}
+          className="flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors active:scale-95"
+          aria-label="Settings"
+        >
+          <Settings className="w-4 h-4" />
         </button>
 
         <button

@@ -22,6 +22,7 @@ export default function AuthPage() {
 
   const redirectTo = searchParams.get('redirect') || '/dashboard';
   const mode = searchParams.get('mode');
+  const plan = searchParams.get('plan');
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>(mode === 'login' ? 'login' : 'signup');
 
   useEffect(() => {
@@ -36,15 +37,18 @@ export default function AuthPage() {
   }, [isAuthenticated, authLoading, navigate, redirectTo]);
 
   useEffect(() => {
-    if (authLoading || isAuthenticated || triggered.current || !mode) return;
+    if (authLoading || isAuthenticated || triggered.current || (!mode && !plan)) return;
     triggered.current = true;
 
     if (mode === 'login') {
       kindeLogin();
     } else {
+      if (plan) {
+        try { sessionStorage.setItem('wr-intent-plan', plan); } catch { /* ignore */ }
+      }
       kindeRegister();
     }
-  }, [authLoading, isAuthenticated, mode, kindeLogin, kindeRegister]);
+  }, [authLoading, isAuthenticated, mode, plan, kindeLogin, kindeRegister]);
 
   const handleAction = () => {
     if (activeTab === 'login') {
@@ -54,7 +58,7 @@ export default function AuthPage() {
     }
   };
 
-  if (mode && triggered.current) {
+  if ((mode || plan) && triggered.current) {
     return (
       <div className="relative isolate min-h-[100dvh] flex flex-col overflow-hidden bg-background">
         <OfflineBanner />
@@ -72,9 +76,15 @@ export default function AuthPage() {
 
   return (
     <div className="relative isolate min-h-[100dvh] flex flex-col overflow-hidden bg-background">
+      <a
+        href="#auth-main"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:p-4 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:m-2"
+      >
+        Skip to content
+      </a>
       <OfflineBanner />
 
-      <div className="absolute top-4 right-4 z-10">
+      <div className="flex justify-end px-4 pt-3">
         <button
           onClick={toggleTheme}
           className="flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
@@ -84,7 +94,7 @@ export default function AuthPage() {
         </button>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-4">
+      <div id="auth-main" className="flex-1 flex flex-col items-center justify-center px-4">
         <div className="w-full max-w-sm">
           <div className="flex flex-col items-center mb-8">
             <AppIcon size={56} />

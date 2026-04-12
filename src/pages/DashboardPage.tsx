@@ -486,10 +486,10 @@ function DashboardPageContent() {
           >
             <HelpCircle className="w-4.5 h-4.5 text-muted-foreground" />
           </Button>
-          <div className="hidden min-[400px]:flex">
+          <div className="flex">
             <AICreditsIndicator />
           </div>
-          <div className="hidden sm:flex">
+          <div className="flex">
             <AIHealthBadge />
           </div>
           <Button
@@ -598,7 +598,7 @@ function DashboardPageContent() {
         <div className="pb-safe lg:max-w-none mx-auto w-full">
           {/* Trust banner — only on first visit, hidden on small screens after first dismiss */}
           {showTrustBanner && (
-            <div className="px-4 pt-3 hidden sm:block">
+            <div className="px-4 pt-3">
               <div className="flex items-start gap-3 p-3 rounded-xl border border-primary/10 bg-primary/5">
                 <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
@@ -686,8 +686,8 @@ function DashboardPageContent() {
           {/* Discover — surface hidden features */}
           <div className="px-4 pt-2 pb-1">
             <p className="text-xs font-medium text-muted-foreground mb-2 px-1">Discover</p>
-            {/* Mobile: horizontal scroll  /  Desktop: grid */}
-            <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-4 px-4 snap-x snap-mandatory scrollbar-hide lg:overflow-visible lg:mx-0 lg:px-0 lg:grid lg:grid-cols-3 lg:gap-3">
+            {/* Mobile: horizontal scroll  /  Tablet+: grid */}
+            <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-4 px-4 snap-x snap-mandatory scrollbar-hide md:overflow-visible md:mx-0 md:px-0 md:grid md:grid-cols-2 md:gap-3 lg:grid-cols-3">
               {[
                 {
                   icon: TrendingUp,
@@ -733,7 +733,7 @@ function DashboardPageContent() {
                 <button
                   key={item.path}
                   onClick={() => { haptics.light(); navigate(item.path); }}
-                  className="flex flex-col gap-2 p-3 rounded-xl bg-card border border-border hover:border-primary/20 active:scale-95 transition-all touch-manipulation text-left shrink-0 w-36 snap-start lg:w-auto lg:shrink"
+                  className="flex flex-col gap-2 p-3 rounded-xl bg-card border border-border hover:border-primary/20 active:scale-95 transition-all touch-manipulation text-left shrink-0 w-36 snap-start md:w-auto md:shrink"
                 >
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${item.iconBg}`}>
                     <item.icon className={`w-4 h-4 ${item.iconColor}`} />
@@ -898,7 +898,7 @@ function DashboardPageContent() {
 
                 <TabsContent value="my-cvs" className="mt-0">
                   <motion.div
-                    className="space-y-3 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0"
+                    className="space-y-3 md:grid md:grid-cols-2 xl:grid-cols-3 md:gap-4 md:space-y-0"
                     initial="hidden"
                     animate="visible"
                     variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
@@ -981,7 +981,7 @@ function DashboardPageContent() {
                     const tailoredRemaining = allTailored.length - tailoredSlice.length;
                     return (
                       <motion.div
-                        className="space-y-3"
+                        className="space-y-3 md:grid md:grid-cols-2 xl:grid-cols-3 md:gap-4 md:space-y-0"
                         initial="hidden"
                         animate="visible"
                         variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
