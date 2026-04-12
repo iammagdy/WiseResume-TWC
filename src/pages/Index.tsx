@@ -121,11 +121,12 @@ const featureSections: FeatureSectionData[] = [
 const FEATURE_IDS = featureSections.map((s) => s.id);
 
 const TYPEWRITER_WORDS = [
-  'interviews',
-  'offers',
-  'your target role',
-  'recruiter responses',
-  'top-tier positions',
+  'Senior Developer',
+  'Product Manager',
+  'Data Analyst',
+  'UX Designer',
+  'Software Engineer',
+  'Marketing Lead',
 ];
 
 const TESTIMONIALS = [
@@ -754,23 +755,39 @@ const Index = () => {
               transition: 'color 0.3s ease',
             }}
           >
-            {['Land', 'more'].map((word, i) => (
-              <span key={i} style={{ display: 'inline-block', marginRight: '0.22em' }}>
-                <span
-                  className={`lp-word ${headlineVisible && !prefersReducedMotion ? 'lp-word-visible' : prefersReducedMotion ? 'lp-word-visible' : ''}`}
-                  style={{ transitionDelay: `${80 + i * 100}ms` }}
-                >
-                  {word}
+            {/* Line 1: "Your resume is being" */}
+            <span style={{ display: 'block' }}>
+              {['Your', 'resume', 'is', 'being'].map((word, i) => (
+                <span key={i} style={{ display: 'inline-block', marginRight: '0.22em' }}>
+                  <span
+                    className={`lp-word ${headlineVisible && !prefersReducedMotion ? 'lp-word-visible' : prefersReducedMotion ? 'lp-word-visible' : ''}`}
+                    style={{ transitionDelay: `${80 + i * 100}ms` }}
+                  >
+                    {word}
+                  </span>
                 </span>
-              </span>
-            ))}
-            <span style={{ display: 'inline-block' }}>
-              <span
-                className={`lp-word lp-gradient-text ${headlineVisible && !prefersReducedMotion ? 'lp-word-visible' : prefersReducedMotion ? 'lp-word-visible' : ''}`}
-                style={{ transitionDelay: '280ms', minWidth: '2ch' }}
-              >
-                {typewriterWord || '\u00A0'}
-                <span className="lp-cursor" aria-hidden="true" />
+              ))}
+            </span>
+            {/* Line 2: "ignored as a [typewriter]" */}
+            <span style={{ display: 'block' }}>
+              {['ignored', 'as', 'a'].map((word, i) => (
+                <span key={i} style={{ display: 'inline-block', marginRight: '0.22em' }}>
+                  <span
+                    className={`lp-word ${headlineVisible && !prefersReducedMotion ? 'lp-word-visible' : prefersReducedMotion ? 'lp-word-visible' : ''}`}
+                    style={{ transitionDelay: `${480 + i * 100}ms` }}
+                  >
+                    {word}
+                  </span>
+                </span>
+              ))}
+              <span style={{ display: 'inline-block' }}>
+                <span
+                  className={`lp-word lp-gradient-text ${headlineVisible && !prefersReducedMotion ? 'lp-word-visible' : prefersReducedMotion ? 'lp-word-visible' : ''}`}
+                  style={{ transitionDelay: '780ms', minWidth: '2ch' }}
+                >
+                  {typewriterWord || '\u00A0'}
+                  <span className="lp-cursor" aria-hidden="true" />
+                </span>
               </span>
             </span>
           </h1>
