@@ -232,8 +232,8 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
           className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5"
           style={{ direction: isRtl ? 'rtl' : 'ltr' }}
         >
-          <div style={{ direction: 'ltr' }}>{textCard}</div>
-          <div style={{ direction: 'ltr' }}>{mediaCard}</div>
+          <div style={{ direction: 'ltr' }} data-direction={isRtl ? 'right' : 'left'}>{textCard}</div>
+          <div style={{ direction: 'ltr' }} data-direction={isRtl ? 'left' : 'right'}>{mediaCard}</div>
         </div>
 
         {/* Row 2: bullets/benefits card (full width) */}
