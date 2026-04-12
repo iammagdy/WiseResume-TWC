@@ -294,7 +294,7 @@ const Index = () => {
   const typewriterWord = useTypewriterWord(TYPEWRITER_WORDS);
   useScrollAnimation();
 
-  const FEATURE_NAV_LABELS = ['01  Resume', '02  Tailoring', '03  Portfolio', '04  Interview', '05  Tracker'];
+  const FEATURE_NAV_LABELS = ['01  Resume Builder', '02  AI Tailoring', '03  Portfolio', '04  Interview Coach', '05  Job Tracker'];
 
   useEffect(() => {
     const t1 = setTimeout(() => setHeadlineVisible(true), 100);
@@ -608,7 +608,7 @@ const Index = () => {
           <h1
             className="relative z-10 font-extrabold leading-[1.05] max-w-4xl"
             style={{
-              fontSize: 'clamp(44px, 6.5vw, 84px)',
+              fontSize: 'clamp(4rem, 8vw, 7rem)',
               color: '#f0f0f5',
               letterSpacing: '-0.035em',
             }}
