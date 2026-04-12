@@ -94,7 +94,7 @@
     "three": "^0.170.0",
     "uuid": "^13.0.0",
     "vaul": "^0.9.9",
-    "vite-plugin-pwa": "^1.2.0",
+    "vite-plugin-pwa": "^0.21.1",
     "web-vitals": "^5.1.0",
     "zod": "^3.25.76",
     "zustand": "^5.0.10"
@@ -120,7 +120,7 @@
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
-    "vite": "^8.0.8",
+    "vite": "^5.4.21",
     "vitest": "^3.2.4"
   }
 }
