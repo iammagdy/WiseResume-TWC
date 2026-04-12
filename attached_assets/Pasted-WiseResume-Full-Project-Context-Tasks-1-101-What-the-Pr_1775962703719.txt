@@ -1,0 +1,121 @@
+WiseResume — Full Project Context (Tasks #1–#101)
+What the Project Is
+WiseResume is an AI-powered career management PWA. Production URL: https://resume.thewise.cloud. Users can build resumes, tailor them to job listings with AI, publish a public portfolio, practice interview questions, track job applications, and manage their career goals.
+
+Tech Stack
+Layer	Technology
+Frontend	React 18 + TypeScript 5 + Vite 5
+Styling	Tailwind CSS + Radix UI + Framer Motion
+State	Zustand + TanStack Query (React Query)
+Auth	Kinde Auth (https://thewisecloud.kinde.com)
+Database	Supabase PostgreSQL (project ref: jnsfmkzgxsviuthaqlyy)
+Backend	Supabase Edge Functions (Deno runtime)
+PWA	Capacitor 8 + vite-plugin-pwa
+Package Manager	npm
+Hosting	Hostinger (manual deploy via deploy.yml GitHub Action)
+Dev environment	Replit (port 5000, npm run dev)
+Infrastructure & Secrets
+Supabase project ref: jnsfmkzgxsviuthaqlyy
+GitHub repo: iammagdy/wiseresume-74945019
+SUPABASE_ACCESS_TOKEN is set in Replit — enables direct management API calls (secrets, SQL, etc.) without GitHub Actions
+Edge function secrets are in Supabase (not Vault): OPENROUTER_API_KEY, GROQ_API_KEY, GEMINI_API_KEY, RESEND_API_KEY, GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO, DEV_KIT_PASSWORD, KINDE_DOMAIN, + others (15 total)
+SUPABASE_DB_PASSWORD is in GitHub Actions — but db-migration.yml is KNOWN BROKEN due to migration history conflicts (migrations were applied manually and aren't tracked by the Supabase CLI). Use apply-rpc-migration.yml instead for SQL changes.
+Deployment trigger: POST to https://api.github.com/repos/iammagdy/wiseresume-74945019/actions/workflows/deploy-edge-functions.yml/dispatches with {"ref":"main"} using the repo PAT
+Platform merges don't trigger GitHub Actions webhooks — always use workflow_dispatch via API after edge function code changes
+AI System
+Primary AI: OpenRouter (google/gemma-4-26b-a4b-it:free) + Groq (llama-3.3-70b-versatile) — both free tiers
+Central AI client: supabase/functions/_shared/aiClient.ts
+callWiseresumeAI(subProvider, ...) — routes to OpenRouter or Groq
+callAI(...) — top-level dispatcher, priority order: new BYOK providers → OpenRouter BYOK → Ollama → Gemini BYOK → WiseResume managed AI → legacy Gemini key
+BYOK (Bring Your Own Key): Supports OpenAI, Anthropic, Gemini, Groq, Mistral, xAI, Cohere, OpenRouter, Ollama
+Sub-provider preference: Stored in user_preferences.wiseresume_sub_provider and Zustand settingsStore. Options: openrouter | groq | auto
+Auto mode: tries OpenRouter first, falls back to Groq on failure
+Auth System
+Auth provider: Kinde Auth
+Bridge: After Kinde login, a token-exchange Supabase edge function exchanges the Kinde JWT for a bridge UUID stored in Supabase. user.id in the app is ALWAYS the bridge UUID — never the raw Kinde kp_xxx ID.
+useMe hook (queryKey: ['me', user?.id]): Canonical source of truth for plan, credits, preferences. Calls the me edge function.
+Auth guard: All Supabase queries are gated on enabled: !!user — since user is null until the bridge settles, this naturally prevents UUID-type errors.
+Subscription & Credits System
+Plans: free, pro, premium
+Daily AI credit limits (plan-authoritative, derived at runtime — never trust stored daily_limit column):
+premium → unlimited (stored as -1 sentinel, shown as ∞)
+pro → 30/day
+free → 5/day
+creditUtils.ts (supabase/functions/_shared/creditUtils.ts): Always derives the daily limit from the user's current active subscription plan. The ai_credits.daily_limit column is NOT used for limit enforcement — only daily_usage and usage_date are read. This prevents downgrade/trial-expiry escalation.
+SQL RPC: upsert_ai_credits_limit — applied to production DB via management API
+PlanAvatar badge: hasBadge = showLabel only (not based on plan tier alone)
+Design System
+Complete Apple-inspired redesign across all phases:
+
+Colors: Deep Indigo (HSL 239 84% 67%) primary, Warm Amber (HSL 38 92% 50%) accent
+Typography: Inter only
+Surfaces: Solid backgrounds — NO glassmorphism, NO backdrop-filter except backdrop-blur-sm on nav
+Theme: Light (#FFFFFF) + Dark (#111111) + system. Hook: src/hooks/use-theme.ts
+Shadows: Custom scale — shadow-soft-sm through shadow-soft-xl
+Glass classes: All removed across 50+ pages/components. glass-pro (portfolio data value) and Badge variant="glass" (component variant) are intentionally preserved.
+SkyWallpaper: Removed (was THREE.js animated background)
+Portfolio CSS (pf-*): Untouched — used only on public portfolio pages
+Navigation (Post-Task #101 UX Audit)
+DesktopNav (src/components/layout/DesktopNav.tsx):
+
+Brand text is a <Link to="/"> with aria-label
+Settings icon button in the right action row
+Locked tabs (AI Tools, Activity): show upgrade toast AND navigate to /subscription
+Search: uses open-command-palette custom event (not synthetic KeyboardEvent)
+BottomTabBar (src/components/layout/BottomTabBar.tsx):
+
+Tabs: Home, Editor, AI Tools, Activity, More (5 tabs)
+"More" opens an animated bottom sheet with 8 secondary pages: Portfolio, QR Code, Notifications, Analytics, Achievements, Referral, Help, Subscription
+All routes reachable in ≤2 taps
+Locked tabs show upgrade toast AND navigate to /subscription
+CommandPalette: Listens for open-command-palette custom event
+
+Key Pages & Components
+File	Purpose
+src/pages/Index.tsx	Landing page — all marketing stats live here (never invent them)
+src/pages/DashboardPage.tsx	Main dashboard — responsive grid, trust banner always visible
+src/pages/AuthPage.tsx	Login/register — reads ?plan= query param, saves intent to sessionStorage
+src/pages/SubscriptionPage.tsx	Plan management
+src/components/dev-kit/	Admin DevKit — Analytics, Live Activity, Deployment, Audit Log tabs
+src/store/settingsStore.ts	Zustand — theme + AI sub-provider, persisted in localStorage
+src/hooks/useMe.ts	Canonical plan/credits hook
+DevKit (Admin Panel)
+Password-protected (DEV_KIT_PASSWORD in Supabase secrets)
+Tabs: Analytics, Live Activity, Deployment, Audit Log, + others
+DeploymentPanel: Shows last 5 GitHub commits via admin-github-status edge function, env var checklist via admin-env-check, links to Supabase + GitHub
+admin-github-status: Proxies GitHub API using GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO secrets — recently fixed (token was stale)
+LiveActivityPanel: 30s auto-refresh, last 50 usage_events, edge function health cards
+Edge Functions
+All registered in supabase/config.toml with verify_jwt = false. Key functions:
+
+me — returns plan, credits, preferences for current user
+token-exchange — Kinde JWT → bridge UUID, writes audit log
+redeem-coupon — coupon codes, calls upsert_ai_credits_limit RPC after redemption
+validate-api-key — validates all 9 BYOK providers
+admin-github-status — proxies GitHub commits API for DevKit
+admin-env-check — returns boolean presence of required env vars
+All AI-facing functions use callAI from _shared/aiClient.ts
+CI/CD Workflows (.github/workflows/)
+Workflow	Purpose
+deploy.yml	Deploy frontend to Hostinger
+deploy-edge-functions.yml	Deploy all Supabase edge functions
+set-supabase-secrets.yml	Push secrets to Supabase — GITHUB_PAT required (hard fails if missing)
+refresh-devkit-github-token.yml	Dedicated workflow to sync GITHUB_TOKEN to Supabase — PAT required, verifies post-push
+apply-rpc-migration.yml	Apply any SQL file via management API — bypasses broken CLI migration
+db-migration.yml	⚠️ KNOWN BROKEN — duplicate key conflict in supabase_migrations. Use apply-rpc-migration.yml instead
+Replit shell shortcuts (SUPABASE_ACCESS_TOKEN already configured as Replit secret):
+
+bash scripts/refresh-devkit-secrets.sh <GITHUB_PAT>  # refresh GitHub secrets in Supabase
+bash scripts/deploy-functions.sh                      # redeploy all edge functions
+
+Known Rules & Constraints
+Never invent marketing stats — always source from src/pages/Index.tsx
+No any casts — TypeScript strict mode enforced
+Never change primary key column types — destructive and breaks existing data
+user.id = bridge UUID only — never raw Kinde kp_xxx ID
+creditUtils.ts: Derive daily limit from plan at runtime — never trust ai_credits.daily_limit column
+useMe is canonical for plan/credits — queryKey: ['me', user?.id]
+All edge functions need verify_jwt = false in supabase/config.toml
+Pricing CTAs on landing → /auth?plan=free|pro|premium (not direct kindeRegister calls)
+Portfolio pf-* CSS: Never touch — used by public portfolio pages
+Glass cleanup: Complete — only glass-pro data value and Badge variant="glass" are preserved intentionally
