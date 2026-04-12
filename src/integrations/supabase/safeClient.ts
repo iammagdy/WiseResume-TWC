@@ -14,8 +14,14 @@ import { dispatchSessionExpiredOnce } from './sessionExpired';
 /**
  * Create a Supabase client that injects the bridge token on every request.
  * Automatically retries once on 401 after refreshing the bridge token.
+ * Falls back to a placeholder URL when env vars are not configured so the
+ * module does not throw at initialization time (all API calls will fail
+ * gracefully until real credentials are provided via Replit secrets).
  */
-export const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+export const supabase: SupabaseClient = createClient(
+  SUPABASE_URL || 'https://placeholder.supabase.co',
+  SUPABASE_ANON_KEY || 'placeholder',
+  {
   auth: {
     persistSession: false,
     autoRefreshToken: false,

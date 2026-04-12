@@ -12,15 +12,23 @@
 
 const _envUrl = import.meta.env.VITE_SUPABASE_URL;
 if (!_envUrl) {
-  throw new Error('[WiseResume] VITE_SUPABASE_URL is not set. Check your .env file or Replit secrets.');
+  if (import.meta.env.PROD) {
+    throw new Error('[WiseResume] VITE_SUPABASE_URL is not set. Add it as a Replit secret before deploying.');
+  } else {
+    console.warn('[WiseResume] VITE_SUPABASE_URL is not set. Add it as a Replit secret. Supabase features will not work.');
+  }
 }
-export const SUPABASE_URL: string = _envUrl;
+export const SUPABASE_URL: string = _envUrl ?? '';
 
 const _envKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY;
 if (!_envKey) {
-  throw new Error('[WiseResume] VITE_SUPABASE_PUBLISHABLE_KEY is not set. Check your .env file or Replit secrets.');
+  if (import.meta.env.PROD) {
+    throw new Error('[WiseResume] VITE_SUPABASE_PUBLISHABLE_KEY is not set. Add it as a Replit secret before deploying.');
+  } else {
+    console.warn('[WiseResume] VITE_SUPABASE_PUBLISHABLE_KEY is not set. Add it as a Replit secret. Supabase features will not work.');
+  }
 }
-export const SUPABASE_ANON_KEY: string = _envKey;
+export const SUPABASE_ANON_KEY: string = _envKey ?? '';
 
 /**
  * Edge functions now run on the SAME project (unified architecture).
