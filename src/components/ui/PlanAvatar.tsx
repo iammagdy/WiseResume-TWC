@@ -40,7 +40,7 @@ const SIZE_BADGE_CLASS: Record<string, string> = {
 const DEFAULT_BADGE_CLASS = 'mt-1 px-1.5 py-px text-[9px]';
 
 export function PlanAvatar({ plan, avatarUrl, initials, size = 'w-9 h-9', imageAlt, showLabel = false }: PlanAvatarProps) {
-  const hasBadge = showLabel || plan !== 'free';
+  const hasBadge = showLabel;
   const badgeSizeClass = SIZE_BADGE_CLASS[size] ?? DEFAULT_BADGE_CLASS;
 
   return (
