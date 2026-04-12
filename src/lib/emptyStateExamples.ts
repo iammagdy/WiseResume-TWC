@@ -1,11 +1,11 @@
 // Centralized example content for empty section states (Wise Megz persona)
 
 export const contactExample = {
-  fullName: 'Wise Megz',
-  email: 'wise.megz@email.com',
-  phone: '+20 123 456 7890',
-  location: 'Cairo, Egypt',
-  linkedin: 'linkedin.com/in/wisemegz',
+  fullName: 'Your Name',
+  email: 'your.name@email.com',
+  phone: '(XXX) XXX-XXXX',
+  location: 'City, Country',
+  linkedin: 'linkedin.com/in/your-handle',
 };
 
 export const summaryExample =

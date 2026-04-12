@@ -214,7 +214,7 @@ The scorer checks keyword echo — it does textBlob.includes(skillName) to see i
 SECTION-SPECIFIC SCORING RULES FOR EXPERIENCE:
 The scorer checks two things per bullet: (1) starts with an action verb, (2) contains a number/metric.
 - Every bullet in "achievements" and "responsibilities" MUST start with one of these exact action verbs: ${ACTION_VERBS.join(', ')}
-- Every bullet MUST contain at least one quantified metric (number, percentage, dollar amount, team size, or timeframe). If the original has none, add a realistic placeholder like "10+", "15%", "$50K".
+- Every bullet MUST contain at least one quantified metric (number, percentage, dollar amount, team size, or timeframe). If the original bullet has no real metric, insert a bracket placeholder like "[X%]", "[~$X]", or "[N] team members" so the user knows to fill in their actual number — do NOT invent a specific number that wasn't in the original.
 - NEVER remove existing bullets — only improve wording or add new ones
 - Preserve ALL dates, company names, job titles, and "id" values EXACTLY as given — do NOT reformat dates
 - Preserve the exact date format used (if "2020" do not change to "Jan 2020")`;
