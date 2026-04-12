@@ -214,9 +214,13 @@ function useScrollAnimation() {
 function useStatCounters() {
   const [ats, setAts] = useState(0);
   const [resumes, setResumes] = useState(0);
+  const pillsRef = useRef<HTMLDivElement>(null);
+  const startedRef = useRef(false);
 
   useEffect(() => {
-    const t = setTimeout(() => {
+    const startCount = () => {
+      if (startedRef.current) return;
+      startedRef.current = true;
       const duration = 1400;
       const startTime = performance.now();
       const tick = (now: number) => {
@@ -227,11 +231,28 @@ function useStatCounters() {
         if (p < 1) requestAnimationFrame(tick);
       };
       requestAnimationFrame(tick);
-    }, 1000);
-    return () => clearTimeout(t);
+    };
+
+    const el = pillsRef.current;
+    if (!el) { startCount(); return; }
+
+    const rect = el.getBoundingClientRect();
+    if (rect.top < window.innerHeight) {
+      startCount();
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) { startCount(); observer.disconnect(); }
+      },
+      { threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
   }, []);
 
-  return { ats, resumes };
+  return { ats, resumes, pillsRef };
 }
 
 function ResumeScoreCard() {
@@ -309,7 +330,7 @@ const Index = () => {
   const [ctaPulse, setCtaPulse] = useState(false);
 
   const typewriterText = useTypewriter(TYPEWRITER_PHRASES);
-  const { ats, resumes } = useStatCounters();
+  const { ats, resumes, pillsRef } = useStatCounters();
   useScrollAnimation();
 
   const headlineWords = useMemo(() => [
@@ -349,22 +370,33 @@ const Index = () => {
   }, []);
 
   useEffect(() => {
+    let rafId: number | null = null;
+    let lastY = 0;
+
     const onScroll = () => {
-      setScrolled(window.scrollY > 80);
-      if (progressRef.current) {
-        const max = document.documentElement.scrollHeight - window.innerHeight;
-        const pct = max > 0 ? window.scrollY / max * 100 : 0;
-        progressRef.current.style.width = `${pct}%`;
-        const parent = progressRef.current.parentElement;
-        if (parent) parent.style.display = pct > 0 ? '' : 'none';
-      }
-      if (glowRef.current) {
-        const offset = window.scrollY * 0.18;
-        glowRef.current.style.transform = `translateX(-50%) translateY(${offset}px)`;
-      }
+      lastY = window.scrollY;
+      setScrolled(lastY > 80);
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        if (glowRef.current) {
+          glowRef.current.style.transform = `translateX(-50%) translateY(${lastY * 0.18}px)`;
+        }
+        if (progressRef.current) {
+          const max = document.documentElement.scrollHeight - window.innerHeight;
+          const pct = max > 0 ? lastY / max * 100 : 0;
+          progressRef.current.style.width = `${pct}%`;
+          const parent = progressRef.current.parentElement;
+          if (parent) parent.style.display = pct > 0 ? '' : 'none';
+        }
+        rafId = null;
+      });
     };
+
     window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
   }, []);
 
   const getInitials = () => {
@@ -488,16 +520,17 @@ const Index = () => {
           from { opacity: 0; transform: translateY(18px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        .lp-hero-badge     { animation: lp-hero-in 0.55s cubic-bezier(0.22,1,0.36,1) 0.05s both; }
-        .lp-hero-body      { animation: lp-hero-in 0.55s cubic-bezier(0.22,1,0.36,1) 0.50s both; }
-        .lp-hero-cta       { animation: lp-hero-in 0.55s cubic-bezier(0.22,1,0.36,1) 0.65s both; }
-        .lp-hero-trust     { animation: lp-hero-in 0.50s cubic-bezier(0.22,1,0.36,1) 0.80s both; }
-        .lp-hero-pills     { animation: lp-hero-in 0.50s cubic-bezier(0.22,1,0.36,1) 0.94s both; }
-        .lp-hero-card      { animation: lp-hero-in 0.55s cubic-bezier(0.22,1,0.36,1) 1.08s both; }
-        .lp-hero-scroll    { animation: lp-hero-in 0.40s ease 1.40s both; }
+        .lp-hero-badge      { animation: lp-hero-in 0.55s cubic-bezier(0.22,1,0.36,1) 0.05s both; }
+        .lp-hero-typewriter { animation: lp-hero-in 0.55s cubic-bezier(0.22,1,0.36,1) 0.35s both; }
+        .lp-hero-body       { animation: lp-hero-in 0.55s cubic-bezier(0.22,1,0.36,1) 0.50s both; }
+        .lp-hero-cta        { animation: lp-hero-in 0.55s cubic-bezier(0.22,1,0.36,1) 0.65s both; }
+        .lp-hero-trust      { animation: lp-hero-in 0.50s cubic-bezier(0.22,1,0.36,1) 0.80s both; }
+        .lp-hero-pills      { animation: lp-hero-in 0.50s cubic-bezier(0.22,1,0.36,1) 0.94s both; }
+        .lp-hero-card       { animation: lp-hero-in 0.55s cubic-bezier(0.22,1,0.36,1) 1.08s both; }
+        .lp-hero-scroll     { animation: lp-hero-in 0.40s ease 1.40s both; }
 
         @media (prefers-reduced-motion: reduce) {
-          .lp-hero-badge,.lp-hero-body,.lp-hero-cta,.lp-hero-trust,
+          .lp-hero-badge,.lp-hero-typewriter,.lp-hero-body,.lp-hero-cta,.lp-hero-trust,
           .lp-hero-pills,.lp-hero-card,.lp-hero-scroll {
             animation: none; opacity: 1; transform: none;
           }
@@ -680,7 +713,7 @@ const Index = () => {
 
           {/* Typewriter subheadline */}
           <p
-            className="relative z-10 mb-3"
+            className="relative z-10 mb-3 lp-hero-typewriter"
             style={{ fontSize: '1.15rem', lineHeight: 1.65, color: 'rgba(255,255,255,0.62)', maxWidth: 520 }}
           >
             AI tools to help you land{' '}
@@ -751,7 +784,7 @@ const Index = () => {
           </div>
 
           {/* Stat pills — fully contained, no overflow */}
-          <div className="relative z-10 flex flex-wrap items-center justify-center gap-2.5 mt-8 lp-hero-pills">
+          <div ref={pillsRef} className="relative z-10 flex flex-wrap items-center justify-center gap-2.5 mt-8 lp-hero-pills">
             {STAT_PILLS.map(({ icon: Icon, countId, suffix, label }) => {
               const animatedCount = countId === 'ats' ? ats : countId === 'resumes' ? resumes : null;
               const displayPrefix = animatedCount !== null ? `${animatedCount}${suffix}` : null;
@@ -907,7 +940,7 @@ const Index = () => {
               {/* Pro */}
               <div
                 className="lp-animate flex flex-col p-6 relative"
-                style={{ borderRadius: 24, background: 'var(--lp-brand)', transitionDelay: '70ms' }}
+                style={{ borderRadius: 24, background: 'var(--lp-brand)', transitionDelay: '60ms' }}
               >
                 <span
                   className="absolute -top-3 left-6 px-3 py-0.5 rounded-full text-xs font-semibold"
@@ -939,7 +972,7 @@ const Index = () => {
               {/* Premium */}
               <div
                 className="lp-animate flex flex-col p-6 relative"
-                style={{ borderRadius: 24, background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(245,158,11,0.35)', transitionDelay: '140ms' }}
+                style={{ borderRadius: 24, background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(245,158,11,0.35)', transitionDelay: '120ms' }}
               >
                 <span
                   className="absolute -top-3 left-6 px-3 py-0.5 rounded-full text-xs font-semibold"
