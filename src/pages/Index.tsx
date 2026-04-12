@@ -234,13 +234,15 @@ function useStatCounters() {
       raf = requestAnimationFrame(tick);
     };
 
+    const cleanup = () => { if (raf !== null) cancelAnimationFrame(raf); };
+
     const el = pillsRef.current;
-    if (!el) { startCount(); return; }
+    if (!el) { startCount(); return cleanup; }
 
     const rect = el.getBoundingClientRect();
     if (rect.top < window.innerHeight) {
       startCount();
-      return;
+      return cleanup;
     }
 
     const observer = new IntersectionObserver(
@@ -252,7 +254,7 @@ function useStatCounters() {
     observer.observe(el);
     return () => {
       observer.disconnect();
-      if (raf !== null) cancelAnimationFrame(raf);
+      cleanup();
     };
   }, []);
 
