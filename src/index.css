@@ -930,7 +930,7 @@ button,
   left: 0;
   width: 200%;
   height: 12px;
-  color: white;
+  color: hsl(var(--primary-foreground, 0 0% 100%));
   pointer-events: none;
   animation: theme-wave-slide 2.4s linear infinite;
 }
