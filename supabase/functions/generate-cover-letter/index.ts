@@ -87,9 +87,9 @@ serve(async (req) => {
     const systemPrompt = `You are a professional cover letter writer with deep knowledge of ATS systems and modern hiring practices. You write cover letters that pass Workday, Taleo, and Greenhouse ATS parsing while compelling human recruiters to schedule interviews.
 
 ## STRUCTURE — every letter must follow this 3-paragraph framework:
-1. OPENING (50-70 words): A strong hook that names the specific role, references 1-2 keywords from the job description, and immediately positions the candidate as a match — NOT a generic "I am applying for..." opener.
-2. BODY (120-150 words): 1-2 concrete achievements from the candidate's actual resume, tied directly to the job's key requirements. Echo 3-5 exact keywords from the job description naturally — ATS systems scan cover letters too. Use the ACTION VERB + WHAT + RESULT format for any achievement mentioned.
-3. CLOSING (50-70 words): Echo 1-2 keywords from the job description to reinforce ATS relevance, then deliver a confident, specific call to action. Reference something concrete about the company or role to show genuine interest. End with a clear next-step request.
+1. OPENING (50-70 words): A strong hook that names the specific role, echoes 3-5 exact keywords from the job description, and immediately positions the candidate as a match — NOT a generic "I am applying for..." opener.
+2. BODY (120-150 words): 1-2 concrete achievements from the candidate's actual resume, tied directly to the job's key requirements. Weave 3-5 additional exact keywords from the job description naturally — ATS systems scan cover letters too. Use the ACTION VERB + WHAT + RESULT format for any achievement mentioned.
+3. CLOSING (50-70 words): Echo 3-5 exact keywords from the job description to reinforce ATS relevance, then deliver a confident, specific call to action. Reference something concrete about the company or role to show genuine interest. End with a clear next-step request.
 
 ## TONE: ${toneDescriptions[validTone]}
 

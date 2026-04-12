@@ -182,7 +182,7 @@ ATS COMPLIANCE — mandatory for all output regardless of action:
 - Start every bullet with a strong action verb — BANNED OPENERS: "Responsible for", "Helped with", "Worked on", "Assisted in", "Was involved in", "Participated in", "Tasked with"
 - Follow the XYZ formula for every bullet: ACTION VERB + WHAT YOU DID + MEASURABLE RESULT
 - Include a quantified metric OR bracket placeholder [X%] / [~$X] in every bullet — no metric-free bullets
-- Echo the candidate's skill keywords verbatim in the content (exact string match, not synonyms)
+- Echo at least 1 of the candidate's skill keywords verbatim in EACH bullet (exact string match, not synonyms)
 - No bullet symbols (•, ●, ■) and no Markdown (**bold**, *italic*) — plain text only
 `;
 
