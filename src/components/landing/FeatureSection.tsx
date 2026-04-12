@@ -123,6 +123,9 @@ interface FeatureDotNavProps {
 
 export function FeatureDotNav({ sectionIds }: FeatureDotNavProps) {
   const [activeIdx, setActiveIdx] = useState(-1);
+  const prefersReducedMotion =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   useEffect(() => {
     const observers: IntersectionObserver[] = [];
@@ -148,7 +151,7 @@ export function FeatureDotNav({ sectionIds }: FeatureDotNavProps) {
 
   const scrollToSection = (id: string) => {
     const el = document.getElementById(`feature-${id}`);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (el) el.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
   };
 
   if (activeIdx < 0) return null;
