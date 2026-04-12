@@ -409,6 +409,7 @@ const Index = () => {
           --lp-toggle-color: rgba(255,255,255,0.55);
           --lp-brand-pill-bg: rgba(158,27,34,0.1);
           --lp-brand-pill-border: rgba(158,27,34,0.28);
+          --lp-brand-pill-glow: rgba(158,27,34,0.13);
           background: var(--lp-bg);
           color: var(--lp-text);
           transition: background 0.3s ease, color 0.3s ease;
@@ -443,6 +444,7 @@ const Index = () => {
           --lp-toggle-color: rgba(15,15,26,0.55);
           --lp-brand-pill-bg: rgba(158,27,34,0.07);
           --lp-brand-pill-border: rgba(158,27,34,0.2);
+          --lp-brand-pill-glow: rgba(158,27,34,0.1);
         }
 
         .lp-root * { font-style: normal !important; }
@@ -734,9 +736,9 @@ const Index = () => {
           <div
             className="relative z-10 flex items-center gap-2 px-4 py-1.5 rounded-full mb-6"
             style={{
-              background: 'var(--lp-brand-pill-bg, rgba(158,27,34,0.08))',
-              border: '1px solid var(--lp-brand-pill-border, rgba(158,27,34,0.22))',
-              boxShadow: '0 0 18px 0 rgba(158,27,34,0.13)',
+              background: 'var(--lp-brand-pill-bg)',
+              border: '1px solid var(--lp-brand-pill-border)',
+              boxShadow: '0 0 18px 0 var(--lp-brand-pill-glow)',
             }}
           >
             <img
