@@ -126,10 +126,8 @@ export default function SubscriptionPage() {
 
   const isLoading = planLoading || resumesLoading || creditsLoading;
 
-  // Which upgrade plan cards to show
   const upgradeTargets: string[] = isPremium ? [] : isPro ? ['premium'] : ['pro', 'premium'];
 
-  // Coupon state
   const [couponCode, setCouponCode] = useState('');
   const [checking, setChecking] = useState(false);
   const [activating, setActivating] = useState(false);
@@ -190,7 +188,6 @@ export default function SubscriptionPage() {
       setCouponCode('');
       setConfirmOpen(false);
       setCouponDetails(null);
-      // Force-refetch me data so plan updates immediately
       await queryClient.invalidateQueries({ queryKey: ['me'], refetchType: 'all' });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to activate coupon');
@@ -198,6 +195,8 @@ export default function SubscriptionPage() {
       setActivating(false);
     }
   };
+
+  const isPaid = isPro || isPremium;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -208,9 +207,403 @@ export default function SubscriptionPage() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6 pb-24 lg:max-w-none mx-auto w-full">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5 pb-24 lg:max-w-none mx-auto w-full">
 
-        {/* Early Access — Coupon Redemption (prominent, at the top) */}
+        {/* Hero Plan Banner */}
+        {isLoading ? (
+          <Skeleton className="h-36 w-full rounded-2xl" />
+        ) : isPaid ? (
+          <div
+            className={`relative rounded-2xl overflow-hidden p-5 ${
+              isPremium
+                ? 'bg-gradient-to-br from-amber-500/20 via-amber-400/10 to-background border border-amber-400/40'
+                : 'bg-gradient-to-br from-blue-500/20 via-blue-400/10 to-background border border-blue-400/40'
+            }`}
+          >
+            <div
+              className={`absolute inset-0 pointer-events-none ${
+                isPremium
+                  ? 'bg-[radial-gradient(ellipse_at_top_left,rgba(251,191,36,0.18),transparent_60%)]'
+                  : 'bg-[radial-gradient(ellipse_at_top_left,rgba(59,130,246,0.18),transparent_60%)]'
+              }`}
+            />
+            <div className="relative flex items-start gap-4">
+              <div
+                className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg shrink-0 ${
+                  isPremium
+                    ? 'bg-amber-400/20 border border-amber-400/40'
+                    : 'bg-blue-400/20 border border-blue-400/40'
+                }`}
+              >
+                <PlanIcon
+                  plan={plan}
+                  className={`w-7 h-7 ${isPremium ? 'text-amber-400' : 'text-blue-400'}`}
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p
+                    className={`text-xl font-bold ${
+                      isPremium ? 'text-amber-400' : 'text-blue-400'
+                    }`}
+                  >
+                    {planLabel(plan)}
+                  </p>
+                  <Badge
+                    variant="outline"
+                    className={
+                      isActiveTrial
+                        ? isPremium
+                          ? 'border-amber-400/60 text-amber-500'
+                          : 'border-blue-400/60 text-blue-500'
+                        : isPremium
+                        ? 'border-amber-400/60 text-amber-500'
+                        : 'border-blue-400/60 text-blue-500'
+                    }
+                  >
+                    {isActiveTrial ? 'Trial' : 'Active'}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {isPremium
+                    ? "You're on Premium — here's everything unlocked for you"
+                    : "You're on Pro — here's everything unlocked for you"}
+                </p>
+                {isActiveTrial && trialExpiresAt && (
+                  <div className="flex items-center gap-1.5 mt-2">
+                    <CalendarClock
+                      className={`w-3.5 h-3.5 shrink-0 ${
+                        isPremium ? 'text-amber-500' : 'text-blue-500'
+                      }`}
+                    />
+                    <span
+                      className={`text-xs font-medium ${
+                        isPremium
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-blue-600 dark:text-blue-400'
+                      }`}
+                    >
+                      Trial ends {formatDate(trialExpiresAt)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <Card className="border-border bg-card">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-muted">
+                <PlanIcon plan={plan} />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-muted-foreground">Current Plan</p>
+                <p className="text-lg font-bold">{planLabel(plan)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Upgrade to unlock AI tools, unlimited resumes, and more
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Usage */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">Usage</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {/* Resumes */}
+            <div>
+              <div className="flex justify-between text-sm mb-2">
+                <span className="font-medium">Resumes</span>
+                {resumesLoading || planLoading ? (
+                  <Skeleton className="h-4 w-16" />
+                ) : isUnlimitedResumes ? (
+                  <span className="flex items-center gap-1 font-semibold text-primary">
+                    <Infinity className="w-3.5 h-3.5" />
+                    Unlimited
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground font-medium">
+                    {resumeCount} / {resumeLimit}
+                  </span>
+                )}
+              </div>
+              {isUnlimitedResumes ? (
+                <div
+                  className={`h-2 rounded-full overflow-hidden ${
+                    isPremium
+                      ? 'bg-amber-400/20'
+                      : isPro
+                      ? 'bg-blue-400/20'
+                      : 'bg-primary/20'
+                  }`}
+                >
+                  <div
+                    className={`h-full w-full rounded-full ${
+                      isPremium
+                        ? 'bg-gradient-to-r from-amber-400 to-amber-300'
+                        : isPro
+                        ? 'bg-gradient-to-r from-blue-500 to-blue-400'
+                        : 'bg-primary/30'
+                    }`}
+                  />
+                </div>
+              ) : (
+                <Progress
+                  value={Math.min((resumeCount / (resumeLimit ?? 1)) * 100, 100)}
+                  className="h-2"
+                />
+              )}
+              {!isUnlimitedResumes && resumeCount >= (resumeLimit ?? 1) && (
+                <p className="text-xs text-destructive mt-1.5">Resume limit reached — upgrade to add more</p>
+              )}
+            </div>
+
+            {/* AI Credits */}
+            <div>
+              <div className="flex justify-between text-sm mb-2">
+                <span className="font-medium">AI Credits (today)</span>
+                {creditsLoading ? (
+                  <Skeleton className="h-4 w-16" />
+                ) : isUnlimitedCredits ? (
+                  <span className="flex items-center gap-1 font-semibold text-primary">
+                    <Infinity className="w-3.5 h-3.5" />
+                    Unlimited
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground font-medium">
+                    {dailyUsage} / {dailyLimit}
+                  </span>
+                )}
+              </div>
+              {isUnlimitedCredits ? (
+                <div
+                  className={`h-2 rounded-full overflow-hidden ${
+                    isPremium
+                      ? 'bg-amber-400/20'
+                      : isPro
+                      ? 'bg-blue-400/20'
+                      : 'bg-primary/20'
+                  }`}
+                >
+                  <div
+                    className={`h-full w-full rounded-full ${
+                      isPremium
+                        ? 'bg-gradient-to-r from-amber-400 to-amber-300'
+                        : isPro
+                        ? 'bg-gradient-to-r from-blue-500 to-blue-400'
+                        : 'bg-primary/30'
+                    }`}
+                  />
+                </div>
+              ) : (
+                <>
+                  <Progress
+                    value={dailyLimit > 0 ? Math.min((dailyUsage / dailyLimit) * 100, 100) : 0}
+                    className="h-2"
+                  />
+                  {!isUnlimitedCredits && (
+                    <p className="text-xs text-muted-foreground mt-1.5">
+                      Resets daily at midnight UTC
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Current plan features */}
+        <Card
+          className={
+            isPremium
+              ? 'border-amber-400/30 bg-amber-50/20 dark:bg-amber-950/10'
+              : isPro
+              ? 'border-blue-400/30 bg-blue-50/20 dark:bg-blue-950/10'
+              : ''
+          }
+        >
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <PlanIcon plan={plan} />
+              <CardTitle
+                className={`text-sm font-semibold ${
+                  isPremium
+                    ? 'text-amber-600 dark:text-amber-400'
+                    : isPro
+                    ? 'text-blue-600 dark:text-blue-400'
+                    : ''
+                }`}
+              >
+                Your {planLabel(plan)} Plan includes
+              </CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2 pt-0">
+            {/* Credit limit row — highlighted at top */}
+            <div
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${
+                isPremium
+                  ? 'bg-amber-100/60 dark:bg-amber-900/30 border border-amber-200/80 dark:border-amber-800/50'
+                  : isPro
+                  ? 'bg-blue-100/60 dark:bg-blue-900/30 border border-blue-200/80 dark:border-blue-800/50'
+                  : 'bg-muted/60 border border-border'
+              }`}
+            >
+              {isPremium ? (
+                <Infinity className="w-5 h-5 shrink-0 text-amber-500" />
+              ) : isPro ? (
+                <Bot className="w-5 h-5 shrink-0 text-blue-500" />
+              ) : (
+                <Bot className="w-5 h-5 shrink-0 text-muted-foreground" />
+              )}
+              <span
+                className={`text-sm font-semibold ${
+                  isPremium
+                    ? 'text-amber-700 dark:text-amber-300'
+                    : isPro
+                    ? 'text-blue-700 dark:text-blue-300'
+                    : ''
+                }`}
+              >
+                {isPremium
+                  ? 'Unlimited AI credits/day'
+                  : isPro
+                  ? '30 AI credits/day'
+                  : '5 AI credits/day'}
+              </span>
+              {isPremium && (
+                <Badge className="ml-auto text-[10px] px-1.5 py-0 bg-amber-500 text-white border-0">
+                  Unlimited
+                </Badge>
+              )}
+            </div>
+
+            {/* Feature rows */}
+            {PLAN_FEATURES[plan as keyof typeof PLAN_FEATURES]?.map((feature) => {
+              const Icon = feature.icon;
+              return (
+                <div
+                  key={feature.label}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${
+                    isPremium
+                      ? 'bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-100/40 dark:hover:bg-amber-900/20'
+                      : isPro
+                      ? 'bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-100/40 dark:hover:bg-blue-900/20'
+                      : 'bg-muted/30 hover:bg-muted/50'
+                  } transition-colors`}
+                >
+                  <div
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                      isPremium
+                        ? 'bg-amber-100 dark:bg-amber-900/40'
+                        : isPro
+                        ? 'bg-blue-100 dark:bg-blue-900/40'
+                        : 'bg-muted'
+                    }`}
+                  >
+                    <Icon
+                      className={`w-4 h-4 ${
+                        isPremium
+                          ? 'text-amber-500'
+                          : isPro
+                          ? 'text-blue-500'
+                          : 'text-muted-foreground'
+                      }`}
+                    />
+                  </div>
+                  <span className="text-sm font-medium">{feature.label}</span>
+                  <Check
+                    className={`w-4 h-4 ml-auto shrink-0 ${
+                      isPremium
+                        ? 'text-amber-500'
+                        : isPro
+                        ? 'text-blue-500'
+                        : 'text-muted-foreground'
+                    }`}
+                  />
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+
+        {/* Upgrade cards */}
+        {upgradeTargets.map((target) => (
+          <Card
+            key={target}
+            className={
+              target === 'premium'
+                ? 'border-amber-400/40 relative overflow-hidden'
+                : 'border-blue-400/30 relative overflow-hidden'
+            }
+          >
+            <div
+              className={`absolute top-0 right-0 text-[10px] font-bold px-3 py-1 rounded-bl-xl ${
+                target === 'premium' ? 'bg-amber-500 text-white' : 'bg-blue-500 text-white'
+              }`}
+            >
+              {target === 'premium' ? 'POWER USERS' : 'POPULAR'}
+            </div>
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center gap-2 mt-1">
+                <PlanIcon
+                  plan={target}
+                  className={`w-5 h-5 ${target === 'premium' ? 'text-amber-500' : 'text-blue-500'}`}
+                />
+                <p className="text-sm font-semibold">{planLabel(target)}</p>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-xl font-bold">{PLAN_PRICES[target]}</span>
+                <span className="text-sm text-muted-foreground">/month</span>
+              </div>
+              <div className="space-y-1.5">
+                {PLAN_FEATURES[target as keyof typeof PLAN_FEATURES].map((feature) => {
+                  const Icon = feature.icon;
+                  return (
+                    <div key={feature.label} className="flex items-center gap-2 text-sm">
+                      <Icon
+                        className={`w-4 h-4 shrink-0 ${
+                          target === 'premium' ? 'text-amber-500' : 'text-blue-500'
+                        }`}
+                      />
+                      <span>{feature.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <Button
+                className={`w-full mt-1 ${
+                  target === 'premium'
+                    ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                    : 'bg-blue-500 hover:bg-blue-600 text-white'
+                }`}
+                onClick={() => handleUpgrade(target)}
+              >
+                <Crown className="w-4 h-4 mr-2" />
+                Upgrade to {planLabel(target)} — coming soon
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
+
+        {/* Referral Link */}
+        <Card className="bg-gradient-to-br from-primary/5 to-accent/5">
+          <CardContent className="p-4 flex items-center gap-3">
+            <Gift className="w-5 h-5 text-primary" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">Invite Friends, Earn Rewards</p>
+              <p className="text-xs text-muted-foreground">Get free Pro time for each referral</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => navigate('/referral')}>
+              Invite
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Early Access — Coupon Redemption */}
         <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-accent/5 relative overflow-hidden">
           <div className="absolute top-0 right-0 text-[10px] font-bold px-3 py-1 rounded-bl-xl bg-primary text-primary-foreground">
             EARLY ACCESS
@@ -251,183 +644,6 @@ export default function SubscriptionPage() {
             )}
           </CardContent>
         </Card>
-
-        {/* Current Plan */}
-        <Card className={isPremium ? 'border-amber-400/30 bg-amber-50/30 dark:bg-amber-950/20' : isPro ? 'border-blue-400/30 bg-blue-50/30 dark:bg-blue-950/20' : 'border-border bg-card'}>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isPremium ? 'bg-amber-100 dark:bg-amber-900/30' : isPro ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-muted'}`}>
-              <PlanIcon plan={plan} />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-muted-foreground">Current Plan</p>
-              {isLoading ? (
-                <Skeleton className="h-6 w-24 mt-0.5" />
-              ) : (
-                <p className="text-lg font-bold">{planLabel(plan)}</p>
-              )}
-              {isActiveTrial && trialExpiresAt && (
-                <div className="flex items-center gap-1 mt-0.5">
-                  <CalendarClock className={`w-3.5 h-3.5 ${plan === 'premium' ? 'text-amber-500' : 'text-blue-500'}`} />
-                  <span className={`text-xs font-medium ${plan === 'premium' ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}>
-                    Trial ends {formatDate(trialExpiresAt)}
-                  </span>
-                </div>
-              )}
-            </div>
-            <Badge variant={isActiveTrial ? 'outline' : 'secondary'} className={isActiveTrial ? (plan === 'premium' ? 'border-amber-400 text-amber-600 dark:text-amber-400' : 'border-blue-400 text-blue-600 dark:text-blue-400') : ''}>
-              {isActiveTrial ? 'Trial' : 'Active'}
-            </Badge>
-          </CardContent>
-        </Card>
-
-        {/* Usage */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Usage</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Resumes */}
-            <div>
-              <div className="flex justify-between text-sm mb-1.5">
-                <span>Resumes</span>
-                {resumesLoading || planLoading ? (
-                  <Skeleton className="h-4 w-16" />
-                ) : (
-                  <span className="text-muted-foreground font-medium">
-                    {resumeCount} / {isUnlimitedResumes ? 'unlimited' : resumeLimit}
-                  </span>
-                )}
-              </div>
-              {isUnlimitedResumes ? (
-                <div className="h-2 rounded-full bg-primary/20 overflow-hidden">
-                  <div className="h-full w-full bg-primary/30 rounded-full" />
-                </div>
-              ) : (
-                <Progress
-                  value={Math.min((resumeCount / (resumeLimit ?? 1)) * 100, 100)}
-                  className="h-2"
-                />
-              )}
-              {!isUnlimitedResumes && resumeCount >= (resumeLimit ?? 1) && (
-                <p className="text-xs text-destructive mt-1">Resume limit reached — upgrade to add more</p>
-              )}
-            </div>
-
-            {/* AI Credits */}
-            <div>
-              <div className="flex justify-between text-sm mb-1.5">
-                <span>AI Credits (today)</span>
-                {creditsLoading ? (
-                  <Skeleton className="h-4 w-16" />
-                ) : (
-                  <span className="text-muted-foreground font-medium">
-                    {isUnlimitedCredits ? `${dailyUsage} / unlimited` : `${dailyUsage} / ${dailyLimit}`}
-                  </span>
-                )}
-              </div>
-              {isUnlimitedCredits ? (
-                <div className="h-2 rounded-full bg-primary/20 overflow-hidden">
-                  <div className="h-full w-full bg-primary/30 rounded-full" />
-                </div>
-              ) : (
-                <Progress
-                  value={dailyLimit > 0 ? Math.min((dailyUsage / dailyLimit) * 100, 100) : 0}
-                  className="h-2"
-                />
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Current plan features */}
-        <Card className={isPremium ? 'border-amber-400/30' : isPro ? 'border-blue-400/30' : ''}>
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-2">
-              <PlanIcon plan={plan} />
-              <CardTitle className={`text-sm font-semibold ${isPremium ? 'text-amber-600 dark:text-amber-400' : isPro ? 'text-blue-600 dark:text-blue-400' : ''}`}>
-                Your {planLabel(plan)} Plan includes
-              </CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {/* Credit limit row */}
-            <div className={`flex items-center gap-2.5 text-sm px-3 py-2 rounded-lg ${isPremium ? 'bg-amber-50 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-800/40' : isPro ? 'bg-blue-50 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-800/40' : 'bg-muted/50 border border-border'}`}>
-              {isPremium ? (
-                <Infinity className="w-4 h-4 shrink-0 text-amber-500" />
-              ) : isPro ? (
-                <Bot className="w-4 h-4 shrink-0 text-blue-500" />
-              ) : (
-                <Bot className="w-4 h-4 shrink-0 text-muted-foreground" />
-              )}
-              <span className={`font-medium ${isPremium ? 'text-amber-700 dark:text-amber-300' : isPro ? 'text-blue-700 dark:text-blue-300' : ''}`}>
-                {isPremium ? 'Unlimited AI credits/day' : isPro ? '30 AI credits/day' : '5 AI credits/day'}
-              </span>
-            </div>
-            {PLAN_FEATURES[plan as keyof typeof PLAN_FEATURES]?.map((feature) => {
-              const Icon = feature.icon;
-              return (
-                <div key={feature.label} className="flex items-center gap-2.5 text-sm">
-                  <Icon className={`w-4 h-4 shrink-0 ${isPremium ? 'text-amber-500' : isPro ? 'text-blue-500' : 'text-muted-foreground'}`} />
-                  <span>{feature.label}</span>
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-
-        {/* Upgrade cards — shown for each plan the user can upgrade to */}
-        {upgradeTargets.map((target) => (
-          <Card
-            key={target}
-            className={target === 'premium' ? 'border-amber-400/40 relative overflow-hidden' : 'border-blue-400/30 relative overflow-hidden'}
-          >
-            <div className={`absolute top-0 right-0 text-[10px] font-bold px-3 py-1 rounded-bl-xl ${target === 'premium' ? 'bg-amber-500 text-white' : 'bg-blue-500 text-white'}`}>
-              {target === 'premium' ? 'POWER USERS' : 'POPULAR'}
-            </div>
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-center gap-2 mt-1">
-                <PlanIcon plan={target} className={`w-5 h-5 ${target === 'premium' ? 'text-amber-500' : 'text-blue-500'}`} />
-                <p className="text-sm font-semibold">{planLabel(target)}</p>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold">{PLAN_PRICES[target]}</span>
-                <span className="text-sm text-muted-foreground">/month</span>
-              </div>
-              <div className="space-y-1.5">
-                {PLAN_FEATURES[target as keyof typeof PLAN_FEATURES].map((feature) => {
-                  const Icon = feature.icon;
-                  return (
-                    <div key={feature.label} className="flex items-center gap-2 text-sm">
-                      <Icon className={`w-4 h-4 shrink-0 ${target === 'premium' ? 'text-amber-500' : 'text-blue-500'}`} />
-                      <span>{feature.label}</span>
-                    </div>
-                  );
-                })}
-              </div>
-              <Button
-                className={`w-full mt-1 ${target === 'premium' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
-                onClick={() => handleUpgrade(target)}
-              >
-                <Crown className="w-4 h-4 mr-2" />
-                Upgrade to {planLabel(target)} — coming soon
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
-
-        {/* Referral Link */}
-        <Card className="bg-gradient-to-br from-primary/5 to-accent/5">
-          <CardContent className="p-4 flex items-center gap-3">
-            <Gift className="w-5 h-5 text-primary" />
-            <div className="flex-1">
-              <p className="text-sm font-medium">Invite Friends, Earn Rewards</p>
-              <p className="text-xs text-muted-foreground">Get free Pro time for each referral</p>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => navigate('/referral')}>
-              Invite
-            </Button>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Coupon confirmation dialog */}
@@ -445,25 +661,45 @@ export default function SubscriptionPage() {
 
           {couponDetails && (
             <div className="space-y-4">
-              {/* Plan badge */}
               {couponDetails.plan_override && (
-                <div className={`flex items-center gap-3 p-3 rounded-xl ${couponDetails.plan_override === 'premium' ? 'bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800' : 'bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800'}`}>
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${couponDetails.plan_override === 'premium' ? 'bg-amber-100 dark:bg-amber-900/40' : 'bg-blue-100 dark:bg-blue-900/40'}`}>
+                <div
+                  className={`flex items-center gap-3 p-3 rounded-xl ${
+                    couponDetails.plan_override === 'premium'
+                      ? 'bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800'
+                      : 'bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800'
+                  }`}
+                >
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      couponDetails.plan_override === 'premium'
+                        ? 'bg-amber-100 dark:bg-amber-900/40'
+                        : 'bg-blue-100 dark:bg-blue-900/40'
+                    }`}
+                  >
                     <PlanIcon
                       plan={couponDetails.plan_override}
-                      className={`w-5 h-5 ${couponDetails.plan_override === 'premium' ? 'text-amber-500' : 'text-blue-500'}`}
+                      className={`w-5 h-5 ${
+                        couponDetails.plan_override === 'premium'
+                          ? 'text-amber-500'
+                          : 'text-blue-500'
+                      }`}
                     />
                   </div>
                   <div>
                     <p className="font-semibold text-sm">{planLabel(couponDetails.plan_override)} Plan</p>
-                    <p className={`text-xs ${couponDetails.plan_override === 'premium' ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                    <p
+                      className={`text-xs ${
+                        couponDetails.plan_override === 'premium'
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-blue-600 dark:text-blue-400'
+                      }`}
+                    >
                       Early Access
                     </p>
                   </div>
                 </div>
               )}
 
-              {/* Pricing */}
               <div className="space-y-1.5 text-sm">
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Normal price</span>
@@ -477,7 +713,6 @@ export default function SubscriptionPage() {
                 </div>
               </div>
 
-              {/* Trial period */}
               {couponDetails.plan_days && (
                 <div className="space-y-1.5 text-sm border-t pt-3">
                   <div className="flex justify-between items-center">
@@ -497,13 +732,16 @@ export default function SubscriptionPage() {
                 </div>
               )}
 
-              {/* CTA */}
               <div className="flex flex-col gap-2 pt-1">
                 <LoadingButton
                   onClick={handleActivateNow}
                   isLoading={activating}
                   loadingText="Activating…"
-                  className={`w-full ${couponDetails.plan_override === 'premium' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}
+                  className={`w-full ${
+                    couponDetails.plan_override === 'premium'
+                      ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                      : 'bg-blue-500 hover:bg-blue-600 text-white'
+                  }`}
                 >
                   Activate Now
                 </LoadingButton>
