@@ -80,7 +80,7 @@ body.wr-security-curtain [data-biometric-lock] {
 @layer base {
   :root {
     /* Primary — Crimson Red */
-    --primary: 4 76% 46%;
+    --primary: 357 71% 36%;
     --primary-foreground: 0 0% 100%;
 
     /* Secondary — Slate Blue */
@@ -109,7 +109,7 @@ body.wr-security-curtain [data-biometric-lock] {
 
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 4 76% 46%;
+    --ring: 357 71% 36%;
     --radius: 0.75rem;
 
     /* Semantic */
@@ -128,12 +128,12 @@ body.wr-security-curtain [data-biometric-lock] {
     /* Sidebar (compatibility) */
     --sidebar-background: 220 14% 96%;
     --sidebar-foreground: 240 6% 10%;
-    --sidebar-primary: 4 76% 46%;
+    --sidebar-primary: 357 71% 36%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 14% 96%;
     --sidebar-accent-foreground: 240 6% 10%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 4 76% 46%;
+    --sidebar-ring: 357 71% 36%;
   }
 
   /* Light theme */
@@ -147,7 +147,7 @@ body.wr-security-curtain [data-biometric-lock] {
     --popover: 0 0% 100%;
     --popover-foreground: 240 6% 10%;
 
-    --primary: 4 76% 46%;
+    --primary: 357 71% 36%;
     --primary-foreground: 0 0% 100%;
     --secondary: 215 20% 65%;
     --secondary-foreground: 0 0% 100%;
@@ -163,7 +163,7 @@ body.wr-security-curtain [data-biometric-lock] {
 
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 4 76% 46%;
+    --ring: 357 71% 36%;
 
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
@@ -179,12 +179,12 @@ body.wr-security-curtain [data-biometric-lock] {
 
     --sidebar-background: 220 14% 96%;
     --sidebar-foreground: 240 6% 10%;
-    --sidebar-primary: 4 76% 46%;
+    --sidebar-primary: 357 71% 36%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 14% 96%;
     --sidebar-accent-foreground: 240 6% 10%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 4 76% 46%;
+    --sidebar-ring: 357 71% 36%;
   }
 
   .dark {
@@ -197,7 +197,7 @@ body.wr-security-curtain [data-biometric-lock] {
     --popover: 240 5% 11%;
     --popover-foreground: 220 14% 96%;
 
-    --primary: 4 76% 46%;
+    --primary: 357 71% 36%;
     --primary-foreground: 0 0% 100%;
     --secondary: 215 20% 65%;
     --secondary-foreground: 240 6% 7%;
@@ -213,7 +213,7 @@ body.wr-security-curtain [data-biometric-lock] {
 
     --border: 240 4% 18%;
     --input: 240 4% 16%;
-    --ring: 4 76% 46%;
+    --ring: 357 71% 36%;
 
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
@@ -229,12 +229,12 @@ body.wr-security-curtain [data-biometric-lock] {
 
     --sidebar-background: 240 5% 9%;
     --sidebar-foreground: 220 14% 96%;
-    --sidebar-primary: 4 76% 46%;
+    --sidebar-primary: 357 71% 36%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 4% 16%;
     --sidebar-accent-foreground: 220 14% 96%;
     --sidebar-border: 240 4% 18%;
-    --sidebar-ring: 4 76% 46%;
+    --sidebar-ring: 357 71% 36%;
   }
 }
 
@@ -2172,7 +2172,7 @@ button,
   height: 520px;
   top: -120px;
   left: -80px;
-  background: radial-gradient(circle, hsl(4 76% 46%) 0%, hsl(340 68% 44%) 100%);
+  background: radial-gradient(circle, hsl(357 71% 36%) 0%, hsl(340 68% 44%) 100%);
   animation-duration: 22s;
   animation-name: hero-blob-float-1;
 }
@@ -2182,7 +2182,7 @@ button,
   height: 420px;
   top: 60px;
   right: -100px;
-  background: radial-gradient(circle, hsl(340 68% 44%) 0%, hsl(4 76% 46%) 100%);
+  background: radial-gradient(circle, hsl(340 68% 44%) 0%, hsl(357 71% 36%) 100%);
   animation-duration: 28s;
   animation-name: hero-blob-float-2;
 }

@@ -264,9 +264,9 @@ function FeatureNumberedNav({ sectionIds, labels }: { sectionIds: string[]; labe
             onClick={() => scrollTo(id)}
             className="transition-all duration-200 text-xs sm:text-sm font-medium px-3 sm:px-4 py-1.5 rounded-full whitespace-nowrap"
             style={{
-              background: activeIdx === idx ? 'rgba(206,40,28,0.14)' : 'transparent',
+              background: activeIdx === idx ? 'rgba(158,27,34,0.14)' : 'transparent',
               color: activeIdx === idx ? 'var(--lp-brand)' : 'var(--lp-text-subtle)',
-              border: activeIdx === idx ? '1px solid rgba(206,40,28,0.28)' : '1px solid transparent',
+              border: activeIdx === idx ? '1px solid rgba(158,27,34,0.28)' : '1px solid transparent',
             }}
           >
             {labels[idx]}
@@ -381,7 +381,7 @@ const Index = () => {
       <style>{`
         /* ── DARK THEME (default) ───────────────────────────────── */
         .lp-root {
-          --lp-brand: #CE281C;
+          --lp-brand: #9E1B22;
           --lp-bg: #0a0a0f;
           --lp-card: #111118;
           --lp-card-glass: rgba(255,255,255,0.04);
@@ -394,7 +394,7 @@ const Index = () => {
           --lp-header-scrolled-border: rgba(255,255,255,0.07);
           --lp-nav-bg: rgba(10,10,15,0.92);
           --lp-nav-border: rgba(255,255,255,0.07);
-          --lp-hero-glow: rgba(206,40,28,0.18);
+          --lp-hero-glow: rgba(158,27,34,0.18);
           --lp-section-alt: #0d0d14;
           --lp-section-alt2: #0f0f18;
           --lp-eyebrow: #F87171;
@@ -403,7 +403,7 @@ const Index = () => {
           --lp-signin-bg: rgba(255,255,255,0.07);
           --lp-signin-border: rgba(255,255,255,0.1);
           --lp-trust-color: rgba(240,240,245,0.35);
-          --lp-trust-icon: rgba(206,40,28,0.7);
+          --lp-trust-icon: rgba(158,27,34,0.7);
           --lp-toggle-bg: rgba(255,255,255,0.07);
           --lp-toggle-border: rgba(255,255,255,0.1);
           --lp-toggle-color: rgba(255,255,255,0.55);
@@ -426,16 +426,16 @@ const Index = () => {
           --lp-header-scrolled-border: rgba(0,0,0,0.08);
           --lp-nav-bg: rgba(245,245,251,0.96);
           --lp-nav-border: rgba(0,0,0,0.08);
-          --lp-hero-glow: rgba(206,40,28,0.09);
+          --lp-hero-glow: rgba(158,27,34,0.09);
           --lp-section-alt: #f5eded;
           --lp-section-alt2: #f2e8e8;
-          --lp-eyebrow: #CE281C;
+          --lp-eyebrow: #9E1B22;
           --lp-logo-text: #0f0f1a;
           --lp-signin-color: rgba(15,15,26,0.7);
           --lp-signin-bg: rgba(0,0,0,0.05);
           --lp-signin-border: rgba(0,0,0,0.1);
           --lp-trust-color: rgba(15,15,26,0.4);
-          --lp-trust-icon: rgba(206,40,28,0.75);
+          --lp-trust-icon: rgba(158,27,34,0.75);
           --lp-toggle-bg: rgba(0,0,0,0.05);
           --lp-toggle-border: rgba(0,0,0,0.1);
           --lp-toggle-color: rgba(15,15,26,0.55);
@@ -474,8 +474,8 @@ const Index = () => {
 
         /* CTA pulse */
         @keyframes lp-pulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(206,40,28,0); }
-          50% { box-shadow: 0 0 0 8px rgba(206,40,28,0.12); }
+          0%, 100% { box-shadow: 0 0 0 0 rgba(158,27,34,0); }
+          50% { box-shadow: 0 0 0 8px rgba(158,27,34,0.12); }
         }
         .lp-cta-pulse { animation: lp-pulse 2.8s ease-in-out infinite; }
 
@@ -522,13 +522,13 @@ const Index = () => {
           cursor: default;
         }
         .lp-root[data-lp-scheme="dark"] .lp-feature-card:hover {
-          border-color: rgba(206,40,28,0.22) !important;
+          border-color: rgba(158,27,34,0.22) !important;
           background: rgba(255,255,255,0.05) !important;
           transform: translateY(-3px);
         }
         .lp-root[data-lp-scheme="light"] .lp-feature-card:hover {
-          border-color: rgba(206,40,28,0.2) !important;
-          background: rgba(206,40,28,0.04) !important;
+          border-color: rgba(158,27,34,0.2) !important;
+          background: rgba(158,27,34,0.04) !important;
           transform: translateY(-3px);
         }
 
@@ -537,14 +537,14 @@ const Index = () => {
           transition: border-color 0.22s ease, transform 0.22s ease;
         }
         .lp-testimonial-card:hover {
-          border-color: rgba(206,40,28,0.2) !important;
+          border-color: rgba(158,27,34,0.2) !important;
           transform: translateY(-2px);
         }
 
         /* Separator */
         .lp-separator {
           height: 1px;
-          background: linear-gradient(90deg, transparent 0%, rgba(206,40,28,0.3) 30%, rgba(206,40,28,0.5) 50%, rgba(206,40,28,0.3) 70%, transparent 100%);
+          background: linear-gradient(90deg, transparent 0%, rgba(158,27,34,0.3) 30%, rgba(158,27,34,0.5) 50%, rgba(158,27,34,0.3) 70%, transparent 100%);
         }
 
         /* Gradient text — dark */
@@ -557,7 +557,7 @@ const Index = () => {
 
         /* Gradient text — light (deeper crimson so it reads on light bg) */
         .lp-root[data-lp-scheme="light"] .lp-gradient-text {
-          background: linear-gradient(135deg, #CE281C 0%, #B31B1B 50%, #E11D48 100%);
+          background: linear-gradient(135deg, #9E1B22 0%, #B31B1B 50%, #E11D48 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
@@ -580,8 +580,8 @@ const Index = () => {
         }
         .lp-theme-toggle:hover {
           transform: scale(1.08);
-          background: rgba(206,40,28,0.12);
-          border-color: rgba(206,40,28,0.25);
+          background: rgba(158,27,34,0.12);
+          border-color: rgba(158,27,34,0.25);
           color: var(--lp-brand);
         }
         .lp-theme-toggle:active { transform: scale(0.96); }
@@ -607,14 +607,14 @@ const Index = () => {
       <a
         href="#landing-main"
         className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:p-4 focus:rounded-md focus:m-2"
-        style={{ background: '#CE281C', color: '#fff' }}
+        style={{ background: '#9E1B22', color: '#fff' }}
       >
         Skip to content
       </a>
 
       {/* Progress bar */}
       <div className="fixed top-0 left-0 right-0 h-[2px] z-[60] pointer-events-none" style={{ display: 'none' }}>
-        <div ref={progressRef} className="h-full transition-[width] duration-75 ease-out" style={{ background: '#CE281C' }} />
+        <div ref={progressRef} className="h-full transition-[width] duration-75 ease-out" style={{ background: '#9E1B22' }} />
       </div>
 
       {/* Sticky Header */}
@@ -666,7 +666,7 @@ const Index = () => {
                   <button className="touch-manipulation active:scale-95 transition-transform" aria-label="Account menu">
                     <Avatar className="h-8 w-8" style={{ border: '1px solid var(--lp-border-card)' }}>
                       <AvatarImage src={profile?.avatarUrl ?? undefined} />
-                      <AvatarFallback className="text-xs font-semibold" style={{ background: 'rgba(206,40,28,0.15)', color: '#F87171' }}>
+                      <AvatarFallback className="text-xs font-semibold" style={{ background: 'rgba(158,27,34,0.15)', color: '#F87171' }}>
                         {getInitials() ?? <User className="w-3.5 h-3.5" />}
                       </AvatarFallback>
                     </Avatar>
@@ -783,7 +783,7 @@ const Index = () => {
               <button
                 onClick={() => { triggerHaptic.light(); navigate('/dashboard'); }}
                 className={`h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2 transition-all ${ctaPulse ? 'lp-cta-pulse' : ''}`}
-                style={{ background: '#CE281C', color: '#fff' }}
+                style={{ background: '#9E1B22', color: '#fff' }}
               >
                 Go to Dashboard
                 <ArrowRight className="w-4 h-4" />
@@ -792,7 +792,7 @@ const Index = () => {
               <button
                 onClick={handleCTA}
                 className={`h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2 transition-all ${ctaPulse ? 'lp-cta-pulse' : ''}`}
-                style={{ background: '#CE281C', color: '#fff' }}
+                style={{ background: '#9E1B22', color: '#fff' }}
               >
                 Get Started Free
                 <ArrowRight className="w-4 h-4" />
@@ -906,7 +906,7 @@ const Index = () => {
                     transitionDelay: `${i * 80}ms`,
                   }}
                 >
-                  <Quote className="w-5 h-5 flex-shrink-0" style={{ color: 'rgba(206,40,28,0.5)' }} />
+                  <Quote className="w-5 h-5 flex-shrink-0" style={{ color: 'rgba(158,27,34,0.5)' }} />
                   <p className="text-sm leading-relaxed flex-1" style={{ color: 'var(--lp-text-muted)' }}>
                     "{t.quote}"
                   </p>
@@ -950,7 +950,7 @@ const Index = () => {
                 <ul className="space-y-2.5 mb-7 flex-1">
                   {pricingFeatures.free.map((item) => (
                     <li key={item} className="flex items-center gap-2.5 text-sm" style={{ color: 'var(--lp-text-muted)' }}>
-                      <Check className="w-4 h-4 shrink-0" style={{ color: '#CE281C' }} />
+                      <Check className="w-4 h-4 shrink-0" style={{ color: '#9E1B22' }} />
                       {item}
                     </li>
                   ))}
@@ -967,11 +967,11 @@ const Index = () => {
               {/* Pro */}
               <div
                 className="lp-animate flex flex-col p-6 relative"
-                style={{ borderRadius: 20, background: '#CE281C', border: '1px solid rgba(255,255,255,0.15)', transitionDelay: '60ms' }}
+                style={{ borderRadius: 20, background: '#9E1B22', border: '1px solid rgba(255,255,255,0.15)', transitionDelay: '60ms' }}
               >
                 <span
                   className="absolute -top-3 left-6 px-3 py-0.5 rounded-full text-xs font-semibold"
-                  style={{ background: '#fff', color: '#CE281C' }}
+                  style={{ background: '#fff', color: '#9E1B22' }}
                 >
                   Most Popular
                 </span>
@@ -988,7 +988,7 @@ const Index = () => {
                 </ul>
                 <button
                   className="w-full h-11 rounded-xl text-sm font-semibold transition-all"
-                  style={{ background: '#fff', color: '#CE281C' }}
+                  style={{ background: '#fff', color: '#9E1B22' }}
                   onClick={() => handleCTA('pro')}
                 >
                   Get Started
@@ -1055,7 +1055,7 @@ const Index = () => {
               <button
                 onClick={handleCTA}
                 className="px-10 text-base font-semibold rounded-xl inline-flex items-center gap-2.5 transition-all"
-                style={{ background: '#CE281C', color: '#fff', height: '3.25rem' }}
+                style={{ background: '#9E1B22', color: '#fff', height: '3.25rem' }}
               >
                 Get Started Free
                 <ArrowRight className="w-4 h-4" />

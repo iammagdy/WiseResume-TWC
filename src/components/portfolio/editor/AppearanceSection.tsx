@@ -12,7 +12,7 @@ export type PortfolioLayout = 'single' | 'two-col';
 export type PortfolioFont = 'inter' | 'space-grotesk' | 'serif';
 
 export const ACCENT_PRESETS = [
-  '#e84545', '#CE281C', '#0ea5e9', '#10b981',
+  '#e84545', '#9E1B22', '#0ea5e9', '#10b981',
   '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6',
 ];
 
