@@ -91,7 +91,27 @@ export default function AnalyticsPage() {
     return Math.round((interviews / applications.length) * 100);
   }, [applications]);
 
-  if (!planLoading && !isPremium) {
+  if (planLoading) {
+    return (
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="pt-safe sticky top-0 z-10 pb-2 px-4 bg-background/95 backdrop-blur-sm border-b border-border">
+          <div className="flex items-center gap-3">
+            <BackButton />
+            <h1 className="text-page-title">Analytics</h1>
+          </div>
+        </header>
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-24 rounded-xl bg-muted animate-pulse" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isPremium) {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="pt-safe sticky top-0 z-10 pb-2 px-4 bg-background/95 backdrop-blur-sm border-b border-border">

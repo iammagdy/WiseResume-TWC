@@ -24,6 +24,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { useQueryClient } from '@tanstack/react-query';
+import { TrialCountdownBadge } from '@/components/ui/TrialCountdownBadge';
 
 interface PlanFeature {
   label: string;
@@ -204,6 +205,8 @@ export default function SubscriptionPage() {
         <div className="flex items-center gap-3">
           <BackButton />
           <h1 className="text-page-title">Subscription</h1>
+          <div className="flex-1" />
+          <TrialCountdownBadge />
         </div>
       </header>
 
