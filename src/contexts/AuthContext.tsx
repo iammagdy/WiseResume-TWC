@@ -162,6 +162,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval);
   }, [bridgeReady, kindeAuthenticated, getKindeToken]);
 
+  // Proactively refresh the bridge token when the tab becomes visible again
+  // after being hidden, preventing stale tokens on return from idle.
+  useEffect(() => {
+    if (!kindeAuthenticated) return;
+
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const kindeToken = await getKindeToken();
+        if (kindeToken) {
+          await exchangeToken(kindeToken);
+          if (!bridgeReady) setBridgeReady(isReady());
+        }
+      } catch (err) {
+        console.error('[AuthContext] Visibility-triggered bridge refresh failed:', err);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [kindeAuthenticated, bridgeReady, getKindeToken]);
+
   // Hide splash screen when auth is resolved
   useEffect(() => {
     if (!loading && !splashHidden) {
