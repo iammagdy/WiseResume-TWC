@@ -191,30 +191,31 @@ function useTypewriterWord(words: string[]) {
 
 function useScrollAnimation() {
   useEffect(() => {
-    const markIfVisible = (el: Element) => {
-      const rect = el.getBoundingClientRect();
-      if (rect.top < window.innerHeight && rect.bottom > 0) {
-        el.classList.add('lp-visible');
-        return true;
-      }
-      return false;
-    };
+    // Observe every .lp-animate element; add lp-visible on entry, remove on exit.
+    // This makes animations fully reversible (appear on scroll down, hide on scroll up).
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) entry.target.classList.add('lp-visible');
+          if (entry.isIntersecting) {
+            entry.target.classList.add('lp-visible');
+          } else {
+            entry.target.classList.remove('lp-visible');
+          }
         });
       },
-      { threshold: 0, rootMargin: '0px 0px -80px 0px' }
+      // rootMargin bottom -80px: element must be 80px inside viewport before revealing.
+      // rootMargin top -40px: element must be 40px past the top before hiding (gives a
+      // small grace window so fast scrollers don't flicker).
+      { threshold: 0, rootMargin: '-40px 0px -80px 0px' }
     );
-    const observe = () => {
-      document.querySelectorAll('.lp-animate:not(.lp-visible)').forEach((el) => {
-        if (!markIfVisible(el)) observer.observe(el);
-      });
-    };
-    observe();
-    const t = setInterval(observe, 500);
-    return () => { observer.disconnect(); clearInterval(t); };
+
+    const observeAll = () =>
+      document.querySelectorAll('.lp-animate').forEach((el) => observer.observe(el));
+
+    observeAll();
+    // Re-scan once after 600 ms to catch elements rendered by Suspense lazy loads.
+    const t = setTimeout(observeAll, 600);
+    return () => { observer.disconnect(); clearTimeout(t); };
   }, []);
 }
 
@@ -453,13 +454,19 @@ const Index = () => {
         }
         .lp-word.lp-word-visible { opacity: 1; transform: translateY(0); }
 
-        /* Scroll animations */
+        /* Scroll animations — entrance */
         .lp-animate {
           opacity: 0;
           transform: translateY(28px);
           transition: opacity 0.65s cubic-bezier(0.22, 1, 0.36, 1), transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
         }
         .lp-animate.lp-visible { opacity: 1; transform: translateY(0); }
+
+        /* Exit is faster and uses a simple ease-in so the reverse feels snappy */
+        .lp-animate:not(.lp-visible) {
+          transition-duration: 0.38s;
+          transition-timing-function: ease-in;
+        }
 
         /* Directional slides */
         .lp-animate.lp-from-left  { transform: translateX(-40px); }
@@ -486,7 +493,9 @@ const Index = () => {
         @media (prefers-reduced-motion: reduce) {
           .lp-hero-sub,.lp-hero-cta,.lp-hero-trust { animation: none; opacity: 1; transform: none; }
           .lp-word { opacity: 1; transform: none; transition: none; }
-          .lp-animate { opacity: 1; transform: none; transition: none; }
+          /* Both with and without lp-visible — covers the higher-specificity exit rule */
+          .lp-animate,
+          .lp-animate:not(.lp-visible) { opacity: 1; transform: none; transition: none; }
         }
 
         /* Header scrolled */
@@ -585,8 +594,11 @@ const Index = () => {
           mix-blend-mode: normal;
         }
         ::view-transition-new(root) {
-          animation: lp-ripple-reveal 0.62s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+          /* 1.0 s with a smooth expo-out curve feels cinematic, not abrupt */
+          animation: lp-ripple-reveal 1.0s cubic-bezier(0.16, 1, 0.3, 1) forwards;
           mix-blend-mode: normal;
+          /* Hint the browser to composite clip-path on the GPU to eliminate frame drops */
+          will-change: clip-path;
         }
         @keyframes lp-ripple-reveal {
           from { clip-path: circle(0% at var(--lp-ripple-x, 50%) var(--lp-ripple-y, 50%)); }
