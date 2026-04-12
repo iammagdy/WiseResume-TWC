@@ -129,13 +129,11 @@ const TYPEWRITER_PHRASES = [
   'AI-optimized resumes.',
 ];
 
-const BENTO_CARDS = [
-  { id: 'c1', label: 'ATS Score', sub: '92 / 100', style: { top: '22%', left: '-2%', width: 162, height: 66, borderRadius: 33 }, dark: true },
-  { id: 'c2', label: 'AI-Powered', sub: 'Resume writing', style: { top: '20%', right: '-1%', width: 148, height: 62, borderRadius: 31 }, brand: true },
-  { id: 'c3', label: 'Smart Tailoring', sub: 'Match keywords instantly', style: { top: '52%', left: '-4%', width: 188, height: 80, borderRadius: 24 }, white: true },
-  { id: 'c4', label: 'Interview Coach', sub: 'Practice any role', style: { top: '52%', right: '-3%', width: 172, height: 76, borderRadius: 24 }, white: true },
-  { id: 'c5', label: 'Applications', sub: '12 tracked', style: { bottom: '10%', left: '5%', width: 118, height: 118, borderRadius: 59 }, muted: true },
-  { id: 'c6', label: 'Portfolio', sub: 'Live site', style: { bottom: '10%', right: '5%', width: 108, height: 108, borderRadius: 54 }, muted: true },
+const STAT_PILLS = [
+  { icon: Target, label: '92/100 ATS Score' },
+  { icon: Sparkles, label: 'AI-Powered' },
+  { icon: Zap, label: '12k+ Resumes Built' },
+  { icon: Mic, label: 'Interview Coach' },
 ];
 
 function useTypewriter(phrases: string[]) {
@@ -214,19 +212,22 @@ function useScrollAnimation() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [tailorOpen, setTailorOpen] = useState(false);
   const [headlineVisible, setHeadlineVisible] = useState(false);
-  const [collageVisible, setCollageVisible] = useState(false);
   const [ctaPulse, setCtaPulse] = useState(false);
 
   const typewriterText = useTypewriter(TYPEWRITER_PHRASES);
   useScrollAnimation();
 
-  const headlineWords = useMemo(() => 'Land your dream job'.split(' '), []);
+  const headlineWords = useMemo(() => [
+    { text: 'Land', gradient: false },
+    { text: 'your', gradient: false },
+    { text: 'dream', gradient: true },
+    { text: 'job', gradient: true },
+  ], []);
 
   useEffect(() => {
     const t1 = setTimeout(() => setHeadlineVisible(true), 150);
-    const t2 = setTimeout(() => setCollageVisible(true), 400);
-    const t3 = setTimeout(() => setCtaPulse(true), 1600);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    const t2 = setTimeout(() => setCtaPulse(true), 1600);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
   useEffect(() => {
@@ -309,6 +310,7 @@ function useScrollAnimation() {
           --lp-text: #1A1A2E;
           --lp-text-muted: #6B6670;
           --lp-beige: #E8E0D6;
+          --lp-hero-bg: #0D0F14;
           background: var(--lp-bg);
           color: var(--lp-text);
         }
@@ -318,23 +320,12 @@ function useScrollAnimation() {
         .lp-word {
           display: inline-block;
           opacity: 0;
-          transform: translateY(20px);
-          transition: opacity 0.5s ease, transform 0.5s ease;
+          transform: translateY(22px);
+          transition: opacity 0.55s ease, transform 0.55s ease;
         }
         .lp-word.lp-word-visible {
           opacity: 1;
           transform: translateY(0);
-        }
-
-        /* Bento card entrance */
-        .lp-bento-card {
-          opacity: 0;
-          transform: scale(0.93);
-          transition: opacity 0.5s ease, transform 0.5s ease;
-        }
-        .lp-bento-card.lp-bento-visible {
-          opacity: 1;
-          transform: scale(1);
         }
 
         /* Scroll animations — 600ms cubic-bezier */
@@ -377,7 +368,7 @@ function useScrollAnimation() {
           display: inline-block;
           width: 2px;
           height: 0.8em;
-          background: var(--lp-brand);
+          background: #818CF8;
           margin-left: 2px;
           vertical-align: middle;
           animation: lp-blink 1s step-end infinite;
@@ -418,7 +409,7 @@ function useScrollAnimation() {
             aria-label="WiseResume – scroll to top"
           >
             <img alt="WiseResume" loading="lazy" className="w-8 h-8 object-contain rounded-lg" src={themeLogo} />
-            <span className="font-display font-bold text-sm" style={{ color: 'var(--lp-text)' }}>WiseResume</span>
+            <span className="font-display font-bold text-sm" style={{ color: scrolled ? 'var(--lp-text)' : '#fff' }}>WiseResume</span>
           </button>
 
           <div className="flex items-center gap-2">
@@ -453,8 +444,11 @@ function useScrollAnimation() {
             ) : (
               <button
                 onClick={() => { triggerHaptic.light(); kindeLogin(); }}
-                className="text-sm font-medium px-4 py-1.5 rounded-lg transition-colors"
-                style={{ color: 'var(--lp-text)', background: 'rgba(26,26,46,0.07)' }}
+                className="text-sm font-medium px-4 py-1.5 rounded-lg transition-all duration-300"
+                style={{
+                  color: scrolled ? 'var(--lp-text)' : '#fff',
+                  background: scrolled ? 'rgba(26,26,46,0.07)' : 'rgba(255,255,255,0.12)',
+                }}
               >
                 Sign In
               </button>
@@ -467,70 +461,72 @@ function useScrollAnimation() {
         {/* Hero Section */}
         <section
           ref={heroRef}
-          className="relative flex flex-col items-center text-center px-4 sm:px-6 pt-[calc(7rem+env(safe-area-inset-top))] pb-16 sm:pb-24 overflow-hidden"
-          style={{ minHeight: '82vh' }}
+          className="relative flex flex-col items-center text-center px-4 sm:px-6 pt-[calc(7rem+env(safe-area-inset-top))] pb-20 sm:pb-28 overflow-hidden"
+          style={{ minHeight: '86vh', background: '#0D0F14' }}
         >
-          {/* Bento Collage Background — desktop only */}
-          <div className="absolute inset-0 pointer-events-none hidden md:block" aria-hidden="true">
-            {BENTO_CARDS.map((card, i) => (
-              <div
-                key={card.id}
-                className={`lp-bento-card absolute flex flex-col justify-center px-5 py-3 shadow-lg ${collageVisible && !prefersReducedMotion ? 'lp-bento-visible' : prefersReducedMotion ? 'lp-bento-visible' : ''}`}
-                style={{
-                  ...card.style,
-                  transitionDelay: `${400 + i * 100}ms`,
-                  background: card.dark
-                    ? 'var(--lp-card-dark)'
-                    : card.brand
-                    ? 'var(--lp-brand)'
-                    : card.muted
-                    ? 'var(--lp-card-muted)'
-                    : 'var(--lp-card-white)',
-                  color: card.dark || card.brand ? '#fff' : 'var(--lp-text)',
-                  position: 'absolute',
-                }}
-              >
-                <p style={{ opacity: 0.6, fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.07em', lineHeight: 1, marginBottom: 4, fontWeight: 600 }}>{card.label}</p>
-                <p style={{ fontSize: 13, lineHeight: 1.3, fontWeight: 700 }}>{card.sub}</p>
-              </div>
-            ))}
-          </div>
+          {/* Indigo radial glow — decorative, clipped by overflow:hidden */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute"
+            style={{
+              top: '-15%',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: '90%',
+              maxWidth: 800,
+              height: '65%',
+              background: 'radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.22) 0%, rgba(79,70,229,0.10) 45%, transparent 72%)',
+              filter: 'blur(48px)',
+            }}
+          />
 
           {/* Category label */}
-          <div className="relative z-10 mb-5">
+          <div className="relative z-10 mb-6">
             <span
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
-              style={{ background: 'rgba(79,70,229,0.1)', color: 'var(--lp-brand)', border: '1px solid rgba(79,70,229,0.2)' }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold"
+              style={{
+                background: 'rgba(99,102,241,0.15)',
+                color: '#818CF8',
+                border: '1px solid rgba(99,102,241,0.28)',
+              }}
             >
               <Sparkles className="w-3 h-3" />
               AI-Powered Career Platform
             </span>
           </div>
 
-          {/* Headline — word-by-word entrance */}
+          {/* Headline — word-by-word entrance, gradient on "dream job" */}
           <h1
             className="relative z-10 font-extrabold leading-[1.05] mb-5 max-w-4xl"
-            style={{ fontSize: 'clamp(36px, 4.5vw, 68px)', color: 'var(--lp-text)', letterSpacing: '-0.03em' }}
+            style={{ fontSize: 'clamp(40px, 5.5vw, 76px)', color: '#fff', letterSpacing: '-0.03em' }}
           >
             {headlineWords.map((word, i) => (
               <span key={i} style={{ display: 'inline-block', marginRight: '0.25em' }}>
                 <span
                   className={`lp-word ${headlineVisible && !prefersReducedMotion ? 'lp-word-visible' : prefersReducedMotion ? 'lp-word-visible' : ''}`}
-                  style={{ transitionDelay: `${150 + i * 80}ms` }}
+                  style={{
+                    transitionDelay: `${150 + i * 80}ms`,
+                    ...(word.gradient ? {
+                      background: 'linear-gradient(135deg, #818CF8 0%, #6366F1 50%, #A78BFA 100%)',
+                      backgroundClip: 'text',
+                      WebkitBackgroundClip: 'text',
+                      color: 'transparent',
+                    } : {}),
+                  }}
                 >
-                  {word}
+                  {word.text}
                 </span>
               </span>
             ))}
           </h1>
 
-          {/* Typewriter subheadline — cycles through 4–6 phrases */}
+          {/* Typewriter subheadline */}
           <p
-            className="relative z-10 mb-9"
-            style={{ fontSize: '1.2rem', lineHeight: 1.65, color: 'var(--lp-text-muted)', maxWidth: 540 }}
+            className="relative z-10 mb-3"
+            style={{ fontSize: '1.15rem', lineHeight: 1.65, color: 'rgba(255,255,255,0.62)', maxWidth: 520 }}
           >
             AI tools to help you land{' '}
-            <span style={{ color: 'var(--lp-brand)', fontWeight: 600 }}>
+            <span style={{ color: '#818CF8', fontWeight: 600 }}>
               {typewriterText}
               <span className="lp-cursor" aria-hidden="true" />
             </span>
@@ -538,10 +534,10 @@ function useScrollAnimation() {
 
           {/* Body text */}
           <p
-            className="relative z-10 mb-8 lp-animate"
-            style={{ fontSize: '1rem', lineHeight: 1.65, color: 'var(--lp-text-muted)', maxWidth: 460 }}
+            className="relative z-10 mb-9 lp-animate"
+            style={{ fontSize: '0.97rem', lineHeight: 1.65, color: 'rgba(255,255,255,0.48)', maxWidth: 440 }}
           >
-            Build, tailor, and optimize your resume with AI. Practice interviews, track applications, and create your portfolio — all in one place.
+            Build, tailor, and optimise your resume with AI. Practice interviews, track applications, and launch your portfolio — all in one place.
           </p>
 
           {/* CTA */}
@@ -551,7 +547,7 @@ function useScrollAnimation() {
                 <button
                   onClick={() => { triggerHaptic.light(); navigate('/dashboard'); }}
                   className="h-12 px-6 text-base font-semibold rounded-xl flex items-center justify-center gap-2 transition-all"
-                  style={{ background: 'var(--lp-brand)', color: '#fff', flex: 1 }}
+                  style={{ background: '#4F46E5', color: '#fff', flex: 1 }}
                 >
                   Go to Dashboard
                   <ArrowRight className="w-4 h-4" />
@@ -559,7 +555,7 @@ function useScrollAnimation() {
                 <button
                   onClick={() => { triggerHaptic.light(); setTailorOpen(true); }}
                   className="h-12 px-6 text-base font-semibold rounded-xl flex items-center justify-center gap-2 transition-all"
-                  style={{ background: 'rgba(79,70,229,0.08)', color: 'var(--lp-brand)', border: '1.5px solid rgba(79,70,229,0.2)', flex: 1 }}
+                  style={{ background: 'rgba(255,255,255,0.07)', color: '#818CF8', border: '1.5px solid rgba(99,102,241,0.28)', flex: 1 }}
                 >
                   <Sparkles className="w-4 h-4" />
                   Quick Tailor
@@ -570,7 +566,7 @@ function useScrollAnimation() {
                 <button
                   onClick={handleCTA}
                   className={`h-12 px-6 text-base font-semibold rounded-xl flex items-center justify-center gap-2 transition-all ${ctaPulse ? 'lp-cta-pulse' : ''}`}
-                  style={{ background: 'var(--lp-brand)', color: '#fff', flex: 1 }}
+                  style={{ background: '#4F46E5', color: '#fff', flex: 1 }}
                 >
                   Get Started Free
                   <ArrowRight className="w-4 h-4" />
@@ -578,7 +574,7 @@ function useScrollAnimation() {
                 <button
                   onClick={() => { triggerHaptic.light(); kindeLogin(); }}
                   className="h-12 px-6 text-base font-semibold rounded-xl flex items-center justify-center gap-2 transition-all"
-                  style={{ background: 'rgba(26,26,46,0.05)', color: 'var(--lp-text)', border: '1.5px solid rgba(26,26,46,0.12)', flex: 1 }}
+                  style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.82)', border: '1.5px solid rgba(255,255,255,0.13)', flex: 1 }}
                 >
                   Sign In
                 </button>
@@ -586,17 +582,35 @@ function useScrollAnimation() {
             )}
           </div>
 
-          <div className="relative z-10 mt-6 flex items-center gap-4 sm:gap-6 text-sm flex-wrap justify-center lp-animate">
+          {/* Trust badges */}
+          <div className="relative z-10 mt-5 flex items-center gap-4 sm:gap-6 text-sm flex-wrap justify-center lp-animate">
             {['Free to start', 'No credit card', 'AI-powered'].map((item) => (
-              <span key={item} className="flex items-center gap-1.5" style={{ color: 'var(--lp-text-muted)' }}>
-                <CheckCircle2 className="w-4 h-4" style={{ color: 'var(--lp-brand)' }} />
+              <span key={item} className="flex items-center gap-1.5" style={{ color: 'rgba(255,255,255,0.42)' }}>
+                <CheckCircle2 className="w-3.5 h-3.5" style={{ color: '#6366F1' }} />
                 {item}
               </span>
             ))}
           </div>
 
+          {/* Stat pills — fully contained, no overflow */}
+          <div className="relative z-10 flex flex-wrap items-center justify-center gap-2.5 mt-8 lp-animate">
+            {STAT_PILLS.map(({ icon: Icon, label }) => (
+              <div
+                key={label}
+                className="flex items-center gap-2 px-3.5 py-2 rounded-full"
+                style={{
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.10)',
+                }}
+              >
+                <Icon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#818CF8' }} />
+                <span className="text-xs font-medium whitespace-nowrap" style={{ color: 'rgba(255,255,255,0.72)' }}>{label}</span>
+              </div>
+            ))}
+          </div>
+
           {/* Scroll arrow */}
-          <div className="relative z-10 mt-10 flex flex-col items-center gap-1.5" style={{ color: 'rgba(107,102,112,0.55)' }}>
+          <div className="relative z-10 mt-10 flex flex-col items-center gap-1.5" style={{ color: 'rgba(255,255,255,0.22)' }}>
             <span className="text-xs tracking-widest uppercase">Scroll to explore</span>
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true" style={{ animation: 'lp-bounce 1.6s ease-in-out infinite' }}>
               <path d="M9 3v12M4 10l5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
