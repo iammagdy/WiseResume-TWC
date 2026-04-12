@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { lazy, Suspense, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { PlanAvatar } from '@/components/ui/PlanAvatar';
+import { TrialCountdownBadge } from '@/components/ui/TrialCountdownBadge';
 
 const AgenticChatSheet = lazy(() => import('@/components/editor/AgenticChatSheet').then((m) => ({ default: m.AgenticChatSheet })));
 
@@ -164,6 +165,7 @@ export function DesktopNav() {
       </div>
 
       <div className="ml-auto flex items-center gap-2">
+        <TrialCountdownBadge />
         <button
           onClick={() => {
             haptics.selection();

@@ -290,6 +290,11 @@ export default function SubscriptionPage() {
                     </span>
                   </div>
                 )}
+                {isActiveTrial && (
+                  <div className="mt-2">
+                    <TrialCountdownBadge />
+                  </div>
+                )}
               </div>
             </div>
           </div>
