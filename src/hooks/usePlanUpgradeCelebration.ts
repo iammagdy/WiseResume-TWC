@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { usePlan } from './usePlan';
 import type { PlanName } from './usePlan';
@@ -15,25 +15,29 @@ const UPGRADE_MESSAGES: Record<string, string> = {
 };
 
 const STORAGE_KEY = 'wr-last-known-plan';
+const SESSION_FIRED_KEY = 'wr-upgrade-toast-fired';
 
 export function usePlanUpgradeCelebration() {
   const { plan, isLoading } = usePlan();
-  const firedRef = useRef(false);
 
   useEffect(() => {
-    if (isLoading || firedRef.current || plan === 'free') return;
+    if (isLoading || plan === 'free') return;
+
+    // Use sessionStorage as a cross-mount dedup guard: only one surface fires per session
+    if (sessionStorage.getItem(SESSION_FIRED_KEY)) return;
 
     const lastKnown = (localStorage.getItem(STORAGE_KEY) ?? 'free') as PlanName;
 
-    if (plan === lastKnown) return;
-
-    localStorage.setItem(STORAGE_KEY, plan);
+    // Update stored plan so next session reflects current plan as baseline
+    if (plan !== lastKnown) {
+      localStorage.setItem(STORAGE_KEY, plan);
+    }
 
     if (PLAN_TIER[plan] > PLAN_TIER[lastKnown]) {
       const key = `${lastKnown}→${plan}`;
       const message = UPGRADE_MESSAGES[key];
       if (message) {
-        firedRef.current = true;
+        sessionStorage.setItem(SESSION_FIRED_KEY, '1');
         setTimeout(() => {
           toast.success(message, { duration: 6000, icon: '🎉' });
         }, 800);

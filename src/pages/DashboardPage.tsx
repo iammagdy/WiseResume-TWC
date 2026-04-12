@@ -491,7 +491,6 @@ function DashboardPageContent() {
             <HelpCircle className="w-4.5 h-4.5 text-muted-foreground" />
           </Button>
           <TrialCountdownBadge />
-          <PlanChip plan={plan} />
           <div className="flex">
             <AICreditsIndicator />
           </div>
@@ -510,6 +509,7 @@ function DashboardPageContent() {
               <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary border-2 border-background animate-pulse" aria-label="New updates available" />
             )}
           </Button>
+          <PlanChip plan={plan} />
           <Popover onOpenChange={(open) => {
             if (open && !profilePulseSeen) {
               setProfilePulseSeen(true);

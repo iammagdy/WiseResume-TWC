@@ -178,7 +178,6 @@ export function DesktopNav() {
 
       <div className="ml-auto flex items-center gap-2">
         <TrialCountdownBadge />
-        <PlanChip plan={plan} />
         <button
           onClick={() => {
             haptics.selection();
@@ -218,6 +217,8 @@ export function DesktopNav() {
           <MessageCircle className="w-4 h-4" />
           Ask
         </button>
+
+        <PlanChip plan={plan} />
 
         {/* Profile avatar dropdown */}
         <Popover open={profileOpen} onOpenChange={setProfileOpen}>
