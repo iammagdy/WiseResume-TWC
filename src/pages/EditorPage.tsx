@@ -244,6 +244,12 @@ export default function EditorPage() {
           requiredPlan: 'pro',
           featureName: 'Smart Tailoring',
           description: 'Paste a job description and AI rewrites your resume to match it perfectly.',
+          features: [
+            'AI rewrites your resume for any job description',
+            'Keyword match score to beat ATS filters',
+            'Section-by-section improvement suggestions',
+            'Preserve your voice while maximising relevance',
+          ],
         });
       }
     }
@@ -521,10 +527,18 @@ export default function EditorPage() {
   // Hook 3: section scores, completion status, celebration toasts, and confetti
   const { sectionScores, overallScore, localHealthScore, sectionStatus, justCompletedStep } = useEditorSectionScores(currentResume);
 
+  const TAILOR_FEATURES = [
+    'AI rewrites your resume for any job description',
+    'Keyword match score to beat ATS filters',
+    'Section-by-section improvement suggestions',
+    'Preserve your voice while maximising relevance',
+  ];
+
   const handleImproveSection = useCallback(
     gate('pro', () => setShowTailor(true), {
       featureName: 'Smart Tailoring',
       description: 'Paste a job description and AI rewrites your resume to match it perfectly.',
+      features: TAILOR_FEATURES,
       bypassCondition: isBYOK,
     }),
     [gate, isBYOK]
@@ -539,6 +553,7 @@ export default function EditorPage() {
     gate('pro', () => setShowTailor(true), {
       featureName: 'Smart Tailoring',
       description: 'Paste a job description and AI rewrites your resume to match it perfectly.',
+      features: TAILOR_FEATURES,
       bypassCondition: isBYOK,
     }),
     [gate, isBYOK]
@@ -1001,6 +1016,7 @@ export default function EditorPage() {
               requiredPlan={tierGateState.requiredPlan}
               featureName={tierGateState.featureName}
               description={tierGateState.description}
+              features={tierGateState.features}
             />
           )}
           {/* Mobile tools sheet with sub-view navigation */}

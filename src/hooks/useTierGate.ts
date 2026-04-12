@@ -4,6 +4,7 @@ import { usePlan } from './usePlan';
 interface GateOptions {
   featureName: string;
   description?: string;
+  features?: string[];
   bypassCondition?: boolean;
 }
 
@@ -11,6 +12,7 @@ export interface TierGateDialogState {
   requiredPlan: 'pro' | 'premium';
   featureName: string;
   description?: string;
+  features?: string[];
 }
 
 interface UseTierGateResult {
@@ -66,6 +68,7 @@ export function useTierGate(): UseTierGateResult {
             requiredPlan,
             featureName: opts.featureName,
             description: opts.description,
+            features: opts.features,
           });
           setDialogOpen(true);
         }

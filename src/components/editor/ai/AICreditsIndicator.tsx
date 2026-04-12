@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/popover';
 
 export function AICreditsIndicator() {
-  const { data: credits, isBYOK, isActiveTrial, trialDaysLeft } = useAICredits();
+  const { data: credits, isBYOK, isActiveTrial, trialPlan, trialDaysLeft } = useAICredits();
   const [showSheet, setShowSheet] = useState(false);
   const [showPopover, setShowPopover] = useState(false);
 
@@ -30,7 +30,11 @@ export function AICreditsIndicator() {
       : 'Unlimited · Premium plan';
 
   const unlimitedColor = isUnlimited
-    ? isBYOK ? 'green' : isActiveTrial ? 'blue' : 'amber'
+    ? isBYOK
+      ? 'green'
+      : isActiveTrial
+        ? trialPlan === 'premium' ? 'amber' : 'blue'
+        : 'amber'
     : undefined;
 
   return (
