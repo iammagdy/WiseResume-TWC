@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { UserDetailDrawer } from './UserDetailDrawer';
 
 export interface AdminUser {
@@ -81,6 +82,7 @@ function CopyableId({ id }: { id: string }) {
 }
 
 export function AdminUsersPanel({ password, onCountChange }: AdminUsersPanelProps) {
+  const { user: adminUser } = useKindeAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -208,6 +210,31 @@ export function AdminUsersPanel({ password, onCountChange }: AdminUsersPanelProp
       a.download = `wiseresume-users-${new Date().toISOString().split('T')[0]}.csv`;
       a.click();
       URL.revokeObjectURL(url);
+
+      // Write audit log entry for data export via server-side edge function
+      const adminEmail = adminUser?.email ?? 'unknown';
+      const adminId = adminUser?.id ?? 'dev-kit-admin';
+      const { data: auditData, error: auditError } = await edgeFunctions.functions.invoke('admin-audit-logs', {
+        body: {
+          password,
+          mode: 'write',
+          entry: {
+            user_id: adminId,
+            category: 'admin',
+            action: 'user_data_export',
+            metadata: {
+              record_count: allUsers.length,
+              exported_at: new Date().toISOString(),
+              admin_email: adminEmail,
+              filter_plan: planFilter || null,
+              search_query: query.trim() || null,
+            },
+          },
+        },
+      });
+      if (auditError || (auditData as { success?: boolean } | null)?.success === false) {
+        console.warn('[AdminUsersPanel] Audit log for CSV export failed:', auditError ?? auditData);
+      }
     } finally {
       setExportingCSV(false);
     }

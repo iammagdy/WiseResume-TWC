@@ -1,3 +1,5 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -19,13 +21,65 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Attempt to get password from environment variable
-    const SECRET_PASSWORD = Deno.env.get("DEV_KIT_PASSWORD") || "thewisedeveloper";
-    
+    const SECRET_PASSWORD = Deno.env.get("DEV_KIT_PASSWORD");
+    if (!SECRET_PASSWORD) {
+      return new Response(
+        JSON.stringify({ error: "DEV_KIT_PASSWORD secret is not configured. Set it in Supabase Dashboard → Settings → Edge Functions → Secrets." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const isValid = password === SECRET_PASSWORD;
 
+    if (!isValid) {
+      return new Response(
+        JSON.stringify({ success: false }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Check email allowlist using caller identity from auth token (server-side only).
+    // ADMIN_EMAILS must be configured — if absent or empty, fail closed to prevent
+    // silent bypass when the secret is not set up in production.
+    const ADMIN_EMAILS = Deno.env.get("ADMIN_EMAILS");
+    const allowed = (ADMIN_EMAILS ?? "")
+      .split(",")
+      .map((e: string) => e.trim().toLowerCase())
+      .filter(Boolean);
+
+    if (allowed.length === 0) {
+      return new Response(
+        JSON.stringify({
+          error: "ADMIN_EMAILS secret is not configured. Set it in Supabase Dashboard → Settings → Edge Functions → Secrets.",
+        }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Derive caller email from auth token — never trust client-supplied email
+    const authHeader = req.headers.get("Authorization");
+    let callerEmail: string | null = null;
+
+    if (authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.replace("Bearer ", "");
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+        { global: { headers: { Authorization: `Bearer ${token}` } } }
+      );
+      const { data: { user } } = await supabase.auth.getUser();
+      callerEmail = user?.email ?? null;
+    }
+
+    if (!callerEmail || !allowed.includes(callerEmail.toLowerCase())) {
+      return new Response(
+        JSON.stringify({ success: false, authorized: false, reason: "email_not_allowed" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(
-      JSON.stringify({ success: isValid }),
+      JSON.stringify({ success: true }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 

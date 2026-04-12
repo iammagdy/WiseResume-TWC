@@ -505,25 +505,26 @@ export function LiveActivityPanel({ password, adminPassword }: LiveActivityPanel
               {effectiveErrors.length}
             </span>
           )}
-          {errorLogsMissing && (
-            <span className="text-xs text-muted-foreground italic ml-1">(from health checks — no error_log table)</span>
-          )}
         </div>
 
-        {effectiveErrors.length === 0 && (
+        {errorLogsMissing && (
+          <div className="mx-5 my-4 flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                The <code className="font-mono text-xs">error_log</code> table does not exist in this database.
+              </p>
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                Run the <code className="font-mono text-xs">create_error_log_table</code> migration to enable error tracking.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {!errorLogsMissing && effectiveErrors.length === 0 && (
           <div className="py-8 text-center text-muted-foreground">
             <CheckCircle className="w-6 h-6 mx-auto mb-2 text-green-500 opacity-60" />
-            <p className="text-sm">
-              {errorLogsMissing
-                ? 'No errors detected from health checks yet. Run a health check to populate.'
-                : 'No errors logged.'
-              }
-            </p>
-            {errorLogsMissing && (
-              <p className="text-xs mt-1 opacity-60">
-                No <code className="font-mono text-xs">error_log</code> table found — showing health check failures instead.
-              </p>
-            )}
+            <p className="text-sm">No errors logged.</p>
           </div>
         )}
 

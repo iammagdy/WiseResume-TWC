@@ -14,10 +14,17 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { password, limit = 200, action_filter } = body as {
+    const { password, mode, limit = 200, action_filter, entry } = body as {
       password: string;
+      mode?: 'read' | 'write';
       limit?: number;
       action_filter?: string | null;
+      entry?: {
+        user_id: string;
+        category: string;
+        action: string;
+        metadata: Record<string, unknown>;
+      };
     };
 
     const devKitPassword = Deno.env.get('DEV_KIT_PASSWORD');
@@ -33,7 +40,38 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    // Read from audit_logs (the table all admin RPCs write to)
+    // Write mode: insert a single audit log entry via service role
+    if (mode === 'write') {
+      if (!entry || !entry.user_id || !entry.category || !entry.action) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Missing required entry fields: user_id, category, action' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+
+      const { error: insertError } = await supabase
+        .from('audit_logs')
+        .insert({
+          user_id: entry.user_id,
+          category: entry.category,
+          action: entry.action,
+          metadata: entry.metadata ?? {},
+        });
+
+      if (insertError) {
+        return new Response(
+          JSON.stringify({ success: false, error: insertError.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    // Default: read mode — list audit log entries
     let query = supabase
       .from('audit_logs')
       .select('id, user_id, action, category, metadata, created_at')

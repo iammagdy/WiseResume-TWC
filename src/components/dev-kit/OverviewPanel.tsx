@@ -163,15 +163,18 @@ export function OverviewPanel({ password }: OverviewPanelProps) {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-foreground">Overview</h2>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-lg font-semibold text-foreground">Overview</h2>
+            {stats && stats.loadedCount < stats.total && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300">
+                <AlertTriangle className="w-3 h-3" />
+                Showing statistics for {stats.loadedCount.toLocaleString()} of {stats.total.toLocaleString()} users (sampled)
+              </span>
+            )}
+          </div>
           {stats && (
             <p className="text-xs text-muted-foreground mt-0.5">
               Last updated {stats.lastLoadedAt.toLocaleTimeString()}
-              {stats.loadedCount < stats.total && (
-                <span className="ml-1.5 text-amber-600 dark:text-amber-400">
-                  · Plan counts and resume totals sampled from first {stats.loadedCount.toLocaleString()} of {stats.total.toLocaleString()} users
-                </span>
-              )}
             </p>
           )}
         </div>
