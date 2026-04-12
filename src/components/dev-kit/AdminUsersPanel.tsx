@@ -25,6 +25,7 @@ export interface AdminUser {
   suspension_reason: string | null;
   credits_used_today: number;
   daily_limit: number | null;
+  email_confirmed_at: string | null;
 }
 
 interface AdminUsersPanelProps {

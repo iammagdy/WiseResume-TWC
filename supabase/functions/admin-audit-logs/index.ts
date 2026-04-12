@@ -15,11 +15,12 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { password, mode, limit = 200, action_filter, entry } = body as {
+    const { password, mode, limit = 200, action_filter, category_filter, entry } = body as {
       password: string;
       mode?: 'read' | 'write';
       limit?: number;
       action_filter?: string | null;
+      category_filter?: string | null;
       entry?: {
         user_id: string;
         category: string;
@@ -80,6 +81,10 @@ serve(async (req) => {
 
     if (action_filter) {
       query = query.eq('action', action_filter);
+    }
+
+    if (category_filter) {
+      query = query.eq('category', category_filter);
     }
 
     const { data: logsData, error } = await query;

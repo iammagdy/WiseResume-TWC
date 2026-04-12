@@ -14,6 +14,7 @@ import {
   BarChart2,
   Rocket,
   ShieldOff,
+  Mail,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,7 @@ import { OverviewPanel } from '@/components/dev-kit/OverviewPanel';
 import { AnalyticsPanel } from '@/components/dev-kit/AnalyticsPanel';
 import { LiveActivityPanel } from '@/components/dev-kit/LiveActivityPanel';
 import { DeploymentPanel } from '@/components/dev-kit/DeploymentPanel';
+import { EmailManagementPanel } from '@/components/dev-kit/EmailManagementPanel';
 import { DEV_KIT_VERSION } from '@/components/dev-kit/config';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { supabase } from '@/integrations/supabase/safeClient';
@@ -34,7 +36,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 
-type Tab = 'overview' | 'analytics' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity';
+type Tab = 'overview' | 'analytics' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email';
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -42,6 +44,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'live', label: 'Live Activity', icon: Activity },
   { id: 'deployment', label: 'Deployment', icon: Rocket },
   { id: 'users', label: 'Users', icon: Users },
+  { id: 'email', label: 'Email', icon: Mail },
   { id: 'coupons', label: 'Coupons', icon: Tag },
   { id: 'settings', label: 'Settings', icon: Settings },
   { id: 'activity', label: 'Audit Log', icon: Clock },
@@ -431,6 +434,21 @@ function DevToolsInner() {
                   </p>
                 </div>
                 <AppSettingsPanel />
+              </div>
+            )}
+
+            {activeTab === 'email' && (
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-lg font-semibold flex items-center gap-2">
+                    <Mail className="w-5 h-5 text-primary" />
+                    Email Management
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    View unconfirmed users, send magic links, OTPs, password resets, and custom one-off emails to any user.
+                  </p>
+                </div>
+                <EmailManagementPanel />
               </div>
             )}
 

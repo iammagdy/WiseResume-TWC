@@ -13,16 +13,41 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const body = await req.json();
+    const url = new URL(req.url);
+    let rawBody: Record<string, unknown> = {};
+    try {
+      rawBody = await req.json();
+    } catch {
+      // No JSON body — caller may be using query params only
+    }
     const {
       password,
-      page = 1,
-      per_page = 50,
+      page: bodyPage = 1,
+      per_page: bodyPerPage = 50,
       filter_plan,
       filter_status,
+      filter_unconfirmed: bodyFilterUnconfirmed,
       sort = 'newest',
       search,
-    } = body;
+    } = rawBody as {
+      password?: string;
+      page?: number;
+      per_page?: number;
+      filter_plan?: string;
+      filter_status?: string;
+      filter_unconfirmed?: boolean | string;
+      sort?: string;
+      search?: string;
+    };
+
+    // Accept filter_unconfirmed from query string OR request body
+    const page = Number(url.searchParams.get('page') ?? bodyPage);
+    const per_page = Number(url.searchParams.get('per_page') ?? bodyPerPage);
+    const filter_unconfirmed =
+      url.searchParams.get('filter_unconfirmed') === 'true' ||
+      url.searchParams.get('filter_unconfirmed') === '1' ||
+      bodyFilterUnconfirmed === true ||
+      bodyFilterUnconfirmed === 'true';
 
     try {
       await requireAdminAuth(req, password);
@@ -36,6 +61,102 @@ Deno.serve(async (req) => {
 
     const supabase = getServiceClient();
 
+    // Build user records
+    type UserRecord = {
+      user_id: string;
+      email: string | null;
+      full_name: string | null;
+      plan_name: string;
+      plan_status: string;
+      plan_updated_at: string | null;
+      trial_plan: string | null;
+      trial_expires_at: string | null;
+      is_suspended: boolean;
+      suspension_reason: string | null;
+      created_at: string | null;
+      last_sign_in_at: string | null;
+      resume_count: number;
+      link_count: number;
+      credits_used_today: number;
+      daily_limit: number | null;
+      email_confirmed_at: string | null;
+    };
+
+    const todayDate = new Date().toISOString().split('T')[0];
+
+    // === Optimized path for filter_unconfirmed ===
+    // When only unconfirmed users are needed, fetch auth users first, filter to
+    // unconfirmed-only, then load related data only for that smaller cohort.
+    // This avoids loading all profiles/subscriptions/resumes/links/credits for
+    // the entire user base when only a small subset is needed.
+    if (filter_unconfirmed) {
+      const authResult = await supabase.auth.admin.listUsers({ page: 1, perPage: 10000 });
+      if (authResult.error) {
+        console.error('[admin-list-users] auth.admin.listUsers error:', authResult.error);
+        return new Response(
+          JSON.stringify({ success: false, error: authResult.error.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Filter to unconfirmed auth users only, then apply optional search/sort
+      let unconfirmedAuthUsers = (authResult.data.users ?? []).filter(u => !u.email_confirmed_at);
+
+      if (search && search.trim()) {
+        const q = search.trim().toLowerCase();
+        unconfirmedAuthUsers = unconfirmedAuthUsers.filter(u =>
+          (u.email ?? '').toLowerCase().includes(q) || u.id.toLowerCase().startsWith(q)
+        );
+      }
+
+      // Sort by created_at descending for newest first
+      unconfirmedAuthUsers.sort((a, b) =>
+        new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
+      );
+
+      const total = unconfirmedAuthUsers.length;
+      const pageSlice = unconfirmedAuthUsers.slice(offset, offset + limit);
+
+      // Load profile data only for this page's users — a targeted query
+      const pageIds = pageSlice.map(u => u.id);
+      const profilesResult = pageIds.length > 0
+        ? await supabase.from('profiles').select('user_id, full_name, created_at').in('user_id', pageIds)
+        : { data: [] };
+
+      const profileMap = new Map(
+        (profilesResult.data ?? []).map((p: Record<string, unknown>) => [p.user_id as string, p])
+      );
+
+      const users: UserRecord[] = pageSlice.map(au => {
+        const p = (profileMap.get(au.id) ?? {}) as Record<string, unknown>;
+        return {
+          user_id: au.id,
+          email: au.email ?? null,
+          full_name: (p.full_name as string) ?? null,
+          plan_name: 'free',
+          plan_status: 'active',
+          plan_updated_at: null,
+          trial_plan: null,
+          trial_expires_at: null,
+          is_suspended: false,
+          suspension_reason: null,
+          created_at: (p.created_at as string) ?? au.created_at ?? null,
+          last_sign_in_at: au.last_sign_in_at ?? null,
+          resume_count: 0,
+          link_count: 0,
+          credits_used_today: 0,
+          daily_limit: null,
+          email_confirmed_at: au.email_confirmed_at ?? null,
+        };
+      });
+
+      return new Response(
+        JSON.stringify({ users, total, limit, offset }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // === Standard path: full user list with all aggregates ===
     // Fetch all data in parallel — avoids the broken get_all_users_admin_v2 RPC
     // which incorrectly referenced short_links.user_id (actual col: owner_user_id).
     const [
@@ -86,28 +207,6 @@ Deno.serve(async (req) => {
       (creditsResult.data ?? []).map((c: Record<string, unknown>) => [c.user_id as string, c])
     );
 
-    const todayDate = new Date().toISOString().split('T')[0];
-
-    // Build user records
-    type UserRecord = {
-      user_id: string;
-      email: string | null;
-      full_name: string | null;
-      plan_name: string;
-      plan_status: string;
-      plan_updated_at: string | null;
-      trial_plan: string | null;
-      trial_expires_at: string | null;
-      is_suspended: boolean;
-      suspension_reason: string | null;
-      created_at: string | null;
-      last_sign_in_at: string | null;
-      resume_count: number;
-      link_count: number;
-      credits_used_today: number;
-      daily_limit: number | null;
-    };
-
     let users: UserRecord[] = (authResult.data.users ?? []).map((au) => {
       const p = (profileMap.get(au.id) ?? {}) as Record<string, unknown>;
       const s = (subsMap.get(au.id) ?? {}) as Record<string, unknown>;
@@ -132,6 +231,7 @@ Deno.serve(async (req) => {
         link_count: linkCountMap.get(au.id) ?? 0,
         credits_used_today: creditsUsedToday,
         daily_limit: (ac.daily_limit as number) ?? null,
+        email_confirmed_at: au.email_confirmed_at ?? null,
       };
     });
 
