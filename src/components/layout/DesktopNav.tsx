@@ -11,9 +11,12 @@ import { useProfile } from '@/hooks/useProfile';
 import { usePlan } from '@/hooks/usePlan';
 import { toast } from 'sonner';
 import { lazy, Suspense, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { PlanAvatar } from '@/components/ui/PlanAvatar';
 import { TrialCountdownBadge } from '@/components/ui/TrialCountdownBadge';
+import { PlanChip } from '@/components/ui/PlanChip';
+import { usePlanUpgradeCelebration } from '@/hooks/usePlanUpgradeCelebration';
 
 const AgenticChatSheet = lazy(() => import('@/components/editor/AgenticChatSheet').then((m) => ({ default: m.AgenticChatSheet })));
 
@@ -73,6 +76,7 @@ export function DesktopNav() {
   const { plan, isPro } = usePlan();
   const [wiseAIOpen, setWiseAIOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  usePlanUpgradeCelebration();
 
   const isActive = (tab: TabItem) => {
     if (tab.matchPaths) {
@@ -142,20 +146,28 @@ export function DesktopNav() {
                   <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-primary border border-background" />
                 )}
                 {tab.path === '/ai-studio' && !isPro && !active && (
-                  <span
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 18 }}
                     className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-500 border-2 border-background flex items-center justify-center"
                     aria-label="Pro feature"
+                    title="Upgrade to Pro to unlock"
                   >
                     <Lock className="w-1.5 h-1.5 text-white" />
-                  </span>
+                  </motion.span>
                 )}
                 {tab.path === '/applications' && !isPro && !active && (
-                  <span
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 18 }}
                     className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-500 border-2 border-background flex items-center justify-center"
                     aria-label="Pro feature"
+                    title="Upgrade to Pro to unlock"
                   >
                     <Lock className="w-1.5 h-1.5 text-white" />
-                  </span>
+                  </motion.span>
                 )}
               </div>
               {tab.label}
@@ -166,6 +178,7 @@ export function DesktopNav() {
 
       <div className="ml-auto flex items-center gap-2">
         <TrialCountdownBadge />
+        <PlanChip plan={plan} />
         <button
           onClick={() => {
             haptics.selection();

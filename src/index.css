@@ -48,6 +48,18 @@ body.wr-security-curtain [data-biometric-lock] {
   50% { transform: scale(1.15); }
   100% { transform: scale(1); }
 }
+/* Plan avatar animated rings */
+@keyframes plan-glow-premium {
+  0%, 100% { box-shadow: 0 0 0 0px rgba(251,191,36,0.5); }
+  50%       { box-shadow: 0 0 10px 4px rgba(251,191,36,0.45); }
+}
+@keyframes plan-glow-pro {
+  0%, 100% { box-shadow: 0 0 0 0px rgba(59,130,246,0.4); }
+  50%       { box-shadow: 0 0 7px 3px rgba(59,130,246,0.35); }
+}
+.plan-glow-premium { animation: plan-glow-premium 2.2s ease-in-out infinite; }
+.plan-glow-pro     { animation: plan-glow-pro 2.2s ease-in-out infinite; }
+
 @keyframes stepper-confetti-burst {
   0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
   100% { transform: translate(var(--tx), var(--ty)) scale(1); opacity: 0; }

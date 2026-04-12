@@ -29,6 +29,10 @@ export function AICreditsIndicator() {
       ? `Unlimited · Trial (${trialDaysLeft}d left)`
       : 'Unlimited · Premium plan';
 
+  const unlimitedColor = isUnlimited
+    ? isBYOK ? 'green' : isActiveTrial ? 'blue' : 'amber'
+    : undefined;
+
   return (
     <>
       <Popover open={showPopover} onOpenChange={setShowPopover}>
@@ -42,7 +46,7 @@ export function AICreditsIndicator() {
             aria-label="View AI credit usage"
           >
             <Zap className="w-3.5 h-3.5 text-primary" />
-            <CreditRing used={used} limit={limit} size={36} />
+            <CreditRing used={used} limit={limit} size={36} unlimitedColor={unlimitedColor} />
           </button>
         </PopoverTrigger>
         <PopoverContent side="bottom" align="end" className="w-64 p-3 space-y-2">

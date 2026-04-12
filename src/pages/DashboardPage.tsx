@@ -30,6 +30,8 @@ import { calculateProfileCompletion } from '@/hooks/useProfile';
 import { AIHealthBadge } from '@/components/ai/AIHealthBadge';
 import { AICreditsIndicator } from '@/components/editor/ai/AICreditsIndicator';
 import { TrialCountdownBadge } from '@/components/ui/TrialCountdownBadge';
+import { PlanChip } from '@/components/ui/PlanChip';
+import { usePlanUpgradeCelebration } from '@/hooks/usePlanUpgradeCelebration';
 import { useChangelogBadge } from '@/hooks/useChangelogBadge';
 import { getReferralTeaser } from '@/lib/referralData';
 
@@ -81,6 +83,7 @@ function DashboardPageContent() {
   const { profile } = useProfile(user?.id, user);
   const { plan } = usePlan();
   const { hasNew: hasNewChangelog } = useChangelogBadge();
+  usePlanUpgradeCelebration();
   const [healthScores, setHealthScores] = useState<Record<string, ResumeHealthScore>>({});
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -488,6 +491,7 @@ function DashboardPageContent() {
             <HelpCircle className="w-4.5 h-4.5 text-muted-foreground" />
           </Button>
           <TrialCountdownBadge />
+          <PlanChip plan={plan} />
           <div className="flex">
             <AICreditsIndicator />
           </div>

@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/dialog';
 import { useQueryClient } from '@tanstack/react-query';
 import { TrialCountdownBadge } from '@/components/ui/TrialCountdownBadge';
+import { usePlanUpgradeCelebration } from '@/hooks/usePlanUpgradeCelebration';
 
 interface PlanFeature {
   label: string;
@@ -104,6 +105,7 @@ export default function SubscriptionPage() {
   const { data: credits, isLoading: creditsLoading } = useAICredits();
   const { plan, isPro, isPremium, isLoading: planLoading } = usePlan();
   const { data: meData } = useMe();
+  usePlanUpgradeCelebration();
 
   const trialPlan = meData?.subscription?.trial_plan ?? null;
   const trialExpiresAt = meData?.subscription?.trial_expires_at ?? null;

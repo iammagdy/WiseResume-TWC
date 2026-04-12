@@ -266,6 +266,12 @@ function InterviewPageContent() {
           requiredPlan="pro"
           featureName="Interview Coaching"
           description="Practice real voice interviews with AI that listens, responds, and scores you live."
+          features={[
+            'Live voice interview practice with AI',
+            'Real-time scoring & performance breakdown',
+            'Industry-specific question banks',
+            'Resume-aware coaching & targeted feedback',
+          ]}
         />
       </div>
     );
