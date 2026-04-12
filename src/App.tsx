@@ -25,6 +25,7 @@ import { MaintenanceScreen } from "@/components/layout/MaintenanceScreen";
 import { AnnouncementBanner } from "@/components/layout/AnnouncementBanner";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { useAuth } from "@/hooks/useAuth";
+import { AIPrivacyDisclosureProvider } from "@/components/ai/AIPrivacyDisclosureProvider";
 
 import { KindeProvider } from "@kinde-oss/kinde-auth-react";
 import {
@@ -394,9 +395,11 @@ const App = () => {
               logoutUri={window.location.origin}>
               
                <AuthProvider>
+                <AIPrivacyDisclosureProvider>
                 <AppRoutes />
                 <DeferredProviders />
                 <AppInstallPrompt />
+                </AIPrivacyDisclosureProvider>
                </AuthProvider>
                </KindeProvider>
              </BrowserRouter>

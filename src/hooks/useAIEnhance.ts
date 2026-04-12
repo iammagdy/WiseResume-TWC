@@ -6,6 +6,8 @@ import { useAIAction } from '@/hooks/useAIAction';
 import { useAIHealthStore } from '@/store/aiHealthStore';
 import { sanitizeAIContent } from '@/lib/ai/sanitizeContent';
 import { checkAIFallback } from '@/lib/aiFallbackToast';
+import { redactResumeForAI } from '@/lib/piiRedact';
+import { useSettingsStore } from '@/store/settingsStore';
 
 import { EDGE_FUNCTIONS_URL as CLOUD_URL, EDGE_FUNCTIONS_ANON_KEY as CLOUD_KEY } from '@/lib/supabaseConstants';
 
@@ -35,6 +37,7 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
   const [currentAction, setCurrentAction] = useState<ActionType | null>(null);
   const { execute: executeAI } = useAIAction({ operation: 'enhance' });
   const slowToastShown = useRef(false);
+  const redactPiiBeforeAI = useSettingsStore(s => s.redactPiiBeforeAI);
 
   const enhance = useCallback(async (
     action: ActionType,
@@ -66,6 +69,11 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
         const token = await getSupabaseToken();
         if (!token) throw new Error('401 Unauthorized – no session');
 
+        const redactedResume = redactResumeForAI(
+          resumeContext as import('@/types/resume').ResumeData,
+          redactPiiBeforeAI,
+        );
+
         const res = await fetch(`${CLOUD_URL}/functions/v1/enhance-section`, {
           method: 'POST',
           headers: {
@@ -78,7 +86,7 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
             action,
             currentContent,
             context: {
-              resume: resumeContext,
+              resume: redactedResume,
               jobDescription,
             },
           }),
@@ -166,7 +174,7 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
       setIsEnhancing(false);
       setCurrentAction(null);
     }
-  }, [section]);
+  }, [section, redactPiiBeforeAI]);
 
   const apply = useCallback(() => {
     if (result?.improved && onApply) {

@@ -39,6 +39,7 @@ import { AISheetErrorBoundary } from '@/components/ai/AISheetErrorBoundary';
 import { useResumeMutations, resumeDataToDb, useResumes, dbToResumeData, DatabaseResume } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { useRedactedResume } from '@/hooks/useRedactedResume';
 import { 
   EnhancedTailorResult, 
   TailorProgress, 
@@ -206,6 +207,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
   };
 
   const { execute: executeAI } = useAIAction({ operation: 'tailor' });
+  const redactedResume = useRedactedResume(currentResume as ResumeData | null);
 
   // Hydrate from Zustand or localStorage on open
   useEffect(() => {
@@ -266,7 +268,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     try {
       const result = await executeAI(async () => {
         return await tailorResumeWithProgress(
-          currentResume, 
+          (redactedResume ?? currentResume) as ResumeData,
           jobDescription,
           (p) => setProgress(p),
           intensity,

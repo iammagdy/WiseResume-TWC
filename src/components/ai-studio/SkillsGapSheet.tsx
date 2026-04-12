@@ -15,6 +15,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { AICostBadge } from '@/components/ai/AICostBadge';
 import { extractAIContent, parseAIJson } from '@/lib/ai/parseAIResponse';
+import { useRedactedResume } from '@/hooks/useRedactedResume';
 import type { ResumeData } from '@/types/resume';
 
 interface SkillsGapSheetProps {
@@ -106,6 +107,7 @@ function getResumeExperienceString(resume: ResumeData | null): string {
 export function SkillsGapSheet({ open, onOpenChange }: SkillsGapSheetProps) {
   const currentResume = useResumeStore(s => s.currentResume);
   const resumeId = (currentResume as { id?: string } | null)?.id;
+  const redactedResume = useRedactedResume(currentResume as ResumeData | null);
   const [jobDescription, setJobDescription] = useState('');
   const [result, setResult] = useState<GapResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -167,7 +169,7 @@ Analyze the gap and respond ONLY with valid JSON:
 }`,
               },
             ],
-            resumeContext: currentResume,
+            resumeContext: redactedResume,
           },
         });
         if (error) throw new Error(error.message);

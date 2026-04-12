@@ -94,7 +94,12 @@ function mapModelForGemini(model: string): string {
 
 const ENCRYPTION_SECRET = Deno.env.get('API_KEY_ENCRYPTION_SECRET');
 
-async function getDecryptionKey(): Promise<CryptoKey> {
+/**
+ * Derives an AES-GCM-256 decryption key using PBKDF2 with the given salt string.
+ * v1 keys use the static salt 'user-api-keys-salt'.
+ * v2 keys use per-user salt 'user-api-keys-salt-v2-{userId}'.
+ */
+async function deriveDecryptionKey(salt: string): Promise<CryptoKey> {
   if (!ENCRYPTION_SECRET) throw new Error('API_KEY_ENCRYPTION_SECRET env var is required');
   const encoder = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
@@ -105,7 +110,7 @@ async function getDecryptionKey(): Promise<CryptoKey> {
     ['deriveKey']
   );
   return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt: encoder.encode('user-api-keys-salt'), iterations: 100000, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt: encoder.encode(salt), iterations: 100000, hash: 'SHA-256' },
     keyMaterial,
     { name: 'AES-GCM', length: 256 },
     false,
@@ -113,8 +118,12 @@ async function getDecryptionKey(): Promise<CryptoKey> {
   );
 }
 
-async function decryptKey(encoded: string): Promise<string> {
-  const key = await getDecryptionKey();
+/**
+ * Decrypts an encrypted key using the provided PBKDF2 salt.
+ * Pass the static v1 salt or the per-user v2 salt depending on key_version.
+ */
+async function decryptKeyWithSalt(encoded: string, salt: string): Promise<string> {
+  const key = await deriveDecryptionKey(salt);
   const combined = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
   const iv = combined.slice(0, 12);
   const ciphertext = combined.slice(12);
@@ -122,8 +131,15 @@ async function decryptKey(encoded: string): Promise<string> {
   return new TextDecoder().decode(decrypted);
 }
 
+/** Resolves the correct PBKDF2 salt based on key_version and userId. */
+function resolveKeySalt(keyVersion: number | null | undefined, userId: string): string {
+  if (keyVersion === 2) return `user-api-keys-salt-v2-${userId}`;
+  return 'user-api-keys-salt';
+}
+
 /**
  * Fetches a user's API key from the database (decrypted).
+ * Supports v1 (static salt) and v2 (per-user salt) encryption.
  * Uses the service role key to bypass RLS.
  */
 export async function getUserKeyFromDB(userId: string, provider = 'gemini'): Promise<string | undefined> {
@@ -137,13 +153,14 @@ export async function getUserKeyFromDB(userId: string, provider = 'gemini'): Pro
 
     const { data, error } = await supabase
       .from('user_api_keys')
-      .select('encrypted_key')
+      .select('encrypted_key, key_version')
       .eq('user_id', userId)
       .eq('provider', provider)
       .maybeSingle();
 
     if (error || !data?.encrypted_key) return undefined;
-    return await decryptKey(data.encrypted_key);
+    const salt = resolveKeySalt(data.key_version, userId);
+    return await decryptKeyWithSalt(data.encrypted_key, salt);
   } catch (err) {
     console.warn('[aiClient] Failed to fetch user key from DB:', err);
     return undefined;
@@ -152,6 +169,7 @@ export async function getUserKeyFromDB(userId: string, provider = 'gemini'): Pro
 
 /**
  * Fetches a user's API key + base_url from the database (decrypted).
+ * Supports v1 (static salt) and v2 (per-user salt) encryption.
  */
 export async function getUserKeyAndUrlFromDB(userId: string, provider: string): Promise<{ key: string; baseUrl: string | null; model: string | null } | undefined> {
   if (!ENCRYPTION_SECRET) return undefined;
@@ -161,13 +179,14 @@ export async function getUserKeyAndUrlFromDB(userId: string, provider: string): 
 
     const { data, error } = await supabase
       .from('user_api_keys')
-      .select('encrypted_key, base_url, model')
+      .select('encrypted_key, base_url, model, key_version')
       .eq('user_id', userId)
       .eq('provider', provider)
       .maybeSingle();
 
     if (error || !data?.encrypted_key) return undefined;
-    const key = await decryptKey(data.encrypted_key);
+    const salt = resolveKeySalt(data.key_version, userId);
+    const key = await decryptKeyWithSalt(data.encrypted_key, salt);
     return { key, baseUrl: data.base_url ?? null, model: data.model ?? null };
   } catch (err) {
     console.warn('[aiClient] Failed to fetch user key from DB:', err);

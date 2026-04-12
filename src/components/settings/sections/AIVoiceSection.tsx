@@ -1,5 +1,5 @@
 import { memo, Suspense, lazy } from 'react';
-import { Brain, ScanFace, Mic } from 'lucide-react';
+import { Brain, ScanFace, Mic, ShieldCheck } from 'lucide-react';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,8 @@ export const AIVoiceSection = memo(function AIVoiceSection({
 }: AIVoiceSectionProps) {
     const aiProvider = useSettingsStore(s => s.aiProvider);
     const elevenlabsApiKey = useSettingsStore(s => s.elevenlabsApiKey);
+    const redactPiiBeforeAI = useSettingsStore(s => s.redactPiiBeforeAI);
+    const setRedactPiiBeforeAI = useSettingsStore(s => s.setRedactPiiBeforeAI);
 
     return (
         <div className="rounded-2xl bg-card border border-border shadow-soft overflow-hidden">
@@ -34,6 +36,15 @@ export const AIVoiceSection = memo(function AIVoiceSection({
             <Suspense fallback={null}>
                 <AICreditsRow onOpenAISettings={onOpenAISettings} />
             </Suspense>
+            <Separator className="ml-[52px] bg-border/30" />
+            <SettingsRow
+                type="toggle"
+                label="Redact personal info before AI processing"
+                description="Replaces your name, email, phone, and address with placeholders before sending to AI providers."
+                checked={redactPiiBeforeAI}
+                icon={<ShieldCheck className="w-4 h-4" />}
+                onCheckedChange={setRedactPiiBeforeAI}
+            />
             <Separator className="ml-[52px] bg-border/30" />
             <SettingsRow
                 type="navigation"

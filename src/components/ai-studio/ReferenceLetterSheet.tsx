@@ -14,6 +14,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { AICostBadge } from '@/components/ai/AICostBadge';
 import { extractAIContent } from '@/lib/ai/parseAIResponse';
+import { useRedactedResume } from '@/hooks/useRedactedResume';
 import type { ResumeData } from '@/types/resume';
 
 interface ReferenceLetterSheetProps {
@@ -34,6 +35,7 @@ function getTopExperience(resume: ResumeData | null): string {
 export function ReferenceLetterSheet({ open, onOpenChange }: ReferenceLetterSheetProps) {
   const currentResume = useResumeStore(s => s.currentResume);
   const resumeId = (currentResume as { id?: string } | null)?.id;
+  const redactedResume = useRedactedResume(currentResume as ResumeData | null);
   const [refereeName, setRefereeName] = useState('');
   const [refereeRole, setRefereeRole] = useState('');
   const [relationship, setRelationship] = useState('');
@@ -93,7 +95,7 @@ Write a complete, professional reference letter that:
 Return ONLY the letter text, no JSON, no explanation. Start with "Dear Hiring Manager," and end with a proper signature block for ${refereeName}.`,
               },
             ],
-            resumeContext: currentResume ?? null,
+            resumeContext: redactedResume ?? null,
           },
         });
         if (error) throw new Error(error.message);

@@ -13,6 +13,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { AICostBadge } from '@/components/ai/AICostBadge';
 import { extractAIContent, parseAIJson } from '@/lib/ai/parseAIResponse';
+import { useRedactedResume } from '@/hooks/useRedactedResume';
 import type { ResumeData } from '@/types/resume';
 
 interface PortfolioBioSheetProps {
@@ -70,6 +71,7 @@ function getRecentExperience(resume: ResumeData | null): string {
 
 export function PortfolioBioSheet({ open, onOpenChange }: PortfolioBioSheetProps) {
   const currentResume = useResumeStore(s => s.currentResume);
+  const redactedResume = useRedactedResume(currentResume as ResumeData | null);
   const { user } = useAuth();
   const { updateProfile } = useProfile(user?.id, user);
   const [result, setResult] = useState<BioResult | null>(null);
@@ -120,7 +122,7 @@ Respond ONLY with valid JSON:
 }`,
               },
             ],
-            resumeContext: currentResume,
+            resumeContext: redactedResume,
           },
         });
         if (error) throw new Error(error.message);

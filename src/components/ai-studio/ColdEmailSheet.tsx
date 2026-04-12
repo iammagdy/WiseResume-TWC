@@ -14,6 +14,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { AICostBadge } from '@/components/ai/AICostBadge';
 import { extractAIContent } from '@/lib/ai/parseAIResponse';
+import { useRedactedResume } from '@/hooks/useRedactedResume';
 import type { ResumeData } from '@/types/resume';
 
 interface ColdEmailSheetProps {
@@ -52,6 +53,7 @@ function hasEnoughResumeContent(resume: ResumeData | null): boolean {
 export function ColdEmailSheet({ open, onOpenChange }: ColdEmailSheetProps) {
   const currentResume = useResumeStore(s => s.currentResume);
   const resumeId = (currentResume as { id?: string } | null)?.id;
+  const redactedResume = useRedactedResume(currentResume as ResumeData | null);
   const [company, setCompany] = useState('');
   const [jobTitle, setJobTitle] = useState('');
   const [jobSnippet, setJobSnippet] = useState('');
@@ -118,7 +120,7 @@ Subject: [subject line]
 [email body]`,
               },
             ],
-            resumeContext: currentResume ?? null,
+            resumeContext: redactedResume ?? null,
           },
         });
         if (error) throw new Error(error.message);

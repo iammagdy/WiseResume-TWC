@@ -13,6 +13,8 @@ import { useResumeStore } from '@/store/resumeStore';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { AICostBadge } from '@/components/ai/AICostBadge';
 import { extractAIContent, parseAIJson } from '@/lib/ai/parseAIResponse';
+import { useRedactedResume } from '@/hooks/useRedactedResume';
+import type { ResumeData } from '@/types/resume';
 
 interface SalaryNegotiationSheetProps {
   open: boolean;
@@ -46,6 +48,7 @@ function isNumericValue(value: string): boolean {
 export function SalaryNegotiationSheet({ open, onOpenChange }: SalaryNegotiationSheetProps) {
   const currentResume = useResumeStore(s => s.currentResume);
   const resumeId = (currentResume as { id?: string } | null)?.id;
+  const redactedResume = useRedactedResume(currentResume as ResumeData | null);
   const [jobTitle, setJobTitle] = useState('');
   const [offeredSalary, setOfferedSalary] = useState('');
   const [targetSalary, setTargetSalary] = useState('');
@@ -110,7 +113,7 @@ Respond ONLY with valid JSON in this exact format:
 }`,
               },
             ],
-            resumeContext: currentResume ?? null,
+            resumeContext: redactedResume ?? null,
           },
         });
         if (error) throw new Error(error.message);

@@ -2,6 +2,8 @@ import { useCallback } from 'react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './useAuth';
+import { hasAcceptedAIPrivacy } from '@/components/ai/AIPrivacyDisclosure';
+import { useAIPrivacyDisclosure } from '@/components/ai/AIPrivacyDisclosureProvider';
 
 interface UseAIActionOptions {
   /** The operation type key from AI_COST_MAP (e.g. 'enhance', 'tailor') */
@@ -118,7 +120,9 @@ function parseErrorMessage(err: unknown): string {
 /**
  * Universal wrapper for all AI actions.
  * Credits are now deducted atomically server-side inside each edge function.
- * This hook only handles error display and cache invalidation after the call.
+ * This hook handles: privacy disclosure gate (one-time) → execute action → cache invalidation.
+ *
+ * Requires <AIPrivacyDisclosureProvider> in the component tree.
  *
  * Usage:
  *   const { execute } = useAIAction({ operation: 'tailor' });
@@ -127,9 +131,16 @@ function parseErrorMessage(err: unknown): string {
 export function useAIAction({ operation }: UseAIActionOptions) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { requestDisclosure } = useAIPrivacyDisclosure();
 
   const execute = useCallback(
     async <T>(action: () => Promise<T>): Promise<T | null> => {
+      // 0. Privacy disclosure gate (one-time per device, stored in localStorage)
+      if (!hasAcceptedAIPrivacy()) {
+        const accepted = await requestDisclosure();
+        if (!accepted) return null;
+      }
+
       let result: T;
       try {
         result = await action();
@@ -146,7 +157,7 @@ export function useAIAction({ operation }: UseAIActionOptions) {
 
       return result;
     },
-    [queryClient, user, operation],
+    [queryClient, user, operation, requestDisclosure],
   );
 
   return { execute };

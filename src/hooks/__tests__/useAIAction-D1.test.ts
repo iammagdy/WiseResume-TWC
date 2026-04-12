@@ -23,6 +23,17 @@ vi.mock("@tanstack/react-query", async (importOriginal) => {
   };
 });
 
+// Mock privacy disclosure — always accepted in unit tests
+vi.mock("@/components/ai/AIPrivacyDisclosure", () => ({
+  hasAcceptedAIPrivacy: vi.fn().mockReturnValue(true),
+}));
+
+vi.mock("@/components/ai/AIPrivacyDisclosureProvider", () => ({
+  useAIPrivacyDisclosure: vi.fn(() => ({
+    requestDisclosure: vi.fn().mockResolvedValue(true),
+  })),
+}));
+
 // Import after mocks are registered
 import { useAIAction } from "@/hooks/useAIAction";
 

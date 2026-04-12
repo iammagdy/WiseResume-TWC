@@ -29,7 +29,17 @@ Deno.serve(async (req) => {
       );
     }
 
-    const isValid = password === SECRET_PASSWORD;
+    // Constant-time comparison to eliminate timing side-channel on the password check.
+    // Both strings are padded to equal length before comparison.
+    const encoder = new TextEncoder();
+    const a = encoder.encode(password.padEnd(64));
+    const b = encoder.encode(SECRET_PASSWORD.padEnd(64));
+    let isValid = a.length === b.length;
+    try {
+      isValid = isValid && await crypto.subtle.timingSafeEqual(a, b);
+    } catch {
+      isValid = false;
+    }
 
     if (!isValid) {
       return new Response(
