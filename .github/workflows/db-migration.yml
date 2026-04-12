@@ -1,5 +1,19 @@
 name: Run Database Migration
 
+# ⚠️  KNOWN ISSUE: This workflow may fail with "duplicate key value violates unique constraint
+# on schema_migrations_pkey" if any migrations were previously applied directly to the
+# production database (e.g. via the Supabase dashboard or management API) rather than
+# through this CLI workflow. This leaves the local migration history out of sync with what
+# the Supabase CLI expects.
+#
+# ALTERNATIVE: Use the "Apply SQL via Management API" workflow (apply-rpc-migration.yml)
+# to apply individual SQL files (DDL, functions, RPC) directly via the management API.
+# That workflow does not use the Supabase CLI and does not depend on SUPABASE_DB_PASSWORD.
+#
+# REQUIRED GitHub Secrets:
+#   SUPABASE_ACCESS_TOKEN  — Supabase personal access token
+#   SUPABASE_DB_PASSWORD   — Supabase database password
+
 on:
   workflow_dispatch:
     inputs:
