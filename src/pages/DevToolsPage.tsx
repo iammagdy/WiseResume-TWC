@@ -30,6 +30,21 @@ import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
+
+type EmailCheckResult = { allowed: true } | { allowed: false; reason: 'not_in_list' | 'no_allowlist' };
+
+function checkEmailAllowed(email: string | null | undefined): EmailCheckResult {
+  const raw = import.meta.env.VITE_ADMIN_EMAILS ?? '';
+  const allowed = raw.split(',').map((e: string) => e.trim().toLowerCase()).filter(Boolean);
+  if (allowed.length === 0) {
+    return { allowed: false, reason: 'no_allowlist' };
+  }
+  if (allowed.includes((email ?? '').toLowerCase())) {
+    return { allowed: true };
+  }
+  return { allowed: false, reason: 'not_in_list' };
+}
 
 type Tab = 'overview' | 'analytics' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity';
 
@@ -51,12 +66,14 @@ export default function DevToolsPage() {
   const [pw, setPw] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [pwError, setPwError] = useState(false);
+  const [emailDenied, setEmailDenied] = useState<'not_in_list' | 'no_allowlist' | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [userCount, setUserCount] = useState<number | null>(null);
   const [couponCount, setCouponCount] = useState<number | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('checking');
   const navigate = useNavigate();
+  const { user } = useKindeAuth();
 
   const checkConnection = useCallback(async () => {
     try {
@@ -80,6 +97,7 @@ export default function DevToolsPage() {
 
     setIsVerifying(true);
     setPwError(false);
+    setEmailDenied(null);
 
     try {
       const { data, error } = await edgeFunctions.functions.invoke('verify-dev-kit', {
@@ -99,6 +117,11 @@ export default function DevToolsPage() {
       }
 
       if (data?.success) {
+        const check = checkEmailAllowed(user?.email);
+        if (!check.allowed) {
+          setEmailDenied(check.reason);
+          return;
+        }
         setUnlocked(true);
       } else {
         setPwError(true);
@@ -114,6 +137,7 @@ export default function DevToolsPage() {
     setUnlocked(false);
     setPw('');
     setPwError(false);
+    setEmailDenied(null);
     setActiveTab('overview');
     setUserCount(null);
     setCouponCount(null);
@@ -147,7 +171,7 @@ export default function DevToolsPage() {
                     type={showPw ? 'text' : 'password'}
                     placeholder="Enter your dev-kit password"
                     value={pw}
-                    onChange={(e) => { setPw(e.target.value); setPwError(false); }}
+                    onChange={(e) => { setPw(e.target.value); setPwError(false); setEmailDenied(null); }}
                     disabled={isVerifying}
                     autoFocus
                     className={cn(
@@ -170,6 +194,16 @@ export default function DevToolsPage() {
                   </p>
                 )}
               </div>
+              {emailDenied === 'not_in_list' && (
+                <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2.5 text-xs text-destructive font-medium">
+                  Access denied — your account is not on the admin allowlist.
+                </div>
+              )}
+              {emailDenied === 'no_allowlist' && (
+                <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2.5 text-xs text-destructive font-medium">
+                  Access denied — no admin allowlist is configured (VITE_ADMIN_EMAILS). Set it in Replit secrets to enable access.
+                </div>
+              )}
               <Button
                 type="submit"
                 disabled={isVerifying || !pw.trim()}

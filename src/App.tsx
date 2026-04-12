@@ -65,6 +65,28 @@ import { getSafeMatchMedia, isBrowser } from "@/lib/envUtils";
 // Eagerly load Index for LCP
 import Index from "./pages/Index";
 
+// Kinde configuration — PRIMARY PATH: VITE_KINDE_CLIENT_ID and VITE_KINDE_DOMAIN
+// are injected at build time from Replit secrets. Hardcoded fallbacks below are
+// last-resort for local dev only and must never be active in production.
+const _kindeClientId = import.meta.env.VITE_KINDE_CLIENT_ID;
+const _kindeDomain = import.meta.env.VITE_KINDE_DOMAIN;
+if (!_kindeClientId) {
+  if (import.meta.env.PROD) {
+    console.error('[Kinde] CRITICAL: VITE_KINDE_CLIENT_ID is not set. Add it as a Replit secret.');
+  } else {
+    console.warn('[Kinde] VITE_KINDE_CLIENT_ID not set — using hardcoded fallback. Set as a Replit secret.');
+  }
+}
+if (!_kindeDomain) {
+  if (import.meta.env.PROD) {
+    console.error('[Kinde] CRITICAL: VITE_KINDE_DOMAIN is not set. Add it as a Replit secret.');
+  } else {
+    console.warn('[Kinde] VITE_KINDE_DOMAIN not set — using hardcoded fallback. Set as a Replit secret.');
+  }
+}
+const KINDE_CLIENT_ID = _kindeClientId ?? '629174acb2874e6bbf53cd4a95497425';
+const KINDE_DOMAIN = _kindeDomain ?? 'https://thewisecloud.kinde.com';
+
 // Lazy load other pages with retry
 const UploadPage = lazyWithRetry(() => import("./pages/UploadPage"));
 const EditorPage = lazyWithRetry(() => import("./pages/EditorPage"));
@@ -366,8 +388,8 @@ const App = () => {
             <Toaster />
              <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                <KindeProvider
-              clientId={import.meta.env.VITE_KINDE_CLIENT_ID ?? '629174acb2874e6bbf53cd4a95497425'}
-              domain={import.meta.env.VITE_KINDE_DOMAIN ?? 'https://thewisecloud.kinde.com'}
+              clientId={KINDE_CLIENT_ID}
+              domain={KINDE_DOMAIN}
               redirectUri={window.location.origin + '/auth/callback'}
               logoutUri={window.location.origin}>
               

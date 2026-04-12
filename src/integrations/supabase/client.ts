@@ -2,8 +2,29 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://jnsfmkzgxsviuthaqlyy.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impuc2Zta3pneHN2aXV0aGFxbHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4ODM4MzQsImV4cCI6MjA4NzQ1OTgzNH0.gzgKuVPKUU3I6TFk9A5C2EPdd8Opz1SYafymiT62lV0";
+// PRIMARY PATH: VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY are injected
+// at build time from Replit secrets. The hardcoded strings below are last-resort
+// fallbacks for local dev only — they must never be the active path in production.
+const _envUrl = import.meta.env.VITE_SUPABASE_URL;
+const _envKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!_envUrl) {
+  if (import.meta.env.PROD) {
+    console.error('[supabase/client] CRITICAL: VITE_SUPABASE_URL is not set. Add it as a Replit secret.');
+  } else {
+    console.warn('[supabase/client] VITE_SUPABASE_URL not set — using hardcoded fallback. Set as a Replit secret.');
+  }
+}
+if (!_envKey) {
+  if (import.meta.env.PROD) {
+    console.error('[supabase/client] CRITICAL: VITE_SUPABASE_PUBLISHABLE_KEY is not set. Add it as a Replit secret.');
+  } else {
+    console.warn('[supabase/client] VITE_SUPABASE_PUBLISHABLE_KEY not set — using hardcoded fallback. Set as a Replit secret.');
+  }
+}
+
+const SUPABASE_URL = _envUrl || "https://jnsfmkzgxsviuthaqlyy.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = _envKey || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impuc2Zta3pneHN2aXV0aGFxbHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4ODM4MzQsImV4cCI6MjA4NzQ1OTgzNH0.gzgKuVPKUU3I6TFk9A5C2EPdd8Opz1SYafymiT62lV0";
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
