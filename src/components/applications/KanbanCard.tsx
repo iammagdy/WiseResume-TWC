@@ -7,6 +7,7 @@ import {
   Calendar,
   FileText,
   Mail,
+  PenLine,
   Trash2,
   MoreVertical,
   ExternalLink,
@@ -130,12 +131,18 @@ export const KanbanCard = memo(function KanbanCard({ application, onDelete }: Ka
               <MoreVertical className="w-3.5 h-3.5" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuItem
               onClick={() => { haptics.light(); navigate(`/application/${application.id}`); }}
             >
               <FileText className="w-3.5 h-3.5 mr-2" />
               View details
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => { haptics.light(); navigate(`/application/${application.id}?editNotes=1`); }}
+            >
+              <PenLine className="w-3.5 h-3.5 mr-2" />
+              Edit notes
             </DropdownMenuItem>
             {application.url && (
               <DropdownMenuItem

@@ -33,25 +33,38 @@ export function KanbanColumn({ column, cards, onDelete }: KanbanColumnProps) {
       {/* Column header */}
       <div className="flex items-center gap-2 px-1 mb-3 min-h-[28px]">
         {isRejected ? (
-          /* Rejected: collapsible header */
-          <button
-            onClick={() => setIsCollapsed((v) => !v)}
-            className="flex items-center gap-2 flex-1 text-left min-h-[32px] touch-manipulation"
-          >
-            {isCollapsed ? (
-              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-            ) : (
-              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-            )}
-            <span className={cn('text-[11px] font-bold uppercase tracking-widest', column.headerColorClass)}>
-              {column.label}
-            </span>
-            {cards.length > 0 && (
-              <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0', column.badgeColorClass)}>
-                {cards.length}
+          /* Rejected: collapsible header + Add button always visible */
+          <>
+            <button
+              onClick={() => setIsCollapsed((v) => !v)}
+              className="flex items-center gap-2 flex-1 text-left min-h-[32px] touch-manipulation"
+            >
+              {isCollapsed ? (
+                <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              ) : (
+                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              )}
+              <span className={cn('text-[11px] font-bold uppercase tracking-widest', column.headerColorClass)}>
+                {column.label}
               </span>
-            )}
-          </button>
+              {cards.length > 0 && (
+                <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0', column.badgeColorClass)}>
+                  {cards.length}
+                </span>
+              )}
+            </button>
+            {/* + Add button also available on rejected column */}
+            <button
+              onClick={() => {
+                if (isCollapsed) setIsCollapsed(false);
+                setShowQuickAdd((v) => !v);
+              }}
+              className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-muted text-muted-foreground transition-colors touch-manipulation shrink-0"
+              aria-label="Add to Rejected"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+          </>
         ) : (
           /* Normal column header */
           <>
@@ -75,21 +88,29 @@ export function KanbanColumn({ column, cards, onDelete }: KanbanColumnProps) {
         )}
       </div>
 
-      {/* Droppable cards area (collapsed rejected shows slim target) */}
+      {/* Droppable cards area — slim when rejected is collapsed */}
       {isCollapsed && isRejected ? (
-        <div
-          ref={setNodeRef}
-          className={cn(
-            'h-12 rounded-xl border-2 border-dashed flex items-center justify-center transition-colors',
-            isOver
-              ? 'border-destructive/50 bg-destructive/5'
-              : 'border-muted-foreground/20',
+        <>
+          <div
+            ref={setNodeRef}
+            className={cn(
+              'h-12 rounded-xl border-2 border-dashed flex items-center justify-center transition-colors',
+              isOver
+                ? 'border-destructive/50 bg-destructive/5'
+                : 'border-muted-foreground/20',
+            )}
+          >
+            {isOver && (
+              <span className="text-xs text-destructive font-medium">Drop to reject</span>
+            )}
+          </div>
+          {showQuickAdd && (
+            <QuickAddInline
+              defaultStatus={column.status}
+              onClose={() => setShowQuickAdd(false)}
+            />
           )}
-        >
-          {isOver && (
-            <span className="text-xs text-destructive font-medium">Drop to reject</span>
-          )}
-        </div>
+        </>
       ) : (
         <>
           <div

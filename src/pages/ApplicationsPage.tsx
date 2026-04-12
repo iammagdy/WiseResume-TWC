@@ -326,16 +326,18 @@ export default function ApplicationsPage() {
                   <button
                     onClick={() => handleViewChange('list')}
                     aria-label="List view"
-                    className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all touch-manipulation ${view === 'list' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                    className={`flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium transition-all touch-manipulation ${view === 'list' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                   >
-                    <List className="w-4 h-4" />
+                    <List className="w-3.5 h-3.5" />
+                    List
                   </button>
                   <button
                     onClick={() => handleViewChange('board')}
                     aria-label="Board view"
-                    className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all touch-manipulation ${view === 'board' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                    className={`flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium transition-all touch-manipulation ${view === 'board' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                   >
-                    <LayoutGrid className="w-4 h-4" />
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                    Board
                   </button>
                 </div>
               </div>

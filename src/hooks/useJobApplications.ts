@@ -101,6 +101,7 @@ export function useJobApplicationMutations() {
       url?: string;
       deadline?: string;
       remind_at?: string;
+      applied_at?: string;
     }) => {
       if (!user) throw new Error('Not authenticated');
       const { data, error } = await supabase
@@ -116,6 +117,7 @@ export function useJobApplicationMutations() {
           url: input.url || null,
           deadline: input.deadline || null,
           remind_at: input.remind_at || null,
+          ...(input.applied_at ? { applied_at: input.applied_at } : {}),
         })
         .select()
         .single();

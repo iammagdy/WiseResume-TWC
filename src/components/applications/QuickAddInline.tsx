@@ -53,6 +53,7 @@ export function QuickAddInline({ defaultStatus, onClose }: QuickAddInlineProps) 
         job_title: trimmedTitle,
         status: defaultStatus,
         url: url.trim() || undefined,
+        applied_at: new Date().toISOString(),
       });
       onClose();
     } catch {

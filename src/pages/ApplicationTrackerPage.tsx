@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Check, Circle, Briefcase, FileText, Bell, Calendar, Trash2, Mail, Mic, AlertTriangle } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { motion } from 'framer-motion';
@@ -30,13 +30,14 @@ const STAGE_ORDER: Record<string, number> = { saved: 0, applied: 1, screening: 2
 export default function ApplicationTrackerPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { data: app, isLoading } = useJobApplication(id || null);
   const { data: resumes } = useResumes();
   const { updateApplication, deleteApplication } = useJobApplicationMutations();
   const { data: coverLetter } = useCoverLetter(app?.cover_letter_id || null);
   const [notes, setNotes] = useState<string | null>(null);
-  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [isEditingNotes, setIsEditingNotes] = useState(searchParams.get('editNotes') === '1');
   const [showReminder, setShowReminder] = useState(false);
   const [reminderDate, setReminderDate] = useState('');
   const [showFollowUp, setShowFollowUp] = useState(false);
