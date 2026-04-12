@@ -218,6 +218,7 @@ function useStatCounters() {
   const startedRef = useRef(false);
 
   useEffect(() => {
+    let raf: number | null = null;
     const startCount = () => {
       if (startedRef.current) return;
       startedRef.current = true;
@@ -228,9 +229,9 @@ function useStatCounters() {
         const eased = 1 - Math.pow(1 - p, 3);
         setAts(Math.round(eased * 92));
         setResumes(Math.round(eased * 12));
-        if (p < 1) requestAnimationFrame(tick);
+        if (p < 1) { raf = requestAnimationFrame(tick); }
       };
-      requestAnimationFrame(tick);
+      raf = requestAnimationFrame(tick);
     };
 
     const el = pillsRef.current;
@@ -249,7 +250,10 @@ function useStatCounters() {
       { threshold: 0 }
     );
     observer.observe(el);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (raf !== null) cancelAnimationFrame(raf);
+    };
   }, []);
 
   return { ats, resumes, pillsRef };
