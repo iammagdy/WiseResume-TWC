@@ -35,6 +35,7 @@ import haptics from '@/lib/haptics';
 
 import { AITrustBadge } from '@/components/ui/AITrustBadge';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
+import { AISheetErrorBoundary } from '@/components/ai/AISheetErrorBoundary';
 import { useResumeMutations, resumeDataToDb, useResumes, dbToResumeData, DatabaseResume } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/safeClient';
@@ -589,6 +590,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="max-h-[90dvh] rounded-t-3xl flex flex-col">
+        <AISheetErrorBoundary key={String(open)} onClose={() => onOpenChange(false)}>
           <SheetHeader className="pb-4 shrink-0">
           <div className="flex items-center justify-between">
             <SheetTitle className="flex items-center gap-2">
@@ -1280,6 +1282,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
             ) : null}
           </div>
         )}
+        </AISheetErrorBoundary>
       </SheetContent>
 
       {/* AI Settings Sheet */}

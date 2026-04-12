@@ -49,6 +49,7 @@ import { EditorExportSection } from '@/components/settings/sections/EditorExport
 import { NotificationsSection } from '@/components/settings/sections/NotificationsSection';
 import { PrivacySection } from '@/components/settings/sections/PrivacySection';
 import { AboutSection } from '@/components/settings/sections/AboutSection';
+import { DangerZoneSection } from '@/components/settings/sections/DangerZoneSection';
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -380,6 +381,16 @@ export default function SettingsPage() {
               />
             </div>
           </div>
+
+          {/* Danger Zone */}
+          {user && (
+            <div>
+              <SectionLabel>Danger Zone</SectionLabel>
+              <div className="mx-4">
+                <DangerZoneSection onDeleteData={() => setDeleteDialogOpen(true)} />
+              </div>
+            </div>
+          )}
 
           {/* Developer Credit */}
           <div className="px-4">

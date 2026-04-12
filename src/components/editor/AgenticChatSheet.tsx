@@ -39,6 +39,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { AITrustBadge } from '@/components/ui/AITrustBadge';
+import { AISheetErrorBoundary } from '@/components/ai/AISheetErrorBoundary';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useResumeStore } from '@/store/resumeStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -334,6 +335,7 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[85vh] flex flex-col p-0">
+        <AISheetErrorBoundary key={String(open)} onClose={() => onOpenChange(false)}>
         <SheetHeader className="px-4 pt-4 pb-3 shrink-0 border-b border-border">
           <div className="flex items-center justify-between gap-2">
             <SheetTitle className="flex items-center gap-2">
@@ -577,6 +579,7 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
             </div>
           </>
         )}
+        </AISheetErrorBoundary>
       </SheetContent>
     </Sheet>
   );

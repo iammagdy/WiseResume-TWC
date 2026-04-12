@@ -117,6 +117,12 @@ function DashboardPageContent() {
     try { localStorage.setItem('wr-trust-banner-visits', String(visitCount + 1)); } catch { /* localStorage full or disabled */ }
     return true;
   });
+  const [showQuickStartBanner, setShowQuickStartBanner] = useState(() => {
+    const onboardingCompleted = localStorage.getItem('wr-onboarding-completed') === 'true';
+    const dismissed = localStorage.getItem('wr-quickstart-dismissed') === 'true';
+    const hadResume = localStorage.getItem('wr-quickstart-had-resume') === 'true';
+    return onboardingCompleted && !dismissed && !hadResume;
+  });
   const [profilePulseSeen, setProfilePulseSeen] = useState(() => !!localStorage.getItem('wr-profile-pulse-seen'));
   const [showFeatureMap, setShowFeatureMap] = useState(false);
   const { isOnline } = useNetworkStatus();
@@ -190,6 +196,14 @@ function DashboardPageContent() {
     };
     run();
   }, [user]);
+
+  // Persist flag when user has at least one resume so Quick Start banner never reappears
+  useEffect(() => {
+    if (resumes && resumes.length > 0 && showQuickStartBanner) {
+      try { localStorage.setItem('wr-quickstart-had-resume', 'true'); } catch { /* ignore */ }
+      setShowQuickStartBanner(false);
+    }
+  }, [resumes, showQuickStartBanner]);
 
   // Keyboard shortcuts for empty state
   useEffect(() => {
@@ -477,7 +491,7 @@ function DashboardPageContent() {
     <div className="flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-20 pt-3 pb-2 px-4 flex items-center justify-between bg-background/95 backdrop-blur-sm border-b border-border">
-        <button onClick={() => navigate('/')} aria-label="Back to home" className="touch-manipulation">
+        <button onClick={() => { window.scrollTo(0, 0); navigate('/dashboard'); }} aria-label="Home" className="touch-manipulation">
           <AppLogo size="sm" showTagline={false} hideText />
         </button>
         <div className="flex items-center gap-1">
@@ -756,6 +770,44 @@ function DashboardPageContent() {
           {/* Quick Action Chips */}
           {resumes && resumes.length > 0 && (
             <QuickActionChips onCreateNew={handleCreateNew} />
+          )}
+
+          {/* Quick Start Banner — shown after onboarding skip when user has no resumes */}
+          {showQuickStartBanner && resumes && resumes.length === 0 && (
+            <div className="mx-4 mb-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 flex items-start gap-3">
+              <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground leading-tight">Ready to build your resume?</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-snug">Create your first resume in minutes with AI assistance.</p>
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  <Button
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={() => { haptics.light(); handleCreateNew(); }}
+                  >
+                    Create your first resume
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs"
+                    onClick={() => { haptics.light(); navigate('/onboarding'); }}
+                  >
+                    Take the tour
+                  </Button>
+                </div>
+              </div>
+              <button
+                aria-label="Dismiss"
+                className="text-muted-foreground hover:text-foreground touch-manipulation shrink-0"
+                onClick={() => {
+                  try { localStorage.setItem('wr-quickstart-dismissed', 'true'); } catch { /* ignore */ }
+                  setShowQuickStartBanner(false);
+                }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           )}
 
           {/* Search pill — moved below tabs area conceptually, but above filter bar */}

@@ -223,9 +223,25 @@ function InterviewPageContent() {
     };
   }, [summary]);
 
+  const hasUnsavedSession = useRef(false);
+
+  // beforeunload guard — warn if session summary exists but hasn't been saved yet
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedSession.current) {
+        e.preventDefault();
+        e.returnValue = 'Leave page? Your session results haven\'t been saved yet.';
+        return e.returnValue;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
   // Auto-save session when summary is shown
   useEffect(() => {
     if (summary && !sessionSaved && user) {
+      hasUnsavedSession.current = true;
       setSessionSaved(true);
       saveSession.mutate({
         interview_type: activeInterviewTypeRef.current,
@@ -236,7 +252,11 @@ function InterviewPageContent() {
         improvements: parsedSummary.improvements,
         duration_seconds: elapsedSeconds,
       }, {
+        onSuccess: () => {
+          hasUnsavedSession.current = false;
+        },
         onError: (err) => {
+          hasUnsavedSession.current = true;
           console.error('Failed to save session:', err);
           toast.error('Failed to save interview', {
             description: 'A network or authentication error occurred. Your session won\'t be saved in history.',

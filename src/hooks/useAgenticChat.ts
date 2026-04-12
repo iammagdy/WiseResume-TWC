@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useResumeStore } from '@/store/resumeStore';
 import { useResumes } from '@/hooks/useResumes';
@@ -6,13 +6,109 @@ import { sendChatMessage, sendFunctionFeedback, ChatMessage, SuggestionProposal,
 import { haptics } from '@/lib/haptics';
 import { useAICreditsMutations } from './useAICredits';
 import { toast } from 'sonner';
+import { ResumeData } from '@/types/resume';
+
+const OVERWRITE_FUNCTIONS = new Set([
+  'update_summary',
+  'update_experience',
+  'update_skills',
+  'add_skills',
+]);
+
+function getSectionLabel(functionName: string): string {
+  switch (functionName) {
+    case 'update_summary': return 'Summary';
+    case 'update_experience': return 'Experience';
+    case 'update_skills': return 'Skills';
+    case 'add_skills': return 'Skills';
+    default: return 'this section';
+  }
+}
+
+type SectionKey = 'summary' | 'experience' | 'skills';
+
+function getSectionKey(functionName: string): SectionKey | null {
+  switch (functionName) {
+    case 'update_summary': return 'summary';
+    case 'update_experience': return 'experience';
+    case 'update_skills': return 'skills';
+    case 'add_skills': return 'skills';
+    default: return null;
+  }
+}
+
+function sectionSnapshot(resume: ResumeData | null, sectionKey: SectionKey): string {
+  if (!resume) return '';
+  const val = resume[sectionKey];
+  return JSON.stringify(val ?? '');
+}
 
 export function useAgenticChat(contextFilter?: string) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isThinking, setIsThinking] = useState(false);
-  const { currentResume, updateResume } = useResumeStore();
+  const { currentResume, currentResumeId, updateResume, lastSavedAt } = useResumeStore();
   const { data: allResumes = [] } = useResumes();
   const { incrementUsage, checkCredits } = useAICreditsMutations();
+
+  // Track the last-saved snapshot of section data so we can detect unsaved edits
+  // per-section before applying an AI function call.
+  // The snapshot is updated on:
+  //  1. A different resume being loaded (currentResumeId changes)
+  //  2. A successful save (lastSavedAt changes)
+  const savedSnapshotRef = useRef<Partial<Record<SectionKey, string>>>({});
+  const resumeLoaded = currentResume !== null;
+
+  useEffect(() => {
+    if (!currentResume) {
+      savedSnapshotRef.current = {};
+      return;
+    }
+    // Capture the current state as the "last saved" baseline.
+    // This runs when:
+    //   - A new resume is loaded (currentResumeId changes)
+    //   - currentResume transitions from null to non-null (resumeLoaded becomes true)
+    //   - A save completes (lastSavedAt changes)
+    savedSnapshotRef.current = {
+      summary: sectionSnapshot(currentResume, 'summary'),
+      experience: sectionSnapshot(currentResume, 'experience'),
+      skills: sectionSnapshot(currentResume, 'skills'),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentResumeId, lastSavedAt, resumeLoaded]); // Refresh when resume ID, save, or load state changes
+
+  const hasPendingEditsForSection = useCallback((functionName: string): boolean => {
+    const sectionKey = getSectionKey(functionName);
+    if (!sectionKey || !currentResume) return false;
+    const savedValue = savedSnapshotRef.current[sectionKey];
+    // If no saved snapshot yet for this resume, we can't detect pending edits
+    if (savedValue === undefined) return false;
+    const currentValue = sectionSnapshot(currentResume, sectionKey);
+    return currentValue !== savedValue;
+  }, [currentResume]);
+
+  const confirmAndApply = useCallback((
+    functionName: string,
+    applyFn: () => FunctionResult
+  ): FunctionResult => {
+    const hasPending = OVERWRITE_FUNCTIONS.has(functionName) && hasPendingEditsForSection(functionName);
+    if (hasPending) {
+      const label = getSectionLabel(functionName);
+      toast(`AI wants to update your ${label}`, {
+        description: 'You have unsaved edits in this section.',
+        action: {
+          label: 'Apply',
+          onClick: () => { applyFn(); },
+        },
+        cancel: {
+          label: 'Dismiss',
+          onClick: () => {},
+        },
+        duration: 8000,
+      });
+      return { name: functionName, result: { success: true, applied: { deferred: true, reason: 'pending_confirmation' } } };
+    }
+    return applyFn();
+  }, [hasPendingEditsForSection]);
 
   const executeFunctionCall = useCallback(
     (functionName: string, args: Record<string, unknown>): FunctionResult => {
@@ -23,9 +119,11 @@ export function useAgenticChat(contextFilter?: string) {
       try {
         switch (functionName) {
           case 'update_summary': {
-            updateResume({ summary: args.newSummary as string });
-            haptics.success();
-            return { name: functionName, result: { success: true, applied: { newSummary: args.newSummary } } };
+            return confirmAndApply(functionName, () => {
+              updateResume({ summary: args.newSummary as string });
+              haptics.success();
+              return { name: functionName, result: { success: true, applied: { newSummary: args.newSummary } } };
+            });
           }
           case 'add_experience': {
             const newExp = {
@@ -55,24 +153,30 @@ export function useAgenticChat(contextFilter?: string) {
             if (expIndex === -1) {
               return { name: functionName, result: { success: false, error: `Could not find experience matching "${args.identifier}"` } };
             }
-            const updatedExp = { ...currentResume.experience[expIndex], ...updates };
-            const newExperience = [...currentResume.experience];
-            newExperience[expIndex] = updatedExp;
-            updateResume({ experience: newExperience });
-            haptics.success();
-            return { name: functionName, result: { success: true, applied: { identifier: args.identifier, updates } } };
+            return confirmAndApply(functionName, () => {
+              const updatedExp = { ...currentResume.experience[expIndex], ...updates };
+              const newExperience = [...currentResume.experience];
+              newExperience[expIndex] = updatedExp;
+              updateResume({ experience: newExperience });
+              haptics.success();
+              return { name: functionName, result: { success: true, applied: { identifier: args.identifier, updates } } };
+            });
           }
           case 'update_skills': {
-            updateResume({ skills: args.skills as string[] });
-            haptics.success();
-            return { name: functionName, result: { success: true, applied: { skillCount: (args.skills as string[]).length } } };
+            return confirmAndApply(functionName, () => {
+              updateResume({ skills: args.skills as string[] });
+              haptics.success();
+              return { name: functionName, result: { success: true, applied: { skillCount: (args.skills as string[]).length } } };
+            });
           }
           case 'add_skills': {
             const newSkills = args.skills as string[];
-            const merged = [...new Set([...currentResume.skills, ...newSkills])];
-            updateResume({ skills: merged });
-            haptics.success();
-            return { name: functionName, result: { success: true, applied: { addedSkills: newSkills } } };
+            return confirmAndApply(functionName, () => {
+              const merged = [...new Set([...currentResume.skills, ...newSkills])];
+              updateResume({ skills: merged });
+              haptics.success();
+              return { name: functionName, result: { success: true, applied: { addedSkills: newSkills } } };
+            });
           }
           case 'add_project': {
             const newProject = {
@@ -129,7 +233,7 @@ export function useAgenticChat(contextFilter?: string) {
         return { name: functionName, result: { success: false, error: error instanceof Error ? error.message : 'Unknown error' } };
       }
     },
-    [currentResume, updateResume]
+    [currentResume, updateResume, confirmAndApply]
   );
 
   const applySuggestion = useCallback(
@@ -293,7 +397,7 @@ export function useAgenticChat(contextFilter?: string) {
         setIsThinking(false);
       }
     },
-    [isThinking, messages, currentResume, executeFunctionCall]
+    [isThinking, messages, currentResume, executeFunctionCall, allResumes, contextFilter, checkCredits, incrementUsage]
   );
 
   const clearChat = useCallback(() => {

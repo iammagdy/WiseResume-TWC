@@ -14,6 +14,7 @@ import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { sanitizeAIContent } from '@/lib/ai/sanitizeContent';
 import { AICostBadge } from '@/components/ai/AICostBadge';
+import { AISheetErrorBoundary } from '@/components/ai/AISheetErrorBoundary';
 import { activityTracker } from '@/lib/activityTracker';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import type { ActionType, SectionType } from '@/hooks/useAIEnhance';
@@ -545,6 +546,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="max-h-[90dvh] flex flex-col rounded-t-2xl">
+        <AISheetErrorBoundary key={String(open)} onClose={() => onOpenChange(false)}>
         <SheetHeader className="shrink-0 pb-3 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10">
@@ -846,6 +848,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
             </Button>
           </div>
         )}
+        </AISheetErrorBoundary>
       </SheetContent>
     </Sheet>
   );
