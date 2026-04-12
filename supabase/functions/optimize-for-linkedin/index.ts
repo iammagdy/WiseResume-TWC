@@ -5,6 +5,7 @@ import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
 import { deductCredits } from "../_shared/deductCredits.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
+import { checkPayloadSize } from "../_shared/requestUtils.ts";
 
 // Extend the global scope with the Deno namespace for type checking
 declare global {
@@ -66,6 +67,9 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const sizeError = checkPayloadSize(req, 500 * 1024);
+  if (sizeError) return sizeError;
 
   try {
     const { userId, client } = await requireAuth(req);

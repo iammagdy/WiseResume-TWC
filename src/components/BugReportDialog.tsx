@@ -181,24 +181,26 @@ export function BugReportDialog() {
       setTimeout(() => setOpen(false), 2000);
     } catch (err) {
       console.error('Email send failed:', err);
-      // Fallback: direct DB insert (works even if function deployment drifts)
+      // Fallback: submit via the edge function (which uses service role to insert)
       try {
-        const { error: dbErr } = await supabase.from('contact_requests').insert({
-          type: 'bug',
-          email: payload.email,
-          subject: payload.subject,
-          message: payload.message,
-          metadata: payload.metadata,
-          user_id: userId || null,
-          ip_address: 'client-side-fallback',
+        const { data: fbRes, error: fbErr } = await edgeFunctions.functions.invoke('submit-contact-request', {
+          body: {
+            type: payload.type,
+            email: payload.email,
+            subject: payload.subject,
+            message: payload.message,
+            metadata: payload.metadata,
+          },
         });
-        if (dbErr) throw dbErr;
-        activityTracker.clearErrors();
-        setStatus('success');
-        setTimeout(() => setOpen(false), 2000);
-        return;
+        if (fbErr) throw fbErr;
+        if (fbRes?.success) {
+          activityTracker.clearErrors();
+          setStatus('success');
+          setTimeout(() => setOpen(false), 2000);
+          return;
+        }
       } catch (fallbackErr) {
-        console.error('Fallback DB insert failed:', fallbackErr);
+        console.error('Fallback submit-contact-request failed:', fallbackErr);
       }
       setStatus('error');
     }

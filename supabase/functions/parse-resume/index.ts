@@ -4,6 +4,7 @@ import { callAI, isAIError, toUserError, sanitizeInputText, parseAIJSON } from "
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { localParseResume } from "./localParser.ts";
 import { decodeJwtPayloadUnsafe } from "../_shared/jwtUtils.ts";
+import { checkPayloadSize } from "../_shared/requestUtils.ts";
 
 const MAX_TEXT_LENGTH = 100 * 1024;
 
@@ -375,6 +376,9 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+  const sizeError = checkPayloadSize(req, 2 * 1024 * 1024);
+  if (sizeError) return sizeError;
 
   try {
     // Auth is intentionally optional — this endpoint accepts tokens from multiple Supabase projects

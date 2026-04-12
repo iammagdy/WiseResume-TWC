@@ -6,6 +6,7 @@ import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
 import { deductCredits } from "../_shared/deductCredits.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
+import { checkPayloadSize } from "../_shared/requestUtils.ts";
 
 const safeSkillsString = (skills: any[] | undefined): string =>
   (skills || []).map((s: any) => (typeof s === 'string' ? s : s?.name || '')).filter(Boolean).join(', ');
@@ -20,6 +21,9 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+  const sizeError = checkPayloadSize(req, 500 * 1024);
+  if (sizeError) return sizeError;
 
   try {
     const { userId, client } = await requireAuth(req);

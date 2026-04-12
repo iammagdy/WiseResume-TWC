@@ -6,6 +6,7 @@ import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
 import { deductCredits } from "../_shared/deductCredits.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
+import { checkPayloadSize } from "../_shared/requestUtils.ts";
 
 interface GapRequest {
   gap: { startDate: string; endDate: string; months: number };
@@ -35,6 +36,9 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+
+  const sizeError = checkPayloadSize(req, 500 * 1024);
+  if (sizeError) return sizeError;
 
   try {
     let userId: string;

@@ -3,6 +3,7 @@ import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { callAI, toUserError, parseAIJSON } from '../_shared/aiClient.ts';
 import { checkRateLimit, recordUsage } from '../_shared/rateLimiter.ts';
+import { checkPayloadSize } from '../_shared/requestUtils.ts';
 
 serve(async (req) => {
   const origin = req.headers.get('origin');
@@ -11,6 +12,9 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const sizeError = checkPayloadSize(req, 500 * 1024);
+  if (sizeError) return sizeError;
 
   try {
     const { userId } = await requireAuth(req);

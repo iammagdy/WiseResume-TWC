@@ -7,6 +7,7 @@ import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
 import { deductCredits } from "../_shared/deductCredits.ts";
 import { getProfileContext } from "../_shared/profileContext.ts";
+import { checkPayloadSize } from "../_shared/requestUtils.ts";
 
 /** Safely extract skills as a comma-separated string */
 function safeSkillsString(skills: unknown): string {
@@ -24,6 +25,9 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+  const sizeError = checkPayloadSize(req, 500 * 1024);
+  if (sizeError) return sizeError;
 
   try {
     // requireAuth() verifies JWT signature via jose.jwtVerify — see _shared/authMiddleware.ts

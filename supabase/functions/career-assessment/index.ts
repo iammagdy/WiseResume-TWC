@@ -6,6 +6,7 @@ import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
 import { deductCredits } from "../_shared/deductCredits.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
+import { checkPayloadSize } from "../_shared/requestUtils.ts";
 
 const MAX_BODY_SIZE = 150 * 1024;
 
@@ -18,6 +19,9 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
   }
+
+  const sizeError = checkPayloadSize(req, 500 * 1024);
+  if (sizeError) return sizeError;
 
   try {
     const { userId, client } = await requireAuth(req);

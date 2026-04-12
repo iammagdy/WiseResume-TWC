@@ -2,12 +2,16 @@ import { callAI, sanitizeInputText } from '../_shared/aiClient.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { checkRateLimit, recordUsage } from '../_shared/rateLimiter.ts';
+import { checkPayloadSize } from '../_shared/requestUtils.ts';
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const sizeError = checkPayloadSize(req, 500 * 1024);
+  if (sizeError) return sizeError;
 
   try {
     let userId: string;

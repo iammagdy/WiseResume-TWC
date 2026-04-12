@@ -8,6 +8,7 @@ import { deductCredits } from "../_shared/deductCredits.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { INDUSTRY_KEYWORDS, detectIndustryCategory } from "../_shared/industryKeywords.ts";
 import { getProfileContext } from "../_shared/profileContext.ts";
+import { checkPayloadSize } from "../_shared/requestUtils.ts";
 
 // ============= SECURITY: Input validation limits =============
 const MAX_RESUME_SIZE = 100 * 1024; // 100KB
@@ -25,6 +26,9 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+  const sizeError = checkPayloadSize(req, 500 * 1024);
+  if (sizeError) return sizeError;
 
   try {
     const { userId, client } = await requireAuth(req);

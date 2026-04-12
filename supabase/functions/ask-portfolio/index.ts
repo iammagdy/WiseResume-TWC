@@ -3,10 +3,14 @@ import { callAI, getUserKeyFromDB } from "../_shared/aiClient.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
+import { checkPayloadSize } from "../_shared/requestUtils.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get("origin"));
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const sizeError = checkPayloadSize(req, 200 * 1024);
+  if (sizeError) return sizeError;
 
   try {
     const { username, question, conversationHistory = [] } = await req.json();

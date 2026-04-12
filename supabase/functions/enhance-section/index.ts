@@ -6,6 +6,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
 import { deductCredits } from "../_shared/deductCredits.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
+import { checkPayloadSize } from "../_shared/requestUtils.ts";
 
 // ============= SECURITY: Input validation limits =============
 const MAX_CONTENT_SIZE = 50 * 1024; // 50KB for current content
@@ -634,6 +635,9 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+  const sizeError = checkPayloadSize(req, 500 * 1024);
+  if (sizeError) return sizeError;
 
   try {
     // Authentication via shared middleware (decodes JWT without signature check)
