@@ -105,12 +105,13 @@ export function DevKitRunner() {
           const status = (error as any).status || 500;
           const rawMsg = (error as any).message || JSON.stringify(error);
           const friendly = friendlyAIKeyError(rawMsg);
+          const detail = rawMsg && rawMsg !== `HTTP Error: ${status}` ? `: ${rawMsg}` : '';
           return {
             status: 'error',
             httpStatus: status,
             error: rawMsg,
             durationMs,
-            summary: friendly ?? `Edge Function Error (HTTP ${status})`,
+            summary: friendly ?? `Edge Function Error (HTTP ${status})${detail}`,
           };
         }
 
@@ -119,11 +120,12 @@ export function DevKitRunner() {
           const rawErr = String((data as any).error);
           const rawMsg = String((data as any).message || rawErr);
           const friendly = friendlyAIKeyError(rawErr) || friendlyAIKeyError(rawMsg);
+          const detail = rawMsg !== rawErr ? ` — ${rawMsg}` : '';
           return {
             status: 'error',
             data,
             durationMs,
-            summary: friendly ?? `Success response with Error field: ${rawErr}`,
+            summary: friendly ?? `Error: ${rawErr}${detail}`,
           };
         }
 

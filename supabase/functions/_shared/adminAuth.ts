@@ -55,7 +55,7 @@ async function verifySessionToken(token: string, secretKey: string): Promise<str
  * @throws A Response object with appropriate HTTP status on any failure.
  */
 export async function requireAdminAuth(req: Request, password: string): Promise<string> {
-  const SECRET_PASSWORD = Deno.env.get('DEV_KIT_PASSWORD');
+  const SECRET_PASSWORD = Deno.env.get('DEV_KIT_PASSWORD')?.trim();
 
   if (!SECRET_PASSWORD) {
     throw new Response(

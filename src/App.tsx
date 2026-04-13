@@ -226,15 +226,15 @@ function AppRoutes() {
     return () => window.removeEventListener("unhandledrejection", handleRejection);
   }, []);
 
-  if (!hasSeenSplash && !isPublicStandalone) {
+  const isAdminRoute = location.pathname.startsWith('/devkit');
+
+  if (!hasSeenSplash && !isPublicStandalone && !isAdminRoute) {
     return <AnimatedSplash onComplete={() => setHasSeenSplash(true)} />;
   }
 
   if (isSuspended && !isPublicStandalone) {
     return <SuspendedScreen reason={suspensionReason} onSignOut={signOut} />;
   }
-
-  const isAdminRoute = location.pathname.startsWith('/devkit');
 
   if (appSettings.maintenance_mode && !isPublicStandalone && !isAdminRoute) {
     return <MaintenanceScreen />;
