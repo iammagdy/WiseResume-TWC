@@ -30,6 +30,7 @@ import { calculateProfileCompletion } from '@/hooks/useProfile';
 import { AIHealthBadge } from '@/components/ai/AIHealthBadge';
 import { AICreditsIndicator } from '@/components/editor/ai/AICreditsIndicator';
 import { TrialCountdownBadge } from '@/components/ui/TrialCountdownBadge';
+import { DashboardStatusPopover } from '@/components/dashboard/DashboardStatusPopover';
 import { PlanChip } from '@/components/ui/PlanChip';
 import { usePlanUpgradeCelebration } from '@/hooks/usePlanUpgradeCelebration';
 import { useChangelogBadge } from '@/hooks/useChangelogBadge';
@@ -504,11 +505,16 @@ function DashboardPageContent() {
           >
             <HelpCircle className="w-4.5 h-4.5 text-muted-foreground" />
           </Button>
-          <TrialCountdownBadge />
-          <div className="flex">
+          {/* Small screens: compact status popover */}
+          <DashboardStatusPopover />
+          {/* Large screens: full indicators */}
+          <div className="hidden sm:contents">
+            <TrialCountdownBadge />
+          </div>
+          <div className="hidden sm:flex">
             <AICreditsIndicator />
           </div>
-          <div className="flex">
+          <div className="hidden sm:flex">
             <AIHealthBadge />
           </div>
           <Button

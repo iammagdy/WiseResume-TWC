@@ -416,7 +416,7 @@ function InterviewPageContent() {
 
   // Active interview
   return (
-    <div className="flex-1 flex flex-col overflow-hidden h-full">
+    <div className="flex-1 flex flex-col overflow-hidden" style={{ height: '100dvh', maxHeight: '100dvh' }}>
       {/* Active interview header */}
       <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
         <div className="flex items-center gap-3">

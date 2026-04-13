@@ -897,7 +897,7 @@ export default function EditorPage() {
               <EditorSectionContent {...editorSectionProps} />
             </div>
             {/* Pinned nav — always visible above bottom tab bar */}
-            <div className="shrink-0 px-4 pb-20 border-t border-border bg-background">
+            <div className="shrink-0 px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] border-t border-border bg-background">
               <SectionNavButtons steps={steps} activeTab={activeTab} handleTabChange={handleTabChange} navigate={navigate} />
             </div>
           </TabsContent>
@@ -1030,7 +1030,14 @@ export default function EditorPage() {
 
 
       {/* Keyboard Toolbar - floats above keyboard */}
-      <KeyboardToolbar />
+      <KeyboardToolbar
+        canUndo={canUndo}
+        canRedo={canRedo}
+        undoDescription={undoDescription}
+        redoDescription={redoDescription}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+      />
 
       {/* AI Intro Tooltip for First-Time Users */}
       <AIIntroTooltip

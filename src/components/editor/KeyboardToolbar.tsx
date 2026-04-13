@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
-import { ChevronUp, ChevronDown } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ChevronUp, ChevronDown, Undo2, Redo2 } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 
 /** Context-aware action words for experience/summary sections */
@@ -28,7 +28,23 @@ function insertTextAtCursor(text: string) {
   el.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
-export function KeyboardToolbar() {
+interface KeyboardToolbarProps {
+  canUndo?: boolean;
+  canRedo?: boolean;
+  undoDescription?: string;
+  redoDescription?: string;
+  onUndo?: () => void;
+  onRedo?: () => void;
+}
+
+export function KeyboardToolbar({
+  canUndo = false,
+  canRedo = false,
+  undoDescription = '',
+  redoDescription = '',
+  onUndo,
+  onRedo,
+}: KeyboardToolbarProps) {
   const [visible, setVisible] = useState(false);
   const [activeSection, setActiveSection] = useState('default');
 
@@ -80,6 +96,16 @@ export function KeyboardToolbar() {
     insertTextAtCursor(text);
   };
 
+  const handleUndo = () => {
+    haptics.light();
+    onUndo?.();
+  };
+
+  const handleRedo = () => {
+    haptics.light();
+    onRedo?.();
+  };
+
   const words = ACTION_WORDS[activeSection] || ACTION_WORDS.default;
 
   return (
@@ -118,6 +144,30 @@ export function KeyboardToolbar() {
             aria-label="Next field"
           >
             <ChevronDown className="w-5 h-5" />
+          </button>
+          {/* Undo/Redo divider */}
+          <div className="w-px h-5 bg-border mx-1" />
+          <button
+            type="button"
+            onClick={handleUndo}
+            disabled={!canUndo}
+            aria-label={canUndo ? `Undo: ${undoDescription}` : 'Nothing to undo'}
+            title={canUndo ? `Undo: ${undoDescription}` : 'Nothing to undo'}
+            aria-disabled={!canUndo}
+            className="p-2 rounded-lg active:scale-95 transition-all touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground"
+          >
+            <Undo2 className="w-5 h-5" />
+          </button>
+          <button
+            type="button"
+            onClick={handleRedo}
+            disabled={!canRedo}
+            aria-label={canRedo ? `Redo: ${redoDescription}` : 'Nothing to redo'}
+            title={canRedo ? `Redo: ${redoDescription}` : 'Nothing to redo'}
+            aria-disabled={!canRedo}
+            className="p-2 rounded-lg active:scale-95 transition-all touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground"
+          >
+            <Redo2 className="w-5 h-5" />
           </button>
         </div>
         <button
