@@ -1,38 +1,29 @@
 /**
  * wise-ai-chat — AI Studio edge function
  *
- * Accepts either:
- *   - Typed API: `{ type, payload }` where `type` is one of the 7 AI Studio tool keys
- *     and `payload` contains tool-specific input fields. The function routes to a
- *     type-specific system prompt and returns `{ result: string }`.
- *   - Legacy message API: `{ messages, resumeContext }` for backward compatibility.
- *     Returns `{ result: string }` (also includes `content` alias for extractAIContent).
+ * Accepts: `{ type, payload }` where `type` is one of the 7 AI Studio tool keys
+ * and `payload` contains tool-specific input fields.
  *
- * Auth, rate-limiting, and AI-credit deduction follow the same pattern as
- * agentic-chat. Credit cost is 1 per call.
- *
- * Supported type values:
+ * Supported types:
  *   cold_email, job_rejection, personal_branding, portfolio_bio,
  *   reference_letter, salary_negotiation, skills_gap
  *
- * Called by all 7 AI Studio tools:
- *   ColdEmailSheet, JobRejectionSheet, PersonalBrandingSheet, PortfolioBioSheet,
- *   ReferenceLetterSheet, SalaryNegotiationSheet, SkillsGapSheet
+ * Returns: `{ content: string, providerUsed: string, fallbackUsed: boolean }`
+ * The `content` field is consumed by `extractAIContent()` on the client.
+ *
+ * Called by all 7 AI Studio tool sheets.
  */
 
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAI, toUserError } from "../_shared/aiClient.ts";
-import { checkRateLimit } from "../_shared/rateLimiter.ts";
-import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
-import { requireAuth } from "../_shared/authMiddleware.ts";
+import { callWiseresumeAI, isAIError, sanitizeInputText } from "../_shared/aiClient.ts";
 import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
 import { deductCredits } from "../_shared/deductCredits.ts";
-import { getServiceClient } from "../_shared/dbClient.ts";
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
+import { requireAuth } from "../_shared/authMiddleware.ts";
 
 const MAX_PAYLOAD_BYTES = 200 * 1024;
-const MAX_MESSAGES_BYTES = 50 * 1024;
 
 type AIStudioType =
   | "cold_email"
@@ -43,7 +34,7 @@ type AIStudioType =
   | "salary_negotiation"
   | "skills_gap";
 
-const ALLOWED_TYPES = new Set<string>([
+const ALLOWED_TYPES = new Set<AIStudioType>([
   "cold_email",
   "job_rejection",
   "personal_branding",
@@ -53,211 +44,186 @@ const ALLOWED_TYPES = new Set<string>([
   "skills_gap",
 ]);
 
-interface TypedRequest {
-  type: AIStudioType;
-  payload: Record<string, unknown>;
+type Payload = Record<string, unknown>;
+
+function s(v: unknown, max = 1000): string {
+  return sanitizeInputText(String(v ?? ""), max);
 }
 
-interface ChatMessage {
-  role: "user" | "assistant" | "system";
-  content: string;
-}
-
-interface LegacyRequest {
-  messages: ChatMessage[];
-  resumeContext?: unknown;
-}
-
-type WiseAIChatRequest = TypedRequest | LegacyRequest;
-
-function isTypedRequest(body: WiseAIChatRequest): body is TypedRequest {
-  return "type" in body && typeof (body as TypedRequest).type === "string";
-}
-
-function buildSystemPrompt(type: AIStudioType, payload: Record<string, unknown>): string {
-  const resumeCtx = payload.resumeContext != null
-    ? `\n\nCandidate Resume Context:\n${JSON.stringify(payload.resumeContext, null, 2).slice(0, 3000)}`
-    : "";
-
+function buildPrompt(type: AIStudioType, payload: Payload): string {
   switch (type) {
-    case "cold_email":
-      return `You are an expert recruiter outreach writer. Write a short, personalized cold email to a recruiter at ${payload.company ?? "the company"} for the ${payload.jobTitle ?? "open"} role.
-
-Candidate Name: ${payload.candidateName ?? "the candidate"}
-Candidate Summary: ${payload.summary ?? "Experienced professional"}
-Top Skills: ${payload.topSkills ?? ""}
-Recent Experience: ${payload.recentExperience ?? ""}
-${payload.jobSnippet ? `Job Description Snippet: ${payload.jobSnippet}` : ""}
-
-Write a compelling cold email that:
-- Is short (150-200 words max)
-- Has a strong subject line
-- Opens with a personalized hook referencing ${payload.company ?? "the company"}
-- Highlights 2-3 relevant achievements/skills
-- Has a clear, low-friction CTA
-- Feels human and not template-like
-
-Format:
-Subject: [subject line]
-
-[email body]${resumeCtx}`;
-
-    case "job_rejection":
-      return `You are a career coach specializing in turning job rejections into learning opportunities. Analyze this rejection and provide constructive feedback.
-
-Rejection Details:
-${payload.rejectionText ?? ""}
-
-${payload.candidateName ? `Candidate Background: ${payload.candidateName}${payload.summary ? `, ${payload.summary}` : ""}` : ""}
-
-Respond ONLY with valid JSON in this exact format:
-{
-  "likelyReason": "string - the most probable reason for rejection",
-  "improvementAreas": ["string", "string", "string"],
-  "nextSteps": ["string", "string", "string"],
-  "encouragingReframe": "string - an encouraging honest reframe"
-}${resumeCtx}`;
-
     case "personal_branding":
-      return `You are a personal branding expert. Based on this resume, generate 3 one-sentence personal branding statements.
+      return `You are a personal branding expert. Given this candidate's information, craft three distinct personal branding statements.
 
-Name: ${payload.name ?? "Professional"}
-Summary: ${payload.summary ?? ""}
-Top Skills: ${payload.topSkills ?? ""}
-Experience: ${payload.experience ?? ""}
+Name: ${s(payload.name, 100)}
+Summary: ${s(payload.summary, 800)}
+Top Skills: ${s(payload.topSkills, 400)}
+Experience: ${s(payload.experience, 600)}
 
-Generate 3 variants:
-1. Formal - polished and professional for corporate settings
-2. Casual - friendly and approachable for networking
-3. Bold - assertive and memorable, makes a strong impression
-
-Respond ONLY with valid JSON:
+Return ONLY a JSON object with exactly these three keys:
 {
-  "formal": "string - one sentence, formal tone",
-  "casual": "string - one sentence, casual tone",
-  "bold": "string - one sentence, bold/punchy tone"
-}${resumeCtx}`;
+  "formal": "<A polished, professional statement suitable for executive bios and LinkedIn>",
+  "casual": "<A friendly, approachable statement suitable for networking events or portfolio About pages>",
+  "bold": "<A confident, ambitious statement that highlights impact and unique value>"
+}
 
-    case "portfolio_bio":
-      return `You are a portfolio bio writer. Generate 3 bio variants for a portfolio "About" section based on this resume.
-
-Name: ${payload.name ?? "Professional"}
-Summary: ${payload.summary ?? ""}
-Top Skills: ${payload.topSkills ?? ""}
-Experience: ${payload.experience ?? ""}
-
-Generate 3 bio variants optimized for a portfolio About section:
-1. Short: 1 compelling sentence that captures who they are and what they do
-2. Medium: 2-3 sentences expanding on their expertise and value
-3. Full: A complete paragraph (4-5 sentences) covering background, expertise, passion, and what they bring
-
-Respond ONLY with valid JSON:
-{
-  "short": "string - 1 sentence bio",
-  "medium": "string - 2-3 sentence bio",
-  "full": "string - full paragraph bio"
-}${resumeCtx}`;
-
-    case "reference_letter":
-      return `You are an expert at writing professional reference letters. Generate a formal reference letter template.
-
-Referee Name: ${payload.refereeName ?? ""}
-Referee Role/Title: ${payload.refereeRole ?? ""}
-Relationship to Candidate: ${payload.relationship ?? ""}
-${payload.context ? `Additional Context: ${payload.context}` : ""}
-Candidate Name: ${payload.candidateName ?? "the candidate"}
-${payload.summary ? `Candidate Summary: ${payload.summary}` : ""}
-${payload.experience ? `Candidate Experience: ${payload.experience}` : ""}
-
-Write a complete, professional reference letter that:
-1. Is from ${payload.refereeName ?? "the referee"}'s perspective as a ${payload.refereeRole ?? "professional"}
-2. Addresses the hiring manager
-3. Highlights the candidate's key strengths relevant to their experience
-4. Includes specific examples where possible
-5. Has a professional closing
-
-Return ONLY the letter text, no JSON, no explanation. Start with "Dear Hiring Manager," and end with a proper signature block for ${payload.refereeName ?? "the referee"}.${resumeCtx}`;
-
-    case "salary_negotiation":
-      return `You are a salary negotiation expert. Generate a comprehensive negotiation script for the following situation:
-
-Job Title: ${payload.jobTitle ?? ""}
-Offered Salary: ${payload.currency ?? "USD"} ${payload.offeredSalary ?? ""}
-Target Salary: ${payload.currency ?? "USD"} ${payload.targetSalary ?? ""}
-${payload.candidateName ? `Candidate Background: ${payload.candidateName}${payload.summary ? `, ${payload.summary}` : ""}` : ""}
-
-Respond ONLY with valid JSON in this exact format:
-{
-  "openingLine": "string - the first thing to say when negotiating",
-  "justifications": ["string", "string", "string"],
-  "counterOffer": "string - the specific counter-offer framing sentence",
-  "emailTemplate": "string - a professional negotiation email template",
-  "callScript": "string - a phone/video call talking script"
-}${resumeCtx}`;
+Each statement must be 1-2 sentences (25-60 words). Do not include markdown, code blocks, or explanations — just the JSON.`;
 
     case "skills_gap":
-      return `You are a career skills gap analyzer. Compare the candidate's resume against the job description and identify matched and missing skills.
+      return `You are a career development expert. Analyze the gap between the candidate's current skills and the job requirements.
 
-CANDIDATE RESUME SKILLS: ${payload.skills ?? "Not listed"}
-CANDIDATE EXPERIENCE: ${payload.experience ?? ""}
-CANDIDATE SUMMARY: ${payload.summary ?? ""}
+Candidate Skills: ${s(payload.skills, 800)}
+Candidate Experience: ${s(payload.experience, 800)}
+Candidate Summary: ${s(payload.summary, 400)}
 
-JOB DESCRIPTION:
-${payload.jobDescription ?? ""}
+Job Description:
+${s(payload.jobDescription, 3000)}
 
-Analyze the gap and respond ONLY with valid JSON:
+Return ONLY a JSON object with exactly these keys:
 {
-  "matchedSkills": ["skill1", "skill2"],
-  "missingSkills": [
-    { "skill": "skill name", "importance": "critical|high|medium|low" }
-  ],
-  "learningPlan": [
-    { "week": "Week 1-2", "action": "actionable learning step" },
-    { "week": "Week 3-4", "action": "actionable learning step" },
-    { "week": "Week 5-6", "action": "actionable learning step" },
-    { "week": "Week 7-8", "action": "actionable learning step" }
-  ]
-}${resumeCtx}`;
+  "matchedSkills": ["<skill>", ...],
+  "missingSkills": [{"skill": "<skill>", "importance": "critical|high|medium|low"}, ...],
+  "learningPlan": [{"week": "Week 1-2", "action": "<actionable step>"}, ...]
+}
 
-    default:
-      return `You are Wise AI, an expert career assistant. Provide helpful, specific, and actionable career guidance.${resumeCtx}`;
+Rules:
+- matchedSkills: skills the candidate already has that appear in the job (max 12)
+- missingSkills: skills in the job the candidate lacks, each with an importance rating (max 10)
+- learningPlan: 4 realistic 2-week chunks to close the most critical gaps
+- Return no markdown, no code blocks — just the JSON.`;
+
+    case "cold_email":
+      return `You are a professional career coach writing cold outreach emails for job seekers.
+
+Write a compelling cold email from ${s(payload.candidateName, 100)} to a recruiter at ${s(payload.company, 100)} for the role of ${s(payload.jobTitle, 100)}.
+
+Candidate Summary: ${s(payload.summary, 600)}
+Top Skills: ${s(payload.topSkills, 400)}
+Recent Experience: ${s(payload.recentExperience, 400)}
+${payload.jobSnippet ? `Job Description Snippet:\n${s(payload.jobSnippet, 800)}` : ""}
+
+Return ONLY the email text (no subject line needed, no JSON, no markdown). The email should be:
+- Professional yet warm
+- 150-200 words
+- Opens with a strong hook
+- Mentions 1-2 specific relevant skills or achievements
+- Has a clear call-to-action`;
+
+    case "portfolio_bio":
+      return `You are a professional bio writer. Create three portfolio bio variants for this person.
+
+Name: ${s(payload.name, 100)}
+Summary: ${s(payload.summary, 800)}
+Top Skills: ${s(payload.topSkills, 400)}
+Experience: ${s(payload.experience, 600)}
+
+Return ONLY a JSON object with exactly these keys:
+{
+  "short": "<1 sentence (15-25 words) — ideal for taglines or Twitter/X bio>",
+  "medium": "<2-3 sentences (40-70 words) — ideal for GitHub or portfolio header>",
+  "full": "<4-5 sentences (80-120 words) — ideal for About page or LinkedIn summary>"
+}
+
+All bios should be written in third person and convey professional credibility. Return no markdown, no code blocks — just the JSON.`;
+
+    case "salary_negotiation":
+      return `You are a salary negotiation coach. Create a complete negotiation script for the following situation.
+
+Candidate: ${s(payload.candidateName, 100)}
+Job Title: ${s(payload.jobTitle, 100)}
+Offered Salary: ${s(payload.offeredSalary, 50)} ${s(payload.currency, 10)}
+Target Salary: ${s(payload.targetSalary, 50)} ${s(payload.currency, 10)}
+Candidate Summary: ${s(payload.summary, 600)}
+
+Return ONLY a JSON object with exactly these keys:
+{
+  "openingLine": "<A confident but respectful opening statement to kick off the negotiation>",
+  "justifications": ["<specific justification 1>", "<specific justification 2>", "<specific justification 3>"],
+  "counterOffer": "<A clear, professional counter-offer statement>",
+  "emailTemplate": "<A complete email template to negotiate by email, 150-200 words>",
+  "callScript": "<A concise phone/video call script, 100-150 words>"
+}
+
+Justifications should be concrete and tied to the candidate's skills/experience. Return no markdown, no code blocks — just the JSON.`;
+
+    case "job_rejection":
+      return `You are a compassionate career coach helping a job seeker analyze a rejection and plan next steps.
+
+Rejection Email / Description:
+${s(payload.rejectionText, 2000)}
+
+Candidate Name: ${s(payload.candidateName, 100)}
+Candidate Summary: ${s(payload.summary, 400)}
+
+Return ONLY a JSON object with exactly these keys:
+{
+  "likelyReason": "<A thoughtful, non-judgmental analysis of why they may have been rejected (2-3 sentences)>",
+  "improvementAreas": ["<actionable improvement area 1>", "<actionable improvement area 2>", "<actionable improvement area 3>"],
+  "nextSteps": ["<concrete next step 1>", "<concrete next step 2>", "<concrete next step 3>", "<concrete next step 4>"],
+  "encouragingReframe": "<An honest, encouraging perspective that helps them move forward (1-2 sentences)>"
+}
+
+Be empathetic and constructive. Return no markdown, no code blocks — just the JSON.`;
+
+    case "reference_letter":
+      return `You are a professional writing assistant drafting a reference letter.
+
+Referee (the person writing the letter): ${s(payload.refereeName, 100)}, ${s(payload.refereeRole, 150)}
+Candidate (the subject of the letter): ${s(payload.candidateName, 100)}
+Relationship: ${s(payload.relationship, 200)}
+${payload.context ? `Additional Context: ${s(payload.context, 600)}` : ""}
+Candidate Summary: ${s(payload.summary, 500)}
+Candidate Experience: ${s(payload.experience, 400)}
+
+Write a complete, professional reference letter that:
+- Is 250-350 words
+- Opens with a formal salutation ("To Whom It May Concern," or "Dear Hiring Manager,")
+- Includes 2-3 specific examples of the candidate's qualities or achievements
+- Closes with a strong recommendation and contact offer
+- Ends with "Sincerely,\\n${s(payload.refereeName, 100)}\\n${s(payload.refereeRole, 150)}"
+
+Return ONLY the letter text with no JSON, no markdown, no code blocks.`;
   }
 }
 
-Deno.serve(async (req: Request) => {
-  const corsHeaders = getCorsHeaders(req.headers.get("origin"));
+serve(async (req: Request) => {
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
 
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 200, headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   const sizeError = checkPayloadSize(req, MAX_PAYLOAD_BYTES);
   if (sizeError) return sizeError;
 
+  let userId: string;
+  let serviceClient: SupabaseClient;
+
   try {
-    const { userId } = await requireAuth(req);
+    const auth = await requireAuth(req);
+    userId = auth.userId;
+    serviceClient = auth.client;
+  } catch (err) {
+    console.error("[wise-ai-chat] auth error:", err);
+    return new Response(
+      JSON.stringify({ error: "unauthorized", message: "Authentication required." }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
 
-    const rateCheck = await checkRateLimit(userId, {
-      maxRequests: 30,
-      windowSeconds: 60,
-      actionType: "wise_ai_chat",
-    });
-    if (!rateCheck.allowed) {
+  try {
+    const body = await req.json() as { type?: unknown; payload?: unknown };
+    const type = body.type as string;
+    const payload = (body.payload ?? {}) as Payload;
+
+    if (!type || !ALLOWED_TYPES.has(type as AIStudioType)) {
       return new Response(
         JSON.stringify({
-          error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.`,
+          error: "invalid_type",
+          message: `Unknown request type "${type}". Valid: ${[...ALLOWED_TYPES].join(", ")}`,
         }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const serverRateCheck = await checkUserRateLimit(userId, "wise_ai_chat", 30, 60);
-    if (!serverRateCheck.allowed) {
-      return new Response(
-        JSON.stringify({
-          error: `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.`,
-        }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -265,96 +231,52 @@ Deno.serve(async (req: Request) => {
     if (!creditCheck.hasCredits) {
       return new Response(
         JSON.stringify({
-          error: "Insufficient AI credits. Add your own Gemini API key for unlimited access.",
+          error: "quota_exceeded",
+          message: "Daily AI credit limit reached. Upgrade your plan or try again tomorrow.",
         }),
-        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    const isByok = creditCheck.remaining === 9999;
 
-    const body = (await req.json()) as WiseAIChatRequest;
+    const prompt = buildPrompt(type as AIStudioType, payload);
 
-    let finalMessages: Array<{ role: string; content: string }>;
+    const aiResponse = await callWiseresumeAI(
+      "auto",
+      [{ role: "user", content: prompt }],
+      0.7,
+      1500,
+    );
 
-    if (isTypedRequest(body)) {
-      // Typed API: { type, payload }
-      const { type, payload } = body;
-
-      if (!ALLOWED_TYPES.has(type)) {
-        return new Response(
-          JSON.stringify({
-            error: `Unknown type "${type}". Must be one of: ${[...ALLOWED_TYPES].join(", ")}`,
-          }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const systemPrompt = buildSystemPrompt(type, payload ?? {});
-      finalMessages = [
-        { role: "system", content: systemPrompt },
-        {
-          role: "user",
-          content: `Please generate the ${type.replace(/_/g, " ")} content based on the information provided.`,
-        },
-      ];
-    } else {
-      // Legacy messages API: { messages, resumeContext }
-      const { messages, resumeContext } = body as LegacyRequest;
-
-      if (!messages || !Array.isArray(messages) || messages.length === 0) {
-        return new Response(
-          JSON.stringify({ error: "Either 'type'+'payload' or a 'messages' array is required" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      if (JSON.stringify(messages).length > MAX_MESSAGES_BYTES) {
-        return new Response(
-          JSON.stringify({ error: "Messages payload too large" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const resumeContextStr =
-        resumeContext != null
-          ? `\n\nCandidate Resume Context:\n${JSON.stringify(resumeContext, null, 2).slice(0, 3000)}`
-          : "";
-
-      const existingSystem = messages.find((m) => m.role === "system");
-      const defaultSystemContent = `You are Wise AI, an expert career assistant. Provide helpful, specific, and actionable career guidance.`;
-      const systemContent = existingSystem
-        ? existingSystem.content + resumeContextStr
-        : defaultSystemContent + resumeContextStr;
-
-      finalMessages = [
-        { role: "system", content: systemContent },
-        ...messages.filter((m) => m.role !== "system"),
-      ];
-    }
-
-    const aiResponse = await callAI({
-      model: "google/gemma-4-26b-a4b-it:free",
-      messages: finalMessages as Array<{ role: "system" | "user" | "assistant"; content: string }>,
-      temperature: 0.7,
-      maxTokens: 1500,
-      userId,
-    });
-
-    await deductCredits(userId, 1, isByok, getServiceClient());
-
-    const resultText = aiResponse.content ?? "";
+    await deductCredits(userId, 1, false, serviceClient);
 
     return new Response(
-      // Return both `result` (spec) and `content` (extractAIContent compat)
-      JSON.stringify({ result: resultText, content: resultText }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({
+        content: aiResponse.content ?? "",
+        providerUsed: aiResponse.providerUsed ?? "wiseresume",
+        fallbackUsed: aiResponse.fallbackUsed ?? false,
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("wise-ai-chat error:", error);
-    const { status, error: code, message } = toUserError(error);
-    return new Response(JSON.stringify({ error: code, message }), {
-      status,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    console.error("[wise-ai-chat] error:", error);
+
+    if (isAIError(error)) {
+      const errorMap: Record<string, { error: string; message: string; status: number }> = {
+        rate_limit:       { error: "rate_limit",       message: "AI is busy right now. Please try again in a moment.", status: 429 },
+        payment_required: { error: "payment_required", message: "AI credits exhausted. Please check your account.",    status: 402 },
+        quota_exceeded:   { error: "quota_exceeded",   message: "Daily quota exceeded. Try again tomorrow.",            status: 429 },
+        invalid_key:      { error: "invalid_key",      message: "AI service configuration error. Please contact support.", status: 500 },
+      };
+      const mapped = errorMap[error.type] ?? { error: error.type, message: error.message, status: error.status ?? 500 };
+      return new Response(
+        JSON.stringify({ error: mapped.error, message: mapped.message }),
+        { status: mapped.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({ error: "ai_chat_failed", message: "Failed to generate content. Please try again." }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 });

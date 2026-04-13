@@ -1104,59 +1104,85 @@ function isSkippableError(err: unknown): boolean {
  * the next model. Hard errors (auth, payment) abort immediately.
  * Results are logged per-attempt for observability.
  */
-async function callWiseresumeAI(
+export async function callWiseresumeAI(
   subProvider: 'openrouter' | 'groq' | 'auto',
   messages: AIMessage[],
   temperature: number,
   maxTokens?: number,
   tools?: AITool[],
   toolChoice?: { type: 'function'; function: { name: string } } | 'auto',
-  signal?: AbortSignal
+  outerSignal?: AbortSignal
 ): Promise<AIResponse> {
   const openrouterKey = Deno.env.get('OPENROUTER_API_KEY');
   const groqKey = Deno.env.get('GROQ_API_KEY');
 
+  /** Per-model timeout: 20 s each — independent of the outer signal. */
+  const PER_MODEL_TIMEOUT_MS = 20_000;
+
   /**
    * Try a single OpenRouter model by slug.
+   * Uses its own AbortController so a timeout on one model does NOT abort the next.
+   * The per-model controller is also linked to outerSignal: if the caller cancels
+   * the whole operation we propagate the abort immediately.
    */
   const tryOpenRouterModel = async (model: string): Promise<AIResponse> => {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${openrouterKey!}`,
-      'HTTP-Referer': 'https://resume.thewise.cloud',
-      'X-Title': 'WiseResume',
-    };
-    const body: Record<string, unknown> = { model, messages, temperature };
-    if (maxTokens) body.max_tokens = maxTokens;
-    if (tools && tools.length > 0) {
-      body.tools = tools;
-      if (toolChoice) body.tool_choice = toolChoice;
+    const ctrl = new AbortController();
+    const timerId = setTimeout(() => ctrl.abort(), PER_MODEL_TIMEOUT_MS);
+    // Propagate outer cancellation
+    const onOuterAbort = () => ctrl.abort();
+    outerSignal?.addEventListener('abort', onOuterAbort);
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${openrouterKey!}`,
+        'HTTP-Referer': 'https://resume.thewise.cloud',
+        'X-Title': 'WiseResume',
+      };
+      const body: Record<string, unknown> = { model, messages, temperature };
+      if (maxTokens) body.max_tokens = maxTokens;
+      if (tools && tools.length > 0) {
+        body.tools = tools;
+        if (toolChoice) body.tool_choice = toolChoice;
+      }
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+        signal: ctrl.signal,
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = 'OpenRouter request failed';
+        try { const p = JSON.parse(errorText); errorMessage = p.error?.message || p.error || errorMessage; } catch {}
+        if (response.status === 401 || response.status === 403) throw createAIError('invalid_key', 'WiseResume AI OpenRouter key is invalid.', response.status);
+        if (response.status === 429) throw createAIError('rate_limit', `OpenRouter model ${model} rate limited.`, 429);
+        if (response.status === 402) throw createAIError('payment_required', 'OpenRouter credits exhausted.', 402);
+        throw createAIError('unknown', errorMessage, response.status);
+      }
+      const data = await response.json();
+      return { ...parseOpenAIResponse(data), providerUsed: `wiseresume/openrouter:${model}` };
+    } finally {
+      clearTimeout(timerId);
+      outerSignal?.removeEventListener('abort', onOuterAbort);
     }
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-      signal,
-    });
-    if (!response.ok) {
-      const errorText = await response.text();
-      let errorMessage = 'OpenRouter request failed';
-      try { const p = JSON.parse(errorText); errorMessage = p.error?.message || p.error || errorMessage; } catch {}
-      if (response.status === 401 || response.status === 403) throw createAIError('invalid_key', 'WiseResume AI OpenRouter key is invalid.', response.status);
-      if (response.status === 429) throw createAIError('rate_limit', `OpenRouter model ${model} rate limited.`, 429);
-      if (response.status === 402) throw createAIError('payment_required', 'OpenRouter credits exhausted.', 402);
-      throw createAIError('unknown', errorMessage, response.status);
-    }
-    const data = await response.json();
-    return { ...parseOpenAIResponse(data), providerUsed: `wiseresume/openrouter:${model}` };
   };
 
   /**
    * Try a single Groq model by slug.
+   * Same per-model timeout approach as tryOpenRouterModel.
    */
   const tryGroqModel = async (model: string): Promise<AIResponse> => {
-    const res = await callGroqDirect(groqKey!, messages, temperature, maxTokens, tools, toolChoice, signal, model);
-    return { ...res, providerUsed: `wiseresume/groq:${model}` };
+    const ctrl = new AbortController();
+    const timerId = setTimeout(() => ctrl.abort(), PER_MODEL_TIMEOUT_MS);
+    const onOuterAbort = () => ctrl.abort();
+    outerSignal?.addEventListener('abort', onOuterAbort);
+    try {
+      const res = await callGroqDirect(groqKey!, messages, temperature, maxTokens, tools, toolChoice, ctrl.signal, model);
+      return { ...res, providerUsed: `wiseresume/groq:${model}` };
+    } finally {
+      clearTimeout(timerId);
+      outerSignal?.removeEventListener('abort', onOuterAbort);
+    }
   };
 
   // Build the two chains based on subProvider setting
@@ -1200,6 +1226,11 @@ async function callWiseresumeAI(
   const totalAttempts = attempts.length;
 
   for (let i = 0; i < totalAttempts; i++) {
+    // If the outer signal was already aborted (e.g. user navigated away) stop now.
+    if (outerSignal?.aborted) {
+      throw createAIError('unknown', 'Request cancelled by caller.', 499);
+    }
+
     const { provider, model } = attempts[i];
     console.log(`[AI] WiseResume attempt ${i + 1}/${totalAttempts}: ${provider} → ${model}`);
     try {
@@ -1212,11 +1243,21 @@ async function callWiseresumeAI(
       lastError = err;
       const reason = err instanceof Error ? err.message : String(err);
 
+      // If the outer signal was aborted (user-level cancel), propagate immediately.
+      if (outerSignal?.aborted) {
+        console.warn(`[AI] WiseResume outer signal aborted after attempt ${i + 1}. Stopping.`);
+        throw err;
+      }
+
+      // Per-model timeout (AbortError from per-model controller) is skippable —
+      // the next model gets its own fresh 20 s window.
+      const isPerModelTimeout = err instanceof DOMException && err.name === 'AbortError';
+
       // Determine whether a next attempt exists on a *different* provider
       const nextProvider = i + 1 < totalAttempts ? attempts[i + 1].provider : null;
       const canCrossProvider = isAutoMode && nextProvider !== null && nextProvider !== provider;
 
-      if (isSkippableError(err) || canCrossProvider) {
+      if (isPerModelTimeout || isSkippableError(err) || canCrossProvider) {
         console.warn(`[AI] WiseResume attempt ${i + 1}/${totalAttempts} (${provider}/${model}) skippable: ${reason}. Trying next.`);
         continue;
       }
@@ -1228,7 +1269,8 @@ async function callWiseresumeAI(
   }
 
   console.error('[AI] WiseResume: all models exhausted. Last error:', lastError instanceof Error ? lastError.message : lastError);
-  throw lastError ?? createAIError('unknown', 'All WiseResume AI models failed. Please try again later.', 503);
+  // All models exhausted — surface as rate_limit so clients show a friendly message.
+  throw lastError ?? createAIError('rate_limit', 'All WiseResume AI models are busy. Please try again in a moment.', 503);
 }
 
 /**
