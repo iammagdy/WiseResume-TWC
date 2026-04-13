@@ -15,18 +15,36 @@ import {
 } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 
+const SEARCH_PREFILL_KEY = 'wr-search-prefill';
+const SEARCH_OPEN_INTENT_KEY = 'wr-search-open';
+
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
+  const [inputValue, setInputValue] = useState('');
   const navigate = useNavigate();
 
+  const consumePrefillAndOpen = () => {
+    const prefill = sessionStorage.getItem(SEARCH_PREFILL_KEY);
+    if (prefill) {
+      sessionStorage.removeItem(SEARCH_PREFILL_KEY);
+      setInputValue(prefill);
+    }
+    sessionStorage.removeItem(SEARCH_OPEN_INTENT_KEY);
+    setOpen(true);
+  };
+
   useEffect(() => {
+    if (sessionStorage.getItem(SEARCH_OPEN_INTENT_KEY)) {
+      consumePrefillAndOpen();
+    }
+
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setOpen(prev => !prev);
       }
     };
-    const openHandler = () => setOpen(true);
+    const openHandler = () => consumePrefillAndOpen();
     window.addEventListener('keydown', handler);
     window.addEventListener('open-command-palette', openHandler);
     return () => {
@@ -42,8 +60,8 @@ export function CommandPalette() {
   }, [navigate]);
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="Search actions, pages..." />
+    <CommandDialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setInputValue(''); }}>
+      <CommandInput placeholder="Search actions, pages..." value={inputValue} onValueChange={setInputValue} />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
         <CommandGroup heading="Quick Actions">

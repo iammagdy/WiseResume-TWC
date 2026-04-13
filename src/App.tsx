@@ -141,6 +141,8 @@ const QrBatchPage = lazyWithRetry(() => import("./pages/QrBatchPage"));
 const QrScanPage = lazyWithRetry(() => import("./pages/QrScanPage"));
 const KindeAuthTestPage = lazyWithRetry(() => import("./pages/KindeAuthTestPage"));
 const DevToolsPage = lazyWithRetry(() => import("./pages/DevToolsPage"));
+const InviteRedirectPage = lazyWithRetry(() => import("./pages/InviteRedirectPage"));
+const SearchPage = lazyWithRetry(() => import("./pages/SearchPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -315,8 +317,13 @@ function AppRoutes() {
                  <Route path="/activity" element={<Navigate to="/applications" replace />} />
                  <Route path="/jobs/:id" element={<RedirectJobRoute />} />
                  <Route path="/jobs" element={<Navigate to="/applications" replace />} />
+                 <Route path="/resume" element={<Navigate to="/editor" replace />} />
+                 <Route path="/search" element={<Suspense fallback={<PageLoadingSpinner />}><SearchPage /></Suspense>} />
               </Route>
            </Route>
+
+        {/* Invite referral redirect — public so unauthenticated users can follow the link */}
+        <Route path="/invite/:code" element={<Suspense fallback={<PageLoadingSpinner />}><InviteRedirectPage /></Suspense>} />
 
         {/* Public share page - outside AppShell */}
         <Route path="/share/:token" element={<Suspense fallback={<ShareSkeleton />}><SharePage /></Suspense>} />
