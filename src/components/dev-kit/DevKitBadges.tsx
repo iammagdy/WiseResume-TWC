@@ -5,6 +5,7 @@ export function StatusBadge({ status }: { status: TestStatus }) {
     idle: { bg: 'bg-muted', text: 'text-muted-foreground', label: 'Idle' },
     running: { bg: 'bg-primary/20', text: 'text-primary', label: 'Running…' },
     success: { bg: 'bg-green-500/20', text: 'text-green-600 dark:text-green-400', label: 'Success' },
+    warn: { bg: 'bg-amber-500/20', text: 'text-amber-600 dark:text-amber-400', label: 'Skipped' },
     error: { bg: 'bg-destructive/20', text: 'text-destructive', label: 'Error' },
   };
   const s = map[status];

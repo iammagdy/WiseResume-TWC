@@ -777,8 +777,27 @@ function RecentSendsSection() {
   );
 }
 
+type DiagnoseResult = { resend_api_key_configured?: boolean; note?: string } | null;
+
 export function EmailManagementPanel() {
   const [prefillUser, setPrefillUser] = useState<AdminUser | null>(null);
+  const [diagnose, setDiagnose] = useState<DiagnoseResult>(null);
+  const [diagnosing, setDiagnosing] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await edgeFunctions.functions.invoke('admin-email-actions', {
+          body: { password: getDevKitToken(), action: 'diagnose' },
+        });
+        setDiagnose((data as DiagnoseResult) ?? null);
+      } catch {
+        setDiagnose(null);
+      } finally {
+        setDiagnosing(false);
+      }
+    })();
+  }, []);
 
   const handleSendToUser = (user: AdminUser) => {
     setPrefillUser(user);
@@ -787,15 +806,35 @@ export function EmailManagementPanel() {
     }, 50);
   };
 
+  const apiKeyMissing = !diagnosing && diagnose !== null && diagnose.resend_api_key_configured === false;
+  const apiKeyOk = !diagnosing && diagnose !== null && diagnose.resend_api_key_configured === true;
+
   return (
     <div className="space-y-8">
-      {/* Persistent domain-verification reminder */}
-      <div className="flex items-start gap-2.5 rounded-lg border border-amber-400/40 bg-amber-50 dark:bg-amber-950/30 px-3.5 py-3 text-amber-800 dark:text-amber-300">
-        <svg className="w-4 h-4 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd"/></svg>
-        <div className="text-xs leading-relaxed">
-          <strong>Domain verification required for delivery.</strong> Emails are sent via Resend from <code className="font-mono">noreply@thewise.cloud</code>. If <strong>thewise.cloud</strong> is not verified in your <a href="https://resend.com/domains" target="_blank" rel="noreferrer" className="underline underline-offset-2">Resend dashboard</a>, Resend will accept the API call and return a message ID, but will <em>not</em> deliver the email. Verify the domain first, then re-test.
+      {/* Preflight diagnostic banner */}
+      {diagnosing ? (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          Checking email configuration…
         </div>
-      </div>
+      ) : apiKeyMissing ? (
+        <div className="flex items-start gap-2.5 rounded-lg border border-red-400/50 bg-red-50 dark:bg-red-950/30 px-3.5 py-3 text-red-800 dark:text-red-300">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+          <div className="text-xs leading-relaxed">
+            <strong>RESEND_API_KEY is not configured.</strong> Emails will fail to send. Set the <code className="font-mono">RESEND_API_KEY</code> secret in your Supabase project dashboard (Settings → Edge Functions → Secrets), then redeploy <code className="font-mono">admin-email-actions</code>.
+          </div>
+        </div>
+      ) : (
+        <div className={`flex items-start gap-2.5 rounded-lg border px-3.5 py-3 ${apiKeyOk ? 'border-amber-400/40 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300' : 'border-muted bg-muted/30 text-muted-foreground'}`}>
+          <svg className="w-4 h-4 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd"/></svg>
+          <div className="text-xs leading-relaxed">
+            {apiKeyOk
+              ? <><strong>RESEND_API_KEY is set.</strong> Emails are sent from <code className="font-mono">noreply@thewise.cloud</code>. Delivery also requires the <strong>thewise.cloud</strong> domain to be verified in your <a href="https://resend.com/domains" target="_blank" rel="noreferrer" className="underline underline-offset-2">Resend dashboard</a>. Without verification, Resend accepts calls but does not deliver.</>
+              : <>Email configuration could not be verified. Check that you are authenticated and the function is deployed.</>
+            }
+          </div>
+        </div>
+      )}
 
       <UnconfirmedUsersSection onSendToUser={handleSendToUser} />
 

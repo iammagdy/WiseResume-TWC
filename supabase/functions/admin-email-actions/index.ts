@@ -14,6 +14,7 @@ const SITE_NAME = 'wiseresume'
 const SITE_URL = 'https://resume.thewise.cloud'
 
 type EmailAction =
+  | 'diagnose'
   | 'resend_confirmation'
   | 'send_magic_link'
   | 'send_otp'
@@ -86,6 +87,23 @@ Deno.serve(async (req) => {
 
     const supabase = getServiceClient()
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
+
+    // Preflight diagnostic — returns config status without sending any email
+    if (action === 'diagnose') {
+      const hasKey = !!(RESEND_API_KEY && RESEND_API_KEY.trim().length > 0)
+      return new Response(
+        JSON.stringify({
+          success: true,
+          resend_api_key_configured: hasKey,
+          sender_from: SENDER_FROM,
+          site_url: SITE_URL,
+          note: hasKey
+            ? 'RESEND_API_KEY is set. Email delivery also requires the sending domain to be verified in Resend.'
+            : 'RESEND_API_KEY is NOT configured — emails will fail. Set it as a Supabase secret in the project dashboard.',
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
 
     if (!action) {
       return new Response(

@@ -1,4 +1,4 @@
-export type TestStatus = 'idle' | 'running' | 'success' | 'error';
+export type TestStatus = 'idle' | 'running' | 'success' | 'warn' | 'error';
 export type SectionId = 'auth' | 'ai' | 'db' | 'routing' | 'settings' | 'credits' | 'errors' | 'usage' | 'email';
 
 export interface TestResult {
