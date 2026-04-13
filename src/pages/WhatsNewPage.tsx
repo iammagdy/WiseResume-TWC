@@ -74,7 +74,7 @@ const changelog: ChangelogEntry[] = [
     highlights: [
       'AI responses are quicker across the whole app',
       'Better results for resume rewrites, cover letters, and interview coaching',
-      'Option to connect your own AI key if you want to use your personal quota',
+      'Option to connect your own account for more AI usage per day',
     ],
   },
   {
@@ -308,7 +308,7 @@ export default function WhatsNewPage() {
                         {entry.tag}
                       </span>
                       <span className="text-xs text-muted-foreground">{entry.date}</span>
-                      <span className="ml-auto text-[11px] text-muted-foreground/60 font-medium hidden sm:block">✓ Shipped</span>
+                      <span className="ml-auto text-[11px] text-muted-foreground/60 font-medium hidden sm:block">🚀 Shipped</span>
                     </div>
                     <h2 className="text-base font-bold mb-1.5 leading-snug text-foreground">{entry.title}</h2>
                     <p className="text-sm text-muted-foreground leading-relaxed mb-3">{entry.description}</p>
@@ -331,7 +331,7 @@ export default function WhatsNewPage() {
         <div className="mt-14">
           <div className="flex items-center gap-3 mb-6">
             <Clock className="w-4 h-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Coming Soon</h2>
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">🔜 Coming Soon</h2>
             <div className="flex-1 h-px bg-border" />
           </div>
 
