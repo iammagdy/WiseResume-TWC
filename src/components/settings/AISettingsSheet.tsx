@@ -3,7 +3,7 @@ import { openExternal } from '@/lib/openExternal';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { LoadingButton } from '@/components/ui/LoadingButton';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -1426,6 +1426,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-sm">Choose AI Provider</DialogTitle>
+            <DialogDescription className="sr-only">Select which AI provider to use for your AI features</DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-3 gap-2 pt-1">
             {BYOK_PROVIDER_ORDER.map(p => {
@@ -1473,6 +1474,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
               <History className="w-4 h-4" />
               Key Management History
             </DialogTitle>
+            <DialogDescription className="sr-only">A log of API key additions and removals for your AI provider</DialogDescription>
           </DialogHeader>
           <ScrollArea className="max-h-[60vh]">
             {loadingKeyHistory ? (

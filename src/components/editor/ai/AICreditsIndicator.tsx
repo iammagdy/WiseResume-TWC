@@ -50,7 +50,7 @@ export function AICreditsIndicator() {
             aria-label="View AI credit usage"
           >
             <Zap className="w-3.5 h-3.5 text-primary" />
-            <CreditRing used={used} limit={limit} size={36} unlimitedColor={unlimitedColor} />
+            <CreditRing used={used} limit={limit} size={28} unlimitedColor={unlimitedColor} />
           </button>
         </PopoverTrigger>
         <PopoverContent side="bottom" align="end" className="w-64 p-3 space-y-2">

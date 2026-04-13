@@ -196,14 +196,6 @@ export function DesktopNav() {
         </button>
 
         <button
-          onClick={() => { haptics.selection(); navigate('/settings'); }}
-          className="flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors active:scale-95"
-          aria-label="Settings"
-        >
-          <Settings className="w-4 h-4" />
-        </button>
-
-        <button
           onClick={() => { haptics.selection(); toggleTheme(); }}
           className="flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors active:scale-95"
           aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}

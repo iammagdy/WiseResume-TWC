@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -217,12 +217,12 @@ export function BugReportDialog() {
             <DialogTitle className="text-lg font-semibold text-foreground">
               Thank you!
             </DialogTitle>
-            <p className="text-sm text-muted-foreground">
+            <DialogDescription className="text-sm text-muted-foreground">
               {status === 'saved'
                 ? "Your message was saved — we'll follow up via the app."
                 : "Your report has been received. We'll investigate and resolve this shortly."
               }
-            </p>
+            </DialogDescription>
           </div>
         ) : (
           <>
@@ -233,9 +233,9 @@ export function BugReportDialog() {
               <DialogTitle className="text-lg font-semibold text-foreground">
                 {dialogTitle}
               </DialogTitle>
-              <p className="text-sm text-muted-foreground leading-relaxed">
+              <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
                 {dialogDescription}
-              </p>
+              </DialogDescription>
             </div>
 
             <div className="space-y-4">

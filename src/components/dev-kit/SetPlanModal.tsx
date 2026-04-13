@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -62,6 +63,7 @@ export function SetPlanModal({ user, open, onOpenChange, onSuccess }: SetPlanMod
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>Change Plan</DialogTitle>
+          <DialogDescription className="sr-only">Select a plan to assign to this user</DialogDescription>
         </DialogHeader>
 
         <div className="py-1 space-y-1">

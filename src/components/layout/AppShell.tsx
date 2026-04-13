@@ -1,6 +1,6 @@
 import { useLocation, useOutlet } from 'react-router-dom';
 import { useRef, useEffect, useState, lazy, Suspense } from 'react';
-import { Sparkles, X, Sun, Moon, AlertTriangle, RefreshCw } from 'lucide-react';
+import { MessageCircle, X, Sun, Moon, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useBottomSheetOpen } from '@/context/BottomSheetContext';
@@ -112,7 +112,7 @@ export function AppShell() {
         </div>
       )}
       {!isEditorRoute && <GuestSaveBanner />}
-      {showBottomNav && !isEditorRoute && (
+      {showBottomNav && !isEditorRoute && !location.pathname.startsWith('/dashboard') && (
         <header className="lg:hidden h-12 flex items-center px-edge pt-safe bg-background border-b border-border shrink-0">
           <span className="text-sm font-bold text-primary tracking-tight">WiseResume</span>
           {(() => {
@@ -185,7 +185,7 @@ export function AppShell() {
           aria-hidden={isAnySheetOpen}
           tabIndex={isAnySheetOpen ? -1 : undefined}
         >
-          <Sparkles className="w-4 h-4" />
+          <MessageCircle className="w-4 h-4" />
           <span className="text-sm font-medium">Ask</span>
         </button>
       )}

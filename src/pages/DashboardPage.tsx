@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LazyMotion, domAnimation, m as motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle, AlertCircle, RefreshCw, LayoutTemplate, BookOpen, TrendingUp, Trophy, Users, Map } from 'lucide-react';
+import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle, AlertCircle, RefreshCw, LayoutTemplate, BookOpen, TrendingUp, Trophy, Users, Map, Sun, Moon } from 'lucide-react';
 import { DashboardSkeleton } from '@/components/layout/PageSkeletons';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { SortOption, CategoryFilter, ScoreFilter } from '@/components/dashboard/ResumeFilters';
@@ -29,7 +29,7 @@ import { usePlan } from '@/hooks/usePlan';
 import { calculateProfileCompletion } from '@/hooks/useProfile';
 import { AIHealthBadge } from '@/components/ai/AIHealthBadge';
 import { AICreditsIndicator } from '@/components/editor/ai/AICreditsIndicator';
-import { TrialCountdownBadge } from '@/components/ui/TrialCountdownBadge';
+import { useTheme } from '@/hooks/use-theme';
 import { DashboardStatusPopover } from '@/components/dashboard/DashboardStatusPopover';
 import { PlanChip } from '@/components/ui/PlanChip';
 import { usePlanUpgradeCelebration } from '@/hooks/usePlanUpgradeCelebration';
@@ -83,6 +83,7 @@ function DashboardPageContent() {
   const { scoreResume, getCachedScore, scoringId } = useResumeScore();
   const { profile } = useProfile(user?.id, user);
   const { plan, trialPlan, trialExpiresAt } = usePlan();
+  const { isDark, toggleTheme } = useTheme();
   const { hasNew: hasNewChangelog } = useChangelogBadge();
   usePlanUpgradeCelebration();
   const [healthScores, setHealthScores] = useState<Record<string, ResumeHealthScore>>({});
@@ -507,16 +508,20 @@ function DashboardPageContent() {
           </Button>
           {/* Small screens: compact status popover */}
           <DashboardStatusPopover />
-          {/* Large screens: full indicators */}
-          <div className="hidden sm:contents">
-            <TrialCountdownBadge />
-          </div>
+          {/* sm+: full AI status indicators */}
           <div className="hidden sm:flex">
             <AICreditsIndicator />
           </div>
           <div className="hidden sm:flex">
             <AIHealthBadge />
           </div>
+          <button
+            onClick={() => { haptics.selection(); toggleTheme(); }}
+            className="flex items-center justify-center w-9 h-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors active:scale-95 touch-manipulation"
+            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
           <Button
             variant="ghost"
             size="icon"

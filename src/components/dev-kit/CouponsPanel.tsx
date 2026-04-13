@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -253,6 +254,7 @@ export function CouponsPanel({ onCountChange }: CouponsPanelProps) {
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Create Coupon</DialogTitle>
+            <DialogDescription className="sr-only">Fill in the details to create a new discount coupon code</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-1">
             <div>
