@@ -142,7 +142,7 @@ export function OverviewPanel() {
     } finally {
       setLoading(false);
     }
-  }, [password]);
+  }, []);
 
   useEffect(() => { fetchStats(); }, [fetchStats]);
 
