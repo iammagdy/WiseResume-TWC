@@ -68,13 +68,14 @@ import { getSafeMatchMedia, isBrowser } from "@/lib/envUtils";
 import Index from "./pages/Index";
 
 // Kinde SPA configuration.
-// These values identify the public front-end application registered in Kinde
-// (Application → "Wise Resume", type: Front-end and mobile). They are NOT
-// secrets — Kinde SPA client IDs are designed to be public. Override them
-// via VITE_KINDE_CLIENT_ID and VITE_KINDE_DOMAIN Replit secrets if needed.
+// VITE_KINDE_CLIENT_ID and VITE_KINDE_DOMAIN MUST be set as Replit secrets
+// for production deployments. The hardcoded fallbacks below are for the
+// thewisecloud.kinde.com tenant — they are public SPA credentials (not
+// secrets) and are intentionally visible in the JS bundle. Any deployment
+// targeting a different Kinde tenant must override them via secrets.
 const KINDE_CLIENT_ID =
   (import.meta.env.VITE_KINDE_CLIENT_ID as string | undefined) ??
-  '629174acb2874e6bbf53cd4a95497425';
+  '629174acb2874e6bbf53cd4a95497425';  // Wise Resume SPA app (front-end type)
 
 const KINDE_DOMAIN =
   (import.meta.env.VITE_KINDE_DOMAIN as string | undefined) ??
