@@ -17,6 +17,8 @@ import { PlanAvatar } from '@/components/ui/PlanAvatar';
 import { TrialCountdownBadge } from '@/components/ui/TrialCountdownBadge';
 import { PlanChip } from '@/components/ui/PlanChip';
 import { usePlanUpgradeCelebration } from '@/hooks/usePlanUpgradeCelebration';
+import { AICreditsIndicator } from '@/components/editor/ai/AICreditsIndicator';
+import { AIHealthBadge } from '@/components/ai/AIHealthBadge';
 
 const AgenticChatSheet = lazy(() => import('@/components/editor/AgenticChatSheet').then((m) => ({ default: m.AgenticChatSheet })));
 
@@ -178,6 +180,8 @@ export function DesktopNav() {
 
       <div className="ml-auto flex items-center gap-2">
         <TrialCountdownBadge />
+        <AICreditsIndicator />
+        <AIHealthBadge />
         <button
           onClick={() => {
             haptics.selection();

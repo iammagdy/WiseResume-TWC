@@ -491,7 +491,7 @@ function DashboardPageContent() {
   return (
     <div className="flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-20 pt-3 pb-2 px-4 flex items-center justify-between bg-background/95 backdrop-blur-sm border-b border-border">
+      <header className="lg:hidden sticky top-0 z-20 pt-3 pb-2 px-4 flex items-center justify-between bg-background/95 backdrop-blur-sm border-b border-border">
         <button onClick={() => { window.scrollTo(0, 0); navigate('/dashboard'); }} aria-label="Home" className="touch-manipulation">
           <AppLogo size="sm" showTagline={false} hideText />
         </button>
