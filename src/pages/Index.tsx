@@ -1,5 +1,6 @@
 import { useNavigate, Link } from 'react-router-dom';
 import { Sparkles, Target, Wand2, Mic, LayoutDashboard, Settings, LogOut, Globe, ArrowRight, BarChart3, PenTool, CheckCircle2, Check, User, Sun, Moon, Zap } from 'lucide-react';
+import { toast } from 'sonner';
 import { Footer } from '@/components/landing/Footer';
 import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -343,7 +344,12 @@ const Index = () => {
     if (plan) {
       navigate(`/auth?mode=signup&plan=${plan}`);
     } else {
-      kindeRegister();
+      try {
+        kindeRegister();
+      } catch (err) {
+        console.error('Auth error:', err);
+        toast.error('Unable to start sign-up. Please try again or contact support.');
+      }
     }
   };
 
@@ -699,7 +705,13 @@ const Index = () => {
               </DropdownMenu>
             ) : (
               <button
-                onClick={() => { triggerHaptic.light(); kindeLogin(); }}
+                onClick={() => {
+                  triggerHaptic.light();
+                  try { kindeLogin(); } catch (err) {
+                    console.error('Auth error:', err);
+                    toast.error('Unable to sign in. Please try again or contact support.');
+                  }
+                }}
                 className="text-sm font-medium px-4 py-1.5 rounded-lg transition-all duration-200"
                 style={{
                   color: 'var(--lp-signin-color)',
