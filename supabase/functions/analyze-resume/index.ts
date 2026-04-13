@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAIWithRetry, isAIError, parseAIJSONWithRetry, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
+import { callAIWithRetry, parseAIJSONWithRetry, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage, getUserPlan } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
@@ -162,8 +162,11 @@ Provide analysis in this exact JSON format:
   }
 }`;
 
+    // Use a higher-quality model for analysis to improve scoring accuracy
+    const analysisModel = 'google/gemini-flash-1.5';
+
     const aiResponse = await callAIWithRetry({
-      model: 'google/gemma-4-26b-a4b-it:free',
+      model: analysisModel,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -178,7 +181,7 @@ Provide analysis in this exact JSON format:
 
     // Parse the JSON from the AI response — never return fake scores
     const analysisResult = await parseAIJSONWithRetry(aiResponse.content, {
-      model: 'google/gemma-4-26b-a4b-it:free',
+      model: analysisModel,
       userId,
     });
 
