@@ -25,7 +25,7 @@ export const DesignerTemplate = memo(function DesignerTemplate({ resume }: Templ
         {resume.summary && (
           <section data-section="summary">
             <h2 className="text-xs font-bold text-gray-900 uppercase tracking-widest mb-2">Profile</h2>
-            <p className="text-gray-700 text-xs">{resume.summary}</p>
+            <p data-break-child className="text-gray-700 text-xs">{resume.summary}</p>
           </section>
         )}
         {resume.experience.length > 0 && (
@@ -40,14 +40,14 @@ export const DesignerTemplate = memo(function DesignerTemplate({ resume }: Templ
                   {exp.achievements && exp.achievements.length > 0 && (
                     <ul data-break-child className="mt-1 space-y-0.5 list-none">
                       {exp.achievements.map((a, i) => (
-                        <li key={i} className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{a}</li>
+                        <li key={i} data-break-child className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{a}</li>
                       ))}
                     </ul>
                   )}
                   {exp.responsibilities && exp.responsibilities.length > 0 && (
                     <ul data-break-child className="mt-1 space-y-0.5 list-none">
                       {exp.responsibilities.map((r, i) => (
-                        <li key={i} className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{r}</li>
+                        <li key={i} data-break-child className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{r}</li>
                       ))}
                     </ul>
                   )}

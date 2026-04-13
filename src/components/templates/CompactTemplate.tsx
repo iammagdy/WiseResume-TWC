@@ -14,7 +14,7 @@ export const CompactTemplate = memo(function CompactTemplate({ resume }: Compact
         <h1 className="text-xl font-bold text-gray-900 mb-1">{contactInfo.fullName}</h1>
         <ContactLinks contact={contactInfo} className="text-gray-600 text-[10px]" iconSize={2.5} />
       </header>
-      {summary && (<section className="mb-3" data-section="summary"><p className="text-gray-700 leading-snug">{summary}</p></section>)}
+      {summary && (<section className="mb-3" data-section="summary"><p data-break-child className="text-gray-700 leading-snug">{summary}</p></section>)}
       {experience.length > 0 && (
         <section className="mb-3" data-section="experience">
           <h2 className="text-xs font-bold text-gray-900 uppercase tracking-wide mb-1.5 pb-0.5 border-b border-gray-200">Experience</h2>

@@ -1,8 +1,28 @@
 [
   {
+    "version": "v3.2.0",
+    "date": "Apr 13, 2026",
+    "latest": true,
+    "summary": "Smarter AI error messages, cleaner PDF page breaks, and more reliable sign-in sessions during AI tasks.",
+    "items": [
+      {
+        "title": "AI errors are now clear and actionable",
+        "description": "When AI isn't configured yet, you'll see a helpful message explaining exactly what's happening — with a direct 'Open Settings' button to fix it in one tap. No more confusing 'temporarily unavailable' messages."
+      },
+      {
+        "title": "PDF exports flow cleanly across pages",
+        "description": "Resume sections no longer get cut off awkwardly in the middle when your resume spans more than one page. Each section now starts on the right page and always reads naturally."
+      },
+      {
+        "title": "AI keeps working even if your session refreshes",
+        "description": "If your sign-in session expires in the background while you're using an AI feature, WiseResume now recovers automatically and finishes the task — without asking you to sign in again."
+      }
+    ]
+  },
+  {
     "version": "v3.1.0",
     "date": "Apr 11, 2026",
-    "latest": true,
+    "latest": false,
     "summary": "Smoother previews, smarter navigation on mobile, your plan badge shown everywhere, and early-access upgrades now front and center.",
     "items": [
       {

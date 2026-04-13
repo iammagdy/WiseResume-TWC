@@ -13,6 +13,8 @@ import { useResumeStore } from '@/store/resumeStore';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { AICostBadge } from '@/components/ai/AICostBadge';
 import { extractAIContent, parseAIJson } from '@/lib/ai/parseAIResponse';
+import { useRedactedResume } from '@/hooks/useRedactedResume';
+import type { ResumeData } from '@/types/resume';
 
 interface SalaryNegotiationSheetProps {
   open: boolean;
@@ -46,6 +48,7 @@ function isNumericValue(value: string): boolean {
 export function SalaryNegotiationSheet({ open, onOpenChange }: SalaryNegotiationSheetProps) {
   const currentResume = useResumeStore(s => s.currentResume);
   const resumeId = (currentResume as { id?: string } | null)?.id;
+  const redactedResume = useRedactedResume(currentResume as ResumeData | null);
   const [jobTitle, setJobTitle] = useState('');
   const [offeredSalary, setOfferedSalary] = useState('');
   const [targetSalary, setTargetSalary] = useState('');
@@ -90,27 +93,16 @@ export function SalaryNegotiationSheet({ open, onOpenChange }: SalaryNegotiation
         const summary = currentResume?.summary ?? '';
         const { data: responseData, error } = await edgeFunctions.functions.invoke('wise-ai-chat', {
           body: {
-            messages: [
-              {
-                role: 'user',
-                content: `You are a salary negotiation expert. Generate a comprehensive negotiation script for the following situation:
-
-Job Title: ${jobTitle}
-Offered Salary: ${currency} ${offeredSalary}
-Target Salary: ${currency} ${targetSalary}
-${currentResume ? `Candidate Background: ${candidateName}, ${summary}` : ''}
-
-Respond ONLY with valid JSON in this exact format:
-{
-  "openingLine": "string - the first thing to say when negotiating",
-  "justifications": ["string", "string", "string"],
-  "counterOffer": "string - the specific counter-offer framing sentence",
-  "emailTemplate": "string - a professional negotiation email template",
-  "callScript": "string - a phone/video call talking script"
-}`,
-              },
-            ],
-            resumeContext: currentResume ?? null,
+            type: 'salary_negotiation',
+            payload: {
+              jobTitle,
+              offeredSalary,
+              targetSalary,
+              currency,
+              candidateName,
+              summary,
+              resumeContext: redactedResume ?? null,
+            },
           },
         });
         if (error) throw new Error(error.message);

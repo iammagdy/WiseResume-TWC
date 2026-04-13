@@ -4,12 +4,14 @@ import { toast } from 'sonner';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import type { AdminUser } from './AdminUsersPanel';
 
 type Plan = 'free' | 'pro' | 'premium';
@@ -22,13 +24,12 @@ const PLANS: { value: Plan; label: string; description: string }[] = [
 
 interface SetPlanModalProps {
   user: AdminUser;
-  password: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
 }
 
-export function SetPlanModal({ user, password, open, onOpenChange, onSuccess }: SetPlanModalProps) {
+export function SetPlanModal({ user, open, onOpenChange, onSuccess }: SetPlanModalProps) {
   const [selected, setSelected] = useState<Plan>(user.plan_name);
   const [saving, setSaving] = useState(false);
 
@@ -40,7 +41,7 @@ export function SetPlanModal({ user, password, open, onOpenChange, onSuccess }: 
     setSaving(true);
     try {
       const { data, error } = await edgeFunctions.functions.invoke('admin-set-plan', {
-        body: { password, target_user_id: user.user_id, plan: selected },
+        body: { password: getDevKitToken(), target_user_id: user.user_id, plan: selected },
       });
       if (error) throw new Error(error.message);
       const result = data as { success?: boolean; error?: string };
@@ -62,6 +63,7 @@ export function SetPlanModal({ user, password, open, onOpenChange, onSuccess }: 
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>Change Plan</DialogTitle>
+          <DialogDescription className="sr-only">Select a plan to assign to this user</DialogDescription>
         </DialogHeader>
 
         <div className="py-1 space-y-1">

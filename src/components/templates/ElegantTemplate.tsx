@@ -26,7 +26,7 @@ export const ElegantTemplate = memo(function ElegantTemplate({ resume }: Elegant
           <section className="mb-6" data-section="summary">
             <div className="relative py-4 px-6 rounded-lg border" style={{ borderColor: roseMuted }}>
               <div className="absolute -top-2.5 left-6 px-2 bg-white text-xs uppercase tracking-widest" style={{ color: roseColor }}>About</div>
-              <p className="text-gray-700 leading-relaxed italic">{summary}</p>
+              <p data-break-child className="text-gray-700 leading-relaxed italic">{summary}</p>
             </div>
           </section>
         )}

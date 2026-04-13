@@ -14,6 +14,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { AICostBadge } from '@/components/ai/AICostBadge';
 import { extractAIContent } from '@/lib/ai/parseAIResponse';
+import { useRedactedResume } from '@/hooks/useRedactedResume';
 import type { ResumeData } from '@/types/resume';
 
 interface ColdEmailSheetProps {
@@ -52,6 +53,7 @@ function hasEnoughResumeContent(resume: ResumeData | null): boolean {
 export function ColdEmailSheet({ open, onOpenChange }: ColdEmailSheetProps) {
   const currentResume = useResumeStore(s => s.currentResume);
   const resumeId = (currentResume as { id?: string } | null)?.id;
+  const redactedResume = useRedactedResume(currentResume as ResumeData | null);
   const [company, setCompany] = useState('');
   const [jobTitle, setJobTitle] = useState('');
   const [jobSnippet, setJobSnippet] = useState('');
@@ -93,32 +95,17 @@ export function ColdEmailSheet({ open, onOpenChange }: ColdEmailSheetProps) {
 
         const { data: responseData, error } = await edgeFunctions.functions.invoke('wise-ai-chat', {
           body: {
-            messages: [
-              {
-                role: 'user',
-                content: `You are an expert recruiter outreach writer. Write a short, personalized cold email to a recruiter at ${company} for the ${jobTitle} role.
-
-Candidate Name: ${candidateName}
-Candidate Summary: ${summary}
-Top Skills: ${topSkills}
-Recent Experience: ${recentExp}
-${jobSnippet ? `Job Description Snippet: ${jobSnippet}` : ''}
-
-Write a compelling cold email that:
-- Is short (150-200 words max)
-- Has a strong subject line
-- Opens with a personalized hook referencing ${company}
-- Highlights 2-3 relevant achievements/skills
-- Has a clear, low-friction CTA
-- Feels human and not template-like
-
-Format:
-Subject: [subject line]
-
-[email body]`,
-              },
-            ],
-            resumeContext: currentResume ?? null,
+            type: 'cold_email',
+            payload: {
+              company,
+              jobTitle,
+              candidateName,
+              summary,
+              topSkills,
+              recentExperience: recentExp,
+              jobSnippet: jobSnippet || undefined,
+              resumeContext: redactedResume ?? null,
+            },
           },
         });
         if (error) throw new Error(error.message);

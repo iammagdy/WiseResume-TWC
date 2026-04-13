@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -181,24 +181,26 @@ export function BugReportDialog() {
       setTimeout(() => setOpen(false), 2000);
     } catch (err) {
       console.error('Email send failed:', err);
-      // Fallback: direct DB insert (works even if function deployment drifts)
+      // Fallback: submit via the edge function (which uses service role to insert)
       try {
-        const { error: dbErr } = await supabase.from('contact_requests').insert({
-          type: 'bug',
-          email: payload.email,
-          subject: payload.subject,
-          message: payload.message,
-          metadata: payload.metadata,
-          user_id: userId || null,
-          ip_address: 'client-side-fallback',
+        const { data: fbRes, error: fbErr } = await edgeFunctions.functions.invoke('submit-contact-request', {
+          body: {
+            type: payload.type,
+            email: payload.email,
+            subject: payload.subject,
+            message: payload.message,
+            metadata: payload.metadata,
+          },
         });
-        if (dbErr) throw dbErr;
-        activityTracker.clearErrors();
-        setStatus('success');
-        setTimeout(() => setOpen(false), 2000);
-        return;
+        if (fbErr) throw fbErr;
+        if (fbRes?.success) {
+          activityTracker.clearErrors();
+          setStatus('success');
+          setTimeout(() => setOpen(false), 2000);
+          return;
+        }
       } catch (fallbackErr) {
-        console.error('Fallback DB insert failed:', fallbackErr);
+        console.error('Fallback submit-contact-request failed:', fallbackErr);
       }
       setStatus('error');
     }
@@ -215,12 +217,12 @@ export function BugReportDialog() {
             <DialogTitle className="text-lg font-semibold text-foreground">
               Thank you!
             </DialogTitle>
-            <p className="text-sm text-muted-foreground">
+            <DialogDescription className="text-sm text-muted-foreground">
               {status === 'saved'
                 ? "Your message was saved — we'll follow up via the app."
                 : "Your report has been received. We'll investigate and resolve this shortly."
               }
-            </p>
+            </DialogDescription>
           </div>
         ) : (
           <>
@@ -231,9 +233,9 @@ export function BugReportDialog() {
               <DialogTitle className="text-lg font-semibold text-foreground">
                 {dialogTitle}
               </DialogTitle>
-              <p className="text-sm text-muted-foreground leading-relaxed">
+              <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
                 {dialogDescription}
-              </p>
+              </DialogDescription>
             </div>
 
             <div className="space-y-4">

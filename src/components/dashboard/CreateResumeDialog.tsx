@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -318,6 +319,7 @@ export function CreateResumeDialog({
       <DialogContent className="max-w-[90vw] sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Create New Resume</DialogTitle>
+          <DialogDescription className="sr-only">Choose how you want to create your new resume</DialogDescription>
         </DialogHeader>
 
         {atResumeLimit ? (
@@ -326,6 +328,12 @@ export function CreateResumeDialog({
               requiredPlan="pro"
               featureName="Multiple Resumes"
               description="Free plan includes 1 resume. Upgrade to Pro for unlimited resumes, tailored versions, and more."
+              features={[
+                'Unlimited resumes for every role & industry',
+                'AI-tailored resume versions in seconds',
+                'Side-by-side resume comparison',
+                'Version history & restore',
+              ]}
               compact
             />
           </div>

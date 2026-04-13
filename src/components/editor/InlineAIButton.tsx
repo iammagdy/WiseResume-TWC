@@ -81,6 +81,20 @@ const experienceEmptyActions: AIActionConfig[] = [
   { id: 'generate', label: 'Generate Description', icon: <Wand2 className="w-4 h-4" />, description: 'Create a detailed description based on your role, company, and account' },
 ];
 
+const sectionButtonLabels: Record<SectionType, string> = {
+  summary: 'Improve Summary',
+  experience: 'Improve Bullets',
+  skills: 'Suggest Skills',
+  education: 'Improve Education',
+  contact: 'Format & Check',
+  awards: 'Improve Awards',
+  projects: 'Improve Projects',
+  publications: 'Improve Publications',
+  volunteering: 'Improve Volunteering',
+  certifications: 'Suggest Certifications',
+  languages: 'Suggest Languages',
+};
+
 export const InlineAIButton = memo(function InlineAIButton({
   section,
   onAction,
@@ -151,7 +165,7 @@ export const InlineAIButton = memo(function InlineAIButton({
         ) : (
           <Sparkles className="w-3.5 h-3.5" />
         )}
-        <span className="text-xs font-medium">AI Assist</span>
+        <span className="text-xs font-medium">{sectionButtonLabels[section] ?? 'AI Assist'}</span>
       </Button>
 
       {/* Desktop dropdown */}

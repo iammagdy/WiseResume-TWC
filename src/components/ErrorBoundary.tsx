@@ -204,21 +204,22 @@ export class ErrorBoundary extends Component<Props, State> {
       this.setState({ reportStatus: 'sent' });
     } catch (err) {
       console.error('Failed to send crash report:', err);
-      // Fallback: insert directly into contact_requests table
+      // Fallback: use submit-contact-request edge function (service role insert)
       try {
-        await supabase.from('contact_requests').insert({
-          type: 'auto-crash-report',
-          email: 'crash@wiseresume.app',
-          subject: `Auto Crash: ${this.state.error?.message?.slice(0, 80) ?? 'Unknown'}`,
-          message: this.state.error?.message || 'Unknown error',
-          metadata: {
-            error_stack: this.state.error?.stack?.slice(0, 4000) ?? null,
-            component_stack: this.state.errorInfo?.componentStack?.slice(0, 4000) ?? null,
-            route: window.location.pathname,
-            user_agent: navigator.userAgent,
-            user_id: getUserId() ?? null,
+        await supabase.functions.invoke('submit-contact-request', {
+          body: {
+            type: 'auto-crash-report',
+            email: 'crash@wiseresume.app',
+            subject: `Auto Crash: ${this.state.error?.message?.slice(0, 80) ?? 'Unknown'}`,
+            message: this.state.error?.message || 'Unknown error',
+            metadata: {
+              error_stack: this.state.error?.stack?.slice(0, 4000) ?? null,
+              component_stack: this.state.errorInfo?.componentStack?.slice(0, 4000) ?? null,
+              route: window.location.pathname,
+              user_agent: navigator.userAgent,
+              user_id: getUserId() ?? null,
+            },
           },
-          ip_address: 'client-side-fallback',
         });
         this.setState({ reportStatus: 'sent' });
       } catch {

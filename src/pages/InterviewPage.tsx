@@ -223,9 +223,25 @@ function InterviewPageContent() {
     };
   }, [summary]);
 
+  const hasUnsavedSession = useRef(false);
+
+  // beforeunload guard — warn if session summary exists but hasn't been saved yet
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedSession.current) {
+        e.preventDefault();
+        e.returnValue = 'Leave page? Your session results haven\'t been saved yet.';
+        return e.returnValue;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
   // Auto-save session when summary is shown
   useEffect(() => {
     if (summary && !sessionSaved && user) {
+      hasUnsavedSession.current = true;
       setSessionSaved(true);
       saveSession.mutate({
         interview_type: activeInterviewTypeRef.current,
@@ -236,7 +252,11 @@ function InterviewPageContent() {
         improvements: parsedSummary.improvements,
         duration_seconds: elapsedSeconds,
       }, {
+        onSuccess: () => {
+          hasUnsavedSession.current = false;
+        },
         onError: (err) => {
+          hasUnsavedSession.current = true;
           console.error('Failed to save session:', err);
           toast.error('Failed to save interview', {
             description: 'A network or authentication error occurred. Your session won\'t be saved in history.',
@@ -266,6 +286,12 @@ function InterviewPageContent() {
           requiredPlan="pro"
           featureName="Interview Coaching"
           description="Practice real voice interviews with AI that listens, responds, and scores you live."
+          features={[
+            'Live voice interview practice with AI',
+            'Real-time scoring & performance breakdown',
+            'Industry-specific question banks',
+            'Resume-aware coaching & targeted feedback',
+          ]}
         />
       </div>
     );
@@ -390,7 +416,7 @@ function InterviewPageContent() {
 
   // Active interview
   return (
-    <div className="flex-1 flex flex-col overflow-hidden h-full">
+    <div className="flex-1 flex flex-col overflow-hidden" style={{ height: '100dvh', maxHeight: '100dvh' }}>
       {/* Active interview header */}
       <header className="shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
         <div className="flex items-center gap-3">

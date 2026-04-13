@@ -30,7 +30,7 @@ export const ExecutiveTemplate = memo(function ExecutiveTemplate({ resume }: Tem
           <h2 className="text-xs font-semibold text-amber-700 uppercase tracking-[0.2em] mb-3">
             Executive Summary
           </h2>
-          <p className="text-gray-700 leading-relaxed italic">{resume.summary}</p>
+          <p data-break-child className="text-gray-700 leading-relaxed italic">{resume.summary}</p>
         </section>
       )}
 
@@ -55,7 +55,7 @@ export const ExecutiveTemplate = memo(function ExecutiveTemplate({ resume }: Tem
                 {exp.achievements && exp.achievements.length > 0 && (
                   <ul data-break-child className="mt-2 space-y-1">
                     {exp.achievements.map((a, i) => (
-                      <li key={i} className="text-gray-700 text-xs flex items-start gap-2">
+                      <li key={i} data-break-child className="text-gray-700 text-xs flex items-start gap-2">
                         <span className="text-amber-600 mt-0.5">-</span>
                         {a}
                       </li>
@@ -65,7 +65,7 @@ export const ExecutiveTemplate = memo(function ExecutiveTemplate({ resume }: Tem
                 {exp.responsibilities && exp.responsibilities.length > 0 && (
                   <ul data-break-child className="mt-2 space-y-1">
                     {exp.responsibilities.map((r, i) => (
-                      <li key={i} className="text-gray-700 text-xs flex items-start gap-2">
+                      <li key={i} data-break-child className="text-gray-700 text-xs flex items-start gap-2">
                         <span className="text-amber-600 mt-0.5">-</span>
                         {r}
                       </li>

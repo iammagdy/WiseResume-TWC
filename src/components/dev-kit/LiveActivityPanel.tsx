@@ -3,12 +3,8 @@ import { RefreshCw, Activity, CheckCircle, AlertCircle, Clock, PlayCircle, Loade
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { DevKitRunner } from './DevKitRunner';
-
-interface LiveActivityPanelProps {
-  password: string;
-  adminPassword: string;
-}
 
 interface UsageEvent {
   id: string;
@@ -216,7 +212,7 @@ function formatTimestamp(iso: string): string {
   });
 }
 
-export function LiveActivityPanel({ password, adminPassword }: LiveActivityPanelProps) {
+export function LiveActivityPanel() {
   const [events, setEvents] = useState<UsageEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [eventsError, setEventsError] = useState<string | null>(null);
@@ -300,7 +296,7 @@ export function LiveActivityPanel({ password, adminPassword }: LiveActivityPanel
     for (const def of defs) {
       const start = Date.now();
       try {
-        const body = def.buildBody(adminPassword);
+        const body = def.buildBody(getDevKitToken());
         const { data, error } = await edgeFunctions.functions.invoke(def.name, { body });
         const durationMs = Date.now() - start;
         const status = def.classify(data, error);
@@ -344,7 +340,7 @@ export function LiveActivityPanel({ password, adminPassword }: LiveActivityPanel
     if (errorLogsMissing && newErrors.length > 0) {
       setRecentErrors(newErrors);
     }
-  }, [adminPassword, errorLogsMissing]);
+  }, [errorLogsMissing]);
 
   const runAllHealthChecks = useCallback(() => {
     return runHealthChecksForDefs(ALL_FN_DEFS);
@@ -505,25 +501,26 @@ export function LiveActivityPanel({ password, adminPassword }: LiveActivityPanel
               {effectiveErrors.length}
             </span>
           )}
-          {errorLogsMissing && (
-            <span className="text-xs text-muted-foreground italic ml-1">(from health checks — no error_log table)</span>
-          )}
         </div>
 
-        {effectiveErrors.length === 0 && (
+        {errorLogsMissing && (
+          <div className="mx-5 my-4 flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                The <code className="font-mono text-xs">error_log</code> table does not exist in this database.
+              </p>
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                Run the <code className="font-mono text-xs">create_error_log_table</code> migration to enable error tracking.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {!errorLogsMissing && effectiveErrors.length === 0 && (
           <div className="py-8 text-center text-muted-foreground">
             <CheckCircle className="w-6 h-6 mx-auto mb-2 text-green-500 opacity-60" />
-            <p className="text-sm">
-              {errorLogsMissing
-                ? 'No errors detected from health checks yet. Run a health check to populate.'
-                : 'No errors logged.'
-              }
-            </p>
-            {errorLogsMissing && (
-              <p className="text-xs mt-1 opacity-60">
-                No <code className="font-mono text-xs">error_log</code> table found — showing health check failures instead.
-              </p>
-            )}
+            <p className="text-sm">No errors logged.</p>
           </div>
         )}
 
@@ -714,7 +711,7 @@ export function LiveActivityPanel({ password, adminPassword }: LiveActivityPanel
             Deep end-to-end smoke tests across all platform services — auth, AI, DB, routing, credits and more.
           </p>
         </div>
-        <DevKitRunner adminPassword={adminPassword} />
+        <DevKitRunner />
       </div>
     </div>
   );

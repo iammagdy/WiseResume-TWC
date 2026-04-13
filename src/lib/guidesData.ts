@@ -49,8 +49,3 @@ export async function searchGuides(query: string): Promise<Guide[]> {
         g.content.toLowerCase().includes(q)
     );
 }
-
-/**
- * @deprecated Use `getGuides()` instead. Kept for backward compatibility.
- */
-export const guides: Guide[] = [];

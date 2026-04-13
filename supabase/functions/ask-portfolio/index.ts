@@ -2,10 +2,15 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { callAI, getUserKeyFromDB } from "../_shared/aiClient.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
+import { checkPayloadSize } from "../_shared/requestUtils.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get("origin"));
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const sizeError = checkPayloadSize(req, 200 * 1024);
+  if (sizeError) return sizeError;
 
   try {
     const { username, question, conversationHistory = [] } = await req.json();
@@ -53,6 +58,19 @@ serve(async (req) => {
     // Fetch the owner's BYOK Gemini key
     const ownerKey = await getUserKeyFromDB(ownerRow.user_id, 'gemini');
     const isFallback = !ownerKey;
+
+    // IP-based rate limiting for public endpoint (20 req/60s per IP)
+    const callerIp = req.headers.get('x-forwarded-for') ?? req.headers.get('cf-connecting-ip') ?? 'unknown';
+    if (callerIp === 'unknown') {
+      console.warn('[ask-portfolio] Could not determine caller IP for rate limiting');
+    } else {
+      const { allowed: ipAllowed } = await checkRateLimit(callerIp, { actionType: 'ask_portfolio', maxRequests: 20, windowSeconds: 60 });
+      if (!ipAllowed) {
+        return new Response(JSON.stringify({ error: "Rate limit reached. Please try again later." }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     // Server-side rate limit: max 50 questions per username per day
     const today = new Date().toISOString().slice(0, 10);
@@ -135,6 +153,11 @@ ${context}`;
     });
 
     const answer = aiResponse.content || "I couldn't generate a response. Please try again.";
+
+    // Record IP-based usage after successful response
+    if (callerIp !== 'unknown') {
+      await recordUsage(callerIp, 'ask_portfolio');
+    }
 
     return new Response(JSON.stringify({ answer, isFallback }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

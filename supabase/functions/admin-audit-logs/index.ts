@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { requireAdminAuth } from '../_shared/adminAuth.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,18 +15,25 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { password, limit = 200, action_filter } = body as {
+    const { password, mode, limit = 200, action_filter, category_filter, entry } = body as {
       password: string;
+      mode?: 'read' | 'write';
       limit?: number;
       action_filter?: string | null;
+      category_filter?: string | null;
+      entry?: {
+        user_id: string;
+        category: string;
+        action: string;
+        metadata: Record<string, unknown>;
+      };
     };
 
-    const devKitPassword = Deno.env.get('DEV_KIT_PASSWORD');
-    if (!devKitPassword || password !== devKitPassword) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
+    try {
+      await requireAdminAuth(req, password);
+    } catch (authErr) {
+      if (authErr instanceof Response) return authErr;
+      throw authErr;
     }
 
     const supabase = createClient(
@@ -33,7 +41,38 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    // Read from audit_logs (the table all admin RPCs write to)
+    // Write mode: insert a single audit log entry via service role
+    if (mode === 'write') {
+      if (!entry || !entry.user_id || !entry.category || !entry.action) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Missing required entry fields: user_id, category, action' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+
+      const { error: insertError } = await supabase
+        .from('audit_logs')
+        .insert({
+          user_id: entry.user_id,
+          category: entry.category,
+          action: entry.action,
+          metadata: entry.metadata ?? {},
+        });
+
+      if (insertError) {
+        return new Response(
+          JSON.stringify({ success: false, error: insertError.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    // Default: read mode — list audit log entries
     let query = supabase
       .from('audit_logs')
       .select('id, user_id, action, category, metadata, created_at')
@@ -42,6 +81,10 @@ serve(async (req) => {
 
     if (action_filter) {
       query = query.eq('action', action_filter);
+    }
+
+    if (category_filter) {
+      query = query.eq('category', category_filter);
     }
 
     const { data: logsData, error } = await query;

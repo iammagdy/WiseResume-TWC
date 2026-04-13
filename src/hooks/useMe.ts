@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { supabase } from '@/integrations/supabase/safeClient';
@@ -44,55 +44,80 @@ export function useMe() {
   const { user, isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
 
+  // Track which supabaseUserId the active channels were created for, so we only
+  // tear-down and re-subscribe when a genuinely different user signs in — not on
+  // every re-render or bridgeReady flip that changes user?.id mid-session.
+  const subscribedUserIdRef = useRef<string | null>(null);
+
   // Realtime subscriptions for immediate invalidation when data changes.
-  // Uses the v5 UUID (supabase user ID) from the bridge, not the Kinde user ID,
-  // so the filter correctly matches the database rows.
+  // Channel names are stable session-lifetime constants ('me-subscriptions' /
+  // 'me-ai-credits') — they do NOT embed the userId, preventing duplicate channel
+  // windows when user.id transitions while the bridge is resolving.
+  // The per-user filtering is handled exclusively by the postgres_changes `filter`
+  // option so the correct rows are still observed after any session transition.
   useEffect(() => {
     if (!user || !isAuthenticated) return;
 
     const supabaseUserId = getUserId();
     if (!supabaseUserId) return;
 
-    const token = getToken();
-    if (token) {
-      supabase.realtime.setAuth(token);
+    // Only re-subscribe when the underlying user actually changes.
+    if (subscribedUserIdRef.current === supabaseUserId) return;
+    subscribedUserIdRef.current = supabaseUserId;
+
+    let subChannel: ReturnType<typeof supabase.channel> | null = null;
+    let credChannel: ReturnType<typeof supabase.channel> | null = null;
+
+    try {
+      const token = getToken();
+      if (token) {
+        supabase.realtime.setAuth(token);
+      }
+
+      subChannel = supabase
+        .channel('me-subscriptions')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'subscriptions',
+            filter: `user_id=eq.${supabaseUserId}`,
+          },
+          () => {
+            queryClient.invalidateQueries({ queryKey: ['me'], refetchType: 'all' });
+          }
+        )
+        .subscribe();
+
+      credChannel = supabase
+        .channel('me-ai-credits')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'ai_credits',
+            filter: `user_id=eq.${supabaseUserId}`,
+          },
+          () => {
+            queryClient.invalidateQueries({ queryKey: ['me'], refetchType: 'all' });
+          }
+        )
+        .subscribe();
+    } catch (err) {
+      console.warn('[useMe] Realtime subscription setup failed (non-fatal):', err);
+      subscribedUserIdRef.current = null;
     }
 
-    const subChannel = supabase
-      .channel(`me-subscriptions-${supabaseUserId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'subscriptions',
-          filter: `user_id=eq.${supabaseUserId}`,
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['me'], refetchType: 'all' });
-        }
-      )
-      .subscribe();
-
-    const credChannel = supabase
-      .channel(`me-ai-credits-${supabaseUserId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'ai_credits',
-          filter: `user_id=eq.${supabaseUserId}`,
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['me'], refetchType: 'all' });
-        }
-      )
-      .subscribe();
-
     return () => {
-      supabase.removeChannel(subChannel);
-      supabase.removeChannel(credChannel);
+      try {
+        if (subChannel) supabase.removeChannel(subChannel);
+        if (credChannel) supabase.removeChannel(credChannel);
+      } catch (err) {
+        console.warn('[useMe] Realtime channel teardown failed (non-fatal):', err);
+      }
+      subscribedUserIdRef.current = null;
     };
   }, [user?.id, isAuthenticated, queryClient]);
 
@@ -107,13 +132,14 @@ export function useMe() {
       return data as MeData;
     },
     enabled: !!user && isAuthenticated,
-    staleTime: 5 * 1000,
+    staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',
-    refetchInterval: 4 * 1000,
+    refetchInterval: false,
     refetchIntervalInBackground: false,
     retry: 2,
     retryDelay: (i: number) => Math.min(1000 * 2 ** i, 5000),
+    throwOnError: false,
   });
 }

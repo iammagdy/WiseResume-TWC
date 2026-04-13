@@ -12,6 +12,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { AICostBadge } from '@/components/ai/AICostBadge';
 import { extractAIContent, parseAIJson } from '@/lib/ai/parseAIResponse';
+import { useRedactedResume } from '@/hooks/useRedactedResume';
 import type { ResumeData } from '@/types/resume';
 
 interface PersonalBrandingSheetProps {
@@ -64,6 +65,7 @@ function getExperienceSummary(resume: ResumeData | null): string {
 export function PersonalBrandingSheet({ open, onOpenChange }: PersonalBrandingSheetProps) {
   const currentResume = useResumeStore(s => s.currentResume);
   const resumeId = (currentResume as { id?: string } | null)?.id;
+  const redactedResume = useRedactedResume(currentResume as ResumeData | null);
   const [result, setResult] = useState<BrandingResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -96,30 +98,14 @@ export function PersonalBrandingSheet({ open, onOpenChange }: PersonalBrandingSh
 
         const { data: responseData, error } = await edgeFunctions.functions.invoke('wise-ai-chat', {
           body: {
-            messages: [
-              {
-                role: 'user',
-                content: `You are a personal branding expert. Based on this resume, generate 3 one-sentence personal branding statements.
-
-Name: ${name}
-Summary: ${summary}
-Top Skills: ${topSkills}
-Experience: ${experience}
-
-Generate 3 variants:
-1. Formal - polished and professional for corporate settings
-2. Casual - friendly and approachable for networking
-3. Bold - assertive and memorable, makes a strong impression
-
-Respond ONLY with valid JSON:
-{
-  "formal": "string - one sentence, formal tone",
-  "casual": "string - one sentence, casual tone",
-  "bold": "string - one sentence, bold/punchy tone"
-}`,
-              },
-            ],
-            resumeContext: currentResume,
+            type: 'personal_branding',
+            payload: {
+              name,
+              summary,
+              topSkills,
+              experience,
+              resumeContext: redactedResume,
+            },
           },
         });
         if (error) throw new Error(error.message);

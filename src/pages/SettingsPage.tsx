@@ -49,6 +49,7 @@ import { EditorExportSection } from '@/components/settings/sections/EditorExport
 import { NotificationsSection } from '@/components/settings/sections/NotificationsSection';
 import { PrivacySection } from '@/components/settings/sections/PrivacySection';
 import { AboutSection } from '@/components/settings/sections/AboutSection';
+import { DangerZoneSection } from '@/components/settings/sections/DangerZoneSection';
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -243,7 +244,7 @@ export default function SettingsPage() {
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="pt-2 sticky top-0 z-10 pb-2 px-4 bg-background/95 backdrop-blur-sm border-b border-border">
+        <header className="pt-safe sticky top-0 z-10 pb-2 px-4 bg-background/95 backdrop-blur-sm border-b border-border">
           <div className="flex items-center gap-3">
             <BackButton />
             <h1 className="text-page-title">Settings</h1>
@@ -380,6 +381,16 @@ export default function SettingsPage() {
               />
             </div>
           </div>
+
+          {/* Danger Zone */}
+          {user && (
+            <div>
+              <SectionLabel>Danger Zone</SectionLabel>
+              <div className="mx-4">
+                <DangerZoneSection onDeleteData={() => setDeleteDialogOpen(true)} />
+              </div>
+            </div>
+          )}
 
           {/* Developer Credit */}
           <div className="px-4">
@@ -521,7 +532,7 @@ export default function SettingsPage() {
             </DialogTitle>
             <DialogDescription>WiseResume release history</DialogDescription>
           </DialogHeader>
-          <div className="max-h-[60vh] overflow-y-auto -mx-1 px-1">
+          <div className="max-h-[min(60vh,calc(100dvh-10rem))] overflow-y-auto -mx-1 px-1">
             {changelogLoading ?
             <div className="space-y-6 pt-2">
                 {[1, 2, 3].map((i) =>

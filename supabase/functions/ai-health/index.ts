@@ -17,19 +17,24 @@ serve(async (req) => {
   let errorCode: number | null = null;
 
   try {
-    let geminiKey: string | undefined;
-    if (req.headers.get('Authorization')?.startsWith('Bearer ')) {
-      try {
-        const { userId } = await requireAuth(req);
-        const { allowed } = await checkRateLimit(userId, { actionType: 'health_check', maxRequests: 20, windowSeconds: 60 });
-        if (!allowed) {
-          return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: corsHeaders });
-        }
-        geminiKey = await getUserKeyFromDB(userId, 'gemini');
-      } catch {
-        // Invalid or missing JWT — fall through to global env key
-      }
+    let userId: string;
+    try {
+      const auth = await requireAuth(req);
+      userId = auth.userId;
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+
+    const { allowed } = await checkRateLimit(userId, { actionType: 'health_check', maxRequests: 20, windowSeconds: 60 });
+    if (!allowed) {
+      return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: corsHeaders });
+    }
+
+    let geminiKey: string | undefined;
+    geminiKey = await getUserKeyFromDB(userId, 'gemini');
 
     // Check managed AI keys (WiseResume AI backend)
     const openrouterKey = Deno.env.get('OPENROUTER_API_KEY');

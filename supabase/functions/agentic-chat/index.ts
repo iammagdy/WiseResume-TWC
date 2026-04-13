@@ -2,7 +2,12 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
+import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
+import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
+import { deductCredits } from "../_shared/deductCredits.ts";
+import { getServiceClient } from "../_shared/dbClient.ts";
+import { checkPayloadSize } from "../_shared/requestUtils.ts";
 
 const MAX_MESSAGE_SIZE = 10 * 1024;
 const MAX_HISTORY_SIZE = 200 * 1024;
@@ -296,6 +301,9 @@ Deno.serve(async (req: Request) => {
     return new Response(null, { status: 200, headers: corsHeaders });
   }
 
+  const sizeError = checkPayloadSize(req, 500 * 1024);
+  if (sizeError) return sizeError;
+
   try {
     const { userId, client } = await requireAuth(req);
 
@@ -306,6 +314,23 @@ Deno.serve(async (req: Request) => {
         { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const serverRateCheck = await checkUserRateLimit(userId, 'chat', 30, 60);
+    if (!serverRateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const creditCheck = await checkUserCreditBalance(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'Insufficient AI credits. Add your own Gemini API key for unlimited access.' }),
+        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const isByok = creditCheck.remaining === 9999;
 
     const { message, conversationHistory, currentResume, resumeList, contextFilter, functionResponse } = (await req.json()) as ChatRequest;
 
@@ -383,6 +408,9 @@ Deno.serve(async (req: Request) => {
         args = {};
       }
 
+      // Deduct credits for any AI tool call (cost=1 for chat)
+      await deductCredits(userId, 1, isByok, getServiceClient());
+
       // Handle suggest_edits
       if (functionName === "suggest_edits") {
         const result: SuggestionResult = {
@@ -428,6 +456,9 @@ Deno.serve(async (req: Request) => {
     }
 
     await recordUsage(userId, 'chat', { provider: aiResponse.providerUsed || 'unknown' });
+
+    // Atomically deduct credits server-side before returning results (cost=1 for chat)
+    await deductCredits(userId, 1, isByok, getServiceClient());
 
     const result: TextResult = {
       type: "text",

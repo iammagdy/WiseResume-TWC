@@ -103,6 +103,12 @@ export default function CoverLettersPage() {
           requiredPlan="pro"
           featureName="Cover Letters"
           description="Generate tailored cover letters that match your resume and any job description."
+          features={[
+            'AI-generated cover letters in seconds',
+            'Tailored to any job description & your resume',
+            'Unlimited cover letter saves & exports',
+            'ATS-friendly formatting built in',
+          ]}
         />
       </div>
     );

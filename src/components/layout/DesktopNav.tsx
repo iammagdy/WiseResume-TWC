@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { FileText, Globe, Home, BarChart3, Sparkles, MessageCircle, Sun, Moon, Search, Settings, LogOut, CreditCard, Lock } from 'lucide-react';
+import { FileText, Globe, Home, BarChart3, Sparkles, MessageCircle, Sun, Moon, Search, Settings, LogOut, CreditCard, Lock, Zap, Tag } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
@@ -11,8 +11,13 @@ import { useProfile } from '@/hooks/useProfile';
 import { usePlan } from '@/hooks/usePlan';
 import { toast } from 'sonner';
 import { lazy, Suspense, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { PlanAvatar } from '@/components/ui/PlanAvatar';
+import { PlanChip } from '@/components/ui/PlanChip';
+import { usePlanUpgradeCelebration } from '@/hooks/usePlanUpgradeCelebration';
+import { AICreditsIndicator } from '@/components/editor/ai/AICreditsIndicator';
+import { AIHealthBadge } from '@/components/ai/AIHealthBadge';
 
 const AgenticChatSheet = lazy(() => import('@/components/editor/AgenticChatSheet').then((m) => ({ default: m.AgenticChatSheet })));
 
@@ -69,9 +74,10 @@ export function DesktopNav() {
   const { isDark, toggleTheme } = useTheme();
   const { user, signOut } = useAuth();
   const { profile } = useProfile(user?.id, user);
-  const { plan, isPro } = usePlan();
+  const { plan, isPro, trialPlan, trialExpiresAt } = usePlan();
   const [wiseAIOpen, setWiseAIOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  usePlanUpgradeCelebration();
 
   const isActive = (tab: TabItem) => {
     if (tab.matchPaths) {
@@ -141,20 +147,28 @@ export function DesktopNav() {
                   <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-primary border border-background" />
                 )}
                 {tab.path === '/ai-studio' && !isPro && !active && (
-                  <span
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 18 }}
                     className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-500 border-2 border-background flex items-center justify-center"
                     aria-label="Pro feature"
+                    title="Upgrade to Pro to unlock"
                   >
                     <Lock className="w-1.5 h-1.5 text-white" />
-                  </span>
+                  </motion.span>
                 )}
                 {tab.path === '/applications' && !isPro && !active && (
-                  <span
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 18 }}
                     className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-500 border-2 border-background flex items-center justify-center"
                     aria-label="Pro feature"
+                    title="Upgrade to Pro to unlock"
                   >
                     <Lock className="w-1.5 h-1.5 text-white" />
-                  </span>
+                  </motion.span>
                 )}
               </div>
               {tab.label}
@@ -163,7 +177,9 @@ export function DesktopNav() {
         })}
       </div>
 
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-1.5">
+        <AICreditsIndicator />
+        <AIHealthBadge />
         <button
           onClick={() => {
             haptics.selection();
@@ -177,14 +193,6 @@ export function DesktopNav() {
           <kbd className="hidden xl:inline-flex items-center gap-0.5 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
             <span className="text-xs">⌘</span>K
           </kbd>
-        </button>
-
-        <button
-          onClick={() => { haptics.selection(); navigate('/settings'); }}
-          className="flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors active:scale-95"
-          aria-label="Settings"
-        >
-          <Settings className="w-4 h-4" />
         </button>
 
         <button
@@ -203,6 +211,8 @@ export function DesktopNav() {
           <MessageCircle className="w-4 h-4" />
           Ask
         </button>
+
+        <PlanChip plan={plan} trialPlan={trialPlan} trialExpiresAt={trialExpiresAt} />
 
         {/* Profile avatar dropdown */}
         <Popover open={profileOpen} onOpenChange={setProfileOpen}>
@@ -232,6 +242,20 @@ export function DesktopNav() {
               >
                 <CreditCard className="w-4 h-4 text-muted-foreground" />
                 Subscription
+              </button>
+              <button
+                onClick={() => { haptics.selection(); setProfileOpen(false); navigate('/pricing'); }}
+                className="flex w-full items-center gap-2 px-2 py-2 rounded-md text-sm text-foreground hover:bg-muted transition-colors"
+              >
+                <Tag className="w-4 h-4 text-muted-foreground" />
+                Pricing
+              </button>
+              <button
+                onClick={() => { haptics.selection(); setProfileOpen(false); navigate('/whats-new'); }}
+                className="flex w-full items-center gap-2 px-2 py-2 rounded-md text-sm text-foreground hover:bg-muted transition-colors"
+              >
+                <Zap className="w-4 h-4 text-muted-foreground" />
+                What's New
               </button>
               <div className="h-px bg-border my-1" />
               <button

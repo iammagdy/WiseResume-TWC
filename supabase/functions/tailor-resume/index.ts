@@ -1,10 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAIWithRetry, isAIError, parseAIJSON, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
+import { callAIWithRetry, isAIError, parseAIJSONWithRetry, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
+import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
+import { deductCredits } from "../_shared/deductCredits.ts";
+import { getProfileContext } from "../_shared/profileContext.ts";
+import { checkPayloadSize } from "../_shared/requestUtils.ts";
 
 /** Safely extract skills as a comma-separated string */
 function safeSkillsString(skills: unknown): string {
@@ -22,6 +26,9 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+  const sizeError = checkPayloadSize(req, 500 * 1024);
+  if (sizeError) return sizeError;
 
   try {
     // requireAuth() verifies JWT signature via jose.jwtVerify — see _shared/authMiddleware.ts
@@ -42,6 +49,14 @@ serve(async (req) => {
       );
     }
 
+    const serverRateCheck = await checkUserRateLimit(userId, 'tailor', 10, 60);
+    if (!serverRateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // ============= CREDIT CHECK: Validate before spending AI tokens =============
     const creditCheck = await checkUserCreditBalance(userId);
     if (!creditCheck.hasCredits) {
@@ -51,6 +66,9 @@ serve(async (req) => {
       );
     }
     const isByok = creditCheck.remaining === 9999;
+
+    // Fetch profile context for personalized AI prompts
+    const profileCtx = await getProfileContext(userId);
 
     const body = await req.json();
     const resume = body.resume;
@@ -121,9 +139,13 @@ serve(async (req) => {
 - Position every piece of experience to directly map to job requirements.`,
     };
 
+    const profilePreamble = profileCtx.contextString
+      ? `## CANDIDATE PROFILE\n${profileCtx.contextString} Use this context to calibrate the tone, seniority expectations, and industry-specific language throughout all tailoring decisions.\n\n`
+      : '';
+
     const systemPrompt = `You are a LEGENDARY resume writer, career strategist, and ATS optimization expert with 20+ years of experience helping candidates land jobs at top companies.
 
-${intensityInstructions[tailorIntensity] || intensityInstructions.moderate}
+${profilePreamble}${intensityInstructions[tailorIntensity] || intensityInstructions.moderate}
 
 ## YOUR MISSION
 Transform this resume into a PERFECT match for the target job while maintaining complete authenticity.
@@ -381,77 +403,37 @@ Analyze deeply, then return this exact JSON structure:
 
     console.log("SUPERCHARGED AI response received, parsing...");
 
-    // Parse the JSON from the AI response - robust 3-tier strategy
-    let tailoredResult;
-    try {
-      // Step 1: Strip markdown code fences if present
-      const cleaned = content.replace(/```(?:json)?\s*/gi, '').replace(/```\s*$/g, '').trim();
-      
-      // Step 2: Extract JSON object
-      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error("No JSON found in response");
-      }
-      
-      let jsonStr = jsonMatch[0];
-      
-      // Step 3: Try parsing directly
-      try {
-        tailoredResult = JSON.parse(jsonStr);
-      } catch {
-        // Step 4: Attempt to fix truncated JSON by closing open braces/brackets
-        let openBraces = 0, openBrackets = 0;
-        for (const ch of jsonStr) {
-          if (ch === '{') openBraces++;
-          else if (ch === '}') openBraces--;
-          else if (ch === '[') openBrackets++;
-          else if (ch === ']') openBrackets--;
-        }
-        
-        // Remove trailing comma or incomplete value
-        jsonStr = jsonStr.replace(/,\s*$/, '');
-        // Remove incomplete key-value pairs
-        jsonStr = jsonStr.replace(/,\s*"[^"]*"\s*:\s*$/, '');
-        jsonStr = jsonStr.replace(/,\s*"[^"]*"\s*:\s*"[^"]*$/, '');
-        jsonStr = jsonStr.replace(/,\s*\{[^}]*$/, '');
-        
-        // Close open brackets and braces
-        for (let i = 0; i < openBrackets; i++) jsonStr += ']';
-        for (let i = 0; i < openBraces; i++) jsonStr += '}';
-        
-        try {
-          tailoredResult = JSON.parse(jsonStr);
-          console.log("Recovered truncated JSON successfully");
-        } catch (e2) {
-          console.error("Failed to parse AI response even after recovery:", content.slice(0, 500));
-          throw e2;
-        }
-      }
-    } catch (parseError) {
+    // Parse the JSON from the AI response — with automatic corrective retry on malformed output
+    const parsedResult = await parseAIJSONWithRetry<Record<string, unknown>>(content, {
+      model: 'google/gemini-3-flash-preview',
+      userId,
+    });
+
+    if (!parsedResult) {
       console.error("Failed to parse AI response:", content.slice(0, 500));
       return new Response(
         JSON.stringify({ error: "Failed to parse AI response. Please try again." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     // Ensure all required fields have defaults with enhanced structure
-    tailoredResult = {
-      ...tailoredResult,
-      sectionScores: tailoredResult.sectionScores || null,
-      overallScore: tailoredResult.overallScore || null,
-      missingSkills: tailoredResult.missingSkills || [],
-      boostableSkills: tailoredResult.boostableSkills || [],
-      jobParsed: tailoredResult.jobParsed || {
+    const tailoredResult = {
+      ...parsedResult,
+      sectionScores: parsedResult.sectionScores || null,
+      overallScore: parsedResult.overallScore || null,
+      missingSkills: parsedResult.missingSkills || [],
+      boostableSkills: parsedResult.boostableSkills || [],
+      jobParsed: parsedResult.jobParsed || {
         title: 'Position',
         company: 'Company',
         keyRequirements: [],
         niceToHaves: [],
       },
-      projects: tailoredResult.projects || [],
-      certifications: tailoredResult.certifications || [],
-      awards: tailoredResult.awards || [],
-      jobIntelligence: tailoredResult.jobIntelligence || {
+      projects: parsedResult.projects || [],
+      certifications: parsedResult.certifications || [],
+      awards: parsedResult.awards || [],
+      jobIntelligence: parsedResult.jobIntelligence || {
         experienceLevel: 'mid',
         workMode: 'unknown',
         mustHaveSkills: [],
@@ -460,42 +442,33 @@ Analyze deeply, then return this exact JSON structure:
         redFlags: [],
         industryDetected: 'General',
       },
-      atsAnalysis: tailoredResult.atsAnalysis || {
+      atsAnalysis: parsedResult.atsAnalysis || {
         originalKeywordDensity: 0,
         optimizedKeywordDensity: 0,
         criticalKeywords: [],
         stuffingWarnings: [],
       },
-      bulletTransformations: tailoredResult.bulletTransformations || [],
-      interviewTalkingPoints: tailoredResult.interviewTalkingPoints || [],
-      strengthsAnalysis: tailoredResult.strengthsAnalysis || [],
+      bulletTransformations: parsedResult.bulletTransformations || [],
+      interviewTalkingPoints: parsedResult.interviewTalkingPoints || [],
+      strengthsAnalysis: parsedResult.strengthsAnalysis || [],
     };
 
     console.log("Successfully tailored resume with SUPERCHARGED data");
 
     await recordUsage(userId, 'tailor', { provider: aiResponse.providerUsed || 'unknown' });
 
+    // Atomically deduct credits server-side before returning results (cost=2 for tailor)
+    const svcClient = getServiceClient();
+    await deductCredits(userId, 2, isByok, svcClient);
+
     // Fire-and-forget usage event insert
     try {
-      const svcClient = getServiceClient();
       svcClient.from('usage_events').insert({
         user_id: userId,
         event_type: 'ai.tailor_resume',
         metadata: { model: aiResponse.providerUsed || 'unknown' },
       }).then(() => {});
     } catch { /* non-critical */ }
-
-    // Decrement AI credit for non-BYOK users (fire-and-forget)
-    if (!isByok) {
-      try {
-        const svcClient = getServiceClient();
-        svcClient.rpc('increment_ai_usage', { p_user_id: userId }).catch((err: any) => {
-          console.error('[credit] increment_ai_usage failed for user:', userId, err);
-        });
-      } catch (err: any) {
-        console.error('[credit] increment_ai_usage failed for user:', userId, err);
-      }
-    }
 
     return new Response(
       JSON.stringify({ ...tailoredResult, _providerUsed: aiResponse.providerUsed || 'unknown' }),

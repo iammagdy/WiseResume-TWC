@@ -1,7 +1,9 @@
 import { useLocation, useOutlet } from 'react-router-dom';
 import { useRef, useEffect, useState, lazy, Suspense } from 'react';
-import { Sparkles, X, Sun, Moon } from 'lucide-react';
+import { MessageCircle, X, Sun, Moon, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useTheme } from '@/hooks/use-theme';
+import { useAuth } from '@/hooks/useAuth';
+import { useBottomSheetOpen } from '@/context/BottomSheetContext';
 
 import { BottomTabBar } from './BottomTabBar';
 import { DesktopNav } from './DesktopNav';
@@ -15,7 +17,7 @@ import { useKeyboardAwareScroll } from '@/hooks/useKeyboardAwareScroll';
 import { cn } from '@/lib/utils';
 import { getPageTitle } from '@/lib/pageTitles';
 import { shouldExitOnBack } from '@/lib/navigation';
-import { getLastError, clearLastError } from '@/lib/supabaseBridge';
+import { getLastError, clearLastError, refreshTokenIfNeeded } from '@/lib/supabaseBridge';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 
 const AgenticChatSheet = lazyWithRetry(() => import('@/components/editor/AgenticChatSheet').then(m => ({ default: m.AgenticChatSheet })));
@@ -27,6 +29,7 @@ export function AppShell() {
   const location = useLocation();
   const currentOutlet = useOutlet();
   const { isDark, toggleTheme } = useTheme();
+  const { isAuthenticated, supabaseSettled, supabaseReady } = useAuth();
   const showBottomNav = TAB_ROUTES.some(r => location.pathname.startsWith(r));
   const isEditorRoute = location.pathname.startsWith('/editor') || location.pathname.startsWith('/preview');
   const isPortfolioEditorRoute = location.pathname === '/portfolio';
@@ -35,6 +38,22 @@ export function AppShell() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [wiseAIOpen, setWiseAIOpen] = useState(false);
   const [bridgeError, setBridgeError] = useState<{ type?: string; code: string; message: string } | null>(null);
+  const { isAnySheetOpen } = useBottomSheetOpen();
+  const [retrying, setRetrying] = useState(false);
+
+  // Show config error banner when Kinde login succeeded but the bridge exchange failed.
+  // This typically means the token-exchange Supabase edge function is not configured
+  // (e.g. missing KINDE_DOMAIN secret on Supabase) — a common state in new environments.
+  const showBridgeConfigError = isAuthenticated && supabaseSettled && !supabaseReady;
+
+  async function handleBridgeRetry() {
+    setRetrying(true);
+    try {
+      await refreshTokenIfNeeded();
+    } finally {
+      setRetrying(false);
+    }
+  }
 
   useEffect(() => {
     const err = getLastError();
@@ -59,6 +78,23 @@ export function AppShell() {
       </a>
       <OfflineBanner />
       <SlowConnectionBanner />
+      {showBridgeConfigError && (
+        <div className="flex items-center justify-between gap-2 px-4 py-2 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-sm border-b border-amber-500/20">
+          <div className="flex items-center gap-2 min-w-0">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span className="truncate">AI features require server configuration — contact support.</span>
+          </div>
+          <button
+            onClick={handleBridgeRetry}
+            disabled={retrying}
+            className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium hover:bg-amber-500/10 transition-colors disabled:opacity-50"
+            aria-label="Retry connection"
+          >
+            <RefreshCw className={`w-3 h-3 ${retrying ? 'animate-spin' : ''}`} />
+            Retry
+          </button>
+        </div>
+      )}
       {bridgeError && bridgeError.type === 'AUTH_REJECTION' && (
         <div className="flex items-center justify-between gap-2 px-4 py-2 bg-destructive/10 text-destructive text-sm border-b border-destructive/20">
           <span>
@@ -76,7 +112,7 @@ export function AppShell() {
         </div>
       )}
       {!isEditorRoute && <GuestSaveBanner />}
-      {showBottomNav && !isEditorRoute && (
+      {showBottomNav && !isEditorRoute && !location.pathname.startsWith('/dashboard') && (
         <header className="lg:hidden h-12 flex items-center px-edge pt-safe bg-background border-b border-border shrink-0">
           <span className="text-sm font-bold text-primary tracking-tight">WiseResume</span>
           {(() => {
@@ -139,14 +175,17 @@ export function AppShell() {
         <button
           onClick={() => setWiseAIOpen(true)}
           className={cn(
-            'fixed right-4 z-50 lg:hidden flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-primary text-primary-foreground shadow-soft-lg active:scale-95 transition-transform touch-manipulation',
+            'fixed right-4 z-50 lg:hidden flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-primary text-primary-foreground shadow-soft-lg active:scale-95 transition-all touch-manipulation',
             isPortfolioEditorRoute
               ? 'bottom-[calc(9rem+env(safe-area-inset-bottom))]'
-              : 'bottom-[calc(5.5rem+env(safe-area-inset-bottom))]'
+              : 'bottom-[calc(5.5rem+env(safe-area-inset-bottom))]',
+            isAnySheetOpen && 'pointer-events-none opacity-0'
           )}
           aria-label="Ask Wise AI"
+          aria-hidden={isAnySheetOpen}
+          tabIndex={isAnySheetOpen ? -1 : undefined}
         >
-          <Sparkles className="w-4 h-4" />
+          <MessageCircle className="w-4 h-4" />
           <span className="text-sm font-medium">Ask</span>
         </button>
       )}

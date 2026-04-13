@@ -1,11 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAIWithRetry, isAIError, parseAIJSON, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
-import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
+import { callAIWithRetry, isAIError, parseAIJSONWithRetry, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
+import { checkRateLimit, recordUsage, getUserPlan } from "../_shared/rateLimiter.ts";
+import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
+import { deductCredits } from "../_shared/deductCredits.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { INDUSTRY_KEYWORDS, detectIndustryCategory } from "../_shared/industryKeywords.ts";
+import { getProfileContext } from "../_shared/profileContext.ts";
+import { checkPayloadSize } from "../_shared/requestUtils.ts";
 
 // ============= SECURITY: Input validation limits =============
 const MAX_RESUME_SIZE = 100 * 1024; // 100KB
@@ -24,14 +28,26 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  const sizeError = checkPayloadSize(req, 500 * 1024);
+  if (sizeError) return sizeError;
+
   try {
     const { userId, client } = await requireAuth(req);
     console.log('Authenticated user:', userId);
 
-    const rateCheck = await checkRateLimit(userId, { maxRequests: 10, windowSeconds: 60, actionType: 'analyze' });
+    const userPlan = await getUserPlan(userId);
+    const rateCheck = await checkRateLimit(userId, { maxRequests: 10, proMaxRequests: 50, windowSeconds: 60, actionType: 'analyze', plan: userPlan });
     if (!rateCheck.allowed) {
       return new Response(
         JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const serverRateCheck = await checkUserRateLimit(userId, 'analyze', 10, 60);
+    if (!serverRateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.` }),
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -44,6 +60,9 @@ serve(async (req) => {
       );
     }
     const isByok = creditCheck.remaining === 9999;
+
+    // Fetch profile context for personalized AI prompts
+    const profileCtx = await getProfileContext(userId);
 
     const body = await req.json();
     const resume = body.resume;
@@ -97,7 +116,11 @@ serve(async (req) => {
       );
     }
 
-    const systemPrompt = `You are an expert ATS (Applicant Tracking System) analyzer and resume consultant. Analyze the provided resume against the job description and provide detailed scoring and gap analysis.
+    const profileNote = profileCtx.contextString
+      ? ` ${profileCtx.contextString} Calibrate your feedback and scoring to this seniority level — for example, do not penalize an Entry-level candidate for lacking executive leadership experience, and hold a Senior candidate to a higher standard of impact and scope.`
+      : '';
+
+    const systemPrompt = `You are an expert ATS (Applicant Tracking System) analyzer and resume consultant. Analyze the provided resume against the job description and provide detailed scoring and gap analysis.${profileNote}
 
 IMPORTANT: Respond ONLY with valid JSON, no markdown or code blocks. The response must be parseable JSON.`;
 
@@ -154,7 +177,10 @@ Provide analysis in this exact JSON format:
     }
 
     // Parse the JSON from the AI response — never return fake scores
-    const analysisResult = parseAIJSON(aiResponse.content);
+    const analysisResult = await parseAIJSONWithRetry(aiResponse.content, {
+      model: 'google/gemini-3-flash-preview',
+      userId,
+    });
 
     if (!analysisResult) {
       console.error("Failed to parse AI analysis response:", aiResponse.content?.slice(0, 500));
@@ -164,18 +190,10 @@ Provide analysis in this exact JSON format:
       );
     }
 
-    if (!isByok) {
-      try {
-        const svcClient = getServiceClient();
-        svcClient.rpc('increment_ai_usage', { p_user_id: userId }).catch((err: any) => {
-          console.error('[credit] increment_ai_usage failed for user:', userId, err);
-        });
-      } catch (err) {
-        console.error('[credit] increment_ai_usage failed for user:', userId, err);
-      }
-    }
-
     await recordUsage(userId, 'analyze', { provider: aiResponse.providerUsed || 'unknown' });
+
+    // Atomically deduct credits server-side before returning results (cost=1 for analyze)
+    await deductCredits(userId, 1, isByok, getServiceClient());
 
     return new Response(
       JSON.stringify({ ...analysisResult as Record<string, unknown>, _providerUsed: aiResponse.providerUsed || 'unknown' }),

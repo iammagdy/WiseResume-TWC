@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -21,6 +21,8 @@ import { getAvatarColor } from './KanbanCard';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { CheckCircle2 } from 'lucide-react';
 
 const COLUMNS: KanbanColumnDef[] = [
   {
@@ -89,6 +91,95 @@ function ColumnSkeleton() {
   );
 }
 
+interface MobileCardItemProps {
+  card: JobApplication;
+  onDelete: (id: string) => void;
+  onMoveRequest: (card: JobApplication) => void;
+}
+
+function MobileCardItem({ card, onDelete, onMoveRequest }: MobileCardItemProps) {
+  const avatarColor = getAvatarColor(card.company);
+  const initial = card.company.charAt(0).toUpperCase();
+
+  return (
+    <div className="bg-card border border-border rounded-xl p-3 flex items-center gap-3">
+      <div
+        className={cn(
+          'w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold uppercase',
+          avatarColor.bg,
+          avatarColor.text,
+        )}
+      >
+        {initial}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[13px] font-semibold leading-tight truncate">{card.job_title}</p>
+        <p className="text-[11px] text-muted-foreground truncate">{card.company}</p>
+      </div>
+      <button
+        onClick={() => { haptics.light(); onMoveRequest(card); }}
+        className="shrink-0 text-[11px] font-medium px-2 py-1.5 rounded-lg bg-muted/60 hover:bg-muted text-muted-foreground transition-colors min-h-[36px] touch-manipulation"
+      >
+        Move
+      </button>
+    </div>
+  );
+}
+
+interface MoveStatusSheetProps {
+  card: JobApplication | null;
+  onClose: () => void;
+  onMove: (card: JobApplication, status: ApplicationStatus) => void;
+}
+
+function MoveStatusSheet({ card, onClose, onMove }: MoveStatusSheetProps) {
+  const isOpen = !!card;
+
+  return (
+    <Sheet open={isOpen} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <SheetContent side="bottom" className="rounded-t-2xl max-h-[60dvh]">
+        <SheetHeader>
+          <SheetTitle className="text-left text-base">Move to…</SheetTitle>
+        </SheetHeader>
+        {card && (
+          <div className="py-3 space-y-1">
+            <p className="text-xs text-muted-foreground px-1 mb-3 truncate">
+              {card.job_title} · {card.company}
+            </p>
+            {COLUMNS.map((col) => {
+              const isCurrent = card.status === col.status;
+              return (
+                <button
+                  key={col.status}
+                  onClick={() => {
+                    if (!isCurrent) {
+                      onMove(card, col.status);
+                    }
+                    onClose();
+                  }}
+                  disabled={isCurrent}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-colors min-h-[48px] touch-manipulation',
+                    isCurrent
+                      ? 'bg-muted/60 opacity-60 cursor-not-allowed'
+                      : 'hover:bg-muted active:scale-[0.98]'
+                  )}
+                >
+                  <span className={cn('w-2.5 h-2.5 rounded-full shrink-0', col.dotColorClass)} />
+                  <span className={cn('flex-1 text-sm font-medium text-left', col.headerColorClass)}>
+                    {col.label}
+                  </span>
+                  {isCurrent && <CheckCircle2 className="w-4 h-4 text-muted-foreground shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 export interface KanbanBoardProps {
   applications?: JobApplication[];
   onApplicationsChange?: (apps: JobApplication[]) => void;
@@ -100,6 +191,9 @@ export function KanbanBoard({ applications: applicationsProp, onApplicationsChan
   const { updateApplication, deleteApplication } = useJobApplicationMutations();
   const [localCards, setLocalCards] = useState<JobApplication[]>([]);
   const [activeCard, setActiveCard] = useState<JobApplication | null>(null);
+  const [mobileActiveStatus, setMobileActiveStatus] = useState<ApplicationStatus>('applied');
+  const [moveTarget, setMoveTarget] = useState<JobApplication | null>(null);
+  const mobileTabRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setLocalCards(serverApplications);
@@ -170,6 +264,34 @@ export function KanbanBoard({ applications: applicationsProp, onApplicationsChan
     [deleteApplication, localCards],
   );
 
+  const handleMobileMove = useCallback(
+    (card: JobApplication, newStatus: ApplicationStatus) => {
+      if (card.status === newStatus) return;
+      const snapshot = [...localCards];
+      setLocalCards((prev) =>
+        prev.map((c) => (c.id === card.id ? { ...c, status: newStatus } : c)),
+      );
+      haptics.medium();
+      updateApplication.mutate(
+        { id: card.id, status: newStatus },
+        {
+          onError: () => {
+            setLocalCards(snapshot);
+            toast.error('Failed to move card — changes reverted');
+          },
+        },
+      );
+    },
+    [localCards, updateApplication],
+  );
+
+  const handleMobileTabChange = useCallback((status: ApplicationStatus) => {
+    haptics.selection();
+    setMobileActiveStatus(status);
+    const tabEl = mobileTabRef.current?.querySelector(`[data-status="${status}"]`) as HTMLElement | null;
+    tabEl?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  }, []);
+
   if (isLoading) {
     return (
       <div className="flex gap-3 overflow-x-auto pb-4 pt-1 -mx-4 px-4 scrollbar-none">
@@ -180,8 +302,11 @@ export function KanbanBoard({ applications: applicationsProp, onApplicationsChan
     );
   }
 
+  const activeColumnDef = COLUMNS.find((c) => c.status === mobileActiveStatus) ?? COLUMNS[0];
+  const mobileCards = localCards.filter((c) => c.status === mobileActiveStatus);
+
   return (
-    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+    <>
       {/* Summary bar */}
       <div className="flex items-center gap-3 mb-3 px-1 flex-wrap">
         <span className="text-xs text-muted-foreground">
@@ -203,44 +328,115 @@ export function KanbanBoard({ applications: applicationsProp, onApplicationsChan
         </div>
       </div>
 
-      {/* Board — horizontal scroll */}
-      <div className="flex gap-3 overflow-x-auto pb-6 pt-1 -mx-4 px-4 scrollbar-none snap-x snap-mandatory">
-        {COLUMNS.map((col) => (
-          <KanbanColumn
-            key={col.status}
-            column={col}
-            cards={localCards.filter((c) => c.status === col.status)}
-            onDelete={handleDelete}
-          />
-        ))}
-        {/* Right padding sentinel */}
-        <div className="w-2 shrink-0" />
+      {/* Mobile view — column tabs (hidden on lg+) */}
+      <div className="lg:hidden">
+        {/* Column tab strip */}
+        <div
+          ref={mobileTabRef}
+          className="flex gap-1 overflow-x-auto scrollbar-none pb-1 -mx-1 px-1 snap-x snap-mandatory mb-3"
+        >
+          {COLUMNS.map((col) => {
+            const count = localCards.filter((c) => c.status === col.status).length;
+            const isActive = mobileActiveStatus === col.status;
+            return (
+              <button
+                key={col.status}
+                data-status={col.status}
+                onClick={() => handleMobileTabChange(col.status)}
+                className={cn(
+                  'shrink-0 snap-start flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all min-h-[36px] touch-manipulation',
+                  isActive
+                    ? 'bg-card border border-border shadow-sm text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <span className={cn('w-2 h-2 rounded-full shrink-0', col.dotColorClass)} />
+                {col.label}
+                {count > 0 && (
+                  <span className={cn(
+                    'text-[10px] font-medium px-1 py-0 rounded-full min-w-[16px] text-center',
+                    isActive ? col.badgeColorClass : 'bg-muted text-muted-foreground'
+                  )}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Active column card list */}
+        <div className="flex flex-col gap-2">
+          {mobileCards.length > 0 ? (
+            mobileCards.map((card) => (
+              <MobileCardItem
+                key={card.id}
+                card={card}
+                onDelete={handleDelete}
+                onMoveRequest={setMoveTarget}
+              />
+            ))
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className={cn('w-10 h-10 rounded-full flex items-center justify-center mb-3', activeColumnDef.badgeColorClass)}>
+                <span className={cn('w-3 h-3 rounded-full', activeColumnDef.dotColorClass)} />
+              </div>
+              <p className="text-sm font-medium text-muted-foreground">No {activeColumnDef.label} applications</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">Use "Move" on a card to change its status</p>
+            </div>
+          )}
+        </div>
+
+        <MoveStatusSheet
+          card={moveTarget}
+          onClose={() => setMoveTarget(null)}
+          onMove={handleMobileMove}
+        />
       </div>
 
-      {/* Drag overlay card */}
-      <DragOverlay dropAnimation={{ duration: 150, easing: 'ease' }}>
-        {activeCard ? (
-          <div className="rotate-1 w-[270px] shadow-2xl opacity-95">
-            <div className="bg-card border border-border rounded-xl p-3 space-y-2.5 ring-2 ring-primary/40">
-              <div className="flex items-start gap-2">
-                <div
-                  className={cn(
-                    'w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold uppercase',
-                    getAvatarColor(activeCard.company).bg,
-                    getAvatarColor(activeCard.company).text,
-                  )}
-                >
-                  {activeCard.company.charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold leading-tight truncate">{activeCard.job_title}</p>
-                  <p className="text-[11px] text-muted-foreground truncate mt-0.5">{activeCard.company}</p>
+      {/* Desktop view — full Kanban board (hidden below lg) */}
+      <div className="hidden lg:block">
+        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          {/* Board — horizontal scroll */}
+          <div className="flex gap-3 overflow-x-auto pb-6 pt-1 -mx-4 px-4 scrollbar-none snap-x snap-mandatory">
+            {COLUMNS.map((col) => (
+              <KanbanColumn
+                key={col.status}
+                column={col}
+                cards={localCards.filter((c) => c.status === col.status)}
+                onDelete={handleDelete}
+              />
+            ))}
+            {/* Right padding sentinel */}
+            <div className="w-2 shrink-0" />
+          </div>
+
+          {/* Drag overlay card */}
+          <DragOverlay dropAnimation={{ duration: 150, easing: 'ease' }}>
+            {activeCard ? (
+              <div className="rotate-1 w-[270px] shadow-2xl opacity-95">
+                <div className="bg-card border border-border rounded-xl p-3 space-y-2.5 ring-2 ring-primary/40">
+                  <div className="flex items-start gap-2">
+                    <div
+                      className={cn(
+                        'w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold uppercase',
+                        getAvatarColor(activeCard.company).bg,
+                        getAvatarColor(activeCard.company).text,
+                      )}
+                    >
+                      {activeCard.company.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-semibold leading-tight truncate">{activeCard.job_title}</p>
+                      <p className="text-[11px] text-muted-foreground truncate mt-0.5">{activeCard.company}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      </div>
+    </>
   );
 }

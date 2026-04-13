@@ -370,7 +370,7 @@ export const ResumeListCard = memo(function ResumeListCard({
                     {isSavingRename && <MiniSpinner size={14} className="shrink-0 text-muted-foreground" />}
                   </div>
                 ) : (
-                  <h3 className="font-semibold text-foreground truncate text-lg sm:text-base" title={resume.title}>
+                  <h3 className="font-semibold text-foreground truncate text-lg sm:text-base flex-1 min-w-0" title={resume.title}>
                     {resume.title}
                   </h3>
                 )}

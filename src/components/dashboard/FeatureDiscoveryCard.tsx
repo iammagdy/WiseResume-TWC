@@ -8,17 +8,17 @@ const FEATURES = [
   {
     title: 'A/B Resume Compare',
     description: 'Score two versions of your resume side-by-side to find the stronger one.',
-    route: '/ai-studio?tool=ab-compare',
+    route: '/ai-studio/ab-compare',
   },
   {
     title: 'Smart Tailor',
     description: 'Paste a job description and auto-adapt your resume keywords to match.',
-    route: '/ai-studio?tool=tailor',
+    route: '/ai-studio/tailor',
   },
   {
     title: 'Company Briefing',
     description: 'Get a quick research brief on any company before your interview.',
-    route: '/ai-studio?tool=company-briefing',
+    route: '/ai-studio/company-briefing',
   },
   {
     title: 'Portfolio Website',

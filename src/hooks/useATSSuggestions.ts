@@ -1,4 +1,5 @@
 import { useMemo, useCallback, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ResumeData, SectionId } from '@/types/resume';
 import { getSupabaseToken } from '@/lib/supabaseAuth';
@@ -113,6 +114,7 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
   const [analyzingSections, setAnalyzingSections] = useState<Set<string>>(new Set());
   const cacheRef = useRef<Record<string, { suggestions: ATSSuggestion[]; result: DeepResult }>>({});
   const { checkCredits, incrementUsage } = useAICreditsMutations();
+  const navigate = useNavigate();
   // Client-side keyword analysis
   const suggestions = useMemo(() => {
     if (!resume) return {} as Record<SectionId, ATSSuggestion[]>;
@@ -258,33 +260,59 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
     const startTime = Date.now();
     try {
       const currentContent = getSectionContent(resume, section);
-      const token = await getSupabaseToken();
+
+      const fetchBody = JSON.stringify({
+        section,
+        action: 'ats_optimize',
+        currentContent,
+        context: { resume, jobDescription },
+      });
+
+      const doFetch = async (authToken: string | null) =>
+        fetch(`${CLOUD_URL}/functions/v1/enhance-section`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
+            'apikey': CLOUD_KEY,
+          },
+          body: fetchBody,
+        });
+
+      let token = await getSupabaseToken();
       if (!token) throw new Error('Please sign in to use AI features');
 
       console.log(`[useATSSuggestions] Starting deep analysis for ${section}...`);
-      const res = await fetch(`${CLOUD_URL}/functions/v1/enhance-section`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'apikey': CLOUD_KEY,
-        },
-        body: JSON.stringify({
-          section,
-          action: 'ats_optimize',
-          currentContent,
-          context: { resume, jobDescription },
-        }),
-      });
+      let res = await doFetch(token);
+
+      // On 401: refresh the bridge token once and retry before surfacing an error.
+      if (res.status === 401) {
+        const { refreshTokenIfNeeded } = await import('@/lib/supabaseBridge');
+        const refreshed = await refreshTokenIfNeeded();
+        if (refreshed) {
+          token = await getSupabaseToken();
+          res = await doFetch(token);
+        }
+      }
 
       if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
+        const errBody = await res.json().catch(() => ({} as Record<string, unknown>));
         console.error(`[useATSSuggestions] Edge Function ${res.status} error:`, errBody);
         const status = res.status;
+        const errCode = typeof errBody.error === 'string' ? errBody.error : '';
+        const errMsg = typeof errBody.message === 'string' ? errBody.message : '';
         if (status === 401 || status === 403) {
           throw new Error('Session expired — please sign in again to use AI features.');
-        } else if (status === 429) {
+        } else if (status === 429 || errCode === 'rate_limit') {
           throw new Error('Too many requests — please wait a moment and try again.');
+        } else if (status === 402 || errCode === 'payment_required') {
+          throw new Error('AI credits exhausted. Please check your account.');
+        } else if (errCode === 'invalid_key') {
+          throw new Error(errMsg || 'Invalid API key — please check your AI settings.');
+        } else if (errCode === 'quota_exceeded') {
+          throw new Error(errMsg || 'AI quota exceeded. Try again tomorrow or add your own API key in Settings.');
+        } else if (errCode === 'enhancement_failed') {
+          throw new Error('Failed to enhance content — please try again.');
         } else {
           throw new Error('AI is temporarily unavailable — please try again in a moment.');
         }
@@ -321,11 +349,22 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
     } catch (err) {
       console.error('Deep ATS analysis failed:', err);
       const msg = err instanceof Error ? err.message : 'Deep analysis failed';
-      showErrorToast(msg, err);
+      const isNotConfigured = /not configured|please contact support|invalid api key|check your ai settings/i.test(msg);
+      if (isNotConfigured) {
+        toast.error(msg, {
+          duration: 8000,
+          action: {
+            label: 'Open Settings',
+            onClick: () => navigate('/settings'),
+          },
+        });
+      } else {
+        showErrorToast(msg, err);
+      }
     } finally {
       setAnalyzingSections(prev => { const next = new Set(prev); next.delete(section); return next; });
     }
-  }, [resume, jobDescription]);
+  }, [resume, jobDescription, navigate]);
 
   // Full-resume scan summary
   const scanSummary = useMemo(() => {

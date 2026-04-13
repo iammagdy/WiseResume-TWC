@@ -72,8 +72,3 @@ export async function getContentPhrases(): Promise<ContentPhrase[]> {
   _cache = (await res.json()) as ContentPhrase[];
   return _cache;
 }
-
-/**
- * @deprecated Use `getContentPhrases()` instead. Kept for backward compatibility.
- */
-export const contentPhrases: ContentPhrase[] = [];

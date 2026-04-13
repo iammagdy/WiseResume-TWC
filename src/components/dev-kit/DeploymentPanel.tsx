@@ -3,10 +3,7 @@ import { RefreshCw, GitCommit, CheckCircle, XCircle, ExternalLink, Loader2, Cloc
 import { Button } from '@/components/ui/button';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { supabase } from '@/integrations/supabase/safeClient';
-
-interface DeploymentPanelProps {
-  password: string;
-}
+import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 
 interface Commit {
   sha: string;
@@ -65,7 +62,7 @@ const SUPABASE_PROJECT_REF =
 const SUPABASE_SECRETS_URL =
   `https://supabase.com/dashboard/project/${SUPABASE_PROJECT_REF}/functions`;
 
-export function DeploymentPanel({ password }: DeploymentPanelProps) {
+export function DeploymentPanel() {
   const [data, setData] = useState<DeploymentData | null>(null);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -76,12 +73,13 @@ export function DeploymentPanel({ password }: DeploymentPanelProps) {
     setLoading(true);
     setFetchError(null);
     try {
+      const pw = getDevKitToken();
       const [githubResult, envResult] = await Promise.all([
         edgeFunctions.functions.invoke('admin-github-status', {
-          body: { password },
+          body: { password: pw },
         }),
         edgeFunctions.functions.invoke('admin-env-check', {
-          body: { password },
+          body: { password: pw },
         }),
       ]);
 
@@ -135,7 +133,7 @@ export function DeploymentPanel({ password }: DeploymentPanelProps) {
     } finally {
       setLoading(false);
     }
-  }, [password]);
+  }, []);
 
   useEffect(() => { fetchDeploymentData(); }, [fetchDeploymentData]);
 

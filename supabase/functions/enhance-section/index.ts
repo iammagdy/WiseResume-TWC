@@ -1,9 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
-import { callAIWithRetry, isAIError, parseAIJSON, sanitizeInputText } from "../_shared/aiClient.ts";
-import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
+import { callAIWithRetry, isAIError, parseAIJSONWithRetry, sanitizeInputText } from "../_shared/aiClient.ts";
+import { checkRateLimit, recordUsage, getUserPlan } from "../_shared/rateLimiter.ts";
+import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
+import { deductCredits } from "../_shared/deductCredits.ts";
+import { getServiceClient } from "../_shared/dbClient.ts";
+import { checkPayloadSize } from "../_shared/requestUtils.ts";
 
 // ============= SECURITY: Input validation limits =============
 const MAX_CONTENT_SIZE = 50 * 1024; // 50KB for current content
@@ -633,6 +637,9 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  const sizeError = checkPayloadSize(req, 500 * 1024);
+  if (sizeError) return sizeError;
+
   try {
     // Authentication via shared middleware (decodes JWT without signature check)
     let userId: string;
@@ -645,10 +652,19 @@ serve(async (req) => {
     console.log('Authenticated user:', userId);
 
     // Server-side rate limiting
-    const rateCheck = await checkRateLimit(userId, { maxRequests: 20, windowSeconds: 60, actionType: 'enhance' });
+    const userPlan = await getUserPlan(userId);
+    const rateCheck = await checkRateLimit(userId, { maxRequests: 20, proMaxRequests: 100, windowSeconds: 60, actionType: 'enhance', plan: userPlan });
     if (!rateCheck.allowed) {
       return new Response(
         JSON.stringify({ error: 'rate_limit', message: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const serverRateCheck = await checkUserRateLimit(userId, 'enhance', 20, 60);
+    if (!serverRateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: 'rate_limit', message: `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.` }),
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -661,6 +677,7 @@ serve(async (req) => {
         { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    const isByok = creditCheck.remaining === 9999;
 
     const body = await req.json() as EnhanceRequest & { content?: string; instruction?: string; variants?: boolean };
     const section = body.section;
@@ -754,7 +771,10 @@ serve(async (req) => {
       for (let i = 0; i < variantResponses.length; i++) {
         const result = variantResponses[i];
         if (result.status === 'fulfilled' && result.value.content) {
-          const parsed = parseAIJSON(result.value.content) as Record<string, unknown> | null;
+          const parsed = await parseAIJSONWithRetry<Record<string, unknown>>(result.value.content, {
+            model: 'google/gemini-3-flash-preview',
+            userId,
+          });
           if (parsed && parsed.improved !== undefined) {
             variants.push({ improved: parsed.improved, label: styleLabels[i] });
             if (i === 1 && Array.isArray(parsed.changes)) {
@@ -776,6 +796,9 @@ serve(async (req) => {
       }
 
       await recordUsage(userId, 'enhance', { section, action, provider: providerUsed, variantsCount: variants.length });
+
+      // Atomically deduct credits server-side before returning results (cost=1 for enhance)
+      await deductCredits(userId, 1, isByok, getServiceClient());
 
       return new Response(JSON.stringify({
         variants,
@@ -802,7 +825,11 @@ serve(async (req) => {
     console.log('AI response received, parsing...');
 
     // Parse the JSON from the AI response — never inject raw text into resume
-    const enhancedContent = parseAIJSON(content);
+    const enhancedContent = await parseAIJSONWithRetry(content, {
+      model: 'google/gemini-3-flash-preview',
+      userId,
+      temperature,
+    });
 
     if (!enhancedContent) {
       console.error("Failed to parse enhance AI response:", content?.slice(0, 500));
@@ -820,6 +847,9 @@ serve(async (req) => {
     // Record usage for rate limiting — include which provider handled the request
     await recordUsage(userId, 'enhance', { section, action, provider: aiResponse.providerUsed || 'unknown' });
 
+    // Atomically deduct credits server-side before returning results (cost=1 for enhance)
+    await deductCredits(userId, 1, isByok, getServiceClient());
+
     const responseBody: Record<string, unknown> = { ...(enhancedContent as Record<string, unknown>) };
     responseBody._providerUsed = aiResponse.providerUsed || 'unknown';
     if (aiResponse.fallbackUsed) {
@@ -836,7 +866,6 @@ serve(async (req) => {
 
     if (isAIError(error)) {
       const errorMap: Record<string, { error: string; message: string }> = {
-        'invalid_key': { error: 'invalid_key', message: 'Invalid Gemini API key. Please check your AI settings.' },
         'rate_limit': { error: 'rate_limit', message: 'Too many requests. Please wait a moment and try again.' },
         'payment_required': { error: 'payment_required', message: 'AI credits exhausted. Please check your account.' },
         'quota_exceeded': { error: 'quota_exceeded', message: 'Daily quota exceeded. Try again tomorrow or use a paid key.' },

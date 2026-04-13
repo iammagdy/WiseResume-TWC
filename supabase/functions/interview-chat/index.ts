@@ -1,8 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAIWithRetry, isAIError, parseAIJSON, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
-import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
+import { callAIWithRetry, isAIError, parseAIJSONWithRetry, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
+import { checkRateLimit, recordUsage, getUserPlan } from "../_shared/rateLimiter.ts";
+import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
+import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
+import { deductCredits } from "../_shared/deductCredits.ts";
+import { getServiceClient } from "../_shared/dbClient.ts";
+import { checkPayloadSize } from "../_shared/requestUtils.ts";
 
 const safeSkillsString = (skills: any[] | undefined): string =>
   (skills || []).map((s: any) => (typeof s === 'string' ? s : s?.name || '')).filter(Boolean).join(', ');
@@ -20,16 +25,37 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const sizeError = checkPayloadSize(req, 500 * 1024);
+  if (sizeError) return sizeError;
+
   try {
     const { userId, client } = await requireAuth(req);
 
-    const rateCheck = await checkRateLimit(userId, { maxRequests: 60, windowSeconds: 60, actionType: 'interview' });
+    const userPlan = await getUserPlan(userId);
+    const rateCheck = await checkRateLimit(userId, { maxRequests: 60, proMaxRequests: 200, windowSeconds: 60, actionType: 'interview', plan: userPlan });
     if (!rateCheck.allowed) {
       return new Response(
         JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const serverRateCheck = await checkUserRateLimit(userId, 'interview', 60, 60);
+    if (!serverRateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const creditCheck = await checkUserCreditBalance(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'Insufficient AI credits. Add your own Gemini API key for unlimited access.' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    const isByok = creditCheck.remaining === 9999;
 
     const { messages, resumeData, jobDescription, endInterview, analyzeRole, quickPractice } = await req.json();
 
@@ -97,7 +123,11 @@ Return JSON with this exact structure: {"title":"exact job title","keySkills":["
         temperature: 0.3,
       });
 
-      const roleAnalysis = parseAIJSON(aiResponse.content || '{}');
+      const roleAnalysis = await parseAIJSONWithRetry(aiResponse.content || '{}', {
+        model: 'google/gemini-2.5-flash',
+        userId,
+        temperature: 0.3,
+      });
       if (!roleAnalysis) {
         console.error("Failed to parse role analysis:", aiResponse.content?.slice(0, 500));
         return new Response(
@@ -108,6 +138,9 @@ Return JSON with this exact structure: {"title":"exact job title","keySkills":["
 
       // Fix #7: Record usage for analyzeRole path
       await recordUsage(userId, 'interview', { provider: aiResponse.providerUsed || 'unknown' });
+
+      // Atomically deduct credits server-side before returning results (cost=1 for interview)
+      await deductCredits(userId, 1, isByok, getServiceClient());
 
       return new Response(JSON.stringify({ reply: "Role analyzed", roleAnalysis }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -205,13 +238,19 @@ Do not include markdown blocks globally. Ensure the output is valid JSON.`;
     // The system prompt instructs the model to return { reply, score }.
     // We extract them here so the client receives clean text, not a raw JSON blob.
     const rawContent = aiResponse.content || '';
-    const parsed = parseAIJSON<{ reply?: string; score?: { score?: number; tip?: string; improved_answer?: string } }>(rawContent);
+    const parsed = await parseAIJSONWithRetry<{ reply?: string; score?: { score?: number; tip?: string; improved_answer?: string } }>(rawContent, {
+      model: 'google/gemini-2.5-flash',
+      userId,
+    });
 
     // If model returned valid structured JSON, use the reply field; fall back to raw content.
     const replyText = parsed?.reply || rawContent || "I couldn't generate a response. Let's try again.";
     const scoreData = parsed?.score || null;
 
     await recordUsage(userId, 'interview', { provider: aiResponse.providerUsed || 'unknown' });
+
+    // Atomically deduct credits server-side before returning results (cost=1 for interview)
+    await deductCredits(userId, 1, isByok, getServiceClient());
 
     return new Response(JSON.stringify({ reply: replyText, score: scoreData }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

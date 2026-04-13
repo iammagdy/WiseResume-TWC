@@ -12,8 +12,8 @@ interface PlanAvatarProps {
 }
 
 function planRingClass(plan: PlanName): string {
-  if (plan === 'premium') return 'ring-2 ring-amber-400 ring-offset-2 ring-offset-background';
-  if (plan === 'pro') return 'ring-2 ring-blue-500 ring-offset-2 ring-offset-background';
+  if (plan === 'premium') return 'ring-2 ring-amber-400 ring-offset-2 ring-offset-background plan-glow-premium';
+  if (plan === 'pro') return 'ring-2 ring-blue-500 ring-offset-2 ring-offset-background plan-glow-pro';
   return 'border-2 border-muted-foreground/20';
 }
 

@@ -110,27 +110,37 @@ export async function tailorResumeWithProgress(
 
   const { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY: SUPABASE_KEY } = await import('@/lib/supabaseConstants');
 
-  const invokeOnce = async () => {
-    const token = await getSupabaseToken();
-
+  const doFetch = async (token: string | null) => {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'apikey': SUPABASE_KEY,
     };
     if (token) headers['Authorization'] = `Bearer ${token}`;
-
-    const response = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/tailor-resume`, {
+    return fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/tailor-resume`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ resume, jobDescription, intensity }),
       ...(signal ? { signal } : {}),
     });
+  };
+
+  const invokeOnce = async () => {
+    let response = await doFetch(await getSupabaseToken());
+
+    // On 401, refresh the bridge token once and retry before surfacing an error.
+    if (response.status === 401) {
+      const { refreshTokenIfNeeded } = await import('@/lib/supabaseBridge');
+      const refreshed = await refreshTokenIfNeeded();
+      if (refreshed) {
+        response = await doFetch(await getSupabaseToken());
+      }
+    }
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({ error: 'Failed to tailor resume' }));
       const msg = errData.error || errData.message || '';
       if (response.status === 401) {
-        throw new Error('Unauthorized. Please log in again.');
+        throw new Error('Session expired. Please sign in again to use AI features.');
       }
       if (response.status === 429 || msg.toLowerCase().includes('rate limit')) {
         const e = new Error('Our AI servers are experiencing high demand. Please try again in a moment or use your own Gemini API key for uninterrupted access.');
@@ -217,24 +227,17 @@ export interface ParsedJobData {
 }
 
 export async function parseJobUrl(url: string): Promise<ParsedJobData> {
-  const { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY: SUPABASE_KEY } = await import('@/lib/supabaseConstants');
-  const token = await getSupabaseToken();
-
-  const headers: Record<string, string> = { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-
-  const response = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/parse-job-url`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ url }),
+  const { data, error } = await edgeFunctions.functions.invoke('parse-job-url', {
+    body: { url },
   });
 
-  if (!response.ok) {
-    const errData = await response.json().catch(() => ({ error: 'Failed to parse job URL' }));
-    throw new Error(errData.error || 'Failed to parse job URL');
+  if (error) {
+    throw new Error(extractErrorMessage(error, data, 'Failed to parse job URL'));
+  }
+  if (data?.error) {
+    throw new Error(data.error || 'Failed to parse job URL');
   }
 
-  const data = await response.json();
   trackGeminiUsage();
   return data as ParsedJobData;
 }

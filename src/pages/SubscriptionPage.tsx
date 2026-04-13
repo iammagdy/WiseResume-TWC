@@ -24,6 +24,8 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { useQueryClient } from '@tanstack/react-query';
+import { TrialCountdownBadge } from '@/components/ui/TrialCountdownBadge';
+import { usePlanUpgradeCelebration } from '@/hooks/usePlanUpgradeCelebration';
 
 interface PlanFeature {
   label: string;
@@ -103,6 +105,7 @@ export default function SubscriptionPage() {
   const { data: credits, isLoading: creditsLoading } = useAICredits();
   const { plan, isPro, isPremium, isLoading: planLoading } = usePlan();
   const { data: meData } = useMe();
+  usePlanUpgradeCelebration();
 
   const trialPlan = meData?.subscription?.trial_plan ?? null;
   const trialExpiresAt = meData?.subscription?.trial_expires_at ?? null;
@@ -204,6 +207,8 @@ export default function SubscriptionPage() {
         <div className="flex items-center gap-3">
           <BackButton />
           <h1 className="text-page-title">Subscription</h1>
+          <div className="flex-1" />
+          <TrialCountdownBadge />
         </div>
       </header>
 
@@ -285,6 +290,11 @@ export default function SubscriptionPage() {
                     >
                       Trial ends {formatDate(trialExpiresAt)}
                     </span>
+                  </div>
+                )}
+                {isActiveTrial && (
+                  <div className="mt-2">
+                    <TrialCountdownBadge />
                   </div>
                 )}
               </div>
@@ -540,15 +550,13 @@ export default function SubscriptionPage() {
                 : 'border-blue-400/30 relative overflow-hidden'
             }
           >
-            <div
-              className={`absolute top-0 right-0 text-[10px] font-bold px-3 py-1 rounded-bl-xl ${
-                target === 'premium' ? 'bg-amber-500 text-white' : 'bg-blue-500 text-white'
-              }`}
-            >
-              {target === 'premium' ? 'POWER USERS' : 'POPULAR'}
-            </div>
             <CardContent className="p-4 space-y-3">
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                  target === 'premium' ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'bg-blue-500/15 text-blue-600 dark:text-blue-400'
+                }`}>
+                  {target === 'premium' ? 'POWER USERS' : 'POPULAR'}
+                </span>
                 <PlanIcon
                   plan={target}
                   className={`w-5 h-5 ${target === 'premium' ? 'text-amber-500' : 'text-blue-500'}`}

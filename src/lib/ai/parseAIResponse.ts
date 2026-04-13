@@ -3,10 +3,13 @@
  * All functions use proper types — no `any` casts.
  */
 
-/** Extract the text content from a wise-ai-chat edge function response */
+/** Extract the text content from a wise-ai-chat edge function response.
+ * Checks `result` (typed API), then `content` (legacy/alias), then `message`/`text`.
+ */
 export function extractAIContent(data: unknown): string {
   if (typeof data === 'object' && data !== null) {
     const d = data as Record<string, unknown>;
+    if (typeof d.result === 'string') return d.result;
     if (typeof d.content === 'string') return d.content;
     if (typeof d.message === 'string') return d.message;
     if (typeof d.text === 'string') return d.text;

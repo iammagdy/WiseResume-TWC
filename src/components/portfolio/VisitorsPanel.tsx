@@ -371,8 +371,10 @@ function ShortLinkRow({
 
   const handleDelete = () => {
     haptics.light();
-    deleteLink({ id: link.id, userId });
-    onDelete(link.id);
+    deleteLink(
+      { id: link.id, userId },
+      { onSuccess: () => onDelete(link.id) }
+    );
   };
 
   return (
@@ -660,7 +662,12 @@ export function VisitorsPanel({ username, userId, portfolioEnabled }: VisitorsPa
                 key={link.id}
                 link={link}
                 userId={userId!}
-                onDelete={() => { }}
+                onDelete={(id) => {
+                  queryClient.setQueryData<ShortLink[]>(
+                    ['short-links', userId],
+                    (old) => old?.filter(l => l.id !== id) ?? []
+                  );
+                }}
               />
             ))}
           </div>

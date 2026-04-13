@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Upload, FileText, BarChart3, Trophy } from 'lucide-react';
+import { Upload, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -23,20 +23,6 @@ const actions = [
     iconColor: 'text-secondary',
     iconBg: 'bg-secondary/10'
   },
-  {
-    icon: BarChart3,
-    label: 'Analytics',
-    action: 'analytics',
-    iconColor: 'text-accent-foreground',
-    iconBg: 'bg-accent/10'
-  },
-  {
-    icon: Trophy,
-    label: 'Badges',
-    action: 'achievements',
-    iconColor: 'text-destructive',
-    iconBg: 'bg-destructive/10'
-  }
 ];
 
 export const QuickActionChips = memo(function QuickActionChips({ onCreateNew }: QuickActionChipsProps) {
@@ -51,33 +37,27 @@ export const QuickActionChips = memo(function QuickActionChips({ onCreateNew }: 
       case 'upload':
         navigate('/upload');
         break;
-      case 'analytics':
-        navigate('/analytics');
-        break;
-      case 'achievements':
-        navigate('/achievements');
-        break;
     }
   };
 
   return (
-    <div className="px-4 pb-4">
-      <div className="grid grid-cols-4 gap-2">
+    <div className="px-4 pb-3">
+      <div className="flex gap-2">
         {actions.map((item) => (
           <button
             key={item.label}
             onClick={() => handleAction(item.action)}
             className={cn(
-              'flex flex-col items-center gap-1.5 py-3 rounded-2xl',
+              'flex items-center gap-2 py-2.5 px-4 rounded-2xl flex-1',
               'bg-card border border-border',
               'touch-manipulation active:scale-95 transition-all',
-              'min-h-[68px] hover:shadow-soft-sm'
+              'min-h-[48px] hover:shadow-soft-sm hover:border-primary/20'
             )}
           >
-            <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center', item.iconBg)}>
-              <item.icon className={cn("w-4 h-4", item.iconColor)} />
+            <div className={cn('w-7 h-7 rounded-lg flex items-center justify-center shrink-0', item.iconBg)}>
+              <item.icon className={cn("w-3.5 h-3.5", item.iconColor)} />
             </div>
-            <span className="text-[11px] font-medium text-foreground">{item.label}</span>
+            <span className="text-sm font-medium text-foreground whitespace-nowrap">{item.label}</span>
           </button>
         ))}
       </div>

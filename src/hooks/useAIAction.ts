@@ -1,7 +1,10 @@
 import { useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useAICreditsMutations } from './useAICredits';
-import { getAICost } from '@/lib/aiCostEstimates';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from './useAuth';
+import { hasAcceptedAIPrivacy } from '@/components/ai/AIPrivacyDisclosure';
+import { useAIPrivacyDisclosure } from '@/components/ai/AIPrivacyDisclosureProvider';
 
 interface UseAIActionOptions {
   /** The operation type key from AI_COST_MAP (e.g. 'enhance', 'tailor') */
@@ -111,62 +114,75 @@ function parseErrorMessage(err: unknown): string {
   if (/profile.*incomplete|incomplete.*profile/i.test(raw)) {
     return 'Your profile is incomplete. Please complete your profile to use AI features.';
   }
+  if (/not configured|please contact support/i.test(raw)) {
+    return 'WiseResume AI is not configured — go to Settings → AI Provider to add your API key.';
+  }
+  if (/quota.*exceed|daily.*quota/i.test(raw)) {
+    return 'AI daily quota exceeded. Try again tomorrow or add your own API key in Settings.';
+  }
+  if (raw === 'enhancement_failed' || /enhancement.?failed|failed to enhance/i.test(raw)) {
+    return 'Failed to enhance content — please try again.';
+  }
 
   return 'AI is temporarily unavailable — please try again in a moment.';
 }
 
 /**
  * Universal wrapper for all AI actions.
- * Handles: check credits → execute action → deduct credits → show feedback toast.
+ * Credits are now deducted atomically server-side inside each edge function.
+ * This hook handles: privacy disclosure gate (one-time) → execute action → cache invalidation.
+ *
+ * Requires <AIPrivacyDisclosureProvider> in the component tree.
  *
  * Usage:
  *   const { execute } = useAIAction({ operation: 'tailor' });
  *   const result = await execute(async () => { ... });
  */
 export function useAIAction({ operation }: UseAIActionOptions) {
-  const { incrementUsage, checkCredits } = useAICreditsMutations();
-  const cost = getAICost(operation);
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { requestDisclosure } = useAIPrivacyDisclosure();
+  const navigate = useNavigate();
 
   const execute = useCallback(
     async <T>(action: () => Promise<T>): Promise<T | null> => {
-      // 1. Check credits
-      const hasCredits = await checkCredits();
-      if (!hasCredits) return null;
+      // 0. Privacy disclosure gate (one-time per device, stored in localStorage)
+      if (!hasAcceptedAIPrivacy()) {
+        const accepted = await requestDisclosure();
+        if (!accepted) return null;
+      }
 
-      // 2. Execute
       let result: T;
       try {
         result = await action();
       } catch (err: unknown) {
-        toast.error(parseErrorMessage(err));
+        const msg = parseErrorMessage(err);
+        const rawMsg = err instanceof Error ? err.message : String(err ?? '');
+        const isNotConfigured = /not configured|please contact support/i.test(rawMsg);
+        if (isNotConfigured) {
+          toast.error(msg, {
+            duration: 8000,
+            action: {
+              label: 'Open Settings',
+              onClick: () => navigate('/settings'),
+            },
+          });
+        } else {
+          toast.error(msg);
+        }
         return null;
       }
 
-      // 3. Deduct — await each call sequentially to avoid race conditions
-      const deductionErrors: unknown[] = [];
-      for (let i = 0; i < cost; i++) {
-        try {
-          await incrementUsage.mutateAsync();
-        } catch (deductErr) {
-          deductionErrors.push(deductErr);
-        }
-      }
-
-      // 4. Feedback toast — only show after all deductions are confirmed
-      if (deductionErrors.length > 0) {
-        toast.error(`Credit deduction failed for ${deductionErrors.length} of ${cost} credit${cost > 1 ? 's' : ''}. Please check your account.`);
-      } else {
-        toast.success(`${cost} credit${cost > 1 ? 's' : ''} used`, {
-          description: `AI ${operation} completed`,
-          duration: 2500,
-          icon: '⚡',
-        });
+      // Invalidate credits cache so the UI reflects the server-side deduction
+      if (user) {
+        queryClient.invalidateQueries({ queryKey: ['me'], refetchType: 'all' });
+        queryClient.invalidateQueries({ queryKey: ['ai-usage-breakdown'], refetchType: 'all' });
       }
 
       return result;
     },
-    [checkCredits, incrementUsage, cost, operation],
+    [queryClient, user, operation, requestDisclosure, navigate],
   );
 
-  return { execute, cost };
+  return { execute };
 }

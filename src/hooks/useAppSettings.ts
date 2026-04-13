@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { supabase, SUPABASE_URL } from '@/integrations/supabase/safeClient';
 
 export interface AppSettings {
   maintenance_mode: boolean;
@@ -42,6 +42,10 @@ export function useAppSettings(): AppSettings & { isLoading: boolean } {
   const { data, isLoading } = useQuery({
     queryKey: ['app-settings'],
     queryFn: async (): Promise<AppSettings> => {
+      // Skip all network calls if Supabase is not configured — avoids
+      // ERR_NAME_NOT_RESOLVED errors and noisy console warnings in dev.
+      if (!SUPABASE_URL) return DEFAULTS;
+
       // Use the get_app_settings RPC which is accessible to anon + authenticated
       // This ensures maintenance mode is enforced even for unauthenticated users
       const { data, error } = await supabase.rpc('get_app_settings');

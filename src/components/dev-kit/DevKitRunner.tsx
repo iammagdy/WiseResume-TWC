@@ -11,6 +11,7 @@ import { type TestStatus, type TestResult, type TestDef, type SectionId } from '
 import { SECTIONS } from './config';
 import { SectionSummaryBadge } from './DevKitBadges';
 import { TestItem } from './TestItem';
+import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 
 const MINIMAL_RESUME = {
   title: 'Debug Test Resume',
@@ -23,11 +24,8 @@ const MINIMAL_RESUME = {
 
 const SAMPLE_JD = 'We are looking for a Senior Frontend Engineer with 3+ years of React and TypeScript experience.';
 
-interface DevKitRunnerProps {
-  adminPassword?: string;
-}
-
-export function DevKitRunner({ adminPassword = '' }: DevKitRunnerProps) {
+export function DevKitRunner() {
+  const adminPassword = getDevKitToken() ?? '';
   const auth = useAuth();
   const [results, setResults] = useState<Record<string, TestResult>>({});
   const [expandedJson, setExpandedJson] = useState<Record<string, boolean>>({});

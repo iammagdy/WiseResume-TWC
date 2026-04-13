@@ -103,8 +103,6 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.score-resume]
     verify_jwt = false
-  [functions.send-bug-report]
-    verify_jwt = false
   [functions.send-contact-email]
     verify_jwt = false
   [functions.send-contact-inquiry]

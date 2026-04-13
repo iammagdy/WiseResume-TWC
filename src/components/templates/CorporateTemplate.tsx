@@ -16,7 +16,7 @@ export const CorporateTemplate = memo(function CorporateTemplate({ resume }: Tem
       {resume.summary && (
         <section data-section="summary" className="mb-6">
           <h2 className="text-sm font-bold text-gray-800 uppercase tracking-widest border-b border-gray-300 pb-1 mb-3">Executive Summary</h2>
-          <p className="text-gray-700">{resume.summary}</p>
+          <p data-break-child className="text-gray-700">{resume.summary}</p>
         </section>
       )}
       {resume.experience.length > 0 && (
@@ -30,14 +30,14 @@ export const CorporateTemplate = memo(function CorporateTemplate({ resume }: Tem
                 {exp.achievements && exp.achievements.length > 0 && (
                   <ul data-break-child className="mt-1 space-y-0.5 list-none">
                     {exp.achievements.map((a, i) => (
-                      <li key={i} className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{a}</li>
+                      <li key={i} data-break-child className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{a}</li>
                     ))}
                   </ul>
                 )}
                 {exp.responsibilities && exp.responsibilities.length > 0 && (
                   <ul data-break-child className="mt-1 space-y-0.5 list-none">
                     {exp.responsibilities.map((r, i) => (
-                      <li key={i} className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{r}</li>
+                      <li key={i} data-break-child className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{r}</li>
                     ))}
                   </ul>
                 )}

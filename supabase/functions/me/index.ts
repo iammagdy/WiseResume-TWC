@@ -68,7 +68,7 @@ serve(async (req) => {
     // premium/pro users see the correct limit instead of the free-tier value
     // stored in the database.
     // Sentinel -1 means "unlimited" (handled on the client side).
-    const PRO_DAILY_LIMIT = 30;
+    const PRO_DAILY_LIMIT = 100;
     const rawCredits = creditsResult.data;
     const today = new Date().toISOString().split('T')[0];
     let aiCreditsPayload: typeof rawCredits | { daily_usage: number; daily_limit: number; usage_date: string; total_usage: number; updated_at: string } | null = null;
@@ -76,7 +76,11 @@ serve(async (req) => {
       if (effectivePlan === 'premium') {
         aiCreditsPayload = { ...rawCredits, daily_limit: -1 };
       } else if (effectivePlan === 'pro') {
-        aiCreditsPayload = { ...rawCredits, daily_limit: PRO_DAILY_LIMIT };
+        // Only apply plan default if the stored limit is at or below it.
+        // A higher value indicates an admin override — preserve it.
+        const planDefault = PRO_DAILY_LIMIT;
+        const effectiveLimit = rawCredits.daily_limit > planDefault ? rawCredits.daily_limit : planDefault;
+        aiCreditsPayload = { ...rawCredits, daily_limit: effectiveLimit };
       } else {
         aiCreditsPayload = rawCredits;
       }

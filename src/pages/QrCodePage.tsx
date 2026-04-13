@@ -242,10 +242,10 @@ export default function QrCodePage() {
         {/* Preview */}
         <div className="flex flex-col items-center py-4 px-4">
           <div className={cn(
-            'rounded-2xl p-4 transition-colors',
+            'rounded-2xl p-4 transition-colors max-w-[220px] sm:max-w-[280px] w-full',
             transparentBg ? 'bg-[repeating-conic-gradient(#e5e5e5_0%_25%,transparent_0%_50%)] bg-[length:16px_16px]' : ''
           )} style={!transparentBg ? { backgroundColor: bgColor } : undefined}>
-            <div ref={containerRef} className="rounded-xl overflow-hidden" />
+            <div ref={containerRef} className="rounded-xl overflow-hidden w-full [&>canvas]:max-w-full [&>svg]:max-w-full" />
           </div>
 
           {/* Capacity bar */}

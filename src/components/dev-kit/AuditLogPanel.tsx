@@ -3,6 +3,7 @@ import { RefreshCw, Activity, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 
 interface AuditLog {
   id: string;
@@ -12,10 +13,6 @@ interface AuditLog {
   action: string;
   metadata: Record<string, unknown>;
   created_at: string;
-}
-
-interface AuditLogPanelProps {
-  password: string;
 }
 
 const ACTION_COLORS: Record<string, string> = {
@@ -62,7 +59,7 @@ function summarizeMetadata(action: string, meta: Record<string, unknown>): strin
   return '';
 }
 
-export function AuditLogPanel({ password }: AuditLogPanelProps) {
+export function AuditLogPanel() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +72,7 @@ export function AuditLogPanel({ password }: AuditLogPanelProps) {
     setNotDeployed(false);
     try {
       const { data, error: err } = await edgeFunctions.functions.invoke('admin-audit-logs', {
-        body: { password, limit: 200, action_filter: actionFilter || null },
+        body: { password: getDevKitToken(), limit: 200, action_filter: actionFilter || null },
       });
       if (err) {
         if (err.message?.includes('Failed to fetch') || err.status === 404) {
@@ -93,7 +90,7 @@ export function AuditLogPanel({ password }: AuditLogPanelProps) {
     } finally {
       setLoading(false);
     }
-  }, [password, actionFilter]);
+  }, [actionFilter]);
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
 

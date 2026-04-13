@@ -28,7 +28,7 @@ export const SalesTemplate = memo(function SalesTemplate({ resume }: SalesTempla
         {summary && (
           <section className="mb-5" data-section="summary">
             <div className="p-4 rounded-lg border-l-4" style={{ backgroundColor: greenLight, borderColor: greenColor }}>
-              <p className="text-gray-800 leading-relaxed font-medium">{summary}</p>
+              <p data-break-child className="text-gray-800 leading-relaxed font-medium">{summary}</p>
             </div>
           </section>
         )}
@@ -58,7 +58,7 @@ export const SalesTemplate = memo(function SalesTemplate({ resume }: SalesTempla
                   {exp.responsibilities && exp.responsibilities.length > 0 && (
                     <ul data-break-child className="mt-2 space-y-0.5 list-none">
                       {exp.responsibilities.map((r, idx) => (
-                        <li key={idx} className="text-gray-700 text-sm pl-3 relative before:content-['-'] before:absolute before:left-0">{r}</li>
+                        <li key={idx} data-break-child className="text-gray-700 text-sm pl-3 relative before:content-['-'] before:absolute before:left-0">{r}</li>
                       ))}
                     </ul>
                   )}

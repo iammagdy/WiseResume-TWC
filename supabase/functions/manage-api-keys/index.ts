@@ -5,7 +5,15 @@ import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 const ENCRYPTION_SECRET = Deno.env.get('API_KEY_ENCRYPTION_SECRET');
 if (!ENCRYPTION_SECRET) throw new Error('API_KEY_ENCRYPTION_SECRET env var is required');
 
-async function getEncryptionKey(): Promise<CryptoKey> {
+/**
+ * Derives an AES-GCM key using PBKDF2.
+ *
+ * key_version=1 (legacy): salt is the static string 'user-api-keys-salt'
+ * key_version=2 (current): salt is 'user-api-keys-salt-v2-<userId>' — a leaked
+ *   master secret alone is insufficient to decrypt any user's keys without their
+ *   specific user ID.
+ */
+async function deriveKey(userId?: string): Promise<CryptoKey> {
   const encoder = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
@@ -14,8 +22,15 @@ async function getEncryptionKey(): Promise<CryptoKey> {
     false,
     ['deriveKey']
   );
+
+  // Per-user salt: concatenate a fixed prefix with the userId so each user's key
+  // requires a distinct secret derivation even with the same master secret.
+  const saltString = userId
+    ? `user-api-keys-salt-v2-${userId}`
+    : 'user-api-keys-salt'; // legacy v1 fallback (no userId)
+
   return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt: encoder.encode('user-api-keys-salt'), iterations: 100000, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt: encoder.encode(saltString), iterations: 100000, hash: 'SHA-256' },
     keyMaterial,
     { name: 'AES-GCM', length: 256 },
     false,
@@ -23,8 +38,8 @@ async function getEncryptionKey(): Promise<CryptoKey> {
   );
 }
 
-async function encrypt(plaintext: string): Promise<string> {
-  const key = await getEncryptionKey();
+async function encrypt(plaintext: string, userId: string): Promise<string> {
+  const key = await deriveKey(userId);
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const encoded = new TextEncoder().encode(plaintext);
   const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
@@ -118,13 +133,15 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ error: 'provider and apiKey are required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      const encryptedKey = await encrypt(apiKey);
+      // Encrypt with per-user salt (key_version=2)
+      const encryptedKey = await encrypt(apiKey, userId);
 
       const upsertData: Record<string, unknown> = {
         user_id: userId,
         provider,
         encrypted_key: encryptedKey,
         key_tier: normalizedKeyTier,
+        key_version: 2,
       };
       if (provider === 'ollama') {
         const resolvedBaseUrl = baseUrl || base_url;

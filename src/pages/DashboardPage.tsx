@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LazyMotion, domAnimation, m as motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle, AlertCircle, RefreshCw, LayoutTemplate, BookOpen, TrendingUp, Trophy, Users, Map } from 'lucide-react';
+import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle, AlertCircle, RefreshCw, LayoutTemplate, BookOpen, Users, Map, Sun, Moon } from 'lucide-react';
 import { DashboardSkeleton } from '@/components/layout/PageSkeletons';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { SortOption, CategoryFilter, ScoreFilter } from '@/components/dashboard/ResumeFilters';
@@ -29,8 +29,11 @@ import { usePlan } from '@/hooks/usePlan';
 import { calculateProfileCompletion } from '@/hooks/useProfile';
 import { AIHealthBadge } from '@/components/ai/AIHealthBadge';
 import { AICreditsIndicator } from '@/components/editor/ai/AICreditsIndicator';
+import { useTheme } from '@/hooks/use-theme';
+import { DashboardStatusPopover } from '@/components/dashboard/DashboardStatusPopover';
+import { PlanChip } from '@/components/ui/PlanChip';
+import { usePlanUpgradeCelebration } from '@/hooks/usePlanUpgradeCelebration';
 import { useChangelogBadge } from '@/hooks/useChangelogBadge';
-import { getReferralTeaser } from '@/lib/referralData';
 
 // Lazy-loaded dialogs
 const CreateResumeDialog = lazy(() => import('@/components/dashboard/CreateResumeDialog').then(m => ({ default: m.CreateResumeDialog })));
@@ -78,8 +81,10 @@ function DashboardPageContent() {
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
   const { scoreResume, getCachedScore, scoringId } = useResumeScore();
   const { profile } = useProfile(user?.id, user);
-  const { plan } = usePlan();
+  const { plan, trialPlan, trialExpiresAt } = usePlan();
+  const { isDark, toggleTheme } = useTheme();
   const { hasNew: hasNewChangelog } = useChangelogBadge();
+  usePlanUpgradeCelebration();
   const [healthScores, setHealthScores] = useState<Record<string, ResumeHealthScore>>({});
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -112,6 +117,12 @@ function DashboardPageContent() {
     if (visitCount >= 3 || localStorage.getItem('wr-trust-banner-seen')) return false;
     try { localStorage.setItem('wr-trust-banner-visits', String(visitCount + 1)); } catch { /* localStorage full or disabled */ }
     return true;
+  });
+  const [showQuickStartBanner, setShowQuickStartBanner] = useState(() => {
+    const onboardingCompleted = localStorage.getItem('wr-onboarding-completed') === 'true';
+    const dismissed = localStorage.getItem('wr-quickstart-dismissed') === 'true';
+    const hadResume = localStorage.getItem('wr-quickstart-had-resume') === 'true';
+    return onboardingCompleted && !dismissed && !hadResume;
   });
   const [profilePulseSeen, setProfilePulseSeen] = useState(() => !!localStorage.getItem('wr-profile-pulse-seen'));
   const [showFeatureMap, setShowFeatureMap] = useState(false);
@@ -186,6 +197,14 @@ function DashboardPageContent() {
     };
     run();
   }, [user]);
+
+  // Persist flag when user has at least one resume so Quick Start banner never reappears
+  useEffect(() => {
+    if (resumes && resumes.length > 0 && showQuickStartBanner) {
+      try { localStorage.setItem('wr-quickstart-had-resume', 'true'); } catch { /* ignore */ }
+      setShowQuickStartBanner(false);
+    }
+  }, [resumes, showQuickStartBanner]);
 
   // Keyboard shortcuts for empty state
   useEffect(() => {
@@ -472,8 +491,8 @@ function DashboardPageContent() {
   return (
     <div className="flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-20 pt-3 pb-2 px-4 flex items-center justify-between bg-background/95 backdrop-blur-sm border-b border-border">
-        <button onClick={() => navigate('/')} aria-label="Back to home" className="touch-manipulation">
+      <header className="lg:hidden sticky top-0 z-20 pt-3 pb-2 px-4 flex items-center justify-between bg-background/95 backdrop-blur-sm border-b border-border">
+        <button onClick={() => { window.scrollTo(0, 0); navigate('/dashboard'); }} aria-label="Home" className="touch-manipulation">
           <AppLogo size="sm" showTagline={false} hideText />
         </button>
         <div className="flex items-center gap-1">
@@ -486,12 +505,22 @@ function DashboardPageContent() {
           >
             <HelpCircle className="w-4.5 h-4.5 text-muted-foreground" />
           </Button>
-          <div className="flex">
+          {/* Small screens: compact status popover */}
+          <DashboardStatusPopover />
+          {/* sm+: full AI status indicators */}
+          <div className="hidden sm:flex">
             <AICreditsIndicator />
           </div>
-          <div className="flex">
+          <div className="hidden sm:flex">
             <AIHealthBadge />
           </div>
+          <button
+            onClick={() => { haptics.selection(); toggleTheme(); }}
+            className="flex items-center justify-center w-9 h-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors active:scale-95 touch-manipulation"
+            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
           <Button
             variant="ghost"
             size="icon"
@@ -504,6 +533,7 @@ function DashboardPageContent() {
               <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary border-2 border-background animate-pulse" aria-label="New updates available" />
             )}
           </Button>
+          <PlanChip plan={plan} trialPlan={trialPlan} trialExpiresAt={trialExpiresAt} />
           <Popover onOpenChange={(open) => {
             if (open && !profilePulseSeen) {
               setProfilePulseSeen(true);
@@ -637,11 +667,6 @@ function DashboardPageContent() {
             </div>
           )}
 
-          {/* What's Next Card */}
-          <WhatsNextCard />
-
-          {/* Feature discovery merged into WhatsNextCard */}
-
           {/* Personalized Stats Header */}
           <DashboardStats
             totalResumes={resumes?.length || 0}
@@ -652,65 +677,36 @@ function DashboardPageContent() {
             loginStreak={profile?.loginStreak}
           />
 
-          {/* Get inspired — Templates & Examples quick links */}
-          <div className="px-4 pt-2 pb-1">
-            <p className="text-xs font-medium text-muted-foreground mb-2 px-1">Get inspired</p>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => { haptics.light(); navigate('/templates'); }}
-                className="flex items-center gap-2.5 px-3 py-3 rounded-xl bg-card border border-border hover:border-primary/20 active:scale-95 transition-all touch-manipulation text-left"
-              >
-                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <LayoutTemplate className="w-4 h-4 text-primary" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium leading-tight">Templates</p>
-                  <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">Start from a design</p>
-                </div>
-              </button>
-              <button
-                onClick={() => { haptics.light(); navigate('/examples'); }}
-                className="flex items-center gap-2.5 px-3 py-3 rounded-xl bg-card border border-border hover:border-primary/20 active:scale-95 transition-all touch-manipulation text-left"
-              >
-                <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
-                  <BookOpen className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium leading-tight">Examples</p>
-                  <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">See real resumes</p>
-                </div>
-              </button>
-            </div>
-          </div>
+          {/* What's Next Card — shown after greeting for better context flow */}
+          <WhatsNextCard />
 
-          {/* Discover — surface hidden features */}
+          {/* Explore — single compact section replacing "Get inspired" + "Discover" */}
           <div className="px-4 pt-2 pb-1">
-            <p className="text-xs font-medium text-muted-foreground mb-2 px-1">Discover</p>
-            {/* Mobile: horizontal scroll  /  Tablet+: grid */}
-            <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-4 px-4 snap-x snap-mandatory scrollbar-hide md:overflow-visible md:mx-0 md:px-0 md:grid md:grid-cols-2 md:gap-3 lg:grid-cols-3">
+            <p className="text-xs font-medium text-muted-foreground mb-2 px-1">Explore</p>
+            <div className="grid grid-cols-2 gap-3">
               {[
                 {
-                  icon: TrendingUp,
-                  iconBg: 'bg-blue-500/10',
-                  iconColor: 'text-blue-600 dark:text-blue-400',
-                  label: 'Analytics',
-                  desc: 'See how your portfolio performs',
-                  path: '/analytics',
+                  icon: LayoutTemplate,
+                  iconBg: 'bg-primary/10',
+                  iconColor: 'text-primary',
+                  label: 'Templates',
+                  desc: 'Start from a design',
+                  path: '/templates',
                 },
                 {
-                  icon: Trophy,
+                  icon: BookOpen,
                   iconBg: 'bg-amber-500/10',
                   iconColor: 'text-amber-600 dark:text-amber-400',
-                  label: 'Achievements',
-                  desc: 'Track your career milestones',
-                  path: '/achievements',
+                  label: 'Examples',
+                  desc: 'See real resumes',
+                  path: '/examples',
                 },
                 {
                   icon: Users,
                   iconBg: 'bg-emerald-500/10',
                   iconColor: 'text-emerald-600 dark:text-emerald-400',
                   label: 'Referral',
-                  desc: getReferralTeaser(),
+                  desc: 'Invite friends & earn rewards',
                   path: '/referral',
                 },
                 {
@@ -718,29 +714,21 @@ function DashboardPageContent() {
                   iconBg: 'bg-violet-500/10',
                   iconColor: 'text-violet-600 dark:text-violet-400',
                   label: 'Guides',
-                  desc: 'Tips & resume best practices',
+                  desc: 'Tips & best practices',
                   path: '/guides',
-                },
-                {
-                  icon: HelpCircle,
-                  iconBg: 'bg-muted',
-                  iconColor: 'text-muted-foreground',
-                  label: 'Help',
-                  desc: 'Questions? We\'re here.',
-                  path: '/help',
                 },
               ].map((item) => (
                 <button
                   key={item.path}
                   onClick={() => { haptics.light(); navigate(item.path); }}
-                  className="flex flex-col gap-2 p-3 rounded-xl bg-card border border-border hover:border-primary/20 active:scale-95 transition-all touch-manipulation text-left shrink-0 w-36 snap-start md:w-auto md:shrink"
+                  className="flex items-center gap-2.5 px-3 py-3 rounded-xl bg-card border border-border hover:border-primary/20 active:scale-95 transition-all touch-manipulation text-left"
                 >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${item.iconBg}`}>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${item.iconBg}`}>
                     <item.icon className={`w-4 h-4 ${item.iconColor}`} />
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-medium leading-tight">{item.label}</p>
-                    <p className="text-[11px] text-muted-foreground leading-tight mt-0.5 line-clamp-2">{item.desc}</p>
+                    <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">{item.desc}</p>
                   </div>
                 </button>
               ))}
@@ -750,6 +738,44 @@ function DashboardPageContent() {
           {/* Quick Action Chips */}
           {resumes && resumes.length > 0 && (
             <QuickActionChips onCreateNew={handleCreateNew} />
+          )}
+
+          {/* Quick Start Banner — shown after onboarding skip when user has no resumes */}
+          {showQuickStartBanner && resumes && resumes.length === 0 && (
+            <div className="mx-4 mb-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 flex items-start gap-3">
+              <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground leading-tight">Ready to build your resume?</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-snug">Create your first resume in minutes with AI assistance.</p>
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  <Button
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={() => { haptics.light(); handleCreateNew(); }}
+                  >
+                    Create your first resume
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs"
+                    onClick={() => { haptics.light(); navigate('/onboarding'); }}
+                  >
+                    Take the tour
+                  </Button>
+                </div>
+              </div>
+              <button
+                aria-label="Dismiss"
+                className="text-muted-foreground hover:text-foreground touch-manipulation shrink-0"
+                onClick={() => {
+                  try { localStorage.setItem('wr-quickstart-dismissed', 'true'); } catch { /* ignore */ }
+                  setShowQuickStartBanner(false);
+                }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           )}
 
           {/* Search pill — moved below tabs area conceptually, but above filter bar */}
@@ -877,24 +903,26 @@ function DashboardPageContent() {
           ) : (
             <div className="px-4 pb-4">
               <Tabs value={activeTab} onValueChange={handleSetActiveTab} className="w-full">
-                <TabsList className="w-full mb-4">
-                  <TabsTrigger value="my-cvs" className="flex-1 gap-1.5">
-                    My CVs
-                    {resumeHierarchy && (
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 min-w-[1.25rem] justify-center">
-                        {resumeHierarchy.masterResumes.length + resumeHierarchy.orphanTailored.length}
-                      </Badge>
-                    )}
-                  </TabsTrigger>
-                  <TabsTrigger value="tailored" className="flex-1 gap-1.5">
-                    Tailored
-                    {filteredResumes && (
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 min-w-[1.25rem] justify-center">
-                        {filteredResumes.filter(r => r.parent_resume_id).length}
-                      </Badge>
-                    )}
-                  </TabsTrigger>
-                </TabsList>
+                <div className="overflow-x-auto scrollbar-none mb-4">
+                  <TabsList className="w-full min-w-max">
+                    <TabsTrigger value="my-cvs" className="flex-shrink-0 flex-1 gap-1.5">
+                      My CVs
+                      {resumeHierarchy && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 min-w-[1.25rem] justify-center">
+                          {resumeHierarchy.masterResumes.length + resumeHierarchy.orphanTailored.length}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="tailored" className="flex-shrink-0 flex-1 gap-1.5">
+                      Tailored
+                      {filteredResumes && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 min-w-[1.25rem] justify-center">
+                          {filteredResumes.filter(r => r.parent_resume_id).length}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
 
                 <TabsContent value="my-cvs" className="mt-0">
                   <motion.div
@@ -969,7 +997,7 @@ function DashboardPageContent() {
                             variant="outline"
                             size="sm"
                             className="gap-1.5 active:scale-95 touch-manipulation"
-                            onClick={() => { haptics.light(); navigate('/ai-studio?tool=tailor'); }}
+                            onClick={() => { haptics.light(); navigate('/ai-studio/tailor'); }}
                           >
                             <Sparkles className="w-4 h-4" />
                             Tailor a Resume

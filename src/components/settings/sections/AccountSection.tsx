@@ -1,12 +1,14 @@
 import { memo, Suspense, lazy } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, KeyRound, Trash2, HelpCircle, Crown, Gift } from 'lucide-react';
+import { LogOut, KeyRound, HelpCircle, Crown, Gift } from 'lucide-react';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { Separator } from '@/components/ui/separator';
 import { useResumes } from '@/hooks/useResumes';
 import { useCoverLetters } from '@/hooks/useCoverLetters';
 import { useJobApplications } from '@/hooks/useJobApplications';
 import { haptics } from '@/lib/haptics';
+import { useMe } from '@/hooks/useMe';
+import { cn } from '@/lib/utils';
 import type { KindeAppUser } from '@/contexts/AuthContext';
 
 const AccountStatsCard = lazy(() => import('./AccountStatsCard'));
@@ -16,7 +18,23 @@ interface AccountSectionProps {
     authProvider: string;
     onChangePassword: () => void;
     onSignOut: () => void;
-    onDeleteData: () => void;
+    onDeleteData?: () => void;
+}
+
+function PlanBadge({ plan }: { plan: string }) {
+    const planKey = plan?.toLowerCase() ?? 'free';
+    const colorClass =
+        planKey === 'premium'
+            ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-400/30'
+            : planKey === 'pro'
+            ? 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-400/30'
+            : 'bg-muted text-muted-foreground border-border';
+    const label = planKey.charAt(0).toUpperCase() + planKey.slice(1);
+    return (
+        <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border', colorClass)}>
+            {label}
+        </span>
+    );
 }
 
 export const AccountSection = memo(function AccountSection({
@@ -24,12 +42,20 @@ export const AccountSection = memo(function AccountSection({
     authProvider,
     onChangePassword,
     onSignOut,
-    onDeleteData,
 }: AccountSectionProps) {
     const navigate = useNavigate();
     const { data: resumes = [] } = useResumes();
     const { data: coverLetters = [] } = useCoverLetters();
     const { data: applications = [] } = useJobApplications();
+    const { data: meData } = useMe();
+
+    const effectivePlan = meData?.subscription?.effective_plan ?? 'free';
+    const isUpgradeable = effectivePlan === 'free' || effectivePlan === 'pro';
+    const trialExpiresAt = meData?.subscription?.trial_expires_at ?? null;
+    const isActiveTrial = !!trialExpiresAt && new Date(trialExpiresAt) > new Date();
+    const renewalDateStr = isActiveTrial && trialExpiresAt
+        ? new Date(trialExpiresAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+        : null;
 
     return (
         <div>
@@ -42,6 +68,30 @@ export const AccountSection = memo(function AccountSection({
                     createdAt={undefined}
                 />
             </Suspense>
+
+            {/* Active Plan summary */}
+            <div className="flex items-center justify-between px-4 py-2.5 mb-3 rounded-xl bg-card border border-border shadow-soft">
+                <div className="flex items-center gap-2">
+                    <Crown className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <div>
+                        <p className="text-xs font-medium text-muted-foreground leading-tight">Your Plan</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                            <PlanBadge plan={effectivePlan} />
+                            {renewalDateStr && (
+                                <span className="text-[11px] text-muted-foreground">Expires {renewalDateStr}</span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+                {isUpgradeable && (
+                    <button
+                        onClick={() => { haptics.light(); navigate('/subscription'); }}
+                        className="text-xs font-semibold text-primary hover:underline touch-manipulation"
+                    >
+                        Upgrade
+                    </button>
+                )}
+            </div>
 
             <div className="rounded-2xl bg-card border border-border shadow-soft overflow-hidden">
                 {/* Help */}
@@ -89,15 +139,6 @@ export const AccountSection = memo(function AccountSection({
                     label="Sign Out"
                     icon={<LogOut className="w-4 h-4" />}
                     onClick={() => { haptics.medium(); onSignOut(); }}
-                />
-                <Separator className="ml-[52px] bg-border/30" />
-                <SettingsRow
-                    type="button"
-                    label="Delete All Data"
-                    description="Permanently remove all your data"
-                    icon={<Trash2 className="w-4 h-4" />}
-                    onClick={onDeleteData}
-                    destructive
                 />
             </div>
         </div>

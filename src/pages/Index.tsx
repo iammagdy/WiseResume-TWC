@@ -1,5 +1,6 @@
-import { useNavigate } from 'react-router-dom';
-import { Sparkles, Target, Wand2, Mic, LayoutDashboard, Settings, LogOut, Globe, ArrowRight, BarChart3, PenTool, CheckCircle2, Check, User, Quote, Sun, Moon } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Sparkles, Target, Wand2, Mic, LayoutDashboard, Settings, LogOut, Globe, ArrowRight, BarChart3, PenTool, CheckCircle2, User, Sun, Moon, Zap } from 'lucide-react';
+import { toast } from 'sonner';
 import { Footer } from '@/components/landing/Footer';
 import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -11,6 +12,8 @@ import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { useReducedMotion } from 'framer-motion';
 import { useEffect, useState, useRef } from 'react';
 import { flushSync } from 'react-dom';
+import { useSettingsStore } from '@/store/settingsStore';
+import { getSafeMatchMedia } from '@/lib/envUtils';
 import { useSearchParams } from 'react-router-dom';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
 import { QuickTailorSheet } from '@/components/landing/QuickTailorSheet';
@@ -28,11 +31,6 @@ const features = [
   { icon: BarChart3, title: 'Application Tracker', desc: 'Track all your job applications in one place with status updates and analytics.', colorDark: 'text-pink-400', colorLight: 'text-pink-600', bgDark: 'bg-pink-500/10', bgLight: 'bg-pink-100' },
 ];
 
-const pricingFeatures = {
-  free: ['1 resume', 'Basic AI suggestions', 'ATS score check', 'PDF export', 'Portfolio site'],
-  pro: ['Unlimited resumes', 'Advanced AI tools', 'Smart tailoring', 'Interview coaching', 'Cover letter generator', 'Application tracker', 'Priority support'],
-  premium: ['Everything in Pro', 'Custom branding', 'Analytics dashboard', 'White-label exports', 'Early access features', 'Dedicated support'],
-};
 
 const featureSections: FeatureSectionData[] = [
   {
@@ -128,28 +126,6 @@ const TYPEWRITER_WORDS = [
   'Marketing Lead',
 ];
 
-const TESTIMONIALS = [
-  {
-    quote: "I went from zero responses to three interviews in two weeks. The AI tailoring alone is worth it.",
-    name: "Priya S.",
-    role: "Product Manager, landed at Stripe",
-  },
-  {
-    quote: "WiseResume's ATS score showed me exactly why my resume wasn't passing screening. Fixed it in minutes.",
-    name: "James K.",
-    role: "Software Engineer, landed at Shopify",
-  },
-  {
-    quote: "The interview coach is exceptional. I practiced the same question 10 times and could see myself improving.",
-    name: "Maria L.",
-    role: "Marketing Lead, landed at HubSpot",
-  },
-  {
-    quote: "I'd been job hunting for months. Within a week of using WiseResume I had offers on the table.",
-    name: "David T.",
-    role: "Data Analyst, landed at Notion",
-  },
-];
 
 function useTypewriterWord(words: string[]) {
   const [displayed, setDisplayed] = useState('');
@@ -277,6 +253,12 @@ function FeatureNumberedNav({ sectionIds, labels }: { sectionIds: string[]; labe
   );
 }
 
+function resolveIsDark(theme: 'light' | 'dark' | 'system'): boolean {
+  if (theme === 'dark') return true;
+  if (theme === 'light') return false;
+  return getSafeMatchMedia('(prefers-color-scheme: dark)').matches;
+}
+
 const Index = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
@@ -284,7 +266,14 @@ const Index = () => {
   const prefersReducedMotion = useReducedMotion();
   const themeLogo = useThemeLogo();
   const [scrolled, setScrolled] = useState(false);
-  const [isDark, setIsDark] = useState(true);
+  const storeTheme = useSettingsStore((s) => s.theme);
+  const setThemeStore = useSettingsStore((s) => s.setTheme);
+  const [isDark, setIsDark] = useState(() => resolveIsDark(storeTheme));
+
+  useEffect(() => {
+    setIsDark(resolveIsDark(storeTheme));
+  }, [storeTheme]);
+
   const progressRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -365,7 +354,10 @@ const Index = () => {
     if (plan) {
       navigate(`/auth?mode=signup&plan=${plan}`);
     } else {
-      kindeRegister();
+      void Promise.resolve(kindeRegister()).catch((err) => {
+        console.error('Auth error:', err);
+        toast.error('Unable to start sign-up. Please try again or contact support.');
+      });
     }
   };
 
@@ -382,7 +374,7 @@ const Index = () => {
         /* ── DARK THEME (default) ───────────────────────────────── */
         .lp-root {
           --lp-brand: #9E1B22;
-          --lp-bg: #0a0a0f;
+          --lp-bg: transparent;
           --lp-card: #111118;
           --lp-card-glass: rgba(255,255,255,0.04);
           --lp-border: rgba(255,255,255,0.07);
@@ -417,7 +409,7 @@ const Index = () => {
 
         /* ── LIGHT THEME ─────────────────────────────────────────── */
         .lp-root[data-lp-scheme="light"] {
-          --lp-bg: #f5f5fb;
+          --lp-bg: rgba(255, 245, 245, 0.62);
           --lp-card: #ffffff;
           --lp-card-glass: rgba(0,0,0,0.03);
           --lp-border: rgba(0,0,0,0.06);
@@ -425,9 +417,9 @@ const Index = () => {
           --lp-text: #0f0f1a;
           --lp-text-muted: rgba(15,15,26,0.55);
           --lp-text-subtle: rgba(15,15,26,0.35);
-          --lp-header-scrolled-bg: rgba(245,245,251,0.94);
+          --lp-header-scrolled-bg: rgba(255, 245, 245, 0.94);
           --lp-header-scrolled-border: rgba(0,0,0,0.08);
-          --lp-nav-bg: rgba(245,245,251,0.96);
+          --lp-nav-bg: rgba(255, 245, 245, 0.96);
           --lp-nav-border: rgba(0,0,0,0.08);
           --lp-hero-glow: rgba(158,27,34,0.09);
           --lp-section-alt: #f5eded;
@@ -639,6 +631,25 @@ const Index = () => {
           </button>
 
           <div className="flex items-center gap-2">
+            {/* Nav links */}
+            <Link
+              to="/pricing"
+              className="text-sm font-medium px-3 py-1.5 rounded-lg transition-all duration-200"
+              style={{ color: 'var(--lp-text-muted)', background: 'transparent' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text)'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text-muted)'; }}
+            >
+              Pricing
+            </Link>
+            <Link
+              to="/whats-new"
+              className="hidden xs:block text-sm font-medium px-3 py-1.5 rounded-lg transition-all duration-200"
+              style={{ color: 'var(--lp-text-muted)', background: 'transparent' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text)'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text-muted)'; }}
+            >
+              What's New
+            </Link>
             {/* Theme toggle */}
             <button
               className="lp-theme-toggle"
@@ -654,11 +665,16 @@ const Index = () => {
                 document.documentElement.style.setProperty('--lp-ripple-y', y + 'px');
                 type DocWithVT = Document & { startViewTransition?: (cb: () => void) => void };
                 const startVT = (document as DocWithVT).startViewTransition?.bind(document);
+                const applyToggle = (prev: boolean) => {
+                  const next = !prev;
+                  setThemeStore(next ? 'dark' : 'light');
+                  return next;
+                };
                 if (!startVT || prefersReducedMotion) {
-                  setIsDark((d) => !d);
+                  setIsDark(applyToggle);
                   return;
                 }
-                startVT(() => { flushSync(() => setIsDark((d) => !d)); });
+                startVT(() => { flushSync(() => setIsDark(applyToggle)); });
               }}
               aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
               title={isDark ? 'Light mode' : 'Dark mode'}
@@ -685,6 +701,12 @@ const Index = () => {
                   <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate('/settings'); }}>
                     <Settings className="w-4 h-4 mr-2" /> Settings
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate('/pricing'); }}>
+                    <Sparkles className="w-4 h-4 mr-2" /> Pricing
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate('/whats-new'); }}>
+                    <Zap className="w-4 h-4 mr-2" /> What's New
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
@@ -696,7 +718,13 @@ const Index = () => {
               </DropdownMenu>
             ) : (
               <button
-                onClick={() => { triggerHaptic.light(); kindeLogin(); }}
+                onClick={() => {
+                  triggerHaptic.light();
+                  void Promise.resolve(kindeLogin()).catch((err) => {
+                    console.error('Auth error:', err);
+                    toast.error('Unable to sign in. Please try again or contact support.');
+                  });
+                }}
                 className="text-sm font-medium px-4 py-1.5 rounded-lg transition-all duration-200"
                 style={{
                   color: 'var(--lp-signin-color)',
@@ -911,156 +939,6 @@ const Index = () => {
           </div>
         </section>
 
-        {/* ─── SEPARATOR ─── */}
-        <div className="lp-separator" aria-hidden="true" />
-
-        {/* ─── TESTIMONIALS ─── */}
-        <section className="px-4 sm:px-6 py-20" style={{ background: 'var(--lp-section-alt)' }}>
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-14 lp-animate">
-              <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--lp-eyebrow)', fontWeight: 600, marginBottom: '0.75rem' }}>
-                Success Stories
-              </p>
-              <h2 className="font-bold" style={{ fontSize: 'clamp(1.75rem, 3vw, 2.5rem)', color: 'var(--lp-text)', letterSpacing: '-0.02em' }}>
-                Job seekers rely on WiseResume
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {TESTIMONIALS.map((t, i) => (
-                <div
-                  key={t.name}
-                  className={`lp-animate ${i % 2 === 0 ? 'lp-from-left' : 'lp-from-right'} lp-testimonial-card flex flex-col gap-4 p-5`}
-                  style={{
-                    borderRadius: 16,
-                    background: 'var(--lp-card)',
-                    border: '1px solid var(--lp-border-card)',
-                    transitionDelay: `${i * 80}ms`,
-                  }}
-                >
-                  <Quote className="w-5 h-5 flex-shrink-0" style={{ color: 'rgba(158,27,34,0.5)' }} />
-                  <p className="text-sm leading-relaxed flex-1" style={{ color: 'var(--lp-text-muted)' }}>
-                    "{t.quote}"
-                  </p>
-                  <div>
-                    <p className="text-sm font-semibold" style={{ color: 'var(--lp-text)' }}>{t.name}</p>
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--lp-text-subtle)' }}>{t.role}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ─── SEPARATOR ─── */}
-        <div className="lp-separator" aria-hidden="true" />
-
-        {/* ─── PRICING ─── */}
-        <section className="px-4 sm:px-6 py-20" style={{ background: 'var(--lp-bg)' }}>
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-10 lp-animate">
-              <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--lp-eyebrow)', fontWeight: 600, marginBottom: '0.75rem' }}>
-                Pricing
-              </p>
-              <h2 className="font-bold mb-2" style={{ fontSize: 'clamp(1.75rem, 3vw, 2.5rem)', color: 'var(--lp-text)', letterSpacing: '-0.02em' }}>
-                Simple pricing
-              </h2>
-              <p style={{ color: 'var(--lp-text-muted)' }} className="max-w-md mx-auto">
-                Start free, upgrade when you need more
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-4xl mx-auto">
-              {/* Free */}
-              <div
-                className="lp-animate lp-from-left flex flex-col p-6"
-                style={{ borderRadius: 20, background: 'var(--lp-card)', border: '1px solid var(--lp-border-card)', transitionDelay: '0ms' }}
-              >
-                <h3 className="text-base font-semibold mb-1" style={{ color: 'var(--lp-text)' }}>Free</h3>
-                <p className="text-3xl font-bold mb-1" style={{ color: 'var(--lp-text)' }}>$0<span className="text-sm font-normal" style={{ color: 'var(--lp-text-muted)' }}>/mo</span></p>
-                <p className="text-xs mb-5" style={{ color: 'var(--lp-text-muted)' }}>Perfect to get started</p>
-                <ul className="space-y-2.5 mb-7 flex-1">
-                  {pricingFeatures.free.map((item) => (
-                    <li key={item} className="flex items-center gap-2.5 text-sm" style={{ color: 'var(--lp-text-muted)' }}>
-                      <Check className="w-4 h-4 shrink-0" style={{ color: '#9E1B22' }} />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  className="w-full h-11 rounded-xl text-sm font-semibold transition-all"
-                  style={{ border: '1px solid var(--lp-border-card)', color: 'var(--lp-text)', background: 'transparent' }}
-                  onClick={() => handleCTA('free')}
-                >
-                  Get Started
-                </button>
-              </div>
-
-              {/* Pro */}
-              <div
-                className="lp-animate flex flex-col p-6 relative"
-                style={{ borderRadius: 20, background: '#9E1B22', border: '1px solid rgba(255,255,255,0.15)', transitionDelay: '60ms' }}
-              >
-                <span
-                  className="absolute -top-3 left-6 px-3 py-0.5 rounded-full text-xs font-semibold"
-                  style={{ background: '#fff', color: '#9E1B22' }}
-                >
-                  Most Popular
-                </span>
-                <h3 className="text-base font-semibold mb-1" style={{ color: '#fff' }}>Pro</h3>
-                <p className="text-3xl font-bold mb-1" style={{ color: '#fff' }}>$9<span className="text-sm font-normal" style={{ color: 'rgba(255,255,255,0.6)' }}>/mo</span></p>
-                <p className="text-xs mb-5" style={{ color: 'rgba(255,255,255,0.65)' }}>For serious job seekers</p>
-                <ul className="space-y-2.5 mb-7 flex-1">
-                  {pricingFeatures.pro.map((item) => (
-                    <li key={item} className="flex items-center gap-2.5 text-sm" style={{ color: 'rgba(255,255,255,0.9)' }}>
-                      <Check className="w-4 h-4 shrink-0" style={{ color: '#fff' }} />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  className="w-full h-11 rounded-xl text-sm font-semibold transition-all"
-                  style={{ background: '#fff', color: '#9E1B22' }}
-                  onClick={() => handleCTA('pro')}
-                >
-                  Get Started
-                </button>
-              </div>
-
-              {/* Premium */}
-              <div
-                className="lp-animate lp-from-right flex flex-col p-6 relative"
-                style={{ borderRadius: 20, background: 'var(--lp-card)', border: '1px solid rgba(245,158,11,0.28)', transitionDelay: '120ms' }}
-              >
-                <span
-                  className="absolute -top-3 left-6 px-3 py-0.5 rounded-full text-xs font-semibold"
-                  style={{ background: '#F59E0B', color: '#fff' }}
-                >
-                  Power Users
-                </span>
-                <h3 className="text-base font-semibold mb-1" style={{ color: 'var(--lp-text)' }}>Premium</h3>
-                <p className="text-3xl font-bold mb-1" style={{ color: 'var(--lp-text)' }}>$19<span className="text-sm font-normal" style={{ color: 'var(--lp-text-muted)' }}>/mo</span></p>
-                <p className="text-xs mb-5" style={{ color: 'var(--lp-text-muted)' }}>For career professionals</p>
-                <ul className="space-y-2.5 mb-7 flex-1">
-                  {pricingFeatures.premium.map((item) => (
-                    <li key={item} className="flex items-center gap-2.5 text-sm" style={{ color: 'var(--lp-text-muted)' }}>
-                      <Check className="w-4 h-4 shrink-0" style={{ color: '#F59E0B' }} />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  className="w-full h-11 rounded-xl text-sm font-semibold transition-all"
-                  style={{ border: '1px solid rgba(245,158,11,0.4)', color: '#F59E0B', background: 'transparent' }}
-                  onClick={() => handleCTA('premium')}
-                >
-                  Get Started
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
-
         {/* ─── PWA INSTALL STRIP ─── */}
         <section className="px-4 sm:px-6 py-10" style={{ background: 'var(--lp-section-alt)', borderTop: '1px solid var(--lp-border)' }}>
           <div className="max-w-xl mx-auto text-center lp-animate">
@@ -1069,33 +947,6 @@ const Index = () => {
             <InstallButton />
           </div>
         </section>
-
-        {/* ─── FINAL CTA ─── */}
-        {!isAuthenticated && (
-          <section className="px-4 sm:px-6 py-24 text-center" style={{ background: 'var(--lp-bg)' }}>
-            <div className="max-w-2xl mx-auto lp-animate">
-              <h2
-                className="font-extrabold mb-4"
-                style={{ fontSize: 'clamp(2rem, 4.5vw, 3.25rem)', color: 'var(--lp-text)', letterSpacing: '-0.03em', lineHeight: 1.1 }}
-              >
-                Ready to accelerate<br />
-                <span className="lp-gradient-text">your job search?</span>
-              </h2>
-              <p className="mb-8" style={{ color: 'var(--lp-text-muted)', fontSize: '1.05rem' }}>
-                Join thousands of professionals who've accelerated their career with WiseResume.
-              </p>
-              <button
-                onClick={() => handleCTA()}
-                className="px-10 text-base font-semibold rounded-xl inline-flex items-center gap-2.5 transition-all"
-                style={{ background: '#9E1B22', color: '#fff', height: '3.25rem' }}
-              >
-                Get Started Free
-                <ArrowRight className="w-4 h-4" />
-              </button>
-              <p className="mt-5 text-xs" style={{ color: 'var(--lp-text-subtle)' }}>No credit card required · Free plan forever</p>
-            </div>
-          </section>
-        )}
 
         <Footer lpMode />
       </main>

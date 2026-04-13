@@ -2,12 +2,12 @@ import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'rea
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { logAudit } from '@/lib/auditLogger';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
-import { Check, Cloud, CloudOff, Sparkles, ChevronDown, BarChart3, Scissors, Save, Loader2, ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Sparkles, BarChart3, Scissors, ArrowLeft } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 // Tooltip removed – Radix Popper causes infinite setRef loop on this page
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { StepperNav } from '@/components/editor/StepperNav';
+import { SectionSidebar } from '@/components/editor/SectionSidebar';
 import { useResumeStore, useResumeStoreHydration } from '@/store/resumeStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -34,16 +34,14 @@ const LivePreviewPanel = lazyWithRetry(() => import('@/components/editor/LivePre
 const ATSParserPreview = lazyWithRetry(() => import('@/components/editor/ATSParserPreview'));
 import { useShallow } from 'zustand/react/shallow';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
-import { ATSScoreBreakdown } from '@/components/dashboard/ATSScoreBreakdown';
 import { KeyboardToolbar } from '@/components/editor/KeyboardToolbar';
 
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { useOfflineSyncStore } from '@/store/offlineSyncStore';
 import haptics from '@/lib/haptics';
 import { cn } from '@/lib/utils';
-import { ActionsPanel, type ActionsPanelGroup } from '@/components/ActionsPanel';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Target, LayoutGrid, MessageSquare, Palette, Clock, Plus } from 'lucide-react';
+import { Target } from 'lucide-react';
 import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -56,10 +54,10 @@ import { useEditorAutosave } from '@/hooks/useEditorAutosave';
 import { useEditorSectionScores } from '@/hooks/useEditorSectionScores';
 import { useATSSuggestions } from '@/hooks/useATSSuggestions';
 import { AIIntroTooltip } from '@/components/editor/AIIntroTooltip';
-import { ProgressBar } from '@/components/editor/ProgressBar';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { EditorHeader } from '@/components/editor/EditorHeader';
 import { EditorSectionContent, SectionNavButtons } from '@/components/editor/EditorSectionContent';
+import { EditorScrollForm } from '@/components/editor/EditorScrollForm';
 import { EditorSkeleton } from '@/components/layout/PageSkeletons';
 import { useTierGate } from '@/hooks/useTierGate';
 import { UpgradeDialog } from '@/components/plan/UpgradeDialog';
@@ -72,6 +70,12 @@ export default function EditorPage() {
   const isBYOK = useSettingsStore((s) =>
     (s.aiProvider === 'gemini' && s.geminiKeyValidated) ||
     (s.aiProvider === 'ollama' && s.ollamaKeyValidated) ||
+    (s.aiProvider === 'openai' && s.openaiKeyValidated) ||
+    (s.aiProvider === 'anthropic' && s.anthropicKeyValidated) ||
+    (s.aiProvider === 'groq' && s.groqKeyValidated) ||
+    (s.aiProvider === 'mistral' && s.mistralKeyValidated) ||
+    (s.aiProvider === 'xai' && s.xaiKeyValidated) ||
+    (s.aiProvider === 'cohere' && s.cohereKeyValidated) ||
     (s.aiProvider === 'openrouter' && s.openrouterKeyValidated)
   );
   const { gate, triggerGate, dialogOpen: tierGateOpen, dialogState: tierGateState, closeDialog: closeTierGate, isPro, isLoading: planLoading } = useTierGate();
@@ -178,8 +182,9 @@ export default function EditorPage() {
   const [lastAppliedJobInfo, setLastAppliedJobInfo] = useState<{ title: string; company: string; resumeId?: string; jobUrl?: string } | null>(null);
   const [moreSubSection, setMoreSubSection] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(() => {
-    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
-      return localStorage.getItem('wr-live-preview') === 'true';
+    if (typeof window !== 'undefined' && window.innerWidth >= 900) {
+      const stored = localStorage.getItem('wr-live-preview');
+      return stored === null ? true : stored === 'true';
     }
     return false;
   });
@@ -211,6 +216,8 @@ export default function EditorPage() {
   }, [currentResume, selectedTemplate]);
   const [mobileEditorTab, setMobileEditorTab] = useState<'editor' | 'preview' | 'ats'>('editor');
   const [desktopPreviewMode, setDesktopPreviewMode] = useState<'visual' | 'ats'>('visual');
+  // Desktop scrollspy: track which section is currently visible
+  const [activeSection, setActiveSection] = useState('contact');
   const isMobile = useIsMobile();
   // Auto-open Tailor sheet if navigated with ?openTailor=1 or ?tailor=true.
   // Track intent with a ref so the plan gate can be applied once planLoading settles.
@@ -238,6 +245,12 @@ export default function EditorPage() {
           requiredPlan: 'pro',
           featureName: 'Smart Tailoring',
           description: 'Paste a job description and AI rewrites your resume to match it perfectly.',
+          features: [
+            'AI rewrites your resume for any job description',
+            'Keyword match score to beat ATS filters',
+            'Section-by-section improvement suggestions',
+            'Preserve your voice while maximising relevance',
+          ],
         });
       }
     }
@@ -278,6 +291,26 @@ export default function EditorPage() {
   }, [resumeFromDb?.id]);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const scrollToSection = useCallback((sectionId: string) => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const target = container.querySelector(`[data-section-id="${sectionId}"]`);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, []);
+
+  // Called by desktop scrollspy/sidebar. Keeps activeTab in sync for preview highlight and ATS.
+  const handleDesktopSectionChange = useCallback((sectionId: string) => {
+    setActiveSection(sectionId);
+    const optionalIds = ['awards', 'projects', 'certifications', 'publications', 'volunteering', 'languages', 'hobbies', 'references'];
+    if (optionalIds.includes(sectionId)) {
+      setActiveTab('more');
+    } else {
+      setActiveTab(sectionId);
+    }
+  }, []);
 
   // Hook 2: debounced cloud save, conflict guard, offline queue, ATS re-score, lifecycle flush
   const resumeRef = useRef(currentResume);
@@ -515,10 +548,18 @@ export default function EditorPage() {
   // Hook 3: section scores, completion status, celebration toasts, and confetti
   const { sectionScores, overallScore, localHealthScore, sectionStatus, justCompletedStep } = useEditorSectionScores(currentResume);
 
+  const TAILOR_FEATURES = [
+    'AI rewrites your resume for any job description',
+    'Keyword match score to beat ATS filters',
+    'Section-by-section improvement suggestions',
+    'Preserve your voice while maximising relevance',
+  ];
+
   const handleImproveSection = useCallback(
     gate('pro', () => setShowTailor(true), {
       featureName: 'Smart Tailoring',
       description: 'Paste a job description and AI rewrites your resume to match it perfectly.',
+      features: TAILOR_FEATURES,
       bypassCondition: isBYOK,
     }),
     [gate, isBYOK]
@@ -533,6 +574,7 @@ export default function EditorPage() {
     gate('pro', () => setShowTailor(true), {
       featureName: 'Smart Tailoring',
       description: 'Paste a job description and AI rewrites your resume to match it perfectly.',
+      features: TAILOR_FEATURES,
       bypassCondition: isBYOK,
     }),
     [gate, isBYOK]
@@ -551,16 +593,6 @@ export default function EditorPage() {
     setMoreSubSection(sectionId);
     scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
-
-  // Tool descriptions & icon colors for mobile tools sheet
-  const toolMeta: Record<string, { description: string; iconColor: string }> = {
-    'design': { description: 'Change template & colors', iconColor: 'text-pink-500' },
-    'wise-ai': { description: 'Chat with AI assistant', iconColor: 'text-primary' },
-    'versions': { description: 'Browse saved versions', iconColor: 'text-muted-foreground' },
-    'tailor': { description: 'Match resume to a job post', iconColor: 'text-amber-500' },
-    'ats-check': { description: 'Score against ATS systems', iconColor: 'text-emerald-500' },
-    'ats-scan': { description: 'Quick keyword match scan', iconColor: 'text-cyan-500' },
-  };
 
   // ATS Suggestions hook
   const { getSuggestions: getATSSuggestions, isAnalyzingSection, fetchDeepSuggestions, scanSummary, deepResults, clearDeepResult } = useATSSuggestions(currentResume, jobDescription);
@@ -585,31 +617,7 @@ export default function EditorPage() {
     toast.success('AI improvements applied!');
   }, [clearDeepResult]);
 
-  // Mobile-only editor tools panel groups
-  const editorToolGroups = useMemo((): ActionsPanelGroup[] => {
-    const quickActions: ActionsPanelGroup = {
-      id: 'quick-actions',
-      title: 'Quick Actions',
-      actions: [
-        { id: 'template', label: 'Change Template', icon: LayoutGrid, onClick: handleChangeTemplate },
-        { id: 'design', label: 'Design', icon: Palette, onClick: handleCustomize },
-        { id: 'wise-ai', label: 'Wise AI', icon: MessageSquare, onClick: () => setShowChat(true) },
-        ...(user && currentResumeId ? [{ id: 'versions', label: 'Versions', icon: Clock, onClick: () => setShowVersionHistory(true) }] : []),
-      ],
-    };
-    const aiFeatures: ActionsPanelGroup = {
-      id: 'ai-features',
-      title: 'AI Features',
-      actions: [
-        { id: 'tailor', label: 'Tailor to Job', icon: Target, onClick: handleTailor },
-        { id: 'ats-check', label: 'ATS Check', icon: BarChart3, onClick: () => setShowJobSheet(true) },
-        { id: 'ats-scan', label: 'ATS Scan', icon: Sparkles, onClick: () => { setToolsSubView('ats-scan'); setShowToolsSheet(true); } },
-      ],
-    };
-    return [quickActions, aiFeatures];
-  }, [user, currentResumeId, handleCustomize, handleTailor]);
-
-  // EditorSectionContent props (assembled once, used in 3 layout slots below)
+  // EditorSectionContent props — used in mobile tab layout
   const editorSectionProps = {
     activeTab,
     sectionScores,
@@ -624,6 +632,23 @@ export default function EditorPage() {
     deepResults,
     handleApplyDeep,
     clearDeepResult,
+  } as const;
+
+  // EditorScrollForm props — used in desktop scrollable layout
+  const editorScrollFormProps = {
+    steps,
+    sectionScores,
+    moreSubSection,
+    setMoreSubSection,
+    jobDescription,
+    getATSSuggestions,
+    isAnalyzingSection,
+    fetchDeepSuggestions,
+    deepResults,
+    handleApplyDeep,
+    clearDeepResult,
+    onActiveSectionChange: handleDesktopSectionChange,
+    scrollContainerRef,
   } as const;
 
 
@@ -679,6 +704,17 @@ export default function EditorPage() {
         currentResumeId={currentResumeId}
         showPreview={showPreview}
         templateBtnSeen={templateBtnSeen}
+        overallScore={overallScore}
+        steps={steps}
+        sectionStatus={sectionStatus}
+        localHealthScore={localHealthScore}
+        isSaving={isSaving}
+        showSavedCheck={showSavedCheck}
+        hasUnsavedChanges={hasUnsavedChanges}
+        isOnline={isOnline}
+        pendingCountForResume={pendingCountForResume}
+        onSave={() => { haptics.light(); saveToCloud(); }}
+        onImproveSection={handleImproveSection}
         onBack={handleBack}
         onTitleClick={() => navigate('/dashboard')}
         onUndo={handleUndo}
@@ -692,87 +728,6 @@ export default function EditorPage() {
         onDownload={handleQuickDownload}
         isQuickDownloading={isQuickDownloading}
       />
-
-
-      {/* Progress Bar with Save Status — compact on mobile, full on desktop */}
-      <div className="shrink-0 px-4 py-1 sm:py-3 border-b border-border">
-        <div className="flex flex-row items-center justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <ProgressBar resume={currentResume} compact />
-          </div>
-          {user && currentResumeId && (
-            <div className="flex items-center gap-2 shrink-0">
-              {/* Cloud status icon */}
-              <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                {!isOnline ? (
-                  <>
-                    <CloudOff className="w-3 h-3 text-warning" />
-                    <span className="text-warning">Offline</span>
-                  </>
-                ) : isSaving ? (
-                  <Cloud className="w-3 h-3 animate-pulse" />
-                ) : showSavedCheck ? (
-                  <Check className="w-3 h-3 text-success" style={{ animation: 'save-check-pop 0.3s ease-out' }} />
-                ) : hasUnsavedChanges ? (
-                  <>
-                    <span className="w-1.5 h-1.5 rounded-full bg-warning inline-block animate-pulse" />
-                    <span className="text-warning text-[11px]">Unsaved</span>
-                  </>
-                ) : (
-                  <Cloud className="w-3 h-3 opacity-40" />
-                )}
-              </div>
-              {/* Manual Save button — appears when there are unsaved changes or pending offline items */}
-              {(hasUnsavedChanges || pendingCountForResume > 0) && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => { haptics.light(); saveToCloud(); }}
-                  disabled={isSaving || !isOnline}
-                  className="h-8 min-h-[36px] px-3 text-[11px] gap-1.5 rounded-lg border-warning/40 text-warning hover:bg-warning/10 hover:border-warning/60"
-                >
-                  {isSaving ? (
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                  ) : (
-                    <Save className="w-3 h-3" />
-                  )}
-                  Save
-                </Button>
-              )}
-            </div>
-          )}
-          {user && !currentResumeId && (
-            <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-              <CloudOff className="w-3 h-3" />
-            </div>
-          )}
-        </div>
-        {/* Expandable completeness details — hidden on mobile to save vertical space */}
-        <div className="hidden sm:block">
-          <details className="mt-1 group">
-            <summary
-              className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted transition-colors touch-manipulation active:scale-95 min-h-[36px] cursor-pointer list-none [&::-webkit-details-marker]:hidden"
-              aria-label="View completeness breakdown"
-            >
-              <BarChart3 className="w-3.5 h-3.5 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">
-                {steps.filter(s => s.id !== 'more' && sectionStatus[s.id]).length}/{steps.filter(s => s.id !== 'more').length} sections
-              </span>
-              <ChevronDown className="w-3 h-3 text-muted-foreground transition-transform group-open:rotate-180" />
-            </summary>
-            {localHealthScore && (
-              <div className="mt-2 border-t border-border pt-2">
-                <ATSScoreBreakdown
-                  healthScore={localHealthScore}
-                  compact
-                  defaultOpen
-                  onImprove={handleImproveSection}
-                />
-              </div>
-            )}
-          </details>
-        </div>
-      </div>
 
       {/* Tailored Resume Indicator Banner */}
       {resumeFromDb?.parent_resume_id && (
@@ -796,21 +751,6 @@ export default function EditorPage() {
         </div>
       )}
 
-      {/* Stepper Nav */}
-      <div className="shrink-0">
-        <StepperNav
-          steps={steps}
-          activeStep={activeTab}
-          completedSteps={sectionStatus}
-          sectionScores={sectionScores}
-          onStepClick={handleTabChange}
-          justCompletedStep={justCompletedStep}
-          onMoreSectionSelect={handleMoreSectionSelect}
-          activeMoreSection={moreSubSection}
-          availableMoreCount={availableMoreCount}
-        />
-      </div>
-
       {/* Editor + Preview layout */}
       {isMobile ? (
         <Tabs
@@ -818,12 +758,48 @@ export default function EditorPage() {
           onValueChange={(v) => setMobileEditorTab(v as 'editor' | 'preview' | 'ats')}
           className="flex-1 flex flex-col min-h-0 overflow-hidden"
         >
-          {/* Mobile tab switcher — Edit / Preview / ATS */}
-          <TabsList className="shrink-0 grid grid-cols-3 mx-4 mt-2 mb-1 h-9">
-            <TabsTrigger value="editor" className="text-xs">Edit</TabsTrigger>
-            <TabsTrigger value="preview" className="text-xs">Preview</TabsTrigger>
-            <TabsTrigger value="ats" className="text-xs">ATS Score</TabsTrigger>
-          </TabsList>
+          {/* Combined single-row nav: view mode toggle + section pills */}
+          <div className="shrink-0 flex items-center border-b border-border bg-background">
+            {/* Compact Edit / Preview / ATS pills */}
+            <div className="flex shrink-0 gap-0.5 px-2 py-1.5">
+              {(['editor', 'preview', 'ats'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => { setMobileEditorTab(tab); haptics.light(); }}
+                  className={cn(
+                    'px-2.5 h-7 rounded-full text-xs font-medium border transition-colors whitespace-nowrap touch-manipulation active:scale-95',
+                    mobileEditorTab === tab
+                      ? 'bg-primary/15 border-primary/40 text-primary'
+                      : 'border-border text-muted-foreground hover:bg-muted'
+                  )}
+                >
+                  {tab === 'editor' ? 'Edit' : tab === 'preview' ? 'Preview' : 'ATS'}
+                </button>
+              ))}
+            </div>
+            {/* Divider — only visible in edit mode when section pills follow */}
+            {mobileEditorTab === 'editor' && (
+              <div className="w-px h-5 bg-border shrink-0" />
+            )}
+            {/* Section pills — only in edit mode */}
+            {mobileEditorTab === 'editor' && (
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <StepperNav
+                  steps={steps}
+                  activeStep={activeTab}
+                  completedSteps={sectionStatus}
+                  sectionScores={sectionScores}
+                  onStepClick={handleTabChange}
+                  justCompletedStep={justCompletedStep}
+                  onMoreSectionSelect={handleMoreSectionSelect}
+                  activeMoreSection={moreSubSection}
+                  availableMoreCount={availableMoreCount}
+                  hideStepCounter
+                />
+              </div>
+            )}
+          </div>
+
           <TabsContent value="editor" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
             <div
               className="editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-3 pb-4 space-y-0"
@@ -832,7 +808,7 @@ export default function EditorPage() {
               <EditorSectionContent {...editorSectionProps} />
             </div>
             {/* Pinned nav — always visible above bottom tab bar */}
-            <div className="shrink-0 px-4 pb-20 border-t border-border bg-background">
+            <div className="shrink-0 px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] border-t border-border bg-background">
               <SectionNavButtons steps={steps} activeTab={activeTab} handleTabChange={handleTabChange} navigate={navigate} />
             </div>
           </TabsContent>
@@ -872,12 +848,25 @@ export default function EditorPage() {
       ) : showPreview ? (
         <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
           <ResizablePanel defaultSize={55} minSize={35}>
-            <div className="flex flex-col h-full min-h-0 overflow-hidden">
-              <div
-                className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-4 space-y-0"
-                ref={scrollContainerRef}
-              >
-                <EditorSectionContent {...editorSectionProps} />
+            <div className="flex h-full min-h-0 overflow-hidden">
+              {/* Section sidebar — desktop only inside split panel */}
+              <SectionSidebar
+                steps={steps}
+                activeSection={activeSection}
+                sectionScores={sectionScores}
+                completedSteps={sectionStatus}
+                onSectionClick={(id) => {
+                  handleDesktopSectionChange(id);
+                  scrollToSection(id);
+                }}
+              />
+              <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
+                <div
+                  className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-4 space-y-0"
+                  ref={scrollContainerRef}
+                >
+                  <EditorScrollForm {...editorScrollFormProps} />
+                </div>
               </div>
             </div>
           </ResizablePanel>
@@ -923,17 +912,26 @@ export default function EditorPage() {
           </ResizablePanel>
         </ResizablePanelGroup>
       ) : (
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div className="flex-1 flex min-h-0 overflow-hidden">
+          {/* Section sidebar — visible on desktop (≥900px) when preview is hidden */}
+          {!isMobile && (
+            <SectionSidebar
+              steps={steps}
+              activeSection={activeSection}
+              sectionScores={sectionScores}
+              completedSteps={sectionStatus}
+              onSectionClick={(id) => {
+                handleDesktopSectionChange(id);
+                scrollToSection(id);
+              }}
+            />
+          )}
           <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
             <div
               className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-4 space-y-0"
               ref={scrollContainerRef}
             >
-              <EditorSectionContent {...editorSectionProps} />
-            </div>
-            {/* Pinned nav — always visible */}
-            <div className="shrink-0 px-4 border-t border-border bg-background">
-              <SectionNavButtons steps={steps} activeTab={activeTab} handleTabChange={handleTabChange} navigate={navigate} />
+              <EditorScrollForm {...editorScrollFormProps} />
             </div>
           </div>
         </div>
@@ -943,7 +941,14 @@ export default function EditorPage() {
 
 
       {/* Keyboard Toolbar - floats above keyboard */}
-      <KeyboardToolbar />
+      <KeyboardToolbar
+        canUndo={canUndo}
+        canRedo={canRedo}
+        undoDescription={undoDescription}
+        redoDescription={redoDescription}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+      />
 
       {/* AI Intro Tooltip for First-Time Users */}
       <AIIntroTooltip
@@ -995,6 +1000,7 @@ export default function EditorPage() {
               requiredPlan={tierGateState.requiredPlan}
               featureName={tierGateState.featureName}
               description={tierGateState.description}
+              features={tierGateState.features}
             />
           )}
           {/* Mobile tools sheet with sub-view navigation */}

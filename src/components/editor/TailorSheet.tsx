@@ -35,9 +35,11 @@ import haptics from '@/lib/haptics';
 
 import { AITrustBadge } from '@/components/ui/AITrustBadge';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
+import { AISheetErrorBoundary } from '@/components/ai/AISheetErrorBoundary';
 import { useResumeMutations, resumeDataToDb, useResumes, dbToResumeData, DatabaseResume } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { useRedactedResume } from '@/hooks/useRedactedResume';
 import { 
   EnhancedTailorResult, 
   TailorProgress, 
@@ -205,6 +207,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
   };
 
   const { execute: executeAI } = useAIAction({ operation: 'tailor' });
+  const redactedResume = useRedactedResume(currentResume as ResumeData | null);
 
   // Hydrate from Zustand or localStorage on open
   useEffect(() => {
@@ -265,7 +268,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     try {
       const result = await executeAI(async () => {
         return await tailorResumeWithProgress(
-          currentResume, 
+          (redactedResume ?? currentResume) as ResumeData,
           jobDescription,
           (p) => setProgress(p),
           intensity,
@@ -589,6 +592,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="max-h-[90dvh] rounded-t-3xl flex flex-col">
+        <AISheetErrorBoundary key={String(open)} onClose={() => onOpenChange(false)}>
           <SheetHeader className="pb-4 shrink-0">
           <div className="flex items-center justify-between">
             <SheetTitle className="flex items-center gap-2">
@@ -1280,6 +1284,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
             ) : null}
           </div>
         )}
+        </AISheetErrorBoundary>
       </SheetContent>
 
       {/* AI Settings Sheet */}

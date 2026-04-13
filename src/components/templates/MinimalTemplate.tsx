@@ -16,7 +16,7 @@ export const MinimalTemplate = memo(function MinimalTemplate({ resume }: Templat
 
       {resume.summary && (
         <section data-section="summary" className="mb-8">
-          <p className="text-gray-600 leading-relaxed">{resume.summary}</p>
+          <p data-break-child className="text-gray-600 leading-relaxed">{resume.summary}</p>
         </section>
       )}
 
@@ -41,14 +41,14 @@ export const MinimalTemplate = memo(function MinimalTemplate({ resume }: Templat
                 {exp.achievements && exp.achievements.length > 0 && (
                   <ul data-break-child className="mt-1 space-y-0.5 list-none">
                     {exp.achievements.map((a, i) => (
-                      <li key={i} className="text-gray-600 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{a}</li>
+                      <li key={i} data-break-child className="text-gray-600 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{a}</li>
                     ))}
                   </ul>
                 )}
                 {exp.responsibilities && exp.responsibilities.length > 0 && (
                   <ul data-break-child className="mt-1 space-y-0.5 list-none">
                     {exp.responsibilities.map((r, i) => (
-                      <li key={i} className="text-gray-600 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{r}</li>
+                      <li key={i} data-break-child className="text-gray-600 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{r}</li>
                     ))}
                   </ul>
                 )}

@@ -92,7 +92,7 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
         </Avatar>
       </div>
 
-      <h1 className="relative z-[1] text-5xl md:text-6xl font-black leading-tight mb-3" style={{ fontFamily: 'var(--pf-heading-font)' }}>
+      <h1 className="relative z-[1] text-4xl sm:text-5xl md:text-6xl font-black leading-tight mb-3 max-w-full break-words" style={{ fontFamily: 'var(--pf-heading-font)' }}>
         {profile.fullName || 'Anonymous'}
       </h1>
 

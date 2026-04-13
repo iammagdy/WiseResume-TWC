@@ -1,3 +1,5 @@
+import { requireAdminAuth } from '../_shared/adminAuth.ts';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -28,12 +30,11 @@ Deno.serve(async (req) => {
     const body = await req.json() as { password: string };
     const { password } = body;
 
-    const devKitPassword = Deno.env.get('DEV_KIT_PASSWORD');
-    if (!devKitPassword || password !== devKitPassword) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
+    try {
+      await requireAdminAuth(req, password);
+    } catch (authErr) {
+      if (authErr instanceof Response) return authErr;
+      throw authErr;
     }
 
     const githubToken = Deno.env.get('GITHUB_TOKEN');

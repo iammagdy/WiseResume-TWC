@@ -1,7 +1,7 @@
 {
   "name": "wise-resume",
   "private": true,
-  "version": "2.5.1",
+  "version": "2.5.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -58,7 +58,7 @@
     "@radix-ui/react-tooltip": "^1.2.7",
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18.0",
-    "@supabase/supabase-js": "^2.93.3",
+    "@supabase/supabase-js": "^2.103.0",
     "@tanstack/react-query": "^5.83.0",
     "@testing-library/dom": "^10.4.1",
     "class-variance-authority": "^0.7.1",
@@ -76,7 +76,7 @@
     "mammoth": "^1.11.0",
     "ogl": "^1.0.11",
     "pdf-lib": "^1.17.1",
-    "pdfjs-dist": "^4.4.168",
+    "pdfjs-dist": "^5.6.205",
     "qr-code-styling": "^1.9.2",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
@@ -99,6 +99,9 @@
     "zod": "^3.25.76",
     "zustand": "^5.0.10"
   },
+  "overrides": {
+    "serialize-javascript": "7.0.5"
+  },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
     "@tailwindcss/typography": "^0.5.16",
@@ -117,10 +120,11 @@
     "globals": "^15.15.0",
     "jsdom": "^20.0.3",
     "postcss": "^8.5.6",
+    "puppeteer": "^24.40.0",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
-    "vite": "^5.4.19",
+    "vite": "^6.4.2",
     "vitest": "^3.2.4"
   }
 }

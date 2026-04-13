@@ -2,8 +2,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, toUserError, sanitizeInputText, parseAIJSON } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
-import { decodeJwtPayload } from "../_shared/authMiddleware.ts";
+import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { localParseResume } from "./localParser.ts";
+import { decodeJwtPayloadUnsafe } from "../_shared/jwtUtils.ts";
+import { checkPayloadSize } from "../_shared/requestUtils.ts";
 
 const MAX_TEXT_LENGTH = 100 * 1024;
 
@@ -376,18 +378,21 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  const sizeError = checkPayloadSize(req, 2 * 1024 * 1024);
+  if (sizeError) return sizeError;
+
   try {
     // Auth is intentionally optional — this endpoint accepts tokens from multiple Supabase projects
     // (e.g. mobile clients). requireAuth() would reject foreign-project JWTs since it checks
-    // SUPABASE_JWT_SECRET. decodeJwtPayload() is used here ONLY to extract a rate-limit key (sub),
-    // not to gate any data access — so the lack of signature verification is acceptable.
+    // SUPABASE_JWT_SECRET. decodeJwtPayloadUnsafe() is used here ONLY to extract a rate-limit
+    // key (sub), not to gate any data access — so the lack of signature verification is acceptable.
     const authHeader = req.headers.get('Authorization');
     let userId = 'anonymous';
 
     if (authHeader?.startsWith('Bearer ')) {
       try {
         const token = authHeader.replace('Bearer ', '');
-        const claims = decodeJwtPayload(token);
+        const claims = decodeJwtPayloadUnsafe(token);
         const sub = claims['sub'] as string;
         if (sub) {
           userId = sub;
@@ -403,6 +408,14 @@ serve(async (req) => {
       if (!rateCheck.allowed) {
         return new Response(
           JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const serverRateCheck = await checkUserRateLimit(userId, 'parse_resume', 10, 60);
+      if (!serverRateCheck.allowed) {
+        return new Response(
+          JSON.stringify({ error: `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.` }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }

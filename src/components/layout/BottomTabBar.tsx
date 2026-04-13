@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Globe, Home, BarChart3, Sparkles, Lock, MoreHorizontal, QrCode, Bell, TrendingUp, Trophy, Users, HelpCircle, CreditCard, X } from 'lucide-react';
+import { FileText, Globe, Home, BarChart3, Sparkles, Lock, MoreHorizontal, QrCode, Bell, TrendingUp, Trophy, Users, HelpCircle, CreditCard, X, Zap, Tag } from 'lucide-react';
 import { motion, useReducedMotion, LayoutGroup, AnimatePresence } from 'framer-motion';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -15,7 +15,6 @@ import { usePlan } from '@/hooks/usePlan';
 import { toast } from 'sonner';
 
 const moreItems = [
-  { icon: Globe, label: 'Portfolio', path: '/portfolio', iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-600 dark:text-emerald-400' },
   { icon: QrCode, label: 'QR Code', path: '/qr-code', iconBg: 'bg-violet-500/10', iconColor: 'text-violet-600 dark:text-violet-400' },
   { icon: Bell, label: 'Notifications', path: '/notifications', iconBg: 'bg-blue-500/10', iconColor: 'text-blue-600 dark:text-blue-400' },
   { icon: TrendingUp, label: 'Analytics', path: '/analytics', iconBg: 'bg-rose-500/10', iconColor: 'text-rose-600 dark:text-rose-400' },
@@ -23,6 +22,8 @@ const moreItems = [
   { icon: Users, label: 'Referral', path: '/referral', iconBg: 'bg-pink-500/10', iconColor: 'text-pink-600 dark:text-pink-400' },
   { icon: HelpCircle, label: 'Help', path: '/help', iconBg: 'bg-muted', iconColor: 'text-muted-foreground' },
   { icon: CreditCard, label: 'Subscription', path: '/subscription', iconBg: 'bg-primary/10', iconColor: 'text-primary' },
+  { icon: Tag, label: 'Pricing', path: '/pricing', iconBg: 'bg-indigo-500/10', iconColor: 'text-indigo-600 dark:text-indigo-400' },
+  { icon: Zap, label: "What's New", path: '/whats-new', iconBg: 'bg-amber-500/10', iconColor: 'text-amber-600 dark:text-amber-400' },
 ];
 
 interface TabItem {
@@ -275,12 +276,16 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                           </span>
                         )}
                         {tab.path === '/ai-studio' && !isPro && !active && (
-                          <span
+                          <motion.span
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ type: 'spring', stiffness: 400, damping: 18 }}
                             className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-500 border-2 border-background flex items-center justify-center"
                             aria-label="Pro feature"
+                            title="Upgrade to Pro to unlock"
                           >
                             <Lock className="w-2 h-2 text-white" />
-                          </span>
+                          </motion.span>
                         )}
                         {tab.path === '/ai-studio' && isPro && discoveryDots.aiTools && !active && (
                           <span
@@ -295,12 +300,16 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                           />
                         )}
                         {tab.path === '/applications' && !isPro && !active && (
-                          <span
+                          <motion.span
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ type: 'spring', stiffness: 400, damping: 18 }}
                             className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-500 border-2 border-background flex items-center justify-center"
                             aria-label="Pro feature"
+                            title="Upgrade to Pro to unlock"
                           >
                             <Lock className="w-2 h-2 text-white" />
-                          </span>
+                          </motion.span>
                         )}
                         {tab.path === '/portfolio' && discoveryDots.portfolio && !active && (
                           <span
@@ -380,9 +389,9 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', stiffness: 400, damping: 40 }}
-              className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-0 right-0 z-50 bg-background border-t border-border rounded-t-2xl shadow-xl pb-2"
+              className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-0 right-0 z-50 bg-background border-t border-border rounded-t-2xl shadow-xl pb-2 max-h-[70vh] flex flex-col"
             >
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border sticky top-0 bg-background z-10 shrink-0">
                 <span className="text-sm font-semibold text-foreground">More</span>
                 <button
                   onClick={() => setShowMore(false)}
@@ -392,22 +401,24 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                   <X className="w-4 h-4 text-muted-foreground" />
                 </button>
               </div>
-              <div className="grid grid-cols-4 gap-1 p-3">
-                {moreItems.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <button
-                      key={item.path}
-                      onClick={() => { haptics.light(); setShowMore(false); navigate(item.path); }}
-                      className="flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-muted active:scale-95 transition-all touch-manipulation"
-                    >
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.iconBg}`}>
-                        <Icon className={`w-5 h-5 ${item.iconColor}`} aria-hidden="true" />
-                      </div>
-                      <span className="text-[10px] font-medium text-foreground leading-tight text-center">{item.label}</span>
-                    </button>
-                  );
-                })}
+              <div className="overflow-y-auto flex-1">
+                <div className="grid grid-cols-4 gap-1 p-3">
+                  {moreItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.path}
+                        onClick={() => { haptics.light(); setShowMore(false); navigate(item.path); }}
+                        className="flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-muted active:scale-95 transition-all touch-manipulation"
+                      >
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.iconBg}`}>
+                          <Icon className={`w-5 h-5 ${item.iconColor}`} aria-hidden="true" />
+                        </div>
+                        <span className="text-[10px] font-medium text-foreground leading-tight text-center">{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </motion.div>
           </>

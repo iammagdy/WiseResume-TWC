@@ -67,26 +67,13 @@ export function JobRejectionSheet({ open, onOpenChange }: JobRejectionSheetProps
         const summary = currentResume?.summary ?? '';
         const { data: responseData, error } = await edgeFunctions.functions.invoke('wise-ai-chat', {
           body: {
-            messages: [
-              {
-                role: 'user',
-                content: `You are a career coach specializing in turning job rejections into learning opportunities. Analyze this rejection and provide constructive feedback.
-
-Rejection Details:
-${rejectionText}
-
-${currentResume ? `Candidate Background: ${candidateName}, ${summary}` : ''}
-
-Respond ONLY with valid JSON in this exact format:
-{
-  "likelyReason": "string - the most probable reason for rejection",
-  "improvementAreas": ["string", "string", "string"],
-  "nextSteps": ["string", "string", "string"],
-  "encouragingReframe": "string - an encouraging honest reframe"
-}`,
-              },
-            ],
-            resumeContext: currentResume ?? null,
+            type: 'job_rejection',
+            payload: {
+              rejectionText,
+              candidateName,
+              summary,
+              resumeContext: currentResume ?? null,
+            },
           },
         });
         if (error) throw new Error(error.message);

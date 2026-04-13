@@ -15,6 +15,7 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
+import { AuroraBackground } from "@/components/landing/AuroraBackground";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { RedirectJobRoute } from "@/components/layout/RedirectJobRoute";
@@ -25,6 +26,8 @@ import { MaintenanceScreen } from "@/components/layout/MaintenanceScreen";
 import { AnnouncementBanner } from "@/components/layout/AnnouncementBanner";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { useAuth } from "@/hooks/useAuth";
+import { AIPrivacyDisclosureProvider } from "@/components/ai/AIPrivacyDisclosureProvider";
+import { BottomSheetProvider } from "@/context/BottomSheetContext";
 
 import { KindeProvider } from "@kinde-oss/kinde-auth-react";
 import {
@@ -65,6 +68,22 @@ import { getSafeMatchMedia, isBrowser } from "@/lib/envUtils";
 // Eagerly load Index for LCP
 import Index from "./pages/Index";
 
+// Kinde SPA configuration.
+// These MUST be set as shared Replit env vars (VITE_KINDE_CLIENT_ID and
+// VITE_KINDE_DOMAIN). They are public SPA credentials — not secrets — and
+// are visible in the JS bundle by design. In development, a missing var
+// triggers a console warning so auth still degrades gracefully rather than
+// throwing at module initialization.
+const KINDE_CLIENT_ID = import.meta.env.VITE_KINDE_CLIENT_ID as string | undefined;
+const KINDE_DOMAIN = import.meta.env.VITE_KINDE_DOMAIN as string | undefined;
+
+if (!KINDE_CLIENT_ID || !KINDE_DOMAIN) {
+  console.warn(
+    '[WiseResume] VITE_KINDE_CLIENT_ID or VITE_KINDE_DOMAIN is not set. ' +
+    'Auth buttons will not work. Set these as shared env vars in Replit.'
+  );
+}
+
 // Lazy load other pages with retry
 const UploadPage = lazyWithRetry(() => import("./pages/UploadPage"));
 const EditorPage = lazyWithRetry(() => import("./pages/EditorPage"));
@@ -101,9 +120,13 @@ const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 
 const ShortLinkPage = lazyWithRetry(() => import("./pages/ShortLinkPage"));
 const AuthCallbackPage = lazyWithRetry(() => import("./pages/AuthCallbackPage"));
+const AuthVerifyEmailPage = lazyWithRetry(() => import("./pages/AuthVerifyEmailPage"));
+const AuthResetPasswordPage = lazyWithRetry(() => import("./pages/AuthResetPasswordPage"));
 
 const PrivacyPage = lazyWithRetry(() => import("./pages/PrivacyPage"));
 const TermsPage = lazyWithRetry(() => import("./pages/TermsPage"));
+const PricingPage = lazyWithRetry(() => import("./pages/PricingPage"));
+const WhatsNewPage = lazyWithRetry(() => import("./pages/WhatsNewPage"));
 const HelpPage = lazyWithRetry(() => import("./pages/HelpPage"));
 const AnalyticsPage = lazyWithRetry(() => import("./pages/AnalyticsPage"));
 const SubscriptionPage = lazyWithRetry(() => import("./pages/SubscriptionPage"));
@@ -116,6 +139,8 @@ const QrBatchPage = lazyWithRetry(() => import("./pages/QrBatchPage"));
 const QrScanPage = lazyWithRetry(() => import("./pages/QrScanPage"));
 const KindeAuthTestPage = lazyWithRetry(() => import("./pages/KindeAuthTestPage"));
 const DevToolsPage = lazyWithRetry(() => import("./pages/DevToolsPage"));
+const InviteRedirectPage = lazyWithRetry(() => import("./pages/InviteRedirectPage"));
+const SearchPage = lazyWithRetry(() => import("./pages/SearchPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -215,7 +240,7 @@ function AppRoutes() {
     return <SuspendedScreen reason={suspensionReason} onSignOut={signOut} />;
   }
 
-  const isAdminRoute = location.pathname.startsWith('/dev-tools');
+  const isAdminRoute = location.pathname.startsWith('/devkit');
 
   if (appSettings.maintenance_mode && !isPublicStandalone && !isAdminRoute) {
     return <MaintenanceScreen />;
@@ -233,6 +258,7 @@ function AppRoutes() {
 
   return (
     <>
+        <AuroraLayer />
         {appSettings.announcement_enabled && appSettings.announcement_banner && (
           <AnnouncementBanner message={appSettings.announcement_banner} />
         )}
@@ -244,10 +270,16 @@ function AppRoutes() {
                <Route path="/sign-in" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />
                
               <Route path="/auth/callback" element={<Suspense fallback={<PageLoadingSpinner />}><AuthCallbackPage /></Suspense>} />
+              <Route path="/auth/verify-email" element={<Suspense fallback={<PageLoadingSpinner />}><AuthVerifyEmailPage /></Suspense>} />
+              <Route path="/auth/reset-password" element={<Suspense fallback={<PageLoadingSpinner />}><AuthResetPasswordPage /></Suspense>} />
               <Route path="/privacy-policy" element={<Suspense fallback={<PageLoadingSpinner />}><PrivacyPage /></Suspense>} />
                <Route path="/terms-of-service" element={<Suspense fallback={<PageLoadingSpinner />}><TermsPage /></Suspense>} />
                
            </Route>
+
+          {/* Public marketing routes — no AppShell, no auth required */}
+          <Route path="/pricing" element={<Suspense fallback={<PageLoadingSpinner />}><PricingPage /></Suspense>} />
+          <Route path="/whats-new" element={<Suspense fallback={<PageLoadingSpinner />}><WhatsNewPage /></Suspense>} />
 
           {/* Protected routes */}
            <Route element={<ProtectedRoute />}>
@@ -279,6 +311,7 @@ function AppRoutes() {
                 <Route path="/guides" element={<Suspense fallback={<GuidesExamplesSkeleton />}><GuidesPage /></Suspense>} />
                 <Route path="/guides/:slug" element={<Suspense fallback={<DetailSkeleton />}><GuidePage /></Suspense>} />
                  <Route path="/ai-studio" element={<FeatureGate enabled={appSettings.feature_ai_studio}><Suspense fallback={<AIStudioSkeleton />}><AIStudioPage /></Suspense></FeatureGate>} />
+                 <Route path="/ai-studio/:tool" element={<FeatureGate enabled={appSettings.feature_ai_studio}><Suspense fallback={<AIStudioSkeleton />}><AIStudioPage /></Suspense></FeatureGate>} />
                  <Route path="/help" element={<Suspense fallback={<DetailSkeleton />}><HelpPage /></Suspense>} />
                  <Route path="/analytics" element={<Suspense fallback={<AnalyticsSkeleton />}><AnalyticsPage /></Suspense>} />
                  <Route path="/subscription" element={<Suspense fallback={<DetailSkeleton />}><SubscriptionPage /></Suspense>} />
@@ -290,8 +323,13 @@ function AppRoutes() {
                  <Route path="/activity" element={<Navigate to="/applications" replace />} />
                  <Route path="/jobs/:id" element={<RedirectJobRoute />} />
                  <Route path="/jobs" element={<Navigate to="/applications" replace />} />
+                 <Route path="/resume" element={<Navigate to="/editor" replace />} />
+                 <Route path="/search" element={<Suspense fallback={<PageLoadingSpinner />}><SearchPage /></Suspense>} />
               </Route>
            </Route>
+
+        {/* Invite referral redirect — public so unauthenticated users can follow the link */}
+        <Route path="/invite/:code" element={<Suspense fallback={<PageLoadingSpinner />}><InviteRedirectPage /></Suspense>} />
 
         {/* Public share page - outside AppShell */}
         <Route path="/share/:token" element={<Suspense fallback={<ShareSkeleton />}><SharePage /></Suspense>} />
@@ -305,7 +343,7 @@ function AppRoutes() {
         <Route element={<ProtectedRoute />}>
           <Route path="/store-screenshots" element={<Suspense fallback={<PageLoadingSpinner />}><StoreScreenshotsPage /></Suspense>} />
           <Route path="/screenshots-gallery" element={<Suspense fallback={<PageLoadingSpinner />}><ScreenshotsGalleryPage /></Suspense>} />
-          <Route path="/dev-tools" element={<Suspense fallback={<PageLoadingSpinner />}><DevToolsPage /></Suspense>} />
+          <Route path="/devkit" element={<Suspense fallback={<PageLoadingSpinner />}><DevToolsPage /></Suspense>} />
         </Route>
         
         <Route path="*" element={<Suspense fallback={<DetailSkeleton />}><NotFound /></Suspense>} />
@@ -314,6 +352,42 @@ function AppRoutes() {
       <PrefetchOnIdle />
       </>);
 
+}
+
+const AURORA_PUBLIC_PATHS = ['/', '/pricing', '/whats-new', '/sign-in'];
+
+function AuroraLayer() {
+  const location = useLocation();
+  const path = location.pathname;
+  const isPublicPage =
+    AURORA_PUBLIC_PATHS.includes(path) ||
+    path.startsWith('/auth') ||
+    path.startsWith('/p/');
+
+  const theme = useSettingsStore((s) => s.theme);
+
+  useEffect(() => {
+    if (!isPublicPage) return;
+    const body = document.body;
+    const prevBodyBg = body.style.backgroundColor;
+
+    const isDark =
+      theme === 'dark'
+        ? true
+        : theme === 'light'
+        ? false
+        : getSafeMatchMedia('(prefers-color-scheme: dark)').matches;
+
+    body.style.backgroundColor = isDark ? '#0a0000' : '#fff5f5';
+    document.documentElement.classList.add('aurora-active');
+    return () => {
+      body.style.backgroundColor = prevBodyBg;
+      document.documentElement.classList.remove('aurora-active');
+    };
+  }, [isPublicPage, theme]);
+
+  if (!isPublicPage) return null;
+  return <AuroraBackground />;
 }
 
 function PrefetchOnIdle() {
@@ -364,17 +438,21 @@ const App = () => {
       <TooltipProvider>
           <ErrorBoundary>
             <Toaster />
-             <BrowserRouter>
+             <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                <KindeProvider
-              clientId={import.meta.env.VITE_KINDE_CLIENT_ID ?? '629174acb2874e6bbf53cd4a95497425'}
-              domain={import.meta.env.VITE_KINDE_DOMAIN ?? 'https://thewisecloud.kinde.com'}
+              clientId={KINDE_CLIENT_ID ?? ''}
+              domain={KINDE_DOMAIN ?? ''}
               redirectUri={window.location.origin + '/auth/callback'}
               logoutUri={window.location.origin}>
               
                <AuthProvider>
+                <BottomSheetProvider>
+                <AIPrivacyDisclosureProvider>
                 <AppRoutes />
                 <DeferredProviders />
                 <AppInstallPrompt />
+                </AIPrivacyDisclosureProvider>
+                </BottomSheetProvider>
                </AuthProvider>
                </KindeProvider>
              </BrowserRouter>

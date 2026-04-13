@@ -35,11 +35,27 @@ import { MagicLinkEmail } from '../_shared/email-templates/magic-link.tsx'
 import { RecoveryEmail } from '../_shared/email-templates/recovery.tsx'
 import { EmailChangeEmail } from '../_shared/email-templates/email-change.tsx'
 import { ReauthenticationEmail } from '../_shared/email-templates/reauthentication.tsx'
+// This hook is called server-to-server by Supabase Auth internals; CORS is not
+// enforced by browsers for these calls. The restricted origin list below prevents
+// any browser-based cross-origin access to this endpoint.
+const HOOK_ALLOWED_ORIGINS = [
+  'https://supabase.com',
+  'https://api.supabase.com',
+  'https://resume.thewise.cloud',
+  'https://thewise.cloud',
+];
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+function getHookCorsHeaders(origin: string | null): Record<string, string> {
+  const allowed = origin && HOOK_ALLOWED_ORIGINS.includes(origin);
+  const headers: Record<string, string> = {
+    'Access-Control-Allow-Headers':
+      'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
+  if (allowed && origin) {
+    headers['Access-Control-Allow-Origin'] = origin;
+  }
+  return headers;
 }
 
 const EMAIL_SUBJECTS: Record<string, string> = {
@@ -187,13 +203,14 @@ async function handlePreview(req: Request): Promise<Response> {
 
 // Webhook handler - receives Supabase auth hook payload and sends email via Resend
 async function handleWebhook(req: Request): Promise<Response> {
+  const hookCors = getHookCorsHeaders(req.headers.get('origin'))
   const apiKey = Deno.env.get('RESEND_API_KEY')
 
   if (!apiKey) {
     console.error('RESEND_API_KEY not configured')
     return new Response(
       JSON.stringify({ error: 'Server configuration error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...hookCors, 'Content-Type': 'application/json' } }
     )
   }
 
@@ -204,7 +221,7 @@ async function handleWebhook(req: Request): Promise<Response> {
     console.error('Invalid JSON in webhook payload')
     return new Response(
       JSON.stringify({ error: 'Invalid webhook payload' }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 400, headers: { ...hookCors, 'Content-Type': 'application/json' } }
     )
   }
 
@@ -222,7 +239,7 @@ async function handleWebhook(req: Request): Promise<Response> {
     console.error('No recipient email in payload')
     return new Response(
       JSON.stringify({ error: 'No recipient email' }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 400, headers: { ...hookCors, 'Content-Type': 'application/json' } }
     )
   }
 
@@ -236,7 +253,7 @@ async function handleWebhook(req: Request): Promise<Response> {
     console.error('Unknown email type', { emailType })
     return new Response(
       JSON.stringify({ error: `Unknown email type: ${emailType}` }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 400, headers: { ...hookCors, 'Content-Type': 'application/json' } }
     )
   }
 
@@ -278,24 +295,25 @@ async function handleWebhook(req: Request): Promise<Response> {
 
     return new Response(
       JSON.stringify({ success: true, message_id: result.id }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...hookCors, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to send email'
     console.error('Resend API error', { error: message })
     return new Response(JSON.stringify({ error: 'Failed to send email' }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...hookCors, 'Content-Type': 'application/json' },
     })
   }
 }
 
 Deno.serve(async (req) => {
   const url = new URL(req.url)
+  const hookCors = getHookCorsHeaders(req.headers.get('origin'))
 
   // Handle CORS preflight for main endpoint
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { headers: hookCors })
   }
 
   // Route to preview handler for /preview path
@@ -311,7 +329,7 @@ Deno.serve(async (req) => {
     const message = error instanceof Error ? error.message : 'Unknown error'
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...hookCors, 'Content-Type': 'application/json' },
     })
   }
 })

@@ -15,6 +15,7 @@ interface StepperNavProps {
   onMoreSectionSelect?: (sectionId: string) => void;
   activeMoreSection?: string | null;
   availableMoreCount?: number;
+  hideStepCounter?: boolean;
 }
 
 const MORE_SECTIONS = [
@@ -58,6 +59,7 @@ export const StepperNav = memo(function StepperNav({
   onMoreSectionSelect,
   activeMoreSection,
   availableMoreCount,
+  hideStepCounter = false,
 }: StepperNavProps) {
   const isMobile = useIsMobile();
   const activeIndex = steps.findIndex(s => s.id === activeStep);
@@ -123,17 +125,19 @@ export const StepperNav = memo(function StepperNav({
 
     return (
       <>
-        {/* Step counter label */}
-        <div className="flex items-center justify-between px-3 pt-1.5 pb-0.5">
-          <span className="text-xs text-muted-foreground font-medium">
-            Step {currentStepNumber} of {coreStepCount}
-          </span>
-          {activeStepData && (
-            <span className="text-xs font-semibold text-foreground truncate max-w-[50%] text-right">
-              {activeMoreDef ? activeMoreDef.label : activeStep === 'more' ? 'More Sections' : (activeStepData.label || '')}
+        {/* Step counter label — hidden when integrated into combined nav row */}
+        {!hideStepCounter && (
+          <div className="flex items-center justify-between px-3 pt-1.5 pb-0.5">
+            <span className="text-xs text-muted-foreground font-medium">
+              Step {currentStepNumber} of {coreStepCount}
             </span>
-          )}
-        </div>
+            {activeStepData && (
+              <span className="text-xs font-semibold text-foreground truncate max-w-[50%] text-right">
+                {activeMoreDef ? activeMoreDef.label : activeStep === 'more' ? 'More Sections' : (activeStepData.label || '')}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Horizontal scrollable pill bar with edge chevrons */}
         <div className="relative flex items-center">

@@ -23,7 +23,7 @@ export const ProfessionalTemplate = memo(function ProfessionalTemplate({ resume 
           <h2 className="text-sm font-bold text-gray-900 mb-2 pb-1 border-b-2 border-gray-900">
             PROFILE
           </h2>
-          <p className="text-gray-700 text-xs leading-relaxed">{resume.summary}</p>
+          <p data-break-child className="text-gray-700 text-xs leading-relaxed">{resume.summary}</p>
         </section>
       )}
 
@@ -50,14 +50,14 @@ export const ProfessionalTemplate = memo(function ProfessionalTemplate({ resume 
                 {exp.achievements && exp.achievements.length > 0 && (
                   <ul data-break-child className="mt-1 space-y-0.5 list-none">
                     {exp.achievements.map((a, i) => (
-                      <li key={i} className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{a}</li>
+                      <li key={i} data-break-child className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{a}</li>
                     ))}
                   </ul>
                 )}
                 {exp.responsibilities && exp.responsibilities.length > 0 && (
                   <ul data-break-child className="mt-1 space-y-0.5 list-none">
                     {exp.responsibilities.map((r, i) => (
-                      <li key={i} className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{r}</li>
+                      <li key={i} data-break-child className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{r}</li>
                     ))}
                   </ul>
                 )}

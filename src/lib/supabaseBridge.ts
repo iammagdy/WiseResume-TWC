@@ -27,6 +27,8 @@ interface BridgeState {
 }
 
 const STORAGE_KEY = 'wise_supabase_bridge_state';
+const LAST_ACTIVE_KEY = 'wr-bridge-last-active';
+const IDLE_CLEAR_MS = 4 * 60 * 60 * 1000; // 4 hours
 
 function loadState(): BridgeState {
   try {
@@ -53,12 +55,33 @@ function persistState(s: BridgeState) {
       userId: s.userId,
       expiresAt: s.expiresAt,
     }));
+    updateLastActive();
+  } catch {}
+}
+
+function updateLastActive(): void {
+  try {
+    localStorage.setItem(LAST_ACTIVE_KEY, String(Date.now()));
   } catch {}
 }
 
 const state: BridgeState = loadState();
 
 let exchangePromise: Promise<void> | null = null;
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      try {
+        const raw = localStorage.getItem(LAST_ACTIVE_KEY);
+        const lastActive = raw ? parseInt(raw, 10) : 0;
+        if (lastActive && Date.now() - lastActive > IDLE_CLEAR_MS) {
+          clearBridge();
+        }
+      } catch {}
+    }
+  });
+}
 
 /** Registered Kinde token getter — set by AuthContext */
 let _getKindeTokenFn: (() => Promise<string | null>) | null = null;
@@ -203,6 +226,7 @@ export function clearBridge(): void {
   exchangePromise = null;
   _getKindeTokenFn = null;
   try { localStorage.removeItem(STORAGE_KEY); } catch {}
+  try { localStorage.removeItem(LAST_ACTIVE_KEY); } catch {}
 }
 
 /**

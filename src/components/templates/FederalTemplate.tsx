@@ -16,7 +16,7 @@ export const FederalTemplate = memo(function FederalTemplate({ resume }: Templat
       {resume.summary && (
         <section data-section="summary" className="mb-5">
           <h2 className="text-sm font-bold text-gray-900 uppercase border-b border-gray-400 pb-1 mb-2">Objective</h2>
-          <p className="text-gray-700">{resume.summary}</p>
+          <p data-break-child className="text-gray-700">{resume.summary}</p>
         </section>
       )}
       {resume.experience.length > 0 && (
@@ -31,14 +31,14 @@ export const FederalTemplate = memo(function FederalTemplate({ resume }: Templat
                 {exp.achievements && exp.achievements.length > 0 && (
                   <ul data-break-child className="mt-1 space-y-0.5 list-none">
                     {exp.achievements.map((a, i) => (
-                      <li key={i} className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{a}</li>
+                      <li key={i} data-break-child className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{a}</li>
                     ))}
                   </ul>
                 )}
                 {exp.responsibilities && exp.responsibilities.length > 0 && (
                   <ul data-break-child className="mt-1 space-y-0.5 list-none">
                     {exp.responsibilities.map((r, i) => (
-                      <li key={i} className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{r}</li>
+                      <li key={i} data-break-child className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{r}</li>
                     ))}
                   </ul>
                 )}

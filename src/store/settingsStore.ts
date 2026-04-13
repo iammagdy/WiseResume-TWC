@@ -32,6 +32,7 @@ interface SettingsState {
   analyticsEnabled: boolean;
   biometricLockEnabled: boolean;
   biometricLockTimeout: BiometricLockTimeout;
+  redactPiiBeforeAI: boolean;
   
   // Editor Preferences
   defaultTemplate: TemplateId;
@@ -117,6 +118,7 @@ interface SettingsState {
   setAnalyticsEnabled: (value: boolean) => void;
   setBiometricLockEnabled: (value: boolean) => void;
   setBiometricLockTimeout: (timeout: BiometricLockTimeout) => void;
+  setRedactPiiBeforeAI: (value: boolean) => void;
   setDefaultTemplate: (template: TemplateId) => void;
   setPdfDefaults: (defaults: Partial<PDFOptions>) => void;
   setHasSeenSplash: (value: boolean) => void;
@@ -189,6 +191,7 @@ const defaultSettings = {
   analyticsEnabled: true,
   biometricLockEnabled: false,
   biometricLockTimeout: 30000 as BiometricLockTimeout,
+  redactPiiBeforeAI: true,
   defaultTemplate: 'modern' as TemplateId,
   pdfDefaults: {
     showPageNumbers: true,
@@ -265,6 +268,7 @@ export const useSettingsStore = create<SettingsState>()(
       setAnalyticsEnabled: (value) => set({ analyticsEnabled: value }),
       setBiometricLockEnabled: (value) => set({ biometricLockEnabled: value }),
       setBiometricLockTimeout: (timeout) => set({ biometricLockTimeout: timeout }),
+      setRedactPiiBeforeAI: (value) => set({ redactPiiBeforeAI: value }),
       setDefaultTemplate: (template) => set({ defaultTemplate: template }),
       setPdfDefaults: (defaults) =>
         set((state) => ({

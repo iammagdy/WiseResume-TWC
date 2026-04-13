@@ -1,7 +1,7 @@
 /**
  * D1 — useAIAction hook unit tests
- * Tests the real hook implementation: credit check → execute → deduct → toast.
- * Unmocks useAIAction (which is globally mocked in setup.ts for consumers).
+ * Tests the real hook implementation: execute action → invalidate cache.
+ * Credit deduction is now server-side; this hook just executes and handles errors.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
@@ -10,18 +10,28 @@ import { renderHook, act } from "@testing-library/react";
 vi.unmock("@/hooks/useAIAction");
 
 // Mock dependencies
-const mockCheckCredits = vi.fn().mockResolvedValue(true);
-const mockIncrementUsage = { mutate: vi.fn() };
-
-vi.mock("@/hooks/useAICredits", () => ({
-  useAICreditsMutations: () => ({
-    checkCredits: mockCheckCredits,
-    incrementUsage: mockIncrementUsage,
-  }),
+vi.mock("@/hooks/useAuth", () => ({
+  useAuth: () => ({ user: { id: "user-1" } }),
 }));
 
-vi.mock("@/lib/aiCostEstimates", () => ({
-  getAICost: vi.fn().mockReturnValue(2),
+const mockInvalidateQueries = vi.fn();
+vi.mock("@tanstack/react-query", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@tanstack/react-query")>();
+  return {
+    ...actual,
+    useQueryClient: () => ({ invalidateQueries: mockInvalidateQueries }),
+  };
+});
+
+// Mock privacy disclosure — always accepted in unit tests
+vi.mock("@/components/ai/AIPrivacyDisclosure", () => ({
+  hasAcceptedAIPrivacy: vi.fn().mockReturnValue(true),
+}));
+
+vi.mock("@/components/ai/AIPrivacyDisclosureProvider", () => ({
+  useAIPrivacyDisclosure: vi.fn(() => ({
+    requestDisclosure: vi.fn().mockResolvedValue(true),
+  })),
 }));
 
 // Import after mocks are registered
@@ -30,10 +40,9 @@ import { useAIAction } from "@/hooks/useAIAction";
 describe("useAIAction (D1)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockCheckCredits.mockResolvedValue(true);
   });
 
-  it("executes action and returns result when credits available", async () => {
+  it("executes action and returns result", async () => {
     const { result } = renderHook(() => useAIAction({ operation: "tailor" }));
     const action = vi.fn().mockResolvedValue({ summary: "tailored" });
 
@@ -46,21 +55,20 @@ describe("useAIAction (D1)", () => {
     expect(value).toEqual({ summary: "tailored" });
   });
 
-  it("returns null when credits check fails", async () => {
-    mockCheckCredits.mockResolvedValue(false);
+  it("invalidates credits cache after successful action", async () => {
     const { result } = renderHook(() => useAIAction({ operation: "tailor" }));
-    const action = vi.fn();
+    const action = vi.fn().mockResolvedValue("done");
 
-    let value: unknown;
     await act(async () => {
-      value = await result.current.execute(action);
+      await result.current.execute(action);
     });
 
-    expect(action).not.toHaveBeenCalled();
-    expect(value).toBeNull();
+    expect(mockInvalidateQueries).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: ["me"] })
+    );
   });
 
-  it("returns null and does not deduct credits when action throws", async () => {
+  it("returns null and does not invalidate cache when action throws", async () => {
     const { result } = renderHook(() => useAIAction({ operation: "tailor" }));
     const action = vi.fn().mockRejectedValue(new Error("AI failed"));
 
@@ -70,23 +78,6 @@ describe("useAIAction (D1)", () => {
     });
 
     expect(value).toBeNull();
-    expect(mockIncrementUsage.mutate).not.toHaveBeenCalled();
-  });
-
-  it("deducts credits equal to operation cost on success", async () => {
-    const { result } = renderHook(() => useAIAction({ operation: "tailor" }));
-    const action = vi.fn().mockResolvedValue("done");
-
-    await act(async () => {
-      await result.current.execute(action);
-    });
-
-    // getAICost returns 2 in our mock
-    expect(mockIncrementUsage.mutate).toHaveBeenCalledTimes(2);
-  });
-
-  it("exposes cost from getAICost", () => {
-    const { result } = renderHook(() => useAIAction({ operation: "tailor" }));
-    expect(result.current.cost).toBe(2);
+    expect(mockInvalidateQueries).not.toHaveBeenCalled();
   });
 });

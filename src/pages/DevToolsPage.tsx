@@ -13,6 +13,7 @@ import {
   EyeOff,
   BarChart2,
   Rocket,
+  Mail,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -25,13 +26,15 @@ import { OverviewPanel } from '@/components/dev-kit/OverviewPanel';
 import { AnalyticsPanel } from '@/components/dev-kit/AnalyticsPanel';
 import { LiveActivityPanel } from '@/components/dev-kit/LiveActivityPanel';
 import { DeploymentPanel } from '@/components/dev-kit/DeploymentPanel';
+import { EmailManagementPanel } from '@/components/dev-kit/EmailManagementPanel';
 import { DEV_KIT_VERSION } from '@/components/dev-kit/config';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { DevKitSessionProvider, useDevKitSession } from '@/contexts/DevKitSessionContext';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-type Tab = 'overview' | 'analytics' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity';
+type Tab = 'overview' | 'analytics' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email';
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -39,6 +42,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'live', label: 'Live Activity', icon: Activity },
   { id: 'deployment', label: 'Deployment', icon: Rocket },
   { id: 'users', label: 'Users', icon: Users },
+  { id: 'email', label: 'Email', icon: Mail },
   { id: 'coupons', label: 'Coupons', icon: Tag },
   { id: 'settings', label: 'Settings', icon: Settings },
   { id: 'activity', label: 'Audit Log', icon: Clock },
@@ -46,8 +50,10 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
 
 type ConnectionStatus = 'checking' | 'connected' | 'disconnected';
 
-export default function DevToolsPage() {
-  const [unlocked, setUnlocked] = useState(false);
+function DevToolsInner() {
+  const { isUnlocked, unlock, lock } = useDevKitSession();
+  const unlocked = isUnlocked;
+
   const [pw, setPw] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [pwError, setPwError] = useState(false);
@@ -81,9 +87,12 @@ export default function DevToolsPage() {
     setIsVerifying(true);
     setPwError(false);
 
+    const submittedPw = pw;
+    setPw('');
+
     try {
       const { data, error } = await edgeFunctions.functions.invoke('verify-dev-kit', {
-        body: { password: pw },
+        body: { password: submittedPw },
       });
 
       if (error) {
@@ -98,8 +107,8 @@ export default function DevToolsPage() {
         return;
       }
 
-      if (data?.success) {
-        setUnlocked(true);
+      if (data?.success && data?.token) {
+        unlock(data.token as string);
       } else {
         setPwError(true);
       }
@@ -111,7 +120,7 @@ export default function DevToolsPage() {
   };
 
   const handleLock = () => {
-    setUnlocked(false);
+    lock();
     setPw('');
     setPwError(false);
     setActiveTab('overview');
@@ -294,19 +303,19 @@ export default function DevToolsPage() {
           <div className="p-6">
 
             {activeTab === 'overview' && (
-              <OverviewPanel password={pw} />
+              <OverviewPanel />
             )}
 
             {activeTab === 'analytics' && (
-              <AnalyticsPanel password={pw} />
+              <AnalyticsPanel />
             )}
 
             {activeTab === 'live' && (
-              <LiveActivityPanel password={pw} adminPassword={pw} />
+              <LiveActivityPanel />
             )}
 
             {activeTab === 'deployment' && (
-              <DeploymentPanel password={pw} />
+              <DeploymentPanel />
             )}
 
             {activeTab === 'users' && (
@@ -323,7 +332,7 @@ export default function DevToolsPage() {
                     View all registered users. Click any row to manage — set plans, grant trials, suspend accounts, adjust credits, and add admin notes.
                   </p>
                 </div>
-                <AdminUsersPanel password={pw} onCountChange={setUserCount} />
+                <AdminUsersPanel onCountChange={setUserCount} />
               </div>
             )}
 
@@ -338,7 +347,7 @@ export default function DevToolsPage() {
                     Create and manage discount codes. Users can redeem codes on the subscription page to get free plan upgrades or discounts.
                   </p>
                 </div>
-                <CouponsPanel password={pw} onCountChange={setCouponCount} />
+                <CouponsPanel onCountChange={setCouponCount} />
               </div>
             )}
 
@@ -353,7 +362,22 @@ export default function DevToolsPage() {
                     Control app-wide settings. Toggle maintenance mode, post announcements, enable or disable features, and manage AI credit limits for all users.
                   </p>
                 </div>
-                <AppSettingsPanel password={pw} />
+                <AppSettingsPanel />
+              </div>
+            )}
+
+            {activeTab === 'email' && (
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-lg font-semibold flex items-center gap-2">
+                    <Mail className="w-5 h-5 text-primary" />
+                    Email Management
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    View unconfirmed users, send magic links, OTPs, password resets, and custom one-off emails to any user.
+                  </p>
+                </div>
+                <EmailManagementPanel />
               </div>
             )}
 
@@ -368,7 +392,7 @@ export default function DevToolsPage() {
                     A record of all admin actions — plan changes, trial grants, suspensions, credit overrides, and coupon redemptions.
                   </p>
                 </div>
-                <AuditLogPanel password={pw} />
+                <AuditLogPanel />
               </div>
             )}
 
@@ -385,5 +409,13 @@ export default function DevToolsPage() {
         </footer>
       </div>
     </div>
+  );
+}
+
+export default function DevToolsPage() {
+  return (
+    <DevKitSessionProvider>
+      <DevToolsInner />
+    </DevKitSessionProvider>
   );
 }

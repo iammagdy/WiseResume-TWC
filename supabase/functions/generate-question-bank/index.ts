@@ -2,7 +2,9 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { callAI, toUserError, parseAIJSON } from '../_shared/aiClient.ts';
-import { recordUsage } from '../_shared/rateLimiter.ts';
+import { checkRateLimit, recordUsage } from '../_shared/rateLimiter.ts';
+import { checkUserRateLimit } from '../_shared/userRateLimiter.ts';
+import { checkPayloadSize } from '../_shared/requestUtils.ts';
 
 serve(async (req) => {
   const origin = req.headers.get('origin');
@@ -12,8 +14,28 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const sizeError = checkPayloadSize(req, 500 * 1024);
+  if (sizeError) return sizeError;
+
   try {
     const { userId } = await requireAuth(req);
+
+    const { allowed } = await checkRateLimit(userId, { actionType: 'question_bank', maxRequests: 10, windowSeconds: 60 });
+    if (!allowed) {
+      return new Response(
+        JSON.stringify({ error: 'Rate limit exceeded. Please wait before generating more questions.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const serverRateCheck = await checkUserRateLimit(userId, 'question_bank', 10, 60);
+    if (!serverRateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { jobTitle, company, jobDescription, resumeSummary } = await req.json();
 
     if (!jobTitle) {

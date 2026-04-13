@@ -3,6 +3,22 @@ import { getToken, refreshTokenIfNeeded } from '@/lib/supabaseBridge';
 import { dispatchSessionExpiredOnce } from './sessionExpired';
 
 /**
+ * Returns true when a 401 response body indicates a non-authentication reason
+ * (e.g. an invalid AI API key), meaning the 401 should NOT trigger token
+ * refresh or a "Session expired" user message.
+ */
+function isNonAuth401(status: number, text: string): boolean {
+  if (status !== 401 || !text) return false;
+  const lower = text.toLowerCase();
+  return (
+    lower.includes('invalid_key') ||
+    lower.includes('invalid api key') ||
+    lower.includes('no ai api key') ||
+    lower.includes('api key not configured')
+  );
+}
+
+/**
  * Authenticated edge function client.
  * Uses the Supabase bridge token for Authorization.
  * Automatically retries once on 401 after refreshing the bridge token.
@@ -49,25 +65,15 @@ export const edgeFunctions = {
         let result = await doInvoke(getToken());
 
         // On 401, try refreshing the bridge token once and retry.
-        // Guard: only treat it as an auth error if the response body looks like one —
-        // some edge functions return 401 for non-auth reasons (e.g. invalid AI key).
-        if (result.response.status === 401) {
-          const looksLikeAuthError =
-            !result.text ||
-            result.text.toLowerCase().includes('unauthorized') ||
-            result.text.includes('Missing authorization') ||
-            result.text.includes('Missing sub claim') ||
-            result.text.includes('invalid signature') ||
-            result.text.includes('jwt') ||
-            result.text.includes('session') ||
-            result.text.includes('token');
-          if (looksLikeAuthError) {
-            const refreshed = await refreshTokenIfNeeded();
-            if (refreshed) {
-              result = await doInvoke(getToken());
-            } else {
-              dispatchSessionExpiredOnce();
-            }
+        // Primary signal: HTTP 401 status code. String matching is a secondary
+        // guard only — used to exclude the rare case where an edge function
+        // returns 401 for a non-auth reason (e.g. invalid AI key).
+        if (result.response.status === 401 && !isNonAuth401(result.response.status, result.text)) {
+          const refreshed = await refreshTokenIfNeeded();
+          if (refreshed) {
+            result = await doInvoke(getToken());
+          } else {
+            dispatchSessionExpiredOnce();
           }
         }
 
@@ -78,7 +84,10 @@ export const edgeFunctions = {
             const parsed = JSON.parse(result.text);
             const detail = parsed?.error || parsed?.message || parsed?.detail;
             const status = result.response.status;
-            if (status === 401 || status === 403) {
+            // For 401: only show "Session expired" when the response does not
+            // indicate a non-auth reason (e.g. invalid AI key). This mirrors the
+            // same classification used for the retry logic above.
+            if ((status === 401 || status === 403) && !isNonAuth401(status, result.text)) {
               errorMessage = 'Session expired — please sign in again.';
             } else if (status === 429) {
               errorMessage = 'Too many requests — please wait a moment and try again.';
@@ -99,7 +108,7 @@ export const edgeFunctions = {
           } catch {
             // Use status-based message if body isn't valid JSON
             const status = result.response.status;
-            if (status === 401 || status === 403) {
+            if ((status === 401 || status === 403) && !isNonAuth401(status, result.text)) {
               errorMessage = 'Session expired — please sign in again.';
             } else if (status === 429) {
               errorMessage = 'Too many requests — please wait a moment and try again.';
