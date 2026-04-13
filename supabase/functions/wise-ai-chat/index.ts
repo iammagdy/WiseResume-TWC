@@ -263,12 +263,24 @@ serve(async (req: Request) => {
 
     const prompt = buildPrompt(type as AIStudioType, payload);
 
-    const aiResponse = await callWiseresumeAI(
-      "auto",
-      [{ role: "user", content: prompt }],
-      0.7,
-      1500,
-    );
+    // Outer 90s timeout for the entire AI call chain (all model attempts combined).
+    // Each individual model attempt has its own 15s timeout inside callWiseresumeAI.
+    const outerCtrl = new AbortController();
+    const outerTimeout = setTimeout(() => outerCtrl.abort(), 90_000);
+    let aiResponse;
+    try {
+      aiResponse = await callWiseresumeAI(
+        "auto",
+        [{ role: "user", content: prompt }],
+        0.7,
+        1500,
+        undefined,
+        undefined,
+        outerCtrl.signal,
+      );
+    } finally {
+      clearTimeout(outerTimeout);
+    }
 
     await deductCredits(userId, 1, isByok, serviceClient);
 
