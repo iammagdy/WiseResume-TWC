@@ -82,17 +82,17 @@ const experienceEmptyActions: AIActionConfig[] = [
 ];
 
 const sectionButtonLabels: Record<SectionType, string> = {
-  summary: 'AI Summary',
-  experience: 'AI Bullets',
-  skills: 'AI Skills',
-  education: 'AI Edu',
-  contact: 'AI Format',
-  awards: 'AI Awards',
-  projects: 'AI Projects',
-  publications: 'AI Pubs',
-  volunteering: 'AI Vol',
-  certifications: 'AI Certs',
-  languages: 'AI Lang',
+  summary: 'Improve Summary',
+  experience: 'Improve Bullets',
+  skills: 'Suggest Skills',
+  education: 'Improve Edu',
+  contact: 'Format & Check',
+  awards: 'Improve Awards',
+  projects: 'Improve Projects',
+  publications: 'Improve Pubs',
+  volunteering: 'Improve Volunteer',
+  certifications: 'Suggest Certs',
+  languages: 'Suggest Languages',
 };
 
 export const InlineAIButton = memo(function InlineAIButton({
