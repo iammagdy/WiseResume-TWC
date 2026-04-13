@@ -193,11 +193,17 @@ export function DevKitRunner() {
     // === AI ===
     {
       id: 'tailor-resume', label: 'Tailor Resume', description: 'Call tailor-resume edge function', section: 'ai',
-      run: () => strictInvoke('tailor-resume', () => edgeFunctions.functions.invoke('tailor-resume', { body: { resume: MINIMAL_RESUME, jobDescription: SAMPLE_JD, intensity: 'light' } })),
+      run: async (): Promise<TestResult> => {
+        if (!auth.isAuthenticated) return { status: 'error', summary: 'Requires Supabase sign-in — open the main app, sign in, then re-run this test', durationMs: 0 };
+        return strictInvoke('tailor-resume', () => edgeFunctions.functions.invoke('tailor-resume', { body: { resume: MINIMAL_RESUME, jobDescription: SAMPLE_JD, intensity: 'light' } }));
+      },
     },
     {
       id: 'agentic-chat', label: 'Agentic Chat', description: 'Call agentic-chat edge function', section: 'ai',
-      run: () => strictInvoke('agentic-chat', () => edgeFunctions.functions.invoke('agentic-chat', { body: { message: 'What can you help me with?', conversationHistory: [], currentResume: null } })),
+      run: async (): Promise<TestResult> => {
+        if (!auth.isAuthenticated) return { status: 'error', summary: 'Requires Supabase sign-in — open the main app, sign in, then re-run this test', durationMs: 0 };
+        return strictInvoke('agentic-chat', () => edgeFunctions.functions.invoke('agentic-chat', { body: { message: 'What can you help me with?', conversationHistory: [], currentResume: null } }));
+      },
     },
     {
       id: 'ai-engine-openrouter', label: 'Engine · OpenRouter (Gemma 4)', description: 'Directly test WiseResume managed OpenRouter endpoint — admin only', section: 'ai',
@@ -256,15 +262,24 @@ export function DevKitRunner() {
     // === AI (continued) ===
     {
       id: 'enhance-section', label: 'Enhance Section', description: 'Call enhance-section edge function', section: 'ai',
-      run: () => strictInvoke('enhance-section', async () => edgeFunctions.functions.invoke('enhance-section', { body: { section: 'summary', action: 'improve', currentContent: MINIMAL_RESUME.summary, context: { resume: MINIMAL_RESUME } } })),
+      run: async (): Promise<TestResult> => {
+        if (!auth.isAuthenticated) return { status: 'error', summary: 'Requires Supabase sign-in — open the main app, sign in, then re-run this test', durationMs: 0 };
+        return strictInvoke('enhance-section', () => edgeFunctions.functions.invoke('enhance-section', { body: { section: 'summary', action: 'improve', currentContent: MINIMAL_RESUME.summary, context: { resume: MINIMAL_RESUME } } }));
+      },
     },
     {
       id: 'analyze-resume', label: 'Analyze Resume', description: 'Call analyze-resume edge function', section: 'ai',
-      run: () => strictInvoke('analyze-resume', async () => edgeFunctions.functions.invoke('analyze-resume', { body: { resume: MINIMAL_RESUME, jobDescription: SAMPLE_JD } })),
+      run: async (): Promise<TestResult> => {
+        if (!auth.isAuthenticated) return { status: 'error', summary: 'Requires Supabase sign-in — open the main app, sign in, then re-run this test', durationMs: 0 };
+        return strictInvoke('analyze-resume', () => edgeFunctions.functions.invoke('analyze-resume', { body: { resume: MINIMAL_RESUME, jobDescription: SAMPLE_JD } }));
+      },
     },
     {
       id: 'cover-letter', label: 'Cover Letter', description: 'Call generate-cover-letter edge function', section: 'ai',
-      run: () => strictInvoke('cover-letter', async () => edgeFunctions.functions.invoke('generate-cover-letter', { body: { resume: MINIMAL_RESUME, jobDescription: SAMPLE_JD, tone: 'professional' } })),
+      run: async (): Promise<TestResult> => {
+        if (!auth.isAuthenticated) return { status: 'error', summary: 'Requires Supabase sign-in — open the main app, sign in, then re-run this test', durationMs: 0 };
+        return strictInvoke('cover-letter', () => edgeFunctions.functions.invoke('generate-cover-letter', { body: { resume: MINIMAL_RESUME, jobDescription: SAMPLE_JD, tone: 'professional' } }));
+      },
     },
     // === DB ===
     {

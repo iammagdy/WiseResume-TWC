@@ -212,26 +212,68 @@ function formatTimestamp(iso: string): string {
   });
 }
 
+/**
+ * Module-level cache: survives component unmounts (tab switching) within the same
+ * page session. Initialised once; updated on every state change so re-mounting the
+ * component restores the last-known results instead of resetting to defaults.
+ */
+const _defaultFnHealth: FnHealth[] = ALL_FN_DEFS.map(f => ({
+  name: f.name, label: f.label, status: 'unknown' as HealthStatus, lastChecked: null,
+}));
+
+const _cache: {
+  events: UsageEvent[];
+  eventsError: string | null;
+  errorLogs: ErrorLogRow[];
+  errorLogsMissing: boolean;
+  recentErrors: RecentError[];
+  contactRequests: ContactRequest[];
+  fnHealth: FnHealth[];
+  healthRunning: boolean;
+  healthCheckedAt: Date | null;
+} = {
+  events: [],
+  eventsError: null,
+  errorLogs: [],
+  errorLogsMissing: false,
+  recentErrors: [],
+  contactRequests: [],
+  fnHealth: _defaultFnHealth,
+  healthRunning: false,
+  healthCheckedAt: null,
+};
+
 export function LiveActivityPanel() {
-  const [events, setEvents] = useState<UsageEvent[]>([]);
+  const [events, setEventsRaw] = useState<UsageEvent[]>(_cache.events);
   const [eventsLoading, setEventsLoading] = useState(false);
-  const [eventsError, setEventsError] = useState<string | null>(null);
+  const [eventsError, setEventsErrorRaw] = useState<string | null>(_cache.eventsError);
   const [feedSecondsAgo, setFeedSecondsAgo] = useState(0);
 
-  const [errorLogs, setErrorLogs] = useState<ErrorLogRow[]>([]);
-  const [errorLogsMissing, setErrorLogsMissing] = useState(false);
-  const [recentErrors, setRecentErrors] = useState<RecentError[]>([]);
+  const [errorLogs, setErrorLogsRaw] = useState<ErrorLogRow[]>(_cache.errorLogs);
+  const [errorLogsMissing, setErrorLogsMissingRaw] = useState(_cache.errorLogsMissing);
+  const [recentErrors, setRecentErrorsRaw] = useState<RecentError[]>(_cache.recentErrors);
 
-  const [contactRequests, setContactRequests] = useState<ContactRequest[]>([]);
+  const [contactRequests, setContactRequestsRaw] = useState<ContactRequest[]>(_cache.contactRequests);
   const [contactRequestsLoading, setContactRequestsLoading] = useState(false);
 
-  const [fnHealth, setFnHealth] = useState<FnHealth[]>(
-    ALL_FN_DEFS.map(f => ({
-      name: f.name, label: f.label, status: 'unknown' as HealthStatus, lastChecked: null,
-    }))
-  );
-  const [healthRunning, setHealthRunning] = useState(false);
-  const [healthCheckedAt, setHealthCheckedAt] = useState<Date | null>(null);
+  const [fnHealth, setFnHealthRaw] = useState<FnHealth[]>(_cache.fnHealth);
+  const [healthRunning, setHealthRunningRaw] = useState(_cache.healthRunning);
+  const [healthCheckedAt, setHealthCheckedAtRaw] = useState<Date | null>(_cache.healthCheckedAt);
+
+  // Cache-syncing setters
+  const setEvents = (v: UsageEvent[]) => { _cache.events = v; setEventsRaw(v); };
+  const setEventsError = (v: string | null) => { _cache.eventsError = v; setEventsErrorRaw(v); };
+  const setErrorLogs = (v: ErrorLogRow[]) => { _cache.errorLogs = v; setErrorLogsRaw(v); };
+  const setErrorLogsMissing = (v: boolean) => { _cache.errorLogsMissing = v; setErrorLogsMissingRaw(v); };
+  const setRecentErrors = (v: RecentError[]) => { _cache.recentErrors = v; setRecentErrorsRaw(v); };
+  const setContactRequests = (v: ContactRequest[]) => { _cache.contactRequests = v; setContactRequestsRaw(v); };
+  const setFnHealth = (updater: FnHealth[] | ((prev: FnHealth[]) => FnHealth[])) => {
+    const next = typeof updater === 'function' ? updater(_cache.fnHealth) : updater;
+    _cache.fnHealth = next;
+    setFnHealthRaw(next);
+  };
+  const setHealthRunning = (v: boolean) => { _cache.healthRunning = v; setHealthRunningRaw(v); };
+  const setHealthCheckedAt = (v: Date | null) => { _cache.healthCheckedAt = v; setHealthCheckedAtRaw(v); };
 
   const fetchEvents = useCallback(async () => {
     setEventsLoading(true);

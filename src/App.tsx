@@ -57,6 +57,7 @@ import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
 import { AnimatedSplash } from "@/components/AnimatedSplash";
+import DevToolsPage from "./pages/DevToolsPage";
 
 const CommandPalette = lazyWithRetry(() => import("@/components/layout/CommandPalette"));
 
@@ -136,7 +137,6 @@ const QrCodePage = lazyWithRetry(() => import("./pages/QrCodePage"));
 const QrBatchPage = lazyWithRetry(() => import("./pages/QrBatchPage"));
 const QrScanPage = lazyWithRetry(() => import("./pages/QrScanPage"));
 const KindeAuthTestPage = lazyWithRetry(() => import("./pages/KindeAuthTestPage"));
-const DevToolsPage = lazyWithRetry(() => import("./pages/DevToolsPage"));
 const InviteRedirectPage = lazyWithRetry(() => import("./pages/InviteRedirectPage"));
 const SearchPage = lazyWithRetry(() => import("./pages/SearchPage"));
 
@@ -340,7 +340,7 @@ function AppRoutes() {
         </Route>
 
         {/* DevKit — self-contained email+password auth, no Kinde/Supabase session required */}
-        <Route path="/devkit" element={<Suspense fallback={<PageLoadingSpinner />}><DevToolsPage /></Suspense>} />
+        <Route path="/devkit" element={<DevToolsPage />} />
         
         <Route path="*" element={<Suspense fallback={<DetailSkeleton />}><NotFound /></Suspense>} />
       </Routes>

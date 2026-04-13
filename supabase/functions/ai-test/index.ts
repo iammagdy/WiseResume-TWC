@@ -4,6 +4,34 @@ import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { checkRateLimit } from '../_shared/rateLimiter.ts';
 
+/**
+ * Verify a DevKit HMAC-SHA-256 session token.
+ * Same scheme as adminAuth.ts verifySessionToken — returns true if the token
+ * is valid and unexpired, false otherwise.
+ */
+async function verifyDevKitSessionToken(token: string, secretKey: string): Promise<boolean> {
+  try {
+    const dotIdx = token.lastIndexOf('.');
+    if (dotIdx === -1) return false;
+    const payloadB64 = token.slice(0, dotIdx);
+    const sigHex = token.slice(dotIdx + 1);
+    const payload = atob(payloadB64);
+    const colonIdx = payload.lastIndexOf(':');
+    if (colonIdx === -1) return false;
+    const expiresAt = parseInt(payload.slice(colonIdx + 1), 10);
+    if (isNaN(expiresAt) || Date.now() > expiresAt) return false;
+    const keyData = new TextEncoder().encode(secretKey);
+    const msgData = new TextEncoder().encode(payload);
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']
+    );
+    const sigBytes = new Uint8Array((sigHex.match(/.{2}/g) ?? []).map((h: string) => parseInt(h, 16)));
+    return await crypto.subtle.verify('HMAC', cryptoKey, sigBytes, msgData);
+  } catch {
+    return false;
+  }
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') {
@@ -33,7 +61,14 @@ serve(async (req) => {
         checkOnly = body?.checkOnly === true;
         // Gate wiseresumeSubProvider override on admin password so only Dev Kit callers
         // can request raw engine diagnostics (bypasses cooldown).
-        const hasValidAdminPassword = DEV_KIT_PASSWORD && body?.adminPassword === DEV_KIT_PASSWORD;
+        // Accepts both:
+        //   - The HMAC-signed DevKit session token (primary — sent by DevKitRunner)
+        //   - The raw DEV_KIT_PASSWORD (legacy fallback)
+        const candidatePw: string = body?.adminPassword ?? '';
+        const hasValidAdminPassword = DEV_KIT_PASSWORD && (
+          candidatePw === DEV_KIT_PASSWORD ||
+          await verifyDevKitSessionToken(candidatePw, DEV_KIT_PASSWORD)
+        );
         if (hasValidAdminPassword && (body?.wiseresumeSubProvider === 'openrouter' || body?.wiseresumeSubProvider === 'groq' || body?.wiseresumeSubProvider === 'auto')) {
           bodySubProvider = body.wiseresumeSubProvider;
           isAdminRequest = true;

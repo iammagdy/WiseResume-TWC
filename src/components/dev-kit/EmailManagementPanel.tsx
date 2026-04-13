@@ -113,10 +113,11 @@ function UnconfirmedUsersSection({ onSendToUser }: UnconfirmedUsersProps) {
         },
       });
       if (err) throw new Error(err.message);
-      const result = data as { success?: boolean; error?: string };
+      const result = data as { success?: boolean; error?: string; message_id?: string };
       if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      const msgId = result.message_id ? ` · ID: ${result.message_id}` : '';
       toast.success('Confirmation email sent', {
-        description: `Sent to ${user.email}`,
+        description: `Accepted by Resend for ${user.email}${msgId}. Delivery requires thewise.cloud to be verified in Resend.`,
       });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to send confirmation email');
@@ -351,11 +352,12 @@ function SendEmailForm({ prefillUser }: SendEmailFormProps) {
 
       const { data, error: err } = await edgeFunctions.functions.invoke('admin-email-actions', { body });
       if (err) throw new Error(err.message);
-      const result = data as { success?: boolean; error?: string; email?: string };
+      const result = data as { success?: boolean; error?: string; email?: string; message_id?: string };
       if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
 
+      const msgIdNote = result.message_id ? ` · ID: ${result.message_id}` : '';
       toast.success(`${ACTION_LABELS[action]} sent`, {
-        description: `Delivered to ${result.email ?? selectedUser?.email ?? emailSearch.trim()}`,
+        description: `Accepted by Resend for ${result.email ?? selectedUser?.email ?? emailSearch.trim()}${msgIdNote}. Note: delivery requires the sending domain (thewise.cloud) to be verified in Resend.`,
       });
 
       if (action === 'send_custom') {
