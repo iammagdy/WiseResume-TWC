@@ -178,10 +178,12 @@ export function DesktopNav() {
         })}
       </div>
 
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-1.5">
         <TrialCountdownBadge />
         <AICreditsIndicator />
-        <AIHealthBadge />
+        <span className="hidden xl:contents">
+          <AIHealthBadge />
+        </span>
         <button
           onClick={() => {
             haptics.selection();
