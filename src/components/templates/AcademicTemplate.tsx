@@ -21,7 +21,7 @@ export const AcademicTemplate = memo(function AcademicTemplate({ resume }: Acade
       {summary && (
         <section className="mb-5" data-section="summary">
           <h2 className="text-sm font-bold uppercase tracking-wider mb-2" style={{ color: '#1e3a5f' }}>Research Interests</h2>
-          <p className="text-gray-700 leading-relaxed text-justify">{summary}</p>
+          <p data-break-child className="text-gray-700 leading-relaxed text-justify">{summary}</p>
         </section>
       )}
       {education.length > 0 && (

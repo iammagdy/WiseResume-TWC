@@ -43,7 +43,7 @@ export const DeveloperTemplate = memo(function DeveloperTemplate({ resume }: Tem
         {resume.summary && (
           <section data-section="summary">
             <h2 className="text-green-600 font-bold mb-2"><span className="text-gray-400">//</span> ABOUT</h2>
-            <div className="border-l-2 border-gray-200 pl-3"><p className="text-gray-700">{resume.summary}</p></div>
+            <div className="border-l-2 border-gray-200 pl-3"><p data-break-child className="text-gray-700">{resume.summary}</p></div>
           </section>
         )}
         {resume.skills.length > 0 && (

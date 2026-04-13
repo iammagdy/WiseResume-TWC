@@ -32,7 +32,7 @@ export const CreativeTemplate = memo(function CreativeTemplate({ resume }: Templ
         {resume.summary && (
           <section data-section="summary">
             <h2 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2"><span className="w-6 h-0.5 bg-violet-500"></span>About Me</h2>
-            <p className="text-gray-600 leading-relaxed">{resume.summary}</p>
+            <p data-break-child className="text-gray-600 leading-relaxed">{resume.summary}</p>
           </section>
         )}
         {resume.experience.length > 0 && (
@@ -53,14 +53,14 @@ export const CreativeTemplate = memo(function CreativeTemplate({ resume }: Templ
                   {exp.achievements && exp.achievements.length > 0 && (
                     <ul data-break-child className="mt-1 space-y-0.5 list-none">
                       {exp.achievements.map((a, i) => (
-                        <li key={i} className="text-gray-600 pl-3 relative before:content-['-'] before:absolute before:left-0">{a}</li>
+                        <li key={i} data-break-child className="text-gray-600 pl-3 relative before:content-['-'] before:absolute before:left-0">{a}</li>
                       ))}
                     </ul>
                   )}
                   {exp.responsibilities && exp.responsibilities.length > 0 && (
                     <ul data-break-child className="mt-1 space-y-0.5 list-none">
                       {exp.responsibilities.map((r, i) => (
-                        <li key={i} className="text-gray-600 pl-3 relative before:content-['-'] before:absolute before:left-0">{r}</li>
+                        <li key={i} data-break-child className="text-gray-600 pl-3 relative before:content-['-'] before:absolute before:left-0">{r}</li>
                       ))}
                     </ul>
                   )}
@@ -98,7 +98,7 @@ export const CreativeTemplate = memo(function CreativeTemplate({ resume }: Templ
             <h2 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2"><span className="w-6 h-0.5 bg-violet-500"></span>Certifications</h2>
             <div className="space-y-1">
               {resume.certifications.map((cert) => (
-                <p key={cert.id} className="text-gray-600"><span className="font-medium">{cert.name}</span>{cert.issuer && <span className="text-gray-400"> - {cert.issuer}</span>}</p>
+                <div key={cert.id} data-break-avoid><p className="text-gray-600"><span className="font-medium">{cert.name}</span>{cert.issuer && <span className="text-gray-400"> - {cert.issuer}</span>}</p></div>
               ))}
             </div>
           </section>

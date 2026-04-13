@@ -24,7 +24,7 @@ export const HealthcareTemplate = memo(function HealthcareTemplate({ resume }: H
             <h2 className="text-sm font-bold uppercase tracking-wide mb-2 flex items-center gap-2" style={{ color: tealColor }}>
               <span className="w-1 h-4 rounded" style={{ backgroundColor: tealColor }} />Professional Summary
             </h2>
-            <p className="text-gray-700 leading-relaxed">{summary}</p>
+            <p data-break-child className="text-gray-700 leading-relaxed">{summary}</p>
           </section>
         )}
         {certifications.length > 0 && (

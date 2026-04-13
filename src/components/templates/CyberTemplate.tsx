@@ -16,7 +16,7 @@ export const CyberTemplate = memo(function CyberTemplate({ resume }: TemplatePro
       {resume.summary && (
         <section data-section="summary" className="mb-5">
           <h2 className="text-xs font-bold text-red-600 uppercase tracking-widest mb-2">Security Profile</h2>
-          <p className="text-gray-700">{resume.summary}</p>
+          <p data-break-child className="text-gray-700">{resume.summary}</p>
         </section>
       )}
       {resume.skills.length > 0 && (
@@ -37,14 +37,14 @@ export const CyberTemplate = memo(function CyberTemplate({ resume }: TemplatePro
                 {exp.achievements && exp.achievements.length > 0 && (
                   <ul data-break-child className="mt-1 space-y-0.5 list-none">
                     {exp.achievements.map((a, i) => (
-                      <li key={i} className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{a}</li>
+                      <li key={i} data-break-child className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{a}</li>
                     ))}
                   </ul>
                 )}
                 {exp.responsibilities && exp.responsibilities.length > 0 && (
                   <ul data-break-child className="mt-1 space-y-0.5 list-none">
                     {exp.responsibilities.map((r, i) => (
-                      <li key={i} className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{r}</li>
+                      <li key={i} data-break-child className="text-gray-700 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{r}</li>
                     ))}
                   </ul>
                 )}

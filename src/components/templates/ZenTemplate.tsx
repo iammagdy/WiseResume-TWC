@@ -18,7 +18,7 @@ export const ZenTemplate = memo(function ZenTemplate({ resume }: TemplateProps) 
       </header>
       {resume.summary && (
         <section data-section="summary" className="mb-8 text-center max-w-md mx-auto">
-          <p className="text-gray-600 italic">{resume.summary}</p>
+          <p data-break-child className="text-gray-600 italic">{resume.summary}</p>
         </section>
       )}
       {resume.experience.length > 0 && (
@@ -33,14 +33,14 @@ export const ZenTemplate = memo(function ZenTemplate({ resume }: TemplateProps) 
                 {exp.achievements && exp.achievements.length > 0 && (
                   <ul data-break-child className="mt-1 space-y-0.5 list-none text-left max-w-sm mx-auto">
                     {exp.achievements.map((a, i) => (
-                      <li key={i} className="text-gray-600 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{a}</li>
+                      <li key={i} data-break-child className="text-gray-600 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{a}</li>
                     ))}
                   </ul>
                 )}
                 {exp.responsibilities && exp.responsibilities.length > 0 && (
                   <ul data-break-child className="mt-1 space-y-0.5 list-none text-left max-w-sm mx-auto">
                     {exp.responsibilities.map((r, i) => (
-                      <li key={i} className="text-gray-600 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{r}</li>
+                      <li key={i} data-break-child className="text-gray-600 text-xs pl-3 relative before:content-['-'] before:absolute before:left-0">{r}</li>
                     ))}
                   </ul>
                 )}
