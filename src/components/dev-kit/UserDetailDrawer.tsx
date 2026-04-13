@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Crown, Shield, ShieldOff, Zap, StickyNote, Copy, Check, Clock, UserPen, AlertTriangle, Trash2, LogOut, UserX, FileText, ChevronRight } from 'lucide-react';
+import { X, Crown, Shield, ShieldOff, Zap, StickyNote, Copy, Check, Clock, UserPen, AlertTriangle, Trash2, LogOut, UserX, FileText, ChevronRight, Fingerprint, Merge } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -100,6 +100,10 @@ function summarizeAction(action: string, meta: Record<string, unknown>): string 
     if (changed.username) parts.push(`username: "${changed.username.old}" → "${changed.username.new}"`);
     return parts.join(', ') || 'Profile updated';
   }
+  if (action === 'identity_merged') {
+    const orphanId = meta.orphan_user_id as string | undefined;
+    return `Identity merged${orphanId ? ` (orphan: ${String(orphanId).slice(0, 8)}…)` : ''}`;
+  }
   return action.replace(/_/g, ' ');
 }
 
@@ -162,6 +166,18 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
   const [resumesLoading, setResumesLoading] = useState(false);
   const [selectedResume, setSelectedResume] = useState<ResumeDetail | null>(null);
   const [resumeDetailLoading, setResumeDetailLoading] = useState(false);
+
+  // Identity section state
+  const [identityData, setIdentityData] = useState<{
+    auth_email: string | null;
+    contact_email: string | null;
+    kinde_sub: string | null;
+    last_exchange_at: string | null;
+    is_collision: boolean;
+  } | null>(null);
+  const [identityLoading, setIdentityLoading] = useState(false);
+  const [showMergeConfirm, setShowMergeConfirm] = useState(false);
+  const [mergingIdentity, setMergingIdentity] = useState(false);
 
   // Profile edit state
   const [profileFullName, setProfileFullName] = useState(user.full_name || '');
@@ -273,6 +289,66 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     return () => { cancelled = true; };
   }, [open, user.user_id, user.full_name]);
 
+  // Load identity data for this user (always, not just collision users)
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setIdentityData(null);
+    setIdentityLoading(true);
+    setShowMergeConfirm(false);
+
+    const pw = getDevKitToken();
+    edgeFunctions.functions.invoke('admin-get-identity', {
+      body: { password: pw, target_user_id: user.user_id },
+    }).then(({ data }) => {
+      if (cancelled) return;
+      const result = data as {
+        success?: boolean;
+        auth_email?: string | null;
+        contact_email?: string | null;
+        kinde_sub?: string | null;
+        last_exchange_at?: string | null;
+        is_collision?: boolean;
+      };
+      if (result?.success !== false) {
+        setIdentityData({
+          auth_email: result.auth_email ?? null,
+          contact_email: result.contact_email ?? null,
+          kinde_sub: result.kinde_sub ?? null,
+          last_exchange_at: result.last_exchange_at ?? null,
+          is_collision: result.is_collision ?? false,
+        });
+      }
+    }).catch(() => {}).finally(() => {
+      if (!cancelled) setIdentityLoading(false);
+    });
+
+    return () => { cancelled = true; };
+  }, [open, user.user_id]);
+
+  const handleMergeIdentity = async () => {
+    setMergingIdentity(true);
+    try {
+      const { data, error } = await edgeFunctions.functions.invoke('admin-merge-identity', {
+        body: { password: getDevKitToken(), collision_user_id: user.user_id },
+      });
+      if (error) throw new Error(error.message);
+      const result = data as { success?: boolean; error?: string; merge_log?: string[] };
+      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      toast.success('Identity merged successfully', {
+        description: 'The orphan account has been suspended and merged into this account.',
+        duration: 6000,
+      });
+      setShowMergeConfirm(false);
+      onUserUpdated();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to merge identity');
+    } finally {
+      setMergingIdentity(false);
+    }
+  };
+
+  // Debounced username availability check
   const handleUsernameChange = (val: string) => {
     setProfileUsername(val);
     setUsernameAvailable(null);
@@ -348,8 +424,6 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
     ? Math.max(0, Math.ceil((new Date(user.trial_expires_at).getTime() - Date.now()) / 86400000))
     : 0;
 
-  // Inline plan-change is the canonical path for updating a user's plan.
-  // SetPlanModal.tsx has been removed — all plan changes go through this handler.
   const handleSetPlan = async () => {
     if (selectedPlan === user.plan_name) { toast.info('Plan unchanged'); return; }
     setSavingPlan(true);
@@ -738,6 +812,105 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-muted-foreground font-medium">Plan last changed</span>
                     <span className="text-xs text-muted-foreground">{formatDate(user.plan_updated_at)}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Identity Section */}
+              <div className="space-y-3">
+                <h3 className="flex items-center gap-2 text-sm font-semibold">
+                  <Fingerprint className="w-4 h-4 text-indigo-500" />
+                  Identity
+                  {user.has_id_conflict && (
+                    <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/30 dark:text-amber-400 ml-1">
+                      ID conflict
+                    </Badge>
+                  )}
+                </h3>
+
+                {user.has_id_conflict && (
+                  <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400">
+                    <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-medium">Identity collision detected</p>
+                      <p className="opacity-80 mt-0.5">This is a Kinde shadow account. The real email ({user.contact_email || identityData?.contact_email || '…'}) belongs to an orphaned legacy account. Use "Fix identity" below to merge them.</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-xs text-muted-foreground font-medium shrink-0">Auth email</span>
+                    <span className="font-mono text-[10px] text-right break-all">
+                      {identityLoading ? '…' : (identityData?.auth_email ?? user.email ?? '—')}
+                      {(identityData?.auth_email ?? user.email ?? '').endsWith('@collision.kinde.placeholder') && (
+                        <span className="ml-1 text-amber-600">(placeholder)</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-muted-foreground font-medium shrink-0">Contact email</span>
+                    <span className="font-mono text-[10px] text-right break-all">
+                      {identityLoading ? '…' : (identityData?.contact_email ?? user.contact_email ?? '—')}
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-xs text-muted-foreground font-medium shrink-0">Kinde sub</span>
+                    <span className="font-mono text-[10px] text-right break-all max-w-[200px] truncate" title={identityData?.kinde_sub ?? ''}>
+                      {identityLoading ? '…' : (identityData?.kinde_sub ?? '—')}
+                    </span>
+                  </div>
+                  {identityData?.last_exchange_at && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-muted-foreground font-medium shrink-0">Last token exchange</span>
+                      <span className="text-[10px] text-muted-foreground">{formatDate(identityData.last_exchange_at)}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Fix identity action — only for collision users */}
+                {(user.has_id_conflict || identityData?.is_collision) && (
+                  <div className="space-y-2">
+                    {!showMergeConfirm ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowMergeConfirm(true)}
+                        className="w-full h-8 text-xs flex items-center gap-2 border-amber-500/40 text-amber-700 hover:bg-amber-500/10 dark:text-amber-400"
+                      >
+                        <Merge className="w-3.5 h-3.5" />
+                        Fix identity…
+                      </Button>
+                    ) : (
+                      <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 space-y-3">
+                        <p className="text-xs font-medium text-amber-700 dark:text-amber-400">Confirm identity merge</p>
+                        <p className="text-xs text-amber-700/80 dark:text-amber-400/80">
+                          This will:
+                          <br />• Copy the orphan account's plan and profile fields into this account (if better)
+                          <br />• Suspend the orphan account with reason <span className="font-mono">merged_into:{user.user_id.slice(0, 8)}…</span>
+                          <br />• Write an audit log entry
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={handleMergeIdentity}
+                            disabled={mergingIdentity}
+                            className="flex-1 h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white"
+                          >
+                            {mergingIdentity ? 'Merging…' : 'Confirm merge'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setShowMergeConfirm(false)}
+                            disabled={mergingIdentity}
+                            className="h-7 text-xs"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

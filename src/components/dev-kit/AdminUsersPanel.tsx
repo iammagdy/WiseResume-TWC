@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { RefreshCw, Search, Users, Download, Filter, ChevronDown, CheckSquare, Square, X, Crown, ShieldOff, Shield, Zap } from 'lucide-react';
+import { RefreshCw, Search, Users, Download, Filter, ChevronDown, CheckSquare, Square, X, Crown, ShieldOff, Shield, Zap, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 export interface AdminUser {
   user_id: string;
   email: string;
+  contact_email: string | null;
   full_name: string | null;
   plan_name: 'free' | 'pro' | 'premium';
   plan_status: string;
@@ -27,6 +28,8 @@ export interface AdminUser {
   credits_used_today: number;
   daily_limit: number | null;
   email_confirmed_at: string | null;
+  has_id_conflict: boolean;
+  matched_via?: string;
 }
 
 interface AdminUsersPanelProps {
@@ -56,6 +59,8 @@ const PLAN_FILTERS = [
   { value: 'trial', label: 'Trial' },
   { value: 'suspended', label: 'Suspended' },
 ];
+
+type FilterTab = 'all' | 'id_conflicts';
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—';
@@ -188,6 +193,7 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
   const [page, setPage] = useState(1);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [filterTab, setFilterTab] = useState<FilterTab>('all');
 
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -207,6 +213,7 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
           page: pageNum,
           per_page: PER_PAGE,
           filter_plan: planFilter || undefined,
+          filter_identity_conflict: filterTab === 'id_conflicts' ? true : undefined,
           sort,
           search: query.trim() || undefined,
         },
@@ -235,7 +242,7 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
     } finally {
       setLoading(false);
     }
-  }, [planFilter, sort, query, onCountChange]);
+  }, [planFilter, sort, query, filterTab, onCountChange]);
 
   useEffect(() => {
     setPage(1);
@@ -357,6 +364,7 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
             page: p,
             per_page: PER_EXPORT,
             filter_plan: planFilter || undefined,
+            filter_identity_conflict: filterTab === 'id_conflicts' ? true : undefined,
             sort,
             search: query.trim() || undefined,
           },
@@ -369,16 +377,18 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
         p++;
       }
       if (!allUsers.length) return;
-      const headers = ['User ID', 'Email', 'Name', 'Plan', 'Trial Plan', 'Trial Expires', 'Suspended', 'Suspension Reason', 'Joined', 'Last Active', 'Resumes', 'Credits Used Today', 'Daily Limit'];
+      const headers = ['User ID', 'Email', 'Contact Email', 'Name', 'Plan', 'Trial Plan', 'Trial Expires', 'Suspended', 'Suspension Reason', 'ID Conflict', 'Joined', 'Last Active', 'Resumes', 'Credits Used Today', 'Daily Limit'];
       const rows = allUsers.map((u) => [
         u.user_id,
         u.email,
+        u.contact_email || '',
         u.full_name || '',
         u.plan_name,
         u.trial_plan || '',
         u.trial_expires_at ? new Date(u.trial_expires_at).toISOString() : '',
         u.is_suspended ? 'Yes' : 'No',
         u.suspension_reason || '',
+        u.has_id_conflict ? 'Yes' : 'No',
         u.created_at ? new Date(u.created_at).toISOString() : '',
         u.last_sign_in_at ? new Date(u.last_sign_in_at).toISOString() : '',
         u.resume_count,
@@ -449,6 +459,23 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
         </Button>
       </div>
 
+      {/* Filter tabs */}
+      <div className="flex gap-1 p-1 bg-muted/40 rounded-lg border border-border w-fit">
+        <button
+          onClick={() => setFilterTab('all')}
+          className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${filterTab === 'all' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          All users
+        </button>
+        <button
+          onClick={() => setFilterTab('id_conflicts')}
+          className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${filterTab === 'id_conflicts' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          <AlertTriangle className="w-3 h-3 text-amber-500" />
+          ID conflicts
+        </button>
+      </div>
+
       {/* Filters row */}
       {showFilters && (
         <div className="flex items-center gap-3 flex-wrap p-3 rounded-lg bg-muted/40 border border-border">
@@ -477,6 +504,17 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
               </select>
               <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none text-muted-foreground" />
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Identity conflicts notice */}
+      {filterTab === 'id_conflicts' && (
+        <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400">
+          <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-medium">Showing identity conflict users</p>
+            <p className="opacity-80 mt-0.5">These are Kinde shadow accounts (placeholder email) and their orphaned real-email counterparts. Use "Fix identity" in the user drawer to merge them.</p>
           </div>
         </div>
       )}
@@ -510,7 +548,7 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
           </div>
 
           {/* Plan distribution bar */}
-          {users.length > 0 && (() => {
+          {users.length > 0 && filterTab !== 'id_conflicts' && (() => {
             const now = new Date();
             let free = 0, pro = 0, premium = 0, trial = 0, suspended = 0;
             for (const u of users) {
@@ -582,11 +620,16 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
                 <tbody>
                   {users.length === 0 ? (
                     <tr>
+<<<<<<< HEAD
                       <td colSpan={9} className="text-center py-10 text-muted-foreground">
+=======
+                      <td colSpan={8} className="text-center py-10 text-muted-foreground">
+>>>>>>> 5f60288 (Task #5: DevKit Identity Collision Detection & Fix)
                         No users found
                       </td>
                     </tr>
                   ) : (
+<<<<<<< HEAD
                     users.map((user) => {
                       const isSelected = selectedIds.has(user.user_id);
                       return (
@@ -652,6 +695,81 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
                         </tr>
                       );
                     })
+=======
+                    users.map((user) => (
+                      <tr
+                        key={user.user_id}
+                        className={`border-b border-border last:border-0 hover:bg-muted/20 transition-colors cursor-pointer ${user.has_id_conflict ? 'bg-amber-500/5' : ''}`}
+                        onClick={() => setSelectedUser(user)}
+                      >
+                        <td className="px-4 py-3">
+                          <div className="min-w-0 space-y-0.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className="font-mono text-xs truncate max-w-[160px]">{user.email}</p>
+                              {user.has_id_conflict && (
+                                <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/30 dark:text-amber-400 shrink-0">
+                                  ID conflict
+                                </Badge>
+                              )}
+                              {user.matched_via === 'contact_email' && !user.has_id_conflict && (
+                                <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-600 border-blue-500/20 shrink-0">
+                                  Kinde identity
+                                </Badge>
+                              )}
+                            </div>
+                            {user.full_name && (
+                              <p className="text-xs text-muted-foreground truncate max-w-[160px]">{user.full_name}</p>
+                            )}
+                            {user.has_id_conflict && user.contact_email && (
+                              <p className="text-[10px] text-muted-foreground truncate max-w-[160px]">
+                                Real: {user.contact_email}
+                              </p>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 hidden sm:table-cell">
+                          <CopyableId id={user.user_id} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col gap-1">
+                            {user.is_suspended ? (
+                              <Badge variant="outline" className="text-[10px] bg-red-500/10 text-red-600 border-red-500/20">Suspended</Badge>
+                            ) : user.trial_plan && user.trial_expires_at && new Date(user.trial_expires_at) > new Date() ? (
+                              <Badge variant="outline" className="text-[10px] bg-purple-500/10 text-purple-600 border-purple-500/20">Trial {user.trial_plan}</Badge>
+                            ) : (
+                              <Badge variant="outline" className={`capitalize text-[10px] ${PLAN_COLORS[user.plan_name] ?? ''}`}>
+                                {user.plan_name}
+                              </Badge>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground text-xs hidden md:table-cell">
+                          {formatDate(user.created_at)}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground text-xs hidden md:table-cell">
+                          {user.resume_count}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground text-xs hidden lg:table-cell">
+                          <span title={`${user.credits_used_today} used today / limit: ${user.daily_limit === -1 ? 'unlimited' : (user.daily_limit ?? '?')}`}>
+                            {user.credits_used_today} / {user.daily_limit === -1 ? '∞' : (user.daily_limit ?? '?')}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground text-xs hidden xl:table-cell">
+                          {formatDate(user.last_sign_in_at)}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            onClick={(e) => { e.stopPropagation(); setSelectedUser(user); }}
+                          >
+                            Manage
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+>>>>>>> 5f60288 (Task #5: DevKit Identity Collision Detection & Fix)
                   )}
                 </tbody>
               </table>

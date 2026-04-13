@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { password, target_user_id, plan } = body;
+    const { password, target_user_id, email, plan } = body;
 
     try {
       await requireAdminAuth(req, password);
@@ -34,9 +34,16 @@ Deno.serve(async (req) => {
       throw authErr;
     }
 
-    if (!target_user_id || !plan) {
+    if (!plan) {
       return new Response(
-        JSON.stringify({ success: false, error: 'target_user_id and plan are required' }),
+        JSON.stringify({ success: false, error: 'plan is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!target_user_id && !email) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Either target_user_id or email is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -50,16 +57,59 @@ Deno.serve(async (req) => {
     }
 
     const supabase = getServiceClient();
+
+    // Resolve user ID — prefer explicit target_user_id, otherwise look up by email
+    let resolvedUserId: string = target_user_id ?? '';
+
+    if (!resolvedUserId && email) {
+      const cleanEmail = String(email).toLowerCase().trim();
+
+      // 1. Try profiles.contact_email first (Kinde shadow user = the live session)
+      const { data: profileMatch, error: profileLookupErr } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .ilike('contact_email', cleanEmail)
+        .limit(1)
+        .single();
+
+      if (!profileLookupErr && profileMatch) {
+        resolvedUserId = profileMatch.user_id as string;
+        console.log(`[admin-set-plan] Resolved user by contact_email: ${resolvedUserId}`);
+      } else {
+        // 2. Fall back to auth.users.email
+        const authListResult = await supabase.auth.admin.listUsers({ page: 1, perPage: 10000 });
+        if (authListResult.error) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Failed to list auth users: ' + authListResult.error.message }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        const match = (authListResult.data.users ?? []).find(u =>
+          (u.email ?? '').toLowerCase() === cleanEmail
+        );
+        if (match) {
+          resolvedUserId = match.id;
+          console.log(`[admin-set-plan] Resolved user by auth.users.email: ${resolvedUserId}`);
+        }
+      }
+
+      if (!resolvedUserId) {
+        return new Response(
+          JSON.stringify({ success: false, error: `No user found with email: ${cleanEmail}` }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     const now = new Date().toISOString();
     const newDailyLimit = PLAN_DAILY_LIMITS[cleanPlan];
 
-    // 1. Upsert subscriptions — works for new users (no row) and existing users.
-    //    Only touches plan_name, plan_updated_at, status; leaves trial fields untouched.
+    // 1. Upsert subscriptions
     const { error: subsError } = await supabase
       .from('subscriptions')
       .upsert(
         {
-          user_id: target_user_id,
+          user_id: resolvedUserId,
           plan_name: cleanPlan,
           plan_updated_at: now,
           status: 'active',
@@ -75,15 +125,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 2. Update ai_credits.daily_limit so the credit gate enforces the new plan's entitlement.
-    //    Strategy: always UPDATE first (existing rows — preserves usage counters).
-    //    If the user has no ai_credits row yet, insert a fresh row with correct defaults.
+    // 2. Update ai_credits.daily_limit
     const today = new Date().toISOString().split('T')[0];
 
     const { data: updatedCredits, error: creditsUpdateError } = await supabase
       .from('ai_credits')
       .update({ daily_limit: newDailyLimit })
-      .eq('user_id', target_user_id)
+      .eq('user_id', resolvedUserId)
       .select('user_id');
 
     if (creditsUpdateError) {
@@ -94,12 +142,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // If no row was updated (new user without an ai_credits row), insert one
     if (!updatedCredits || updatedCredits.length === 0) {
       const { error: creditsInsertError } = await supabase
         .from('ai_credits')
         .insert({
-          user_id: target_user_id,
+          user_id: resolvedUserId,
           daily_limit: newDailyLimit,
           daily_usage: 0,
           total_usage: 0,
@@ -108,10 +155,8 @@ Deno.serve(async (req) => {
 
       if (creditsInsertError) {
         if (creditsInsertError.code === '23505') {
-          // unique_violation — another process inserted concurrently, safe to ignore
           console.warn('[admin-set-plan] ai_credits concurrent insert race (ignored)');
         } else {
-          // Unexpected error — treat as fatal so success is never misreported
           console.error('[admin-set-plan] ai_credits insert error:', creditsInsertError);
           return new Response(
             JSON.stringify({ success: false, error: creditsInsertError.message }),
@@ -121,11 +166,11 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 3. Write audit log so plan_change history appears in the DevKit drawer
+    // 3. Write audit log
     const { error: auditError } = await supabase
       .from('audit_logs')
       .insert({
-        user_id: target_user_id,
+        user_id: resolvedUserId,
         action: 'plan_change',
         category: 'plan',
         metadata: {
@@ -133,17 +178,17 @@ Deno.serve(async (req) => {
           new_daily_limit: newDailyLimit,
           updated_by: 'dev-kit',
           updated_at: now,
+          ...(email && !target_user_id ? { resolved_via_email: email } : {}),
         },
         created_at: now,
       });
 
     if (auditError) {
-      // Non-fatal — audit is best-effort
       console.warn('[admin-set-plan] audit log error (non-fatal):', auditError);
     }
 
     return new Response(
-      JSON.stringify({ success: true, plan: cleanPlan, daily_limit: newDailyLimit, updated_at: now }),
+      JSON.stringify({ success: true, plan: cleanPlan, daily_limit: newDailyLimit, updated_at: now, resolved_user_id: resolvedUserId }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err) {
