@@ -10,9 +10,13 @@
 html.aurora-active .lp-root,
 html.aurora-active .aurora-page-root,
 html.aurora-active .app-theme {
-  background-color: transparent !important;
   position: relative;
   z-index: 1;
+}
+html.aurora-active .lp-root[data-lp-scheme="dark"],
+html.aurora-active .aurora-page-root,
+html.aurora-active .app-theme {
+  background-color: transparent !important;
 }
 
 /* Security curtain — hides content from OS app-switcher screenshots on native */

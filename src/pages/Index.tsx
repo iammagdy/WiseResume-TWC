@@ -394,7 +394,7 @@ const Index = () => {
 
         /* ── LIGHT THEME ─────────────────────────────────────────── */
         .lp-root[data-lp-scheme="light"] {
-          --lp-bg: transparent;
+          --lp-bg: rgba(255, 245, 245, 0.88);
           --lp-card: #ffffff;
           --lp-card-glass: rgba(0,0,0,0.03);
           --lp-border: rgba(0,0,0,0.06);
@@ -402,9 +402,9 @@ const Index = () => {
           --lp-text: #0f0f1a;
           --lp-text-muted: rgba(15,15,26,0.55);
           --lp-text-subtle: rgba(15,15,26,0.35);
-          --lp-header-scrolled-bg: rgba(245,245,251,0.94);
+          --lp-header-scrolled-bg: rgba(255, 245, 245, 0.94);
           --lp-header-scrolled-border: rgba(0,0,0,0.08);
-          --lp-nav-bg: rgba(245,245,251,0.96);
+          --lp-nav-bg: rgba(255, 245, 245, 0.96);
           --lp-nav-border: rgba(0,0,0,0.08);
           --lp-hero-glow: rgba(158,27,34,0.09);
           --lp-section-alt: #f5eded;
