@@ -1,5 +1,5 @@
 import { useNavigate, Link } from 'react-router-dom';
-import { Sparkles, Target, Wand2, Mic, LayoutDashboard, Settings, LogOut, Globe, ArrowRight, BarChart3, PenTool, CheckCircle2, Check, User, Sun, Moon, Zap } from 'lucide-react';
+import { Sparkles, Target, Wand2, Mic, LayoutDashboard, Settings, LogOut, Globe, ArrowRight, BarChart3, PenTool, CheckCircle2, User, Sun, Moon, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { Footer } from '@/components/landing/Footer';
 import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
@@ -29,11 +29,6 @@ const features = [
   { icon: BarChart3, title: 'Application Tracker', desc: 'Track all your job applications in one place with status updates and analytics.', colorDark: 'text-pink-400', colorLight: 'text-pink-600', bgDark: 'bg-pink-500/10', bgLight: 'bg-pink-100' },
 ];
 
-const pricingFeatures = {
-  free: ['1 resume', 'Basic AI suggestions', 'ATS score check', 'PDF export', 'Portfolio site'],
-  pro: ['Unlimited resumes', 'Advanced AI tools', 'Smart tailoring', 'Interview coaching', 'Cover letter generator', 'Application tracker', 'Priority support'],
-  premium: ['Everything in Pro', 'Custom branding', 'Analytics dashboard', 'White-label exports', 'Early access features', 'Dedicated support'],
-};
 
 const featureSections: FeatureSectionData[] = [
   {
@@ -920,115 +915,6 @@ const Index = () => {
                   </div>
                 </div>
               ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ─── SEPARATOR ─── */}
-        <div className="lp-separator" aria-hidden="true" />
-
-        {/* ─── PRICING ─── */}
-        <section className="px-4 sm:px-6 py-20" style={{ background: 'var(--lp-bg)' }}>
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-10 lp-animate">
-              <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--lp-eyebrow)', fontWeight: 600, marginBottom: '0.75rem' }}>
-                Pricing
-              </p>
-              <h2 className="font-bold mb-2" style={{ fontSize: 'clamp(1.75rem, 3vw, 2.5rem)', color: 'var(--lp-text)', letterSpacing: '-0.02em' }}>
-                Simple pricing
-              </h2>
-              <p style={{ color: 'var(--lp-text-muted)' }} className="max-w-md mx-auto">
-                Start free, upgrade when you need more
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-4xl mx-auto">
-              {/* Free */}
-              <div
-                className="lp-animate lp-from-left flex flex-col p-6"
-                style={{ borderRadius: 20, background: 'var(--lp-card)', border: '1px solid var(--lp-border-card)', transitionDelay: '0ms' }}
-              >
-                <h3 className="text-base font-semibold mb-1" style={{ color: 'var(--lp-text)' }}>Free</h3>
-                <p className="text-3xl font-bold mb-1" style={{ color: 'var(--lp-text)' }}>$0<span className="text-sm font-normal" style={{ color: 'var(--lp-text-muted)' }}>/mo</span></p>
-                <p className="text-xs mb-5" style={{ color: 'var(--lp-text-muted)' }}>Perfect to get started</p>
-                <ul className="space-y-2.5 mb-7 flex-1">
-                  {pricingFeatures.free.map((item) => (
-                    <li key={item} className="flex items-center gap-2.5 text-sm" style={{ color: 'var(--lp-text-muted)' }}>
-                      <Check className="w-4 h-4 shrink-0" style={{ color: '#9E1B22' }} />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  className="w-full h-11 rounded-xl text-sm font-semibold transition-all"
-                  style={{ border: '1px solid var(--lp-border-card)', color: 'var(--lp-text)', background: 'transparent' }}
-                  onClick={() => handleCTA('free')}
-                >
-                  Get Started
-                </button>
-              </div>
-
-              {/* Pro */}
-              <div
-                className="lp-animate flex flex-col p-6 relative"
-                style={{ borderRadius: 20, background: '#9E1B22', border: '1px solid rgba(255,255,255,0.15)', transitionDelay: '60ms' }}
-              >
-                <span
-                  className="absolute -top-3 left-6 px-3 py-0.5 rounded-full text-xs font-semibold"
-                  style={{ background: '#fff', color: '#9E1B22' }}
-                >
-                  Most Popular
-                </span>
-                <h3 className="text-base font-semibold mb-1" style={{ color: '#fff' }}>Pro</h3>
-                <p className="text-3xl font-bold mb-1" style={{ color: '#fff' }}>$9<span className="text-sm font-normal" style={{ color: 'rgba(255,255,255,0.6)' }}>/mo</span></p>
-                <p className="text-xs mb-5" style={{ color: 'rgba(255,255,255,0.65)' }}>For serious job seekers</p>
-                <ul className="space-y-2.5 mb-7 flex-1">
-                  {pricingFeatures.pro.map((item) => (
-                    <li key={item} className="flex items-center gap-2.5 text-sm" style={{ color: 'rgba(255,255,255,0.9)' }}>
-                      <Check className="w-4 h-4 shrink-0" style={{ color: '#fff' }} />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  className="w-full h-11 rounded-xl text-sm font-semibold transition-all"
-                  style={{ background: '#fff', color: '#9E1B22' }}
-                  onClick={() => handleCTA('pro')}
-                >
-                  Get Started
-                </button>
-              </div>
-
-              {/* Premium */}
-              <div
-                className="lp-animate lp-from-right flex flex-col p-6 relative"
-                style={{ borderRadius: 20, background: 'var(--lp-card)', border: '1px solid rgba(245,158,11,0.28)', transitionDelay: '120ms' }}
-              >
-                <span
-                  className="absolute -top-3 left-6 px-3 py-0.5 rounded-full text-xs font-semibold"
-                  style={{ background: '#F59E0B', color: '#fff' }}
-                >
-                  Power Users
-                </span>
-                <h3 className="text-base font-semibold mb-1" style={{ color: 'var(--lp-text)' }}>Premium</h3>
-                <p className="text-3xl font-bold mb-1" style={{ color: 'var(--lp-text)' }}>$19<span className="text-sm font-normal" style={{ color: 'var(--lp-text-muted)' }}>/mo</span></p>
-                <p className="text-xs mb-5" style={{ color: 'var(--lp-text-muted)' }}>For career professionals</p>
-                <ul className="space-y-2.5 mb-7 flex-1">
-                  {pricingFeatures.premium.map((item) => (
-                    <li key={item} className="flex items-center gap-2.5 text-sm" style={{ color: 'var(--lp-text-muted)' }}>
-                      <Check className="w-4 h-4 shrink-0" style={{ color: '#F59E0B' }} />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  className="w-full h-11 rounded-xl text-sm font-semibold transition-all"
-                  style={{ border: '1px solid rgba(245,158,11,0.4)', color: '#F59E0B', background: 'transparent' }}
-                  onClick={() => handleCTA('premium')}
-                >
-                  Get Started
-                </button>
-              </div>
             </div>
           </div>
         </section>
