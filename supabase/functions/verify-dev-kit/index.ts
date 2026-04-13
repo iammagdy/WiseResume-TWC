@@ -19,6 +19,25 @@ async function signSessionToken(email: string, secretKey: string): Promise<strin
   return `${btoa(payload)}.${sigHex}`;
 }
 
+/**
+ * Timing-safe password comparison using HMAC.
+ * Avoids relying on crypto.subtle.timingSafeEqual which is not available
+ * in all Supabase Deno runtimes. Both passwords are used as HMAC keys over
+ * the same fixed message; the resulting MACs are compared as hex strings.
+ * An attacker cannot recover either password from the MAC output.
+ */
+async function timingSafePasswordEqual(a: string, b: string): Promise<boolean> {
+  const fixedMessage = new TextEncoder().encode('wiseresume-devkit-auth');
+  const [macA, macB] = await Promise.all([a, b].map(async (pw) => {
+    const key = await crypto.subtle.importKey(
+      'raw', new TextEncoder().encode(pw), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+    );
+    const sig = await crypto.subtle.sign('HMAC', key, fixedMessage);
+    return Array.from(new Uint8Array(sig)).map(x => x.toString(16).padStart(2, '0')).join('');
+  }));
+  return macA === macB;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -34,7 +53,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const SECRET_PASSWORD = Deno.env.get("DEV_KIT_PASSWORD");
+    const SECRET_PASSWORD = Deno.env.get("DEV_KIT_PASSWORD")?.trim();
     if (!SECRET_PASSWORD) {
       return new Response(
         JSON.stringify({ error: "DEV_KIT_PASSWORD secret is not configured. Set it in Supabase Dashboard → Settings → Edge Functions → Secrets." }),
@@ -75,15 +94,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const encoder = new TextEncoder();
-    const a = encoder.encode(password.padEnd(64));
-    const b = encoder.encode(SECRET_PASSWORD.padEnd(64));
-    let isValid = a.length === b.length;
-    try {
-      isValid = isValid && await crypto.subtle.timingSafeEqual(a, b);
-    } catch {
-      isValid = false;
-    }
+    const isValid = await timingSafePasswordEqual(password.trim(), SECRET_PASSWORD);
 
     if (!isValid) {
       return new Response(
@@ -100,6 +111,7 @@ Deno.serve(async (req) => {
     );
 
   } catch (err) {
+    console.error('[verify-dev-kit] error:', err);
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
