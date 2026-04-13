@@ -127,6 +127,8 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
             throw new Error(errMsg || 'invalid_key');
           } else if (errCode === 'quota_exceeded') {
             throw new Error(errMsg || 'quota_exceeded');
+          } else if (errCode === 'enhancement_failed') {
+            throw new Error('enhancement_failed');
           } else {
             throw new Error(errMsg || 'server_error');
           }
@@ -189,6 +191,8 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
         toast.error('AI daily quota exceeded. Try again tomorrow or add your own API key in Settings.');
       } else if (/invalid.?key/i.test(errMsg) || errMsg === 'invalid_key') {
         toast.error('Invalid API key — please check your AI settings.');
+      } else if (errMsg === 'enhancement_failed' || /enhancement.?failed|failed to enhance/i.test(errMsg)) {
+        toast.error('Failed to enhance content — please try again.');
       } else {
         toast.error('AI is temporarily unavailable — please try again in a moment.');
       }

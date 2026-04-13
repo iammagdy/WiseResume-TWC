@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './useAuth';
@@ -119,6 +120,9 @@ function parseErrorMessage(err: unknown): string {
   if (/quota.*exceed|daily.*quota/i.test(raw)) {
     return 'AI daily quota exceeded. Try again tomorrow or add your own API key in Settings.';
   }
+  if (raw === 'enhancement_failed' || /enhancement.?failed|failed to enhance/i.test(raw)) {
+    return 'Failed to enhance content — please try again.';
+  }
 
   return 'AI is temporarily unavailable — please try again in a moment.';
 }
@@ -138,6 +142,7 @@ export function useAIAction({ operation }: UseAIActionOptions) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { requestDisclosure } = useAIPrivacyDisclosure();
+  const navigate = useNavigate();
 
   const execute = useCallback(
     async <T>(action: () => Promise<T>): Promise<T | null> => {
@@ -151,7 +156,20 @@ export function useAIAction({ operation }: UseAIActionOptions) {
       try {
         result = await action();
       } catch (err: unknown) {
-        toast.error(parseErrorMessage(err));
+        const msg = parseErrorMessage(err);
+        const rawMsg = err instanceof Error ? err.message : String(err ?? '');
+        const isNotConfigured = /not configured|please contact support/i.test(rawMsg);
+        if (isNotConfigured) {
+          toast.error(msg, {
+            duration: 8000,
+            action: {
+              label: 'Open Settings',
+              onClick: () => navigate('/settings'),
+            },
+          });
+        } else {
+          toast.error(msg);
+        }
         return null;
       }
 
@@ -163,7 +181,7 @@ export function useAIAction({ operation }: UseAIActionOptions) {
 
       return result;
     },
-    [queryClient, user, operation, requestDisclosure],
+    [queryClient, user, operation, requestDisclosure, navigate],
   );
 
   return { execute };

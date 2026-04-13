@@ -309,6 +309,8 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
           throw new Error(errMsg || 'Invalid API key — please check your AI settings.');
         } else if (errCode === 'quota_exceeded') {
           throw new Error(errMsg || 'AI quota exceeded. Try again tomorrow or add your own API key in Settings.');
+        } else if (errCode === 'enhancement_failed') {
+          throw new Error('Failed to enhance content — please try again.');
         } else {
           throw new Error('AI is temporarily unavailable — please try again in a moment.');
         }
