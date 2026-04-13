@@ -211,7 +211,7 @@ export default function OnboardingPage() {
       </div>
 
       {/* ── Scrollable content ── */}
-      <div className="flex-1 overflow-y-auto flex flex-col items-center justify-start px-4 sm:px-6 pb-4">
+      <div className="flex-1 overflow-y-auto flex flex-col items-center justify-start px-4 sm:px-6 pb-24">
         <AnimatePresence mode="wait">
           <motion.div
             key={step}
@@ -303,7 +303,7 @@ export default function OnboardingPage() {
 
             {/* ── Step 2: Background ── */}
             {step === 2 && (
-              <div className="py-4">
+              <div className="py-4 pb-6">
                 <div className="mb-8">
                   <h2 className="text-2xl font-bold text-foreground mb-2 tracking-tight">
                     Your background

@@ -388,9 +388,9 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', stiffness: 400, damping: 40 }}
-              className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-0 right-0 z-50 bg-background border-t border-border rounded-t-2xl shadow-xl pb-2"
+              className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-0 right-0 z-50 bg-background border-t border-border rounded-t-2xl shadow-xl pb-2 max-h-[70vh] flex flex-col"
             >
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border sticky top-0 bg-background z-10 shrink-0">
                 <span className="text-sm font-semibold text-foreground">More</span>
                 <button
                   onClick={() => setShowMore(false)}
@@ -400,22 +400,24 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                   <X className="w-4 h-4 text-muted-foreground" />
                 </button>
               </div>
-              <div className="grid grid-cols-4 gap-1 p-3">
-                {moreItems.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <button
-                      key={item.path}
-                      onClick={() => { haptics.light(); setShowMore(false); navigate(item.path); }}
-                      className="flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-muted active:scale-95 transition-all touch-manipulation"
-                    >
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.iconBg}`}>
-                        <Icon className={`w-5 h-5 ${item.iconColor}`} aria-hidden="true" />
-                      </div>
-                      <span className="text-[10px] font-medium text-foreground leading-tight text-center">{item.label}</span>
-                    </button>
-                  );
-                })}
+              <div className="overflow-y-auto flex-1">
+                <div className="grid grid-cols-4 gap-1 p-3">
+                  {moreItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.path}
+                        onClick={() => { haptics.light(); setShowMore(false); navigate(item.path); }}
+                        className="flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-muted active:scale-95 transition-all touch-manipulation"
+                      >
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.iconBg}`}>
+                          <Icon className={`w-5 h-5 ${item.iconColor}`} aria-hidden="true" />
+                        </div>
+                        <span className="text-[10px] font-medium text-foreground leading-tight text-center">{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </motion.div>
           </>
