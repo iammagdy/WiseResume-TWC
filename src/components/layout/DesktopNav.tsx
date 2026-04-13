@@ -14,7 +14,6 @@ import { lazy, Suspense, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { PlanAvatar } from '@/components/ui/PlanAvatar';
-import { TrialCountdownBadge } from '@/components/ui/TrialCountdownBadge';
 import { PlanChip } from '@/components/ui/PlanChip';
 import { usePlanUpgradeCelebration } from '@/hooks/usePlanUpgradeCelebration';
 import { AICreditsIndicator } from '@/components/editor/ai/AICreditsIndicator';
@@ -179,11 +178,8 @@ export function DesktopNav() {
       </div>
 
       <div className="ml-auto flex items-center gap-1.5">
-        <TrialCountdownBadge />
         <AICreditsIndicator />
-        <span className="hidden xl:contents">
-          <AIHealthBadge />
-        </span>
+        <AIHealthBadge />
         <button
           onClick={() => {
             haptics.selection();
