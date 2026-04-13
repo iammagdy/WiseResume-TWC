@@ -35,9 +35,6 @@ import {
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { AIEngineBadge } from '@/components/editor/ai/AIEngineBadge';
-import { AICreditsIndicator } from '@/components/editor/ai/AICreditsIndicator';
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { useResumeStore } from '@/store/resumeStore';
 import { useResume, useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { calcOverallScore } from '@/lib/resumeCompletionRules';
@@ -391,18 +388,7 @@ export default function AIStudioPage() {
           </div>
           <div className="flex items-center gap-2">
             <AIHealthBadge />
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div><AICreditsIndicator /></div>
-                </TooltipTrigger>
-                <TooltipContent>AI Credits Remaining</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
           </div>
-        </div>
-        <div className="mt-1.5">
-          <AIEngineBadge showSettingsLink />
         </div>
       </header>
 

@@ -701,12 +701,6 @@ const Index = () => {
                   <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate('/settings'); }}>
                     <Settings className="w-4 h-4 mr-2" /> Settings
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate('/pricing'); }}>
-                    <Sparkles className="w-4 h-4 mr-2" /> Pricing
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate('/whats-new'); }}>
-                    <Zap className="w-4 h-4 mr-2" /> What's New
-                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"

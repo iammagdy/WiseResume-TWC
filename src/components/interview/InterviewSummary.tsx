@@ -145,7 +145,7 @@ export function InterviewSummary({ summary, duration, scores, onRestart, onGoHom
               <span className="text-xl text-muted-foreground">—</span>
             )}
           </motion.div>
-          <h2 className="text-xl font-bold text-foreground">Wise AI Summary</h2>
+          <h2 className="text-xl font-bold text-foreground">WiseResume AI Summary</h2>
           <p className="text-sm text-muted-foreground">
             Duration: {mins}m {secs.toString().padStart(2, '0')}s
             {avgScore !== null && ` · Avg Score: ${avgScore}/10`}
@@ -258,7 +258,7 @@ export function InterviewSummary({ summary, duration, scores, onRestart, onGoHom
         <div className="flex items-center justify-center gap-1.5 pt-2">
           <Sparkles className="w-3 h-3 text-primary/60" />
           <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-            Powered by Wise AI
+            Powered by WiseResume AI
           </span>
         </div>
       </motion.div>

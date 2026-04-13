@@ -323,6 +323,14 @@ export default function ApplicationsPage() {
                 ) : (
                   <div className="flex-1" />
                 )}
+                <button
+                  onClick={() => { haptics.medium(); setShowQuickAdd(true); }}
+                  className="flex items-center gap-1.5 px-3 h-9 rounded-xl gradient-primary text-primary-foreground text-xs font-semibold active:scale-95 transition-transform touch-manipulation shrink-0"
+                  aria-label="Quick add application"
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  Quick Add
+                </button>
                 <div className="flex items-center gap-0.5 bg-muted/60 border border-border rounded-xl p-1 shrink-0">
                   <button
                     onClick={() => handleViewChange('list')}
@@ -617,16 +625,6 @@ export default function ApplicationsPage() {
         aria-label="Save new job">
         
           <Plus className="w-6 h-6 text-primary-foreground" />
-        </button>
-      }
-      {activeTab === 'applications' &&
-      <button
-        onClick={() => {haptics.medium();setShowQuickAdd(true);}}
-        className="fixed bottom-[7.5rem] sm:bottom-20 right-4 pr-safe z-50 h-12 px-4 rounded-full gradient-primary shadow-lg flex items-center gap-2 active:scale-95 transition-transform"
-        aria-label="Quick add application">
-        
-          <Zap className="w-5 h-5 text-primary-foreground" />
-          <span className="text-primary-foreground text-sm font-semibold">Quick Add</span>
         </button>
       }
 

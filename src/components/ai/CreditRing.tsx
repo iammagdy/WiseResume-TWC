@@ -3,24 +3,21 @@ import { cn } from '@/lib/utils';
 
 type UnlimitedColor = 'amber' | 'blue' | 'green';
 
-const UNLIMITED_COLOR_MAP: Record<UnlimitedColor, { text: string; bg: string; border: string; glow: string }> = {
+const UNLIMITED_COLOR_MAP: Record<UnlimitedColor, { text: string; bg: string; border: string }> = {
   amber: {
     text: 'text-amber-500',
     bg: 'bg-amber-500/10',
     border: 'border-amber-400/40',
-    glow: '0 0 10px 3px rgba(251,191,36,0.55)',
   },
   blue: {
     text: 'text-blue-500',
     bg: 'bg-blue-500/10',
     border: 'border-blue-400/40',
-    glow: '0 0 10px 3px rgba(59,130,246,0.5)',
   },
   green: {
     text: 'text-green-500',
     bg: 'bg-green-500/10',
     border: 'border-green-400/40',
-    glow: '0 0 10px 3px rgba(34,197,94,0.5)',
   },
 };
 
@@ -50,7 +47,6 @@ export const CreditRing = memo(function CreditRing({
         style={{
           width: size,
           height: size,
-          boxShadow: style ? style.glow : '0 0 8px 2px hsl(var(--primary) / 0.4)',
         }}
         aria-label="Unlimited AI credits"
       >
