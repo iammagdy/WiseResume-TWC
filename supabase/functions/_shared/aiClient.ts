@@ -1132,8 +1132,13 @@ export async function callWiseresumeAI(
   const openrouterKey = Deno.env.get('OPENROUTER_API_KEY');
   const groqKey = Deno.env.get('GROQ_API_KEY');
 
-  /** Per-model timeout: 15 s each — independent of the outer signal. */
-  const PER_MODEL_TIMEOUT_MS = 15_000;
+  /**
+   * Per-model timeout: 8 s each — independent of the outer signal.
+   * Kept short so that a slow/overloaded model advances quickly to the next one.
+   * With at most 3 models per provider (6 total in auto mode) this keeps the
+   * worst-case total well under Supabase's 60 s edge function timeout.
+   */
+  const PER_MODEL_TIMEOUT_MS = 8_000;
 
   /**
    * Try a single OpenRouter model by slug.
@@ -1201,12 +1206,15 @@ export async function callWiseresumeAI(
     }
   };
 
-  // Build the two chains based on subProvider setting
+  // Build the two chains based on subProvider setting.
+  // Cap each list to 3 to keep worst-case duration under Supabase's 60 s limit:
+  //   (3 OpenRouter × 8 s) + (3 Groq × 8 s) + ~5 s discovery = ~53 s max.
+  const MAX_MODELS_PER_PROVIDER = 3;
   const openrouterModels = (subProvider === 'openrouter' || subProvider === 'auto') && openrouterKey
-    ? await getOpenRouterFreeModels(openrouterKey)
+    ? (await getOpenRouterFreeModels(openrouterKey)).slice(0, MAX_MODELS_PER_PROVIDER)
     : [];
   const groqModels = (subProvider === 'groq' || subProvider === 'auto') && groqKey
-    ? await getGroqModels(groqKey)
+    ? (await getGroqModels(groqKey)).slice(0, MAX_MODELS_PER_PROVIDER)
     : [];
 
   // Priority order (per spec): OpenRouter ranked free models → Groq ranked models.

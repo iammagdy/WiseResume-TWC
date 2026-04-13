@@ -263,10 +263,12 @@ serve(async (req: Request) => {
 
     const prompt = buildPrompt(type as AIStudioType, payload);
 
-    // Outer 90s timeout for the entire AI call chain (all model attempts combined).
-    // Each individual model attempt has its own 15s timeout inside callWiseresumeAI.
+    // Outer 40 s timeout for the entire AI call chain (all model attempts combined).
+    // Kept well below Supabase's 60 s function timeout so we can return a clean error
+    // instead of letting the platform kill the function and return an unparseable response.
+    // Each individual model attempt has its own 8 s timeout inside callWiseresumeAI.
     const outerCtrl = new AbortController();
-    const outerTimeout = setTimeout(() => outerCtrl.abort(), 90_000);
+    const outerTimeout = setTimeout(() => outerCtrl.abort(), 40_000);
     let aiResponse;
     try {
       aiResponse = await callWiseresumeAI(
@@ -295,12 +297,22 @@ serve(async (req: Request) => {
   } catch (error) {
     console.error("[wise-ai-chat] error:", error);
 
+    // DOMException AbortError → outer timer fired (all models exhausted / timed out)
+    if (error instanceof DOMException && error.name === "AbortError") {
+      return new Response(
+        JSON.stringify({ error: "rate_limit", message: "AI is busy right now. Please try again in a moment." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     if (isAIError(error)) {
       const errorMap: Record<string, { error: string; message: string; status: number }> = {
         rate_limit:       { error: "rate_limit",       message: "AI is busy right now. Please try again in a moment.", status: 429 },
         payment_required: { error: "payment_required", message: "AI credits exhausted. Please check your account.",    status: 402 },
         quota_exceeded:   { error: "quota_exceeded",   message: "Daily quota exceeded. Try again tomorrow.",            status: 429 },
         invalid_key:      { error: "invalid_key",      message: "AI service configuration error. Please contact support.", status: 500 },
+        // "unknown" is emitted when the outer signal fires before the first loop iteration
+        unknown:          { error: "rate_limit",       message: "AI is busy right now. Please try again in a moment.", status: 429 },
       };
       const mapped = errorMap[error.type] ?? { error: error.type, message: error.message, status: error.status ?? 500 };
       return new Response(
