@@ -13,7 +13,6 @@ import {
   EyeOff,
   BarChart2,
   Rocket,
-  ShieldOff,
   Mail,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -34,7 +33,6 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { DevKitSessionProvider, useDevKitSession } from '@/contexts/DevKitSessionContext';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 
 type Tab = 'overview' | 'analytics' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email';
 
@@ -51,7 +49,6 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
 ];
 
 type ConnectionStatus = 'checking' | 'connected' | 'disconnected';
-type AccessStatus = 'checking' | 'allowed' | 'denied' | 'unknown';
 
 function DevToolsInner() {
   const { isUnlocked, unlock, lock } = useDevKitSession();
@@ -65,37 +62,7 @@ function DevToolsInner() {
   const [userCount, setUserCount] = useState<number | null>(null);
   const [couponCount, setCouponCount] = useState<number | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('checking');
-  const [accessStatus, setAccessStatus] = useState<AccessStatus>('checking');
   const navigate = useNavigate();
-  const { user } = useKindeAuth();
-
-  useEffect(() => {
-    let cancelled = false;
-    async function checkAccess() {
-      try {
-        const { data, error } = await edgeFunctions.functions.invoke('admin-check-access', {
-          body: {},
-        });
-        if (cancelled) return;
-        if (error) {
-          navigate('/dashboard');
-          return;
-        }
-        const result = data as { allowed?: boolean; reason?: string } | null;
-        if (result?.allowed === true) {
-          setAccessStatus('allowed');
-        } else if (result?.reason === 'not_configured' || result?.reason === 'error') {
-          navigate('/dashboard');
-        } else {
-          setAccessStatus('denied');
-        }
-      } catch {
-        if (!cancelled) navigate('/dashboard');
-      }
-    }
-    checkAccess();
-    return () => { cancelled = true; };
-  }, [navigate]);
 
   const checkConnection = useCallback(async () => {
     try {
@@ -142,8 +109,6 @@ function DevToolsInner() {
 
       if (data?.success && data?.token) {
         unlock(data.token as string);
-      } else if (data?.reason === 'email_not_allowed') {
-        setAccessStatus('denied');
       } else {
         setPwError(true);
       }
@@ -163,42 +128,6 @@ function DevToolsInner() {
     setCouponCount(null);
     setConnectionStatus('checking');
   };
-
-  if (accessStatus === 'checking') {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 relative z-10">
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <Loader2 className="w-5 h-5 animate-spin" />
-          <span className="text-sm">Checking access…</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (accessStatus === 'denied') {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 relative z-10">
-        <div className="w-full max-w-sm space-y-6 text-center">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-destructive/10 border border-destructive/20 shadow-lg mx-auto">
-            <ShieldOff className="w-7 h-7 text-destructive" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-foreground">Access Denied</h1>
-            <p className="text-sm text-muted-foreground mt-2">
-              Your account is not authorised to access the admin panel.
-            </p>
-            {user?.email && (
-              <p className="text-xs text-muted-foreground/60 mt-1 font-mono">{user.email}</p>
-            )}
-          </div>
-          <Button variant="outline" onClick={() => navigate('/dashboard')} className="inline-flex items-center gap-2">
-            <ArrowLeft className="w-4 h-4" />
-            Back to dashboard
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   if (!unlocked) {
     return (
