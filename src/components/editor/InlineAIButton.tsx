@@ -85,13 +85,13 @@ const sectionButtonLabels: Record<SectionType, string> = {
   summary: 'Improve Summary',
   experience: 'Improve Bullets',
   skills: 'Suggest Skills',
-  education: 'Improve Edu',
+  education: 'Improve Education',
   contact: 'Format & Check',
   awards: 'Improve Awards',
   projects: 'Improve Projects',
-  publications: 'Improve Pubs',
-  volunteering: 'Improve Volunteer',
-  certifications: 'Suggest Certs',
+  publications: 'Improve Publications',
+  volunteering: 'Improve Volunteering',
+  certifications: 'Suggest Certifications',
   languages: 'Suggest Languages',
 };
 
