@@ -25,6 +25,20 @@ WiseResume is an AI-powered career management PWA. Production URL: https://resum
 - `project-governance/` — Architecture documentation
 - `wise-templates/` — Resume templates
 
+## Fresh Import Setup (New Replit from GitHub)
+
+When you import this repo into a fresh Replit, the app will start and run correctly **with zero additional configuration** — all four frontend env vars (`VITE_KINDE_CLIENT_ID`, `VITE_KINDE_DOMAIN`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`) are already embedded in `.replit [userenv.shared]`.
+
+**Optional — only needed for admin/DevKit features:**
+1. Add `SUPABASE_ACCESS_TOKEN` as a Replit secret (your Supabase personal access token from https://supabase.com/dashboard/account/tokens). This enables `bash scripts/deploy-functions.sh` and `bash scripts/refresh-devkit-secrets.sh` to work from the Replit shell.
+
+**Quick verification after import:**
+1. Hit "Run" — the app should load at the preview URL with no console warnings about missing vars.
+2. Click "Sign In" — Kinde auth page should open.
+3. Navigate to `/devkit` — should redirect to Kinde login (not a blank page or error).
+
+All Supabase edge function secrets (`ADMIN_EMAILS`, `DEV_KIT_PASSWORD`, AI keys, etc.) are already deployed to the production Supabase project and do not need to be re-provisioned on import.
+
 ## Infrastructure & Secrets
 - Supabase project ref: `jnsfmkzgxsviuthaqlyy`
 - GitHub repo: `iammagdy/wiseresume-74945019`
