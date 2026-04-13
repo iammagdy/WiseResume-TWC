@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'rea
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { logAudit } from '@/lib/auditLogger';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
-import { Check, Cloud, CloudOff, Sparkles, ChevronDown, BarChart3, Scissors, Save, Loader2, ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Sparkles, BarChart3, Scissors, ArrowLeft } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 // Tooltip removed – Radix Popper causes infinite setRef loop on this page
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -35,7 +34,6 @@ const LivePreviewPanel = lazyWithRetry(() => import('@/components/editor/LivePre
 const ATSParserPreview = lazyWithRetry(() => import('@/components/editor/ATSParserPreview'));
 import { useShallow } from 'zustand/react/shallow';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
-import { ATSScoreBreakdown } from '@/components/dashboard/ATSScoreBreakdown';
 import { KeyboardToolbar } from '@/components/editor/KeyboardToolbar';
 
 import { useOfflineSync } from '@/hooks/useOfflineSync';
@@ -56,7 +54,6 @@ import { useEditorAutosave } from '@/hooks/useEditorAutosave';
 import { useEditorSectionScores } from '@/hooks/useEditorSectionScores';
 import { useATSSuggestions } from '@/hooks/useATSSuggestions';
 import { AIIntroTooltip } from '@/components/editor/AIIntroTooltip';
-import { ProgressBar } from '@/components/editor/ProgressBar';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { EditorHeader } from '@/components/editor/EditorHeader';
 import { EditorSectionContent, SectionNavButtons } from '@/components/editor/EditorSectionContent';
@@ -707,6 +704,17 @@ export default function EditorPage() {
         currentResumeId={currentResumeId}
         showPreview={showPreview}
         templateBtnSeen={templateBtnSeen}
+        overallScore={overallScore}
+        steps={steps}
+        sectionStatus={sectionStatus}
+        localHealthScore={localHealthScore}
+        isSaving={isSaving}
+        showSavedCheck={showSavedCheck}
+        hasUnsavedChanges={hasUnsavedChanges}
+        isOnline={isOnline}
+        pendingCountForResume={pendingCountForResume}
+        onSave={() => { haptics.light(); saveToCloud(); }}
+        onImproveSection={handleImproveSection}
         onBack={handleBack}
         onTitleClick={() => navigate('/dashboard')}
         onUndo={handleUndo}
@@ -720,87 +728,6 @@ export default function EditorPage() {
         onDownload={handleQuickDownload}
         isQuickDownloading={isQuickDownloading}
       />
-
-
-      {/* Progress Bar with Save Status — compact on mobile, full on desktop */}
-      <div className="shrink-0 px-4 py-1 sm:py-3 border-b border-border">
-        <div className="flex flex-row items-center justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <ProgressBar resume={currentResume} compact />
-          </div>
-          {user && currentResumeId && (
-            <div className="flex items-center gap-2 shrink-0">
-              {/* Cloud status icon */}
-              <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                {!isOnline ? (
-                  <>
-                    <CloudOff className="w-3 h-3 text-warning" />
-                    <span className="text-warning">Offline</span>
-                  </>
-                ) : isSaving ? (
-                  <Cloud className="w-3 h-3 animate-pulse" />
-                ) : showSavedCheck ? (
-                  <Check className="w-3 h-3 text-success" style={{ animation: 'save-check-pop 0.3s ease-out' }} />
-                ) : hasUnsavedChanges ? (
-                  <>
-                    <span className="w-1.5 h-1.5 rounded-full bg-warning inline-block animate-pulse" />
-                    <span className="text-warning text-[11px]">Unsaved</span>
-                  </>
-                ) : (
-                  <Cloud className="w-3 h-3 opacity-40" />
-                )}
-              </div>
-              {/* Manual Save button — appears when there are unsaved changes or pending offline items */}
-              {(hasUnsavedChanges || pendingCountForResume > 0) && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => { haptics.light(); saveToCloud(); }}
-                  disabled={isSaving || !isOnline}
-                  className="h-8 min-h-[36px] px-3 text-[11px] gap-1.5 rounded-lg border-warning/40 text-warning hover:bg-warning/10 hover:border-warning/60"
-                >
-                  {isSaving ? (
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                  ) : (
-                    <Save className="w-3 h-3" />
-                  )}
-                  Save
-                </Button>
-              )}
-            </div>
-          )}
-          {user && !currentResumeId && (
-            <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-              <CloudOff className="w-3 h-3" />
-            </div>
-          )}
-        </div>
-        {/* Expandable completeness details — hidden on mobile to save vertical space */}
-        <div className="hidden sm:block">
-          <details className="mt-1 group">
-            <summary
-              className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted transition-colors touch-manipulation active:scale-95 min-h-[36px] cursor-pointer list-none [&::-webkit-details-marker]:hidden"
-              aria-label="View completeness breakdown"
-            >
-              <BarChart3 className="w-3.5 h-3.5 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">
-                {steps.filter(s => s.id !== 'more' && sectionStatus[s.id]).length}/{steps.filter(s => s.id !== 'more').length} sections
-              </span>
-              <ChevronDown className="w-3 h-3 text-muted-foreground transition-transform group-open:rotate-180" />
-            </summary>
-            {localHealthScore && (
-              <div className="mt-2 border-t border-border pt-2">
-                <ATSScoreBreakdown
-                  healthScore={localHealthScore}
-                  compact
-                  defaultOpen
-                  onImprove={handleImproveSection}
-                />
-              </div>
-            )}
-          </details>
-        </div>
-      </div>
 
       {/* Tailored Resume Indicator Banner */}
       {resumeFromDb?.parent_resume_id && (
