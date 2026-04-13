@@ -250,13 +250,14 @@ serve(async (req: Request) => {
     }
 
     const creditCheck = await checkUserCreditBalance(userId);
+    const isByok = creditCheck.remaining === 9999;
     if (!creditCheck.hasCredits) {
       return new Response(
         JSON.stringify({
-          error: "quota_exceeded",
+          error: "payment_required",
           message: "Daily AI credit limit reached. Upgrade your plan or try again tomorrow.",
         }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -269,7 +270,7 @@ serve(async (req: Request) => {
       1500,
     );
 
-    await deductCredits(userId, 1, false, serviceClient);
+    await deductCredits(userId, 1, isByok, serviceClient);
 
     return new Response(
       JSON.stringify({
