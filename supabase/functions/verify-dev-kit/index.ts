@@ -20,13 +20,15 @@ async function signSessionToken(email: string, secretKey: string): Promise<strin
 }
 
 /**
- * Timing-safe password comparison using HMAC.
- * Avoids relying on crypto.subtle.timingSafeEqual which is not available
- * in all Supabase Deno runtimes. Both passwords are used as HMAC keys over
- * the same fixed message; the resulting MACs are compared as hex strings.
- * An attacker cannot recover either password from the MAC output.
+ * Password comparison via HMAC-SHA-256.
+ * crypto.subtle.timingSafeEqual is not available in all Supabase Deno runtimes;
+ * this avoids that dependency. Both passwords are used as HMAC keys over a fixed
+ * message and the resulting MACs are compared as hex strings.
+ * Note: the final string comparison is not constant-time in a strict cryptographic
+ * sense, but combined with admin-email allowlisting and rate limiting (10/hr),
+ * timing attacks on this endpoint are not a practical threat.
  */
-async function timingSafePasswordEqual(a: string, b: string): Promise<boolean> {
+async function hmacPasswordEqual(a: string, b: string): Promise<boolean> {
   const fixedMessage = new TextEncoder().encode('wiseresume-devkit-auth');
   const [macA, macB] = await Promise.all([a, b].map(async (pw) => {
     const key = await crypto.subtle.importKey(
@@ -94,7 +96,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const isValid = await timingSafePasswordEqual(password.trim(), SECRET_PASSWORD);
+    const isValid = await hmacPasswordEqual(password.trim(), SECRET_PASSWORD);
 
     if (!isValid) {
       return new Response(
