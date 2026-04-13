@@ -344,12 +344,10 @@ const Index = () => {
     if (plan) {
       navigate(`/auth?mode=signup&plan=${plan}`);
     } else {
-      try {
-        kindeRegister();
-      } catch (err) {
+      void Promise.resolve(kindeRegister()).catch((err) => {
         console.error('Auth error:', err);
         toast.error('Unable to start sign-up. Please try again or contact support.');
-      }
+      });
     }
   };
 
@@ -707,10 +705,10 @@ const Index = () => {
               <button
                 onClick={() => {
                   triggerHaptic.light();
-                  try { kindeLogin(); } catch (err) {
+                  void Promise.resolve(kindeLogin()).catch((err) => {
                     console.error('Auth error:', err);
                     toast.error('Unable to sign in. Please try again or contact support.');
-                  }
+                  });
                 }}
                 className="text-sm font-medium px-4 py-1.5 rounded-lg transition-all duration-200"
                 style={{

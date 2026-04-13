@@ -371,8 +371,10 @@ function ShortLinkRow({
 
   const handleDelete = () => {
     haptics.light();
-    deleteLink({ id: link.id, userId });
-    onDelete(link.id);
+    deleteLink(
+      { id: link.id, userId },
+      { onSuccess: () => onDelete(link.id) }
+    );
   };
 
   return (

@@ -72,16 +72,18 @@ export default function AuthPage() {
       try { sessionStorage.setItem('wr-intent-plan', plan); } catch { }
     }
 
-    try {
-      if (mode === 'login') {
-        kindeLogin();
-      } else {
-        kindeRegister();
+    void (async () => {
+      try {
+        if (mode === 'login') {
+          await kindeLogin();
+        } else {
+          await kindeRegister();
+        }
+      } catch (err) {
+        console.error('[AuthPage] Kinde auth error:', err);
+        toast.error('Authentication is not available right now. Please try again later.');
       }
-    } catch (err) {
-      console.error('[AuthPage] Kinde auth error:', err);
-      toast.error('Authentication is not available right now. Please try again later.');
-    }
+    })();
   }, [authLoading, isAuthenticated, mode, plan, kindeLogin, kindeRegister, fromConfig]);
 
   if (fromConfig) {
@@ -99,12 +101,10 @@ export default function AuthPage() {
               className="w-full"
               onClick={() => {
                 triggered.current = false;
-                try {
-                  kindeLogin();
-                } catch (err) {
+                void Promise.resolve(kindeLogin()).catch((err) => {
                   console.error('[AuthPage] Kinde login error:', err);
                   toast.error('Unable to sign in. Please try again or contact support.');
-                }
+                });
               }}
             >
               {fromConfig.cta}

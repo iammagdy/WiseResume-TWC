@@ -67,29 +67,18 @@ import { getSafeMatchMedia, isBrowser } from "@/lib/envUtils";
 // Eagerly load Index for LCP
 import Index from "./pages/Index";
 
-// Kinde configuration — VITE_KINDE_CLIENT_ID and VITE_KINDE_DOMAIN must be set
-// as Replit secrets. The app throws in production if they are missing.
-const KINDE_CLIENT_ID = import.meta.env.VITE_KINDE_CLIENT_ID as string | undefined;
-const KINDE_DOMAIN = import.meta.env.VITE_KINDE_DOMAIN as string | undefined;
+// Kinde SPA configuration.
+// These values identify the public front-end application registered in Kinde
+// (Application → "Wise Resume", type: Front-end and mobile). They are NOT
+// secrets — Kinde SPA client IDs are designed to be public. Override them
+// via VITE_KINDE_CLIENT_ID and VITE_KINDE_DOMAIN Replit secrets if needed.
+const KINDE_CLIENT_ID =
+  (import.meta.env.VITE_KINDE_CLIENT_ID as string | undefined) ??
+  '629174acb2874e6bbf53cd4a95497425';
 
-if (!KINDE_CLIENT_ID || !KINDE_DOMAIN) {
-  const missing = [
-    !KINDE_CLIENT_ID && 'VITE_KINDE_CLIENT_ID',
-    !KINDE_DOMAIN && 'VITE_KINDE_DOMAIN',
-  ].filter(Boolean).join(', ');
-
-  if (import.meta.env.PROD) {
-    throw new Error(
-      `[Kinde] Missing required environment variable(s): ${missing}. ` +
-      'Add them as Replit secrets before deploying.'
-    );
-  } else {
-    console.warn(
-      `[Kinde] Missing environment variable(s): ${missing}. ` +
-      'Auth will not work until these are set as Replit secrets.'
-    );
-  }
-}
+const KINDE_DOMAIN =
+  (import.meta.env.VITE_KINDE_DOMAIN as string | undefined) ??
+  'https://thewisecloud.kinde.com';
 
 // Lazy load other pages with retry
 const UploadPage = lazyWithRetry(() => import("./pages/UploadPage"));
