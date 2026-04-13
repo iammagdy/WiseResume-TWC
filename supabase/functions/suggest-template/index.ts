@@ -77,7 +77,7 @@ For colors: use professional, muted tones for corporate roles; bolder accents fo
 For fonts: serif pairs for traditional industries; sans-serif for modern/tech; display fonts for creative.`;
 
     const aiResponse = await callAI({
-      model: 'google/gemini-3-flash-preview',
+      model: 'google/gemma-4-26b-a4b-it:free',
       messages: [
         { role: 'system', content: systemPrompt },
         {

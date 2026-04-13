@@ -146,7 +146,7 @@ ${jobDescription}
 6. Include a professional header with the candidate's actual contact details`;
 
     const aiResponse = await callAIWithRetry({
-      model: 'google/gemini-3-flash-preview',
+      model: 'google/gemma-4-26b-a4b-it:free',
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },

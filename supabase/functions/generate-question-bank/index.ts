@@ -64,7 +64,7 @@ ${jobDescription ? `Job Description: ${jobDescription.slice(0, 3000)}` : ''}
 ${resumeSummary ? `Candidate Summary: ${resumeSummary.slice(0, 1000)}` : ''}`;
 
     const aiResponse = await callAI({
-      model: 'google/gemini-3-flash-preview',
+      model: 'google/gemma-4-26b-a4b-it:free',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },

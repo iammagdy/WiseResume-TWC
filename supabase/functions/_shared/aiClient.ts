@@ -70,7 +70,6 @@ export interface AIError {
 
 // Model mapping for direct Gemini calls
 const MODEL_MAPPING: Record<string, string> = {
-  'google/gemini-3-flash-preview': 'gemini-3-flash-preview',
   'google/gemini-2.5-flash': 'gemini-2.5-flash',
   'google/gemini-2.5-pro': 'gemini-2.5-pro',
   'google/gemini-2.5-flash-lite': 'gemini-2.5-flash-lite',
@@ -436,7 +435,160 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
 
 const RETRY_DELAYS = [1000, 2000, 4000];
 const RETRY_TIMEOUTS = [30_000, 45_000, 55_000];
+/** Last-resort fallback slug used only if dynamic model discovery returns empty. */
 const FALLBACK_MODEL = 'google/gemma-4-26b-a4b-it:free';
+
+// ============= Dynamic Model Discovery (cached per cold-start) =============
+
+/**
+ * Cache for OpenRouter free models, populated once per edge function cold-start.
+ * Keyed by OPENROUTER_API_KEY to invalidate if the key changes (unlikely in practice).
+ */
+let _openrouterModelCache: string[] | null = null;
+let _openrouterCacheKey: string | null = null;
+
+/**
+ * Fetches and ranks free models from OpenRouter.
+ * Returns a list of model slugs ordered by context window (desc), then parameter count (desc).
+ * Results are cached for the lifetime of the edge function cold-start.
+ */
+async function getOpenRouterFreeModels(apiKey: string): Promise<string[]> {
+  if (_openrouterModelCache !== null && _openrouterCacheKey === apiKey) {
+    return _openrouterModelCache;
+  }
+
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/models', {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.warn('[AI] OpenRouter model list fetch failed:', response.status);
+      _openrouterModelCache = [FALLBACK_MODEL];
+      _openrouterCacheKey = apiKey;
+      return _openrouterModelCache;
+    }
+
+    const json = await response.json() as { data?: Array<{ id: string; context_length?: number; pricing?: { prompt?: string; completion?: string } }> };
+    const models = (json.data || [])
+      .filter(m => m.pricing?.prompt === '0' && m.pricing?.completion === '0')
+      .map(m => ({
+        id: m.id,
+        contextLength: m.context_length || 0,
+        paramCount: extractParamCount(m.id),
+      }))
+      .sort((a, b) => {
+        if (b.contextLength !== a.contextLength) return b.contextLength - a.contextLength;
+        return b.paramCount - a.paramCount;
+      })
+      .map(m => m.id);
+
+    if (models.length === 0) {
+      console.warn('[AI] OpenRouter returned no free models; using fallback constant');
+      models.push(FALLBACK_MODEL);
+    }
+
+    console.log(`[AI] OpenRouter free models discovered (${models.length}):`, models.slice(0, 5).join(', '));
+    _openrouterModelCache = models;
+    _openrouterCacheKey = apiKey;
+    return models;
+  } catch (err) {
+    console.warn('[AI] Failed to fetch OpenRouter model list:', err instanceof Error ? err.message : err);
+    _openrouterModelCache = [FALLBACK_MODEL];
+    _openrouterCacheKey = apiKey;
+    return _openrouterModelCache;
+  }
+}
+
+/**
+ * Cache for Groq models, populated once per cold-start.
+ */
+let _groqModelCache: string[] | null = null;
+let _groqCacheKey: string | null = null;
+
+/**
+ * Known-good Groq chat-completion models ranked by capability (largest/best first).
+ * Only well-known LLMs that support chat completions are listed here.
+ * This list acts as both a filter and a ranking: only IDs in this list are
+ * included in the discovered model set, which prevents incompatible or
+ * non-chat-capable model IDs from being tried.
+ */
+const GROQ_KNOWN_CHAT_MODELS: Array<{ id: string; paramCount: number; contextWindow: number }> = [
+  { id: 'llama-3.3-70b-versatile', paramCount: 70, contextWindow: 128000 },
+  { id: 'llama3-70b-8192', paramCount: 70, contextWindow: 8192 },
+  { id: 'llama-3.1-70b-versatile', paramCount: 70, contextWindow: 128000 },
+  { id: 'mixtral-8x7b-32768', paramCount: 56, contextWindow: 32768 },
+  { id: 'gemma2-9b-it', paramCount: 9, contextWindow: 8192 },
+  { id: 'llama3-8b-8192', paramCount: 8, contextWindow: 8192 },
+  { id: 'llama-3.1-8b-instant', paramCount: 8, contextWindow: 128000 },
+  { id: 'gemma-7b-it', paramCount: 7, contextWindow: 8192 },
+];
+
+/**
+ * Fetches available chat models from Groq, filtered to known-good chat-capable LLMs.
+ * Ranks by context window descending, then parameter count descending.
+ * Results are cached for the lifetime of the edge function cold-start.
+ */
+async function getGroqModels(apiKey: string): Promise<string[]> {
+  if (_groqModelCache !== null && _groqCacheKey === apiKey) {
+    return _groqModelCache;
+  }
+
+  try {
+    const response = await fetch('https://api.groq.com/openai/v1/models', {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.warn('[AI] Groq model list fetch failed:', response.status);
+      _groqModelCache = ['llama-3.3-70b-versatile'];
+      _groqCacheKey = apiKey;
+      return _groqModelCache;
+    }
+
+    const json = await response.json() as { data?: Array<{ id: string }> };
+    const available = new Set((json.data || []).map(m => m.id));
+
+    // Only include known chat-capable models that are currently available
+    const models = GROQ_KNOWN_CHAT_MODELS
+      .filter(m => available.has(m.id))
+      .sort((a, b) => {
+        if (b.contextWindow !== a.contextWindow) return b.contextWindow - a.contextWindow;
+        return b.paramCount - a.paramCount;
+      })
+      .map(m => m.id);
+
+    if (models.length === 0) {
+      console.warn('[AI] Groq returned no known-good chat models; using default');
+      models.push('llama-3.3-70b-versatile');
+    }
+
+    console.log(`[AI] Groq chat models discovered (${models.length}):`, models.slice(0, 5).join(', '));
+    _groqModelCache = models;
+    _groqCacheKey = apiKey;
+    return models;
+  } catch (err) {
+    console.warn('[AI] Failed to fetch Groq model list:', err instanceof Error ? err.message : err);
+    _groqModelCache = ['llama-3.3-70b-versatile'];
+    _groqCacheKey = apiKey;
+    return _groqModelCache;
+  }
+}
+
+/**
+ * Extracts a rough parameter count from a model slug for ranking purposes.
+ * e.g. "google/gemma-4-26b-a4b-it:free" → 26, "meta/llama-3.3-70b..." → 70.
+ */
+function extractParamCount(slug: string): number {
+  const match = slug.match(/(\d+)b/i);
+  return match ? parseInt(match[1], 10) : 0;
+}
 
 function isRetryableError(error: unknown): boolean {
   if (error instanceof DOMException && error.name === 'AbortError') return true;
@@ -856,7 +1008,7 @@ async function callAnthropicDirect(
 
 /**
  * Calls Groq API (OpenAI-compatible endpoint) using the managed GROQ_API_KEY.
- * Model: llama-3.3-70b-versatile
+ * @param model Groq model slug to use (defaults to llama-3.3-70b-versatile)
  */
 async function callGroqDirect(
   apiKey: string,
@@ -865,7 +1017,8 @@ async function callGroqDirect(
   maxTokens?: number,
   tools?: AITool[],
   toolChoice?: { type: 'function'; function: { name: string } } | 'auto',
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  model = 'llama-3.3-70b-versatile'
 ): Promise<AIResponse> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -873,7 +1026,7 @@ async function callGroqDirect(
   };
 
   const body: Record<string, unknown> = {
-    model: 'llama-3.3-70b-versatile',
+    model,
     messages,
     temperature,
   };
@@ -917,8 +1070,39 @@ async function callGroqDirect(
 }
 
 /**
- * Routes to WiseResume AI managed backend: OpenRouter (Gemma 4) or Groq (Llama 3.3).
- * Auto mode: tries OpenRouter first, falls back to Groq.
+ * Returns true for errors that justify skipping to the next model in the chain:
+ * - Rate limits (429)
+ * - 5xx server errors (model unavailable, overloaded, etc.)
+ * - 404 model not found (model slug unavailable on this provider)
+ * - 400 bad request that is not an auth issue (some providers return 400 for
+ *   unsupported model IDs or missing capabilities)
+ *
+ * Hard errors that abort the chain immediately:
+ * - 401 / 403 / invalid_key (auth failure — retrying other models won't help)
+ * - 402 / payment_required (credits exhausted — retrying won't help)
+ */
+function isSkippableError(err: unknown): boolean {
+  if (isAIError(err)) {
+    if (err.type === 'invalid_key' || err.type === 'payment_required') return false;
+    // Rate limits and server errors are always skippable
+    if (err.type === 'rate_limit') return true;
+    if (err.status === 429 || err.status === 503 || err.status === 502 || err.status >= 500) return true;
+    // Model-not-found / model-incompatible errors
+    if (err.status === 404) return true;
+    // 400 errors that indicate a model capability mismatch (not auth-related)
+    if (err.status === 400 && err.type !== 'invalid_key') return true;
+  }
+  return false;
+}
+
+/**
+ * Routes to WiseResume AI managed backend using dynamic ranked model lists.
+ * Priority order:
+ *   1. OpenRouter free models (ranked by context window, largest first)
+ *   2. Groq models (ranked by capability, largest first)
+ * Each model is tried in order; skippable errors (rate limit, 5xx) advance to
+ * the next model. Hard errors (auth, payment) abort immediately.
+ * Results are logged per-attempt for observability.
  */
 async function callWiseresumeAI(
   subProvider: 'openrouter' | 'groq' | 'auto',
@@ -932,23 +1116,17 @@ async function callWiseresumeAI(
   const openrouterKey = Deno.env.get('OPENROUTER_API_KEY');
   const groqKey = Deno.env.get('GROQ_API_KEY');
 
-  const tryOpenRouter = async (): Promise<AIResponse> => {
-    if (!openrouterKey) throw new Error('OPENROUTER_API_KEY not set');
-    console.log('[AI] WiseResume AI → OpenRouter (google/gemma-4-26b-a4b-it:free)');
-    const extraHeaders: Record<string, string> = {
+  /**
+   * Try a single OpenRouter model by slug.
+   */
+  const tryOpenRouterModel = async (model: string): Promise<AIResponse> => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${openrouterKey!}`,
       'HTTP-Referer': 'https://resume.thewise.cloud',
       'X-Title': 'WiseResume',
     };
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${openrouterKey}`,
-      ...extraHeaders,
-    };
-    const body: Record<string, unknown> = {
-      model: 'google/gemma-4-26b-a4b-it:free',
-      messages,
-      temperature,
-    };
+    const body: Record<string, unknown> = { model, messages, temperature };
     if (maxTokens) body.max_tokens = maxTokens;
     if (tools && tools.length > 0) {
       body.tools = tools;
@@ -962,64 +1140,95 @@ async function callWiseresumeAI(
     });
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('WiseResume OpenRouter error:', response.status, errorText);
       let errorMessage = 'OpenRouter request failed';
       try { const p = JSON.parse(errorText); errorMessage = p.error?.message || p.error || errorMessage; } catch {}
-      if (response.status === 401 || response.status === 403) throw createAIError('invalid_key', 'WiseResume AI OpenRouter key is invalid.', 422);
-      if (response.status === 429) throw createAIError('rate_limit', 'WiseResume AI rate limited. Please try again shortly.', 429);
+      if (response.status === 401 || response.status === 403) throw createAIError('invalid_key', 'WiseResume AI OpenRouter key is invalid.', response.status);
+      if (response.status === 429) throw createAIError('rate_limit', `OpenRouter model ${model} rate limited.`, 429);
+      if (response.status === 402) throw createAIError('payment_required', 'OpenRouter credits exhausted.', 402);
       throw createAIError('unknown', errorMessage, response.status);
     }
     const data = await response.json();
-    return { ...parseOpenAIResponse(data), providerUsed: 'wiseresume' };
+    return { ...parseOpenAIResponse(data), providerUsed: `wiseresume/openrouter:${model}` };
   };
 
-  const tryGroq = async (): Promise<AIResponse> => {
-    if (!groqKey) throw new Error('GROQ_API_KEY not set');
-    console.log('[AI] WiseResume AI → Groq (llama-3.3-70b-versatile)');
-    const res = await callGroqDirect(groqKey, messages, temperature, maxTokens, tools, toolChoice, signal);
-    return { ...res, providerUsed: 'wiseresume' };
+  /**
+   * Try a single Groq model by slug.
+   */
+  const tryGroqModel = async (model: string): Promise<AIResponse> => {
+    const res = await callGroqDirect(groqKey!, messages, temperature, maxTokens, tools, toolChoice, signal, model);
+    return { ...res, providerUsed: `wiseresume/groq:${model}` };
   };
+
+  // Build the two chains based on subProvider setting
+  const openrouterModels = (subProvider === 'openrouter' || subProvider === 'auto') && openrouterKey
+    ? await getOpenRouterFreeModels(openrouterKey)
+    : [];
+  const groqModels = (subProvider === 'groq' || subProvider === 'auto') && groqKey
+    ? await getGroqModels(groqKey)
+    : [];
+
+  // Priority order (per spec): OpenRouter ranked free models → Groq ranked models.
+  // This applies in all auto-mode scenarios. Explicit sub-provider selections only
+  // use the requested chain.
+  type AttemptEntry = { provider: 'openrouter' | 'groq'; model: string };
+  let attempts: AttemptEntry[];
 
   if (subProvider === 'openrouter') {
-    return await tryOpenRouter();
-  }
-  if (subProvider === 'groq') {
-    return await tryGroq();
+    attempts = openrouterModels.map(m => ({ provider: 'openrouter' as const, model: m }));
+  } else if (subProvider === 'groq') {
+    attempts = groqModels.map(m => ({ provider: 'groq' as const, model: m }));
+  } else {
+    // Auto mode: always OpenRouter first, then Groq as fallback (per spec)
+    attempts = [
+      ...openrouterModels.map(m => ({ provider: 'openrouter' as const, model: m })),
+      ...groqModels.map(m => ({ provider: 'groq' as const, model: m })),
+    ];
   }
 
-  // Auto mode: prefer Groq when tool calling is requested (Llama 3.3 has better
-  // function-calling reliability than Gemma 4 free). For plain text, keep
-  // OpenRouter first (higher throughput, no Groq rate-limit concerns).
-  const needsTools = !!(tools && tools.length > 0);
+  if (attempts.length === 0) {
+    throw createAIError('invalid_key', 'WiseResume AI is not configured. Please contact support.', 500);
+  }
 
-  if (needsTools && groqKey) {
+  // In auto mode we span two providers. When a hard error (auth/payment) occurs
+  // on one provider it still makes sense to try the other provider — the second
+  // provider might be healthy even when the first has a key/credit issue.
+  // We only treat a hard error as truly terminal if it is the *same* provider
+  // that the next attempt would also use (i.e., we cannot escape it).
+  const isAutoMode = subProvider === 'auto';
+
+  let lastError: unknown;
+  const totalAttempts = attempts.length;
+
+  for (let i = 0; i < totalAttempts; i++) {
+    const { provider, model } = attempts[i];
+    console.log(`[AI] WiseResume attempt ${i + 1}/${totalAttempts}: ${provider} → ${model}`);
     try {
-      return await tryGroq();
+      const result = provider === 'openrouter'
+        ? await tryOpenRouterModel(model)
+        : await tryGroqModel(model);
+      console.log(`[AI] WiseResume success: ${provider} → ${model}`);
+      return result;
     } catch (err) {
-      console.warn('[AI] WiseResume Groq (tool-call) failed, trying OpenRouter:', err instanceof Error ? err.message : err);
-      if (openrouterKey) {
-        return await tryOpenRouter();
+      lastError = err;
+      const reason = err instanceof Error ? err.message : String(err);
+
+      // Determine whether a next attempt exists on a *different* provider
+      const nextProvider = i + 1 < totalAttempts ? attempts[i + 1].provider : null;
+      const canCrossProvider = isAutoMode && nextProvider !== null && nextProvider !== provider;
+
+      if (isSkippableError(err) || canCrossProvider) {
+        console.warn(`[AI] WiseResume attempt ${i + 1}/${totalAttempts} (${provider}/${model}) skippable: ${reason}. Trying next.`);
+        continue;
       }
+
+      // Hard error within the same provider chain — abort
+      console.error(`[AI] WiseResume attempt ${i + 1}/${totalAttempts} (${provider}/${model}) hard error: ${reason}`);
       throw err;
     }
   }
 
-  if (openrouterKey) {
-    try {
-      return await tryOpenRouter();
-    } catch (err) {
-      console.warn('[AI] WiseResume OpenRouter failed, trying Groq:', err instanceof Error ? err.message : err);
-      if (groqKey) {
-        return await tryGroq();
-      }
-      throw err;
-    }
-  }
-  if (groqKey) {
-    return await tryGroq();
-  }
-
-  throw createAIError('invalid_key', 'WiseResume AI is not configured. Please contact support.', 500);
+  console.error('[AI] WiseResume: all models exhausted. Last error:', lastError instanceof Error ? lastError.message : lastError);
+  throw lastError ?? createAIError('unknown', 'All WiseResume AI models failed. Please try again later.', 503);
 }
 
 /**

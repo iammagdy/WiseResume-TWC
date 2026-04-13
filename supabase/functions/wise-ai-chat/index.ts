@@ -333,7 +333,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const aiResponse = await callAI({
-      model: "google/gemini-3-flash-preview",
+      model: "google/gemma-4-26b-a4b-it:free",
       messages: finalMessages as Array<{ role: "system" | "user" | "assistant"; content: string }>,
       temperature: 0.7,
       maxTokens: 1500,

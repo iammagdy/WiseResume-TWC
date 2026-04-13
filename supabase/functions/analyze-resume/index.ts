@@ -163,7 +163,7 @@ Provide analysis in this exact JSON format:
 }`;
 
     const aiResponse = await callAIWithRetry({
-      model: 'google/gemini-3-flash-preview',
+      model: 'google/gemma-4-26b-a4b-it:free',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -178,7 +178,7 @@ Provide analysis in this exact JSON format:
 
     // Parse the JSON from the AI response — never return fake scores
     const analysisResult = await parseAIJSONWithRetry(aiResponse.content, {
-      model: 'google/gemini-3-flash-preview',
+      model: 'google/gemma-4-26b-a4b-it:free',
       userId,
     });
 

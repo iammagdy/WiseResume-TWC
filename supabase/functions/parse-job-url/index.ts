@@ -278,7 +278,7 @@ If you can't find certain fields, make reasonable guesses based on context. The 
       let aiProviderUsed: string | undefined;
       try {
         const aiResponse = await callAI({
-          model: 'google/gemini-3-flash-preview',
+          model: 'google/gemma-4-26b-a4b-it:free',
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt },

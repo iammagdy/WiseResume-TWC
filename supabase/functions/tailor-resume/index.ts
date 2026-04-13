@@ -385,7 +385,7 @@ Analyze deeply, then return this exact JSON structure:
     console.log("Calling SUPERCHARGED AI engine for resume tailoring...");
 
     const aiResponse = await callAIWithRetry({
-      model: 'google/gemini-3-flash-preview',
+      model: 'google/gemma-4-26b-a4b-it:free',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -405,7 +405,7 @@ Analyze deeply, then return this exact JSON structure:
 
     // Parse the JSON from the AI response — with automatic corrective retry on malformed output
     const parsedResult = await parseAIJSONWithRetry<Record<string, unknown>>(content, {
-      model: 'google/gemini-3-flash-preview',
+      model: 'google/gemma-4-26b-a4b-it:free',
       userId,
     });
 
