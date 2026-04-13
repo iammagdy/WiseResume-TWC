@@ -359,7 +359,7 @@ const Index = () => {
         /* ── DARK THEME (default) ───────────────────────────────── */
         .lp-root {
           --lp-brand: #9E1B22;
-          --lp-bg: #0a0a0f;
+          --lp-bg: transparent;
           --lp-card: #111118;
           --lp-card-glass: rgba(255,255,255,0.04);
           --lp-border: rgba(255,255,255,0.07);

@@ -15,6 +15,7 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
+import { AuroraBackground } from "@/components/landing/AuroraBackground";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { RedirectJobRoute } from "@/components/layout/RedirectJobRoute";
@@ -257,6 +258,7 @@ function AppRoutes() {
 
   return (
     <>
+        <AuroraLayer />
         {appSettings.announcement_enabled && appSettings.announcement_banner && (
           <AnnouncementBanner message={appSettings.announcement_banner} />
         )}
@@ -350,6 +352,36 @@ function AppRoutes() {
       <PrefetchOnIdle />
       </>);
 
+}
+
+const AURORA_PUBLIC_PATHS = ['/', '/pricing', '/whats-new', '/sign-in', '/privacy-policy', '/terms-of-service'];
+
+function AuroraLayer() {
+  const location = useLocation();
+  const path = location.pathname;
+  const isPublicPage =
+    AURORA_PUBLIC_PATHS.includes(path) ||
+    path.startsWith('/auth') ||
+    path.startsWith('/p/');
+
+  useEffect(() => {
+    if (!isPublicPage) return;
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtmlBg = html.style.backgroundColor;
+    const prevBodyBg = body.style.backgroundColor;
+    html.style.backgroundColor = '#050000';
+    body.style.backgroundColor = 'transparent';
+    html.classList.add('aurora-active');
+    return () => {
+      html.style.backgroundColor = prevHtmlBg;
+      body.style.backgroundColor = prevBodyBg;
+      html.classList.remove('aurora-active');
+    };
+  }, [isPublicPage]);
+
+  if (!isPublicPage) return null;
+  return <AuroraBackground />;
 }
 
 function PrefetchOnIdle() {

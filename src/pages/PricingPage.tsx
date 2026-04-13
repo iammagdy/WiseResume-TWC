@@ -94,7 +94,7 @@ export default function PricingPage() {
   const isCurrentPlan = (p: string) => isAuthenticated && plan === p;
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground aurora-page-root">
       {/* Simple nav header */}
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="flex items-center justify-between px-4 sm:px-6 h-14 max-w-6xl mx-auto">
