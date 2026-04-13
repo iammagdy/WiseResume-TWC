@@ -253,6 +253,12 @@ function FeatureNumberedNav({ sectionIds, labels }: { sectionIds: string[]; labe
   );
 }
 
+function resolveIsDark(theme: 'light' | 'dark' | 'system'): boolean {
+  if (theme === 'dark') return true;
+  if (theme === 'light') return false;
+  return getSafeMatchMedia('(prefers-color-scheme: dark)').matches;
+}
+
 const Index = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
@@ -262,11 +268,12 @@ const Index = () => {
   const [scrolled, setScrolled] = useState(false);
   const storeTheme = useSettingsStore((s) => s.theme);
   const setThemeStore = useSettingsStore((s) => s.setTheme);
-  const [isDark, setIsDark] = useState(() => {
-    if (storeTheme === 'dark') return true;
-    if (storeTheme === 'light') return false;
-    return getSafeMatchMedia('(prefers-color-scheme: dark)').matches;
-  });
+  const [isDark, setIsDark] = useState(() => resolveIsDark(storeTheme));
+
+  useEffect(() => {
+    setIsDark(resolveIsDark(storeTheme));
+  }, [storeTheme]);
+
   const progressRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
