@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LazyMotion, domAnimation, m as motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle, AlertCircle, RefreshCw, LayoutTemplate, BookOpen, TrendingUp, Trophy, Users, Map, Sun, Moon } from 'lucide-react';
+import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle, AlertCircle, RefreshCw, LayoutTemplate, BookOpen, TrendingUp, Map, Sun, Moon } from 'lucide-react';
 import { DashboardSkeleton } from '@/components/layout/PageSkeletons';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { SortOption, CategoryFilter, ScoreFilter } from '@/components/dashboard/ResumeFilters';
@@ -34,7 +34,6 @@ import { DashboardStatusPopover } from '@/components/dashboard/DashboardStatusPo
 import { PlanChip } from '@/components/ui/PlanChip';
 import { usePlanUpgradeCelebration } from '@/hooks/usePlanUpgradeCelebration';
 import { useChangelogBadge } from '@/hooks/useChangelogBadge';
-import { getReferralTeaser } from '@/lib/referralData';
 
 // Lazy-loaded dialogs
 const CreateResumeDialog = lazy(() => import('@/components/dashboard/CreateResumeDialog').then(m => ({ default: m.CreateResumeDialog })));
@@ -668,11 +667,6 @@ function DashboardPageContent() {
             </div>
           )}
 
-          {/* What's Next Card */}
-          <WhatsNextCard />
-
-          {/* Feature discovery merged into WhatsNextCard */}
-
           {/* Personalized Stats Header */}
           <DashboardStats
             totalResumes={resumes?.length || 0}
@@ -683,95 +677,58 @@ function DashboardPageContent() {
             loginStreak={profile?.loginStreak}
           />
 
-          {/* Get inspired — Templates & Examples quick links */}
-          <div className="px-4 pt-2 pb-1">
-            <p className="text-xs font-medium text-muted-foreground mb-2 px-1">Get inspired</p>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => { haptics.light(); navigate('/templates'); }}
-                className="flex items-center gap-2.5 px-3 py-3 rounded-xl bg-card border border-border hover:border-primary/20 active:scale-95 transition-all touch-manipulation text-left"
-              >
-                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <LayoutTemplate className="w-4 h-4 text-primary" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium leading-tight">Templates</p>
-                  <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">Start from a design</p>
-                </div>
-              </button>
-              <button
-                onClick={() => { haptics.light(); navigate('/examples'); }}
-                className="flex items-center gap-2.5 px-3 py-3 rounded-xl bg-card border border-border hover:border-primary/20 active:scale-95 transition-all touch-manipulation text-left"
-              >
-                <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
-                  <BookOpen className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium leading-tight">Examples</p>
-                  <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">See real resumes</p>
-                </div>
-              </button>
-            </div>
-          </div>
+          {/* What's Next Card — shown after greeting for better context flow */}
+          <WhatsNextCard />
 
-          {/* Discover — surface hidden features */}
+          {/* Explore — single compact section replacing "Get inspired" + "Discover" */}
           <div className="px-4 pt-2 pb-1">
-            <p className="text-xs font-medium text-muted-foreground mb-2 px-1">Discover</p>
-            {/* Mobile: horizontal scroll  /  Tablet+: grid */}
-            <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-4 px-4 snap-x snap-mandatory scrollbar-hide md:overflow-visible md:mx-0 md:px-0 md:grid md:grid-cols-2 md:gap-3 lg:grid-cols-3">
+            <p className="text-xs font-medium text-muted-foreground mb-2 px-1">Explore</p>
+            <div className="grid grid-cols-2 gap-3">
               {[
+                {
+                  icon: LayoutTemplate,
+                  iconBg: 'bg-primary/10',
+                  iconColor: 'text-primary',
+                  label: 'Templates',
+                  desc: 'Start from a design',
+                  path: '/templates',
+                },
+                {
+                  icon: BookOpen,
+                  iconBg: 'bg-amber-500/10',
+                  iconColor: 'text-amber-600 dark:text-amber-400',
+                  label: 'Examples',
+                  desc: 'See real resumes',
+                  path: '/examples',
+                },
                 {
                   icon: TrendingUp,
                   iconBg: 'bg-blue-500/10',
                   iconColor: 'text-blue-600 dark:text-blue-400',
                   label: 'Analytics',
-                  desc: 'See how your portfolio performs',
+                  desc: 'How your portfolio performs',
                   path: '/analytics',
-                },
-                {
-                  icon: Trophy,
-                  iconBg: 'bg-amber-500/10',
-                  iconColor: 'text-amber-600 dark:text-amber-400',
-                  label: 'Achievements',
-                  desc: 'Track your career milestones',
-                  path: '/achievements',
-                },
-                {
-                  icon: Users,
-                  iconBg: 'bg-emerald-500/10',
-                  iconColor: 'text-emerald-600 dark:text-emerald-400',
-                  label: 'Referral',
-                  desc: getReferralTeaser(),
-                  path: '/referral',
                 },
                 {
                   icon: Map,
                   iconBg: 'bg-violet-500/10',
                   iconColor: 'text-violet-600 dark:text-violet-400',
                   label: 'Guides',
-                  desc: 'Tips & resume best practices',
+                  desc: 'Tips & best practices',
                   path: '/guides',
-                },
-                {
-                  icon: HelpCircle,
-                  iconBg: 'bg-muted',
-                  iconColor: 'text-muted-foreground',
-                  label: 'Help',
-                  desc: 'Questions? We\'re here.',
-                  path: '/help',
                 },
               ].map((item) => (
                 <button
                   key={item.path}
                   onClick={() => { haptics.light(); navigate(item.path); }}
-                  className="flex flex-col gap-2 p-3 rounded-xl bg-card border border-border hover:border-primary/20 active:scale-95 transition-all touch-manipulation text-left shrink-0 w-36 snap-start md:w-auto md:shrink"
+                  className="flex items-center gap-2.5 px-3 py-3 rounded-xl bg-card border border-border hover:border-primary/20 active:scale-95 transition-all touch-manipulation text-left"
                 >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${item.iconBg}`}>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${item.iconBg}`}>
                     <item.icon className={`w-4 h-4 ${item.iconColor}`} />
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-medium leading-tight">{item.label}</p>
-                    <p className="text-[11px] text-muted-foreground leading-tight mt-0.5 line-clamp-2">{item.desc}</p>
+                    <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">{item.desc}</p>
                   </div>
                 </button>
               ))}
