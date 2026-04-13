@@ -1,4 +1,3 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { checkUserRateLimit } from '../_shared/userRateLimiter.ts';
 
 const corsHeaders = {
@@ -26,11 +25,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { password } = await req.json();
+    const { email, password } = await req.json();
 
-    if (!password) {
+    if (!email || !password) {
       return new Response(
-        JSON.stringify({ error: "Password is required" }),
+        JSON.stringify({ error: "Email and password are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -58,37 +57,22 @@ Deno.serve(async (req) => {
       );
     }
 
-    const authHeader = req.headers.get("Authorization");
-    let callerEmail: string | null = null;
-    let callerId: string | null = null;
+    const callerEmail = email.trim().toLowerCase();
 
-    if (authHeader?.startsWith("Bearer ")) {
-      const token = authHeader.replace("Bearer ", "");
-      const supabase = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-        { global: { headers: { Authorization: `Bearer ${token}` } } }
-      );
-      const { data: { user } } = await supabase.auth.getUser();
-      callerEmail = user?.email ?? null;
-      callerId = user?.id ?? null;
-    }
-
-    if (!callerEmail || !allowed.includes(callerEmail.toLowerCase())) {
+    if (!allowed.includes(callerEmail)) {
       return new Response(
         JSON.stringify({ success: false, authorized: false, reason: "email_not_allowed" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    if (callerId) {
-      const bruteForceCheck = await checkUserRateLimit(callerId, 'verify-dev-kit-password', 10, 3600);
-      if (!bruteForceCheck.allowed) {
-        return new Response(
-          JSON.stringify({ error: "Too many password attempts. Please try again later." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+    const rateLimitKey = callerEmail.replace(/[^a-z0-9]/g, '_');
+    const bruteForceCheck = await checkUserRateLimit(rateLimitKey, 'verify-dev-kit-password', 10, 3600);
+    if (!bruteForceCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: "Too many password attempts. Please try again later." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const encoder = new TextEncoder();

@@ -400,7 +400,6 @@ export function ProfileImportSheet({
       experience: prev.experience?.map((exp, i) => i === idx ? { ...exp, [field]: value } : exp),
     }));
   };
-
   const removeEducationEntry = (idx: number) => {
     setAccumulatedData((prev) => ({
       ...prev,

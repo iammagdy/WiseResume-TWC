@@ -54,9 +54,10 @@ function DevToolsInner() {
   const { isUnlocked, unlock, lock } = useDevKitSession();
   const unlocked = isUnlocked;
 
+  const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [showPw, setShowPw] = useState(false);
-  const [pwError, setPwError] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [userCount, setUserCount] = useState<number | null>(null);
@@ -82,17 +83,18 @@ function DevToolsInner() {
 
   const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pw.trim()) return;
+    if (!email.trim() || !pw.trim()) return;
 
     setIsVerifying(true);
-    setPwError(false);
+    setLoginError(null);
 
+    const submittedEmail = email.trim();
     const submittedPw = pw;
     setPw('');
 
     try {
       const { data, error } = await edgeFunctions.functions.invoke('verify-dev-kit', {
-        body: { password: submittedPw },
+        body: { email: submittedEmail, password: submittedPw },
       });
 
       if (error) {
@@ -109,8 +111,10 @@ function DevToolsInner() {
 
       if (data?.success && data?.token) {
         unlock(data.token as string);
+      } else if (data?.authorized === false) {
+        setLoginError('This email is not authorised for admin access.');
       } else {
-        setPwError(true);
+        setLoginError('Incorrect email or password — try again.');
       }
     } catch {
       toast.error('System error during verification');
@@ -121,8 +125,9 @@ function DevToolsInner() {
 
   const handleLock = () => {
     lock();
+    setEmail('');
     setPw('');
-    setPwError(false);
+    setLoginError(null);
     setActiveTab('overview');
     setUserCount(null);
     setCouponCount(null);
@@ -150,18 +155,34 @@ function DevToolsInner() {
           <div className="bg-card border border-border rounded-2xl p-6 shadow-xl shadow-black/5 space-y-4">
             <form onSubmit={handleUnlock} className="space-y-4">
               <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Admin email</label>
+                <Input
+                  type="email"
+                  placeholder="admin@example.com"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); setLoginError(null); }}
+                  disabled={isVerifying}
+                  autoFocus
+                  autoComplete="username"
+                  className={cn(
+                    'h-11 bg-background/70',
+                    loginError && 'border-destructive ring-1 ring-destructive/30'
+                  )}
+                />
+              </div>
+              <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">Admin password</label>
                 <div className="relative">
                   <Input
                     type={showPw ? 'text' : 'password'}
                     placeholder="Enter your dev-kit password"
                     value={pw}
-                    onChange={(e) => { setPw(e.target.value); setPwError(false); }}
+                    onChange={(e) => { setPw(e.target.value); setLoginError(null); }}
                     disabled={isVerifying}
-                    autoFocus
+                    autoComplete="current-password"
                     className={cn(
                       'h-11 pr-10 bg-background/70',
-                      pwError && 'border-destructive ring-1 ring-destructive/30'
+                      loginError && 'border-destructive ring-1 ring-destructive/30'
                     )}
                   />
                   <button
@@ -173,15 +194,15 @@ function DevToolsInner() {
                     {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                {pwError && (
+                {loginError && (
                   <p className="text-xs text-destructive font-medium pl-0.5">
-                    Incorrect password — try again
+                    {loginError}
                   </p>
                 )}
               </div>
               <Button
                 type="submit"
-                disabled={isVerifying || !pw.trim()}
+                disabled={isVerifying || !email.trim() || !pw.trim()}
                 className="w-full h-11 font-semibold"
               >
                 {isVerifying ? (

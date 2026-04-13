@@ -343,8 +343,10 @@ function AppRoutes() {
         <Route element={<ProtectedRoute />}>
           <Route path="/store-screenshots" element={<Suspense fallback={<PageLoadingSpinner />}><StoreScreenshotsPage /></Suspense>} />
           <Route path="/screenshots-gallery" element={<Suspense fallback={<PageLoadingSpinner />}><ScreenshotsGalleryPage /></Suspense>} />
-          <Route path="/devkit" element={<Suspense fallback={<PageLoadingSpinner />}><DevToolsPage /></Suspense>} />
         </Route>
+
+        {/* DevKit — self-contained email+password auth, no Kinde/Supabase session required */}
+        <Route path="/devkit" element={<Suspense fallback={<PageLoadingSpinner />}><DevToolsPage /></Suspense>} />
         
         <Route path="*" element={<Suspense fallback={<DetailSkeleton />}><NotFound /></Suspense>} />
       </Routes>
