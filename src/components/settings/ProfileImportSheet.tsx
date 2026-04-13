@@ -454,6 +454,7 @@ export function ProfileImportSheet({
     haptics.light();
 
     const importData: Partial<ProfileData> = {};
+    const skippedParts: string[] = [];
     if (selectedSections.summary && data.summary) importData.summary = data.summary;
     if (selectedSections.experience && data.experience?.length) {
       let exp = data.experience;
@@ -468,9 +469,7 @@ export function ProfileImportSheet({
         );
         const skipped = before - exp.length;
         if (skipped > 0) {
-          toast.info(
-            `${skipped} duplicate experience entr${skipped === 1 ? 'y' : 'ies'} skipped`,
-          );
+          skippedParts.push(`${skipped} experience entr${skipped === 1 ? 'y' : 'ies'}`);
         }
       }
       if (exp.length) importData.experience = exp;
@@ -484,10 +483,13 @@ export function ProfileImportSheet({
         skills = skills.filter((s) => !existingLower.has(s.toLowerCase().trim()));
         const skippedSkills = before - skills.length;
         if (skippedSkills > 0) {
-          toast.info(`${skippedSkills} duplicate skill${skippedSkills === 1 ? '' : 's'} skipped`);
+          skippedParts.push(`${skippedSkills} skill${skippedSkills === 1 ? '' : 's'}`);
         }
       }
       if (skills.length) importData.skills = skills;
+    }
+    if (skippedParts.length > 0) {
+      toast.info(`Skipped ${skippedParts.join(' and ')} already in your resume`);
     }
     if (selectedSections.certifications && data.certifications?.length) importData.certifications = data.certifications;
     if (selectedSections.volunteering && data.volunteering?.length) importData.volunteering = data.volunteering;

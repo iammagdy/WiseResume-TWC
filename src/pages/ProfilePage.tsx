@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit2, Share2, FileText, Briefcase, Globe, ExternalLink, MapPin, Clock, HardDrive, Linkedin, Sparkles, User, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Edit2, Share2, FileText, Briefcase, Globe, ExternalLink, MapPin, Clock, HardDrive, FileDown, Sparkles, User, AlertTriangle, RefreshCw } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { LoadingButton } from '@/components/ui/LoadingButton';
 import { BackButton } from '@/components/ui/BackButton';
@@ -120,8 +120,8 @@ export default function ProfilePage() {
   };
 
   const handleLinkedInImport = (data: any) => {
-    // The import callback — data gets handled by the parent (EditProfileSheet or resume editor)
-    toast.success('LinkedIn data ready — use it in your resume editor');
+    void data;
+    toast.success('Profile imported — open the editor to use your data');
     haptics.success();
   };
 
@@ -236,13 +236,13 @@ export default function ProfilePage() {
           </Button>
         </div>
 
-        {/* Actions — Edit, Import from LinkedIn, Backup */}
+        {/* Actions — Edit, Import Profile, Backup */}
         <div className="grid grid-cols-3 gap-3">
           <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={() => setEditOpen(true)}>
             <Edit2 className="w-4 h-4 mr-2" /> Edit
           </Button>
           <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={() => { haptics.light(); setLinkedinOpen(true); }}>
-            <Linkedin className="w-4 h-4 mr-2" /> Import
+            <FileDown className="w-4 h-4 mr-2" /> Import
           </Button>
           <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={() => { haptics.light(); setBackupOpen(true); }}>
             <HardDrive className="w-4 h-4 mr-2" /> Backup
