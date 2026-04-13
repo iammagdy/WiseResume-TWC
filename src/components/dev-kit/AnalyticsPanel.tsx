@@ -1,7 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
-import { RefreshCw, TrendingUp, TrendingDown, Minus, BarChart2, Users, Eye, Zap, Globe } from 'lucide-react';
+import { RefreshCw, TrendingUp, TrendingDown, Minus, BarChart2, Users, Eye, Zap, Globe, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
+import { getDevKitToken } from '@/contexts/DevKitSessionContext';
+import { useDevKitSession } from '@/contexts/DevKitSessionContext';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   LineChart, Line,
@@ -20,28 +22,6 @@ interface AnalyticsData {
   aiCreditsYesterday: number;
   countryDistribution: { country: string; count: number }[];
   lastUpdatedAt: Date;
-}
-
-interface UsageEventRow {
-  id: string;
-  user_id: string | null;
-}
-
-interface UsageEventTypeRow {
-  event_type: string;
-}
-
-interface ProfileCreatedRow {
-  created_at: string;
-}
-
-interface AiCreditsRow {
-  daily_usage: number | null;
-  usage_date: string | null;
-}
-
-interface ProfileCountryRow {
-  country: string | null;
 }
 
 function DeltaIndicator({ current, previous }: { current: number; previous: number }) {
@@ -106,115 +86,41 @@ const CUSTOM_TOOLTIP_STYLE = {
 };
 
 export function AnalyticsPanel() {
+  const { isUnlocked } = useDevKitSession();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [secondsAgo, setSecondsAgo] = useState(0);
 
   const fetchAnalytics = useCallback(async () => {
+    const token = getDevKitToken();
+    if (!token) return;
+
     setLoading(true);
     setError(null);
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-      const fourteenDaysAgo = new Date(Date.now() - 14 * 86400000).toISOString();
+      const { data: responseData, error: invokeError } = await edgeFunctions.functions.invoke('admin-analytics', {
+        body: { password: token },
+      });
 
-      const [
-        allEventsResult,
-        todayEventsResult,
-        yesterdayEventsResult,
-        featureEventsResult,
-        portfolioEventsResult,
-        signupProfilesResult,
-        aiTodayResult,
-        aiYesterdayResult,
-        countryResult,
-      ] = await Promise.all([
-        supabase.from('usage_events').select('id', { count: 'exact', head: true }),
-        supabase.from('usage_events').select('id, user_id', { count: 'exact' })
-          .gte('created_at', `${today}T00:00:00Z`)
-          .lt('created_at', `${today}T23:59:59Z`),
-        supabase.from('usage_events').select('id, user_id', { count: 'exact' })
-          .gte('created_at', `${yesterday}T00:00:00Z`)
-          .lt('created_at', `${yesterday}T23:59:59Z`),
-        supabase.from('usage_events').select('event_type')
-          .order('created_at', { ascending: false })
-          .limit(2000),
-        supabase.from('portfolio_visits').select('id', { count: 'exact', head: true }),
-        supabase.from('profiles').select('created_at')
-          .gte('created_at', fourteenDaysAgo)
-          .order('created_at', { ascending: true }),
-        supabase.from('ai_credits').select('daily_usage, usage_date')
-          .eq('usage_date', today),
-        supabase.from('ai_credits').select('daily_usage, usage_date')
-          .eq('usage_date', yesterday),
-        supabase.from('profiles').select('country').not('country', 'is', null).limit(1000),
-      ]);
+      if (invokeError) throw new Error(invokeError.message);
 
-      const pageViewsAllTime = allEventsResult.count ?? 0;
-      const pageViewsToday = todayEventsResult.count ?? 0;
+      const result = responseData as { success?: boolean; error?: string; data?: AnalyticsData };
+      if (result?.success === false) throw new Error(result.error ?? 'Failed to load analytics');
 
-      const todayEventRows = (todayEventsResult.data ?? []) as UsageEventRow[];
-      const yesterdayEventRows = (yesterdayEventsResult.data ?? []) as UsageEventRow[];
-      const todayUsers = new Set(todayEventRows.map(e => e.user_id)).size;
-      const yesterdayUsers = new Set(yesterdayEventRows.map(e => e.user_id)).size;
-
-      const featureRows = (featureEventsResult.data ?? []) as UsageEventTypeRow[];
-      const featureCounts: Record<string, number> = {};
-      for (const row of featureRows) {
-        const key = row.event_type ?? 'unknown';
-        featureCounts[key] = (featureCounts[key] || 0) + 1;
-      }
-      const topFeatures = Object.entries(featureCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(([name, count]) => ({ name: name.replace('ai.', '').replace(/_/g, ' '), count }));
-
-      const portfolioViewsTotal = portfolioEventsResult.count ?? 0;
-
-      const signupByDay: Record<string, number> = {};
-      for (let i = 13; i >= 0; i--) {
-        const d = new Date(Date.now() - i * 86400000).toISOString().split('T')[0];
-        signupByDay[d] = 0;
-      }
-      const profileRows = (signupProfilesResult.data ?? []) as ProfileCreatedRow[];
-      for (const p of profileRows) {
-        const d = p.created_at?.split('T')[0];
-        if (d && d in signupByDay) signupByDay[d]++;
-      }
-      const signupsLast14Days = Object.entries(signupByDay).map(([date, count]) => ({
-        date: date.slice(5),
-        count,
-      }));
-
-      const aiTodayRows = (aiTodayResult.data ?? []) as AiCreditsRow[];
-      const aiYesterdayRows = (aiYesterdayResult.data ?? []) as AiCreditsRow[];
-      const aiCreditsToday = aiTodayRows.reduce((sum, r) => sum + (r.daily_usage ?? 0), 0);
-      const aiCreditsYesterday = aiYesterdayRows.reduce((sum, r) => sum + (r.daily_usage ?? 0), 0);
-
-      const countryRows = (countryResult.data ?? []) as ProfileCountryRow[];
-      const countryCounts: Record<string, number> = {};
-      for (const row of countryRows) {
-        if (row.country) {
-          countryCounts[row.country] = (countryCounts[row.country] || 0) + 1;
-        }
-      }
-      const countryDistribution = Object.entries(countryCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 8)
-        .map(([country, count]) => ({ country, count }));
+      const raw = result?.data;
+      if (!raw) throw new Error('No data returned');
 
       setData({
-        pageViewsAllTime,
-        pageViewsToday,
-        activeUsersToday: todayUsers,
-        activeUsersYesterday: yesterdayUsers,
-        topFeatures,
-        portfolioViewsTotal,
-        signupsLast14Days,
-        aiCreditsToday,
-        aiCreditsYesterday,
-        countryDistribution,
+        ...raw,
+        topFeatures: raw.topFeatures.map(f => ({
+          ...f,
+          name: f.name.replace('ai.', '').replace(/_/g, ' '),
+        })),
+        signupsLast14Days: raw.signupsLast14Days.map(s => ({
+          ...s,
+          date: s.date.slice(5),
+        })),
         lastUpdatedAt: new Date(),
       });
       setSecondsAgo(0);
@@ -225,21 +131,42 @@ export function AnalyticsPanel() {
     }
   }, []);
 
-  useEffect(() => { fetchAnalytics(); }, [fetchAnalytics]);
+  useEffect(() => {
+    if (isUnlocked) {
+      fetchAnalytics();
+    } else {
+      setData(null);
+      setError(null);
+    }
+  }, [isUnlocked, fetchAnalytics]);
 
   useEffect(() => {
+    if (!isUnlocked) return;
     const interval = setInterval(() => {
       setSecondsAgo(s => s + 1);
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isUnlocked]);
 
   useEffect(() => {
+    if (!isUnlocked) return;
     const interval = setInterval(() => {
       fetchAnalytics();
     }, 30_000);
     return () => clearInterval(interval);
-  }, [fetchAnalytics]);
+  }, [isUnlocked, fetchAnalytics]);
+
+  if (!isUnlocked) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
+        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+          <Lock className="w-5 h-5 text-muted-foreground" />
+        </div>
+        <p className="text-sm font-medium text-muted-foreground">Analytics locked</p>
+        <p className="text-xs text-muted-foreground/60">Unlock the admin panel to view analytics data.</p>
+      </div>
+    );
+  }
 
   const lastUpdatedLabel = secondsAgo < 60
     ? `${secondsAgo}s ago`

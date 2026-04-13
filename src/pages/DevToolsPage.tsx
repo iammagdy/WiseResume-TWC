@@ -232,7 +232,7 @@ function DevToolsInner() {
   }
 
   return (
-    <div className="min-h-screen bg-background/40 backdrop-blur-sm relative z-10">
+    <div id="dev-tools-root" className="min-h-screen bg-background/40 backdrop-blur-sm relative z-10">
       <div className="max-w-5xl mx-auto px-4 py-6 pb-32 space-y-5">
 
         {/* Header */}

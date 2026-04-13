@@ -1,9 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
-import { RefreshCw, Activity, CheckCircle, AlertCircle, Clock, PlayCircle, Loader2, XCircle, AlertTriangle, Mail } from 'lucide-react';
+import { RefreshCw, Activity, CheckCircle, AlertCircle, Clock, PlayCircle, Loader2, XCircle, AlertTriangle, Mail, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/safeClient';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
-import { getDevKitToken } from '@/contexts/DevKitSessionContext';
+import { getDevKitToken, useDevKitSession, onDevKitLock } from '@/contexts/DevKitSessionContext';
 import { DevKitRunner } from './DevKitRunner';
 
 interface UsageEvent {
@@ -243,7 +242,22 @@ const _cache: {
   healthCheckedAt: null,
 };
 
+function clearCache() {
+  _cache.events = [];
+  _cache.eventsError = null;
+  _cache.errorLogs = [];
+  _cache.errorLogsMissing = false;
+  _cache.recentErrors = [];
+  _cache.contactRequests = [];
+  _cache.fnHealth = _defaultFnHealth;
+  _cache.healthRunning = false;
+  _cache.healthCheckedAt = null;
+}
+
+onDevKitLock(clearCache);
+
 export function LiveActivityPanel() {
+  const { isUnlocked } = useDevKitSession();
   const [events, setEventsRaw] = useState<UsageEvent[]>(_cache.events);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [eventsError, setEventsErrorRaw] = useState<string | null>(_cache.eventsError);
@@ -276,16 +290,18 @@ export function LiveActivityPanel() {
   const setHealthCheckedAt = (v: Date | null) => { _cache.healthCheckedAt = v; setHealthCheckedAtRaw(v); };
 
   const fetchEvents = useCallback(async () => {
+    const token = getDevKitToken();
+    if (!token) return;
     setEventsLoading(true);
     setEventsError(null);
     try {
-      const { data, error } = await supabase
-        .from('usage_events')
-        .select('id, user_id, event_type, metadata, created_at')
-        .order('created_at', { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      setEvents(data ?? []);
+      const { data: responseData, error: invokeError } = await edgeFunctions.functions.invoke('admin-live-activity', {
+        body: { password: token, resource: 'usage_events' },
+      });
+      if (invokeError) throw new Error(invokeError.message);
+      const result = responseData as { success?: boolean; error?: string; data?: UsageEvent[] };
+      if (result?.success === false) throw new Error(result.error ?? 'Failed to load events');
+      setEvents(result?.data ?? []);
       setFeedSecondsAgo(0);
     } catch (e) {
       setEventsError(e instanceof Error ? e.message : 'Failed to load events');
@@ -295,32 +311,32 @@ export function LiveActivityPanel() {
   }, []);
 
   const fetchErrorLogs = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('error_log')
-      .select('id, message, context, created_at, level')
-      .order('created_at', { ascending: false })
-      .limit(20);
-
-    if (error) {
-      if (error.code === '42P01') {
-        setErrorLogsMissing(true);
-      }
+    const token = getDevKitToken();
+    if (!token) return;
+    const { data: responseData, error: invokeError } = await edgeFunctions.functions.invoke('admin-live-activity', {
+      body: { password: token, resource: 'error_log' },
+    });
+    if (invokeError) return;
+    const result = responseData as { success?: boolean; missing?: boolean; data?: ErrorLogRow[] };
+    if (result?.missing) {
+      setErrorLogsMissing(true);
       return;
     }
     setErrorLogsMissing(false);
-    setErrorLogs(data ?? []);
+    setErrorLogs(result?.data ?? []);
   }, []);
 
   const fetchContactRequests = useCallback(async () => {
+    const token = getDevKitToken();
+    if (!token) return;
     setContactRequestsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('contact_requests')
-        .select('id, type, email, created_at, metadata')
-        .order('created_at', { ascending: false })
-        .limit(5);
-      if (!error) {
-        setContactRequests((data ?? []) as ContactRequest[]);
+      const { data: responseData, error: invokeError } = await edgeFunctions.functions.invoke('admin-live-activity', {
+        body: { password: token, resource: 'contact_requests' },
+      });
+      if (!invokeError) {
+        const result = responseData as { success?: boolean; data?: ContactRequest[] };
+        setContactRequests(result?.data ?? []);
       }
     } finally {
       setContactRequestsLoading(false);
@@ -392,32 +408,57 @@ export function LiveActivityPanel() {
     return runHealthChecksForDefs(LIGHTWEIGHT_FN_DEFS);
   }, [runHealthChecksForDefs]);
 
-  useEffect(() => { fetchEvents(); }, [fetchEvents]);
-  useEffect(() => { fetchErrorLogs(); }, [fetchErrorLogs]);
-  useEffect(() => { fetchContactRequests(); }, [fetchContactRequests]);
+  useEffect(() => {
+    const unsubscribe = onDevKitLock(() => {
+      clearCache();
+      setEventsRaw([]);
+      setEventsErrorRaw(null);
+      setErrorLogsRaw([]);
+      setErrorLogsMissingRaw(false);
+      setRecentErrorsRaw([]);
+      setContactRequestsRaw([]);
+      setFnHealthRaw(_defaultFnHealth);
+      setHealthRunningRaw(false);
+      setHealthCheckedAtRaw(null);
+    });
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
+    if (isUnlocked) { fetchEvents(); }
+  }, [isUnlocked, fetchEvents]);
+  useEffect(() => {
+    if (isUnlocked) { fetchErrorLogs(); }
+  }, [isUnlocked, fetchErrorLogs]);
+  useEffect(() => {
+    if (isUnlocked) { fetchContactRequests(); }
+  }, [isUnlocked, fetchContactRequests]);
+
+  useEffect(() => {
+    if (!isUnlocked) return;
     const interval = setInterval(() => {
       fetchEvents();
       fetchErrorLogs();
       fetchContactRequests();
     }, 30_000);
     return () => clearInterval(interval);
-  }, [fetchEvents, fetchErrorLogs, fetchContactRequests]);
+  }, [isUnlocked, fetchEvents, fetchErrorLogs, fetchContactRequests]);
 
   useEffect(() => {
+    if (!isUnlocked) return;
     const interval = setInterval(() => {
       runLightweightHealthChecks();
     }, 30_000);
     return () => clearInterval(interval);
-  }, [runLightweightHealthChecks]);
+  }, [isUnlocked, runLightweightHealthChecks]);
 
   useEffect(() => {
+    if (!isUnlocked) return;
     const interval = setInterval(() => {
       setFeedSecondsAgo(s => s + 1);
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isUnlocked]);
 
   const feedLastUpdatedLabel = feedSecondsAgo < 60
     ? `${feedSecondsAgo}s ago`
@@ -438,6 +479,18 @@ export function LiveActivityPanel() {
           level: r.level ?? 'error',
           timestamp: r.created_at,
         }));
+
+  if (!isUnlocked) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
+        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+          <Lock className="w-5 h-5 text-muted-foreground" />
+        </div>
+        <p className="text-sm font-medium text-muted-foreground">Live Activity locked</p>
+        <p className="text-xs text-muted-foreground/60">Unlock the admin panel to view live activity data.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

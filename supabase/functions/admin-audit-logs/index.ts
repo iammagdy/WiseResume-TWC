@@ -15,12 +15,13 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { password, mode, limit = 200, action_filter, category_filter, entry } = body as {
+    const { password, mode, limit = 200, action_filter, category_filter, target_user_id, entry } = body as {
       password: string;
       mode?: 'read' | 'write';
       limit?: number;
       action_filter?: string | null;
       category_filter?: string | null;
+      target_user_id?: string | null;
       entry?: {
         user_id: string;
         category: string;
@@ -78,6 +79,10 @@ serve(async (req) => {
       .select('id, user_id, action, category, metadata, created_at')
       .order('created_at', { ascending: false })
       .limit(Math.min(limit, 500));
+
+    if (target_user_id) {
+      query = query.eq('user_id', target_user_id);
+    }
 
     if (action_filter) {
       query = query.eq('action', action_filter);

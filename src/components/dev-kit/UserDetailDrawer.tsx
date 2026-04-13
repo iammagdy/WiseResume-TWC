@@ -149,13 +149,11 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated 
 
     const pw = getDevKitToken();
     edgeFunctions.functions.invoke('admin-audit-logs', {
-      body: { password: pw, limit: 500 },
+      body: { password: pw, limit: 500, target_user_id: user.user_id },
     }).then(({ data }) => {
       if (cancelled) return;
       const result = data as { success?: boolean; logs?: AuditEntry[] };
-      const all = result?.logs ?? [];
-      // Filter to this user — audit_logs stores user_id as the target
-      setAuditHistory(all.filter(l => l.user_id === user.user_id));
+      setAuditHistory(result?.logs ?? []);
     }).catch(() => {});
 
     edgeFunctions.functions.invoke('admin-save-note', {
