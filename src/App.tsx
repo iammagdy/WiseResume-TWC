@@ -127,6 +127,8 @@ const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 
 const ShortLinkPage = lazyWithRetry(() => import("./pages/ShortLinkPage"));
 const AuthCallbackPage = lazyWithRetry(() => import("./pages/AuthCallbackPage"));
+const AuthVerifyEmailPage = lazyWithRetry(() => import("./pages/AuthVerifyEmailPage"));
+const AuthResetPasswordPage = lazyWithRetry(() => import("./pages/AuthResetPasswordPage"));
 
 const PrivacyPage = lazyWithRetry(() => import("./pages/PrivacyPage"));
 const TermsPage = lazyWithRetry(() => import("./pages/TermsPage"));
@@ -274,6 +276,8 @@ function AppRoutes() {
                <Route path="/sign-in" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />
                
               <Route path="/auth/callback" element={<Suspense fallback={<PageLoadingSpinner />}><AuthCallbackPage /></Suspense>} />
+              <Route path="/auth/verify-email" element={<Suspense fallback={<PageLoadingSpinner />}><AuthVerifyEmailPage /></Suspense>} />
+              <Route path="/auth/reset-password" element={<Suspense fallback={<PageLoadingSpinner />}><AuthResetPasswordPage /></Suspense>} />
               <Route path="/privacy-policy" element={<Suspense fallback={<PageLoadingSpinner />}><PrivacyPage /></Suspense>} />
                <Route path="/terms-of-service" element={<Suspense fallback={<PageLoadingSpinner />}><TermsPage /></Suspense>} />
                
