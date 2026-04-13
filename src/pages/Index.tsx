@@ -656,18 +656,18 @@ const Index = () => {
                 // outside the normal DOM tree) can inherit the CSS variables.
                 document.documentElement.style.setProperty('--lp-ripple-x', x + 'px');
                 document.documentElement.style.setProperty('--lp-ripple-y', y + 'px');
-                const next = !isDark;
                 type DocWithVT = Document & { startViewTransition?: (cb: () => void) => void };
                 const startVT = (document as DocWithVT).startViewTransition?.bind(document);
-                if (!startVT || prefersReducedMotion) {
-                  setIsDark(next);
+                const applyToggle = (prev: boolean) => {
+                  const next = !prev;
                   setThemeStore(next ? 'dark' : 'light');
+                  return next;
+                };
+                if (!startVT || prefersReducedMotion) {
+                  setIsDark(applyToggle);
                   return;
                 }
-                startVT(() => {
-                  flushSync(() => setIsDark(next));
-                  setThemeStore(next ? 'dark' : 'light');
-                });
+                startVT(() => { flushSync(() => setIsDark(applyToggle)); });
               }}
               aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
               title={isDark ? 'Light mode' : 'Dark mode'}
