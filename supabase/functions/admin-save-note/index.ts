@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { password, target_user_id, note_text, action = 'save' } = body;
+    const { password, target_user_id, note_text, action = 'save', note_id, actor_email } = body;
 
     try {
       await requireAdminAuth(req, password);
@@ -49,6 +49,45 @@ Deno.serve(async (req) => {
       }
       return new Response(
         JSON.stringify({ success: true, notes: data ?? [] }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Delete a note
+    if (action === 'delete') {
+      if (!note_id) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'note_id is required for delete action' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const { error } = await supabase
+        .from('admin_user_notes')
+        .delete()
+        .eq('id', note_id)
+        .eq('user_id', target_user_id);
+
+      if (error) {
+        console.error('[admin-save-note] Delete error:', error);
+        return new Response(
+          JSON.stringify({ success: false, error: error.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Write audit log entry
+      await supabase
+        .from('audit_logs')
+        .insert({
+          user_id: target_user_id,
+          category: 'admin',
+          action: 'note_deleted',
+          metadata: { note_id, actor_email: actor_email ?? 'admin (dev-kit)' },
+        });
+
+      return new Response(
+        JSON.stringify({ success: true }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

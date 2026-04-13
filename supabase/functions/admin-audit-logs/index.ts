@@ -15,13 +15,29 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { password, mode, limit = 200, action_filter, category_filter, target_user_id, entry } = body as {
+    const {
+      password,
+      mode,
+      limit = 50,
+      offset = 0,
+      action_filter,
+      category_filter,
+      target_user_id,
+      search,
+      date_from,
+      date_to,
+      entry,
+    } = body as {
       password: string;
       mode?: 'read' | 'write';
       limit?: number;
+      offset?: number;
       action_filter?: string | null;
       category_filter?: string | null;
       target_user_id?: string | null;
+      search?: string | null;
+      date_from?: string | null;
+      date_to?: string | null;
       entry?: {
         user_id: string;
         category: string;
@@ -73,15 +89,70 @@ serve(async (req) => {
       );
     }
 
+    // Determine effective limit — if limit=0 or very large (for CSV export), allow up to 10000
+    const effectiveLimit = limit === 0 ? 10000 : Math.min(limit, 500);
+    const effectiveOffset = Math.max(0, offset);
+
+    // If searching by email, first resolve to user_ids from profiles
+    let searchUserIds: string[] | null = null;
+    if (search && !target_user_id) {
+      const trimmedSearch = search.trim();
+      // Check if it looks like a UUID prefix (no @) or email
+      const isEmailSearch = trimmedSearch.includes('@');
+      if (isEmailSearch) {
+        const { data: matchingProfiles } = await supabase
+          .from('profiles')
+          .select('user_id')
+          .ilike('email', `%${trimmedSearch}%`)
+          .limit(50);
+        searchUserIds = (matchingProfiles ?? []).map((p: { user_id: string }) => p.user_id);
+      } else {
+        // Treat as user_id prefix
+        const { data: matchingProfiles } = await supabase
+          .from('profiles')
+          .select('user_id')
+          .like('user_id', `${trimmedSearch}%`)
+          .limit(50);
+        searchUserIds = (matchingProfiles ?? []).map((p: { user_id: string }) => p.user_id);
+      }
+
+      // If no matching users found, return empty
+      if (searchUserIds.length === 0) {
+        return new Response(
+          JSON.stringify({ success: true, logs: [], total: 0 }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+    }
+
+    // Build count query
+    let countQuery = supabase
+      .from('audit_logs')
+      .select('*', { count: 'exact', head: true });
+
+    if (target_user_id) {
+      countQuery = countQuery.eq('user_id', target_user_id);
+    } else if (searchUserIds) {
+      countQuery = countQuery.in('user_id', searchUserIds);
+    }
+    if (action_filter) countQuery = countQuery.eq('action', action_filter);
+    if (category_filter) countQuery = countQuery.eq('category', category_filter);
+    if (date_from) countQuery = countQuery.gte('created_at', date_from);
+    if (date_to) countQuery = countQuery.lte('created_at', date_to);
+
+    const { count: totalCount } = await countQuery;
+
     // Default: read mode — list audit log entries
     let query = supabase
       .from('audit_logs')
       .select('id, user_id, action, category, metadata, created_at')
       .order('created_at', { ascending: false })
-      .limit(Math.min(limit, 500));
+      .range(effectiveOffset, effectiveOffset + effectiveLimit - 1);
 
     if (target_user_id) {
       query = query.eq('user_id', target_user_id);
+    } else if (searchUserIds) {
+      query = query.in('user_id', searchUserIds);
     }
 
     if (action_filter) {
@@ -92,12 +163,20 @@ serve(async (req) => {
       query = query.eq('category', category_filter);
     }
 
+    if (date_from) {
+      query = query.gte('created_at', date_from);
+    }
+
+    if (date_to) {
+      query = query.lte('created_at', date_to);
+    }
+
     const { data: logsData, error } = await query;
 
     if (error) {
       if (error.code === '42P01') {
         return new Response(
-          JSON.stringify({ success: true, logs: [], message: 'audit_logs table not found. Ensure the database migration has been applied.' }),
+          JSON.stringify({ success: true, logs: [], total: 0, message: 'audit_logs table not found. Ensure the database migration has been applied.' }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
         );
       }
@@ -111,7 +190,7 @@ serve(async (req) => {
 
     // Enrich logs with user email from profiles
     if (logs.length > 0) {
-      const userIds = [...new Set(logs.map(l => l.user_id))];
+      const userIds = [...new Set(logs.map((l: { user_id: string }) => l.user_id))];
       const { data: profiles } = await supabase
         .from('profiles')
         .select('user_id, email')
@@ -119,24 +198,24 @@ serve(async (req) => {
 
       const emailMap: Record<string, string> = {};
       if (profiles) {
-        for (const p of profiles) {
+        for (const p of profiles as { user_id: string; email: string }[]) {
           emailMap[p.user_id] = p.email;
         }
       }
 
-      const enrichedLogs = logs.map(l => ({
+      const enrichedLogs = logs.map((l: { user_id: string; [key: string]: unknown }) => ({
         ...l,
         user_email: emailMap[l.user_id] ?? null,
       }));
 
       return new Response(
-        JSON.stringify({ success: true, logs: enrichedLogs }),
+        JSON.stringify({ success: true, logs: enrichedLogs, total: totalCount ?? enrichedLogs.length }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
     return new Response(
-      JSON.stringify({ success: true, logs }),
+      JSON.stringify({ success: true, logs, total: totalCount ?? logs.length }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (err) {

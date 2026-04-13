@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { RefreshCw, Search, Users, Download, Filter, ChevronDown } from 'lucide-react';
+import { RefreshCw, Search, Users, Download, Filter, ChevronDown, CheckSquare, Square, X, Crown, ShieldOff, Shield, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +7,7 @@ import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import { UserDetailDrawer } from './UserDetailDrawer';
+import { toast } from 'sonner';
 
 export interface AdminUser {
   user_id: string;
@@ -31,6 +32,8 @@ export interface AdminUser {
 interface AdminUsersPanelProps {
   onCountChange?: (count: number) => void;
 }
+
+type BulkAction = 'plan_change' | 'suspend' | 'unsuspend' | 'trial_grant';
 
 const PLAN_COLORS: Record<string, string> = {
   free: 'bg-muted text-muted-foreground border-border',
@@ -82,6 +85,96 @@ function CopyableId({ id }: { id: string }) {
   );
 }
 
+interface BulkConfirmDialogProps {
+  action: BulkAction;
+  users: AdminUser[];
+  onConfirm: (params: { plan?: string; days?: number; trialPlan?: string }) => void;
+  onCancel: () => void;
+  isRunning: boolean;
+}
+
+function BulkConfirmDialog({ action, users, onConfirm, onCancel, isRunning }: BulkConfirmDialogProps) {
+  const [selectedPlan, setSelectedPlan] = useState<'free' | 'pro' | 'premium'>('pro');
+  const [trialPlan, setTrialPlan] = useState<'pro' | 'premium'>('pro');
+  const [trialDays, setTrialDays] = useState(7);
+
+  const actionLabel: Record<BulkAction, string> = {
+    plan_change: 'Change Plan',
+    suspend: 'Suspend',
+    unsuspend: 'Unsuspend',
+    trial_grant: 'Grant Trial',
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
+      <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+        <h3 className="font-semibold text-sm">{actionLabel[action]} — {users.length} {users.length === 1 ? 'user' : 'users'}</h3>
+
+        <div className="max-h-36 overflow-y-auto rounded-lg border border-border divide-y divide-border">
+          {users.map(u => (
+            <div key={u.user_id} className="px-3 py-1.5 text-xs text-muted-foreground font-mono truncate">{u.email}</div>
+          ))}
+        </div>
+
+        {action === 'plan_change' && (
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">New plan</label>
+            <select
+              value={selectedPlan}
+              onChange={e => setSelectedPlan(e.target.value as 'free' | 'pro' | 'premium')}
+              className="w-full text-xs bg-background border border-border rounded-md px-2 py-2 focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="free">Free</option>
+              <option value="pro">Pro</option>
+              <option value="premium">Premium</option>
+            </select>
+          </div>
+        )}
+
+        {action === 'trial_grant' && (
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Trial plan</label>
+              <select
+                value={trialPlan}
+                onChange={e => setTrialPlan(e.target.value as 'pro' | 'premium')}
+                className="w-full mt-1 text-xs bg-background border border-border rounded-md px-2 py-2 focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="pro">Pro</option>
+                <option value="premium">Premium</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Days</label>
+              <select
+                value={trialDays}
+                onChange={e => setTrialDays(Number(e.target.value))}
+                className="w-full mt-1 text-xs bg-background border border-border rounded-md px-2 py-2 focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                {[3, 7, 14, 30, 60, 90].map(d => <option key={d} value={d}>{d} days</option>)}
+              </select>
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-2 pt-1">
+          <Button variant="outline" size="sm" onClick={onCancel} className="flex-1" disabled={isRunning}>
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => onConfirm({ plan: selectedPlan, days: trialDays, trialPlan })}
+            className="flex-1"
+            disabled={isRunning}
+          >
+            {isRunning ? <><RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" />Running…</> : `Confirm`}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
   const { user: adminUser } = useKindeAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -95,6 +188,11 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
   const [page, setPage] = useState(1);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState<BulkAction | null>(null);
+  const [bulkRunning, setBulkRunning] = useState(false);
 
   const PER_PAGE = 50;
 
@@ -122,11 +220,11 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
         setUsers((prev) => [...prev, ...list]);
       } else {
         setUsers(list);
-        // Sync the open drawer with the fresh server data so it never shows stale state
         setSelectedUser((prev) => {
           if (!prev) return null;
           return list.find((u) => u.user_id === prev.user_id) ?? null;
         });
+        setSelectedIds(new Set());
       }
       setTotal(tot);
       onCountChange?.(tot);
@@ -160,13 +258,95 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
     fetchUsers(1, false);
   };
 
+  const handleUserDeleted = (userId: string) => {
+    setUsers(prev => prev.filter(u => u.user_id !== userId));
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.delete(userId);
+      return next;
+    });
+    setTotal(prev => Math.max(0, prev - 1));
+    onCountChange?.(Math.max(0, total - 1));
+  };
+
+  // Bulk selection helpers
+  const allPageSelected = users.length > 0 && users.every(u => selectedIds.has(u.user_id));
+  const someSelected = selectedIds.size > 0;
+
+  const toggleSelectAll = () => {
+    if (allPageSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(users.map(u => u.user_id)));
+    }
+  };
+
+  const toggleSelectUser = (userId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
+
+  const selectedUsers = users.filter(u => selectedIds.has(u.user_id));
+
+  const handleBulkConfirm = async (params: { plan?: string; days?: number; trialPlan?: string }) => {
+    if (!bulkAction) return;
+    setBulkRunning(true);
+    const pw = getDevKitToken();
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const user of selectedUsers) {
+      try {
+        if (bulkAction === 'plan_change') {
+          const { data, error } = await edgeFunctions.functions.invoke('admin-set-plan', {
+            body: { password: pw, target_user_id: user.user_id, plan: params.plan },
+          });
+          if (error || (data as { success?: boolean })?.success === false) throw new Error();
+        } else if (bulkAction === 'suspend') {
+          const { data, error } = await edgeFunctions.functions.invoke('admin-suspend-user', {
+            body: { password: pw, target_user_id: user.user_id, suspend: true },
+          });
+          if (error || (data as { success?: boolean })?.success === false) throw new Error();
+        } else if (bulkAction === 'unsuspend') {
+          const { data, error } = await edgeFunctions.functions.invoke('admin-suspend-user', {
+            body: { password: pw, target_user_id: user.user_id, suspend: false },
+          });
+          if (error || (data as { success?: boolean })?.success === false) throw new Error();
+        } else if (bulkAction === 'trial_grant') {
+          const { data, error } = await edgeFunctions.functions.invoke('admin-grant-trial', {
+            body: { password: pw, target_user_id: user.user_id, plan: params.trialPlan, days: params.days },
+          });
+          if (error || (data as { success?: boolean })?.success === false) throw new Error();
+        }
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+
+    setBulkRunning(false);
+    setBulkAction(null);
+    setSelectedIds(new Set());
+
+    if (failCount === 0) {
+      toast.success(`Bulk action complete: ${successCount} users updated`);
+    } else {
+      toast.warning(`Bulk action done: ${successCount} succeeded, ${failCount} failed`);
+    }
+    handleUserUpdated();
+  };
+
   const [exportingCSV, setExportingCSV] = useState(false);
 
   const handleExportCSV = async () => {
     setExportingCSV(true);
     try {
       const password = getDevKitToken();
-      // Fetch all matching users (up to 5000) for the current filter/search
       const allUsers: AdminUser[] = [];
       let p = 1;
       const PER_EXPORT = 500;
@@ -214,10 +394,9 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
       a.click();
       URL.revokeObjectURL(url);
 
-      // Write audit log entry for data export via server-side edge function
       const adminEmail = adminUser?.email ?? 'unknown';
       const adminId = adminUser?.id ?? 'dev-kit-admin';
-      const { data: auditData, error: auditError } = await edgeFunctions.functions.invoke('admin-audit-logs', {
+      await edgeFunctions.functions.invoke('admin-audit-logs', {
         body: {
           password,
           mode: 'write',
@@ -235,9 +414,6 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
           },
         },
       });
-      if (auditError || (auditData as { success?: boolean } | null)?.success === false) {
-        console.warn('[AdminUsersPanel] Audit log for CSV export failed:', auditError ?? auditData);
-      }
     } finally {
       setExportingCSV(false);
     }
@@ -384,6 +560,15 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-muted/40 border-b border-border">
+                    <th className="px-3 py-3 w-8">
+                      <button
+                        onClick={toggleSelectAll}
+                        className="text-muted-foreground hover:text-foreground transition-colors"
+                        title={allPageSelected ? 'Deselect all' : 'Select all on page'}
+                      >
+                        {allPageSelected ? <CheckSquare className="w-4 h-4 text-primary" /> : <Square className="w-4 h-4" />}
+                      </button>
+                    </th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">User</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden sm:table-cell">ID</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">Plan</th>
@@ -397,67 +582,76 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
                 <tbody>
                   {users.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-10 text-muted-foreground">
+                      <td colSpan={9} className="text-center py-10 text-muted-foreground">
                         No users found
                       </td>
                     </tr>
                   ) : (
-                    users.map((user) => (
-                      <tr
-                        key={user.user_id}
-                        className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors cursor-pointer"
-                        onClick={() => setSelectedUser(user)}
-                      >
-                        <td className="px-4 py-3">
-                          <div className="min-w-0">
-                            <p className="font-mono text-xs truncate max-w-[160px]">{user.email}</p>
-                            {user.full_name && (
-                              <p className="text-xs text-muted-foreground truncate max-w-[160px]">{user.full_name}</p>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 hidden sm:table-cell">
-                          <CopyableId id={user.user_id} />
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-col gap-1">
-                            {user.is_suspended ? (
-                              <Badge variant="outline" className="text-[10px] bg-red-500/10 text-red-600 border-red-500/20">Suspended</Badge>
-                            ) : user.trial_plan && user.trial_expires_at && new Date(user.trial_expires_at) > new Date() ? (
-                              <Badge variant="outline" className="text-[10px] bg-purple-500/10 text-purple-600 border-purple-500/20">Trial {user.trial_plan}</Badge>
-                            ) : (
-                              <Badge variant="outline" className={`capitalize text-[10px] ${PLAN_COLORS[user.plan_name] ?? ''}`}>
-                                {user.plan_name}
-                              </Badge>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground text-xs hidden md:table-cell">
-                          {formatDate(user.created_at)}
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground text-xs hidden md:table-cell">
-                          {user.resume_count}
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground text-xs hidden lg:table-cell">
-                          <span title={`${user.credits_used_today} used today / limit: ${user.daily_limit === -1 ? 'unlimited' : (user.daily_limit ?? '?')}`}>
-                            {user.credits_used_today} / {user.daily_limit === -1 ? '∞' : (user.daily_limit ?? '?')}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground text-xs hidden xl:table-cell">
-                          {formatDate(user.last_sign_in_at)}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs"
-                            onClick={(e) => { e.stopPropagation(); setSelectedUser(user); }}
-                          >
-                            Manage
-                          </Button>
-                        </td>
-                      </tr>
-                    ))
+                    users.map((user) => {
+                      const isSelected = selectedIds.has(user.user_id);
+                      return (
+                        <tr
+                          key={user.user_id}
+                          className={`border-b border-border last:border-0 hover:bg-muted/20 transition-colors cursor-pointer ${isSelected ? 'bg-primary/5' : ''}`}
+                          onClick={() => setSelectedUser(user)}
+                        >
+                          <td className="px-3 py-3 w-8" onClick={(e) => toggleSelectUser(user.user_id, e)}>
+                            {isSelected
+                              ? <CheckSquare className="w-4 h-4 text-primary" />
+                              : <Square className="w-4 h-4 text-muted-foreground" />
+                            }
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="min-w-0">
+                              <p className="font-mono text-xs truncate max-w-[160px]">{user.email}</p>
+                              {user.full_name && (
+                                <p className="text-xs text-muted-foreground truncate max-w-[160px]">{user.full_name}</p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 hidden sm:table-cell">
+                            <CopyableId id={user.user_id} />
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-col gap-1">
+                              {user.is_suspended ? (
+                                <Badge variant="outline" className="text-[10px] bg-red-500/10 text-red-600 border-red-500/20">Suspended</Badge>
+                              ) : user.trial_plan && user.trial_expires_at && new Date(user.trial_expires_at) > new Date() ? (
+                                <Badge variant="outline" className="text-[10px] bg-purple-500/10 text-purple-600 border-purple-500/20">Trial {user.trial_plan}</Badge>
+                              ) : (
+                                <Badge variant="outline" className={`capitalize text-[10px] ${PLAN_COLORS[user.plan_name] ?? ''}`}>
+                                  {user.plan_name}
+                                </Badge>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground text-xs hidden md:table-cell">
+                            {formatDate(user.created_at)}
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground text-xs hidden md:table-cell">
+                            {user.resume_count}
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground text-xs hidden lg:table-cell">
+                            <span title={`${user.credits_used_today} used today / limit: ${user.daily_limit === -1 ? 'unlimited' : (user.daily_limit ?? '?')}`}>
+                              {user.credits_used_today} / {user.daily_limit === -1 ? '∞' : (user.daily_limit ?? '?')}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground text-xs hidden xl:table-cell">
+                            {formatDate(user.last_sign_in_at)}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs"
+                              onClick={(e) => { e.stopPropagation(); setSelectedUser(user); }}
+                            >
+                              Manage
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -474,6 +668,69 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
         </>
       )}
 
+      {/* Bulk action bar */}
+      {someSelected && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-3 rounded-2xl bg-card border border-border shadow-2xl shadow-black/20">
+          <span className="text-xs font-medium text-muted-foreground mr-1">
+            {selectedIds.size} selected
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs gap-1.5"
+            onClick={() => setBulkAction('plan_change')}
+          >
+            <Crown className="w-3.5 h-3.5 text-amber-500" />
+            Change Plan
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs gap-1.5"
+            onClick={() => setBulkAction('suspend')}
+          >
+            <ShieldOff className="w-3.5 h-3.5 text-red-500" />
+            Suspend
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs gap-1.5"
+            onClick={() => setBulkAction('unsuspend')}
+          >
+            <Shield className="w-3.5 h-3.5 text-green-500" />
+            Unsuspend
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs gap-1.5"
+            onClick={() => setBulkAction('trial_grant')}
+          >
+            <Zap className="w-3.5 h-3.5 text-purple-500" />
+            Grant Trial
+          </Button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="ml-1 p-1 text-muted-foreground hover:text-foreground transition-colors rounded"
+            title="Clear selection"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Bulk action confirm dialog */}
+      {bulkAction && (
+        <BulkConfirmDialog
+          action={bulkAction}
+          users={selectedUsers}
+          onConfirm={handleBulkConfirm}
+          onCancel={() => setBulkAction(null)}
+          isRunning={bulkRunning}
+        />
+      )}
+
       {/* User Detail Drawer */}
       {selectedUser && (
         <UserDetailDrawer
@@ -481,6 +738,7 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
           open={!!selectedUser}
           onClose={() => setSelectedUser(null)}
           onUserUpdated={handleUserUpdated}
+          onUserDeleted={handleUserDeleted}
         />
       )}
     </div>

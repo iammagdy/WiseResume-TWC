@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Crown, Shield, ShieldOff, Zap, StickyNote, Copy, Check, Clock, UserPen, AlertTriangle } from 'lucide-react';
+import { X, Crown, Shield, ShieldOff, Zap, StickyNote, Copy, Check, Clock, UserPen, AlertTriangle, Trash2, LogOut, UserX, FileText, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -20,9 +20,11 @@ interface UserDetailDrawerProps {
   open: boolean;
   onClose: () => void;
   onUserUpdated: () => void;
+  onUserDeleted?: (userId: string) => void;
 }
 
 type PlanTab = 'permanent' | 'trial';
+type DrawerTab = 'actions' | 'content';
 
 interface AuditEntry {
   id: string;
@@ -37,6 +39,17 @@ interface NoteEntry {
   id: string;
   note_text: string;
   created_at: string;
+}
+
+interface ResumeItem {
+  id: string;
+  title: string;
+  template_id: string | null;
+  updated_at: string;
+}
+
+interface ResumeDetail extends ResumeItem {
+  content: unknown;
 }
 
 const PLAN_COLORS: Record<string, string> = {
@@ -90,13 +103,13 @@ function summarizeAction(action: string, meta: Record<string, unknown>): string 
   return action.replace(/_/g, ' ');
 }
 
-export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated }: UserDetailDrawerProps) {
-  // Local copy of user so we can reflect mutations immediately without waiting for parent refetch
+export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated, onUserDeleted }: UserDetailDrawerProps) {
   const queryClient = useQueryClient();
   const { user: authUser } = useAuth();
 
   const [user, setUser] = useState<AdminUser>(userProp);
-  // Sync local user state and form fields whenever the parent provides fresh server data
+  const [drawerTab, setDrawerTab] = useState<DrawerTab>('actions');
+
   useEffect(() => {
     setUser(userProp);
     setSelectedPlan(userProp.plan_name);
@@ -118,21 +131,37 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated 
   const [bonusCredits, setBonusCredits] = useState('');
   const [savingCredits, setSavingCredits] = useState(false);
 
-  // When a DIFFERENT user is opened (user_id changes), reset all form fields to the new user's data
   useEffect(() => {
     setSelectedPlan(userProp.plan_name);
     setSuspendReason(userProp.suspension_reason || '');
     setNewDailyLimit(userProp.daily_limit !== null ? String(userProp.daily_limit) : '');
     setBonusCredits('');
     setPlanTab('permanent');
+    setDrawerTab('actions');
   }, [userProp.user_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [noteText, setNoteText] = useState('');
   const [savingNote, setSavingNote] = useState(false);
+  const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
+  const [confirmDeleteNoteId, setConfirmDeleteNoteId] = useState<string | null>(null);
 
   const [auditHistory, setAuditHistory] = useState<AuditEntry[]>([]);
   const [notesHistory, setNotesHistory] = useState<NoteEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Delete user dialog
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteEmailConfirm, setDeleteEmailConfirm] = useState('');
+  const [deletingUser, setDeletingUser] = useState(false);
+
+  // Revoke sessions
+  const [revokingSessions, setRevokingSessions] = useState(false);
+
+  // Content tab state
+  const [resumes, setResumes] = useState<ResumeItem[]>([]);
+  const [resumesLoading, setResumesLoading] = useState(false);
+  const [selectedResume, setSelectedResume] = useState<ResumeDetail | null>(null);
+  const [resumeDetailLoading, setResumeDetailLoading] = useState(false);
 
   // Profile edit state
   const [profileFullName, setProfileFullName] = useState(user.full_name || '');
@@ -171,6 +200,29 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated 
 
     return () => { cancelled = true; };
   }, [open, user.user_id]);
+
+  // Load resumes when content tab is opened
+  useEffect(() => {
+    if (drawerTab !== 'content' || !open) return;
+    let cancelled = false;
+    setResumesLoading(true);
+    setSelectedResume(null);
+
+    const pw = getDevKitToken();
+    edgeFunctions.functions.invoke('admin-list-user-content', {
+      body: { password: pw, target_user_id: user.user_id },
+    }).then(({ data }) => {
+      if (cancelled) return;
+      const result = data as { success?: boolean; resumes?: ResumeItem[] };
+      setResumes(result?.resumes ?? []);
+    }).catch(() => {
+      if (!cancelled) setResumes([]);
+    }).finally(() => {
+      if (!cancelled) setResumesLoading(false);
+    });
+
+    return () => { cancelled = true; };
+  }, [drawerTab, open, user.user_id]);
 
   // Load current profile username when drawer opens.
   // Routed through admin-update-profile edge function (action='get') so it works
@@ -221,7 +273,6 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated 
     return () => { cancelled = true; };
   }, [open, user.user_id, user.full_name]);
 
-  // Debounced username availability check
   const handleUsernameChange = (val: string) => {
     setProfileUsername(val);
     setUsernameAvailable(null);
@@ -233,7 +284,6 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated 
     setCheckingUsername(true);
     usernameCheckRef.current = setTimeout(async () => {
       try {
-        // Using same pattern as PortfolioEditorPage.tsx for RPC call
         const { data, error } = await supabase.rpc('check_username_available', {
           p_username: val.trim().toLowerCase(),
           p_user_id: user.user_id,
@@ -275,7 +325,6 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated 
 
       if (changed.username) {
         setUsernameChangedOldValue(changed.username.old as string | null);
-        // Invalidate the public portfolio cache for the old and new username
         queryClient.invalidateQueries({ queryKey: ['public-portfolio'] });
       }
 
@@ -442,6 +491,94 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated 
     }
   };
 
+  const handleDeleteNote = async (noteId: string) => {
+    setDeletingNoteId(noteId);
+    try {
+      const { data, error } = await edgeFunctions.functions.invoke('admin-save-note', {
+        body: {
+          password: getDevKitToken(),
+          target_user_id: user.user_id,
+          action: 'delete',
+          note_id: noteId,
+          actor_email: authUser?.email ?? 'admin (dev-kit)',
+        },
+      });
+      if (error) throw new Error(error.message);
+      const result = data as { success?: boolean; error?: string };
+      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      toast.success('Note deleted');
+      setNotesHistory(prev => prev.filter(n => n.id !== noteId));
+      setConfirmDeleteNoteId(null);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to delete note');
+    } finally {
+      setDeletingNoteId(null);
+    }
+  };
+
+  const handleRevokeSessions = async () => {
+    setRevokingSessions(true);
+    try {
+      const { data, error } = await edgeFunctions.functions.invoke('admin-revoke-sessions', {
+        body: {
+          password: getDevKitToken(),
+          target_user_id: user.user_id,
+          actor_email: authUser?.email ?? 'admin (dev-kit)',
+        },
+      });
+      if (error) throw new Error(error.message);
+      const result = data as { success?: boolean; error?: string };
+      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      toast.success('All sessions revoked', { description: 'The user has been signed out from all devices.' });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to revoke sessions');
+    } finally {
+      setRevokingSessions(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (deleteEmailConfirm !== user.email) return;
+    setDeletingUser(true);
+    try {
+      const { data, error } = await edgeFunctions.functions.invoke('admin-delete-user', {
+        body: {
+          password: getDevKitToken(),
+          target_user_id: user.user_id,
+          actor_email: authUser?.email ?? 'admin (dev-kit)',
+        },
+      });
+      if (error) throw new Error(error.message);
+      const result = data as { success?: boolean; error?: string };
+      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+      toast.success('User account permanently deleted');
+      setShowDeleteDialog(false);
+      onUserDeleted?.(user.user_id);
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to delete user');
+    } finally {
+      setDeletingUser(false);
+    }
+  };
+
+  const handleLoadResumeDetail = async (resumeId: string) => {
+    setResumeDetailLoading(true);
+    try {
+      const { data, error } = await edgeFunctions.functions.invoke('admin-list-user-content', {
+        body: { password: getDevKitToken(), target_user_id: user.user_id, resume_id: resumeId },
+      });
+      if (error) throw new Error(error.message);
+      const result = data as { success?: boolean; resume?: ResumeDetail };
+      if (result?.success === false) throw new Error('Failed to load resume');
+      setSelectedResume(result?.resume ?? null);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to load resume');
+    } finally {
+      setResumeDetailLoading(false);
+    }
+  };
+
   return (
     <>
       <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
@@ -462,363 +599,571 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated 
           </Button>
         </div>
 
+        {/* Drawer Tabs */}
+        <div className="flex gap-1 p-2 border-b border-border shrink-0">
+          {(['actions', 'content'] as DrawerTab[]).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setDrawerTab(tab)}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all capitalize flex items-center gap-1.5 ${drawerTab === tab ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+            >
+              {tab === 'content' ? <FileText className="w-3.5 h-3.5" /> : null}
+              {tab === 'actions' ? 'Actions' : 'Content'}
+            </button>
+          ))}
+        </div>
+
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-5">
-          {/* User Info Card */}
-          <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-medium">User ID</span>
-              <div className="flex items-center gap-1">
-                <span className="font-mono text-[10px] text-muted-foreground">{user.user_id.slice(0, 16)}…</span>
-                <CopyButton value={user.user_id} />
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-medium">Current plan</span>
-              <div className="flex items-center gap-1.5">
-                {user.is_suspended && <Badge variant="outline" className="text-[10px] bg-red-500/10 text-red-600 border-red-500/20">Suspended</Badge>}
-                {isTrialActive && <Badge variant="outline" className="text-[10px] bg-purple-500/10 text-purple-600 border-purple-500/20">Trial {user.trial_plan} · {trialDaysLeft}d left</Badge>}
-                <Badge variant="outline" className={`capitalize text-[10px] ${PLAN_COLORS[user.plan_name] ?? ''}`}>{user.plan_name}</Badge>
-              </div>
-            </div>
-            {isTrialActive && (
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground font-medium">Trial expires</span>
-                <span className="text-xs text-muted-foreground">{formatDate(user.trial_expires_at)}</span>
-              </div>
-            )}
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-medium">Joined</span>
-              <span className="text-xs text-muted-foreground">{formatDate(user.created_at)}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-medium">Last active</span>
-              <span className="text-xs text-muted-foreground">{formatDate(user.last_sign_in_at)}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-medium">Resumes</span>
-              <span className="text-xs text-muted-foreground">{user.resume_count}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-medium">Short links</span>
-              <span className="text-xs text-muted-foreground">{user.link_count ?? 0}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-medium">AI credits (today)</span>
-              <span className="text-xs text-muted-foreground">
-                {user.credits_used_today} / {user.daily_limit === -1 ? 'unlimited' : (user.daily_limit ?? '—')}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-medium">Daily AI limit</span>
-              <span className="text-xs text-muted-foreground">
-                {user.daily_limit === -1 ? 'Unlimited' : user.daily_limit != null ? `${user.daily_limit} / day` : '—'}
-              </span>
-            </div>
-            {user.plan_updated_at && (
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground font-medium">Plan last changed</span>
-                <span className="text-xs text-muted-foreground">{formatDate(user.plan_updated_at)}</span>
-              </div>
-            )}
-          </div>
 
-          {/* Edit Profile */}
-          <div className="space-y-3">
-            <h3 className="flex items-center gap-2 text-sm font-semibold">
-              <UserPen className="w-4 h-4 text-rose-500" />
-              Edit Profile
-            </h3>
-
-            {usernameChangedOldValue !== null && (
-              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400">
-                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                <span>
-                  The old portfolio URL <span className="font-mono">resume.thewise.cloud/p/{usernameChangedOldValue}</span> will no longer work. The user should be notified.
-                </span>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <div>
-                <label className="text-xs text-muted-foreground font-medium">Full name</label>
-                <Input
-                  value={profileFullName}
-                  onChange={(e) => setProfileFullName(e.target.value)}
-                  placeholder="e.g. Jane Smith"
-                  className="mt-1 h-9 text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-muted-foreground font-medium">Portfolio username</label>
-                <div className="relative mt-1">
-                  <Input
-                    value={profileUsername}
-                    onChange={(e) => handleUsernameChange(e.target.value)}
-                    placeholder={profileUsernameLoaded ? 'e.g. janesmith' : 'Loading…'}
-                    disabled={!profileUsernameLoaded}
-                    className="h-9 text-xs pr-8"
-                  />
-                  {checkingUsername && (
-                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">…</span>
-                  )}
-                  {!checkingUsername && usernameAvailable === true && (
-                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-green-600 font-bold">✓</span>
-                  )}
-                  {!checkingUsername && usernameAvailable === false && (
-                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-destructive font-bold">✗</span>
-                  )}
-                </div>
-                {!checkingUsername && usernameAvailable === false && (
-                  <p className="text-[10px] text-destructive mt-0.5">Username is already taken</p>
-                )}
-                {!checkingUsername && usernameAvailable === true && (
-                  <p className="text-[10px] text-green-600 mt-0.5">Username is available</p>
-                )}
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                  Portfolio URL: <span className="font-mono">resume.thewise.cloud/p/{profileUsername || '…'}</span>
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between py-1">
-                <span className="text-xs text-muted-foreground font-medium">Portfolio enabled</span>
-                {profileEnabled === null ? (
-                  <span className="text-[10px] text-muted-foreground">Loading…</span>
-                ) : (
-                  <Badge
-                    variant="outline"
-                    className={profileEnabled
-                      ? 'text-[10px] bg-green-500/10 text-green-600 border-green-500/20'
-                      : 'text-[10px] bg-muted text-muted-foreground border-border'}
-                  >
-                    {profileEnabled ? 'Enabled' : 'Disabled'}
-                  </Badge>
-                )}
-              </div>
-
-              <Button
-                onClick={handleSaveProfile}
-                disabled={savingProfile || usernameAvailable === false || checkingUsername}
-                size="sm"
-                className="w-full mt-1"
-              >
-                {savingProfile ? 'Saving…' : 'Save profile changes'}
-              </Button>
-            </div>
-          </div>
-
-          {/* Plan Controls */}
-          <div className="space-y-3">
-            <h3 className="flex items-center gap-2 text-sm font-semibold">
-              <Crown className="w-4 h-4 text-amber-500" />
-              Plan Control
-            </h3>
-            <div className="flex gap-1 p-1 bg-muted/40 rounded-lg border border-border w-fit">
-              {(['permanent', 'trial'] as PlanTab[]).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setPlanTab(tab)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all capitalize ${planTab === tab ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-
-            {planTab === 'permanent' && (
-              <div className="space-y-2">
-                {(['free', 'pro', 'premium'] as const).map((plan) => (
-                  <button
-                    key={plan}
-                    onClick={() => setSelectedPlan(plan)}
-                    className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${selectedPlan === plan ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40 hover:bg-muted'}`}
-                  >
-                    <span className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${selectedPlan === plan ? 'border-primary' : 'border-muted-foreground/40'}`}>
-                      {selectedPlan === plan && <span className="w-2 h-2 rounded-full bg-primary block" />}
-                    </span>
-                    <span className="text-sm capitalize font-medium">{plan}</span>
-                    {user.plan_name === plan && <span className="ml-auto text-[10px] text-muted-foreground">current</span>}
-                  </button>
-                ))}
-                <Button onClick={handleSetPlan} disabled={savingPlan} size="sm" className="w-full mt-1">
-                  {savingPlan ? 'Saving…' : 'Set permanent plan'}
-                </Button>
-              </div>
-            )}
-
-            {planTab === 'trial' && (
-              <div className="space-y-3">
-                {isTrialActive && (
-                  <div className="p-2.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-xs text-purple-600 dark:text-purple-400">
-                    <p className="font-medium">Active {user.trial_plan} trial</p>
-                    <p className="opacity-80 mt-0.5">Expires {formatDate(user.trial_expires_at)} · {trialDaysLeft} days left</p>
-                    <Button variant="outline" size="sm" onClick={handleRevokeTrial} disabled={revokingTrial} className="mt-2 h-6 text-[10px] text-destructive border-destructive/30">
-                      {revokingTrial ? 'Revoking…' : 'Revoke trial'}
-                    </Button>
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Trial plan</p>
-                    <select
-                      value={trialPlan}
-                      onChange={(e) => setTrialPlan(e.target.value as 'pro' | 'premium')}
-                      className="w-full text-xs bg-background border border-border rounded-md px-2 py-2 focus:outline-none focus:ring-1 focus:ring-primary"
-                    >
-                      <option value="pro">Pro</option>
-                      <option value="premium">Premium</option>
-                    </select>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Duration (days)</p>
-                    <select
-                      value={trialDays}
-                      onChange={(e) => setTrialDays(Number(e.target.value))}
-                      className="w-full text-xs bg-background border border-border rounded-md px-2 py-2 focus:outline-none focus:ring-1 focus:ring-primary"
-                    >
-                      {[3, 7, 14, 30, 60, 90].map(d => <option key={d} value={d}>{d} days</option>)}
-                    </select>
-                  </div>
-                </div>
-                <Button onClick={handleGrantTrial} disabled={savingTrial} size="sm" className="w-full">
-                  {savingTrial ? 'Granting…' : `Grant ${trialPlan} trial for ${trialDays} days`}
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Account History */}
-          {auditHistory.length > 0 && (
-            <div className="space-y-2">
+          {/* === CONTENT TAB === */}
+          {drawerTab === 'content' && (
+            <div className="space-y-3">
               <h3 className="flex items-center gap-2 text-sm font-semibold">
-                <Clock className="w-4 h-4 text-muted-foreground" />
-                Plan & Action History
+                <FileText className="w-4 h-4 text-primary" />
+                Resumes ({resumes.length})
               </h3>
-              <div className="rounded-xl border border-border overflow-hidden">
-                {auditHistory.slice(0, 10).map((entry) => (
-                  <div key={entry.id} className="flex items-start gap-3 px-3 py-2 border-b border-border last:border-0">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium capitalize">{entry.action.replace(/_/g, ' ')}</p>
-                      <p className="text-[10px] text-muted-foreground">{summarizeAction(entry.action, entry.metadata)}</p>
-                      <p className="text-[10px] text-muted-foreground/60">
-                        by {(entry.metadata?.actor_email as string) ?? (entry.category === 'admin' ? 'Admin' : 'System')}
-                      </p>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground shrink-0">{formatDate(entry.created_at)}</p>
+
+              {resumesLoading && (
+                <div className="space-y-2">
+                  {[...Array(3)].map((_, i) => <div key={i} className="h-10 rounded-lg bg-muted/50 animate-pulse" />)}
+                </div>
+              )}
+
+              {!resumesLoading && resumes.length === 0 && (
+                <p className="text-xs text-muted-foreground py-4 text-center">No resumes found for this user.</p>
+              )}
+
+              {!resumesLoading && resumes.length > 0 && (
+                <div className="rounded-xl border border-border overflow-hidden">
+                  {resumes.map((resume) => (
+                    <button
+                      key={resume.id}
+                      onClick={() => handleLoadResumeDetail(resume.id)}
+                      className="w-full flex items-center justify-between px-3 py-2.5 border-b border-border last:border-0 hover:bg-muted/30 transition-colors text-left"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium truncate">{resume.title || 'Untitled Resume'}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          Template: {resume.template_id ?? '—'} · Updated {formatDate(resume.updated_at)}
+                        </p>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0 ml-2" />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Resume JSON Detail side sheet */}
+              {selectedResume && (
+                <div className="rounded-xl border border-border overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-2 bg-muted/30 border-b border-border">
+                    <p className="text-xs font-medium">{selectedResume.title || 'Untitled Resume'}</p>
+                    <button
+                      onClick={() => setSelectedResume(null)}
+                      className="text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                ))}
-              </div>
+                  <div className="p-3 max-h-80 overflow-y-auto">
+                    <pre className="text-[10px] text-muted-foreground whitespace-pre-wrap break-words font-mono">
+                      {JSON.stringify(selectedResume.content, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              )}
+
+              {resumeDetailLoading && (
+                <div className="h-32 rounded-lg bg-muted/50 animate-pulse" />
+              )}
             </div>
           )}
 
-          {/* Suspension */}
-          <div className="space-y-3">
-            <h3 className="flex items-center gap-2 text-sm font-semibold">
-              {user.is_suspended ? <ShieldOff className="w-4 h-4 text-red-500" /> : <Shield className="w-4 h-4 text-green-500" />}
-              Account Status
-            </h3>
-            {user.is_suspended ? (
-              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400 space-y-2">
-                <p className="font-medium">Account is suspended</p>
-                {user.suspension_reason && <p className="opacity-80">Reason: {user.suspension_reason}</p>}
-                <Button variant="outline" size="sm" onClick={handleToggleSuspend} disabled={savingSuspend} className="h-7 text-xs">
-                  {savingSuspend ? 'Unsuspending…' : 'Unsuspend account'}
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Input
-                  placeholder="Suspension reason (optional)"
-                  value={suspendReason}
-                  onChange={(e) => setSuspendReason(e.target.value)}
-                  className="text-xs h-9"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleToggleSuspend}
-                  disabled={savingSuspend}
-                  className="h-8 text-xs text-destructive border-destructive/30 hover:bg-destructive/10 w-full"
-                >
-                  {savingSuspend ? 'Suspending…' : 'Suspend account'}
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* AI Credits Override */}
-          <div className="space-y-3">
-            <h3 className="flex items-center gap-2 text-sm font-semibold">
-              <Zap className="w-4 h-4 text-yellow-500" />
-              AI Credits Override
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              Currently using <strong>{user.credits_used_today}</strong> of <strong>{user.daily_limit === -1 ? 'unlimited' : (user.daily_limit ?? '?')}</strong> credits today.
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">New daily limit (-1 = unlimited)</p>
-                <Input
-                  type="number"
-                  placeholder={user.daily_limit !== null ? String(user.daily_limit) : 'current'}
-                  value={newDailyLimit}
-                  onChange={(e) => setNewDailyLimit(e.target.value)}
-                  className="h-9 text-xs"
-                />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Add bonus credits</p>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={bonusCredits}
-                  onChange={(e) => setBonusCredits(e.target.value)}
-                  className="h-9 text-xs"
-                  min="0"
-                />
-              </div>
-            </div>
-            <Button onClick={handleSetCredits} disabled={savingCredits} size="sm" variant="outline" className="w-full h-8 text-xs">
-              {savingCredits ? 'Saving…' : 'Apply credits override'}
-            </Button>
-          </div>
-
-          {/* Admin Notes */}
-          <div className="space-y-3">
-            <h3 className="flex items-center gap-2 text-sm font-semibold">
-              <StickyNote className="w-4 h-4 text-blue-500" />
-              Admin Notes
-            </h3>
-            <Textarea
-              placeholder="Add an internal note about this user…"
-              value={noteText}
-              onChange={(e) => setNoteText(e.target.value)}
-              rows={2}
-              className="text-xs resize-none"
-            />
-            <Button onClick={handleSaveNote} disabled={savingNote || !noteText.trim()} size="sm" variant="outline" className="h-8 text-xs w-full">
-              {savingNote ? 'Saving…' : 'Save note'}
-            </Button>
-            <p className="text-[10px] text-muted-foreground">Notes are internal — never visible to the user.</p>
-
-            {/* Notes history */}
-            {notesHistory.length > 0 && (
-              <div className="rounded-xl border border-border overflow-hidden mt-2">
-                <div className="px-3 py-2 bg-muted/30 border-b border-border">
-                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Previous notes</p>
-                </div>
-                {notesHistory.map((note) => (
-                  <div key={note.id} className="px-3 py-2 border-b border-border last:border-0">
-                    <p className="text-xs">{note.note_text}</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">{formatDate(note.created_at)}</p>
+          {/* === ACTIONS TAB === */}
+          {drawerTab === 'actions' && (
+            <>
+              {/* User Info Card */}
+              <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground font-medium">User ID</span>
+                  <div className="flex items-center gap-1">
+                    <span className="font-mono text-[10px] text-muted-foreground">{user.user_id.slice(0, 16)}…</span>
+                    <CopyButton value={user.user_id} />
                   </div>
-                ))}
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground font-medium">Current plan</span>
+                  <div className="flex items-center gap-1.5">
+                    {user.is_suspended && <Badge variant="outline" className="text-[10px] bg-red-500/10 text-red-600 border-red-500/20">Suspended</Badge>}
+                    {isTrialActive && <Badge variant="outline" className="text-[10px] bg-purple-500/10 text-purple-600 border-purple-500/20">Trial {user.trial_plan} · {trialDaysLeft}d left</Badge>}
+                    <Badge variant="outline" className={`capitalize text-[10px] ${PLAN_COLORS[user.plan_name] ?? ''}`}>{user.plan_name}</Badge>
+                  </div>
+                </div>
+                {isTrialActive && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground font-medium">Trial expires</span>
+                    <span className="text-xs text-muted-foreground">{formatDate(user.trial_expires_at)}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground font-medium">Joined</span>
+                  <span className="text-xs text-muted-foreground">{formatDate(user.created_at)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground font-medium">Last active</span>
+                  <span className="text-xs text-muted-foreground">{formatDate(user.last_sign_in_at)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground font-medium">Resumes</span>
+                  <span className="text-xs text-muted-foreground">{user.resume_count}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground font-medium">Short links</span>
+                  <span className="text-xs text-muted-foreground">{user.link_count ?? 0}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground font-medium">AI credits (today)</span>
+                  <span className="text-xs text-muted-foreground">
+                    {user.credits_used_today} / {user.daily_limit === -1 ? 'unlimited' : (user.daily_limit ?? '—')}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground font-medium">Daily AI limit</span>
+                  <span className="text-xs text-muted-foreground">
+                    {user.daily_limit === -1 ? 'Unlimited' : user.daily_limit != null ? `${user.daily_limit} / day` : '—'}
+                  </span>
+                </div>
+                {user.plan_updated_at && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground font-medium">Plan last changed</span>
+                    <span className="text-xs text-muted-foreground">{formatDate(user.plan_updated_at)}</span>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+
+              {/* Danger Zone: Session Revoke + Delete Account */}
+              <div className="space-y-2">
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-destructive">
+                  <AlertTriangle className="w-4 h-4" />
+                  Danger Zone
+                </h3>
+                <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-medium">Revoke all sessions</p>
+                      <p className="text-[10px] text-muted-foreground">Signs the user out from all devices immediately.</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRevokeSessions}
+                      disabled={revokingSessions}
+                      className="h-7 text-xs shrink-0 border-destructive/30 text-destructive hover:bg-destructive/10"
+                    >
+                      <LogOut className="w-3 h-3 mr-1" />
+                      {revokingSessions ? 'Revoking…' : 'Revoke'}
+                    </Button>
+                  </div>
+                  <div className="border-t border-destructive/10 pt-2 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-medium">Delete account</p>
+                      <p className="text-[10px] text-muted-foreground">Permanently removes this user and all their data.</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => { setShowDeleteDialog(true); setDeleteEmailConfirm(''); }}
+                      className="h-7 text-xs shrink-0 border-destructive/30 text-destructive hover:bg-destructive/10"
+                    >
+                      <UserX className="w-3 h-3 mr-1" />
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Edit Profile */}
+              <div className="space-y-3">
+                <h3 className="flex items-center gap-2 text-sm font-semibold">
+                  <UserPen className="w-4 h-4 text-rose-500" />
+                  Edit Profile
+                </h3>
+
+                {usernameChangedOldValue !== null && (
+                  <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400">
+                    <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                    <span>
+                      The old portfolio URL <span className="font-mono">resume.thewise.cloud/p/{usernameChangedOldValue}</span> will no longer work. The user should be notified.
+                    </span>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <div>
+                    <label className="text-xs text-muted-foreground font-medium">Full name</label>
+                    <Input
+                      value={profileFullName}
+                      onChange={(e) => setProfileFullName(e.target.value)}
+                      placeholder="e.g. Jane Smith"
+                      className="mt-1 h-9 text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-muted-foreground font-medium">Portfolio username</label>
+                    <div className="relative mt-1">
+                      <Input
+                        value={profileUsername}
+                        onChange={(e) => handleUsernameChange(e.target.value)}
+                        placeholder={profileUsernameLoaded ? 'e.g. janesmith' : 'Loading…'}
+                        disabled={!profileUsernameLoaded}
+                        className="h-9 text-xs pr-8"
+                      />
+                      {checkingUsername && (
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">…</span>
+                      )}
+                      {!checkingUsername && usernameAvailable === true && (
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-green-600 font-bold">✓</span>
+                      )}
+                      {!checkingUsername && usernameAvailable === false && (
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-destructive font-bold">✗</span>
+                      )}
+                    </div>
+                    {!checkingUsername && usernameAvailable === false && (
+                      <p className="text-[10px] text-destructive mt-0.5">Username is already taken</p>
+                    )}
+                    {!checkingUsername && usernameAvailable === true && (
+                      <p className="text-[10px] text-green-600 mt-0.5">Username is available</p>
+                    )}
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      Portfolio URL: <span className="font-mono">resume.thewise.cloud/p/{profileUsername || '…'}</span>
+                    </p>
+                  </div>
+
+                  <div className="flex items-center justify-between py-1">
+                    <span className="text-xs text-muted-foreground font-medium">Portfolio enabled</span>
+                    {profileEnabled === null ? (
+                      <span className="text-[10px] text-muted-foreground">Loading…</span>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className={profileEnabled
+                          ? 'text-[10px] bg-green-500/10 text-green-600 border-green-500/20'
+                          : 'text-[10px] bg-muted text-muted-foreground border-border'}
+                      >
+                        {profileEnabled ? 'Enabled' : 'Disabled'}
+                      </Badge>
+                    )}
+                  </div>
+
+                  <Button
+                    onClick={handleSaveProfile}
+                    disabled={savingProfile || usernameAvailable === false || checkingUsername}
+                    size="sm"
+                    className="w-full mt-1"
+                  >
+                    {savingProfile ? 'Saving…' : 'Save profile changes'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Plan Controls */}
+              <div className="space-y-3">
+                <h3 className="flex items-center gap-2 text-sm font-semibold">
+                  <Crown className="w-4 h-4 text-amber-500" />
+                  Plan Control
+                </h3>
+                <div className="flex gap-1 p-1 bg-muted/40 rounded-lg border border-border w-fit">
+                  {(['permanent', 'trial'] as PlanTab[]).map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setPlanTab(tab)}
+                      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all capitalize ${planTab === tab ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+
+                {planTab === 'permanent' && (
+                  <div className="space-y-2">
+                    {(['free', 'pro', 'premium'] as const).map((plan) => (
+                      <button
+                        key={plan}
+                        onClick={() => setSelectedPlan(plan)}
+                        className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all ${selectedPlan === plan ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40 hover:bg-muted'}`}
+                      >
+                        <span className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${selectedPlan === plan ? 'border-primary' : 'border-muted-foreground/40'}`}>
+                          {selectedPlan === plan && <span className="w-2 h-2 rounded-full bg-primary block" />}
+                        </span>
+                        <span className="text-sm capitalize font-medium">{plan}</span>
+                        {user.plan_name === plan && <span className="ml-auto text-[10px] text-muted-foreground">current</span>}
+                      </button>
+                    ))}
+                    <Button onClick={handleSetPlan} disabled={savingPlan} size="sm" className="w-full mt-1">
+                      {savingPlan ? 'Saving…' : 'Set permanent plan'}
+                    </Button>
+                  </div>
+                )}
+
+                {planTab === 'trial' && (
+                  <div className="space-y-3">
+                    {isTrialActive && (
+                      <div className="p-2.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-xs text-purple-600 dark:text-purple-400">
+                        <p className="font-medium">Active {user.trial_plan} trial</p>
+                        <p className="opacity-80 mt-0.5">Expires {formatDate(user.trial_expires_at)} · {trialDaysLeft} days left</p>
+                        <Button variant="outline" size="sm" onClick={handleRevokeTrial} disabled={revokingTrial} className="mt-2 h-6 text-[10px] text-destructive border-destructive/30">
+                          {revokingTrial ? 'Revoking…' : 'Revoke trial'}
+                        </Button>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Trial plan</p>
+                        <select
+                          value={trialPlan}
+                          onChange={(e) => setTrialPlan(e.target.value as 'pro' | 'premium')}
+                          className="w-full text-xs bg-background border border-border rounded-md px-2 py-2 focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="pro">Pro</option>
+                          <option value="premium">Premium</option>
+                        </select>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Duration (days)</p>
+                        <select
+                          value={trialDays}
+                          onChange={(e) => setTrialDays(Number(e.target.value))}
+                          className="w-full text-xs bg-background border border-border rounded-md px-2 py-2 focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          {[3, 7, 14, 30, 60, 90].map(d => <option key={d} value={d}>{d} days</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <Button onClick={handleGrantTrial} disabled={savingTrial} size="sm" className="w-full">
+                      {savingTrial ? 'Granting…' : `Grant ${trialPlan} trial for ${trialDays} days`}
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Account History */}
+              {auditHistory.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold">
+                    <Clock className="w-4 h-4 text-muted-foreground" />
+                    Plan & Action History
+                  </h3>
+                  <div className="rounded-xl border border-border overflow-hidden">
+                    {auditHistory.slice(0, 10).map((entry) => (
+                      <div key={entry.id} className="flex items-start gap-3 px-3 py-2 border-b border-border last:border-0">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium capitalize">{entry.action.replace(/_/g, ' ')}</p>
+                          <p className="text-[10px] text-muted-foreground">{summarizeAction(entry.action, entry.metadata)}</p>
+                          <p className="text-[10px] text-muted-foreground/60">
+                            by {(entry.metadata?.actor_email as string) ?? (entry.category === 'admin' ? 'Admin' : 'System')}
+                          </p>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground shrink-0">{formatDate(entry.created_at)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Suspension */}
+              <div className="space-y-3">
+                <h3 className="flex items-center gap-2 text-sm font-semibold">
+                  {user.is_suspended ? <ShieldOff className="w-4 h-4 text-red-500" /> : <Shield className="w-4 h-4 text-green-500" />}
+                  Account Status
+                </h3>
+                {user.is_suspended ? (
+                  <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400 space-y-2">
+                    <p className="font-medium">Account is suspended</p>
+                    {user.suspension_reason && <p className="opacity-80">Reason: {user.suspension_reason}</p>}
+                    <Button variant="outline" size="sm" onClick={handleToggleSuspend} disabled={savingSuspend} className="h-7 text-xs">
+                      {savingSuspend ? 'Unsuspending…' : 'Unsuspend account'}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Suspension reason (optional)"
+                      value={suspendReason}
+                      onChange={(e) => setSuspendReason(e.target.value)}
+                      className="text-xs h-9"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleToggleSuspend}
+                      disabled={savingSuspend}
+                      className="h-8 text-xs text-destructive border-destructive/30 hover:bg-destructive/10 w-full"
+                    >
+                      {savingSuspend ? 'Suspending…' : 'Suspend account'}
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* AI Credits Override */}
+              <div className="space-y-3">
+                <h3 className="flex items-center gap-2 text-sm font-semibold">
+                  <Zap className="w-4 h-4 text-yellow-500" />
+                  AI Credits Override
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Currently using <strong>{user.credits_used_today}</strong> of <strong>{user.daily_limit === -1 ? 'unlimited' : (user.daily_limit ?? '?')}</strong> credits today.
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">New daily limit (-1 = unlimited)</p>
+                    <Input
+                      type="number"
+                      placeholder={user.daily_limit !== null ? String(user.daily_limit) : 'current'}
+                      value={newDailyLimit}
+                      onChange={(e) => setNewDailyLimit(e.target.value)}
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Add bonus credits</p>
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      value={bonusCredits}
+                      onChange={(e) => setBonusCredits(e.target.value)}
+                      className="h-9 text-xs"
+                      min="0"
+                    />
+                  </div>
+                </div>
+                <Button onClick={handleSetCredits} disabled={savingCredits} size="sm" variant="outline" className="w-full h-8 text-xs">
+                  {savingCredits ? 'Saving…' : 'Apply credits override'}
+                </Button>
+              </div>
+
+              {/* Admin Notes */}
+              <div className="space-y-3">
+                <h3 className="flex items-center gap-2 text-sm font-semibold">
+                  <StickyNote className="w-4 h-4 text-blue-500" />
+                  Admin Notes
+                </h3>
+                <Textarea
+                  placeholder="Add an internal note about this user…"
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  rows={2}
+                  className="text-xs resize-none"
+                />
+                <Button onClick={handleSaveNote} disabled={savingNote || !noteText.trim()} size="sm" variant="outline" className="h-8 text-xs w-full">
+                  {savingNote ? 'Saving…' : 'Save note'}
+                </Button>
+                <p className="text-[10px] text-muted-foreground">Notes are internal — never visible to the user.</p>
+
+                {/* Notes history */}
+                {notesHistory.length > 0 && (
+                  <div className="rounded-xl border border-border overflow-hidden mt-2">
+                    <div className="px-3 py-2 bg-muted/30 border-b border-border">
+                      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Previous notes</p>
+                    </div>
+                    {notesHistory.map((note) => (
+                      <div key={note.id} className="px-3 py-2 border-b border-border last:border-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-xs flex-1">{note.note_text}</p>
+                          {confirmDeleteNoteId === note.id ? (
+                            <div className="flex items-center gap-1 shrink-0">
+                              <span className="text-[10px] text-destructive">Delete?</span>
+                              <button
+                                onClick={() => handleDeleteNote(note.id)}
+                                disabled={deletingNoteId === note.id}
+                                className="text-[10px] text-destructive font-semibold hover:underline disabled:opacity-50"
+                              >
+                                {deletingNoteId === note.id ? '…' : 'Yes'}
+                              </button>
+                              <button
+                                onClick={() => setConfirmDeleteNoteId(null)}
+                                className="text-[10px] text-muted-foreground hover:text-foreground"
+                              >
+                                No
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setConfirmDeleteNoteId(note.id)}
+                              className="p-1 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                              title="Delete note"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-1">{formatDate(note.created_at)}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
+
+      {/* Delete user confirmation dialog */}
+      {showDeleteDialog && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                <UserX className="w-5 h-5 text-destructive" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm">Delete account permanently</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">This action cannot be undone.</p>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs text-destructive">
+              <p>This will permanently delete <strong>{user.email}</strong> and all their data including resumes, notes, and audit log entries.</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">
+                Type <span className="font-mono text-foreground">{user.email}</span> to confirm
+              </label>
+              <Input
+                value={deleteEmailConfirm}
+                onChange={(e) => setDeleteEmailConfirm(e.target.value)}
+                placeholder={user.email}
+                className="h-9 text-xs font-mono"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setShowDeleteDialog(false); setDeleteEmailConfirm(''); }}
+                className="flex-1"
+                disabled={deletingUser}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleDeleteUser}
+                disabled={deletingUser || deleteEmailConfirm !== user.email}
+                className="flex-1"
+              >
+                {deletingUser ? 'Deleting…' : 'Delete account'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -1,10 +1,14 @@
-import { checkUserRateLimit } from '../_shared/userRateLimiter.ts';
+import { getServiceClient } from '../_shared/dbClient.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+const LOCKOUT_WINDOW_SECONDS = 10 * 60; // 10 minutes
+const MAX_FAILURES = 5;
+const LOCKOUT_DURATION_SECONDS = 10 * 60; // 10 minutes lockout
 
 async function signSessionToken(email: string, secretKey: string): Promise<string> {
   const expiresAt = Date.now() + 8 * 60 * 60 * 1000;
@@ -38,6 +42,39 @@ async function hmacPasswordEqual(a: string, b: string): Promise<boolean> {
     return Array.from(new Uint8Array(sig)).map(x => x.toString(16).padStart(2, '0')).join('');
   }));
   return macA === macB;
+}
+
+async function getLockoutStatus(lockKey: string): Promise<{ locked: boolean; retry_after_seconds?: number; locked_until?: string }> {
+  const supabase = getServiceClient();
+  const windowStart = new Date(Date.now() - LOCKOUT_WINDOW_SECONDS * 1000).toISOString();
+
+  const { data: failRows, error } = await supabase
+    .from('rpc_rate_limits')
+    .select('created_at')
+    .eq('user_id', lockKey)
+    .eq('endpoint', 'devkit-login-fail')
+    .gte('created_at', windowStart)
+    .order('created_at', { ascending: false });
+
+  if (error || !failRows) return { locked: false };
+
+  if (failRows.length >= MAX_FAILURES) {
+    const oldestFailInWindow = failRows[failRows.length - 1].created_at as string;
+    const lockedUntil = new Date(new Date(oldestFailInWindow).getTime() + LOCKOUT_DURATION_SECONDS * 1000);
+    const retryAfter = Math.max(0, Math.ceil((lockedUntil.getTime() - Date.now()) / 1000));
+    if (retryAfter > 0) {
+      return { locked: true, retry_after_seconds: retryAfter, locked_until: lockedUntil.toISOString() };
+    }
+  }
+
+  return { locked: false };
+}
+
+async function recordFailedAttempt(lockKey: string): Promise<void> {
+  const supabase = getServiceClient();
+  await supabase
+    .from('rpc_rate_limits')
+    .insert({ user_id: lockKey, endpoint: 'devkit-login-fail', ip_address: 'devkit:login' });
 }
 
 Deno.serve(async (req) => {
@@ -79,6 +116,22 @@ Deno.serve(async (req) => {
     }
 
     const callerEmail = email.trim().toLowerCase();
+    const lockKey = callerEmail.replace(/[^a-z0-9]/g, '_');
+
+    // Check lockout status before password validation
+    const lockoutStatus = await getLockoutStatus(lockKey);
+    if (lockoutStatus.locked) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          locked: true,
+          retry_after_seconds: lockoutStatus.retry_after_seconds,
+          locked_until: lockoutStatus.locked_until,
+          error: "Too many failed attempts. Please wait before trying again.",
+        }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (!allowed.includes(callerEmail)) {
       return new Response(
@@ -87,18 +140,26 @@ Deno.serve(async (req) => {
       );
     }
 
-    const rateLimitKey = callerEmail.replace(/[^a-z0-9]/g, '_');
-    const bruteForceCheck = await checkUserRateLimit(rateLimitKey, 'verify-dev-kit-password', 10, 3600);
-    if (!bruteForceCheck.allowed) {
-      return new Response(
-        JSON.stringify({ error: "Too many password attempts. Please try again later." }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     const isValid = await hmacPasswordEqual(password.trim(), SECRET_PASSWORD);
 
     if (!isValid) {
+      await recordFailedAttempt(lockKey);
+
+      // Check if now locked after this failure
+      const newLockoutStatus = await getLockoutStatus(lockKey);
+      if (newLockoutStatus.locked) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            locked: true,
+            retry_after_seconds: newLockoutStatus.retry_after_seconds,
+            locked_until: newLockoutStatus.locked_until,
+            error: "Too many failed attempts. Please wait before trying again.",
+          }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       return new Response(
         JSON.stringify({ success: false }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

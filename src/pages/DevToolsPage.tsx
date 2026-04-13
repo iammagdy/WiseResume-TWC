@@ -59,6 +59,39 @@ function DevToolsInner() {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
+
+  // Lockout state
+  const [lockoutSecondsLeft, setLockoutSecondsLeft] = useState<number | null>(null);
+  const lockoutIntervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startLockoutCountdown = React.useCallback((seconds: number) => {
+    setLockoutSecondsLeft(seconds);
+    if (lockoutIntervalRef.current) clearInterval(lockoutIntervalRef.current);
+    lockoutIntervalRef.current = setInterval(() => {
+      setLockoutSecondsLeft(prev => {
+        if (prev === null || prev <= 1) {
+          if (lockoutIntervalRef.current) clearInterval(lockoutIntervalRef.current);
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      if (lockoutIntervalRef.current) clearInterval(lockoutIntervalRef.current);
+    };
+  }, []);
+
+  const isLockedOut = lockoutSecondsLeft !== null && lockoutSecondsLeft > 0;
+
+  const formatLockoutTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return m > 0 ? `${m}m ${s.toString().padStart(2, '0')}s` : `${s}s`;
+  };
+
   const [userCount, setUserCount] = useState<number | null>(null);
   const [couponCount, setCouponCount] = useState<number | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('checking');
@@ -82,7 +115,7 @@ function DevToolsInner() {
 
   const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !pw.trim()) return;
+    if (!email.trim() || !pw.trim() || isLockedOut) return;
 
     setIsVerifying(true);
     setLoginError(null);
@@ -109,7 +142,12 @@ function DevToolsInner() {
       }
 
       if (data?.success && data?.token) {
+        setLockoutSecondsLeft(null);
         unlock(data.token as string);
+      } else if (data?.locked) {
+        const retryAfter = (data.retry_after_seconds as number) ?? 600;
+        startLockoutCountdown(retryAfter);
+        setLoginError(null);
       } else if (data?.authorized === false) {
         setLoginError('This email is not authorised for admin access.');
       } else {
@@ -152,6 +190,15 @@ function DevToolsInner() {
           </div>
 
           <div className="bg-card border border-border rounded-2xl p-6 shadow-xl shadow-black/5 space-y-4">
+            {/* Lockout banner */}
+            {isLockedOut && lockoutSecondsLeft !== null && (
+              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive text-center space-y-1">
+                <p className="font-semibold text-xs">Too many attempts — account temporarily locked</p>
+                <p className="font-mono text-lg font-bold tabular-nums">{formatLockoutTime(lockoutSecondsLeft)}</p>
+                <p className="text-[10px] opacity-70">Try again when the timer expires</p>
+              </div>
+            )}
+
             <form onSubmit={handleUnlock} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">Admin email</label>
@@ -160,7 +207,7 @@ function DevToolsInner() {
                   placeholder="admin@example.com"
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setLoginError(null); }}
-                  disabled={isVerifying}
+                  disabled={isVerifying || isLockedOut}
                   autoFocus
                   autoComplete="username"
                   className={cn(
@@ -177,7 +224,7 @@ function DevToolsInner() {
                     placeholder="Enter your dev-kit password"
                     value={pw}
                     onChange={(e) => { setPw(e.target.value); setLoginError(null); }}
-                    disabled={isVerifying}
+                    disabled={isVerifying || isLockedOut}
                     autoComplete="current-password"
                     className={cn(
                       'h-11 pr-10 bg-background/70',
@@ -201,11 +248,13 @@ function DevToolsInner() {
               </div>
               <Button
                 type="submit"
-                disabled={isVerifying || !email.trim() || !pw.trim()}
+                disabled={isVerifying || isLockedOut || !email.trim() || !pw.trim()}
                 className="w-full h-11 font-semibold"
               >
                 {isVerifying ? (
                   <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Verifying…</>
+                ) : isLockedOut ? (
+                  `Locked — ${formatLockoutTime(lockoutSecondsLeft!)}`
                 ) : (
                   'Unlock admin panel'
                 )}
