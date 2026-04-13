@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LazyMotion, domAnimation, m as motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle, AlertCircle, RefreshCw, LayoutTemplate, BookOpen, TrendingUp, Map, Sun, Moon } from 'lucide-react';
+import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle, AlertCircle, RefreshCw, LayoutTemplate, BookOpen, Users, Map, Sun, Moon } from 'lucide-react';
 import { DashboardSkeleton } from '@/components/layout/PageSkeletons';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { SortOption, CategoryFilter, ScoreFilter } from '@/components/dashboard/ResumeFilters';
@@ -702,12 +702,12 @@ function DashboardPageContent() {
                   path: '/examples',
                 },
                 {
-                  icon: TrendingUp,
-                  iconBg: 'bg-blue-500/10',
-                  iconColor: 'text-blue-600 dark:text-blue-400',
-                  label: 'Analytics',
-                  desc: 'How your portfolio performs',
-                  path: '/analytics',
+                  icon: Users,
+                  iconBg: 'bg-emerald-500/10',
+                  iconColor: 'text-emerald-600 dark:text-emerald-400',
+                  label: 'Referral',
+                  desc: 'Invite friends & earn rewards',
+                  path: '/referral',
                 },
                 {
                   icon: Map,
