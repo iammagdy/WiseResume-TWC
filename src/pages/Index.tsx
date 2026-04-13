@@ -394,7 +394,7 @@ const Index = () => {
 
         /* ── LIGHT THEME ─────────────────────────────────────────── */
         .lp-root[data-lp-scheme="light"] {
-          --lp-bg: #f5f5fb;
+          --lp-bg: transparent;
           --lp-card: #ffffff;
           --lp-card-glass: rgba(0,0,0,0.03);
           --lp-border: rgba(0,0,0,0.06);

@@ -364,17 +364,27 @@ function AuroraLayer() {
     path.startsWith('/auth') ||
     path.startsWith('/p/');
 
+  const theme = useSettingsStore((s) => s.theme);
+
   useEffect(() => {
     if (!isPublicPage) return;
     const body = document.body;
     const prevBodyBg = body.style.backgroundColor;
-    body.style.backgroundColor = '#0a0000';
+
+    const isDark =
+      theme === 'dark'
+        ? true
+        : theme === 'light'
+        ? false
+        : getSafeMatchMedia('(prefers-color-scheme: dark)').matches;
+
+    body.style.backgroundColor = isDark ? '#0a0000' : '#fff5f5';
     document.documentElement.classList.add('aurora-active');
     return () => {
       body.style.backgroundColor = prevBodyBg;
       document.documentElement.classList.remove('aurora-active');
     };
-  }, [isPublicPage]);
+  }, [isPublicPage, theme]);
 
   if (!isPublicPage) return null;
   return <AuroraBackground />;
