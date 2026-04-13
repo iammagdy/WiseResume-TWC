@@ -12,6 +12,8 @@ import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { useReducedMotion } from 'framer-motion';
 import { useEffect, useState, useRef } from 'react';
 import { flushSync } from 'react-dom';
+import { useSettingsStore } from '@/store/settingsStore';
+import { getSafeMatchMedia } from '@/lib/envUtils';
 import { useSearchParams } from 'react-router-dom';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
 import { QuickTailorSheet } from '@/components/landing/QuickTailorSheet';
@@ -258,7 +260,13 @@ const Index = () => {
   const prefersReducedMotion = useReducedMotion();
   const themeLogo = useThemeLogo();
   const [scrolled, setScrolled] = useState(false);
-  const [isDark, setIsDark] = useState(true);
+  const storeTheme = useSettingsStore((s) => s.theme);
+  const setThemeStore = useSettingsStore((s) => s.setTheme);
+  const [isDark, setIsDark] = useState(() => {
+    if (storeTheme === 'dark') return true;
+    if (storeTheme === 'light') return false;
+    return getSafeMatchMedia('(prefers-color-scheme: dark)').matches;
+  });
   const progressRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -648,13 +656,18 @@ const Index = () => {
                 // outside the normal DOM tree) can inherit the CSS variables.
                 document.documentElement.style.setProperty('--lp-ripple-x', x + 'px');
                 document.documentElement.style.setProperty('--lp-ripple-y', y + 'px');
+                const next = !isDark;
                 type DocWithVT = Document & { startViewTransition?: (cb: () => void) => void };
                 const startVT = (document as DocWithVT).startViewTransition?.bind(document);
                 if (!startVT || prefersReducedMotion) {
-                  setIsDark((d) => !d);
+                  setIsDark(next);
+                  setThemeStore(next ? 'dark' : 'light');
                   return;
                 }
-                startVT(() => { flushSync(() => setIsDark((d) => !d)); });
+                startVT(() => {
+                  flushSync(() => setIsDark(next));
+                  setThemeStore(next ? 'dark' : 'light');
+                });
               }}
               aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
               title={isDark ? 'Light mode' : 'Dark mode'}
