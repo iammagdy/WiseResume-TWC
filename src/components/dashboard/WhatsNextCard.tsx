@@ -31,17 +31,17 @@ const FEATURE_TIPS = [
 {
   title: 'A/B Resume Compare',
   description: 'Score two versions of your resume side-by-side to find the stronger one.',
-  route: '/ai-studio?tool=ab-compare'
+  route: '/ai-studio/ab-compare'
 },
 {
   title: 'Smart Tailor',
   description: 'Paste a job description and auto-adapt your resume keywords to match.',
-  route: '/ai-studio?tool=tailor'
+  route: '/ai-studio/tailor'
 },
 {
   title: 'Company Briefing',
   description: 'Get a quick research brief on any company before your interview.',
-  route: '/ai-studio?tool=company-briefing'
+  route: '/ai-studio/company-briefing'
 },
 {
   title: 'Portfolio Website',
@@ -147,7 +147,7 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
           action: () => {
             setCurrentResumeId(best.id);
             setCurrentResume(bestData);
-            navigate('/ai-studio?tool=enhance');
+            navigate('/ai-studio/enhance');
           },
           color: 'text-cyan-500',
           bgColor: 'bg-cyan-500/10'
@@ -160,7 +160,7 @@ export const WhatsNextCard = memo(function WhatsNextCard() {
         action: () => {
           setCurrentResumeId(best.id);
           setCurrentResume(bestData);
-          navigate('/ai-studio?tool=tailor');
+          navigate('/ai-studio/tailor');
         },
         color: 'text-primary',
         bgColor: 'bg-primary/10'

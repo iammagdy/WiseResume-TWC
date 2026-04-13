@@ -1033,7 +1033,7 @@ function DashboardPageContent() {
                             variant="outline"
                             size="sm"
                             className="gap-1.5 active:scale-95 touch-manipulation"
-                            onClick={() => { haptics.light(); navigate('/ai-studio?tool=tailor'); }}
+                            onClick={() => { haptics.light(); navigate('/ai-studio/tailor'); }}
                           >
                             <Sparkles className="w-4 h-4" />
                             Tailor a Resume

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, lazy, Suspense, useCallback, useMemo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import {
   Sparkles,
   Wand2,
@@ -110,19 +110,6 @@ function isNewTool(id: string): boolean {
 const RECENT_TOOLS_KEY = 'wr-recent-ai-tools';
 const TIP_DISMISSED_KEY = 'wr-ai-tip-dismissed';
 
-function getRecentToolIds(): string[] {
-  try {
-    const raw = localStorage.getItem(RECENT_TOOLS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
-}
-
-function saveRecentToolId(id: string) {
-  const recent = getRecentToolIds().filter((t) => t !== id);
-  recent.unshift(id);
-  localStorage.setItem(RECENT_TOOLS_KEY, JSON.stringify(recent.slice(0, 3)));
-}
-
 interface ToolEntry {
   id: string;
   icon: React.ElementType;
@@ -183,8 +170,41 @@ const qrTools: ToolEntry[] = [
 // Flat lookup for recent tools
 const allTools = [...toolCategories.flatMap((c) => c.tools), ...qrTools];
 
+function toolToPath(tool: ToolEntry): string {
+  return tool.navigate ?? `/ai-studio/${tool.id}`;
+}
+
+function getRecentToolPaths(): string[] {
+  try {
+    const raw = localStorage.getItem(RECENT_TOOLS_KEY);
+    if (!raw) return [];
+    const parsed: string[] = JSON.parse(raw);
+    return parsed.map((entry) => {
+      if (entry.startsWith('/')) return entry;
+      const tool = allTools.find((t) => t.id === entry);
+      return tool ? toolToPath(tool) : `/ai-studio/${entry}`;
+    });
+  } catch { return []; }
+}
+
+function saveRecentToolPath(tool: ToolEntry) {
+  const path = toolToPath(tool);
+  const recent = getRecentToolPaths().filter((p) => p !== path);
+  recent.unshift(path);
+  localStorage.setItem(RECENT_TOOLS_KEY, JSON.stringify(recent.slice(0, 3)));
+}
+
+function pathToToolEntry(path: string): ToolEntry | undefined {
+  if (path.startsWith('/ai-studio/')) {
+    const id = path.slice('/ai-studio/'.length);
+    return allTools.find((t) => t.id === id);
+  }
+  return allTools.find((t) => t.navigate === path);
+}
+
 export default function AIStudioPage() {
   const navigate = useNavigate();
+  const { tool: toolParam } = useParams<{ tool?: string }>();
   const { user } = useAuth();
   const { isPro, isLoading: planLoading } = usePlan();
   const currentResumeId = useResumeStore((s) => s.currentResumeId);
@@ -205,9 +225,9 @@ export default function AIStudioPage() {
     return () => { stop(); document.removeEventListener('visibilitychange', onVisChange); };
   }, []);
 
-  // Recent tools
-  const [recentIds, setRecentIds] = useState(getRecentToolIds);
-  const recentTools = useMemo(() => recentIds.map((id) => allTools.find((t) => t.id === id)).filter(Boolean) as ToolEntry[], [recentIds]);
+  // Recent tools — stored as canonical paths, backward-compatible with legacy ID entries
+  const [recentPaths, setRecentPaths] = useState(getRecentToolPaths);
+  const recentTools = useMemo(() => recentPaths.map((path) => pathToToolEntry(path)).filter(Boolean) as ToolEntry[], [recentPaths]);
 
   // Dismissible pro tip
   const [tipDismissed, setTipDismissed] = useState(() => localStorage.getItem(TIP_DISMISSED_KEY) === '1');
@@ -237,15 +257,10 @@ export default function AIStudioPage() {
   const [showSkillsGap, setShowSkillsGap] = useState(false);
   const [showPortfolioBio, setShowPortfolioBio] = useState(false);
 
-  const [searchParams, setSearchParams] = useSearchParams();
-  const deepLinkHandled = useRef(false);
+  const [searchParams] = useSearchParams();
+  const activatedToolRef = useRef<string | null>(null);
 
-  // Deep-link: open tool from ?tool= query param
-  useEffect(() => {
-    if (deepLinkHandled.current) return;
-    const tool = searchParams.get('tool');
-    if (!tool) return;
-    deepLinkHandled.current = true;
+  const openToolById = useCallback((tool: string) => {
     const toolMap: Record<string, () => void> = {
       'tailor': () => setShowTailor(true),
       'job-match': () => setShowJobSheet(true),
@@ -269,8 +284,26 @@ export default function AIStudioPage() {
       'portfolio-bio': () => setShowPortfolioBio(true),
     };
     toolMap[tool]?.();
-    setSearchParams({}, { replace: true });
-  }, [searchParams, setSearchParams, navigate]);
+  }, [navigate]);
+
+  // Open tool from path param (/ai-studio/:tool), or redirect legacy ?tool= query param
+  useEffect(() => {
+    // Path param takes priority — open when it changes
+    if (toolParam) {
+      if (activatedToolRef.current === toolParam) return;
+      activatedToolRef.current = toolParam;
+      openToolById(toolParam);
+      return;
+    }
+
+    // No path param — reset so revisiting the same tool later works
+    activatedToolRef.current = null;
+
+    // Legacy query param — redirect to canonical path (no-op if already handled)
+    const queryTool = searchParams.get('tool');
+    if (!queryTool) return;
+    navigate(`/ai-studio/${queryTool}`, { replace: true });
+  }, [toolParam, searchParams, navigate, openToolById]);
 
   const [chatInitialMessage, setChatInitialMessage] = useState('');
 
@@ -303,34 +336,21 @@ export default function AIStudioPage() {
   }, [currentResumeId, navigate, allResumes]);
 
   const handleToolAction = useCallback((tool: ToolEntry) => {
-    saveRecentToolId(tool.id);
-    setRecentIds(getRecentToolIds());
+    saveRecentToolPath(tool);
+    setRecentPaths(getRecentToolPaths());
 
     if (tool.navigate) { haptics.medium(); navigate(tool.navigate); return; }
+
+    // company-briefing does not require a resume
     if (tool.id === 'company-briefing') {
       haptics.medium();
-      setShowCompanyBriefing(true);
+      navigate('/ai-studio/company-briefing');
       return;
     }
+
     const action = () => {
-      switch (tool.id) {
-        case 'tailor': setShowTailor(true); break;
-        case 'enhance': setShowEnhance(true); break;
-        case 'onepage': setShowOnePage(true); break;
-        case 'humanizer': setShowAIDetector(true); break;
-        case 'job-match': setShowJobSheet(true); break;
-        case 'ab-compare': setShowABCompare(true); break;
-        case 'recruiter': setShowRecruiterSim(true); break;
-        case 'linkedin': setShowLinkedIn(true); break;
-        case 'career': setShowCareerPath(true); break;
-        case 'salary-negotiation': setShowSalaryNegotiation(true); break;
-        case 'job-rejection': setShowJobRejection(true); break;
-        case 'reference-letter': setShowReferenceLetter(true); break;
-        case 'personal-branding': setShowPersonalBranding(true); break;
-        case 'cold-email': setShowColdEmail(true); break;
-        case 'skills-gap': setShowSkillsGap(true); break;
-        case 'portfolio-bio': setShowPortfolioBio(true); break;
-      }
+      haptics.medium();
+      navigate(`/ai-studio/${tool.id}`);
     };
     requireResume(action);
   }, [navigate, requireResume]);

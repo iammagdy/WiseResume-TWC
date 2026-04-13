@@ -83,51 +83,51 @@ export function CommandPalette() {
           </CommandItem>
         </CommandGroup>
         <CommandGroup heading="AI Tools">
-          <CommandItem onSelect={() => go('/ai-studio?tool=chat')}>
+          <CommandItem onSelect={() => go('/ai-studio/chat')}>
             <MessageSquare className="mr-2 h-4 w-4" />
             Wise AI Chat
           </CommandItem>
-          <CommandItem onSelect={() => go('/ai-studio?tool=tailor')}>
+          <CommandItem onSelect={() => go('/ai-studio/tailor')}>
             <Wand2 className="mr-2 h-4 w-4" />
             Smart Tailor
           </CommandItem>
-          <CommandItem onSelect={() => go('/ai-studio?tool=ab-compare')}>
+          <CommandItem onSelect={() => go('/ai-studio/ab-compare')}>
             <GitCompareArrows className="mr-2 h-4 w-4" />
             A/B Compare
           </CommandItem>
-          <CommandItem onSelect={() => go('/ai-studio?tool=job-match')}>
+          <CommandItem onSelect={() => go('/ai-studio/job-match')}>
             <Target className="mr-2 h-4 w-4" />
             Job Match Analysis
           </CommandItem>
-          <CommandItem onSelect={() => go('/ai-studio?tool=enhance')}>
+          <CommandItem onSelect={() => go('/ai-studio/enhance')}>
             <Sparkles className="mr-2 h-4 w-4" />
             AI Enhance
           </CommandItem>
-          <CommandItem onSelect={() => go('/ai-studio?tool=humanizer')}>
+          <CommandItem onSelect={() => go('/ai-studio/humanizer')}>
             <Shield className="mr-2 h-4 w-4" />
             AI Detector / Humanize
           </CommandItem>
-          <CommandItem onSelect={() => go('/ai-studio?tool=linkedin')}>
+          <CommandItem onSelect={() => go('/ai-studio/linkedin')}>
             <Linkedin className="mr-2 h-4 w-4" />
             LinkedIn Optimizer
           </CommandItem>
-          <CommandItem onSelect={() => go('/ai-studio?tool=onepage')}>
+          <CommandItem onSelect={() => go('/ai-studio/onepage')}>
             <FileText className="mr-2 h-4 w-4" />
             One-Page Wizard
           </CommandItem>
-          <CommandItem onSelect={() => go('/ai-studio?tool=recruiter')}>
+          <CommandItem onSelect={() => go('/ai-studio/recruiter')}>
             <UserCheck className="mr-2 h-4 w-4" />
             Recruiter Simulation
           </CommandItem>
-          <CommandItem onSelect={() => go('/ai-studio?tool=career')}>
+          <CommandItem onSelect={() => go('/ai-studio/career')}>
             <TrendingUp className="mr-2 h-4 w-4" />
             Career Path Advisor
           </CommandItem>
-          <CommandItem onSelect={() => go('/ai-studio?tool=ideas')}>
+          <CommandItem onSelect={() => go('/ai-studio/ideas')}>
             <Lightbulb className="mr-2 h-4 w-4" />
             Content Ideas
           </CommandItem>
-          <CommandItem onSelect={() => go('/ai-studio?tool=customize')}>
+          <CommandItem onSelect={() => go('/ai-studio/customize')}>
             <Palette className="mr-2 h-4 w-4" />
             Customize Design
           </CommandItem>
