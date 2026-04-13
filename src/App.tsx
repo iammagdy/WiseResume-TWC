@@ -56,9 +56,7 @@ import {
 import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
-const AnimatedSplash = lazyWithRetry(() =>
-  import("@/components/AnimatedSplash").then(m => ({ default: m.AnimatedSplash }))
-);
+import { AnimatedSplash } from "@/components/AnimatedSplash";
 
 const CommandPalette = lazyWithRetry(() => import("@/components/layout/CommandPalette"));
 
@@ -229,11 +227,7 @@ function AppRoutes() {
   }, []);
 
   if (!hasSeenSplash && !isPublicStandalone) {
-    return (
-      <Suspense fallback={<div className="fixed inset-0 bg-background" />}>
-        <AnimatedSplash onComplete={() => setHasSeenSplash(true)} />
-      </Suspense>
-    );
+    return <AnimatedSplash onComplete={() => setHasSeenSplash(true)} />;
   }
 
   if (isSuspended && !isPublicStandalone) {
