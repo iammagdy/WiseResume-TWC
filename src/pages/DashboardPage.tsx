@@ -941,24 +941,26 @@ function DashboardPageContent() {
           ) : (
             <div className="px-4 pb-4">
               <Tabs value={activeTab} onValueChange={handleSetActiveTab} className="w-full">
-                <TabsList className="w-full mb-4">
-                  <TabsTrigger value="my-cvs" className="flex-1 gap-1.5">
-                    My CVs
-                    {resumeHierarchy && (
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 min-w-[1.25rem] justify-center">
-                        {resumeHierarchy.masterResumes.length + resumeHierarchy.orphanTailored.length}
-                      </Badge>
-                    )}
-                  </TabsTrigger>
-                  <TabsTrigger value="tailored" className="flex-1 gap-1.5">
-                    Tailored
-                    {filteredResumes && (
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 min-w-[1.25rem] justify-center">
-                        {filteredResumes.filter(r => r.parent_resume_id).length}
-                      </Badge>
-                    )}
-                  </TabsTrigger>
-                </TabsList>
+                <div className="overflow-x-auto scrollbar-none mb-4">
+                  <TabsList className="w-full min-w-max">
+                    <TabsTrigger value="my-cvs" className="flex-shrink-0 flex-1 gap-1.5">
+                      My CVs
+                      {resumeHierarchy && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 min-w-[1.25rem] justify-center">
+                          {resumeHierarchy.masterResumes.length + resumeHierarchy.orphanTailored.length}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="tailored" className="flex-shrink-0 flex-1 gap-1.5">
+                      Tailored
+                      {filteredResumes && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 min-w-[1.25rem] justify-center">
+                          {filteredResumes.filter(r => r.parent_resume_id).length}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
 
                 <TabsContent value="my-cvs" className="mt-0">
                   <motion.div

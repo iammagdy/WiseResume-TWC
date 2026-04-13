@@ -271,7 +271,7 @@ function PublicPortfolioContent() {
     .map(s => ({ id: s.id, label: s.label }));
 
   return (
-    <div className={`pf-theme pf-theme-${pStyle} min-h-screen text-[--pf-fg] selection:bg-[--pf-accent] selection:text-white pb-safe`} style={rootStyle}>
+    <div className={`pf-theme pf-theme-${pStyle} min-h-screen text-[--pf-fg] selection:bg-[--pf-accent] selection:text-white pb-safe overflow-x-hidden max-w-full`} style={rootStyle}>
       {user && (
         <div className="fixed top-4 left-4 z-50" data-pdf-exclude>
           <button
@@ -302,7 +302,7 @@ function PublicPortfolioContent() {
 
       <motion.div
         id="portfolio-content"
-        className="max-w-4xl mx-auto min-h-screen relative"
+        className="max-w-4xl mx-auto min-h-screen relative overflow-x-hidden w-full"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}

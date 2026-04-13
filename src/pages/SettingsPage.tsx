@@ -532,7 +532,7 @@ export default function SettingsPage() {
             </DialogTitle>
             <DialogDescription>WiseResume release history</DialogDescription>
           </DialogHeader>
-          <div className="max-h-[60vh] overflow-y-auto -mx-1 px-1">
+          <div className="max-h-[min(60vh,calc(100dvh-10rem))] overflow-y-auto -mx-1 px-1">
             {changelogLoading ?
             <div className="space-y-6 pt-2">
                 {[1, 2, 3].map((i) =>

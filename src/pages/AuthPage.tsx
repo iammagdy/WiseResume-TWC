@@ -45,9 +45,9 @@ export default function AuthPage() {
   }, [authLoading, isAuthenticated, mode, plan, kindeLogin, kindeRegister]);
 
   return (
-    <div className="relative isolate min-h-[100dvh] flex flex-col overflow-hidden bg-background">
+    <div className="relative isolate flex flex-col overflow-y-auto bg-background" style={{ maxHeight: '100dvh', height: '100dvh' }}>
       <OfflineBanner />
-      <div className="flex-1 flex flex-col items-center justify-center">
+      <div className="flex-1 flex flex-col items-center justify-center min-h-0 py-8">
         <div className="flex flex-col items-center gap-4 px-8 py-8 rounded-2xl bg-card border border-border shadow-soft-lg">
           <MiniSpinner size={28} />
           <p className="text-sm font-medium text-foreground">
