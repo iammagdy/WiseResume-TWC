@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { FileText, Globe, Home, BarChart3, Sparkles, MessageCircle, Sun, Moon, Search, Settings, LogOut, CreditCard, Lock, Zap, Tag } from 'lucide-react';
+import { FileText, Globe, Home, BarChart3, Sparkles, MessageCircle, Sun, Moon, Search, Settings, LogOut, CreditCard, Lock, Zap, Tag, FileDown } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
@@ -243,6 +243,13 @@ export function DesktopNav() {
               >
                 <Settings className="w-4 h-4 text-muted-foreground" />
                 Settings
+              </button>
+              <button
+                onClick={() => { haptics.selection(); setProfileOpen(false); navigate('/profile'); }}
+                className="flex w-full items-center gap-2 px-2 py-2 rounded-md text-sm text-foreground hover:bg-muted transition-colors"
+              >
+                <FileDown className="w-4 h-4 text-muted-foreground" />
+                Import Profile
               </button>
               <button
                 onClick={() => { haptics.selection(); setProfileOpen(false); navigate('/subscription'); }}

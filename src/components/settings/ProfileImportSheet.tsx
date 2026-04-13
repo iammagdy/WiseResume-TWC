@@ -21,7 +21,9 @@ import {
   FileBarChart,
   X,
   Zap,
+  Pencil,
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { parseResumePDF, parseResumePDFWithOCR } from '@/lib/pdfParser';
 import {
   Sheet,
@@ -202,6 +204,7 @@ export function ProfileImportSheet({
   });
   const [error, setError] = useState<string | null>(null);
   const [uploadingPdf, setUploadingPdf] = useState(false);
+  const [editingExpIdx, setEditingExpIdx] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const platformLabel = PLATFORMS.find((p) => p.id === platform)?.label ?? 'LinkedIn';
@@ -386,6 +389,13 @@ export function ProfileImportSheet({
     setAccumulatedData((prev) => ({
       ...prev,
       experience: prev.experience?.filter((_, i) => i !== idx),
+    }));
+  };
+
+  const updateExperienceEntry = (idx: number, field: 'title' | 'company' | 'startDate' | 'endDate', value: string) => {
+    setAccumulatedData((prev) => ({
+      ...prev,
+      experience: prev.experience?.map((exp, i) => i === idx ? { ...exp, [field]: value } : exp),
     }));
   };
 
@@ -1055,23 +1065,74 @@ export function ProfileImportSheet({
                         </div>
                         <div className="space-y-2">
                           {accumulatedData.experience.map((exp, i) => (
-                            <div key={i} className="flex items-start gap-2 group">
-                              <div className="flex-1 min-w-0">
-                                <span className="font-medium text-sm text-foreground">{exp.title}</span>
-                                <span className="text-sm text-muted-foreground"> at {exp.company}</span>
-                                {exp.startDate && (
-                                  <span className="text-xs text-muted-foreground/70 block">
-                                    {exp.startDate} – {exp.current ? 'Present' : exp.endDate}
-                                  </span>
-                                )}
-                              </div>
-                              <button
-                                onClick={() => removeExperienceEntry(i)}
-                                className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors touch-manipulation"
-                                aria-label="Remove entry"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
+                            <div key={i} className="rounded-lg border border-border/50 bg-background/50 p-2 space-y-1.5">
+                              {editingExpIdx === i ? (
+                                <div className="space-y-1.5">
+                                  <Input
+                                    value={exp.title}
+                                    onChange={(e) => updateExperienceEntry(i, 'title', e.target.value)}
+                                    placeholder="Job title"
+                                    className="h-7 text-xs"
+                                    aria-label="Job title"
+                                  />
+                                  <Input
+                                    value={exp.company}
+                                    onChange={(e) => updateExperienceEntry(i, 'company', e.target.value)}
+                                    placeholder="Company"
+                                    className="h-7 text-xs"
+                                    aria-label="Company"
+                                  />
+                                  <div className="flex gap-1">
+                                    <Input
+                                      value={exp.startDate}
+                                      onChange={(e) => updateExperienceEntry(i, 'startDate', e.target.value)}
+                                      placeholder="Start date"
+                                      className="h-7 text-xs flex-1"
+                                      aria-label="Start date"
+                                    />
+                                    <Input
+                                      value={exp.endDate}
+                                      onChange={(e) => updateExperienceEntry(i, 'endDate', e.target.value)}
+                                      placeholder="End date"
+                                      className="h-7 text-xs flex-1"
+                                      aria-label="End date"
+                                      disabled={exp.current}
+                                    />
+                                  </div>
+                                  <button
+                                    onClick={() => setEditingExpIdx(null)}
+                                    className="text-xs text-primary hover:underline"
+                                  >
+                                    Done editing
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-start gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    <span className="font-medium text-sm text-foreground">{exp.title}</span>
+                                    <span className="text-sm text-muted-foreground"> at {exp.company}</span>
+                                    {exp.startDate && (
+                                      <span className="text-xs text-muted-foreground/70 block">
+                                        {exp.startDate} – {exp.current ? 'Present' : exp.endDate}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <button
+                                    onClick={() => setEditingExpIdx(i)}
+                                    className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors touch-manipulation"
+                                    aria-label="Edit entry"
+                                  >
+                                    <Pencil className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    onClick={() => removeExperienceEntry(i)}
+                                    className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors touch-manipulation"
+                                    aria-label="Remove entry"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>

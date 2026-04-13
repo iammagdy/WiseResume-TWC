@@ -56,7 +56,7 @@ import { useATSSuggestions } from '@/hooks/useATSSuggestions';
 import { AIIntroTooltip } from '@/components/editor/AIIntroTooltip';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { EditorHeader } from '@/components/editor/EditorHeader';
-import { ProfileImportSheet } from '@/components/settings/ProfileImportSheet';
+import { ProfileImportSheet, type ProfileData } from '@/components/settings/ProfileImportSheet';
 import { EditorSectionContent, SectionNavButtons } from '@/components/editor/EditorSectionContent';
 import { EditorScrollForm } from '@/components/editor/EditorScrollForm';
 import { EditorSkeleton } from '@/components/layout/PageSkeletons';
@@ -655,29 +655,45 @@ export default function EditorPage() {
 
 
 
-  const handleProfileImport = useCallback((data: any) => {
+  const handleProfileImport = useCallback((data: Partial<ProfileData>) => {
     if (!currentResume) return;
     const { setCurrentResume } = useResumeStore.getState();
-    const updates: Partial<typeof currentResume> = {};
-    if (data.contactInfo && data.contactInfo.fullName) {
-      updates.contactInfo = { ...currentResume.contactInfo, ...data.contactInfo };
-    }
+    const updates: Record<string, unknown> = {};
     if (data.summary) updates.summary = data.summary;
     if (Array.isArray(data.experience) && data.experience.length > 0) {
-      updates.experience = [...(currentResume.experience || []), ...data.experience];
+      const mapped = data.experience.map((exp) => ({
+        id: crypto.randomUUID(),
+        company: exp.company,
+        position: exp.title,
+        startDate: exp.startDate ?? '',
+        endDate: exp.endDate ?? '',
+        current: exp.current ?? false,
+        description: exp.description ?? '',
+        achievements: [],
+      }));
+      updates.experience = [...(currentResume.experience ?? []), ...mapped];
     }
     if (Array.isArray(data.education) && data.education.length > 0) {
-      updates.education = [...(currentResume.education || []), ...data.education];
+      const mapped = data.education.map((edu) => ({
+        id: crypto.randomUUID(),
+        institution: edu.institution,
+        degree: edu.degree,
+        field: edu.field ?? '',
+        startDate: edu.startYear ?? '',
+        endDate: edu.endYear ?? '',
+        description: edu.description ?? '',
+      }));
+      updates.education = [...(currentResume.education ?? []), ...mapped];
     }
     if (Array.isArray(data.skills) && data.skills.length > 0) {
-      const existing = new Set((currentResume.skills || []).map((s: string) => s.toLowerCase()));
-      const newSkills = data.skills.filter((s: string) => !existing.has(s.toLowerCase()));
-      if (newSkills.length > 0) updates.skills = [...(currentResume.skills || []), ...newSkills];
+      const existing = new Set((currentResume.skills ?? []).map((s) => s.toLowerCase()));
+      const newSkills = data.skills.filter((s) => !existing.has(s.toLowerCase()));
+      if (newSkills.length > 0) updates.skills = [...(currentResume.skills ?? []), ...newSkills];
     }
     if (Array.isArray(data.languages) && data.languages.length > 0) {
-      updates.languages = [...(currentResume.languages || []), ...data.languages];
+      updates.languages = [...(currentResume.languages ?? []), ...data.languages];
     }
-    setCurrentResume({ ...currentResume, ...updates });
+    setCurrentResume({ ...currentResume, ...updates } as typeof currentResume);
     setShowProfileImport(false);
   }, [currentResume]);
 
