@@ -14,12 +14,13 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { password, target_user_id, full_name, username, actor_email } = body as {
+    const { password, target_user_id, full_name, username, actor_email, action } = body as {
       password: string;
       target_user_id: string;
       full_name?: string;
       username?: string;
       actor_email?: string;
+      action?: string;
     };
 
     try {
@@ -36,14 +37,37 @@ Deno.serve(async (req) => {
       );
     }
 
+    const supabase = getServiceClient();
+
+    // === GET action: return profile fields without mutating anything ===
+    if (action === 'get') {
+      const { data: profile, error: fetchError } = await supabase
+        .from('profiles')
+        .select('username, portfolio_enabled, full_name')
+        .eq('user_id', target_user_id)
+        .single();
+
+      if (fetchError) {
+        console.error('[admin-update-profile] GET fetch error:', fetchError);
+        return new Response(
+          JSON.stringify({ success: false, error: fetchError.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, profile }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // === UPDATE action (default) ===
     if (full_name === undefined && username === undefined) {
       return new Response(
         JSON.stringify({ success: false, error: 'At least one field (full_name or username) is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const supabase = getServiceClient();
 
     // Fetch the current profile for old-value tracking
     const { data: currentProfile, error: fetchError } = await supabase

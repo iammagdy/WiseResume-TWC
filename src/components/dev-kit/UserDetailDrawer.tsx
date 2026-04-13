@@ -12,6 +12,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import type { AdminUser } from './AdminUsersPanel';
 
+// supabase client kept for RPC-only usage (username availability check)
+// Profile data fetch is routed through admin-update-profile edge function to bypass RLS
+
 interface UserDetailDrawerProps {
   user: AdminUser;
   open: boolean;
@@ -169,7 +172,9 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated 
     return () => { cancelled = true; };
   }, [open, user.user_id]);
 
-  // Load current profile username when drawer opens
+  // Load current profile username when drawer opens.
+  // Routed through admin-update-profile edge function (action='get') so it works
+  // regardless of whether the admin has a Supabase JWT (bypasses RLS).
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -179,24 +184,39 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated 
     setUsernameAvailable(null);
     setUsernameChangedOldValue(null);
 
-    supabase
-      .from('profiles')
-      .select('username, portfolio_enabled')
-      .eq('user_id', user.user_id)
-      .single()
-      .then(({ data }) => {
-        if (cancelled) return;
-        const profileData = data as { username?: string | null; portfolio_enabled?: boolean | null } | null;
-        setProfileUsername(profileData?.username ?? '');
-        setProfileEnabled(profileData?.portfolio_enabled ?? false);
+    edgeFunctions.functions.invoke('admin-update-profile', {
+      body: {
+        password: getDevKitToken(),
+        target_user_id: user.user_id,
+        action: 'get',
+      },
+    }).then(({ data, error: invokeErr }) => {
+      if (cancelled) return;
+      if (invokeErr) {
+        console.warn('[UserDetailDrawer] Profile GET failed:', invokeErr.message);
         setProfileUsernameLoaded(true);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setProfileUsernameLoaded(true);
-          setProfileEnabled(false);
-        }
-      });
+        setProfileEnabled(false);
+        toast.error('Could not load portfolio profile fields. You may still edit other fields.');
+        return;
+      }
+      const result = data as { success?: boolean; profile?: { username?: string | null; portfolio_enabled?: boolean | null } | null };
+      if (result?.success === false) {
+        console.warn('[UserDetailDrawer] Profile GET returned error:', result);
+        setProfileUsernameLoaded(true);
+        setProfileEnabled(false);
+        return;
+      }
+      const profileData = result?.profile ?? null;
+      setProfileUsername(profileData?.username ?? '');
+      setProfileEnabled(profileData?.portfolio_enabled ?? false);
+      setProfileUsernameLoaded(true);
+    }).catch((err: unknown) => {
+      if (!cancelled) {
+        console.warn('[UserDetailDrawer] Profile GET threw:', err);
+        setProfileUsernameLoaded(true);
+        setProfileEnabled(false);
+      }
+    });
 
     return () => { cancelled = true; };
   }, [open, user.user_id, user.full_name]);

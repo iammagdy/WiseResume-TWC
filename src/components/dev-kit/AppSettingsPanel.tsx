@@ -3,6 +3,16 @@ import { RefreshCw, Settings, Save, Zap, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
@@ -24,6 +34,9 @@ export function AppSettingsPanel() {
   const [saving, setSaving] = useState<string | null>(null);
   const [globalLimitInput, setGlobalLimitInput] = useState('');
   const [resettingCredits, setResettingCredits] = useState(false);
+
+  const [resetCreditsDialogOpen, setResetCreditsDialogOpen] = useState(false);
+  const [maintenanceDialogOpen, setMaintenanceDialogOpen] = useState(false);
 
   const fetchSettings = useCallback(async () => {
     setLoading(true);
@@ -90,8 +103,7 @@ export function AppSettingsPanel() {
     }
   };
 
-  const handleResetCredits = async () => {
-    if (!confirm('Reset daily AI credits for ALL users? This sets everyone\'s used-today counter back to 0. This cannot be undone.')) return;
+  const handleResetCreditsConfirm = async () => {
     setResettingCredits(true);
     try {
       const { data, error: err } = await edgeFunctions.functions.invoke('admin-reset-credits', {
@@ -118,6 +130,10 @@ export function AppSettingsPanel() {
     }
   };
 
+  const handleMaintenanceToggleConfirm = () => {
+    updateSetting('maintenance_mode', !settings.maintenance_mode);
+  };
+
   return (
     <div className="space-y-6">
       {error && (
@@ -141,7 +157,7 @@ export function AppSettingsPanel() {
         <div className="flex items-center justify-between">
           <span className="text-sm">Enable maintenance mode</span>
           <button
-            onClick={() => updateSetting('maintenance_mode', !settings.maintenance_mode)}
+            onClick={() => setMaintenanceDialogOpen(true)}
             disabled={saving === 'maintenance_mode'}
             className={`relative w-11 h-6 rounded-full transition-colors ${settings.maintenance_mode ? 'bg-destructive' : 'bg-muted'}`}
           >
@@ -300,7 +316,7 @@ export function AppSettingsPanel() {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleResetCredits}
+            onClick={() => setResetCreditsDialogOpen(true)}
             disabled={resettingCredits}
             className="flex items-center gap-2 text-destructive border-destructive/30 hover:bg-destructive/10"
           >
@@ -311,6 +327,52 @@ export function AppSettingsPanel() {
           </Button>
         </div>
       </div>
+
+      {/* Reset Credits Confirmation Dialog */}
+      <AlertDialog open={resetCreditsDialogOpen} onOpenChange={setResetCreditsDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset daily AI credits for all users?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will immediately set the used-today counter back to 0 for every user on the platform, regardless of how many credits they have already consumed today. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleResetCreditsConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Reset all credits
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Maintenance Mode Confirmation Dialog */}
+      <AlertDialog open={maintenanceDialogOpen} onOpenChange={setMaintenanceDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {settings.maintenance_mode ? 'Disable maintenance mode?' : 'Enable maintenance mode?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {settings.maintenance_mode
+                ? 'This will remove the maintenance banner and restore normal access for all users.'
+                : 'This will display a maintenance banner to all users, blocking access to the app until maintenance mode is disabled. To undo, click the toggle again to disable it.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleMaintenanceToggleConfirm}
+              className={settings.maintenance_mode ? '' : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'}
+            >
+              {settings.maintenance_mode ? 'Disable maintenance mode' : 'Enable maintenance mode'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

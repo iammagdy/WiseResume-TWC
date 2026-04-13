@@ -11,6 +11,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
@@ -54,6 +64,9 @@ export function CouponsPanel({ onCountChange }: CouponsPanelProps) {
   const [newTargetPlan, setNewTargetPlan] = useState<'' | 'free' | 'pro' | 'premium'>('');
   const [creating, setCreating] = useState(false);
 
+  const [deletePending, setDeletePending] = useState<Coupon | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   const fetchCoupons = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -92,19 +105,23 @@ export function CouponsPanel({ onCountChange }: CouponsPanelProps) {
     }
   };
 
-  const handleDelete = async (coupon: Coupon) => {
-    if (!confirm(`Delete coupon "${coupon.code}"? This cannot be undone.`)) return;
+  const handleDeleteConfirm = async () => {
+    if (!deletePending) return;
+    setDeleting(true);
     try {
       const { data, error: err } = await edgeFunctions.functions.invoke('admin-manage-coupons', {
-        body: { password: getDevKitToken(), action: 'delete', coupon_id: coupon.id },
+        body: { password: getDevKitToken(), action: 'delete', coupon_id: deletePending.id },
       });
       if (err) throw new Error(err.message);
       const result = data as { success?: boolean; error?: string };
       if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
       toast.success('Coupon deleted');
+      setDeletePending(null);
       fetchCoupons();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to delete coupon');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -234,7 +251,7 @@ export function CouponsPanel({ onCountChange }: CouponsPanelProps) {
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7 text-destructive hover:text-destructive"
-                          onClick={() => handleDelete(c)}
+                          onClick={() => setDeletePending(c)}
                           title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -248,6 +265,28 @@ export function CouponsPanel({ onCountChange }: CouponsPanelProps) {
           </div>
         </div>
       )}
+
+      {/* Delete Coupon Confirmation */}
+      <AlertDialog open={deletePending !== null} onOpenChange={(open) => { if (!open) setDeletePending(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete coupon "{deletePending?.code}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the coupon code. Any user who has already redeemed it will keep their benefit, but the code can no longer be used by anyone else. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Deleting…' : 'Delete coupon'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Create Coupon Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>

@@ -12,7 +12,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
@@ -268,18 +267,32 @@ function UnconfirmedUsersSection({ onSendToUser }: UnconfirmedUsersProps) {
   );
 }
 
-interface SendEmailFormProps {
+interface ComposeEmailFormProps {
   prefillUser?: AdminUser | null;
+  defaultSubject?: string;
+  allowActionSelect?: boolean;
+  bodyPlaceholder?: string;
+  bodyRows?: number;
+  sectionTitle?: string;
+  sectionDescription?: string;
 }
 
-function SendEmailForm({ prefillUser }: SendEmailFormProps) {
+function ComposeEmailForm({
+  prefillUser,
+  defaultSubject = '',
+  allowActionSelect = false,
+  bodyPlaceholder = 'Email body (plain text)…',
+  bodyRows = 5,
+  sectionTitle,
+  sectionDescription,
+}: ComposeEmailFormProps) {
   const [emailSearch, setEmailSearch] = useState(prefillUser?.email ?? '');
   const [searchResults, setSearchResults] = useState<AdminUser[]>([]);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(prefillUser ?? null);
   const [searching, setSearching] = useState(false);
-  const [action, setAction] = useState<EmailAction>('send_magic_link');
+  const [action, setAction] = useState<EmailAction>(allowActionSelect ? 'send_magic_link' : 'send_custom');
   const [sending, setSending] = useState(false);
-  const [customSubject, setCustomSubject] = useState('');
+  const [customSubject, setCustomSubject] = useState(defaultSubject);
   const [customBody, setCustomBody] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
 
@@ -330,12 +343,14 @@ function SendEmailForm({ prefillUser }: SendEmailFormProps) {
     setShowDropdown(false);
   };
 
+  const isCustomMode = action === 'send_custom';
+
   const handleSend = async () => {
     if (!selectedUser && !emailSearch.trim()) {
       toast.error('Please select a user or enter an email address');
       return;
     }
-    if (action === 'send_custom' && (!customSubject.trim() || !customBody.trim())) {
+    if (isCustomMode && (!customSubject.trim() || !customBody.trim())) {
       toast.error('Subject and body are required for custom emails');
       return;
     }
@@ -350,7 +365,7 @@ function SendEmailForm({ prefillUser }: SendEmailFormProps) {
           ? { target_user_id: selectedUser.user_id, target_email: selectedUser.email }
           : { target_email: emailSearch.trim() }),
       };
-      if (action === 'send_custom') {
+      if (isCustomMode) {
         body.custom_subject = customSubject.trim();
         body.custom_body = customBody.trim();
       }
@@ -360,19 +375,19 @@ function SendEmailForm({ prefillUser }: SendEmailFormProps) {
       const result = data as { success?: boolean; error?: string; email?: string; message_id?: string };
       if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
 
-      const toEmail2 = result.email ?? selectedUser?.email ?? emailSearch.trim();
+      const toEmail = result.email ?? selectedUser?.email ?? emailSearch.trim();
       if (result.message_id) {
         toast.success(`${ACTION_LABELS[action]} accepted by Resend`, {
-          description: `ID: ${result.message_id} → ${toEmail2}. Delivery requires thewise.cloud to be verified in Resend.`,
+          description: `ID: ${result.message_id} → ${toEmail}. Delivery requires thewise.cloud to be verified in Resend.`,
         });
       } else {
         toast.warning('Email submitted but delivery unconfirmed', {
-          description: `No message ID returned for ${toEmail2}. The sending domain (thewise.cloud) may not be verified in Resend — check your Resend dashboard.`,
+          description: `No message ID returned for ${toEmail}. The sending domain (thewise.cloud) may not be verified in Resend — check your Resend dashboard.`,
         });
       }
 
-      if (action === 'send_custom') {
-        setCustomSubject('');
+      if (isCustomMode) {
+        setCustomSubject(defaultSubject);
         setCustomBody('');
       }
     } catch (e) {
@@ -384,19 +399,28 @@ function SendEmailForm({ prefillUser }: SendEmailFormProps) {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h3 className="font-semibold text-sm flex items-center gap-2">
-          <Send className="w-4 h-4 text-primary" />
-          Send Email to User
-        </h3>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Search for a user and choose an action to send them an email.
-        </p>
-      </div>
+      {(sectionTitle || sectionDescription) && (
+        <div>
+          {sectionTitle && (
+            <h3 className="font-semibold text-sm flex items-center gap-2">
+              {allowActionSelect
+                ? <Send className="w-4 h-4 text-primary" />
+                : <Mail className="w-4 h-4 text-primary" />}
+              {sectionTitle}
+            </h3>
+          )}
+          {sectionDescription && (
+            <p className="text-xs text-muted-foreground mt-0.5">{sectionDescription}</p>
+          )}
+        </div>
+      )}
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className={allowActionSelect ? 'grid gap-3 sm:grid-cols-2' : 'space-y-3'}>
+        {/* User search */}
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">User (search by email or name)</label>
+          <label className="text-xs font-medium text-muted-foreground">
+            {allowActionSelect ? 'User (search by email or name)' : 'Recipient'}
+          </label>
           <div className="relative">
             <div className="relative">
               {searching ? (
@@ -406,7 +430,7 @@ function SendEmailForm({ prefillUser }: SendEmailFormProps) {
               )}
               <Input
                 className="pl-8 text-sm"
-                placeholder="Search email or name…"
+                placeholder={allowActionSelect ? 'Search email or name…' : 'Search user or enter email…'}
                 value={emailSearch}
                 onChange={(e) => handleSearch(e.target.value)}
                 onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
@@ -432,30 +456,37 @@ function SendEmailForm({ prefillUser }: SendEmailFormProps) {
             <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-primary/5 border border-primary/20">
               <CheckCircle className="w-3.5 h-3.5 text-primary shrink-0" />
               <span className="text-xs text-primary font-mono truncate">{selectedUser.email}</span>
+              {!allowActionSelect && selectedUser.full_name && (
+                <span className="text-xs text-muted-foreground">· {selectedUser.full_name}</span>
+              )}
             </div>
           )}
         </div>
 
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Action</label>
-          <div className="relative">
-            <select
-              value={action}
-              onChange={(e) => setAction(e.target.value as EmailAction)}
-              className="w-full text-sm bg-background border border-border rounded-md px-3 py-2 pr-8 appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              {(Object.keys(ACTION_LABELS) as EmailAction[]).map((a) => (
-                <option key={a} value={a}>{ACTION_LABELS[a]}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none text-muted-foreground" />
+        {/* Action selector (only in multi-action mode) */}
+        {allowActionSelect && (
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Action</label>
+            <div className="relative">
+              <select
+                value={action}
+                onChange={(e) => setAction(e.target.value as EmailAction)}
+                className="w-full text-sm bg-background border border-border rounded-md px-3 py-2 pr-8 appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                {(Object.keys(ACTION_LABELS) as EmailAction[]).map((a) => (
+                  <option key={a} value={a}>{ACTION_LABELS[a]}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none text-muted-foreground" />
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">{ACTION_DESCRIPTIONS[action]}</p>
           </div>
-          <p className="text-[11px] text-muted-foreground leading-relaxed">{ACTION_DESCRIPTIONS[action]}</p>
-        </div>
+        )}
       </div>
 
-      {action === 'send_custom' && (
-        <div className="space-y-3 p-3 rounded-lg bg-muted/30 border border-border">
+      {/* Custom email compose fields */}
+      {isCustomMode && (
+        <div className={`space-y-3 ${allowActionSelect ? 'p-3 rounded-lg bg-muted/30 border border-border' : ''}`}>
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Subject</label>
             <Input
@@ -468,19 +499,24 @@ function SendEmailForm({ prefillUser }: SendEmailFormProps) {
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Body</label>
             <Textarea
-              placeholder="Email body (plain text)…"
+              placeholder={bodyPlaceholder}
               value={customBody}
               onChange={(e) => setCustomBody(e.target.value)}
-              rows={5}
+              rows={bodyRows}
               className="text-sm resize-none"
             />
+            {!allowActionSelect && (
+              <p className="text-[11px] text-muted-foreground">
+                The email will be sent using the WiseResume branded template. Plain text only — no HTML needed.
+              </p>
+            )}
           </div>
         </div>
       )}
 
       <Button
         onClick={handleSend}
-        disabled={sending || (!selectedUser && !emailSearch.trim())}
+        disabled={sending || (!selectedUser && !emailSearch.trim()) || (isCustomMode && (!customSubject.trim() || !customBody.trim()))}
         className="flex items-center gap-2"
         size="sm"
       >
@@ -490,193 +526,6 @@ function SendEmailForm({ prefillUser }: SendEmailFormProps) {
           <><Send className="w-4 h-4" />{ACTION_LABELS[action]}</>
         )}
       </Button>
-    </div>
-  );
-}
-
-function CustomBroadcastSection() {
-  const [targetEmail, setTargetEmail] = useState('');
-  const [searchResults, setSearchResults] = useState<AdminUser[]>([]);
-  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
-  const [searching, setSearching] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [subject, setSubject] = useState('');
-  const [body, setBody] = useState('');
-  const [sending, setSending] = useState(false);
-
-  const handleSearch = useCallback(async (q: string) => {
-    setTargetEmail(q);
-    setSelectedUser(null);
-    if (!q.trim() || q.trim().length < 2) {
-      setSearchResults([]);
-      setShowDropdown(false);
-      return;
-    }
-    setSearching(true);
-    try {
-      const password = getDevKitToken();
-      const { data, error: err } = await edgeFunctions.functions.invoke('admin-list-users', {
-        body: { password, page: 1, per_page: 10, search: q.trim(), sort: 'newest' },
-      });
-      if (err) throw new Error(err.message);
-      const result = data as { users?: AdminUser[] };
-      setSearchResults(result?.users ?? []);
-      setShowDropdown(true);
-    } catch {
-      setSearchResults([]);
-    } finally {
-      setSearching(false);
-    }
-  }, []);
-
-  const handleSelectUser = (user: AdminUser) => {
-    setSelectedUser(user);
-    setTargetEmail(user.email);
-    setSearchResults([]);
-    setShowDropdown(false);
-  };
-
-  const handleSend = async () => {
-    if (!targetEmail.trim()) {
-      toast.error('Please enter or select a recipient');
-      return;
-    }
-    if (!subject.trim() || !body.trim()) {
-      toast.error('Subject and body are required');
-      return;
-    }
-
-    setSending(true);
-    try {
-      const password = getDevKitToken();
-      const reqBody: Record<string, unknown> = {
-        password,
-        action: 'send_custom',
-        custom_subject: subject.trim(),
-        custom_body: body.trim(),
-        ...(selectedUser
-          ? { target_user_id: selectedUser.user_id, target_email: selectedUser.email }
-          : { target_email: targetEmail.trim() }),
-      };
-
-      const { data, error: err } = await edgeFunctions.functions.invoke('admin-email-actions', { body: reqBody });
-      if (err) throw new Error(err.message);
-      const result = data as { success?: boolean; error?: string; email?: string; message_id?: string };
-      if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
-
-      const toEmail = result.email ?? targetEmail.trim();
-      if (result.message_id) {
-        toast.success('Custom email accepted by Resend', {
-          description: `ID: ${result.message_id} → ${toEmail}. Delivery requires thewise.cloud to be verified in Resend.`,
-        });
-      } else {
-        toast.warning('Email submitted but delivery unconfirmed', {
-          description: `No message ID returned for ${toEmail}. The sending domain (thewise.cloud) may not be verified in Resend — check your Resend dashboard.`,
-        });
-      }
-      setSubject('');
-      setBody('');
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to send email');
-    } finally {
-      setSending(false);
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <h3 className="font-semibold text-sm flex items-center gap-2">
-          <Mail className="w-4 h-4 text-primary" />
-          Custom Email Composer
-        </h3>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Compose and send a one-off email to any user using the WiseResume branded template.
-        </p>
-      </div>
-
-      <div className="space-y-3">
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Recipient</label>
-          <div className="relative">
-            <div className="relative">
-              {searching ? (
-                <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground animate-spin" />
-              ) : (
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              )}
-              <Input
-                className="pl-8 text-sm"
-                placeholder="Search user or enter email…"
-                value={targetEmail}
-                onChange={(e) => handleSearch(e.target.value)}
-                onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
-                onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
-              />
-            </div>
-            {showDropdown && searchResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl z-20 overflow-hidden">
-                {searchResults.map((u) => (
-                  <button
-                    key={u.user_id}
-                    className="w-full text-left px-3 py-2.5 hover:bg-muted/60 transition-colors border-b border-border last:border-0"
-                    onMouseDown={() => handleSelectUser(u)}
-                  >
-                    <p className="text-xs font-mono truncate">{u.email}</p>
-                    {u.full_name && <p className="text-[11px] text-muted-foreground truncate">{u.full_name}</p>}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          {selectedUser && (
-            <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-primary/5 border border-primary/20">
-              <CheckCircle className="w-3.5 h-3.5 text-primary shrink-0" />
-              <span className="text-xs text-primary font-mono truncate">{selectedUser.email}</span>
-              {selectedUser.full_name && (
-                <span className="text-xs text-muted-foreground">· {selectedUser.full_name}</span>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Subject</label>
-          <Input
-            placeholder="Email subject…"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            className="text-sm"
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Body</label>
-          <Textarea
-            placeholder="Email body (plain text, newlines preserved)…"
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows={6}
-            className="text-sm resize-none"
-          />
-          <p className="text-[11px] text-muted-foreground">
-            The email will be sent using the WiseResume branded template. Plain text only — no HTML needed.
-          </p>
-        </div>
-
-        <Button
-          onClick={handleSend}
-          disabled={sending || !targetEmail.trim() || !subject.trim() || !body.trim()}
-          className="flex items-center gap-2"
-          size="sm"
-        >
-          {sending ? (
-            <><Loader2 className="w-4 h-4 animate-spin" />Sending…</>
-          ) : (
-            <><Send className="w-4 h-4" />Send Email</>
-          )}
-        </Button>
-      </div>
     </div>
   );
 }
@@ -841,12 +690,25 @@ export function EmailManagementPanel() {
       <div className="border-t border-border" />
 
       <div id="email-send-section">
-        <SendEmailForm prefillUser={prefillUser} />
+        <ComposeEmailForm
+          prefillUser={prefillUser}
+          allowActionSelect={true}
+          sectionTitle="Send Email to User"
+          sectionDescription="Search for a user and choose an action to send them an email."
+          bodyPlaceholder="Email body (plain text)…"
+          bodyRows={5}
+        />
       </div>
 
       <div className="border-t border-border" />
 
-      <CustomBroadcastSection />
+      <ComposeEmailForm
+        allowActionSelect={false}
+        sectionTitle="Custom Email Composer"
+        sectionDescription="Compose and send a one-off email to any user using the WiseResume branded template."
+        bodyPlaceholder="Email body (plain text, newlines preserved)…"
+        bodyRows={6}
+      />
 
       <div className="border-t border-border" />
 
