@@ -49,8 +49,10 @@ export function TestItem({ test, result, isExpanded, onRun, onToggleExpand }: Te
 
       {result.summary && result.status !== 'idle' && result.status !== 'running' && (
         <p className={`text-xs font-medium px-3 py-2 rounded-lg ${
-          result.status === 'success' 
-            ? 'bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20' 
+          result.status === 'success'
+            ? 'bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20'
+            : result.status === 'warn'
+            ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20'
             : 'bg-destructive/10 text-destructive border border-destructive/20'
         }`}>
           {result.summary}
