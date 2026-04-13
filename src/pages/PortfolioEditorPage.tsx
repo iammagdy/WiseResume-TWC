@@ -6,10 +6,8 @@ import { BackButton } from '@/components/ui/BackButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useResumes } from '@/hooks/useResumes';
-import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { supabase } from '@/integrations/supabase/safeClient';
-
-import { EDGE_FUNCTIONS_URL } from '@/lib/supabaseConstants';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
@@ -289,11 +287,8 @@ export default function PortfolioEditorPage() {
       throw new Error("Resume data not available yet. Please wait a moment.");
     }
 
-    const token = await getSupabaseToken();
-    const res = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/generate-portfolio-bio`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({
+    const { data, error } = await edgeFunctions.functions.invoke('generate-portfolio-bio', {
+      body: {
         action,
         summary: selectedResume?.summary || '',
         fullName: profile?.fullName || '',
@@ -302,10 +297,11 @@ export default function PortfolioEditorPage() {
         skills: selectedResume?.skills || [],
         careerLevel: profile?.careerLevel || 'mid',
         ...extraBody
-      })
+      },
     });
-    if (!res.ok) throw new Error(`AI request failed`);
-    return res.json();
+    if (error) throw new Error(error.message || 'AI request failed');
+    if (data?.error) throw new Error(data.error || 'AI request failed');
+    return data;
   };
 
   const handleGenerateBio = async () => {

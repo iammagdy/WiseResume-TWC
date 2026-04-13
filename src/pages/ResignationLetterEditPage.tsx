@@ -11,9 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { useResignationLetter, useResignationLetterMutations } from '@/hooks/useResignationLetters';
 import { ResignationChecklist } from '@/components/resignation/ResignationChecklist';
 import { useAuth } from '@/hooks/useAuth';
-import { getSupabaseToken } from '@/lib/supabaseAuth';
-
-import { EDGE_FUNCTIONS_URL } from '@/lib/supabaseConstants';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { haptics } from '@/lib/haptics';
 
 import { toast } from 'sonner';
@@ -130,31 +128,22 @@ export default function ResignationLetterEditPage() {
     if (!letter) return;
     setRegenerating(true);
     try {
-      const token = await getSupabaseToken();
-      const response = await fetch(
-        `${EDGE_FUNCTIONS_URL}/functions/v1/generate-resignation-letter`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            recipientName: letter.recipient_name,
-            company: letter.company,
-            position: letter.position,
-            lastWorkingDay: letter.last_working_day,
-            noticePeriod: letter.notice_period,
-            reason: letter.reason,
-            tone: letter.tone,
-            templateStyle: letter.template_style,
-            additions: Array.isArray(letter.additions) ? letter.additions : [],
-          }),
-        }
-      );
+      const { data, error } = await edgeFunctions.functions.invoke('generate-resignation-letter', {
+        body: {
+          recipientName: letter.recipient_name,
+          company: letter.company,
+          position: letter.position,
+          lastWorkingDay: letter.last_working_day,
+          noticePeriod: letter.notice_period,
+          reason: letter.reason,
+          tone: letter.tone,
+          templateStyle: letter.template_style,
+          additions: Array.isArray(letter.additions) ? letter.additions : [],
+        },
+      });
 
-      if (!response.ok) throw new Error('Failed to regenerate');
-      const data = await response.json();
+      if (error) throw new Error(error.message || 'Failed to regenerate');
+      if (data?.error) throw new Error(data.error || 'Failed to regenerate');
       setContent(data.letter);
       setHasUnsavedChanges(true);
       haptics.success();

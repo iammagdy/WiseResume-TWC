@@ -13,9 +13,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useResignationLetterMutations } from '@/hooks/useResignationLetters';
-import { getSupabaseToken } from '@/lib/supabaseAuth';
-
-import { EDGE_FUNCTIONS_URL } from '@/lib/supabaseConstants';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { haptics } from '@/lib/haptics';
 import { useBackNavigation } from '@/hooks/useBackNavigation';
 
@@ -113,36 +111,23 @@ export default function ResignationLetterNewPage() {
     setGenerating(true);
     haptics.light();
     try {
-      const token = await getSupabaseToken();
-      const response = await fetch(
-        `${EDGE_FUNCTIONS_URL}/functions/v1/generate-resignation-letter`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            recipientName,
-            company,
-            position,
-            lastWorkingDay: lastWorkingDay ? format(lastWorkingDay, 'MMMM d, yyyy') : undefined,
-            noticePeriod,
-            reason,
-            tone: TONE_VALUES[toneIndex],
-            templateStyle,
-            additions: selectedAdditions.map(id => ADDITIONS.find(a => a.id === id)?.label || id),
-            userName,
-          }),
-        }
-      );
+      const { data, error } = await edgeFunctions.functions.invoke('generate-resignation-letter', {
+        body: {
+          recipientName,
+          company,
+          position,
+          lastWorkingDay: lastWorkingDay ? format(lastWorkingDay, 'MMMM d, yyyy') : undefined,
+          noticePeriod,
+          reason,
+          tone: TONE_VALUES[toneIndex],
+          templateStyle,
+          additions: selectedAdditions.map(id => ADDITIONS.find(a => a.id === id)?.label || id),
+          userName,
+        },
+      });
 
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({ error: 'AI service error' }));
-        throw new Error(err.error || 'Failed to generate letter');
-      }
-
-      const data = await response.json();
+      if (error) throw new Error(error.message || 'Failed to generate letter');
+      if (data?.error) throw new Error(data.error || 'AI service error');
       setResult(data.letter);
       setStep(3);
       haptics.success();

@@ -59,12 +59,30 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
-    const response = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/parse-resume`, {
+    let response = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/parse-resume`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ text }),
       signal: controller.signal,
     });
+
+    // On 401, refresh the bridge token once and retry before falling back.
+    if (response.status === 401) {
+      const { refreshTokenIfNeeded } = await import('@/lib/supabaseBridge');
+      const refreshed = await refreshTokenIfNeeded();
+      if (refreshed) {
+        const { getSupabaseToken: getToken } = await import('@/lib/supabaseAuth');
+        const newToken = await getToken();
+        const retryHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (newToken) retryHeaders['Authorization'] = `Bearer ${newToken}`;
+        response = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/parse-resume`, {
+          method: 'POST',
+          headers: retryHeaders,
+          body: JSON.stringify({ text }),
+          signal: controller.signal,
+        });
+      }
+    }
 
     if (!response.ok) {
       await handleAIError(response, 'AI parsing failed');

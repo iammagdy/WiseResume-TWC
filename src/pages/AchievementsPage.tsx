@@ -73,9 +73,23 @@ export default function AchievementsPage() {
   const level = Math.floor(totalXP / 50) + 1;
   const levelProgress = ((totalXP % 50) / 50) * 100;
 
-  const handleShare = () => {
+  const handleShare = async () => {
     haptics.light();
-    toast('Achievement sharing coming soon!', { icon: '🏆' });
+    const text = `I'm Level ${level} on WiseResume with ${totalXP} XP and ${earned.length} achievements unlocked! 🏆`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'My WiseResume Achievements', text });
+      } catch {
+        // User cancelled or share failed — no toast needed
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(text);
+        toast.success('Copied to clipboard!');
+      } catch {
+        toast.error('Could not share achievements');
+      }
+    }
   };
 
   return (
