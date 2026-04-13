@@ -68,18 +68,20 @@ import { getSafeMatchMedia, isBrowser } from "@/lib/envUtils";
 import Index from "./pages/Index";
 
 // Kinde SPA configuration.
-// VITE_KINDE_CLIENT_ID and VITE_KINDE_DOMAIN MUST be set as Replit secrets
-// for production deployments. The hardcoded fallbacks below are for the
-// thewisecloud.kinde.com tenant — they are public SPA credentials (not
-// secrets) and are intentionally visible in the JS bundle. Any deployment
-// targeting a different Kinde tenant must override them via secrets.
-const KINDE_CLIENT_ID =
-  (import.meta.env.VITE_KINDE_CLIENT_ID as string | undefined) ??
-  '629174acb2874e6bbf53cd4a95497425';  // Wise Resume SPA app (front-end type)
+// These MUST be set as shared Replit env vars (VITE_KINDE_CLIENT_ID and
+// VITE_KINDE_DOMAIN). They are public SPA credentials — not secrets — and
+// are visible in the JS bundle by design. In development, a missing var
+// triggers a console warning so auth still degrades gracefully rather than
+// throwing at module initialization.
+const KINDE_CLIENT_ID = import.meta.env.VITE_KINDE_CLIENT_ID as string | undefined;
+const KINDE_DOMAIN = import.meta.env.VITE_KINDE_DOMAIN as string | undefined;
 
-const KINDE_DOMAIN =
-  (import.meta.env.VITE_KINDE_DOMAIN as string | undefined) ??
-  'https://thewisecloud.kinde.com';
+if (!KINDE_CLIENT_ID || !KINDE_DOMAIN) {
+  console.warn(
+    '[WiseResume] VITE_KINDE_CLIENT_ID or VITE_KINDE_DOMAIN is not set. ' +
+    'Auth buttons will not work. Set these as shared env vars in Replit.'
+  );
+}
 
 // Lazy load other pages with retry
 const UploadPage = lazyWithRetry(() => import("./pages/UploadPage"));

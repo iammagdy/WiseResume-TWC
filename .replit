@@ -54,6 +54,8 @@ run = ["node", "./dist/index.cjs"]
 [userenv]
 
 [userenv.shared]
+VITE_KINDE_CLIENT_ID = "629174acb2874e6bbf53cd4a95497425"
+VITE_KINDE_DOMAIN = "https://thewisecloud.kinde.com"
 
 [postMerge]
 path = "scripts/post-merge.sh"
