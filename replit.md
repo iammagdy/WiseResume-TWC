@@ -48,6 +48,32 @@ All Supabase edge function secrets (`ADMIN_EMAILS`, `DEV_KIT_PASSWORD`, AI keys,
 - Deployment trigger: POST to `https://api.github.com/repos/iammagdy/wiseresume-74945019/actions/workflows/deploy-edge-functions.yml/dispatches` with `{"ref":"main"}` using the repo PAT
 - Platform merges don't trigger GitHub Actions webhooks — always use `workflow_dispatch` via API after edge function code changes
 
+## Edge Function Status (last verified: 2026-04-13)
+All functions deployed to Supabase project `jnsfmkzgxsviuthaqlyy`. Verified via:
+```
+npx supabase functions deploy wise-ai-chat --project-ref jnsfmkzgxsviuthaqlyy --use-api
+npx supabase secrets list --project-ref jnsfmkzgxsviuthaqlyy
+```
+Secrets confirmed present: `OPENROUTER_API_KEY` ✓, `GROQ_API_KEY` ✓, `GEMINI_API_KEY` ✓
+
+Smoke test (unauthenticated → correct 401):
+```
+POST /functions/v1/wise-ai-chat    → 401 {"error":"unauthorized","message":"Authentication required."}
+POST /functions/v1/company-briefing → 401 {"error":"Missing sub claim (unauthorized)"}
+```
+Both functions are live. Auth rejection on unsigned requests confirms deployment is active.
+
+### wise-ai-chat timeout fix (deployed 2026-04-13)
+Root cause of "AI is temporarily unavailable": function was attempting up to ~10 models with a
+15 s/model timeout → exceeded Supabase's 60 s function limit → unparseable gateway-timeout
+response → client showed generic "AI is temporarily unavailable" fallback.
+
+Fix (`aiClient.ts` + `wise-ai-chat/index.ts`):
+- `PER_MODEL_TIMEOUT_MS`: 15 s → 8 s
+- Model list capped: 3 per provider max (worst case: 3×8s OR + 3×8s Groq + 5s discovery = ~53s)
+- Outer abort timer: 90 s → 40 s (returns clean 429 before Supabase kills function)
+- DOMException/unknown AIError → 429 rate_limit ("AI is busy" toast instead of generic error)
+
 ## Dev Server
 - Host: `0.0.0.0`
 - Port: `5000`
