@@ -1,5 +1,6 @@
 import { getCorsHeaders } from './cors.ts';
 import { getServiceClient } from './dbClient.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 export interface AuthResult {
@@ -17,11 +18,15 @@ export class AuthError extends Error {
   }
 }
 
-import * as jose from 'https://deno.land/x/jose@v4.15.5/index.ts';
-
 /**
  * `requireAuth` is the only approved way to extract JWT claims in edge functions.
- * It verifies the JWT signature against SUPABASE_JWT_SECRET before returning claims.
+ *
+ * Token verification is delegated to Supabase Auth's own `/auth/v1/user` endpoint
+ * via `supabase.auth.getUser(token)`. This handles all JWT algorithms (HS256, ES256)
+ * and is always authoritative — it never fails due to key algorithm mismatches or
+ * JWKS fetch issues. The anon key is used to initialize the client; the user's
+ * Bearer token is passed explicitly to `getUser()`.
+ *
  * Never bypass this by decoding JWT payloads manually for any security decision.
  */
 export async function requireAuth(req: Request): Promise<AuthResult> {
@@ -31,31 +36,33 @@ export async function requireAuth(req: Request): Promise<AuthResult> {
   }
 
   const token = authHeader.replace('Bearer ', '');
-  const secretStr = Deno.env.get('EXT_SUPABASE_JWT_SECRET') || Deno.env.get('SUPABASE_JWT_SECRET');
-  
-  if (!secretStr) {
-    throw new Error('SUPABASE_JWT_SECRET environment variable is not set');
+
+  const supabaseUrl = Deno.env.get('EXT_SUPABASE_URL') || Deno.env.get('SUPABASE_URL');
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+
+  if (!supabaseUrl) {
+    throw new Error('SUPABASE_URL environment variable is not set');
+  }
+  if (!anonKey) {
+    throw new Error('SUPABASE_ANON_KEY environment variable is not set');
   }
 
-  let claims: jose.JWTPayload;
-  try {
-    const secret = new TextEncoder().encode(secretStr);
-    const { payload } = await jose.jwtVerify(token, secret);
-    claims = payload;
-  } catch (err: unknown) {
-    console.error('JWT verification failed:', err);
-    throw new AuthError('Unauthorized - invalid signature', 401);
-  }
+  // Use the anon-key client to call auth.getUser() — Supabase Auth validates
+  // the token's signature, expiry, and revocation status on the server side.
+  const anonClient = createClient(supabaseUrl, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 
-  // With Supabase Auth, sub is the user UUID directly
-  const userId = claims['sub'] as string;
-  if (!userId) {
-    throw new AuthError('Missing sub claim (unauthorized)', 401);
+  const { data: { user }, error } = await anonClient.auth.getUser(token);
+
+  if (error || !user?.id) {
+    console.error('[authMiddleware] getUser failed:', error?.message ?? 'no user');
+    throw new AuthError('Invalid or expired auth token', 401);
   }
 
   const client = getServiceClient();
 
-  return { userId, client };
+  return { userId: user.id, client };
 }
 
 /**

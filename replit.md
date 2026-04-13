@@ -63,16 +63,31 @@ POST /functions/v1/company-briefing → 401 {"error":"Missing sub claim (unautho
 ```
 Both functions are live. Auth rejection on unsigned requests confirms deployment is active.
 
-### wise-ai-chat timeout fix (deployed 2026-04-13)
-Root cause of "AI is temporarily unavailable": function was attempting up to ~10 models with a
-15 s/model timeout → exceeded Supabase's 60 s function limit → unparseable gateway-timeout
-response → client showed generic "AI is temporarily unavailable" fallback.
+### wise-ai-chat full fix (deployed 2026-04-13, HTTP 200 verified)
 
-Fix (`aiClient.ts` + `wise-ai-chat/index.ts`):
-- `PER_MODEL_TIMEOUT_MS`: 15 s → 8 s
-- Model list capped: 3 per provider max (worst case: 3×8s OR + 3×8s Groq + 5s discovery = ~53s)
-- Outer abort timer: 90 s → 40 s (returns clean 429 before Supabase kills function)
-- DOMException/unknown AIError → 429 rate_limit ("AI is busy" toast instead of generic error)
+**Root causes of "AI is temporarily unavailable":**
+
+1. **Timeout cascade**: function tried ~10 models × 15s each → exceeded Supabase's 60s limit → unparseable gateway timeout → client showed generic error.
+
+2. **verify_jwt misconfiguration**: `wise-ai-chat` was missing from `supabase/config.toml`'s function list, so `verify_jwt` defaulted to `true`. Supabase's function gateway tried to verify user ES256 JWTs with the HS256 secret → rejected all real user tokens with "Invalid JWT" before the function code ran.
+
+3. **Auth middleware algorithm mismatch**: `authMiddleware.ts` only verified HS256 tokens. Fixed to delegate verification to `supabase.auth.getUser(token)` which handles any algorithm and is always authoritative.
+
+4. **deductCredits parameter mismatch**: `deductCredits.ts` called `increment_ai_usage` with `p_cost` and `p_skip_limit_check` parameters that don't exist in the DB function (which only takes `p_user_id`). This caused every successful AI response to fail with a generic 500.
+
+**Fixes applied:**
+- `aiClient.ts`: `PER_MODEL_TIMEOUT_MS` 15s→8s, max 3 models/provider, outer timer 90s→40s
+- `wise-ai-chat/index.ts`: DOMException/unknown AIError → 429 "AI is busy" 
+- `supabase/config.toml`: added `[functions.wise-ai-chat] verify_jwt = false`
+- Management API: `PATCH /functions/wise-ai-chat` with `{"verify_jwt":false}` (config.toml not propagated by `--use-api`)
+- `authMiddleware.ts`: replaced jose HS256/JWKS verification with `supabase.auth.getUser(token)`
+- `deductCredits.ts`: fixed RPC call to only pass `p_user_id`; BYOK users skip deduction
+
+**Smoke test result (2026-04-13):**
+```
+POST /functions/v1/wise-ai-chat  →  HTTP 200
+{"content":"{\"formal\":\"...\",...}","providerUsed":"wiseresume/groq:llama-3.3-70b-versatile","fallbackUsed":false}
+```
 
 ## Dev Server
 - Host: `0.0.0.0`

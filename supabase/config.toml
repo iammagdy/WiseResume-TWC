@@ -129,3 +129,5 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.weekly-digest]
     verify_jwt = false
+  [functions.wise-ai-chat]
+    verify_jwt = false
