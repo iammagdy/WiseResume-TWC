@@ -1,12 +1,19 @@
 /**
  * Shared admin authentication middleware for edge functions.
- * Verifies: (1) signed session token bound to caller JWT, (2) caller JWT, (3) caller email in ADMIN_EMAILS allowlist.
  *
- * Session tokens are issued by verify-dev-kit on successful password login.
- * They are HMAC-SHA-256 signed with DEV_KIT_PASSWORD and expire after 8 hours.
- * The raw password is never retained on the client after the initial unlock.
+ * Auth is handled in two paths:
  *
- * Token-auth path: token email must match JWT caller email (prevents token theft/replay by different user).
+ * PRIMARY (session token path — no Supabase session required):
+ *   The DevKit session token is issued by verify-dev-kit after successful password
+ *   login. It is HMAC-SHA-256 signed with DEV_KIT_PASSWORD and expires after 8h.
+ *   The token encodes the admin's email, so the caller is identified WITHOUT calling
+ *   supabase.auth.getUser(). This means the admin does NOT need to be signed in to
+ *   the main Supabase app for the DevKit to function.
+ *
+ * FALLBACK (raw password / legacy):
+ *   If no valid session token is provided, the function falls back to verifying a
+ *   Supabase Bearer JWT (to identify the caller's email) and comparing the raw
+ *   DEV_KIT_PASSWORD directly. This path requires an active Supabase session.
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -44,13 +51,20 @@ async function verifySessionToken(token: string, secretKey: string): Promise<str
 }
 
 /**
- * Verifies admin identity. Always validates the Bearer JWT and fetches caller email first.
- * Then:
- *   - If `password` is a valid session token: verifies HMAC + expiry + tokenEmail === callerEmail + allowlist.
- *   - Otherwise: falls back to raw-password comparison + allowlist (for backward compatibility).
+ * Verifies admin identity for an incoming edge function request.
  *
- * @param req     The incoming edge function request.
- * @param password  Either a session token (new path) or the raw admin password (legacy fallback).
+ * PRIMARY PATH (session token):
+ *   Verifies the HMAC-signed session token, extracts the embedded email, and checks
+ *   it against ADMIN_EMAILS. No Supabase user lookup is needed — the token is the
+ *   sole source of truth for identity and authentication.
+ *
+ * FALLBACK PATH (raw password):
+ *   If the session token is absent or invalid, falls back to verifying the caller's
+ *   Supabase JWT + comparing the raw DEV_KIT_PASSWORD. This requires an active
+ *   Supabase session and is kept for backward compatibility only.
+ *
+ * @param req      The incoming edge function request.
+ * @param password Either a session token (primary) or the raw admin password (legacy).
  * @returns The verified caller email on success.
  * @throws A Response object with appropriate HTTP status on any failure.
  */
@@ -87,10 +101,24 @@ export async function requireAdminAuth(req: Request, password: string): Promise<
     );
   }
 
+  // ── PRIMARY PATH: Session token (self-contained, no Supabase session required) ──
+  const tokenEmail = await verifySessionToken(password, SECRET_PASSWORD);
+  if (tokenEmail !== null) {
+    const normalised = tokenEmail.toLowerCase();
+    if (!allowed.includes(normalised)) {
+      throw new Response(
+        JSON.stringify({ success: false, error: 'Forbidden: email not in admin allowlist' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    return normalised;
+  }
+
+  // ── FALLBACK PATH: Raw password + Supabase Bearer JWT ──
   const authHeader = req.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
     throw new Response(
-      JSON.stringify({ success: false, error: 'Authorization header with Bearer token required' }),
+      JSON.stringify({ success: false, error: 'Unauthorized' }),
       { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
@@ -107,7 +135,7 @@ export async function requireAdminAuth(req: Request, password: string): Promise<
 
   if (!callerEmail) {
     throw new Response(
-      JSON.stringify({ success: false, error: 'Authorization header with Bearer token required' }),
+      JSON.stringify({ success: false, error: 'Unauthorized' }),
       { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
@@ -117,17 +145,6 @@ export async function requireAdminAuth(req: Request, password: string): Promise<
       JSON.stringify({ success: false, error: 'Forbidden: email not in admin allowlist' }),
       { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  }
-
-  const tokenEmail = await verifySessionToken(password, SECRET_PASSWORD);
-  if (tokenEmail !== null) {
-    if (tokenEmail.toLowerCase() !== callerEmail) {
-      throw new Response(
-        JSON.stringify({ success: false, error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    return callerEmail;
   }
 
   if (password !== SECRET_PASSWORD) {
