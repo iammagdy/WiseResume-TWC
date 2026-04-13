@@ -288,7 +288,7 @@ const changelog: ChangelogEntry[] = [
     highlights: [
       'Multiple styles to suit different industries and career stages',
       'Switch templates any time without losing your content',
-      'Every template is designed to look great on screen and in print',
+      'Every template is designed to pass recruiter screening and look great as a PDF',
     ],
   },
   // ── November 2025 ───────────────────────────────────────────
