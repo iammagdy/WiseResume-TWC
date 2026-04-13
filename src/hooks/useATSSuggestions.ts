@@ -1,4 +1,5 @@
 import { useMemo, useCallback, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ResumeData, SectionId } from '@/types/resume';
 import { getSupabaseToken } from '@/lib/supabaseAuth';
@@ -113,6 +114,7 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
   const [analyzingSections, setAnalyzingSections] = useState<Set<string>>(new Set());
   const cacheRef = useRef<Record<string, { suggestions: ATSSuggestion[]; result: DeepResult }>>({});
   const { checkCredits, incrementUsage } = useAICreditsMutations();
+  const navigate = useNavigate();
   // Client-side keyword analysis
   const suggestions = useMemo(() => {
     if (!resume) return {} as Record<SectionId, ATSSuggestion[]>;
@@ -347,11 +349,22 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
     } catch (err) {
       console.error('Deep ATS analysis failed:', err);
       const msg = err instanceof Error ? err.message : 'Deep analysis failed';
-      showErrorToast(msg, err);
+      const isNotConfigured = /not configured|please contact support|invalid api key|check your ai settings/i.test(msg);
+      if (isNotConfigured) {
+        toast.error(msg, {
+          duration: 8000,
+          action: {
+            label: 'Open Settings',
+            onClick: () => navigate('/settings'),
+          },
+        });
+      } else {
+        showErrorToast(msg, err);
+      }
     } finally {
       setAnalyzingSections(prev => { const next = new Set(prev); next.delete(section); return next; });
     }
-  }, [resume, jobDescription]);
+  }, [resume, jobDescription, navigate]);
 
   // Full-resume scan summary
   const scanSummary = useMemo(() => {
