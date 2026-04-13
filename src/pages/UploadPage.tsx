@@ -82,6 +82,17 @@ export default function UploadPage() {
   const [showParseRecoveryBanner, setShowParseRecoveryBanner] = useState(false);
   const [parseRecoveryWarnings, setParseRecoveryWarnings] = useState<string[]>([]);
 
+  // Fire ATS scoring in the background after parse completes
+  const triggerATSScoring = useCallback((resumeData: ResumeData) => {
+    const tempId = crypto.randomUUID();
+    const now = new Date().toISOString();
+    setIsImportScoring(true);
+    setImportATSScore(null);
+    scoreResume(tempId, resumeData, now)
+      .then((result) => setImportATSScore(result))
+      .finally(() => setIsImportScoring(false));
+  }, [scoreResume]);
+
   // Get accept string based on file type
   function getAcceptString(type: FileType): string {
     switch (type) {
@@ -231,17 +242,6 @@ export default function UploadPage() {
     setImportATSScore(null);
     setIsImportScoring(false);
   }, []);
-
-  // Fire ATS scoring in the background after parse completes
-  const triggerATSScoring = useCallback((resumeData: ResumeData) => {
-    const tempId = crypto.randomUUID();
-    const now = new Date().toISOString();
-    setIsImportScoring(true);
-    setImportATSScore(null);
-    scoreResume(tempId, resumeData, now)
-      .then((result) => setImportATSScore(result))
-      .finally(() => setIsImportScoring(false));
-  }, [scoreResume]);
 
   // Detect file type from MIME type or extension
   function detectFileType(file: File): FileType {
