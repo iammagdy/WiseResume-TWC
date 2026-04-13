@@ -139,6 +139,7 @@ const QrScanPage = lazyWithRetry(() => import("./pages/QrScanPage"));
 const KindeAuthTestPage = lazyWithRetry(() => import("./pages/KindeAuthTestPage"));
 const InviteRedirectPage = lazyWithRetry(() => import("./pages/InviteRedirectPage"));
 const SearchPage = lazyWithRetry(() => import("./pages/SearchPage"));
+const TailorPage = lazyWithRetry(() => import("./pages/TailorPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -319,6 +320,8 @@ function AppRoutes() {
                  <Route path="/jobs" element={<Navigate to="/applications" replace />} />
                  <Route path="/resume" element={<Navigate to="/editor" replace />} />
                  <Route path="/search" element={<Suspense fallback={<PageLoadingSpinner />}><SearchPage /></Suspense>} />
+                 <Route path="/tailor" element={<Suspense fallback={<PageLoadingSpinner />}><TailorPage /></Suspense>} />
+                 <Route path="/tailor/:resumeId" element={<Suspense fallback={<PageLoadingSpinner />}><TailorPage /></Suspense>} />
               </Route>
            </Route>
 

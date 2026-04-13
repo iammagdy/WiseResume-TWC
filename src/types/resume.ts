@@ -193,6 +193,7 @@ export interface SkillSuggestion {
   reason: string;
   frequency: number;
   action: 'add' | 'boost';
+  type?: 'hard' | 'soft';
 }
 
 export interface SectionChange {
@@ -299,11 +300,19 @@ export interface CoverLetterContext {
    relatedExperience?: string;
  }
  
+ export interface MatchedKeyword {
+   keyword: string;
+   originalCount: number;
+   tailoredCount: number;
+ }
+
  export interface ATSAnalysis {
    originalKeywordDensity: number;
    optimizedKeywordDensity: number;
    criticalKeywords: string[];
    stuffingWarnings: string[];
+   matchedKeywords?: MatchedKeyword[];
+   unmatchedKeywords?: string[];
  }
  
  export interface BulletTransformation {

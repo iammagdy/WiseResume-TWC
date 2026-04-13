@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useDeferredValue, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate, useSearchParams } from 'react-router-dom';
 import { Plus, Bell, BarChart3, Briefcase, FileText, Search, MapPin, Building2, Calendar, Mic, Mail, Scissors, CheckCircle2, FlaskConical, Zap, Wand2, BookOpen, LayoutGrid, List } from 'lucide-react';
 import { useJobApplications, useJobApplicationMutations, ApplicationStatus } from '@/hooks/useJobApplications';
 import { useJobs, useJobMutations, Job } from '@/hooks/useJobs';
@@ -96,12 +96,14 @@ function JobCard({ job, onClick, matchScore, onTailor, onMarkApplied }: {job: Jo
 export default function ApplicationsPage() {
   const { createApplication } = useJobApplicationMutations();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { isPro, isLoading: planLoading } = usePlan();
   const queryClient = useQueryClient();
   const stats = useJobActivityStats();
   const [activeTab, setActiveTab] = useState<TabKey>('applications');
   const [showAdd, setShowAdd] = useState(false);
+  const [addDefaultValues, setAddDefaultValues] = useState<{ job_title?: string; company?: string; resume_id?: string } | undefined>(undefined);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showSaveJob, setShowSaveJob] = useState(false);
@@ -120,6 +122,19 @@ export default function ApplicationsPage() {
   const { data: resumes } = useResumes();
   const [resumeListOpen, setResumeListOpen] = useState(false);
   const [resumeListFilter, setResumeListFilter] = useState<'originals' | 'tailored'>('originals');
+
+  // Detect ?new=1&title=...&company=...&resumeId=... query params from Tailor flow
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      const title = searchParams.get('title') || undefined;
+      const company = searchParams.get('company') || undefined;
+      const resumeId = searchParams.get('resumeId') || undefined;
+      setAddDefaultValues({ job_title: title, company, resume_id: resumeId });
+      setShowAdd(true);
+      // Clean up URL without reload
+      setSearchParams({}, { replace: true });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Derive status counts from existing applications data — no extra network round-trip
   const statusCounts = useMemo(() => {
@@ -628,7 +643,7 @@ export default function ApplicationsPage() {
         </button>
       }
 
-      <AddApplicationSheet open={showAdd} onOpenChange={setShowAdd} />
+      <AddApplicationSheet open={showAdd} onOpenChange={setShowAdd} defaultValues={addDefaultValues} />
       <QuickAddSheet open={showQuickAdd} onOpenChange={setShowQuickAdd} />
       <ResumeListSheet
         open={resumeListOpen}

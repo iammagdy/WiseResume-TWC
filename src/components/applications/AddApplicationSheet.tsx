@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +35,14 @@ export function AddApplicationSheet({ open, onOpenChange, defaultValues }: AddAp
   const [deadline, setDeadline] = useState('');
   const [resumeId, setResumeId] = useState(defaultValues?.resume_id || '');
   const [isParsingUrl, setIsParsingUrl] = useState(false);
+
+  useEffect(() => {
+    if (open && defaultValues) {
+      if (defaultValues.job_title) setJobTitle(defaultValues.job_title);
+      if (defaultValues.company) setCompany(defaultValues.company);
+      if (defaultValues.resume_id) setResumeId(defaultValues.resume_id);
+    }
+  }, [open, defaultValues]);
 
   const { data: resumes } = useQuery({
     queryKey: ['resumes-list', user?.id],

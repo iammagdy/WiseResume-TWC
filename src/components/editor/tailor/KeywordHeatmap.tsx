@@ -57,7 +57,7 @@ function extractKeywords(text: string): string[] {
     }
   }
   
-  return Array.from(keywords);
+  return Array.from(keywords).sort();
 }
 
 type MatchStatus = 'found' | 'partial' | 'missing';
@@ -91,7 +91,10 @@ export function KeywordHeatmap({ jobDescription, resumeSkills, resumeText }: Key
     const results = topKeywords.map(keyword => ({
       keyword,
       status: checkKeywordInResume(keyword, resumeText, resumeSkills),
-    }));
+    })).sort((a, b) => {
+      const order: Record<MatchStatus, number> = { missing: 0, partial: 1, found: 2 };
+      return order[a.status] - order[b.status];
+    });
     
     const found = results.filter(r => r.status === 'found').length;
     const partial = results.filter(r => r.status === 'partial').length;

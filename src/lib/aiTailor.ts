@@ -64,7 +64,8 @@ export async function tailorResumeWithProgress(
   jobDescription: string,
   onProgress: (progress: TailorProgress | EnhancedTailorProgress) => void,
   intensity: TailorIntensity = 'moderate',
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  userInstructions?: string
 ): Promise<SuperTailorResult> {
   // Smooth ease-out progress: fast start, slows toward 85%
   const startTime = Date.now();
@@ -119,7 +120,7 @@ export async function tailorResumeWithProgress(
     return fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/tailor-resume`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ resume, jobDescription, intensity }),
+      body: JSON.stringify({ resume, jobDescription, intensity, ...(userInstructions ? { userInstructions } : {}) }),
       ...(signal ? { signal } : {}),
     });
   };
@@ -280,4 +281,44 @@ export async function generateCoverLetter(
 
   trackGeminiUsage();
   return data.coverLetter;
+}
+
+export interface TailorSectionResult {
+  rewrittenContent: string | string[];
+  changes: { description: string; type: string; impact: string }[];
+  keywordsAdded: string[];
+  improvementSummary: string;
+}
+
+export async function tailorSection(params: {
+  section: string;
+  currentContent: string | string[];
+  jobDescription: string;
+  jobKeywords?: string[];
+  userInstructions?: string;
+  intensity?: string;
+}): Promise<TailorSectionResult> {
+  const { EDGE_FUNCTIONS_URL, EDGE_FUNCTIONS_ANON_KEY: SUPABASE_KEY } = await import('@/lib/supabaseConstants');
+  const token = await getSupabaseToken();
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_KEY,
+  };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/tailor-section`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(params),
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({ error: 'Failed to regenerate section' }));
+    throw new Error(errData.error || errData.message || 'Failed to regenerate section');
+  }
+
+  const data = await res.json();
+  if (data?.error) throw new Error(data.error);
+  return data as TailorSectionResult;
 }

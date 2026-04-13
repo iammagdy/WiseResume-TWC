@@ -620,22 +620,17 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
                 <tbody>
                   {users.length === 0 ? (
                     <tr>
-<<<<<<< HEAD
                       <td colSpan={9} className="text-center py-10 text-muted-foreground">
-=======
-                      <td colSpan={8} className="text-center py-10 text-muted-foreground">
->>>>>>> 5f60288 (Task #5: DevKit Identity Collision Detection & Fix)
                         No users found
                       </td>
                     </tr>
                   ) : (
-<<<<<<< HEAD
                     users.map((user) => {
                       const isSelected = selectedIds.has(user.user_id);
                       return (
                         <tr
                           key={user.user_id}
-                          className={`border-b border-border last:border-0 hover:bg-muted/20 transition-colors cursor-pointer ${isSelected ? 'bg-primary/5' : ''}`}
+                          className={`border-b border-border last:border-0 hover:bg-muted/20 transition-colors cursor-pointer ${isSelected ? 'bg-primary/5' : user.has_id_conflict ? 'bg-amber-500/5' : ''}`}
                           onClick={() => setSelectedUser(user)}
                         >
                           <td className="px-3 py-3 w-8" onClick={(e) => toggleSelectUser(user.user_id, e)}>
@@ -645,10 +640,27 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
                             }
                           </td>
                           <td className="px-4 py-3">
-                            <div className="min-w-0">
-                              <p className="font-mono text-xs truncate max-w-[160px]">{user.email}</p>
+                            <div className="min-w-0 space-y-0.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <p className="font-mono text-xs truncate max-w-[160px]">{user.email}</p>
+                                {user.has_id_conflict && (
+                                  <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/30 dark:text-amber-400 shrink-0">
+                                    ID conflict
+                                  </Badge>
+                                )}
+                                {user.matched_via === 'contact_email' && !user.has_id_conflict && (
+                                  <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-600 border-blue-500/20 shrink-0">
+                                    Kinde identity
+                                  </Badge>
+                                )}
+                              </div>
                               {user.full_name && (
                                 <p className="text-xs text-muted-foreground truncate max-w-[160px]">{user.full_name}</p>
+                              )}
+                              {user.has_id_conflict && user.contact_email && (
+                                <p className="text-[10px] text-muted-foreground truncate max-w-[160px]">
+                                  Real: {user.contact_email}
+                                </p>
                               )}
                             </div>
                           </td>
@@ -695,81 +707,6 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
                         </tr>
                       );
                     })
-=======
-                    users.map((user) => (
-                      <tr
-                        key={user.user_id}
-                        className={`border-b border-border last:border-0 hover:bg-muted/20 transition-colors cursor-pointer ${user.has_id_conflict ? 'bg-amber-500/5' : ''}`}
-                        onClick={() => setSelectedUser(user)}
-                      >
-                        <td className="px-4 py-3">
-                          <div className="min-w-0 space-y-0.5">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <p className="font-mono text-xs truncate max-w-[160px]">{user.email}</p>
-                              {user.has_id_conflict && (
-                                <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/30 dark:text-amber-400 shrink-0">
-                                  ID conflict
-                                </Badge>
-                              )}
-                              {user.matched_via === 'contact_email' && !user.has_id_conflict && (
-                                <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-600 border-blue-500/20 shrink-0">
-                                  Kinde identity
-                                </Badge>
-                              )}
-                            </div>
-                            {user.full_name && (
-                              <p className="text-xs text-muted-foreground truncate max-w-[160px]">{user.full_name}</p>
-                            )}
-                            {user.has_id_conflict && user.contact_email && (
-                              <p className="text-[10px] text-muted-foreground truncate max-w-[160px]">
-                                Real: {user.contact_email}
-                              </p>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 hidden sm:table-cell">
-                          <CopyableId id={user.user_id} />
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-col gap-1">
-                            {user.is_suspended ? (
-                              <Badge variant="outline" className="text-[10px] bg-red-500/10 text-red-600 border-red-500/20">Suspended</Badge>
-                            ) : user.trial_plan && user.trial_expires_at && new Date(user.trial_expires_at) > new Date() ? (
-                              <Badge variant="outline" className="text-[10px] bg-purple-500/10 text-purple-600 border-purple-500/20">Trial {user.trial_plan}</Badge>
-                            ) : (
-                              <Badge variant="outline" className={`capitalize text-[10px] ${PLAN_COLORS[user.plan_name] ?? ''}`}>
-                                {user.plan_name}
-                              </Badge>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground text-xs hidden md:table-cell">
-                          {formatDate(user.created_at)}
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground text-xs hidden md:table-cell">
-                          {user.resume_count}
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground text-xs hidden lg:table-cell">
-                          <span title={`${user.credits_used_today} used today / limit: ${user.daily_limit === -1 ? 'unlimited' : (user.daily_limit ?? '?')}`}>
-                            {user.credits_used_today} / {user.daily_limit === -1 ? '∞' : (user.daily_limit ?? '?')}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground text-xs hidden xl:table-cell">
-                          {formatDate(user.last_sign_in_at)}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs"
-                            onClick={(e) => { e.stopPropagation(); setSelectedUser(user); }}
-                          >
-                            Manage
-                          </Button>
-                        </td>
-                      </tr>
-                    ))
->>>>>>> 5f60288 (Task #5: DevKit Identity Collision Detection & Fix)
                   )}
                 </tbody>
               </table>
