@@ -141,7 +141,7 @@ export function EditorHeader({
             aria-label={showPreview ? 'Hide live preview' : 'Show live preview'}
           >
             {showPreview ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeft className="w-5 h-5" />}
-            <span className="text-[9px] font-medium leading-none">{showPreview ? 'Hide' : 'Live'}</span>
+            <span className="text-[9px] font-medium leading-none">{showPreview ? 'Hide' : 'Show'}</span>
           </button>
           {/* Download shortcut */}
           <button

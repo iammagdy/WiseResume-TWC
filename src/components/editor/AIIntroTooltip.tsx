@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, X } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -13,18 +13,9 @@ export function AIIntroTooltip({ show, onDismiss }: AIIntroTooltipProps) {
 
   useEffect(() => {
     if (!show) return;
-    // Show after a short delay
     const showTimer = setTimeout(() => setVisible(true), 500);
-    // Auto-dismiss after 5 seconds
-    const dismissTimer = setTimeout(() => {
-      haptics.light();
-      onDismiss();
-    }, 5500);
-    return () => {
-      clearTimeout(showTimer);
-      clearTimeout(dismissTimer);
-    };
-  }, [show, onDismiss]);
+    return () => clearTimeout(showTimer);
+  }, [show]);
 
   if (!show) return null;
 
@@ -38,18 +29,22 @@ export function AIIntroTooltip({ show, onDismiss }: AIIntroTooltipProps) {
           transition={{ type: 'spring', stiffness: 300, damping: 25 }}
           className="fixed bottom-24 left-4 right-4 z-[60] md:left-auto md:right-4 md:max-w-sm"
         >
-          <button
-            onClick={() => { haptics.light(); onDismiss(); }}
-            className="w-full flex items-center gap-3 p-3 rounded-xl bg-primary/10 border border-primary/20 shadow-lg backdrop-blur-sm text-left touch-manipulation active:scale-[0.98] transition-transform"
-          >
-            <div className="w-9 h-9 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
+          <div className="w-full flex items-center gap-3 p-3 rounded-xl bg-card border border-border shadow-lg backdrop-blur-sm">
+            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <Sparkles className="w-4.5 h-4.5 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground">Look for ✨ AI buttons in each section</p>
               <p className="text-xs text-muted-foreground mt-0.5">Tap to tailor, score & improve your resume</p>
             </div>
-          </button>
+            <button
+              onClick={() => { haptics.light(); onDismiss(); }}
+              className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted active:scale-95 transition-all touch-manipulation"
+              aria-label="Dismiss"
+            >
+              <X className="w-4 h-4 text-muted-foreground" />
+            </button>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>

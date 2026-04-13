@@ -95,7 +95,7 @@ export const SectionSidebar = memo(function SectionSidebar({
     <nav
       className="shrink-0 flex flex-col gap-0.5 py-2 px-1 border-r border-border bg-card/60 overflow-y-auto"
       aria-label="Resume sections"
-      style={{ width: 68 }}
+      style={{ width: 80 }}
     >
       {steps.map((step) => {
         const isActive = step.id === activeSection;
@@ -109,7 +109,7 @@ export const SectionSidebar = memo(function SectionSidebar({
             key={step.id}
             onClick={() => onSectionClick(step.id)}
             className={cn(
-              'relative flex flex-col items-center gap-1 px-1 py-2 rounded-xl transition-all touch-manipulation active:scale-95 min-h-[56px] w-full',
+              'relative flex flex-col items-center gap-1 px-1 py-2 rounded-xl transition-all touch-manipulation active:scale-95 min-h-[64px] w-full',
               isActive
                 ? 'bg-primary/10 text-primary'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -120,30 +120,30 @@ export const SectionSidebar = memo(function SectionSidebar({
             <div className="relative flex items-center justify-center">
               {step.id === 'more' ? (
                 <div className={cn(
-                  'w-5 h-5 rounded-full border-2 flex items-center justify-center',
+                  'w-7 h-7 rounded-full border-2 flex items-center justify-center',
                   isActive ? 'border-primary' : 'border-border'
                 )}>
-                  <Plus className="w-3 h-3" />
+                  <Plus className="w-4 h-4" />
                 </div>
               ) : isCompleted ? (
-                <div className="w-5 h-5 rounded-full bg-success/15 flex items-center justify-center">
-                  <Check className="w-3 h-3 text-success" />
+                <div className="w-7 h-7 rounded-full bg-success/15 flex items-center justify-center">
+                  <Check className="w-4 h-4 text-success" />
                 </div>
               ) : (
                 <>
-                  <CompletionRing score={score} size={20} />
-                  <Icon className="absolute inset-0 m-auto w-2.5 h-2.5" />
+                  <CompletionRing score={score} size={28} />
+                  <Icon className="absolute inset-0 m-auto w-4 h-4" />
                 </>
               )}
             </div>
             <span className={cn(
-              'text-[9px] font-medium leading-tight text-center truncate w-full px-0.5',
+              'text-[11px] font-medium leading-tight text-center truncate w-full px-0.5',
               isActive ? 'text-primary' : isCompleted ? 'text-success' : ''
             )}>
               {label}
             </span>
             {isActive && (
-              <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-r-full bg-primary" />
+              <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-primary" />
             )}
           </button>
         );

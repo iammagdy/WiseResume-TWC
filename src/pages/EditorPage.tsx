@@ -42,9 +42,8 @@ import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { useOfflineSyncStore } from '@/store/offlineSyncStore';
 import haptics from '@/lib/haptics';
 import { cn } from '@/lib/utils';
-import { ActionsPanel, type ActionsPanelGroup } from '@/components/ActionsPanel';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Target, LayoutGrid, MessageSquare, Palette, Clock, Plus } from 'lucide-react';
+import { Target } from 'lucide-react';
 import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -58,7 +57,7 @@ import { useEditorSectionScores } from '@/hooks/useEditorSectionScores';
 import { useATSSuggestions } from '@/hooks/useATSSuggestions';
 import { AIIntroTooltip } from '@/components/editor/AIIntroTooltip';
 import { ProgressBar } from '@/components/editor/ProgressBar';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { EditorHeader } from '@/components/editor/EditorHeader';
 import { EditorSectionContent, SectionNavButtons } from '@/components/editor/EditorSectionContent';
 import { EditorScrollForm } from '@/components/editor/EditorScrollForm';
@@ -598,16 +597,6 @@ export default function EditorPage() {
     scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  // Tool descriptions & icon colors for mobile tools sheet
-  const toolMeta: Record<string, { description: string; iconColor: string }> = {
-    'design': { description: 'Change template & colors', iconColor: 'text-pink-500' },
-    'wise-ai': { description: 'Chat with AI assistant', iconColor: 'text-primary' },
-    'versions': { description: 'Browse saved versions', iconColor: 'text-muted-foreground' },
-    'tailor': { description: 'Match resume to a job post', iconColor: 'text-amber-500' },
-    'ats-check': { description: 'Score against ATS systems', iconColor: 'text-emerald-500' },
-    'ats-scan': { description: 'Quick keyword match scan', iconColor: 'text-cyan-500' },
-  };
-
   // ATS Suggestions hook
   const { getSuggestions: getATSSuggestions, isAnalyzingSection, fetchDeepSuggestions, scanSummary, deepResults, clearDeepResult } = useATSSuggestions(currentResume, jobDescription);
 
@@ -630,30 +619,6 @@ export default function EditorPage() {
     clearDeepResult(section as any);
     toast.success('AI improvements applied!');
   }, [clearDeepResult]);
-
-  // Mobile-only editor tools panel groups
-  const editorToolGroups = useMemo((): ActionsPanelGroup[] => {
-    const quickActions: ActionsPanelGroup = {
-      id: 'quick-actions',
-      title: 'Quick Actions',
-      actions: [
-        { id: 'template', label: 'Change Template', icon: LayoutGrid, onClick: handleChangeTemplate },
-        { id: 'design', label: 'Design', icon: Palette, onClick: handleCustomize },
-        { id: 'wise-ai', label: 'Wise AI', icon: MessageSquare, onClick: () => setShowChat(true) },
-        ...(user && currentResumeId ? [{ id: 'versions', label: 'Versions', icon: Clock, onClick: () => setShowVersionHistory(true) }] : []),
-      ],
-    };
-    const aiFeatures: ActionsPanelGroup = {
-      id: 'ai-features',
-      title: 'AI Features',
-      actions: [
-        { id: 'tailor', label: 'Tailor to Job', icon: Target, onClick: handleTailor },
-        { id: 'ats-check', label: 'ATS Check', icon: BarChart3, onClick: () => setShowJobSheet(true) },
-        { id: 'ats-scan', label: 'ATS Scan', icon: Sparkles, onClick: () => { setToolsSubView('ats-scan'); setShowToolsSheet(true); } },
-      ],
-    };
-    return [quickActions, aiFeatures];
-  }, [user, currentResumeId, handleCustomize, handleTailor]);
 
   // EditorSectionContent props — used in mobile tab layout
   const editorSectionProps = {
@@ -859,23 +824,6 @@ export default function EditorPage() {
         </div>
       )}
 
-      {/* Stepper Nav — shown on mobile only (< 900px); desktop uses the sidebar */}
-      {isMobile && (
-        <div className="shrink-0">
-          <StepperNav
-            steps={steps}
-            activeStep={activeTab}
-            completedSteps={sectionStatus}
-            sectionScores={sectionScores}
-            onStepClick={handleTabChange}
-            justCompletedStep={justCompletedStep}
-            onMoreSectionSelect={handleMoreSectionSelect}
-            activeMoreSection={moreSubSection}
-            availableMoreCount={availableMoreCount}
-          />
-        </div>
-      )}
-
       {/* Editor + Preview layout */}
       {isMobile ? (
         <Tabs
@@ -883,12 +831,48 @@ export default function EditorPage() {
           onValueChange={(v) => setMobileEditorTab(v as 'editor' | 'preview' | 'ats')}
           className="flex-1 flex flex-col min-h-0 overflow-hidden"
         >
-          {/* Mobile tab switcher — Edit / Preview / ATS */}
-          <TabsList className="shrink-0 grid grid-cols-3 mx-4 mt-2 mb-1 h-9">
-            <TabsTrigger value="editor" className="text-xs">Edit</TabsTrigger>
-            <TabsTrigger value="preview" className="text-xs">Preview</TabsTrigger>
-            <TabsTrigger value="ats" className="text-xs">ATS Score</TabsTrigger>
-          </TabsList>
+          {/* Combined single-row nav: view mode toggle + section pills */}
+          <div className="shrink-0 flex items-center border-b border-border bg-background">
+            {/* Compact Edit / Preview / ATS pills */}
+            <div className="flex shrink-0 gap-0.5 px-2 py-1.5">
+              {(['editor', 'preview', 'ats'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => { setMobileEditorTab(tab); haptics.light(); }}
+                  className={cn(
+                    'px-2.5 h-7 rounded-full text-xs font-medium border transition-colors whitespace-nowrap touch-manipulation active:scale-95',
+                    mobileEditorTab === tab
+                      ? 'bg-primary/15 border-primary/40 text-primary'
+                      : 'border-border text-muted-foreground hover:bg-muted'
+                  )}
+                >
+                  {tab === 'editor' ? 'Edit' : tab === 'preview' ? 'Preview' : 'ATS'}
+                </button>
+              ))}
+            </div>
+            {/* Divider — only visible in edit mode when section pills follow */}
+            {mobileEditorTab === 'editor' && (
+              <div className="w-px h-5 bg-border shrink-0" />
+            )}
+            {/* Section pills — only in edit mode */}
+            {mobileEditorTab === 'editor' && (
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <StepperNav
+                  steps={steps}
+                  activeStep={activeTab}
+                  completedSteps={sectionStatus}
+                  sectionScores={sectionScores}
+                  onStepClick={handleTabChange}
+                  justCompletedStep={justCompletedStep}
+                  onMoreSectionSelect={handleMoreSectionSelect}
+                  activeMoreSection={moreSubSection}
+                  availableMoreCount={availableMoreCount}
+                  hideStepCounter
+                />
+              </div>
+            )}
+          </div>
+
           <TabsContent value="editor" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
             <div
               className="editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-3 pb-4 space-y-0"
