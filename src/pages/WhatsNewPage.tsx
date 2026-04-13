@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import {
   Sparkles, Shield, Zap, Globe, BarChart3, Mic, FileText,
   Bot, Wand2, Target, Star, Rocket, Clock, Smartphone,
-  Gauge, BookOpen, QrCode, Trophy, Layers, PenLine, Palette,
+  Gauge, BookOpen, QrCode, Trophy, Layers, PenLine, Palette, Wrench,
 } from 'lucide-react';
 
 interface ChangelogEntry {
@@ -31,6 +31,22 @@ interface ComingSoonEntry {
 
 const changelog: ChangelogEntry[] = [
   // ── April 2026 ──────────────────────────────────────────────
+  {
+    date: 'April 2026',
+    tag: 'Improvements',
+    tagBg: 'bg-green-500/10',
+    tagText: 'text-green-600 dark:text-green-400',
+    iconBg: 'bg-green-500/15',
+    icon: Wrench,
+    title: 'Smarter AI Errors, Cleaner PDFs & More Reliable Sessions',
+    description:
+      'A behind-the-scenes polish update that makes the AI, PDF export, and sign-in experience noticeably better. No new features — just things that should have always worked this way.',
+    highlights: [
+      'When AI isn\'t set up yet, you\'ll see a clear message with a direct "Open Settings" button instead of a confusing error',
+      'PDF exports no longer split sections awkwardly mid-page — your resume flows cleanly from one page to the next',
+      'AI features now automatically recover if your sign-in session refreshes in the background, so you\'re never interrupted mid-task',
+    ],
+  },
   {
     date: 'April 2026',
     tag: 'Performance',
