@@ -6,7 +6,7 @@ import triggerHaptic from '@/lib/haptics';
 import { toast } from 'sonner';
 import {
   Sparkles, Shield, Zap, Globe, BarChart3, Mic, FileText,
-  Bot, Wand2, Target, Star, Rocket, Clock, Smartphone, Layout, Linkedin,
+  Bot, Wand2, Target, Star, Rocket, Clock, Smartphone,
 } from 'lucide-react';
 
 interface ChangelogEntry {
@@ -208,18 +208,6 @@ const changelog: ChangelogEntry[] = [
 ];
 
 const comingSoon: ComingSoonEntry[] = [
-  {
-    icon: Linkedin,
-    iconBg: 'bg-sky-500/10',
-    title: 'LinkedIn Profile Import',
-    description: 'Import your LinkedIn profile to fill in your resume instantly — no copy-pasting required.',
-  },
-  {
-    icon: Layout,
-    iconBg: 'bg-violet-500/10',
-    title: 'Resume Templates Library',
-    description: 'Choose from a growing library of professionally designed resume templates for every industry.',
-  },
   {
     icon: Smartphone,
     iconBg: 'bg-emerald-500/10',
