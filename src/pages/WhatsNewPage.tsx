@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import {
   Sparkles, Shield, Zap, Globe, BarChart3, Mic, FileText,
   Bot, Wand2, Target, Star, Rocket, Clock, Smartphone,
+  Gauge, BookOpen, QrCode, Trophy, Layers, PenLine, Palette,
 } from 'lucide-react';
 
 interface ChangelogEntry {
@@ -29,6 +30,40 @@ interface ComingSoonEntry {
 }
 
 const changelog: ChangelogEntry[] = [
+  // ── April 2026 ──────────────────────────────────────────────
+  {
+    date: 'April 2026',
+    tag: 'Performance',
+    tagBg: 'bg-cyan-500/10',
+    tagText: 'text-cyan-600 dark:text-cyan-400',
+    iconBg: 'bg-cyan-500/15',
+    icon: Gauge,
+    title: 'The App Feels Faster',
+    description:
+      'We made major speed improvements across the whole app. Pages load quicker, AI responds faster, and moving between tools feels instant — no waiting around.',
+    highlights: [
+      'Everything loads noticeably faster than before',
+      'Smoother transitions when switching between pages',
+      'Better performance on older devices and slower internet connections',
+    ],
+  },
+  {
+    date: 'April 2026',
+    tag: 'New Feature',
+    tagBg: 'bg-violet-500/10',
+    tagText: 'text-violet-600 dark:text-violet-400',
+    iconBg: 'bg-violet-500/15',
+    icon: BookOpen,
+    title: 'Browse Real Resume Examples',
+    description:
+      'Not sure how your resume should look? The new Examples Gallery shows real, anonymized resumes for different job types and industries — so you can see what works before you write.',
+    highlights: [
+      'Browse examples by job title or industry',
+      'See how others structure their work history and skills',
+      'Use any example as inspiration when building your own resume',
+    ],
+  },
+  // ── March 2026 ──────────────────────────────────────────────
   {
     date: 'March 2026',
     tag: 'Smarter Scanning',
@@ -173,6 +208,7 @@ const changelog: ChangelogEntry[] = [
       'See your whole job search at once from a single dashboard',
     ],
   },
+  // ── February 2026 ───────────────────────────────────────────
   {
     date: 'February 2026',
     tag: 'Sign-In',
@@ -189,8 +225,108 @@ const changelog: ChangelogEntry[] = [
       'All your existing data stays safe and exactly where you left it',
     ],
   },
+  // ── January 2026 ────────────────────────────────────────────
   {
-    date: 'February 2026',
+    date: 'January 2026',
+    tag: 'New Feature',
+    tagBg: 'bg-indigo-500/10',
+    tagText: 'text-indigo-600 dark:text-indigo-400',
+    iconBg: 'bg-indigo-500/15',
+    icon: QrCode,
+    title: 'Share Your Resume with a QR Code',
+    description:
+      'Generate a scannable QR code for your resume in seconds. Perfect for networking events, business cards, or attaching to a printed copy of your CV.',
+    highlights: [
+      'One-tap QR code generation from any resume',
+      'Scanning it opens your live portfolio or resume PDF',
+      'Download and print your QR code to use anywhere',
+    ],
+  },
+  {
+    date: 'January 2026',
+    tag: 'Motivation',
+    tagBg: 'bg-amber-500/10',
+    tagText: 'text-amber-600 dark:text-amber-400',
+    iconBg: 'bg-amber-500/15',
+    icon: Trophy,
+    title: 'Track Your Progress with Achievements',
+    description:
+      'Job searching takes time — so we added Achievements to keep you motivated and moving forward. Earn milestones as you build your profile and apply to jobs.',
+    highlights: [
+      'Earn badges for completing your resume, adding skills, and more',
+      'See your overall profile completion score at a glance',
+      'A more complete profile leads to better AI suggestions throughout the app',
+    ],
+  },
+  // ── December 2025 ───────────────────────────────────────────
+  {
+    date: 'December 2025',
+    tag: 'Portfolio',
+    tagBg: 'bg-teal-500/10',
+    tagText: 'text-teal-600 dark:text-teal-400',
+    iconBg: 'bg-teal-500/15',
+    icon: Globe,
+    title: 'Your Resume as a Beautiful Website',
+    description:
+      'Turn your resume into a public portfolio site with a shareable link — no design skills needed. Perfect for sharing with recruiters or adding to your email signature.',
+    highlights: [
+      'Automatically built from your resume — always stays up to date',
+      'Choose from multiple layouts and color themes',
+      'Share your link anywhere: email, LinkedIn, WhatsApp, or your business card',
+    ],
+  },
+  {
+    date: 'December 2025',
+    tag: 'Design',
+    tagBg: 'bg-purple-500/10',
+    tagText: 'text-purple-600 dark:text-purple-400',
+    iconBg: 'bg-purple-500/15',
+    icon: Layers,
+    title: 'Professional Resume Templates',
+    description:
+      'Not happy with how your resume looks? Pick from a set of professionally designed templates that make your experience shine — and switch between them in one click.',
+    highlights: [
+      'Multiple styles to suit different industries and career stages',
+      'Switch templates any time without losing your content',
+      'Every template is designed to look great on screen and in print',
+    ],
+  },
+  // ── November 2025 ───────────────────────────────────────────
+  {
+    date: 'November 2025',
+    tag: 'New Feature',
+    tagBg: 'bg-rose-500/10',
+    tagText: 'text-rose-600 dark:text-rose-400',
+    iconBg: 'bg-rose-500/15',
+    icon: PenLine,
+    title: 'Write a Cover Letter in Minutes',
+    description:
+      'Getting a great cover letter used to take hours. Now AI writes a personalized one for you, matched to the job you\'re applying for — ready in under a minute.',
+    highlights: [
+      'Tailored to the job description you paste in',
+      'Matches the tone and keywords recruiters are looking for',
+      'Edit it to your liking and download as a PDF',
+    ],
+  },
+  {
+    date: 'November 2025',
+    tag: 'Design',
+    tagBg: 'bg-purple-500/10',
+    tagText: 'text-purple-600 dark:text-purple-400',
+    iconBg: 'bg-purple-500/15',
+    icon: Palette,
+    title: 'Dark Mode & Custom Themes',
+    description:
+      'Your eyes will thank you. WiseResume now supports dark mode and a selection of color themes so the app looks and feels exactly how you like it.',
+    highlights: [
+      'Switch between light and dark mode with one tap',
+      'Your theme choice carries across the entire app',
+      'Your preference is remembered automatically on every device',
+    ],
+  },
+  // ── October 2025 ────────────────────────────────────────────
+  {
+    date: 'October 2025',
     tag: 'Launch',
     tagBg: 'bg-primary/10',
     tagText: 'text-primary',
