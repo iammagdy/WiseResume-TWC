@@ -3,6 +3,7 @@ import { useRef, useEffect, useState, lazy, Suspense } from 'react';
 import { Sparkles, X, Sun, Moon, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/hooks/useAuth';
+import { useBottomSheetOpen } from '@/context/BottomSheetContext';
 
 import { BottomTabBar } from './BottomTabBar';
 import { DesktopNav } from './DesktopNav';
@@ -37,6 +38,7 @@ export function AppShell() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [wiseAIOpen, setWiseAIOpen] = useState(false);
   const [bridgeError, setBridgeError] = useState<{ type?: string; code: string; message: string } | null>(null);
+  const { isAnySheetOpen } = useBottomSheetOpen();
   const [retrying, setRetrying] = useState(false);
 
   // Show config error banner when Kinde login succeeded but the bridge exchange failed.
@@ -173,12 +175,15 @@ export function AppShell() {
         <button
           onClick={() => setWiseAIOpen(true)}
           className={cn(
-            'fixed right-4 z-50 lg:hidden flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-primary text-primary-foreground shadow-soft-lg active:scale-95 transition-transform touch-manipulation',
+            'fixed right-4 z-50 lg:hidden flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-primary text-primary-foreground shadow-soft-lg active:scale-95 transition-all touch-manipulation',
             isPortfolioEditorRoute
               ? 'bottom-[calc(9rem+env(safe-area-inset-bottom))]'
-              : 'bottom-[calc(5.5rem+env(safe-area-inset-bottom))]'
+              : 'bottom-[calc(5.5rem+env(safe-area-inset-bottom))]',
+            isAnySheetOpen && 'pointer-events-none opacity-0'
           )}
           aria-label="Ask Wise AI"
+          aria-hidden={isAnySheetOpen}
+          tabIndex={isAnySheetOpen ? -1 : undefined}
         >
           <Sparkles className="w-4 h-4" />
           <span className="text-sm font-medium">Ask</span>

@@ -4,8 +4,26 @@ import { X } from "lucide-react";
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
+import { useBottomSheetRegistration } from "@/context/BottomSheetContext";
 
-const Sheet = SheetPrimitive.Root;
+function Sheet({ open, onOpenChange, ...props }: React.ComponentPropsWithoutRef<typeof SheetPrimitive.Root>) {
+  const [internalOpen, setInternalOpen] = React.useState(open ?? false);
+  const isControlled = open !== undefined;
+  const resolvedOpen = isControlled ? open : internalOpen;
+
+  useBottomSheetRegistration(!!resolvedOpen);
+
+  return (
+    <SheetPrimitive.Root
+      open={open}
+      onOpenChange={(o) => {
+        if (!isControlled) setInternalOpen(o);
+        onOpenChange?.(o);
+      }}
+      {...props}
+    />
+  );
+}
 
 const SheetTrigger = SheetPrimitive.Trigger;
 
@@ -54,33 +72,35 @@ interface SheetContentProps
 }
 
 const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Content>, SheetContentProps>(
-  ({ side = "right", className, children, hideCloseButton = false, ...props }, ref) => (
-    <SheetPortal>
-      <SheetOverlay />
-      <SheetPrimitive.Content 
-        ref={ref} 
-        className={cn(
-          sheetVariants({ side }), 
-          side === "bottom" && "flex flex-col overflow-hidden",
-          className
-        )} 
-        {...props}
-      >
-        {side === "bottom" && (
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-muted-foreground/30 rounded-full" />
-        )}
-        <div className={side === "bottom" ? "pt-4 flex flex-col flex-1 min-h-0" : ""}>
-          {children}
-        </div>
-        {!hideCloseButton && (
-          <SheetPrimitive.Close className="absolute right-4 top-4 rounded-full p-2 opacity-70 ring-offset-background transition-all hover:opacity-100 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:pointer-events-none min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation active:scale-95">
-            <X className="h-5 w-5" />
-            <span className="sr-only">Close</span>
-          </SheetPrimitive.Close>
-        )}
-      </SheetPrimitive.Content>
-    </SheetPortal>
-  ),
+  function SheetContentInner({ side = "right", className, children, hideCloseButton = false, ...props }, ref) {
+    return (
+      <SheetPortal>
+        <SheetOverlay />
+        <SheetPrimitive.Content
+          ref={ref}
+          className={cn(
+            sheetVariants({ side }),
+            side === "bottom" && "flex flex-col overflow-hidden",
+            className
+          )}
+          {...props}
+        >
+          {side === "bottom" && (
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-muted-foreground/30 rounded-full" />
+          )}
+          <div className={side === "bottom" ? "pt-4 flex flex-col flex-1 min-h-0" : ""}>
+            {children}
+          </div>
+          {!hideCloseButton && (
+            <SheetPrimitive.Close className="absolute right-4 top-4 rounded-full p-2 opacity-70 ring-offset-background transition-all hover:opacity-100 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:pointer-events-none min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation active:scale-95">
+              <X className="h-5 w-5" />
+              <span className="sr-only">Close</span>
+            </SheetPrimitive.Close>
+          )}
+        </SheetPrimitive.Content>
+      </SheetPortal>
+    );
+  },
 );
 SheetContent.displayName = SheetPrimitive.Content.displayName;
 

@@ -62,22 +62,22 @@ export const QuickActionChips = memo(function QuickActionChips({ onCreateNew }: 
 
   return (
     <div className="px-4 pb-4">
-      <div className="grid grid-cols-4 gap-2">
+      <div className="flex gap-2 overflow-x-auto scrollbar-none -mx-4 px-4">
         {actions.map((item) => (
           <button
             key={item.label}
             onClick={() => handleAction(item.action)}
             className={cn(
-              'flex flex-col items-center gap-1.5 py-3 rounded-2xl',
+              'flex flex-col items-center gap-1.5 py-3 px-3 rounded-2xl shrink-0',
               'bg-card border border-border',
               'touch-manipulation active:scale-95 transition-all',
-              'min-h-[68px] hover:shadow-soft-sm'
+              'min-h-[68px] min-w-[72px] hover:shadow-soft-sm'
             )}
           >
             <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center', item.iconBg)}>
               <item.icon className={cn("w-4 h-4", item.iconColor)} />
             </div>
-            <span className="text-[11px] font-medium text-foreground">{item.label}</span>
+            <span className="text-[11px] font-medium text-foreground whitespace-nowrap">{item.label}</span>
           </button>
         ))}
       </div>

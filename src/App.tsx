@@ -26,6 +26,7 @@ import { AnnouncementBanner } from "@/components/layout/AnnouncementBanner";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { useAuth } from "@/hooks/useAuth";
 import { AIPrivacyDisclosureProvider } from "@/components/ai/AIPrivacyDisclosureProvider";
+import { BottomSheetProvider } from "@/context/BottomSheetContext";
 
 import { KindeProvider } from "@kinde-oss/kinde-auth-react";
 import {
@@ -410,11 +411,13 @@ const App = () => {
               logoutUri={window.location.origin}>
               
                <AuthProvider>
+                <BottomSheetProvider>
                 <AIPrivacyDisclosureProvider>
                 <AppRoutes />
                 <DeferredProviders />
                 <AppInstallPrompt />
                 </AIPrivacyDisclosureProvider>
+                </BottomSheetProvider>
                </AuthProvider>
                </KindeProvider>
              </BrowserRouter>

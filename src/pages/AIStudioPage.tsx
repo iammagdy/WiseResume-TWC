@@ -561,7 +561,7 @@ export default function AIStudioPage() {
                   key={tool.id}
                   onClick={() => handleToolAction(tool)}
                   className={cn(
-                    "p-3 bg-card border active:scale-95 transition-all touch-manipulation min-h-[100px] relative flex flex-col items-center justify-center gap-1.5 text-center rounded-2xl",
+                    "p-3 xs:p-3 bg-card border active:scale-95 transition-all touch-manipulation min-h-[110px] relative flex flex-col items-center justify-start gap-1.5 text-center rounded-2xl overflow-hidden",
                     isFeatured ? 'border-primary/20 shadow-soft-sm' : 'border-border hover:border-primary/20'
                   )}
                 >
@@ -575,15 +575,15 @@ export default function AIStudioPage() {
                       New
                     </Badge>
                   )}
-                  <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
-                    <tool.icon className={cn('w-5 h-5', tool.color)} />
+                  <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0 mt-1">
+                    <tool.icon className={cn('w-4.5 h-4.5', tool.color)} />
                   </div>
-                  <div className="text-center">
-                    <span className="text-sm font-medium block">{tool.label}</span>
-                    <span className="text-xs text-muted-foreground leading-tight block">{tool.desc}</span>
+                  <div className="text-center w-full min-w-0">
+                    <span className="text-xs font-semibold block truncate leading-snug">{tool.label}</span>
+                    <span className="text-[10px] text-muted-foreground leading-tight line-clamp-2 block mt-0.5">{tool.desc}</span>
                     <AICostBadge operation={tool.cost} className="mt-1" />
                   </div>
-                  {tool.navigate && (
+                  {tool.navigate && !isFeatured && !showNew && (
                     <ArrowRight className="w-3 h-3 text-muted-foreground/50 absolute top-2 right-2" />
                   )}
                 </button>
@@ -620,14 +620,14 @@ export default function AIStudioPage() {
               <button
                 key={tool.id}
                 onClick={() => handleToolAction(tool)}
-                className="p-3 bg-card border border-border hover:border-primary/20 active:scale-95 transition-all touch-manipulation min-h-[100px] relative flex flex-col items-center justify-center gap-1.5 text-center rounded-2xl"
+                className="p-3 bg-card border border-border hover:border-primary/20 active:scale-95 transition-all touch-manipulation min-h-[110px] relative flex flex-col items-center justify-start gap-1.5 text-center rounded-2xl overflow-hidden"
               >
-                <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
-                  <tool.icon className={cn('w-5 h-5', tool.color)} />
+                <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0 mt-1">
+                  <tool.icon className={cn('w-4.5 h-4.5', tool.color)} />
                 </div>
-                <div className="text-center">
-                  <span className="text-sm font-medium block">{tool.label}</span>
-                  <span className="text-xs text-muted-foreground leading-tight block">{tool.desc}</span>
+                <div className="text-center w-full min-w-0">
+                  <span className="text-xs font-semibold block truncate leading-snug">{tool.label}</span>
+                  <span className="text-[10px] text-muted-foreground leading-tight line-clamp-2 block mt-0.5">{tool.desc}</span>
                   <AICostBadge operation={tool.cost} className="mt-1" />
                 </div>
                 <ArrowRight className="w-3 h-3 text-muted-foreground/50 absolute top-2 right-2" />
