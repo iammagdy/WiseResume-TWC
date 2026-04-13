@@ -19,6 +19,8 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { callWiseresumeAI, isAIError, sanitizeInputText } from "../_shared/aiClient.ts";
 import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
 import { deductCredits } from "../_shared/deductCredits.ts";
+import { checkRateLimit } from "../_shared/rateLimiter.ts";
+import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { requireAuth } from "../_shared/authMiddleware.ts";
@@ -224,6 +226,26 @@ serve(async (req: Request) => {
           message: `Unknown request type "${type}". Valid: ${[...ALLOWED_TYPES].join(", ")}`,
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const rateCheck = await checkRateLimit(userId, {
+      maxRequests: 20,
+      windowSeconds: 60,
+      actionType: "wise_ai_chat",
+    });
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: "rate_limit", message: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const serverRateCheck = await checkUserRateLimit(userId, "wise_ai_chat", 20, 60);
+    if (!serverRateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: "rate_limit", message: `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

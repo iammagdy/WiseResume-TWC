@@ -458,12 +458,20 @@ async function getOpenRouterFreeModels(apiKey: string): Promise<string[]> {
   }
 
   try {
-    const response = await fetch('https://openrouter.ai/api/v1/models', {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    const discoveryCtrl = new AbortController();
+    const discoveryTimeout = setTimeout(() => discoveryCtrl.abort(), 5_000);
+    let response: Response;
+    try {
+      response = await fetch('https://openrouter.ai/api/v1/models', {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        signal: discoveryCtrl.signal,
+      });
+    } finally {
+      clearTimeout(discoveryTimeout);
+    }
 
     if (!response.ok) {
       console.warn('[AI] OpenRouter model list fetch failed:', response.status);
@@ -538,12 +546,20 @@ async function getGroqModels(apiKey: string): Promise<string[]> {
   }
 
   try {
-    const response = await fetch('https://api.groq.com/openai/v1/models', {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    const discoveryCtrl = new AbortController();
+    const discoveryTimeout = setTimeout(() => discoveryCtrl.abort(), 5_000);
+    let response: Response;
+    try {
+      response = await fetch('https://api.groq.com/openai/v1/models', {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        signal: discoveryCtrl.signal,
+      });
+    } finally {
+      clearTimeout(discoveryTimeout);
+    }
 
     if (!response.ok) {
       console.warn('[AI] Groq model list fetch failed:', response.status);
@@ -1116,8 +1132,8 @@ export async function callWiseresumeAI(
   const openrouterKey = Deno.env.get('OPENROUTER_API_KEY');
   const groqKey = Deno.env.get('GROQ_API_KEY');
 
-  /** Per-model timeout: 20 s each — independent of the outer signal. */
-  const PER_MODEL_TIMEOUT_MS = 20_000;
+  /** Per-model timeout: 15 s each — independent of the outer signal. */
+  const PER_MODEL_TIMEOUT_MS = 15_000;
 
   /**
    * Try a single OpenRouter model by slug.
@@ -1269,8 +1285,9 @@ export async function callWiseresumeAI(
   }
 
   console.error('[AI] WiseResume: all models exhausted. Last error:', lastError instanceof Error ? lastError.message : lastError);
-  // All models exhausted — surface as rate_limit so clients show a friendly message.
-  throw lastError ?? createAIError('rate_limit', 'All WiseResume AI models are busy. Please try again in a moment.', 503);
+  // All models exhausted — always surface as rate_limit/429 so clients show a friendly message
+  // regardless of what the last individual model returned.
+  throw createAIError('rate_limit', 'All WiseResume AI models are busy. Please try again in a moment.', 429);
 }
 
 /**
