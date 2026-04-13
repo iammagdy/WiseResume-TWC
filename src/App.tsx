@@ -354,7 +354,7 @@ function AppRoutes() {
 
 }
 
-const AURORA_PUBLIC_PATHS = ['/', '/pricing', '/whats-new', '/sign-in', '/privacy-policy', '/terms-of-service'];
+const AURORA_PUBLIC_PATHS = ['/', '/pricing', '/whats-new'];
 
 function AuroraLayer() {
   const location = useLocation();
@@ -366,17 +366,13 @@ function AuroraLayer() {
 
   useEffect(() => {
     if (!isPublicPage) return;
-    const html = document.documentElement;
     const body = document.body;
-    const prevHtmlBg = html.style.backgroundColor;
     const prevBodyBg = body.style.backgroundColor;
-    html.style.backgroundColor = '#050000';
-    body.style.backgroundColor = 'transparent';
-    html.classList.add('aurora-active');
+    body.style.backgroundColor = '#0a0000';
+    document.documentElement.classList.add('aurora-active');
     return () => {
-      html.style.backgroundColor = prevHtmlBg;
       body.style.backgroundColor = prevBodyBg;
-      html.classList.remove('aurora-active');
+      document.documentElement.classList.remove('aurora-active');
     };
   }, [isPublicPage]);
 

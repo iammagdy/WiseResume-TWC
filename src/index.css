@@ -4,17 +4,15 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Aurora wallpaper — make public page roots transparent so the fixed aurora canvas shows through */
-html.aurora-active,
-html.aurora-active body {
-  background-color: transparent !important;
-}
-
-/* Transparent page backgrounds on aurora-enabled public pages */
+/* Aurora wallpaper — fixed z:0 canvas sits above the dark body background.
+   Page content containers are elevated to z:1 so they render above the aurora layer.
+   Page root backgrounds are set to transparent so the aurora shows through. */
 html.aurora-active .lp-root,
 html.aurora-active .aurora-page-root,
 html.aurora-active .app-theme {
   background-color: transparent !important;
+  position: relative;
+  z-index: 1;
 }
 
 /* Security curtain — hides content from OS app-switcher screenshots on native */
