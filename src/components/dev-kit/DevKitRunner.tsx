@@ -181,13 +181,16 @@ export function DevKitRunner() {
     },
     // === EMAIL === — Single consolidated test to conserve the 3,000/month email quota
     {
-      id: 'email-service', label: 'Email Service Test', description: 'Sends one real email via send-contact-email to verify the entire email pipeline end-to-end.', section: 'email',
+      id: 'email-service', label: 'Email Service Test', description: 'Validates the email pipeline configuration using dry_run mode — no real email is sent.', section: 'email',
       run: () => strictInvoke('email-service', async () => {
         const res = await edgeFunctions.functions.invoke('send-contact-email', {
-          body: { type: 'contact', email: 'contact@thewise.cloud', subject: '[HC] Email Service Test', message: 'Dev Kit smoke test — email pipeline verification.', metadata: { source: 'dev-kit' } }
+          body: { type: 'contact', email: 'contact@thewise.cloud', subject: '[HC] Email Service Test', message: 'Dev Kit smoke test — email pipeline verification.', metadata: { source: 'dev-kit' }, dry_run: true }
         });
         if (res.error) throw new Error((res.error as any).message || 'Email function error');
-        return { ...res.data, _hint: '✉️ Check your email at contact@thewise.cloud to verify delivery.' };
+        if (!res.data?.success && res.data?.reason !== 'dry_run') {
+          throw new Error(res.data?.error || res.data?.reason || 'Email configuration check failed');
+        }
+        return { ...res.data, _hint: 'Dry-run mode: configuration validated without sending a real email.' };
       }),
     },
     // === AI ===
@@ -374,7 +377,7 @@ export function DevKitRunner() {
     const failedIds = allStatuses.filter(s => s.status !== 'success' && s.status !== 'warn').map(s => s.id);
     setSmokeSummary({ passed: allStatuses.length - failedIds.length, failed: failedIds.length, failedIds });
     setGlobalRunning(false);
-  }, [tests, runTest, results]);
+  }, [tests, runTest]);
 
   const renderSection = (section: typeof SECTIONS[number]) => {
     const sectionTests = tests.filter(t => t.section === section.id);
@@ -473,7 +476,7 @@ export function DevKitRunner() {
               </span>
               {smokeSummary.failed === 0 && (
                 <p className="text-xs text-muted-foreground font-normal mt-0.5">
-                  ✉️ Check your email at contact@thewise.cloud to confirm the Email Service Test delivery.
+                  Email Service Test ran in dry-run mode — no real email was sent.
                 </p>
               )}
             </div>

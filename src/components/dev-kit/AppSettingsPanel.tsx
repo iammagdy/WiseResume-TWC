@@ -193,21 +193,29 @@ export function AppSettingsPanel() {
         <h3 className="text-sm font-semibold">Feature Flags</h3>
         <p className="text-xs text-muted-foreground">Toggle app features on/off for all users. Changes take effect within 5 minutes.</p>
         <div className="space-y-3">
-          {FEATURE_FLAGS.map((flag) => (
-            <div key={flag.key} className="flex items-center justify-between">
-              <div>
-                <p className="text-sm">{flag.label}</p>
-                <p className="text-xs text-muted-foreground">{flag.description}</p>
+          {FEATURE_FLAGS.map((flag) => {
+            const isLoaded = flag.key in settings;
+            const isOn = isLoaded ? settings[flag.key] !== false : false;
+            return (
+              <div key={flag.key} className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm">{flag.label}</p>
+                  <p className="text-xs text-muted-foreground">{flag.description}</p>
+                </div>
+                {loading && !isLoaded ? (
+                  <div className="w-11 h-6 rounded-full bg-muted/60 animate-pulse" />
+                ) : (
+                  <button
+                    onClick={() => updateSetting(flag.key, !isOn)}
+                    disabled={saving === flag.key || loading}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${isOn ? 'bg-primary' : 'bg-muted'}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${isOn ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
+                )}
               </div>
-              <button
-                onClick={() => updateSetting(flag.key, !settings[flag.key])}
-                disabled={saving === flag.key || loading}
-                className={`relative w-11 h-6 rounded-full transition-colors ${settings[flag.key] !== false ? 'bg-primary' : 'bg-muted'}`}
-              >
-                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${settings[flag.key] !== false ? 'translate-x-5' : 'translate-x-0'}`} />
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

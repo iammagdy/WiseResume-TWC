@@ -29,7 +29,6 @@ import { DeploymentPanel } from '@/components/dev-kit/DeploymentPanel';
 import { EmailManagementPanel } from '@/components/dev-kit/EmailManagementPanel';
 import { DEV_KIT_VERSION } from '@/components/dev-kit/config';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
-import { supabase } from '@/integrations/supabase/safeClient';
 import { DevKitSessionProvider, useDevKitSession } from '@/contexts/DevKitSessionContext';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -67,7 +66,7 @@ function DevToolsInner() {
 
   const checkConnection = useCallback(async () => {
     try {
-      const { error } = await supabase.from('resumes').select('id').limit(1);
+      const { error } = await edgeFunctions.functions.invoke('me', { body: {} });
       setConnectionStatus(error ? 'disconnected' : 'connected');
     } catch {
       setConnectionStatus('disconnected');

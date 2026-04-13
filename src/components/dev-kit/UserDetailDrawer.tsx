@@ -279,6 +279,8 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated 
     ? Math.max(0, Math.ceil((new Date(user.trial_expires_at).getTime() - Date.now()) / 86400000))
     : 0;
 
+  // Inline plan-change is the canonical path for updating a user's plan.
+  // SetPlanModal.tsx has been removed — all plan changes go through this handler.
   const handleSetPlan = async () => {
     if (selectedPlan === user.plan_name) { toast.info('Plan unchanged'); return; }
     setSavingPlan(true);

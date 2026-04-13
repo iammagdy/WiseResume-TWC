@@ -45,18 +45,36 @@ Deno.serve(async (req) => {
     );
 
     const body = await req.json();
-    const { type, email, subject, message, metadata = {} } = body as {
+    const { type, email, subject, message, metadata = {}, dry_run = false } = body as {
       type: string;
       email: string;
       subject?: string;
       message: string;
       metadata?: Record<string, unknown>;
+      dry_run?: boolean;
     };
 
     if (!type || !email || !message) {
       return new Response(
         JSON.stringify({ error: "Type, email, and message are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Dry-run mode: validate configuration and return success/failure without sending a real email
+    if (dry_run) {
+      const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+      const hasKey = !!(RESEND_API_KEY && RESEND_API_KEY.trim().length > 0);
+      return new Response(
+        JSON.stringify({
+          success: hasKey,
+          reason: "dry_run",
+          resend_api_key_configured: hasKey,
+          note: hasKey
+            ? "RESEND_API_KEY is configured. Email pipeline is ready."
+            : "RESEND_API_KEY is NOT configured — emails will fail. Set it as a Supabase secret.",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

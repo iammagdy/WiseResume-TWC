@@ -45,15 +45,17 @@ serve(async (req) => {
       countryResult,
     ] = await Promise.all([
       supabase.from('usage_events').select('id', { count: 'exact', head: true }),
+      // Fix: filter user_id IS NOT NULL at DB level so anonymous events don't inflate the count
       supabase.from('usage_events').select('id, user_id', { count: 'exact' })
         .gte('created_at', `${today}T00:00:00Z`)
-        .lt('created_at', `${today}T23:59:59Z`),
+        .lt('created_at', `${today}T23:59:59Z`)
+        .not('user_id', 'is', null),
       supabase.from('usage_events').select('id, user_id', { count: 'exact' })
         .gte('created_at', `${yesterday}T00:00:00Z`)
-        .lt('created_at', `${yesterday}T23:59:59Z`),
-      supabase.from('usage_events').select('event_type')
-        .order('created_at', { ascending: false })
-        .limit(2000),
+        .lt('created_at', `${yesterday}T23:59:59Z`)
+        .not('user_id', 'is', null),
+      // Fix: use server-side GROUP BY aggregation instead of downloading up to 2000 rows
+      supabase.rpc('get_top_feature_events', { top_n: 10 }),
       supabase.from('portfolio_visits').select('id', { count: 'exact', head: true }),
       supabase.from('profiles').select('created_at')
         .gte('created_at', fourteenDaysAgo)
@@ -68,21 +70,17 @@ serve(async (req) => {
     const pageViewsAllTime = allEventsResult.count ?? 0;
     const pageViewsToday = todayEventsResult.count ?? 0;
 
-    const todayEventRows = (todayEventsResult.data ?? []) as { id: string; user_id: string | null }[];
-    const yesterdayEventRows = (yesterdayEventsResult.data ?? []) as { id: string; user_id: string | null }[];
+    const todayEventRows = (todayEventsResult.data ?? []) as { id: string; user_id: string }[];
+    const yesterdayEventRows = (yesterdayEventsResult.data ?? []) as { id: string; user_id: string }[];
     const activeUsersToday = new Set(todayEventRows.map(e => e.user_id)).size;
     const activeUsersYesterday = new Set(yesterdayEventRows.map(e => e.user_id)).size;
 
-    const featureRows = (featureEventsResult.data ?? []) as { event_type: string }[];
-    const featureCounts: Record<string, number> = {};
-    for (const row of featureRows) {
-      const key = row.event_type ?? 'unknown';
-      featureCounts[key] = (featureCounts[key] || 0) + 1;
-    }
-    const topFeatures = Object.entries(featureCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([name, count]) => ({ name, count }));
+    // featureEventsResult is now pre-aggregated { event_type, count } rows from the RPC
+    const featureRows = (featureEventsResult.data ?? []) as { event_type: string; count: number }[];
+    const topFeatures = featureRows.map(row => ({
+      name: row.event_type ?? 'unknown',
+      count: Number(row.count),
+    }));
 
     const portfolioViewsTotal = portfolioEventsResult.count ?? 0;
 
