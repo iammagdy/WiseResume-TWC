@@ -93,6 +93,7 @@ interface ProfileImportSheetProps {
   onImport: (data: Partial<ProfileData>) => void;
   defaultPlatform?: Platform;
   existingExperience?: Array<{ company: string; startDate?: string; endDate?: string }>;
+  existingSkills?: string[];
   linkedinUsername?: string;
 }
 
@@ -182,6 +183,7 @@ export function ProfileImportSheet({
   onImport,
   defaultPlatform = 'linkedin',
   existingExperience,
+  existingSkills,
   linkedinUsername: _linkedinUsername,
 }: ProfileImportSheetProps) {
   const [platform, setPlatform] = useState<Platform>(defaultPlatform);
@@ -474,7 +476,19 @@ export function ProfileImportSheet({
       if (exp.length) importData.experience = exp;
     }
     if (selectedSections.education && data.education?.length) importData.education = data.education;
-    if (selectedSections.skills && data.skills?.length) importData.skills = data.skills;
+    if (selectedSections.skills && data.skills?.length) {
+      let skills = data.skills;
+      if (existingSkills && existingSkills.length > 0) {
+        const existingLower = new Set(existingSkills.map((s) => s.toLowerCase().trim()));
+        const before = skills.length;
+        skills = skills.filter((s) => !existingLower.has(s.toLowerCase().trim()));
+        const skippedSkills = before - skills.length;
+        if (skippedSkills > 0) {
+          toast.info(`${skippedSkills} duplicate skill${skippedSkills === 1 ? '' : 's'} skipped`);
+        }
+      }
+      if (skills.length) importData.skills = skills;
+    }
     if (selectedSections.certifications && data.certifications?.length) importData.certifications = data.certifications;
     if (selectedSections.volunteering && data.volunteering?.length) importData.volunteering = data.volunteering;
     if (selectedSections.languages && data.languages?.length) importData.languages = data.languages;

@@ -1021,6 +1021,7 @@ export default function EditorPage() {
               onOpenChange={setShowProfileImport}
               onImport={handleProfileImport}
               existingExperience={currentResume?.experience}
+              existingSkills={currentResume?.skills}
             />
           )}
           {showContentLibrary && <ContentLibrarySheet open={showContentLibrary} onOpenChange={setShowContentLibrary} onInsert={handleContentInsert} />}

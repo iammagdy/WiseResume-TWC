@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { FileText, Plus, Sparkles, Download, Upload, ArrowRight, LayoutGrid, Lightbulb } from 'lucide-react';
+import { FileText, Plus, Sparkles, Download, Upload, ArrowRight, LayoutGrid, Lightbulb, FileDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TemplateId, ResumeData } from '@/types/resume';
@@ -11,6 +11,7 @@ interface EmptyStateProps {
   onCreateNew: () => void;
   onBrowseTemplates?: () => void;
   onStartOnboarding?: () => void;
+  onImportProfile?: () => void;
 }
 
 const steps = [
@@ -85,7 +86,7 @@ function MiniTemplateThumbnail({ templateId }: { templateId: TemplateId }) {
   );
 }
 
-export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding }: EmptyStateProps) {
+export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding, onImportProfile }: EmptyStateProps) {
   const shouldReduceMotion = useReducedMotion();
   const [activeTipIndex, setActiveTipIndex] = useState(0);
   const [tipPaused, setTipPaused] = useState(false);
@@ -222,6 +223,17 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding }
           </Button>
         </motion.div>
 
+        {onImportProfile && (
+          <Button
+            variant="outline"
+            onClick={onImportProfile}
+            className="gap-2"
+            aria-label="Import from LinkedIn or another platform"
+          >
+            <FileDown className="w-4 h-4" />
+            Import Profile
+          </Button>
+        )}
         {onBrowseTemplates && (
           <Button
             variant="outline"
