@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, MessageSquare, LayoutGrid, Palette, PanelLeftClose, PanelLeft, Clock, Undo2, Redo2, Download, Loader2, Cloud, CloudOff, Check, Save, BarChart3, ChevronDown } from 'lucide-react';
+import { ArrowLeft, MessageSquare, LayoutGrid, Palette, PanelLeftClose, PanelLeft, Clock, Undo2, Redo2, Download, Loader2, Cloud, CloudOff, Check, Save, BarChart3, ChevronDown, FileDown } from 'lucide-react';
 import { OfflineIndicator } from '@/components/editor/OfflineIndicator';
 import { cn } from '@/lib/utils';
 import haptics from '@/lib/haptics';
@@ -42,6 +42,7 @@ export interface EditorHeaderProps {
   onOpenChat: () => void;
   onTemplateBtnSeen: () => void;
   onDownload: () => void;
+  onImportProfile?: () => void;
 }
 
 function getProgressColor(progress: number): string {
@@ -244,6 +245,7 @@ export function EditorHeader({
   onOpenChat,
   onTemplateBtnSeen,
   onDownload,
+  onImportProfile,
 }: EditorHeaderProps) {
   return (
     <header className="editor-header shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 pt-safe transition-all duration-200">
@@ -352,6 +354,17 @@ export function EditorHeader({
             {showPreview ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeft className="w-5 h-5" />}
             <span className="text-[9px] font-medium leading-none">{showPreview ? 'Hide' : 'Show'}</span>
           </button>
+          {/* Import Profile shortcut */}
+          {onImportProfile && (
+            <button
+              onClick={() => { onImportProfile(); haptics.light(); }}
+              className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 hover:bg-muted text-muted-foreground"
+              aria-label="Import profile data"
+            >
+              <FileDown className="w-5 h-5" />
+              <span className="text-[9px] font-medium leading-none">Import</span>
+            </button>
+          )}
           {/* Download shortcut */}
           <button
             onClick={() => { onDownload(); haptics.light(); }}

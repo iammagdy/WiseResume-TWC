@@ -16,7 +16,7 @@ serve(async (req) => {
   try {
     const { userId, client } = await requireAuth(req);
 
-    const rateCheck = await checkRateLimit(userId, { maxRequests: 10, windowSeconds: 60, actionType: 'parse_linkedin' });
+    const rateCheck = await checkRateLimit(userId, { maxRequests: 20, windowSeconds: 60, actionType: 'parse_linkedin' });
     if (!rateCheck.allowed) {
       return new Response(
         JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
@@ -24,7 +24,8 @@ serve(async (req) => {
       );
     }
 
-    const { profileText } = await req.json();
+    const body = await req.json();
+    const { profileText, platform = 'linkedin' } = body;
 
     if (!profileText || typeof profileText !== "string") {
       return new Response(
@@ -41,17 +42,18 @@ serve(async (req) => {
     }
 
     const trimmedText = profileText.trim();
-    const isUrlOnly = /^https?:\/\/(www\.)?linkedin\.com/i.test(trimmedText) && 
+    const isUrlOnly = /^https?:\/\/(www\.)?(linkedin|indeed|xing|wellfound)\.com/i.test(trimmedText) && 
                       trimmedText.split('\n').length <= 3 && 
                       trimmedText.length < 500;
 
     if (isUrlOnly) {
+      const platformName = (platform === 'indeed' ? 'Indeed' : platform === 'xing' ? 'Xing' : platform === 'wellfound' ? 'Wellfound' : 'LinkedIn');
       return new Response(
         JSON.stringify({
           error: 'URL_ONLY_REJECTED',
           message:
-            "We can't fetch LinkedIn profiles directly due to access restrictions. " +
-            "To import your LinkedIn data: open your LinkedIn profile in a browser, " +
+            `We can't fetch ${platformName} profiles directly due to access restrictions. ` +
+            `To import your ${platformName} data: open your profile in a browser, ` +
             "press Ctrl+A (or Cmd+A on Mac) to select all text on the page, copy it, " +
             "and paste the full text into this field.",
         }),
@@ -59,7 +61,18 @@ serve(async (req) => {
       );
     }
 
-    const systemPrompt = `You are an expert at extracting structured resume data from LinkedIn profile text.
+    const platformHints: Record<string, string> = {
+      linkedin: "The input is from a LinkedIn profile. LinkedIn uses sections like 'About', 'Experience', 'Education', 'Skills', 'Licenses & Certifications', 'Volunteer Experience', 'Languages', 'Projects'.",
+      indeed: "The input is from an Indeed resume profile. Indeed uses sections like 'Summary', 'Work Experience', 'Education', 'Skills', 'Certifications'. Date formats may vary.",
+      xing: "The input is from a Xing profile (European professional network). Xing uses sections like 'About me', 'Experience', 'Education', 'Qualifications', 'Languages'. May include German or European formatting.",
+      wellfound: "The input is from a Wellfound (AngelList) profile used for startup job seekers. Focus on 'Bio', 'Experience', 'Education', 'Skills'. May include startup-specific roles.",
+      generic: "The input is from a general professional profile or resume. Extract all available structured data regardless of the source format.",
+    };
+    const platformHint = platformHints[platform] || platformHints.generic;
+
+    const systemPrompt = `You are an expert at extracting structured resume data from professional profile text.
+
+${platformHint}
 
 IMPORTANT: If the input is ONLY a URL, return EMPTY arrays and null summary. Do NOT make up data.
 Only extract data explicitly present in the text. Never fabricate data.
@@ -74,7 +87,7 @@ Extract certifications from the "Licenses & Certifications" section, volunteerin
       model: 'google/gemini-2.5-flash',
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: `Extract structured data from this LinkedIn profile:\n\n${sanitizeInputText(profileText, 30000)}` },
+        { role: "user", content: `Extract structured data from this ${platform} profile:\n\n${sanitizeInputText(profileText, 30000)}` },
       ],
       tools: [
         {

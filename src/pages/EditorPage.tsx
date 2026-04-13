@@ -56,6 +56,7 @@ import { useATSSuggestions } from '@/hooks/useATSSuggestions';
 import { AIIntroTooltip } from '@/components/editor/AIIntroTooltip';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { EditorHeader } from '@/components/editor/EditorHeader';
+import { ProfileImportSheet } from '@/components/settings/ProfileImportSheet';
 import { EditorSectionContent, SectionNavButtons } from '@/components/editor/EditorSectionContent';
 import { EditorScrollForm } from '@/components/editor/EditorScrollForm';
 import { EditorSkeleton } from '@/components/layout/PageSkeletons';
@@ -168,6 +169,7 @@ export default function EditorPage() {
   const [showRecruiterSim, setShowRecruiterSim] = useState(false);
   const [showAIDetector, setShowAIDetector] = useState(false);
   const [showLinkedIn, setShowLinkedIn] = useState(false);
+  const [showProfileImport, setShowProfileImport] = useState(false);
   const [showOnePage, setShowOnePage] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showCareerPath, setShowCareerPath] = useState(false);
@@ -653,6 +655,32 @@ export default function EditorPage() {
 
 
 
+  const handleProfileImport = useCallback((data: any) => {
+    if (!currentResume) return;
+    const { setCurrentResume } = useResumeStore.getState();
+    const updates: Partial<typeof currentResume> = {};
+    if (data.contactInfo && data.contactInfo.fullName) {
+      updates.contactInfo = { ...currentResume.contactInfo, ...data.contactInfo };
+    }
+    if (data.summary) updates.summary = data.summary;
+    if (Array.isArray(data.experience) && data.experience.length > 0) {
+      updates.experience = [...(currentResume.experience || []), ...data.experience];
+    }
+    if (Array.isArray(data.education) && data.education.length > 0) {
+      updates.education = [...(currentResume.education || []), ...data.education];
+    }
+    if (Array.isArray(data.skills) && data.skills.length > 0) {
+      const existing = new Set((currentResume.skills || []).map((s: string) => s.toLowerCase()));
+      const newSkills = data.skills.filter((s: string) => !existing.has(s.toLowerCase()));
+      if (newSkills.length > 0) updates.skills = [...(currentResume.skills || []), ...newSkills];
+    }
+    if (Array.isArray(data.languages) && data.languages.length > 0) {
+      updates.languages = [...(currentResume.languages || []), ...data.languages];
+    }
+    setCurrentResume({ ...currentResume, ...updates });
+    setShowProfileImport(false);
+  }, [currentResume]);
+
   const handleContentInsert = useCallback((text: string) => {
     if (!currentResume) return;
     const { setCurrentResume } = useResumeStore.getState();
@@ -727,6 +755,7 @@ export default function EditorPage() {
         onTemplateBtnSeen={() => { if (!templateBtnSeen) { localStorage.setItem('template_btn_seen', 'true'); setTemplateBtnSeen(true); } setShowTemplates(true); }}
         onDownload={handleQuickDownload}
         isQuickDownloading={isQuickDownloading}
+        onImportProfile={() => setShowProfileImport(true)}
       />
 
       {/* Tailored Resume Indicator Banner */}
@@ -970,6 +999,14 @@ export default function EditorPage() {
           {showChat && <AgenticChatSheet open={showChat} onOpenChange={setShowChat} />}
           {showCareerPath && <CareerPathSheet open={showCareerPath} onOpenChange={setShowCareerPath} />}
           {showVersionHistory && <VersionHistorySheet open={showVersionHistory} onOpenChange={setShowVersionHistory} resumeId={currentResumeId} />}
+          {showProfileImport && (
+            <ProfileImportSheet
+              open={showProfileImport}
+              onOpenChange={setShowProfileImport}
+              onImport={handleProfileImport}
+              existingExperience={currentResume?.experience}
+            />
+          )}
           {showContentLibrary && <ContentLibrarySheet open={showContentLibrary} onOpenChange={setShowContentLibrary} onInsert={handleContentInsert} />}
           {showCustomize && (() => {
             const rd = currentResume ? (() => {

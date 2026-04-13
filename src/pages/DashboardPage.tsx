@@ -737,7 +737,7 @@ function DashboardPageContent() {
 
           {/* Quick Action Chips */}
           {resumes && resumes.length > 0 && (
-            <QuickActionChips onCreateNew={handleCreateNew} />
+            <QuickActionChips onCreateNew={handleCreateNew} onImportProfile={() => setShowLinkedInImport(true)} />
           )}
 
           {/* Quick Start Banner — shown after onboarding skip when user has no resumes */}

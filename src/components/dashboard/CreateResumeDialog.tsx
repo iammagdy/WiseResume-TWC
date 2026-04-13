@@ -1,7 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Upload, Copy, ArrowRight, GitBranch, Linkedin } from 'lucide-react';
+
+const ProfileImportSheet = lazy(() =>
+  import('@/components/settings/ProfileImportSheet').then((m) => ({ default: m.ProfileImportSheet })),
+);
 import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import {
@@ -69,6 +73,7 @@ export function CreateResumeDialog({
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
   
   const [mode, setMode] = useState<CreateMode | null>(null);
+  const [showLocalImport, setShowLocalImport] = useState(false);
   const [title, setTitle] = useState('');
   const [selectedResumeId, setSelectedResumeId] = useState<string>('');
   const [isCreating, setIsCreating] = useState(false);
@@ -370,22 +375,28 @@ export function CreateResumeDialog({
               <ArrowRight className="w-5 h-5 text-muted-foreground" />
             </motion.button>
 
-            {onLinkedInImport && (
-              <motion.button
-                whileTap={{ scale: 0.98 }}
-                onClick={() => { haptics.light(); onOpenChange(false); onLinkedInImport(); }}
-                className="w-full flex items-center gap-4 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 transition-all touch-manipulation"
-              >
-                <div className="w-12 h-12 rounded-lg bg-[#0A66C2]/10 flex items-center justify-center">
-                  <Linkedin className="w-6 h-6 text-[#0A66C2]" />
-                </div>
-                <div className="flex-1 text-left">
-                  <p className="font-medium">Import from LinkedIn</p>
-                  <p className="text-sm text-muted-foreground">Pull your profile data with AI</p>
-                </div>
-                <ArrowRight className="w-5 h-5 text-muted-foreground" />
-              </motion.button>
-            )}
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                haptics.light();
+                if (onLinkedInImport) {
+                  onOpenChange(false);
+                  onLinkedInImport();
+                } else {
+                  setShowLocalImport(true);
+                }
+              }}
+              className="w-full flex items-center gap-4 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 transition-all touch-manipulation"
+            >
+              <div className="w-12 h-12 rounded-lg bg-[#0A66C2]/10 flex items-center justify-center">
+                <Linkedin className="w-6 h-6 text-[#0A66C2]" />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="font-medium">Import Profile</p>
+                <p className="text-sm text-muted-foreground">LinkedIn, Indeed, Xing & more</p>
+              </div>
+              <ArrowRight className="w-5 h-5 text-muted-foreground" />
+            </motion.button>
 
             {existingResumes.length > 0 && (
               <motion.button
@@ -619,6 +630,70 @@ export function CreateResumeDialog({
           </div>
         ) : null}
       </DialogContent>
+      {showLocalImport && (
+        <Suspense fallback={null}>
+          <ProfileImportSheet
+            open={showLocalImport}
+            onOpenChange={setShowLocalImport}
+            onImport={async (data) => {
+              if (!user) return;
+              const contactInfo = {
+                fullName: profile?.fullName || '',
+                email: user.email || '',
+                phone: '',
+                location: profile?.location || '',
+              };
+              try {
+                const newResume = await createResume.mutateAsync({
+                  resume: {
+                    contactInfo,
+                    summary: data.summary || '',
+                    experience: (data.experience || []).map((exp, i) => ({
+                      id: String(i + 1),
+                      company: exp.company,
+                      position: exp.title,
+                      startDate: exp.startDate,
+                      endDate: exp.endDate,
+                      current: exp.current,
+                      description: exp.description,
+                      achievements: [],
+                    })),
+                    education: (data.education || []).map((edu, i) => ({
+                      id: String(i + 1),
+                      institution: edu.institution,
+                      degree: edu.degree,
+                      field: edu.field || '',
+                      startDate: edu.startYear || '',
+                      endDate: edu.endYear || '',
+                    })),
+                    skills: data.skills || [],
+                    certifications: [],
+                    templateId: defaultTemplateId || 'modern',
+                  },
+                  title: 'Imported Resume',
+                });
+                setCurrentResumeId(newResume.id);
+                setCurrentResume({
+                  id: newResume.id,
+                  contactInfo: newResume.contact_info,
+                  summary: newResume.summary || '',
+                  experience: newResume.experience || [],
+                  education: newResume.education || [],
+                  skills: newResume.skills || [],
+                  certifications: [],
+                  templateId: newResume.template_id || 'modern',
+                });
+                toast.success('Profile imported — review and edit below');
+                onOpenChange(false);
+                navigate('/editor');
+              } catch (err) {
+                console.error('Import error:', err);
+                toast.error('Failed to create resume from import');
+              }
+            }}
+          />
+        </Suspense>
+      )}
     </Dialog>
   );
 }
