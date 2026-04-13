@@ -115,10 +115,15 @@ function UnconfirmedUsersSection({ onSendToUser }: UnconfirmedUsersProps) {
       if (err) throw new Error(err.message);
       const result = data as { success?: boolean; error?: string; message_id?: string };
       if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
-      const msgId = result.message_id ? ` · ID: ${result.message_id}` : '';
-      toast.success('Confirmation email sent', {
-        description: `Accepted by Resend for ${user.email}${msgId}. Delivery requires thewise.cloud to be verified in Resend.`,
-      });
+      if (result.message_id) {
+        toast.success('Confirmation email accepted by Resend', {
+          description: `ID: ${result.message_id} → ${user.email}. Delivery requires thewise.cloud to be verified in Resend.`,
+        });
+      } else {
+        toast.warning('Email submitted but delivery unconfirmed', {
+          description: `No message ID returned for ${user.email}. The sending domain (thewise.cloud) may not be verified in Resend — check your Resend dashboard.`,
+        });
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to send confirmation email');
     } finally {
@@ -355,10 +360,16 @@ function SendEmailForm({ prefillUser }: SendEmailFormProps) {
       const result = data as { success?: boolean; error?: string; email?: string; message_id?: string };
       if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
 
-      const msgIdNote = result.message_id ? ` · ID: ${result.message_id}` : '';
-      toast.success(`${ACTION_LABELS[action]} sent`, {
-        description: `Accepted by Resend for ${result.email ?? selectedUser?.email ?? emailSearch.trim()}${msgIdNote}. Note: delivery requires the sending domain (thewise.cloud) to be verified in Resend.`,
-      });
+      const toEmail2 = result.email ?? selectedUser?.email ?? emailSearch.trim();
+      if (result.message_id) {
+        toast.success(`${ACTION_LABELS[action]} accepted by Resend`, {
+          description: `ID: ${result.message_id} → ${toEmail2}. Delivery requires thewise.cloud to be verified in Resend.`,
+        });
+      } else {
+        toast.warning('Email submitted but delivery unconfirmed', {
+          description: `No message ID returned for ${toEmail2}. The sending domain (thewise.cloud) may not be verified in Resend — check your Resend dashboard.`,
+        });
+      }
 
       if (action === 'send_custom') {
         setCustomSubject('');
@@ -550,12 +561,19 @@ function CustomBroadcastSection() {
 
       const { data, error: err } = await edgeFunctions.functions.invoke('admin-email-actions', { body: reqBody });
       if (err) throw new Error(err.message);
-      const result = data as { success?: boolean; error?: string; email?: string };
+      const result = data as { success?: boolean; error?: string; email?: string; message_id?: string };
       if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
 
-      toast.success('Custom email sent', {
-        description: `Delivered to ${result.email ?? targetEmail.trim()}`,
-      });
+      const toEmail = result.email ?? targetEmail.trim();
+      if (result.message_id) {
+        toast.success('Custom email accepted by Resend', {
+          description: `ID: ${result.message_id} → ${toEmail}. Delivery requires thewise.cloud to be verified in Resend.`,
+        });
+      } else {
+        toast.warning('Email submitted but delivery unconfirmed', {
+          description: `No message ID returned for ${toEmail}. The sending domain (thewise.cloud) may not be verified in Resend — check your Resend dashboard.`,
+        });
+      }
       setSubject('');
       setBody('');
     } catch (e) {
@@ -771,6 +789,14 @@ export function EmailManagementPanel() {
 
   return (
     <div className="space-y-8">
+      {/* Persistent domain-verification reminder */}
+      <div className="flex items-start gap-2.5 rounded-lg border border-amber-400/40 bg-amber-50 dark:bg-amber-950/30 px-3.5 py-3 text-amber-800 dark:text-amber-300">
+        <svg className="w-4 h-4 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd"/></svg>
+        <div className="text-xs leading-relaxed">
+          <strong>Domain verification required for delivery.</strong> Emails are sent via Resend from <code className="font-mono">noreply@thewise.cloud</code>. If <strong>thewise.cloud</strong> is not verified in your <a href="https://resend.com/domains" target="_blank" rel="noreferrer" className="underline underline-offset-2">Resend dashboard</a>, Resend will accept the API call and return a message ID, but will <em>not</em> deliver the email. Verify the domain first, then re-test.
+        </div>
+      </div>
+
       <UnconfirmedUsersSection onSendToUser={handleSendToUser} />
 
       <div className="border-t border-border" />

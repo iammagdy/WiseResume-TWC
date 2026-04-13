@@ -194,14 +194,14 @@ export function DevKitRunner() {
     {
       id: 'tailor-resume', label: 'Tailor Resume', description: 'Call tailor-resume edge function', section: 'ai',
       run: async (): Promise<TestResult> => {
-        if (!auth.isAuthenticated) return { status: 'error', summary: 'Requires Supabase sign-in — open the main app, sign in, then re-run this test', durationMs: 0 };
+        if (!auth.isAuthenticated) return { status: 'error' as const, summary: 'Sign in to the main app first, then re-run — this test requires an authenticated Supabase session', durationMs: 0 };
         return strictInvoke('tailor-resume', () => edgeFunctions.functions.invoke('tailor-resume', { body: { resume: MINIMAL_RESUME, jobDescription: SAMPLE_JD, intensity: 'light' } }));
       },
     },
     {
       id: 'agentic-chat', label: 'Agentic Chat', description: 'Call agentic-chat edge function', section: 'ai',
       run: async (): Promise<TestResult> => {
-        if (!auth.isAuthenticated) return { status: 'error', summary: 'Requires Supabase sign-in — open the main app, sign in, then re-run this test', durationMs: 0 };
+        if (!auth.isAuthenticated) return { status: 'error' as const, summary: 'Sign in to the main app first, then re-run — this test requires an authenticated Supabase session', durationMs: 0 };
         return strictInvoke('agentic-chat', () => edgeFunctions.functions.invoke('agentic-chat', { body: { message: 'What can you help me with?', conversationHistory: [], currentResume: null } }));
       },
     },
@@ -263,21 +263,21 @@ export function DevKitRunner() {
     {
       id: 'enhance-section', label: 'Enhance Section', description: 'Call enhance-section edge function', section: 'ai',
       run: async (): Promise<TestResult> => {
-        if (!auth.isAuthenticated) return { status: 'error', summary: 'Requires Supabase sign-in — open the main app, sign in, then re-run this test', durationMs: 0 };
+        if (!auth.isAuthenticated) return { status: 'error' as const, summary: 'Sign in to the main app first, then re-run — this test requires an authenticated Supabase session', durationMs: 0 };
         return strictInvoke('enhance-section', () => edgeFunctions.functions.invoke('enhance-section', { body: { section: 'summary', action: 'improve', currentContent: MINIMAL_RESUME.summary, context: { resume: MINIMAL_RESUME } } }));
       },
     },
     {
       id: 'analyze-resume', label: 'Analyze Resume', description: 'Call analyze-resume edge function', section: 'ai',
       run: async (): Promise<TestResult> => {
-        if (!auth.isAuthenticated) return { status: 'error', summary: 'Requires Supabase sign-in — open the main app, sign in, then re-run this test', durationMs: 0 };
+        if (!auth.isAuthenticated) return { status: 'error' as const, summary: 'Sign in to the main app first, then re-run — this test requires an authenticated Supabase session', durationMs: 0 };
         return strictInvoke('analyze-resume', () => edgeFunctions.functions.invoke('analyze-resume', { body: { resume: MINIMAL_RESUME, jobDescription: SAMPLE_JD } }));
       },
     },
     {
       id: 'cover-letter', label: 'Cover Letter', description: 'Call generate-cover-letter edge function', section: 'ai',
       run: async (): Promise<TestResult> => {
-        if (!auth.isAuthenticated) return { status: 'error', summary: 'Requires Supabase sign-in — open the main app, sign in, then re-run this test', durationMs: 0 };
+        if (!auth.isAuthenticated) return { status: 'error' as const, summary: 'Sign in to the main app first, then re-run — this test requires an authenticated Supabase session', durationMs: 0 };
         return strictInvoke('cover-letter', () => edgeFunctions.functions.invoke('generate-cover-letter', { body: { resume: MINIMAL_RESUME, jobDescription: SAMPLE_JD, tone: 'professional' } }));
       },
     },
