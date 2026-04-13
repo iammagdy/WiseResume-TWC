@@ -42,5 +42,5 @@ if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
 fi
 
 echo "Deploying all edge functions to project $PROJECT_REF..."
-npx supabase functions deploy --project-ref "$PROJECT_REF" --access-token "$SUPABASE_ACCESS_TOKEN"
+npx supabase functions deploy --project-ref "$PROJECT_REF" --use-api
 echo "Done. Edge functions deployed."
