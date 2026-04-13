@@ -1,18 +1,15 @@
 import { Crown, Gem, Clock } from 'lucide-react';
 import type { PlanName } from '@/hooks/usePlan';
-import { useMe } from '@/hooks/useMe';
 
 interface PlanChipProps {
   plan: PlanName;
+  trialPlan?: string | null;
+  trialExpiresAt?: string | null;
 }
 
-export function PlanChip({ plan }: PlanChipProps) {
-  const { data: meData } = useMe();
-
+export function PlanChip({ plan, trialPlan = null, trialExpiresAt = null }: PlanChipProps) {
   if (plan === 'free') return null;
 
-  const trialPlan = meData?.subscription?.trial_plan ?? null;
-  const trialExpiresAt = meData?.subscription?.trial_expires_at ?? null;
   const isActiveTrial =
     !!trialPlan &&
     !!trialExpiresAt &&

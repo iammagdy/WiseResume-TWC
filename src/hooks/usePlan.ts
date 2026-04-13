@@ -8,6 +8,8 @@ export interface PlanResult {
   isPro: boolean;
   isPremium: boolean;
   isLoading: boolean;
+  trialPlan: string | null;
+  trialExpiresAt: string | null;
   refetch?: () => void;
 }
 
@@ -16,6 +18,8 @@ const FALLBACK: PlanResult = {
   isPro: false,
   isPremium: false,
   isLoading: false,
+  trialPlan: null,
+  trialExpiresAt: null,
 };
 
 /**
@@ -46,6 +50,8 @@ export function usePlan(): PlanResult {
     isPro: plan === 'pro' || plan === 'premium',
     isPremium: plan === 'premium',
     isLoading,
+    trialPlan: meData?.subscription?.trial_plan ?? null,
+    trialExpiresAt: meData?.subscription?.trial_expires_at ?? null,
     refetch,
   };
 }

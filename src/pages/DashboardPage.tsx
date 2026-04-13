@@ -82,7 +82,7 @@ function DashboardPageContent() {
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
   const { scoreResume, getCachedScore, scoringId } = useResumeScore();
   const { profile } = useProfile(user?.id, user);
-  const { plan } = usePlan();
+  const { plan, trialPlan, trialExpiresAt } = usePlan();
   const { hasNew: hasNewChangelog } = useChangelogBadge();
   usePlanUpgradeCelebration();
   const [healthScores, setHealthScores] = useState<Record<string, ResumeHealthScore>>({});
@@ -529,7 +529,7 @@ function DashboardPageContent() {
               <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary border-2 border-background animate-pulse" aria-label="New updates available" />
             )}
           </Button>
-          <PlanChip plan={plan} />
+          <PlanChip plan={plan} trialPlan={trialPlan} trialExpiresAt={trialExpiresAt} />
           <Popover onOpenChange={(open) => {
             if (open && !profilePulseSeen) {
               setProfilePulseSeen(true);

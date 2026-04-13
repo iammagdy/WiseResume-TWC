@@ -65,46 +65,58 @@ export function useMe() {
     if (subscribedUserIdRef.current === supabaseUserId) return;
     subscribedUserIdRef.current = supabaseUserId;
 
-    const token = getToken();
-    if (token) {
-      supabase.realtime.setAuth(token);
+    let subChannel: ReturnType<typeof supabase.channel> | null = null;
+    let credChannel: ReturnType<typeof supabase.channel> | null = null;
+
+    try {
+      const token = getToken();
+      if (token) {
+        supabase.realtime.setAuth(token);
+      }
+
+      subChannel = supabase
+        .channel('me-subscriptions')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'subscriptions',
+            filter: `user_id=eq.${supabaseUserId}`,
+          },
+          () => {
+            queryClient.invalidateQueries({ queryKey: ['me'], refetchType: 'all' });
+          }
+        )
+        .subscribe();
+
+      credChannel = supabase
+        .channel('me-ai-credits')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'ai_credits',
+            filter: `user_id=eq.${supabaseUserId}`,
+          },
+          () => {
+            queryClient.invalidateQueries({ queryKey: ['me'], refetchType: 'all' });
+          }
+        )
+        .subscribe();
+    } catch (err) {
+      console.warn('[useMe] Realtime subscription setup failed (non-fatal):', err);
+      subscribedUserIdRef.current = null;
     }
 
-    const subChannel = supabase
-      .channel('me-subscriptions')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'subscriptions',
-          filter: `user_id=eq.${supabaseUserId}`,
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['me'], refetchType: 'all' });
-        }
-      )
-      .subscribe();
-
-    const credChannel = supabase
-      .channel('me-ai-credits')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'ai_credits',
-          filter: `user_id=eq.${supabaseUserId}`,
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['me'], refetchType: 'all' });
-        }
-      )
-      .subscribe();
-
     return () => {
-      supabase.removeChannel(subChannel);
-      supabase.removeChannel(credChannel);
+      try {
+        if (subChannel) supabase.removeChannel(subChannel);
+        if (credChannel) supabase.removeChannel(credChannel);
+      } catch (err) {
+        console.warn('[useMe] Realtime channel teardown failed (non-fatal):', err);
+      }
       subscribedUserIdRef.current = null;
     };
   }, [user?.id, isAuthenticated, queryClient]);
@@ -128,5 +140,6 @@ export function useMe() {
     refetchIntervalInBackground: false,
     retry: 2,
     retryDelay: (i: number) => Math.min(1000 * 2 ** i, 5000),
+    throwOnError: false,
   });
 }

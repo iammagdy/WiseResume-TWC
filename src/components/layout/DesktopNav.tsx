@@ -73,7 +73,7 @@ export function DesktopNav() {
   const { isDark, toggleTheme } = useTheme();
   const { user, signOut } = useAuth();
   const { profile } = useProfile(user?.id, user);
-  const { plan, isPro } = usePlan();
+  const { plan, isPro, trialPlan, trialExpiresAt } = usePlan();
   const [wiseAIOpen, setWiseAIOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   usePlanUpgradeCelebration();
@@ -218,7 +218,7 @@ export function DesktopNav() {
           Ask
         </button>
 
-        <PlanChip plan={plan} />
+        <PlanChip plan={plan} trialPlan={trialPlan} trialExpiresAt={trialExpiresAt} />
 
         {/* Profile avatar dropdown */}
         <Popover open={profileOpen} onOpenChange={setProfileOpen}>
