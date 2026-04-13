@@ -113,6 +113,12 @@ function parseErrorMessage(err: unknown): string {
   if (/profile.*incomplete|incomplete.*profile/i.test(raw)) {
     return 'Your profile is incomplete. Please complete your profile to use AI features.';
   }
+  if (/not configured|please contact support/i.test(raw)) {
+    return 'WiseResume AI is not configured — go to Settings → AI Provider to add your API key.';
+  }
+  if (/quota.*exceed|daily.*quota/i.test(raw)) {
+    return 'AI daily quota exceeded. Try again tomorrow or add your own API key in Settings.';
+  }
 
   return 'AI is temporarily unavailable — please try again in a moment.';
 }

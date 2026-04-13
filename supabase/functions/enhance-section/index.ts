@@ -866,7 +866,6 @@ serve(async (req) => {
 
     if (isAIError(error)) {
       const errorMap: Record<string, { error: string; message: string }> = {
-        'invalid_key': { error: 'invalid_key', message: 'Invalid Gemini API key. Please check your AI settings.' },
         'rate_limit': { error: 'rate_limit', message: 'Too many requests. Please wait a moment and try again.' },
         'payment_required': { error: 'payment_required', message: 'AI credits exhausted. Please check your account.' },
         'quota_exceeded': { error: 'quota_exceeded', message: 'Daily quota exceeded. Try again tomorrow or use a paid key.' },
