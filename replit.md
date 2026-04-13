@@ -91,7 +91,7 @@ See `.env.example`. Key variables:
 
 **BottomTabBar** (`src/components/layout/BottomTabBar.tsx`):
 - Tabs: Home, Editor, AI Tools, Activity, More (5 tabs)
-- "More" opens an animated bottom sheet with 8 secondary pages: Portfolio, QR Code, Notifications, Analytics, Achievements, Referral, Help, Subscription
+- "More" opens an animated bottom sheet with 10 secondary pages: Portfolio, QR Code, Notifications, Analytics, Achievements, Referral, Help, Subscription, Pricing, What's New
 - All routes reachable in ≤2 taps
 - Locked tabs show upgrade toast AND navigate to `/subscription`
 
@@ -103,7 +103,9 @@ See `.env.example`. Key variables:
 | `src/pages/Index.tsx` | Landing page — all marketing stats live here (never invent them) |
 | `src/pages/DashboardPage.tsx` | Main dashboard — responsive grid, trust banner always visible |
 | `src/pages/AuthPage.tsx` | Login/register — reads `?plan=` query param, saves intent to sessionStorage |
-| `src/pages/SubscriptionPage.tsx` | Plan management |
+| `src/pages/SubscriptionPage.tsx` | Plan management (authenticated only) |
+| `src/pages/PricingPage.tsx` | Public pricing page `/pricing` — works for unauthenticated visitors and authenticated users |
+| `src/pages/WhatsNewPage.tsx` | Public changelog timeline `/whats-new` — curated product milestones |
 | `src/components/dev-kit/` | Admin DevKit — Analytics, Live Activity, Deployment, Audit Log tabs |
 | `src/store/settingsStore.ts` | Zustand — theme + AI sub-provider, persisted in localStorage |
 | `src/hooks/useMe.ts` | Canonical plan/credits hook |

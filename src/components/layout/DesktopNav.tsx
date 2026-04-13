@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { FileText, Globe, Home, BarChart3, Sparkles, MessageCircle, Sun, Moon, Search, Settings, LogOut, CreditCard, Lock } from 'lucide-react';
+import { FileText, Globe, Home, BarChart3, Sparkles, MessageCircle, Sun, Moon, Search, Settings, LogOut, CreditCard, Lock, Zap, Tag } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
@@ -248,6 +248,20 @@ export function DesktopNav() {
               >
                 <CreditCard className="w-4 h-4 text-muted-foreground" />
                 Subscription
+              </button>
+              <button
+                onClick={() => { haptics.selection(); setProfileOpen(false); navigate('/pricing'); }}
+                className="flex w-full items-center gap-2 px-2 py-2 rounded-md text-sm text-foreground hover:bg-muted transition-colors"
+              >
+                <Tag className="w-4 h-4 text-muted-foreground" />
+                Pricing
+              </button>
+              <button
+                onClick={() => { haptics.selection(); setProfileOpen(false); navigate('/whats-new'); }}
+                className="flex w-full items-center gap-2 px-2 py-2 rounded-md text-sm text-foreground hover:bg-muted transition-colors"
+              >
+                <Zap className="w-4 h-4 text-muted-foreground" />
+                What's New
               </button>
               <div className="h-px bg-border my-1" />
               <button

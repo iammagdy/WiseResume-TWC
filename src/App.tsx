@@ -129,6 +129,8 @@ const AuthCallbackPage = lazyWithRetry(() => import("./pages/AuthCallbackPage"))
 
 const PrivacyPage = lazyWithRetry(() => import("./pages/PrivacyPage"));
 const TermsPage = lazyWithRetry(() => import("./pages/TermsPage"));
+const PricingPage = lazyWithRetry(() => import("./pages/PricingPage"));
+const WhatsNewPage = lazyWithRetry(() => import("./pages/WhatsNewPage"));
 const HelpPage = lazyWithRetry(() => import("./pages/HelpPage"));
 const AnalyticsPage = lazyWithRetry(() => import("./pages/AnalyticsPage"));
 const SubscriptionPage = lazyWithRetry(() => import("./pages/SubscriptionPage"));
@@ -275,6 +277,10 @@ function AppRoutes() {
                <Route path="/terms-of-service" element={<Suspense fallback={<PageLoadingSpinner />}><TermsPage /></Suspense>} />
                
            </Route>
+
+          {/* Public marketing routes — no AppShell, no auth required */}
+          <Route path="/pricing" element={<Suspense fallback={<PageLoadingSpinner />}><PricingPage /></Suspense>} />
+          <Route path="/whats-new" element={<Suspense fallback={<PageLoadingSpinner />}><WhatsNewPage /></Suspense>} />
 
           {/* Protected routes */}
            <Route element={<ProtectedRoute />}>

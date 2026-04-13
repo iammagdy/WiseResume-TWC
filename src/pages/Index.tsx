@@ -1,5 +1,5 @@
-import { useNavigate } from 'react-router-dom';
-import { Sparkles, Target, Wand2, Mic, LayoutDashboard, Settings, LogOut, Globe, ArrowRight, BarChart3, PenTool, CheckCircle2, Check, User, Sun, Moon } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Sparkles, Target, Wand2, Mic, LayoutDashboard, Settings, LogOut, Globe, ArrowRight, BarChart3, PenTool, CheckCircle2, Check, User, Sun, Moon, Zap } from 'lucide-react';
 import { Footer } from '@/components/landing/Footer';
 import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -617,6 +617,25 @@ const Index = () => {
           </button>
 
           <div className="flex items-center gap-2">
+            {/* Nav links */}
+            <Link
+              to="/pricing"
+              className="text-sm font-medium px-3 py-1.5 rounded-lg transition-all duration-200"
+              style={{ color: 'var(--lp-text-muted)', background: 'transparent' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text)'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text-muted)'; }}
+            >
+              Pricing
+            </Link>
+            <Link
+              to="/whats-new"
+              className="hidden xs:block text-sm font-medium px-3 py-1.5 rounded-lg transition-all duration-200"
+              style={{ color: 'var(--lp-text-muted)', background: 'transparent' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text)'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text-muted)'; }}
+            >
+              What's New
+            </Link>
             {/* Theme toggle */}
             <button
               className="lp-theme-toggle"
@@ -662,6 +681,12 @@ const Index = () => {
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate('/settings'); }}>
                     <Settings className="w-4 h-4 mr-2" /> Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate('/pricing'); }}>
+                    <Sparkles className="w-4 h-4 mr-2" /> Pricing
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate('/whats-new'); }}>
+                    <Zap className="w-4 h-4 mr-2" /> What's New
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem

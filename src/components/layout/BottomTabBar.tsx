@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Globe, Home, BarChart3, Sparkles, Lock, MoreHorizontal, QrCode, Bell, TrendingUp, Trophy, Users, HelpCircle, CreditCard, X } from 'lucide-react';
+import { FileText, Globe, Home, BarChart3, Sparkles, Lock, MoreHorizontal, QrCode, Bell, TrendingUp, Trophy, Users, HelpCircle, CreditCard, X, Zap, Tag } from 'lucide-react';
 import { motion, useReducedMotion, LayoutGroup, AnimatePresence } from 'framer-motion';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -23,6 +23,8 @@ const moreItems = [
   { icon: Users, label: 'Referral', path: '/referral', iconBg: 'bg-pink-500/10', iconColor: 'text-pink-600 dark:text-pink-400' },
   { icon: HelpCircle, label: 'Help', path: '/help', iconBg: 'bg-muted', iconColor: 'text-muted-foreground' },
   { icon: CreditCard, label: 'Subscription', path: '/subscription', iconBg: 'bg-primary/10', iconColor: 'text-primary' },
+  { icon: Tag, label: 'Pricing', path: '/pricing', iconBg: 'bg-indigo-500/10', iconColor: 'text-indigo-600 dark:text-indigo-400' },
+  { icon: Zap, label: "What's New", path: '/whats-new', iconBg: 'bg-amber-500/10', iconColor: 'text-amber-600 dark:text-amber-400' },
 ];
 
 interface TabItem {
