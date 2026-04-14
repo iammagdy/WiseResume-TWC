@@ -2,7 +2,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Sparkles, Target, Wand2, Mic, LayoutDashboard, Settings, LogOut, Globe, ArrowRight, BarChart3, PenTool, CheckCircle2, User, Sun, Moon, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { Footer } from '@/components/landing/Footer';
-import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/useAuth';
@@ -15,7 +14,6 @@ import { flushSync } from 'react-dom';
 import { useSettingsStore } from '@/store/settingsStore';
 import { getSafeMatchMedia } from '@/lib/envUtils';
 import { useSearchParams } from 'react-router-dom';
-import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
 import { QuickTailorSheet } from '@/components/landing/QuickTailorSheet';
 import { InstallButton } from '@/components/pwa/InstallButton';
 import { useThemeLogo } from '@/hooks/useThemeLogo';
@@ -303,15 +301,6 @@ const Index = () => {
       setSearchParams({}, { replace: true });
     }
   }, [searchParams, isAuthenticated, setSearchParams]);
-
-  useEffect(() => {
-    if (sessionStorage.getItem('backend-warmed')) return;
-    sessionStorage.setItem('backend-warmed', '1');
-    fetch(SUPABASE_URL + '/rest/v1/', {
-      method: 'HEAD',
-      headers: { apikey: SUPABASE_PUBLISHABLE_KEY }
-    }).catch(() => {});
-  }, []);
 
   useEffect(() => {
     let rafId: number | null = null;
