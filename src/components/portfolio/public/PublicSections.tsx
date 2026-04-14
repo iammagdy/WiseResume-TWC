@@ -46,18 +46,18 @@ const getScrollEffectVariant = (effect: ScrollEffect, index: number): any => {
     case 'parallax':
       return {
         hidden: { opacity: 0, y: 50 },
-        visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0, 0, 0.2, 1] } }
+        visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0, 0, 0.2, 1] } }
       };
     case 'tilt-3d':
       return {
         hidden: { opacity: 0, rotateX: 14, y: 30, scale: 0.96, transformPerspective: 800 },
-        visible: { opacity: 1, rotateX: 0, y: 0, scale: 1, transformPerspective: 800, transition: { duration: 0.65, ease: [0, 0, 0.2, 1] } }
+        visible: { opacity: 1, rotateX: 0, y: 0, scale: 1, transformPerspective: 800, transition: { duration: 0.5, ease: [0, 0, 0.2, 1] } }
       };
     case 'cinematic': {
       const dir = CINEMATIC_DIRECTIONS[index % CINEMATIC_DIRECTIONS.length];
       return {
         hidden: { opacity: 0, x: dir.x, y: dir.y, scale: 0.95 },
-        visible: { opacity: 1, x: 0, y: 0, scale: 1, transition: { duration: 0.75, ease: [0.16, 1, 0.3, 1] } }
+        visible: { opacity: 1, x: 0, y: 0, scale: 1, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } }
       };
     }
     case 'fade':

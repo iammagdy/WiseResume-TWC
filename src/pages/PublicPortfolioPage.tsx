@@ -308,7 +308,7 @@ function PublicPortfolioContent() {
 
       <motion.div
         id="portfolio-content"
-        className="max-w-4xl mx-auto min-h-screen relative overflow-x-hidden w-full"
+        className="max-w-4xl mx-auto min-h-screen relative w-full"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
@@ -345,7 +345,9 @@ function PublicPortfolioContent() {
           <button
             onClick={handleDownload}
             disabled={isDownloading}
-            className="inline-flex items-center gap-1.5 text-xs transition-opacity hover:opacity-80"
+            aria-busy={isDownloading}
+            aria-label={isDownloading ? 'Saving portfolio as PDF…' : 'Save as PDF'}
+            className="inline-flex items-center gap-1.5 text-xs transition-opacity hover:opacity-80 min-h-[44px] px-4"
             style={{ color: 'var(--pf-muted, #9ca3af)' }}
             data-pdf-exclude
           >

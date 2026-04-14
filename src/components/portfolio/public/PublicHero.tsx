@@ -88,7 +88,7 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
           >
             {initials}
           </AvatarFallback>
-          <AvatarImage src={profile.avatarUrl || undefined} />
+          {profile.avatarUrl && <AvatarImage src={profile.avatarUrl} />}
         </Avatar>
       </div>
 
