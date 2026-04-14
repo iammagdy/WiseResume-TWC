@@ -59,10 +59,15 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
       headers['Authorization'] = `Bearer ${token}`;
     }
     
+    // fileType: 'text/plain' because the server receives pre-extracted plain text
+    // regardless of the source document format (PDF, DOCX, etc). The MIME type
+    // is required by the server for strict file-type enforcement.
+    const requestBody = JSON.stringify({ text, fileType: 'text/plain' });
+
     let response = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/parse-resume`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ text }),
+      body: requestBody,
       signal: controller.signal,
     });
 
@@ -78,7 +83,7 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
         response = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/parse-resume`, {
           method: 'POST',
           headers: retryHeaders,
-          body: JSON.stringify({ text }),
+          body: requestBody,
           signal: controller.signal,
         });
       }

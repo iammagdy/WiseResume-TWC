@@ -38,11 +38,17 @@ export function useOfflineSync() {
         continue;
       }
 
-      // 3. If server is newer, silently discard local change (keep server version)
+      // 3. Conflict detection: if server is newer, discard local change and notify user.
+      //    Strategy: server-wins (last-write-wins by server timestamp).
+      //    The user is explicitly notified so they can manually re-apply changes if needed.
       const serverTime = new Date(serverResume.updated_at!).getTime();
       if (serverTime > change.timestamp) {
         removePendingChange(change.resumeId);
         queryClient.invalidateQueries({ queryKey: ['resume', change.resumeId] });
+        toast.warning(
+          'A conflict was detected: your offline edits were overridden by a newer version saved elsewhere. Please review your resume.',
+          { duration: 8000 }
+        );
         continue;
       }
 

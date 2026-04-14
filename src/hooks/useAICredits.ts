@@ -2,6 +2,7 @@ import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { useAuth } from './useAuth';
 import { useMe } from './useMe';
 import { useSettingsStore } from '@/store/settingsStore';
+import { PLAN_CREDIT_LIMITS } from '@/lib/planConfig';
 
 export interface AICredits {
   id: string;
@@ -107,9 +108,9 @@ export function useAICredits() {
     if (effectivePlan === 'premium') {
       defaultLimit = Infinity; // Unlimited
     } else if (effectivePlan === 'pro') {
-      defaultLimit = 100;
+      defaultLimit = PLAN_CREDIT_LIMITS.pro;
     } else {
-      defaultLimit = 5;
+      defaultLimit = PLAN_CREDIT_LIMITS.free;
     }
     data = {
       daily_usage: 0,
@@ -196,7 +197,7 @@ export function useAICreditsMutations() {
     const today = new Date().toISOString().split('T')[0];
     if (data.usage_date !== today) return true;
 
-    if ((data.daily_usage || 0) >= (data.daily_limit || 5)) {
+    if ((data.daily_usage || 0) >= (data.daily_limit || PLAN_CREDIT_LIMITS.free)) {
       return false;
     }
 

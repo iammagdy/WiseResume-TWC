@@ -3,9 +3,11 @@ import { callAIWithRetry, sanitizeInputText, toUserError, parseAIJSON } from '..
 import { checkRateLimit, recordUsage } from '../_shared/rateLimiter.ts';
 import { checkUserRateLimit } from '../_shared/userRateLimiter.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
-import { checkUserCreditBalance } from '../_shared/creditUtils.ts';
-import { deductCredits } from '../_shared/deductCredits.ts';
+import { checkAndDeductCredit } from '../_shared/creditUtils.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
+import { logger } from '../_shared/logger.ts';
+const log = logger('company-briefing');
+
 
 const JD_SYSTEM_PROMPT = `You are an expert career research analyst and personal career coach. Given a job description and a candidate's resume data, generate a comprehensive company research briefing that is tightly personalised to THIS specific candidate.
 
@@ -186,15 +188,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    const creditCheck = await checkUserCreditBalance(userId);
-    if (!creditCheck.hasCredits) {
-      return new Response(
-        JSON.stringify({ error: 'Insufficient AI credits. Add your own Gemini API key for unlimited access.' }),
-        { status: 402, headers: { ...cors, 'Content-Type': 'application/json' } }
-      );
-    }
-    const isByok = creditCheck.remaining === 9999;
-
     const { companyName, jobDescription, resumeData } = await req.json();
 
     if (!companyName && !jobDescription) {
@@ -252,6 +245,14 @@ Deno.serve(async (req) => {
       userPrompt += '\n\n(No candidate resume provided — generate general insights without personalisation.)';
     }
 
+
+    const creditCheck = await checkAndDeductCredit(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'Insufficient AI credits. Add your own Gemini API key for unlimited access.' }),
+        { status: 402, headers: { ...cors, 'Content-Type': 'application/json' } }
+      );
+    }
     const aiResponse = await callAIWithRetry({
       model,
       messages: [
@@ -289,13 +290,12 @@ Deno.serve(async (req) => {
     await recordUsage(userId, 'company_briefing', { provider: aiResponse.providerUsed || 'unknown', mode: isCompanyNameMode ? 'company_name' : 'job_description' });
 
     // Atomically deduct credits server-side before returning results (cost=1 for company-briefing)
-    await deductCredits(userId, 1, isByok, getServiceClient());
 
     return new Response(JSON.stringify({ briefing }), {
       headers: { ...cors, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('Company briefing error:', error);
+    log.error('Unhandled error', error);
     const userError = toUserError(error);
     return new Response(JSON.stringify({ error: userError.message }), {
       status: userError.status, headers: { ...cors, 'Content-Type': 'application/json' },

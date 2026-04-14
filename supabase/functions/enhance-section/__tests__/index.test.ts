@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { checkUserCreditBalance } from "../../_shared/creditUtils.ts";
+import { checkAndDeductCredit } from "../../_shared/creditUtils.ts";
 
 // Note: To run this test, use: 
 // deno test --allow-net --allow-env supabase/functions/enhance-section/__tests__/index.test.ts
@@ -8,9 +8,9 @@ Deno.test("AI Credit System - Component Tests", async (t) => {
   
   await t.step("Scenario 2.2: AI Credit Exhaustion Rejection definition", () => {
     // In a fully mocked Deno environment, we would stub the Supabase DB client 
-    // to return 0 remaining credits, then call checkUserCreditBalance(userId)
+    // to return 0 remaining credits, then call checkAndDeductCredit(userId)
     // and assert that hasCredits is false.
-    assertEquals(typeof checkUserCreditBalance, "function", "Credit verification utility must be exported and testable");
+    assertEquals(typeof checkAndDeductCredit, "function", "Credit verification utility must be exported and testable");
     
     // Demonstrate the expected logic interface
     const mockDbResponse = { hasCredits: false, remaining: 0 };

@@ -3,6 +3,7 @@ import { AlertTriangle, RefreshCw, Home, ArrowLeft, MessageSquareWarning, Send, 
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { getUserId } from '@/lib/supabaseBridge';
+import { captureError } from '@/lib/monitoring';
 
 interface Props {
   children: ReactNode;
@@ -86,6 +87,11 @@ export class ErrorBoundary extends Component<Props, State> {
 
     this.logError(error, errorInfo);
     this.setState({ errorInfo });
+
+    captureError(error, {
+      componentStack: errorInfo.componentStack ?? undefined,
+      source: 'ErrorBoundary.componentDidCatch',
+    });
 
     // Specific check for ChunkLoadError (Vite/Webpack)
     const isChunkError = 

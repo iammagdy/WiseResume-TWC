@@ -4,12 +4,18 @@ import { Capacitor } from '@capacitor/core';
 import App from "./App.tsx";
 import "./index.css";
 import { reportWebVitals } from "./lib/reportWebVitals";
+import { initMonitoring, captureError } from "./lib/monitoring";
+
+// Initialize error tracking as early as possible, before any React code runs.
+// Requires VITE_SENTRY_DSN to be set in environment secrets.
+initMonitoring();
 
 console.log('🚀 WiseResume App Starting...', Date.now());
 console.log('Environment:', {
   mode: import.meta.env.MODE,
   supabaseUrl: import.meta.env.VITE_SUPABASE_URL ? 'configured' : 'missing',
-  isNative: Capacitor.isNativePlatform()
+  isNative: Capacitor.isNativePlatform(),
+  sentry: import.meta.env.VITE_SENTRY_DSN ? 'configured' : 'disabled',
 });
 
 // Tag body for native-specific CSS overrides (e.g. disable backdrop-blur)
@@ -17,13 +23,15 @@ if (Capacitor.isNativePlatform()) {
   document.body.classList.add('native-app');
 }
 
-// Global error handler
+// Global error handler — captured by Sentry in production
 window.addEventListener('error', (event) => {
-  console.error('❌ Global Error:', event.error);
+  console.error('Global Error:', event.error);
+  captureError(event.error, { source: 'window.onerror' });
 });
 
 window.addEventListener('unhandledrejection', (event) => {
-  console.error('❌ Unhandled Promise Rejection:', event.reason);
+  console.error('Unhandled Promise Rejection:', event.reason);
+  captureError(event.reason, { source: 'unhandledrejection' });
 });
 
 try {

@@ -16,9 +16,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callWiseresumeAI, isAIError, sanitizeInputText } from "../_shared/aiClient.ts";
-import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
-import { deductCredits } from "../_shared/deductCredits.ts";
+import { callAI, isAIError, sanitizeInputText } from "../_shared/aiClient.ts";
+import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
 import { checkRateLimit } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -249,8 +248,7 @@ serve(async (req: Request) => {
       );
     }
 
-    const creditCheck = await checkUserCreditBalance(userId);
-    const isByok = creditCheck.remaining === 9999;
+    const creditCheck = await checkAndDeductCredit(userId);
     if (!creditCheck.hasCredits) {
       return new Response(
         JSON.stringify({
@@ -263,28 +261,18 @@ serve(async (req: Request) => {
 
     const prompt = buildPrompt(type as AIStudioType, payload);
 
-    // Outer 40 s timeout for the entire AI call chain (all model attempts combined).
-    // Kept well below Supabase's 60 s function timeout so we can return a clean error
-    // instead of letting the platform kill the function and return an unparseable response.
-    // Each individual model attempt has its own 8 s timeout inside callWiseresumeAI.
-    const outerCtrl = new AbortController();
-    const outerTimeout = setTimeout(() => outerCtrl.abort(), 40_000);
-    let aiResponse;
-    try {
-      aiResponse = await callWiseresumeAI(
-        "auto",
-        [{ role: "user", content: prompt }],
-        0.7,
-        1500,
-        undefined,
-        undefined,
-        outerCtrl.signal,
-      );
-    } finally {
-      clearTimeout(outerTimeout);
-    }
-
-    await deductCredits(userId, 1, isByok, serviceClient);
+    // Route through callAI with userId so BYOK provider preferences are respected.
+    // If the user has a BYOK provider configured, their own key is used exclusively
+    // and no platform key is consumed. Platform managed keys are used only for users
+    // whose ai_provider is 'wiseresume' or unset.
+    const aiResponse = await callAI({
+      model: "google/gemini-2.5-flash",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+      maxTokens: 1500,
+      userId,
+      timeout: 40_000,
+    });
 
     return new Response(
       JSON.stringify({

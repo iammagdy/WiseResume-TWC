@@ -4,12 +4,14 @@ import { callAIWithRetry, parseAIJSONWithRetry, sanitizeInputText, toUserError }
 import { checkRateLimit, recordUsage, getUserPlan } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
-import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
-import { deductCredits } from "../_shared/deductCredits.ts";
+import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { INDUSTRY_KEYWORDS, detectIndustryCategory } from "../_shared/industryKeywords.ts";
 import { getProfileContext } from "../_shared/profileContext.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
+import { logger } from "../_shared/logger.ts";
+const log = logger('analyze-resume');
+
 
 // ============= SECURITY: Input validation limits =============
 const MAX_RESUME_SIZE = 100 * 1024; // 100KB
@@ -51,15 +53,6 @@ serve(async (req) => {
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const creditCheck = await checkUserCreditBalance(userId);
-    if (!creditCheck.hasCredits) {
-      return new Response(
-        JSON.stringify({ error: 'Insufficient AI credits.' }),
-        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    const isByok = creditCheck.remaining === 9999;
 
     // Fetch profile context for personalized AI prompts
     const profileCtx = await getProfileContext(userId);
@@ -165,6 +158,14 @@ Provide analysis in this exact JSON format:
     // Use a higher-quality model for analysis to improve scoring accuracy
     const analysisModel = 'google/gemini-flash-1.5';
 
+
+    const creditCheck = await checkAndDeductCredit(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'Insufficient AI credits.' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     const aiResponse = await callAIWithRetry({
       model: analysisModel,
       messages: [
@@ -196,7 +197,6 @@ Provide analysis in this exact JSON format:
     await recordUsage(userId, 'analyze', { provider: aiResponse.providerUsed || 'unknown' });
 
     // Atomically deduct credits server-side before returning results (cost=1 for analyze)
-    await deductCredits(userId, 1, isByok, getServiceClient());
 
     return new Response(
       JSON.stringify({ ...analysisResult as Record<string, unknown>, _providerUsed: aiResponse.providerUsed || 'unknown' }),
@@ -204,7 +204,7 @@ Provide analysis in this exact JSON format:
     );
 
   } catch (error) {
-    console.error("analyze-resume error:", error);
+    log.error("Unhandled error", error);
 
     const userError = toUserError(error);
     return new Response(

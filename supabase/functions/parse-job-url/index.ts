@@ -3,6 +3,11 @@ import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, parseAIJSON, toUserError, sanitizeInputText } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
+import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
+import { getServiceClient } from "../_shared/dbClient.ts";
+import { logger } from "../_shared/logger.ts";
+const log = logger('parse-job-url');
+
 
 // ============= SECURITY: Domain Whitelist =============
 const ALLOWED_DOMAINS = new Set([
@@ -175,7 +180,7 @@ serve(async (req) => {
     }
 
     const { url } = await req.json();
-    
+
     if (!url || typeof url !== 'string') {
       return new Response(
         JSON.stringify({ error: 'URL is required and must be a string' }),
@@ -193,6 +198,15 @@ serve(async (req) => {
           message: validation.error,
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Credit deduction after input validation, right before the network/AI calls.
+    const creditCheck = await checkAndDeductCredit(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'Daily AI credit limit reached. Upgrade your plan or add your own API key.' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -350,7 +364,7 @@ If you can't find certain fields, make reasonable guesses based on context. The 
     }
 
   } catch (error) {
-    console.error("parse-job-url error:", error);
+    log.error("Unhandled error", error);
     const userError = toUserError(error);
     return new Response(
       JSON.stringify({ error: userError.message }),

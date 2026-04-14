@@ -5,6 +5,10 @@ import { callAI, toUserError, parseAIJSON } from '../_shared/aiClient.ts';
 import { checkRateLimit, recordUsage } from '../_shared/rateLimiter.ts';
 import { checkUserRateLimit } from '../_shared/userRateLimiter.ts';
 import { checkPayloadSize } from '../_shared/requestUtils.ts';
+import { checkAndDeductCredit } from '../_shared/creditUtils.ts';
+import { logger } from '../_shared/logger.ts';
+const log = logger('suggest-template');
+
 
 serve(async (req) => {
   const origin = req.headers.get('origin');
@@ -76,6 +80,14 @@ Guidelines:
 For colors: use professional, muted tones for corporate roles; bolder accents for creative; dark tones for tech.
 For fonts: serif pairs for traditional industries; sans-serif for modern/tech; display fonts for creative.`;
 
+
+    const creditCheck = await checkAndDeductCredit(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'Daily AI credit limit reached. Upgrade your plan or use your own API key.' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     const aiResponse = await callAI({
       model: 'google/gemma-4-26b-a4b-it:free',
       messages: [
@@ -153,7 +165,7 @@ Key Skills: ${skills?.join(', ') || 'Not specified'}`,
     if (typeof err === 'object' && err !== null && 'status' in err) {
       return authErrorResponse(err, origin);
     }
-    console.error('suggest-template error:', err);
+    log.error('Unhandled error', err);
     const userErr = toUserError(err);
     return new Response(
       JSON.stringify({ error: userErr.error, message: userErr.message }),

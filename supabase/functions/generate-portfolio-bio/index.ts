@@ -3,7 +3,12 @@ import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { checkRateLimit, recordUsage } from '../_shared/rateLimiter.ts';
 import { checkUserRateLimit } from '../_shared/userRateLimiter.ts';
+import { checkAndDeductCredit } from '../_shared/creditUtils.ts';
+import { getServiceClient } from '../_shared/dbClient.ts';
 import { checkPayloadSize } from '../_shared/requestUtils.ts';
+import { logger } from '../_shared/logger.ts';
+const log = logger('generate-portfolio-bio');
+
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
@@ -16,11 +21,9 @@ Deno.serve(async (req) => {
 
   try {
     let userId: string;
-    let client: ReturnType<typeof import('https://esm.sh/@supabase/supabase-js@2').createClient>;
     try {
       const auth = await requireAuth(req);
       userId = auth.userId;
-      client = auth.client;
     } catch (authErr) {
       return authErrorResponse(authErr, req.headers.get('origin'));
     }
@@ -41,12 +44,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    await recordUsage(userId, 'portfolio_bio');
-
     const body = await req.json();
     const { action = 'bio', summary, fullName, jobTitle, experience, skills, careerLevel } = body;
 
-    // case-study action has different required fields
+    // case-study action has different required fields — validate before charging credits
     if (action === 'case-study') {
       const { projectName, projectDescription, projectTechnologies } = body;
 
@@ -57,8 +58,15 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Increment AI usage
-      await client.rpc('increment_ai_usage', { p_user_id: userId });
+      // Credit enforcement: charged only after input validation passes, ensuring
+      // invalid requests never consume credits.
+      const creditCheck = await checkAndDeductCredit(userId);
+      if (!creditCheck.hasCredits) {
+        return new Response(
+          JSON.stringify({ error: 'Daily AI credit limit reached. Upgrade your plan or add your own API key.' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
       const safeDesc = sanitizeInputText(projectDescription || '', 1500);
       const techList = Array.isArray(projectTechnologies) ? projectTechnologies.slice(0, 10).join(', ') : (projectTechnologies || '');
@@ -106,6 +114,8 @@ Example:
         outcome = outcomeMatch?.[1] || '';
       }
 
+      await recordUsage(userId, 'portfolio_bio_case_study');
+
       return new Response(JSON.stringify({ challenge, outcome }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -120,8 +130,15 @@ Example:
       return new Response(JSON.stringify({ error: 'Please add a summary, job title, or experience to your resume first' }), { status: 400, headers: corsHeaders });
     }
 
-    // Increment AI usage
-    await client.rpc('increment_ai_usage', { p_user_id: userId });
+    // Credit enforcement: charged only after input validation passes so that invalid
+    // requests (missing required fields, unknown action) never consume credits.
+    const creditCheck = await checkAndDeductCredit(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'Daily AI credit limit reached. Upgrade your plan or add your own API key.' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const sanitizedSummary = hasSummary ? sanitizeInputText(summary, 2000) : '';
     const experienceContext = hasExperience
@@ -156,6 +173,7 @@ Requirements:
       });
 
       const bio = response.content?.trim() || '';
+      await recordUsage(userId, 'portfolio_bio');
       return new Response(JSON.stringify({ bio }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -202,6 +220,7 @@ Example output:
         metaDescription = descMatch?.[1] || '';
       }
 
+      await recordUsage(userId, 'portfolio_bio_seo');
       return new Response(JSON.stringify({ metaTitle, metaDescription }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -233,6 +252,7 @@ Requirements:
       });
 
       const headline = response.content?.trim().replace(/^["']|["']$/g, '') || '';
+      await recordUsage(userId, 'portfolio_bio_availability');
       return new Response(JSON.stringify({ headline }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -240,7 +260,7 @@ Requirements:
 
     return new Response(JSON.stringify({ error: 'Unknown action' }), { status: 400, headers: corsHeaders });
   } catch (error) {
-    console.error('generate-portfolio-bio error:', error);
+    log.error('Unhandled error', error);
     return new Response(
       JSON.stringify({ error: 'Something went wrong. Please try again.' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

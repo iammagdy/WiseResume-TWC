@@ -260,16 +260,30 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
     const preferredProvider = options.preferredProvider || await getUserPreferredProvider(userId);
 
     if (preferredProvider === 'ollama') {
+      // BYOK strict mode: if the key cannot be loaded, fail-closed rather than
+      // silently falling back to platform keys and spending platform resources.
       userOllamaData = await getUserKeyAndUrlFromDB(userId, 'ollama');
+      if (!userOllamaData) {
+        throw createAIError('invalid_key', 'Your Ollama API key could not be loaded. Please re-add it in AI Settings → Ollama.', 402);
+      }
     } else if (preferredProvider === 'openrouter') {
       userOpenRouterData = await getUserKeyAndUrlFromDB(userId, 'openrouter');
+      if (!userOpenRouterData) {
+        throw createAIError('invalid_key', 'Your OpenRouter API key could not be loaded. Please re-add it in AI Settings.', 402);
+      }
     } else if (preferredProvider === 'gemini') {
       const geminiData = await getUserKeyAndUrlFromDB(userId, 'gemini');
-      if (geminiData) userGeminiData = { key: geminiData.key, model: geminiData.model };
+      if (!geminiData) {
+        throw createAIError('invalid_key', 'Your Gemini API key could not be loaded. Please re-add it in AI Settings → Gemini.', 402);
+      }
+      userGeminiData = { key: geminiData.key, model: geminiData.model };
     } else if (preferredProvider && (OPENAI_COMPAT_BASE_URLS[preferredProvider] || preferredProvider === 'anthropic')) {
       // New BYOK providers: OpenAI, Anthropic, Groq (BYOK), Mistral, xAI, Cohere
       const data = await getUserKeyAndUrlFromDB(userId, preferredProvider);
-      if (data) userByokData = { key: data.key, model: data.model, provider: preferredProvider };
+      if (!data) {
+        throw createAIError('invalid_key', `Your ${preferredProvider} API key could not be loaded. Please re-add it in AI Settings.`, 402);
+      }
+      userByokData = { key: data.key, model: data.model, provider: preferredProvider };
     } else {
       // 'wiseresume' or no preference — read global engine setting if not already supplied
       if (!options.wiseresumeSubProvider) {
@@ -309,18 +323,14 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
         }
         return { ...res, providerUsed: provider };
       } catch (err) {
-        console.warn(`[AI] ${provider} BYOK failed, falling back to WiseResume AI:`, err instanceof Error ? err.message : err);
-        if (hasManagedAI) {
-          const fallbackController = new AbortController();
-          const fallbackTimeout = setTimeout(() => fallbackController.abort(), timeout);
-          try {
-            const res = await callWiseresumeAI('auto', messages, temperature, maxTokens, tools, toolChoice, fallbackController.signal);
-            return { ...res, fallbackUsed: true, fallbackReason: `${provider}_error`, providerUsed: 'wiseresume_fallback' };
-          } finally {
-            clearTimeout(fallbackTimeout);
-          }
-        }
-        throw err;
+        // BYOK strict mode: never fall back to platform keys when user has BYOK configured.
+        // If the user's key fails, they must fix it — platform resources must not be consumed silently.
+        console.error(`[AI] ${provider} BYOK call failed (no platform fallback):`, err instanceof Error ? err.message : err);
+        throw createAIError(
+          'invalid_key',
+          `Your ${provider} API key failed. Please check your key in AI Settings and try again.`,
+          502,
+        );
       }
     }
 
@@ -335,18 +345,13 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
         const res = await callOpenRouterDirect(userOpenRouterData.key, orModel, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
         return { ...res, providerUsed: 'openrouter' };
       } catch (err) {
-        console.warn('[AI] OpenRouter BYOK failed, falling back to WiseResume AI:', err instanceof Error ? err.message : err);
-        if (hasManagedAI) {
-          const fallbackController = new AbortController();
-          const fallbackTimeout = setTimeout(() => fallbackController.abort(), timeout);
-          try {
-            const res = await callWiseresumeAI('auto', messages, temperature, maxTokens, tools, toolChoice, fallbackController.signal);
-            return { ...res, fallbackUsed: true, fallbackReason: 'openrouter_error', providerUsed: 'wiseresume_fallback' };
-          } finally {
-            clearTimeout(fallbackTimeout);
-          }
-        }
-        throw err;
+        // BYOK strict mode: never fall back to platform keys.
+        console.error('[AI] OpenRouter BYOK call failed (no platform fallback):', err instanceof Error ? err.message : err);
+        throw createAIError(
+          'invalid_key',
+          'Your OpenRouter API key failed. Please check your key in AI Settings and try again.',
+          502,
+        );
       }
     }
 
@@ -361,18 +366,13 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
         const res = await callOllamaDirect(userOllamaData.key, userOllamaData.baseUrl, ollamaModel, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
         return { ...res, providerUsed: 'ollama' };
       } catch (err) {
-        console.warn('[AI] Ollama BYOK failed, falling back to WiseResume AI:', err instanceof Error ? err.message : err);
-        if (hasManagedAI) {
-          const fallbackController = new AbortController();
-          const fallbackTimeout = setTimeout(() => fallbackController.abort(), timeout);
-          try {
-            const res = await callWiseresumeAI('auto', messages, temperature, maxTokens, tools, toolChoice, fallbackController.signal);
-            return { ...res, fallbackUsed: true, fallbackReason: 'ollama_error', providerUsed: 'wiseresume_fallback' };
-          } finally {
-            clearTimeout(fallbackTimeout);
-          }
-        }
-        throw err;
+        // BYOK strict mode: never fall back to platform keys.
+        console.error('[AI] Ollama BYOK call failed (no platform fallback):', err instanceof Error ? err.message : err);
+        throw createAIError(
+          'invalid_key',
+          'Your Ollama endpoint failed. Please check your URL and model in AI Settings and try again.',
+          502,
+        );
       }
     }
 
@@ -384,24 +384,14 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
         const res = await callGeminiDirect(userGeminiData.key, geminiModel, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
         return { ...res, providerUsed: 'gemini_byok' };
       } catch (err) {
-        const errDetail = err instanceof Error ? `${err.message} (type=${(err as any)?.type}, status=${(err as any)?.status})` : String(err);
-        console.warn('[AI] Gemini BYOK failed, falling back to WiseResume AI:', errDetail);
-        const fallbackReason = (err as any)?.type === 'quota_exceeded' ? 'quota_exceeded'
-          : (err as any)?.type === 'invalid_key' ? 'invalid_key'
-          : (err as any)?.type === 'rate_limit' ? 'rate_limit'
-          : (err instanceof Error && err.message?.includes('not found')) ? 'model_not_found'
-          : 'gemini_error';
-        if (hasManagedAI) {
-          const fallbackController = new AbortController();
-          const fallbackTimeout = setTimeout(() => fallbackController.abort(), timeout);
-          try {
-            const res = await callWiseresumeAI('auto', messages, temperature, maxTokens, tools, toolChoice, fallbackController.signal);
-            return { ...res, fallbackUsed: true, fallbackReason, providerUsed: 'wiseresume_fallback' };
-          } finally {
-            clearTimeout(fallbackTimeout);
-          }
-        }
-        throw err;
+        // BYOK strict mode: never fall back to platform keys.
+        const errDetail = err instanceof Error ? err.message : String(err);
+        console.error('[AI] Gemini BYOK call failed (no platform fallback):', errDetail);
+        throw createAIError(
+          'invalid_key',
+          'Your Gemini API key failed. Please check your key in AI Settings and try again.',
+          502,
+        );
       }
     }
 

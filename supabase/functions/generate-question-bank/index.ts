@@ -4,7 +4,12 @@ import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { callAI, toUserError, parseAIJSON } from '../_shared/aiClient.ts';
 import { checkRateLimit, recordUsage } from '../_shared/rateLimiter.ts';
 import { checkUserRateLimit } from '../_shared/userRateLimiter.ts';
+import { checkAndDeductCredit } from '../_shared/creditUtils.ts';
+import { getServiceClient } from '../_shared/dbClient.ts';
 import { checkPayloadSize } from '../_shared/requestUtils.ts';
+import { logger } from '../_shared/logger.ts';
+const log = logger('generate-question-bank');
+
 
 serve(async (req) => {
   const origin = req.headers.get('origin');
@@ -63,6 +68,14 @@ Company: ${company || 'Not specified'}
 ${jobDescription ? `Job Description: ${jobDescription.slice(0, 3000)}` : ''}
 ${resumeSummary ? `Candidate Summary: ${resumeSummary.slice(0, 1000)}` : ''}`;
 
+
+    const creditCheck = await checkAndDeductCredit(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'Daily AI credit limit reached. Upgrade your plan or add your own API key.' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     const aiResponse = await callAI({
       model: 'google/gemma-4-26b-a4b-it:free',
       messages: [
@@ -141,7 +154,7 @@ ${resumeSummary ? `Candidate Summary: ${resumeSummary.slice(0, 1000)}` : ''}`;
     if (typeof err === 'object' && err !== null && 'status' in err) {
       return authErrorResponse(err, origin);
     }
-    console.error('generate-question-bank error:', err);
+    log.error('Unhandled error', err);
     const userErr = toUserError(err);
     return new Response(
       JSON.stringify({ error: userErr.error, message: userErr.message }),

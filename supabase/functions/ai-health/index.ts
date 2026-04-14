@@ -3,6 +3,7 @@ import { getUserKeyFromDB } from "../_shared/aiClient.ts";
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth } from '../_shared/authMiddleware.ts';
 import { checkRateLimit } from '../_shared/rateLimiter.ts';
+import { checkAndDeductCredit } from '../_shared/creditUtils.ts';
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
@@ -31,6 +32,14 @@ serve(async (req) => {
     const { allowed } = await checkRateLimit(userId, { actionType: 'health_check', maxRequests: 20, windowSeconds: 60 });
     if (!allowed) {
       return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: corsHeaders });
+    }
+
+    const creditCheck = await checkAndDeductCredit(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'Daily AI credit limit reached.' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     let geminiKey: string | undefined;

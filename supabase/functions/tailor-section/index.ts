@@ -5,9 +5,11 @@ import { callAIWithRetry, parseAIJSONWithRetry, sanitizeInputText, toUserError }
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
-import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
-import { deductCredits } from "../_shared/deductCredits.ts";
+import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
+import { logger } from "../_shared/logger.ts";
+const log = logger('tailor-section');
+
 
 /**
  * Selects AI model for section tailoring based on intensity.
@@ -58,15 +60,6 @@ serve(async (req) => {
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const creditCheck = await checkUserCreditBalance(userId);
-    if (!creditCheck.hasCredits) {
-      return new Response(
-        JSON.stringify({ error: 'Insufficient AI credits. Add your own Gemini API key for unlimited access.' }),
-        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    const isByok = creditCheck.remaining === 9999;
 
     const body = await req.json();
     const { section, currentContent, jobDescription: rawJobDescription, jobKeywords, userInstructions, intensity } = body;
@@ -148,6 +141,14 @@ Return this exact JSON:
   "improvementSummary": "<1-2 sentence summary of what was improved>"
 }`;
 
+
+    const creditCheck = await checkAndDeductCredit(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'Insufficient AI credits. Add your own Gemini API key for unlimited access.' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     const aiResponse = await callAIWithRetry({
       model: selectedModel,
       messages: [
@@ -179,7 +180,6 @@ Return this exact JSON:
     await recordUsage(userId, 'tailor_section', { provider: aiResponse.providerUsed || 'unknown' });
 
     const svcClient = getServiceClient();
-    await deductCredits(userId, 1, isByok, svcClient);
 
     try {
       svcClient.from('usage_events').insert({
@@ -202,7 +202,7 @@ Return this exact JSON:
     );
 
   } catch (error) {
-    console.error('[tailor-section] error:', error);
+    log.error('Unhandled error', error);
 
     const userError = toUserError(error);
     return new Response(

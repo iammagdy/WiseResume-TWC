@@ -2,6 +2,9 @@ import { getCorsHeaders } from './cors.ts';
 import { getServiceClient } from './dbClient.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { logger } from './logger.ts';
+
+const log = logger('authMiddleware');
 
 export interface AuthResult {
   userId: string;
@@ -56,7 +59,7 @@ export async function requireAuth(req: Request): Promise<AuthResult> {
   const { data: { user }, error } = await anonClient.auth.getUser(token);
 
   if (error || !user?.id) {
-    console.error('[authMiddleware] getUser failed:', error?.message ?? 'no user');
+    log.warn('Token validation failed', { reason: error?.message ?? 'no user returned' });
     throw new AuthError('Invalid or expired auth token', 401);
   }
 

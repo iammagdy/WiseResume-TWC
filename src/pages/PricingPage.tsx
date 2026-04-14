@@ -24,7 +24,7 @@ const faqItems = [
   },
   {
     q: 'What counts as an "AI credit"?',
-    a: 'Each AI action (resume enhancement, tailoring, cover letter generation, etc.) uses one credit. Free users get 5/day, Pro users get 30/day, and Premium users get unlimited credits.',
+    a: 'Each AI action (resume enhancement, tailoring, cover letter generation, etc.) uses one credit. Free users get 5/day, Pro users get 100/day, and Premium users get unlimited credits.',
   },
   {
     q: 'Is my data secure?',

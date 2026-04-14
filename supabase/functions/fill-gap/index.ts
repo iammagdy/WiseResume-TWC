@@ -5,9 +5,11 @@ import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
-import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
-import { deductCredits } from "../_shared/deductCredits.ts";
+import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
+import { logger } from "../_shared/logger.ts";
+const log = logger('fill-gap');
+
 
 interface FillGapRequest {
   gap: { startDate: string; endDate: string; months: number };
@@ -55,15 +57,6 @@ serve(async (req) => {
       );
     }
 
-    const creditCheck = await checkUserCreditBalance(userId);
-    if (!creditCheck.hasCredits) {
-      return new Response(
-        JSON.stringify({ error: 'Insufficient AI credits. Add your own Gemini API key for unlimited access.' }),
-        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    const isByok = creditCheck.remaining === 9999;
-
     const { gap, category, userDescription, previousJob, nextJob }: FillGapRequest = await req.json();
 
     if (!gap || !category) {
@@ -98,6 +91,14 @@ FACTUAL CONSTRAINTS:
 
     const userPrompt = `Fill this employment gap with realistic experience entries.\n\n${contextText}\n\nGenerate 3 distinct professional experience suggestions.`;
 
+
+    const creditCheck = await checkAndDeductCredit(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'Insufficient AI credits. Add your own Gemini API key for unlimited access.' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     const aiResponse = await callAI({
       model: 'google/gemini-2.5-flash',
       messages: [
@@ -156,13 +157,12 @@ FACTUAL CONSTRAINTS:
     await recordUsage(userId, 'fill_gap', { provider: aiResponse.providerUsed || 'unknown' });
 
     // Atomically deduct credits server-side before returning results (cost=1 for fill-gap)
-    await deductCredits(userId, 1, isByok, getServiceClient());
 
     return new Response(JSON.stringify({ ...result, _providerUsed: aiResponse.providerUsed || 'unknown' }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("fill-gap error:", error);
+    log.error("Unhandled error", error);
     const { status, error: code, message } = toUserError(error);
     return new Response(
       JSON.stringify({ error: code, message }),

@@ -3,9 +3,13 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, toUserError, sanitizeInputText, parseAIJSON } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
+import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
 import { localParseResume } from "./localParser.ts";
-import { decodeJwtPayloadUnsafe } from "../_shared/jwtUtils.ts";
+import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
+import { logger } from "../_shared/logger.ts";
+const log = logger('parse-resume');
+
 
 const MAX_TEXT_LENGTH = 100 * 1024;
 
@@ -382,43 +386,24 @@ serve(async (req) => {
   if (sizeError) return sizeError;
 
   try {
-    // Auth is intentionally optional — this endpoint accepts tokens from multiple Supabase projects
-    // (e.g. mobile clients). requireAuth() would reject foreign-project JWTs since it checks
-    // SUPABASE_JWT_SECRET. decodeJwtPayloadUnsafe() is used here ONLY to extract a rate-limit
-    // key (sub), not to gate any data access — so the lack of signature verification is acceptable.
-    const authHeader = req.headers.get('Authorization');
-    let userId = 'anonymous';
+    // Require verified authentication — rejects unauthenticated and foreign-project JWTs.
+    const { userId } = await requireAuth(req);
 
-    if (authHeader?.startsWith('Bearer ')) {
-      try {
-        const token = authHeader.replace('Bearer ', '');
-        const claims = decodeJwtPayloadUnsafe(token);
-        const sub = claims['sub'] as string;
-        if (sub) {
-          userId = sub;
-        }
-      } catch {
-        // Malformed token — use anonymous
-      }
+    // Rate limiting
+    const rateCheck = await checkRateLimit(userId, { maxRequests: 10, windowSeconds: 60, actionType: 'parse_resume' });
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Rate limit using whatever identifier we got
-    if (userId !== 'anonymous') {
-      const rateCheck = await checkRateLimit(userId, { maxRequests: 10, windowSeconds: 60, actionType: 'parse_resume' });
-      if (!rateCheck.allowed) {
-        return new Response(
-          JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      const serverRateCheck = await checkUserRateLimit(userId, 'parse_resume', 10, 60);
-      if (!serverRateCheck.allowed) {
-        return new Response(
-          JSON.stringify({ error: `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.` }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+    const serverRateCheck = await checkUserRateLimit(userId, 'parse_resume', 10, 60);
+    if (!serverRateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Log AI configuration for debugging
@@ -429,7 +414,30 @@ serve(async (req) => {
       userId: userId.slice(0, 8),
     });
 
-    const { text } = await req.json();
+    const ALLOWED_FILE_TYPES = new Set([
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
+      'text/html',
+    ]);
+
+    const body = await req.json();
+    const { text, fileType } = body as { text?: unknown; fileType?: unknown };
+
+    // Server-side file type validation: fileType is REQUIRED and must be in the
+    // allow-list. Omitting fileType is not permitted — this prevents callers from
+    // bypassing MIME enforcement by simply omitting the field.
+    if (!fileType || typeof fileType !== 'string' || !ALLOWED_FILE_TYPES.has(fileType.toLowerCase())) {
+      return new Response(
+        JSON.stringify({
+          error: fileType
+            ? `Unsupported file type: "${fileType}". Accepted types: PDF, Word (.doc/.docx), plain text, HTML.`
+            : 'fileType is required. Accepted types: PDF, Word (.doc/.docx), plain text, HTML.',
+        }),
+        { status: 415, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (!text || typeof text !== 'string') {
       return new Response(
@@ -442,6 +450,75 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: `Resume text too large. Maximum ${MAX_TEXT_LENGTH / 1024}KB.` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Server-side content validation: ensure the submitted text is plausible
+    // human-readable resume content, not binary data or injected scripts.
+    // Note: this endpoint receives pre-extracted text, not raw file bytes.
+    // Magic byte detection below guards against raw binary being passed as text.
+
+    // 1. Reject HTML script tags. This endpoint receives pre-extracted plain
+    //    text — a <script> tag in a resume indicates either an injection attempt
+    //    or a malformed extraction. The "javascript:" URI scheme is NOT blocked
+    //    here because it is a common skill-line substring ("JavaScript: 3 years")
+    //    and the extracted text is never rendered as HTML, removing any XSS risk.
+    if (/<script[\s>]/i.test(text)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid resume content: script content is not permitted.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 2. Reject binary file headers passed as text — these appear when a file is
+    //    sent without prior text extraction. Checks known magic byte sequences
+    //    that would survive UTF-8 encoding of the binary file prefix:
+    //      %PDF- : PDF files
+    //      PK\x03\x04 : ZIP containers (DOCX, XLSX, etc.)
+    //      \xD0\xCF\x11\xE0 : Compound Document (legacy DOC, XLS)
+    //      \x7FELF : ELF executable
+    //      MZ : DOS/PE executable
+    if (
+      text.startsWith('%PDF-') ||
+      text.startsWith('PK\x03\x04') ||
+      text.startsWith('\xD0\xCF\x11\xE0') ||
+      text.startsWith('\x7FELF') ||
+      text.startsWith('MZ')
+    ) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid resume content: raw binary file data detected. Please extract and paste plain text.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 3. Reject submissions that appear to be raw base64-encoded binary data.
+    //    Heuristic: a base64 blob has very long token runs with no whitespace.
+    const hasBase64Blob = text.split(/\s+/).some(
+      (token) => token.length > 500 && /^[A-Za-z0-9+/=]{200,}$/.test(token)
+    );
+    if (hasBase64Blob) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid resume content: binary or encoded file data is not accepted. Please paste plain text.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 4. Reject content that is overwhelmingly non-printable (>25% non-ASCII/non-printable).
+    const nonPrintable = (text.match(/[^\x09\x0A\x0D\x20-\x7E\u00A0-\uFFFF]/g) || []).length;
+    if (nonPrintable / text.length > 0.25) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid resume content: too many non-printable characters. Please paste plain text.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Credit deduction: after all input validation, right before AI call.
+    // requireAuth ensures userId is always a verified, authenticated user.
+    const creditCheck = await checkAndDeductCredit(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'Daily AI credit limit reached. Upgrade your plan or use your own API key.' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -845,7 +922,7 @@ serve(async (req) => {
       }
     }
   } catch (error) {
-    console.error('parse-resume error:', error);
+    log.error('Unhandled error', error);
     const userError = toUserError(error);
     return new Response(
       JSON.stringify({ error: userError.message }),

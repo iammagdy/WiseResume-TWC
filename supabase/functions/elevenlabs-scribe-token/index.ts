@@ -1,6 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
+import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
+import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
+import { logger } from "../_shared/logger.ts";
+const log = logger('elevenlabs-scribe-token');
+
 
 // Mirrors the AES-GCM decrypt from manage-api-keys/index.ts
 const ENCRYPTION_SECRET = Deno.env.get('API_KEY_ENCRYPTION_SECRET');
@@ -56,10 +61,22 @@ serve(async (req) => {
       return authErrorResponse(authErr, req.headers.get('origin'));
     }
 
-    // Resolve API key: prefer user's own stored key, fall back to platform default
-    let apiKey: string | undefined;
+    // Per-user rate limit: 10 token vends per 60 seconds to prevent abuse
+    const rateCheck = await checkUserRateLimit(userId, 'elevenlabs_scribe_token', 10, 60);
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    // Look up user's ElevenLabs key from encrypted server-side store
+    // Resolve API key — strict BYOK mode:
+    // If the user has a stored ElevenLabs key, use it exclusively.
+    // If decryption fails on their stored key, return an error (never fall back silently).
+    // Only use the platform key when the user has NO stored ElevenLabs key at all.
+    let apiKey: string | undefined;
+    let hasByokKey = false;
+
     const { data: keyRow } = await client
       .from('user_api_keys')
       .select('encrypted_key')
@@ -68,22 +85,35 @@ serve(async (req) => {
       .maybeSingle();
 
     if (keyRow?.encrypted_key) {
+      hasByokKey = true;
       try {
         apiKey = await decrypt(keyRow.encrypted_key);
       } catch (decryptErr) {
         console.error('Failed to decrypt user ElevenLabs key:', decryptErr);
+        // Strict BYOK mode: key exists but is unreadable — refuse rather than silently fall back
+        return new Response(
+          JSON.stringify({ error: 'Failed to read your ElevenLabs API key. Please re-add it in AI Settings.' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
     }
 
-    // Fall back to platform-level key
-    if (!apiKey) {
+    if (!hasByokKey) {
+      // No BYOK key stored — use platform key and enforce credits
+      const creditCheck = await checkAndDeductCredit(userId);
+      if (!creditCheck.hasCredits) {
+        return new Response(
+          JSON.stringify({ error: 'Daily AI credit limit reached. Upgrade your plan or add your own ElevenLabs API key.' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       apiKey = Deno.env.get('ELEVENLABS_API_KEY');
     }
 
     if (!apiKey) {
       return new Response(
-        JSON.stringify({ error: 'No ElevenLabs API key configured' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'No ElevenLabs API key configured. Please add your own key in AI Settings.' }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -113,7 +143,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Error generating scribe token:', error);
+    log.error('Unhandled error', error);
     return new Response(
       JSON.stringify({ error: 'Something went wrong. Please try again.' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

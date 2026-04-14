@@ -54,6 +54,7 @@ export interface PublicProfile {
   sectionOrder: string[] | null;
   pinnedProject: { title: string; description: string; url: string } | null;
   scrollEffect: 'fade' | 'parallax' | 'tilt-3d' | 'cinematic' | null;
+  seoNoindex: boolean;
 }
 
 export interface PublicResume {
@@ -134,6 +135,7 @@ async function fetchPublicPortfolio(username: string): Promise<PublicPortfolioDa
       sectionOrder: (extras.sectionOrder as string[]) || null,
       pinnedProject: (extras.pinnedProject as { title: string; description: string; url: string }) || null,
       scrollEffect: ((extras.scrollEffect as string) || null) as 'fade' | 'parallax' | 'tilt-3d' | 'cinematic' | null,
+      seoNoindex: (profile.seoNoindex as boolean) || false,
     },
     resume: {
       id: (resume.id as string) || '',

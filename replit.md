@@ -218,6 +218,20 @@ bash scripts/deploy-functions.sh                      # redeploy all edge functi
 - **Pricing CTAs** on landing → `/auth?plan=free|pro|premium` (not direct `kindeRegister` calls)
 - **Portfolio `pf-*` CSS**: Never touch — used by public portfolio pages
 - **Glass cleanup**: Complete — only `glass-pro` data value and `Badge variant="glass"` are preserved intentionally
+- **Credit limits**: Canonical values in `src/lib/planConfig.ts` (PLAN_CREDIT_LIMITS) AND `supabase/functions/_shared/planLimits.ts` — update both together
+- **BYOK bypass**: `creditUtils.ts` verifies key exists in `user_api_keys` before granting unlimited credits — ai_provider pref alone is insufficient
+- **hard-purge**: Protected by `requireAdminAuth` — never callable without admin auth
+
+## Security Audit (2026-04-14 → 2026-04-17)
+- **Pricing consistency**: `planConfig.ts` exports `PLAN_CREDIT_LIMITS` (free:5, pro:100, premium:∞). UI now reads from this constant. Server uses `_shared/planLimits.ts` (matching values). Both show 100 credits for Pro.
+- **hard-purge auth**: Added `requireAdminAuth` to `hard-purge/index.ts`. Previously had no authentication — any caller could delete any user's data.
+- **BYOK key validation**: `creditUtils.ts` now verifies a key row exists in `user_api_keys` before granting unlimited credits. Previously, setting `ai_provider` preference alone was sufficient to bypass limits.
+- **Offline sync conflict**: `useOfflineSync.ts` now shows an explicit toast warning when local changes are discarded due to server conflict (server-wins strategy).
+- **DB indexes migration**: `20260416000000_add_performance_indexes.sql` adds indexes on all high-traffic columns (user_id foreign keys, ai_credits usage_date, rate limits, etc.).
+- **RLS hardening** (`20260417000000_security_audit_rls_and_hardening.sql`): Explicit block policies added to `credit_transactions` (clients: SELECT only; INSERT/UPDATE/DELETE blocked), `subscriptions` (SELECT only; lifecycle managed by Stripe via service_role), `ai_credits` (UPDATE policy idempotently removed), `rpc_rate_limits` (all client access blocked; only accessible via SECURITY DEFINER RPCs). Avatar storage bucket now enforces `image/*` MIME types server-side with 5 MB cap.
+- **Portfolio SEO privacy** (`20260417000001_portfolio_noindex_and_rpc_update.sql`): `seo_noindex BOOLEAN` column added to `portfolio_settings`. `get_public_portfolio` RPC updated to return `seoNoindex` flag. `usePortfolioSEO.ts` now injects `<meta name="robots" content="noindex, nofollow">` when true.
+- **Structured observability** (`_shared/logger.ts`): JSON-formatted Edge Function logger with DEBUG/INFO/WARN/ERROR levels, correlation fields, and structured error serialization. Adopted in `creditUtils.ts` and `authMiddleware.ts`. All Edge Function logs are captured by Supabase Dashboard and exportable to external aggregators.
+- **Dead code removed**: `_shared/deductCredits.ts` deleted (no longer imported anywhere after Task #9 credit-enforcement refactor).
 
 ## UI Components (Design System Details)
 - **Buttons**: Clean solid fills, indigo primary, outline with border, no glow shadows

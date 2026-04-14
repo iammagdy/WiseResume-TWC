@@ -3,6 +3,10 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, toUserError, sanitizeInputText, parseAIJSON } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
+import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
+import { logger } from "../_shared/logger.ts";
+const log = logger('parse-linkedin');
+
 
 const MAX_PROFILE_TEXT_SIZE = 200 * 1024;
 
@@ -83,6 +87,14 @@ For the experience section: if a person held multiple roles at the same company 
 
 Extract certifications from the "Licenses & Certifications" section, volunteering from the "Volunteer Experience" section, languages from the "Languages" section, and projects from the "Projects" section. If any of these sections are not present in the provided text, return an empty array for that field.`;
 
+
+    const creditCheck = await checkAndDeductCredit(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'Daily AI credit limit reached. Upgrade your plan or use your own API key.' }),
+        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     const aiResponse = await callAI({
       model: 'google/gemini-2.5-flash',
       messages: [
@@ -212,7 +224,7 @@ Extract certifications from the "Licenses & Certifications" section, volunteerin
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("parse-linkedin error:", error);
+    log.error("Unhandled error", error);
     const { status, error: code, message } = toUserError(error);
     return new Response(
       JSON.stringify({ error: code, message }),

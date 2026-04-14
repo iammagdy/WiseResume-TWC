@@ -3,6 +3,10 @@ import { callAI, getUserKeyAndUrlFromDB } from "../_shared/aiClient.ts";
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { checkRateLimit } from '../_shared/rateLimiter.ts';
+import { checkAndDeductCredit } from '../_shared/creditUtils.ts';
+import { logger } from '../_shared/logger.ts';
+const log = logger('ai-test');
+
 
 /**
  * Verify a DevKit HMAC-SHA-256 session token.
@@ -203,6 +207,16 @@ serve(async (req) => {
       }
     }
 
+    // Credit enforcement: placed after cooldown, checkOnly, and model-validation branches
+    // so that credits are only deducted when the actual AI call is guaranteed to proceed.
+    const creditCheck = await checkAndDeductCredit(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Daily AI credit limit reached. Upgrade your plan or use your own API key.' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const identityMap: Record<string, string> = {
       wiseresume: "Hello! I'm Wise Resume AI",
       gemini: "Hello! I'm Gemini AI",
@@ -284,7 +298,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
-    console.error('[ai-test] Unhandled error:', err);
+    log.error('Unhandled error', err);
     // If it's an auth error from requireAuth, return it properly
     if (typeof err === 'object' && err !== null && 'status' in err) {
       return authErrorResponse(err, req.headers.get('origin'));

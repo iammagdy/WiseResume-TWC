@@ -2,8 +2,14 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { callAI, getUserKeyFromDB } from "../_shared/aiClient.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
+import { logger } from "../_shared/logger.ts";
+import { verifySessionToken } from "../_shared/portfolioSession.ts";
+
+const log = logger('ask-portfolio');
+
+// Public endpoint (no auth). Spend controls: HMAC session token, BYOK-only AI
+// key (no platform fallback), and atomic per-session/daily quota RPC.
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get("origin"));
@@ -13,11 +19,34 @@ serve(async (req) => {
   if (sizeError) return sizeError;
 
   try {
-    const { username, question, conversationHistory = [] } = await req.json();
+    const body = await req.json();
+    const { username, question, conversationHistory = [], sessionToken } = body;
 
     if (!username || !question) {
       return new Response(JSON.stringify({ error: "Missing username or question" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Server-issued session token is required. This replaces IP-header-based identity
+    // with a non-bypassable server-signed credential.
+    if (!sessionToken || typeof sessionToken !== 'string') {
+      return new Response(JSON.stringify({ error: "A valid session token is required. Please reload the page." }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const session = await verifySessionToken(sessionToken);
+    if (!session) {
+      return new Response(JSON.stringify({ error: "Session expired or invalid. Please reload the page." }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // The token must be for the requested portfolio (prevents token reuse across portfolios)
+    if (session.portfolioUsername !== username.toLowerCase()) {
+      return new Response(JSON.stringify({ error: "Session token does not match the requested portfolio." }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -42,7 +71,6 @@ serve(async (req) => {
       });
     }
 
-    // Look up the portfolio owner's user_id from their profile
     const { data: ownerRow } = await supabase
       .from('profiles')
       .select('user_id')
@@ -55,34 +83,46 @@ serve(async (req) => {
       });
     }
 
-    // Fetch the owner's BYOK Gemini key
+    // BYOK enforcement
     const ownerKey = await getUserKeyFromDB(ownerRow.user_id, 'gemini');
-    const isFallback = !ownerKey;
-
-    // IP-based rate limiting for public endpoint (20 req/60s per IP)
-    const callerIp = req.headers.get('x-forwarded-for') ?? req.headers.get('cf-connecting-ip') ?? 'unknown';
-    if (callerIp === 'unknown') {
-      console.warn('[ask-portfolio] Could not determine caller IP for rate limiting');
-    } else {
-      const { allowed: ipAllowed } = await checkRateLimit(callerIp, { actionType: 'ask_portfolio', maxRequests: 20, windowSeconds: 60 });
-      if (!ipAllowed) {
-        return new Response(JSON.stringify({ error: "Rate limit reached. Please try again later." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+    if (!ownerKey) {
+      return new Response(JSON.stringify({
+        error: "The AI assistant for this portfolio requires the owner to configure their API key.",
+        isFallback: true,
+      }), {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Server-side rate limit: max 50 questions per username per day
+    // Atomically validate per-session (20/session) and per-portfolio-daily (50/day)
+    // quotas and record this usage in a single DB transaction — called BEFORE the
+    // AI call so any database failure causes a hard 503 (fail-closed) rather than
+    // silently treating the limit as not reached.
     const today = new Date().toISOString().slice(0, 10);
-    const { count: dailyCount } = await supabase
-      .from('ai_usage_logs')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', ownerRow.user_id)
-      .eq('action_type', 'chat')
-      .gte('created_at', `${today}T00:00:00Z`);
+    const { data: quotaRows, error: quotaError } = await supabase.rpc(
+      'atomic_portfolio_chat_quota',
+      {
+        p_user_id: ownerRow.user_id,
+        p_session_id: session.sessionId,
+        p_today: today,
+        p_session_limit: 20,
+        p_daily_limit: 50,
+      }
+    );
 
-    if ((dailyCount ?? 0) >= 50) {
-      return new Response(JSON.stringify({ error: "Rate limit reached. Please try again later." }), {
+    if (quotaError) {
+      log.error('Quota RPC failed — blocking request (fail-closed)', quotaError);
+      return new Response(JSON.stringify({ error: "Service temporarily unavailable. Please try again in a moment." }), {
+        status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const quotaResult = Array.isArray(quotaRows) ? quotaRows[0] : quotaRows;
+    if (!quotaResult?.allowed) {
+      return new Response(JSON.stringify({
+        error: quotaResult?.reason ?? "Rate limit exceeded. Please try again later.",
+      }), {
         status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -148,22 +188,20 @@ ${context}`;
       messages,
       temperature: 0.3,
       maxTokens: 300,
-      ...(ownerKey ? { userGeminiKey: ownerKey } : {}),
+      userGeminiKey: ownerKey,
       userId: ownerRow.user_id,
     });
 
     const answer = aiResponse.content || "I couldn't generate a response. Please try again.";
 
-    // Record IP-based usage after successful response
-    if (callerIp !== 'unknown') {
-      await recordUsage(callerIp, 'ask_portfolio');
-    }
+    // Usage was already atomically recorded by atomic_portfolio_chat_quota RPC
+    // before the AI call. No additional insert needed here.
 
-    return new Response(JSON.stringify({ answer, isFallback }), {
+    return new Response(JSON.stringify({ answer, isFallback: false }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("ask-portfolio error:", e);
+    log.error('Unhandled error', e);
 
     if (e && typeof e === 'object' && 'status' in e) {
       const aiErr = e as { status: number; message: string };

@@ -1,5 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireAdminAuth } from "../_shared/adminAuth.ts";
+import { logger } from "../_shared/logger.ts";
+
+const log = logger('generate-store-screenshots');
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -61,6 +65,26 @@ const SCREENSHOT_PROMPTS = [
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Admin-only endpoint — requires DevKit admin authentication.
+  // This function generates marketing App Store screenshots using the platform's
+  // Gemini key and stores them in Supabase Storage. It is not a user-facing feature.
+  let body: { password?: string } = {};
+  try {
+    body = await req.json();
+  } catch { /* body may be empty */ }
+
+  const password = body.password ?? '';
+
+  try {
+    await requireAdminAuth(req, password);
+  } catch (authResponse) {
+    if (authResponse instanceof Response) return authResponse;
+    return new Response(
+      JSON.stringify({ error: "Unauthorized. Admin access required." }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 
   try {

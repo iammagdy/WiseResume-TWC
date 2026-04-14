@@ -5,9 +5,14 @@
  * client-side rate limiter by refreshing the page, opening new tabs, or
  * calling edge functions directly.
  *
+ * FAIL-CLOSED: any DB error during the count or insert is treated as a
+ * transient infrastructure fault and returns a 503-style "not allowed" result
+ * with retryAfterSeconds=10 so callers can return a safe error rather than
+ * silently permitting an over-limit request.
+ *
  * Usage:
  *   const result = await checkUserRateLimit(userId, 'tailor', 10, 60);
- *   if (!result.allowed) return 429;
+ *   if (!result.allowed) return 429/503;
  */
 
 import { getServiceClient } from './dbClient.ts';
@@ -15,16 +20,17 @@ import { getServiceClient } from './dbClient.ts';
 export interface UserRateLimitResult {
   allowed: boolean;
   retryAfterSeconds: number;
+  /** true when the block is caused by a DB error rather than an actual limit */
+  dbError?: boolean;
 }
 
 /**
  * Checks and records a rate-limit event for an authenticated user.
  *
- * @param userId       Authenticated user UUID (from requireAuth)
- * @param featureKey   Feature name, e.g. "tailor", "chat", "analyze", "cover_letter"
- * @param maxRequests  Maximum number of requests allowed in the window
+ * @param userId         Authenticated user UUID (from requireAuth)
+ * @param featureKey     Feature name, e.g. "tailor", "chat", "analyze"
+ * @param maxRequests    Maximum requests allowed in the window
  * @param windowSeconds  Sliding window size in seconds
- * @returns `{ allowed: true }` when under the limit; `{ allowed: false, retryAfterSeconds }` when exceeded
  */
 export async function checkUserRateLimit(
   userId: string,
@@ -43,9 +49,10 @@ export async function checkUserRateLimit(
     .gte('created_at', windowStart);
 
   if (error) {
-    // Fail open on transient DB errors — don't block users for infrastructure issues
-    console.error('[userRateLimiter] count query failed:', error);
-    return { allowed: true, retryAfterSeconds: 0 };
+    // Fail-closed: a DB read failure means we cannot confirm the user is under
+    // limit, so we deny the request to protect against cost abuse.
+    console.error('[userRateLimiter] count query failed (fail-closed):', error);
+    return { allowed: false, retryAfterSeconds: 10, dbError: true };
   }
 
   const used = count ?? 0;
@@ -54,13 +61,14 @@ export async function checkUserRateLimit(
     return { allowed: false, retryAfterSeconds: windowSeconds };
   }
 
-  // Record this request (fire-and-forget; a failure here should not block the user)
+  // Record this request. If the insert fails we still allow this request through
+  // (the count check already confirmed headroom), but log for observability.
   const { error: insertError } = await supabase
     .from('rpc_rate_limits')
     .insert({ user_id: userId, endpoint: featureKey, ip_address: 'user:' + userId });
 
   if (insertError) {
-    console.error('[userRateLimiter] insert failed:', insertError);
+    console.error('[userRateLimiter] insert failed (allowing current request; next may be blocked):', insertError);
   }
 
   return { allowed: true, retryAfterSeconds: 0 };

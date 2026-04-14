@@ -3,7 +3,12 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
+import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
+import { getServiceClient } from "../_shared/dbClient.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
+import { logger } from "../_shared/logger.ts";
+const log = logger('generate-resignation-letter');
+
 
 const MAX_TEXT_SIZE = 10 * 1024;
 
@@ -104,6 +109,14 @@ ${additionsText}
 
 Write the complete letter with proper business letter formatting.`;
 
+
+    const creditCheck = await checkAndDeductCredit(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'Daily AI credit limit reached. Upgrade your plan or add your own API key.' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     const aiResponse = await callAI({
       model: 'google/gemini-2.5-flash',
       messages: [
@@ -124,7 +137,7 @@ Write the complete letter with proper business letter formatting.`;
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("generate-resignation-letter error:", error);
+    log.error("Unhandled error", error);
     const { status, error: code, message } = toUserError(error);
     return new Response(
       JSON.stringify({ error: code, message }),

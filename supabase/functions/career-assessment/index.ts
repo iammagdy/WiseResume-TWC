@@ -4,10 +4,12 @@ import { callAIWithRetry, isAIError, parseAIJSON, toUserError } from "../_shared
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
-import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
-import { deductCredits } from "../_shared/deductCredits.ts";
+import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
+import { logger } from "../_shared/logger.ts";
+const log = logger('career-assessment');
+
 
 const MAX_BODY_SIZE = 150 * 1024;
 
@@ -42,15 +44,6 @@ Deno.serve(async (req: Request) => {
         { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const creditCheck = await checkUserCreditBalance(userId);
-    if (!creditCheck.hasCredits) {
-      return new Response(
-        JSON.stringify({ error: 'Insufficient AI credits. Add your own Gemini API key for unlimited access.' }),
-        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    const isByok = creditCheck.remaining === 9999;
 
     const body = await req.text();
     if (body.length > MAX_BODY_SIZE) {
@@ -141,6 +134,14 @@ ${resume.projects?.map((p: any) => `- ${p.name}: ${p.description} (Tech: ${(p.te
 Certifications:
 ${resume.certifications?.map((c: any) => `- ${c.name} from ${c.issuer}`).join("\n") || "Not provided"}`;
 
+
+    const creditCheck = await checkAndDeductCredit(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'Insufficient AI credits. Add your own Gemini API key for unlimited access.' }),
+        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     const aiResponse = await callAIWithRetry({
       model: 'google/gemini-2.5-flash',
       messages: [
@@ -176,13 +177,12 @@ ${resume.certifications?.map((c: any) => `- ${c.name} from ${c.issuer}`).join("\
     await recordUsage(userId, 'career_assess', { provider: aiResponse.providerUsed || 'unknown' });
 
     // Atomically deduct credits server-side before returning results (cost=1 for career-assessment)
-    await deductCredits(userId, 1, isByok, getServiceClient());
 
     return new Response(JSON.stringify(sanitized), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("career-assessment error:", error);
+    log.error("Unhandled error", error);
     const { status, error: code, message } = toUserError(error);
     return new Response(
       JSON.stringify({ error: code, message }),

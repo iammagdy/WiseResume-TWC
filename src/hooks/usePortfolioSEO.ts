@@ -26,6 +26,15 @@ export function usePortfolioSEO(profile: PublicProfile | undefined | null) {
       }
       meta.setAttribute('content', profile.metaDescription || profile.portfolioBio || `${name}'s professional portfolio`);
 
+      // Robots meta: respect the user's noindex preference
+      let robotsMeta = document.querySelector('meta[name="robots"]');
+      if (!robotsMeta) {
+        robotsMeta = document.createElement('meta');
+        robotsMeta.setAttribute('name', 'robots');
+        document.head.appendChild(robotsMeta);
+      }
+      robotsMeta.setAttribute('content', profile.seoNoindex ? 'noindex, nofollow' : 'index, follow');
+
       // OpenGraph / Twitter tags
       const setMeta = (prop: string, val: string, attr = 'property') => {
         let el = document.querySelector(`meta[${attr}="${prop}"]`);
@@ -74,6 +83,8 @@ export function usePortfolioSEO(profile: PublicProfile | undefined | null) {
       document.documentElement.removeAttribute("data-theme");
       const fontLink = document.getElementById('pf-theme-fonts');
       if (fontLink) fontLink.remove();
+      const robotsMetaCleanup = document.querySelector('meta[name="robots"]');
+      if (robotsMetaCleanup) robotsMetaCleanup.remove();
     };
   }, [profile]);
 }

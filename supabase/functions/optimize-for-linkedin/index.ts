@@ -3,10 +3,12 @@ import { callAI, isAIError, parseAIJSON, toUserError, sanitizeInputText } from "
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
-import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
-import { deductCredits } from "../_shared/deductCredits.ts";
+import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
+import { logger } from "../_shared/logger.ts";
+const log = logger('optimize-for-linkedin');
+
 
 // Extend the global scope with the Deno namespace for type checking
 declare global {
@@ -91,15 +93,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    const creditCheck = await checkUserCreditBalance(userId);
-    if (!creditCheck.hasCredits) {
-      return new Response(
-        JSON.stringify({ error: 'Insufficient AI credits. Add your own Gemini API key for unlimited access.' }),
-        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    const isByok = creditCheck.remaining === 9999;
-
     const { resume, targetRole, region = 'global' }: LinkedInOptimizeRequest = await req.json();
 
     if (!resume) {
@@ -136,6 +129,14 @@ ${resumeContext}
 
 Generate a comprehensive LinkedIn optimization package.`;
 
+
+    const creditCheck = await checkAndDeductCredit(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'Insufficient AI credits. Add your own Gemini API key for unlimited access.' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     const aiResponse = await callAI({
       model: 'google/gemini-2.5-flash',
       messages: [{ role: 'user', content: prompt }],
@@ -203,14 +204,13 @@ Generate a comprehensive LinkedIn optimization package.`;
     await recordUsage(userId, 'linkedin_opt', { provider: aiResponse.providerUsed || 'unknown' });
 
     // Atomically deduct credits server-side before returning results (cost=1 for optimize-for-linkedin)
-    await deductCredits(userId, 1, isByok, getServiceClient());
 
     return new Response(
       JSON.stringify({ success: true, ...result }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('LinkedIn optimization error:', error);
+    log.error('Unhandled error', error);
     const userError = toUserError(error);
     return new Response(
       JSON.stringify({ error: userError.message }),

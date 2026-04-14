@@ -3,6 +3,11 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, parseAIJSON, toUserError, sanitizeInputText } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
+import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
+import { getServiceClient } from "../_shared/dbClient.ts";
+import { logger } from "../_shared/logger.ts";
+const log = logger('parse-job-text');
+
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
@@ -66,6 +71,15 @@ If you can't find certain fields, use null or empty arrays. Always extract title
     let aiContent: string;
     let aiProviderUsed: string | undefined;
     try {
+
+
+    const creditCheck = await checkAndDeductCredit(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'Daily AI credit limit reached. Upgrade your plan or add your own API key.' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
       const aiResponse = await callAI({
         model: 'google/gemma-4-26b-a4b-it:free',
         messages: [
@@ -119,7 +133,7 @@ If you can't find certain fields, use null or empty arrays. Always extract title
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("parse-job-text error:", error);
+    log.error("Unhandled error", error);
     const userError = toUserError(error);
     return new Response(
       JSON.stringify({ error: userError.message }),

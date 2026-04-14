@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Check, Crown, Gift, Sparkles, Gem, Ticket, CalendarClock, FileText, Wand2, Target, MessageSquare, Mail, LayoutList, HeadphonesIcon, Palette, BarChart2, Package, Zap, Infinity, Bot, Star } from 'lucide-react';
+import { PLAN_CREDIT_LIMITS } from '@/lib/planConfig';
 import { LoadingButton } from '@/components/ui/LoadingButton';
 import { useResumes } from '@/hooks/useResumes';
 import { useAICredits } from '@/hooks/useAICredits';
@@ -481,8 +482,8 @@ export default function SubscriptionPage() {
                 {isPremium
                   ? 'Unlimited AI credits/day'
                   : isPro
-                  ? '30 AI credits/day'
-                  : '5 AI credits/day'}
+                  ? `${PLAN_CREDIT_LIMITS.pro} AI credits/day`
+                  : `${PLAN_CREDIT_LIMITS.free} AI credits/day`}
               </span>
               {isPremium && (
                 <Badge className="ml-auto text-[10px] px-1.5 py-0 bg-amber-500 text-white border-0">

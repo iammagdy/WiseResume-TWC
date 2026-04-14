@@ -18,6 +18,7 @@ export interface RateLimitConfig {
   plan?: string;
 }
 
+
 const DEFAULT_CONFIG: RateLimitConfig = {
   maxRequests: 20,
   windowSeconds: 60,
@@ -33,13 +34,13 @@ const DEFAULT_CONFIG: RateLimitConfig = {
  *  - Pro users: proMaxRequests (defaults to 5x maxRequests)
  *  - Free users: maxRequests
  *
- * Fail-open: if the DB query itself errors, the request is allowed through
- * with a warning log, so a DB issue never blocks legitimate users.
+ * Fail-closed: if the DB query errors, the request is denied to prevent cost
+ * abuse. Callers should return 503 (not 429) when dbError is true.
  */
 export async function checkRateLimit(
   userId: string,
   config: Partial<RateLimitConfig> = {}
-): Promise<{ allowed: boolean; remaining: number; retryAfterSeconds?: number }> {
+): Promise<{ allowed: boolean; remaining: number; retryAfterSeconds?: number; dbError?: boolean }> {
   const merged = { ...DEFAULT_CONFIG, ...config };
   const { windowSeconds, actionType, plan } = merged;
 
@@ -68,9 +69,11 @@ export async function checkRateLimit(
     .gte('created_at', windowStart);
 
   if (error) {
-    console.warn('Rate limit check failed — failing open to avoid blocking users:', error);
-    // Fail open — allow the request through when the DB check itself errors
-    return { allowed: true, remaining: maxRequests };
+    // Fail-closed: a DB read failure means we cannot confirm the user is under
+    // the rate limit. Deny with a 503-style "db error" flag so callers can
+    // return an appropriate error rather than silently allowing cost abuse.
+    console.error('Rate limit check failed (fail-closed):', error);
+    return { allowed: false, remaining: 0, retryAfterSeconds: 10, dbError: true };
   }
 
   const used = count ?? 0;

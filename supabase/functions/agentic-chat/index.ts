@@ -4,10 +4,12 @@ import { callAI, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
-import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
-import { deductCredits } from "../_shared/deductCredits.ts";
+import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
+import { logger } from "../_shared/logger.ts";
+const log = logger('agentic-chat');
+
 
 const MAX_MESSAGE_SIZE = 10 * 1024;
 const MAX_HISTORY_SIZE = 200 * 1024;
@@ -323,15 +325,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const creditCheck = await checkUserCreditBalance(userId);
-    if (!creditCheck.hasCredits) {
-      return new Response(
-        JSON.stringify({ error: 'Insufficient AI credits. Add your own Gemini API key for unlimited access.' }),
-        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    const isByok = creditCheck.remaining === 9999;
-
     const { message, conversationHistory, currentResume, resumeList, contextFilter, functionResponse } = (await req.json()) as ChatRequest;
 
     if (!message || typeof message !== "string") {
@@ -387,6 +380,15 @@ Deno.serve(async (req: Request) => {
     }
 
     // Call AI with tools
+
+    const creditCheck = await checkAndDeductCredit(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'Insufficient AI credits. Add your own Gemini API key for unlimited access.' }),
+        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const aiResponse = await callAI({
       model: 'google/gemma-4-26b-a4b-it:free',
       messages,
@@ -409,7 +411,6 @@ Deno.serve(async (req: Request) => {
       }
 
       // Deduct credits for any AI tool call (cost=1 for chat)
-      await deductCredits(userId, 1, isByok, getServiceClient());
 
       // Handle suggest_edits
       if (functionName === "suggest_edits") {
@@ -458,7 +459,6 @@ Deno.serve(async (req: Request) => {
     await recordUsage(userId, 'chat', { provider: aiResponse.providerUsed || 'unknown' });
 
     // Atomically deduct credits server-side before returning results (cost=1 for chat)
-    await deductCredits(userId, 1, isByok, getServiceClient());
 
     const result: TextResult = {
       type: "text",
@@ -470,7 +470,7 @@ Deno.serve(async (req: Request) => {
     });
 
   } catch (error) {
-    console.error("agentic-chat error:", error);
+    log.error("Unhandled error", error);
     const { status, error: code, message } = toUserError(error);
     return new Response(
       JSON.stringify({ error: code, message }),

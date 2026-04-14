@@ -17,8 +17,33 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
   const [isFallback, setIsFallback] = useState(false);
   const [chatDisabled, setChatDisabled] = useState(false);
   const [questionCount, setQuestionCount] = useState(0);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [sessionLoading, setSessionLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const MAX_QUESTIONS = 10;
+
+  // Provision a server-signed visitor session token when chat is first opened.
+  // This token replaces IP-header-based identity and enables non-bypassable
+  // server-side per-session rate limiting on the ask-portfolio endpoint.
+  useEffect(() => {
+    if (!open || sessionToken || sessionLoading) return;
+    if (!profile.username) return;
+
+    setSessionLoading(true);
+    fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/create-portfolio-session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ portfolioUsername: profile.username }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.token) setSessionToken(data.token);
+      })
+      .catch(() => {
+        // Non-fatal: session token will be null and ask-portfolio will return 401
+      })
+      .finally(() => setSessionLoading(false));
+  }, [open, sessionToken, sessionLoading, profile.username]);
 
   const isLight = pStyle === 'classic-clean';
   const bgPanel = isLight ? 'rgba(255,255,255,0.98)' : 'rgba(13,13,22,0.95)';
@@ -61,6 +86,7 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
           username: profile.username,
           question: q,
           conversationHistory: messages.slice(-6),
+          sessionToken,
         }),
       });
       const data = await res.json();

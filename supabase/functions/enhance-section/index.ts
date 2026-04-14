@@ -4,10 +4,12 @@ import { callAIWithRetry, isAIError, parseAIJSONWithRetry, sanitizeInputText } f
 import { checkRateLimit, recordUsage, getUserPlan } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
-import { deductCredits } from "../_shared/deductCredits.ts";
+import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
+import { logger } from "../_shared/logger.ts";
+const log = logger('enhance-section');
+
 
 // ============= SECURITY: Input validation limits =============
 const MAX_CONTENT_SIZE = 50 * 1024; // 50KB for current content
@@ -670,14 +672,6 @@ serve(async (req) => {
     }
 
     // Server-side AI Credits check (Scenario 2.2 Rejection)
-    const creditCheck = await checkUserCreditBalance(userId);
-    if (!creditCheck.hasCredits) {
-      return new Response(
-        JSON.stringify({ error: 'payment_required', message: 'AI credits exhausted. Please add credits to your account or use your own API key.' }),
-        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    const isByok = creditCheck.remaining === 9999;
 
     const body = await req.json() as EnhanceRequest & { content?: string; instruction?: string; variants?: boolean };
     const section = body.section;
@@ -739,6 +733,15 @@ serve(async (req) => {
 
     const prompt = buildPrompt(section, action, currentContent, context, fixInstruction);
 
+    // Credit check must come before any AI call path (variants or standard), after all input validation.
+    const creditCheck = await checkAndDeductCredit(userId);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'payment_required', message: 'AI credits exhausted. Please add credits to your account or use your own API key.' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // === VARIANTS MODE: return 3 parallel rewrites (concise / balanced / expanded) ===
     const VARIANT_COMPATIBLE_ACTIONS = ['improve', 'add_metrics', 'generate_bullets', 'expand', 'shorten', 'generate'];
     if (variantsMode && VARIANT_COMPATIBLE_ACTIONS.includes(action)) {
@@ -798,7 +801,6 @@ serve(async (req) => {
       await recordUsage(userId, 'enhance', { section, action, provider: providerUsed, variantsCount: variants.length });
 
       // Atomically deduct credits server-side before returning results (cost=1 for enhance)
-      await deductCredits(userId, 1, isByok, getServiceClient());
 
       return new Response(JSON.stringify({
         variants,
@@ -848,7 +850,6 @@ serve(async (req) => {
     await recordUsage(userId, 'enhance', { section, action, provider: aiResponse.providerUsed || 'unknown' });
 
     // Atomically deduct credits server-side before returning results (cost=1 for enhance)
-    await deductCredits(userId, 1, isByok, getServiceClient());
 
     const responseBody: Record<string, unknown> = { ...(enhancedContent as Record<string, unknown>) };
     responseBody._providerUsed = aiResponse.providerUsed || 'unknown';
@@ -862,7 +863,7 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('Enhancement error:', error);
+    log.error('Unhandled error', error);
 
     if (isAIError(error)) {
       const errorMap: Record<string, { error: string; message: string }> = {

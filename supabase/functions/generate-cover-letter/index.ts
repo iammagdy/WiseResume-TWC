@@ -4,10 +4,12 @@ import { callAIWithRetry, isAIError, sanitizeInputText, toUserError } from "../_
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
-import { checkUserCreditBalance } from "../_shared/creditUtils.ts";
-import { deductCredits } from "../_shared/deductCredits.ts";
+import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
+import { logger } from "../_shared/logger.ts";
+const log = logger('generate-cover-letter');
+
 
 const safeSkillsString = (skills: any[] | undefined): string =>
   (skills || []).map((s: any) => (typeof s === 'string' ? s : s?.name || '')).filter(Boolean).join(', ');
@@ -44,15 +46,6 @@ serve(async (req) => {
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const creditCheck = await checkUserCreditBalance(userId);
-    if (!creditCheck.hasCredits) {
-      return new Response(
-        JSON.stringify({ error: 'Insufficient AI credits.' }),
-        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    const isByok = creditCheck.remaining === 9999;
 
     const reqBody = await req.json();
     const resume = reqBody.resume;
@@ -145,6 +138,14 @@ ${jobDescription}
 5. Use the ${validTone} tone throughout
 6. Include a professional header with the candidate's actual contact details`;
 
+
+    const creditCheck = await checkAndDeductCredit(userId, 2);
+    if (!creditCheck.hasCredits) {
+      return new Response(
+        JSON.stringify({ error: 'Insufficient AI credits.' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     const aiResponse = await callAIWithRetry({
       model: 'google/gemma-4-26b-a4b-it:free',
       messages: [
@@ -161,14 +162,13 @@ ${jobDescription}
     await recordUsage(userId, 'cover_letter', { provider: aiResponse.providerUsed || 'unknown' });
 
     // Atomically deduct credits server-side before returning results (cost=2 for cover letter)
-    await deductCredits(userId, 2, isByok, getServiceClient());
 
     return new Response(
       JSON.stringify({ coverLetter, _providerUsed: aiResponse.providerUsed || 'unknown' }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("generate-cover-letter error:", error);
+    log.error("Unhandled error", error);
     const { status, error: code, message } = toUserError(error);
     return new Response(
       JSON.stringify({ error: code, message }),
