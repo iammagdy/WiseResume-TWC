@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useDeepLinking } from "./hooks/useDeepLinking";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useBackButton } from "@/hooks/useBackButton";
 import { useStatusBarThemeSync } from "@/hooks/useStatusBar";
@@ -153,6 +153,16 @@ const queryClient = new QueryClient({
   }
 });
 
+function useIsPublicRoute() {
+  const location = useLocation();
+  return (
+    location.pathname.startsWith('/p/') ||
+    location.pathname.startsWith('/share/') ||
+    location.pathname.startsWith('/l/') ||
+    location.pathname.startsWith('/auth/callback')
+  );
+}
+
 function FeatureGate({
   enabled,
   children,
@@ -160,7 +170,14 @@ function FeatureGate({
   enabled: boolean;
   children: React.ReactNode;
 }) {
-  if (!enabled) return <Navigate to="/dashboard" replace />;
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (!enabled) {
+      toast.info("This feature isn't available right now.");
+      navigate('/dashboard', { replace: true });
+    }
+  }, [enabled, navigate]);
+  if (!enabled) return null;
   return <>{children}</>;
 }
 
@@ -210,9 +227,16 @@ function AppRoutes() {
   const { signOut } = useAuth();
   const location = useLocation();
 
-  const isPublicStandalone = location.pathname.startsWith('/p/') ||
-  location.pathname.startsWith('/share/') ||
-  location.pathname.startsWith('/l/') ||     location.pathname.startsWith('/auth/callback');
+  const [settingsHydrated, setSettingsHydrated] = useState(() => useSettingsStore.persist.hasHydrated());
+  useEffect(() => {
+    if (useSettingsStore.persist.hasHydrated()) {
+      setSettingsHydrated(true);
+      return;
+    }
+    return useSettingsStore.persist.onFinishHydration(() => setSettingsHydrated(true));
+  }, []);
+
+  const isPublicStandalone = useIsPublicRoute();
 
   const { isSuspended, suspensionReason } = useSuspensionCheck();
   const appSettings = useAppSettings();
@@ -230,6 +254,9 @@ function AppRoutes() {
 
   const isAdminRoute = location.pathname.startsWith('/devkit');
 
+  if (!settingsHydrated && !isPublicStandalone && !isAdminRoute) {
+    return null;
+  }
   if (!hasSeenSplash && !isPublicStandalone && !isAdminRoute) {
     return <AnimatedSplash onComplete={() => setHasSeenSplash(true)} />;
   }
@@ -410,10 +437,7 @@ function PrefetchOnIdle() {
 
 function DeferredProviders() {
   const [ready, setReady] = useState(false);
-  const location = useLocation();
-  const isPublicStandalone = location.pathname.startsWith('/p/') ||
-  location.pathname.startsWith('/share/') ||
-  location.pathname.startsWith('/l/') ||     location.pathname.startsWith('/auth/callback');
+  const isPublicStandalone = useIsPublicRoute();
   useEffect(() => {const t = setTimeout(() => setReady(true), 2000);return () => clearTimeout(t);}, []);
   if (!ready || isPublicStandalone) return null;
   return (
@@ -425,10 +449,7 @@ function DeferredProviders() {
 }
 
 function AppInstallPrompt() {
-  const location = useLocation();
-  const isPublicStandalone = location.pathname.startsWith('/p/') ||
-  location.pathname.startsWith('/share/') ||
-  location.pathname.startsWith('/l/') ||     location.pathname.startsWith('/auth/callback');
+  const isPublicStandalone = useIsPublicRoute();
   if (isPublicStandalone) return null;
   return <InstallPrompt />;
 }

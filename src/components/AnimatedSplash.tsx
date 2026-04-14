@@ -20,7 +20,7 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
   }, [visible]);
 
   useEffect(() => {
-    const timeout = setTimeout(dismiss, prefersReduced ? 500 : 1000);
+    const timeout = setTimeout(dismiss, prefersReduced ? 500 : 600);
     return () => clearTimeout(timeout);
   }, [dismiss, prefersReduced]);
 
