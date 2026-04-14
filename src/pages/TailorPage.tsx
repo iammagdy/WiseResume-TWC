@@ -175,6 +175,8 @@ export default function TailorPage() {
   useEffect(() => {
     if (customInstructions) {
       localStorage.setItem(CUSTOM_INSTRUCTIONS_KEY, customInstructions);
+    } else {
+      localStorage.removeItem(CUSTOM_INSTRUCTIONS_KEY);
     }
   }, [customInstructions]);
 

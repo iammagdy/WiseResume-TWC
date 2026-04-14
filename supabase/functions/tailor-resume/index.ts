@@ -263,6 +263,12 @@ function resumeToText(resume: any): string {
       if (Array.isArray(exp.achievements)) parts.push(exp.achievements.join(' '));
     }
   }
+  if (Array.isArray(resume.education)) {
+    for (const edu of resume.education) {
+      const eduParts = [edu.degree, edu.field, edu.institution].filter(Boolean);
+      if (eduParts.length > 0) parts.push(eduParts.join(' '));
+    }
+  }
   if (Array.isArray(resume.projects)) {
     for (const proj of resume.projects) {
       if (proj.description) parts.push(proj.description);
