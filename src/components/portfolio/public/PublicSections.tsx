@@ -29,7 +29,19 @@ const CINEMATIC_DIRECTIONS = [
   { x: 0, y: 20 },
 ] as const;
 
+const reducedMotionVariant = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { duration: 0.3 } }
+};
+
+const prefersReducedMotion = (): boolean => {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+};
+
 const getScrollEffectVariant = (effect: ScrollEffect, index: number): any => {
+  if (prefersReducedMotion()) return reducedMotionVariant;
+
   switch (effect) {
     case 'parallax':
       return {
@@ -124,10 +136,10 @@ function SectionWrapper({
   pStyle: string;
   index: number;
 }) {
-  if (scrollEffect === 'parallax') {
+  if (scrollEffect === 'parallax' && !prefersReducedMotion()) {
     return <ParallaxSection id={id} className={className}>{children}</ParallaxSection>;
   }
-  if (scrollEffect === 'tilt-3d') {
+  if (scrollEffect === 'tilt-3d' && !prefersReducedMotion()) {
     return <Tilt3DSection id={id} className={className}>{children}</Tilt3DSection>;
   }
   return (

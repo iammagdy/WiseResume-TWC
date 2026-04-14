@@ -36,7 +36,7 @@ export function StickyHeader({ name, avatarUrl, initials, contactEmail, accentCo
       </div>
       {contactEmail && (
         <a href={`mailto:${contactEmail}`}
-          className="text-xs font-semibold px-3 py-1.5 rounded-full transition-opacity hover:opacity-85"
+          className="text-xs font-semibold px-3 py-2.5 rounded-full transition-opacity hover:opacity-85 inline-flex items-center min-h-[44px]"
           style={{ background: accentColor, color: '#fff' }}>
           Get in Touch
         </a>

@@ -2,7 +2,7 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { usePublicPortfolio } from '@/hooks/usePublicPortfolio';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Download, ArrowLeft } from 'lucide-react';
+import { Download, ArrowLeft, SearchX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useEffect, useState, useMemo, Suspense } from 'react';
@@ -96,7 +96,7 @@ function NotFound() {
   return (
     <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-6">
       <div className="text-center space-y-4">
-        <div className="text-6xl mb-4">🔍</div>
+        <SearchX className="w-16 h-16 mx-auto mb-4 text-white/60" />
         <h1 className="text-3xl font-bold text-white">Portfolio Not Found</h1>
         <p className="text-white/60">This portfolio doesn't exist or isn't public yet.</p>
         <a href={window.location.origin} className="inline-flex items-center gap-2 mt-4 px-6 py-3 bg-[#e84545] text-white rounded-full font-medium text-sm hover:bg-[#e84545]/90 transition-colors">
@@ -272,6 +272,12 @@ function PublicPortfolioContent() {
 
   return (
     <div className={`pf-theme pf-theme-${pStyle} min-h-screen text-[--pf-fg] selection:bg-[--pf-accent] selection:text-white pb-safe overflow-x-hidden max-w-full`} style={rootStyle}>
+      <a
+        href="#portfolio-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[200] focus:px-4 focus:py-2 focus:rounded-md focus:text-sm focus:font-semibold focus:bg-white focus:text-gray-900 focus:shadow-lg focus:outline-none"
+      >
+        Skip to content
+      </a>
       {user && (
         <div className="fixed top-4 left-4 z-50" data-pdf-exclude>
           <button

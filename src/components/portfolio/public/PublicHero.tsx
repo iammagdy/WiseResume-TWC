@@ -204,7 +204,8 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
               <div className={`flex items-center ${heroJustify} gap-2 mb-6`}>
                 {profile.linkedinUrl && (
                   <a href={profile.linkedinUrl} target="_blank" rel="noopener noreferrer"
-                    className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
+                    aria-label="LinkedIn"
+                    className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
                     style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))', animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
                     title="LinkedIn">
                     <Linkedin className="w-4 h-4" style={{ color: 'var(--pf-fg, #f5f5ff)' }} />
@@ -212,7 +213,8 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
                 )}
                 {profile.githubUrl && (
                   <a href={profile.githubUrl} target="_blank" rel="noopener noreferrer"
-                    className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
+                    aria-label="GitHub"
+                    className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
                     style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))', animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
                     title="GitHub">
                     <Github className="w-4 h-4" style={{ color: 'var(--pf-fg, #f5f5ff)' }} />
@@ -220,7 +222,8 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
                 )}
                 {profile.websiteUrl && (
                   <a href={profile.websiteUrl} target="_blank" rel="noopener noreferrer"
-                    className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
+                    aria-label="Website"
+                    className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
                     style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))', animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
                     title="Website">
                     <Globe className="w-4 h-4" style={{ color: 'var(--pf-fg, #f5f5ff)' }} />
@@ -228,7 +231,8 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
                 )}
                 {profile.twitterUrl && (
                   <a href={profile.twitterUrl} target="_blank" rel="noopener noreferrer"
-                    className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
+                    aria-label="X / Twitter"
+                    className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
                     style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))', animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
                     title="X / Twitter">
                     <X className="w-4 h-4" style={{ color: 'var(--pf-fg, #f5f5ff)' }} />
