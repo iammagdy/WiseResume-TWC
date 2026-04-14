@@ -127,6 +127,7 @@ const TermsPage = lazyWithRetry(() => import("./pages/TermsPage"));
 const PricingPage = lazyWithRetry(() => import("./pages/PricingPage"));
 const WhatsNewPage = lazyWithRetry(() => import("./pages/WhatsNewPage"));
 const HelpPage = lazyWithRetry(() => import("./pages/HelpPage"));
+const InterviewReportPage = lazyWithRetry(() => import("./pages/InterviewReportPage"));
 const AnalyticsPage = lazyWithRetry(() => import("./pages/AnalyticsPage"));
 const SubscriptionPage = lazyWithRetry(() => import("./pages/SubscriptionPage"));
 const ReferralPage = lazyWithRetry(() => import("./pages/ReferralPage"));
@@ -330,6 +331,7 @@ function AppRoutes() {
 
         {/* Public share page - outside AppShell */}
         <Route path="/share/:token" element={<Suspense fallback={<ShareSkeleton />}><SharePage /></Suspense>} />
+        <Route path="/interview/report/:token" element={<Suspense fallback={<PageLoadingSpinner />}><InterviewReportPage /></Suspense>} />
         <Route path="/p/:username" element={<Suspense fallback={<DetailSkeleton />}><PublicPortfolioPage /></Suspense>} />
         <Route path="/l/:linkId" element={<Suspense fallback={<DetailSkeleton />}><ShortLinkPage /></Suspense>} />
 

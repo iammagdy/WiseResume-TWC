@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Square, Keyboard, KeyboardOff, Sparkles, History, Lightbulb, RotateCcw, SkipForward } from 'lucide-react';
+import { Square, Keyboard, KeyboardOff, Sparkles, History, Lightbulb, RotateCcw, SkipForward, BookOpen } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { InterviewSetup } from '@/components/interview/InterviewSetup';
@@ -13,6 +13,7 @@ import { AnswerScoreSheet } from '@/components/interview/AnswerScoreSheet';
 import { InterviewHistorySheet } from '@/components/interview/InterviewHistorySheet';
 import { InterviewTipsSheet } from '@/components/interview/InterviewTipsSheet';
 import { InterviewStatsCard } from '@/components/interview/InterviewStatsCard';
+import { AnswerLibrarySheet } from '@/components/interview/AnswerLibrarySheet';
 import { useVoiceInterview } from '@/hooks/useVoiceInterview';
 import { useSaveInterviewSession } from '@/hooks/useInterviewHistory';
 import { useResumeStore, useResumeStoreHydration } from '@/store/resumeStore';
@@ -48,6 +49,8 @@ function InterviewPageContent() {
   const [showTips, setShowTips] = useState(false);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [sessionSaved, setSessionSaved] = useState(false);
+  const [showAnswerLibrary, setShowAnswerLibrary] = useState(false);
+  const [savedSessionId, setSavedSessionId] = useState<string | undefined>();
   const activeJobDescriptionRef = useRef<string | undefined>();
   const activeInterviewTypeRef = useRef<string>('general');
   const saveSession = useSaveInterviewSession();
@@ -253,8 +256,9 @@ function InterviewPageContent() {
         improvements: parsedSummary.improvements,
         duration_seconds: elapsedSeconds,
       }, {
-        onSuccess: () => {
+        onSuccess: (data) => {
           hasUnsavedSession.current = false;
+          if (data?.id) setSavedSessionId(data.id);
         },
         onError: (err) => {
           hasUnsavedSession.current = true;
@@ -341,6 +345,9 @@ function InterviewPageContent() {
             onShowTips={() => setShowTips(true)}
             transcript={transcript}
             candidateName={currentResume?.contactInfo?.fullName || user?.email}
+            sessionId={savedSessionId}
+            interviewType={activeInterviewTypeRef.current}
+            roleContext={activeJobDescriptionRef.current ? 'Job-targeted' : undefined}
           />
           <InterviewTipsSheet open={showTips} onOpenChange={setShowTips} />
         </div>
@@ -385,6 +392,9 @@ function InterviewPageContent() {
             <BackButton />
             <Sparkles className="w-5 h-5 text-primary" />
             <h1 className="text-page-title flex-1">Wise AI Interview</h1>
+            <button onClick={() => setShowAnswerLibrary(true)} className="touch-manipulation p-2 rounded-full hover:bg-muted active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center">
+              <BookOpen className="w-5 h-5 text-muted-foreground" />
+            </button>
             <button onClick={() => setShowTips(true)} className="touch-manipulation p-2 rounded-full hover:bg-muted active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center">
               <Lightbulb className="w-5 h-5 text-muted-foreground" />
             </button>
@@ -411,6 +421,7 @@ function InterviewPageContent() {
         </div>
         <InterviewHistorySheet open={showHistory} onOpenChange={setShowHistory} />
         <InterviewTipsSheet open={showTips} onOpenChange={setShowTips} />
+        <AnswerLibrarySheet open={showAnswerLibrary} onOpenChange={setShowAnswerLibrary} />
       </div>
     );
   }

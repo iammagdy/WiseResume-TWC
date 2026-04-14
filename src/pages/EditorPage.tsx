@@ -15,6 +15,8 @@ import { useResumeMutations, useResume } from '@/hooks/useResumes';
 import { toast } from 'sonner';
 const ApplyPromptDialog = lazyWithRetry(() => import('@/components/applications/ApplyPromptDialog').then(m => ({ default: m.ApplyPromptDialog })));
 const ATSScanSheet = lazyWithRetry(() => import('@/components/editor/ATSScanSheet').then(m => ({ default: m.ATSScanSheet })));
+const ResumeSnapshotsSheet = lazyWithRetry(() => import('@/components/editor/ResumeSnapshotsSheet').then(m => ({ default: m.ResumeSnapshotsSheet })));
+const KeywordHighlighterSheet = lazyWithRetry(() => import('@/components/editor/KeywordHighlighterSheet').then(m => ({ default: m.KeywordHighlighterSheet })));
 
 // Lazy-loaded sheet components (only loaded when opened)
 const JobAnalysisSheet = lazyWithRetry(() => import('@/components/editor/JobAnalysisSheet').then(m => ({ default: m.JobAnalysisSheet })));
@@ -109,7 +111,7 @@ export default function EditorPage() {
 
   // Validate that the resume ID exists in the database
   const { data: resumeFromDb, isLoading: isValidating } = useResume(currentResumeId);
-  const { updateResume } = useResumeMutations();
+  const { updateResume, createResume } = useResumeMutations();
 
   // Audit: track session duration
   const sessionStartRef = useRef<number | null>(null);
@@ -196,6 +198,8 @@ export default function EditorPage() {
   const [showATSScan, setShowATSScan] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [isQuickDownloading, setIsQuickDownloading] = useState(false);
+  const [showSnapshots, setShowSnapshots] = useState(false);
+  const [showKeywordHighlighter, setShowKeywordHighlighter] = useState(false);
 
   const handleQuickDownload = useCallback(async () => {
     if (!currentResume) return;
@@ -1046,6 +1050,30 @@ export default function EditorPage() {
             />
           )}
           {showATSScan && <ATSScanSheet open={showATSScan} onOpenChange={setShowATSScan} summary={scanSummary} onJumpToSection={handleTabChange} />}
+          {showSnapshots && (
+            <ResumeSnapshotsSheet
+              open={showSnapshots}
+              onOpenChange={setShowSnapshots}
+              currentResume={currentResume}
+              currentResumeId={currentResumeId}
+              currentAtsScore={matchScore?.overallScore ?? undefined}
+              onRestoreAsNew={async (resume) => {
+                const created = await createResume.mutateAsync({
+                  resume,
+                  title: `${resume.contactInfo?.fullName || 'Resume'} (Restored)`,
+                });
+                useResumeStore.getState().setCurrentResumeId(created.id);
+                navigate(`/editor?resumeId=${created.id}`);
+              }}
+            />
+          )}
+          {showKeywordHighlighter && (
+            <KeywordHighlighterSheet
+              open={showKeywordHighlighter}
+              onOpenChange={setShowKeywordHighlighter}
+              currentResume={currentResume}
+            />
+          )}
           {/* Tier gate upgrade dialog — shown when a Pro-gated tool is clicked without Pro plan */}
           {tierGateState && (
             <UpgradeDialog
@@ -1094,6 +1122,26 @@ export default function EditorPage() {
                       <div className="text-left min-w-0">
                         <p className="text-sm font-medium">ATS Scan</p>
                         <p className="text-xs text-muted-foreground">Quick keyword match scan</p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => { haptics.light(); setShowToolsSheet(false); setShowSnapshots(true); }}
+                      className="flex items-center gap-3 w-full rounded-xl border border-border bg-card hover:bg-muted active:scale-[0.98] transition-transform touch-manipulation min-h-[56px] px-4"
+                    >
+                      <Scissors className="w-5 h-5 text-violet-500 shrink-0" />
+                      <div className="text-left min-w-0">
+                        <p className="text-sm font-medium">Version Snapshots</p>
+                        <p className="text-xs text-muted-foreground">Save & restore versions</p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => { haptics.light(); setShowToolsSheet(false); setShowKeywordHighlighter(true); }}
+                      className="flex items-center gap-3 w-full rounded-xl border border-border bg-card hover:bg-muted active:scale-[0.98] transition-transform touch-manipulation min-h-[56px] px-4"
+                    >
+                      <BarChart3 className="w-5 h-5 text-teal-500 shrink-0" />
+                      <div className="text-left min-w-0">
+                        <p className="text-sm font-medium">Keyword Matcher</p>
+                        <p className="text-xs text-muted-foreground">Match job description keywords</p>
                       </div>
                     </button>
                   </div>

@@ -1,11 +1,14 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { RotateCcw, Home, Sparkles, ChevronDown, ChevronUp, Lightbulb, TrendingUp, Share2, BookOpen, ArrowLeft, Download } from 'lucide-react';
+import { RotateCcw, Home, Sparkles, ChevronDown, ChevronUp, Lightbulb, TrendingUp, Share2, BookOpen, ArrowLeft, Download, Link2, BookmarkPlus, Loader2 } from 'lucide-react';
 import { InterviewResultsCardSheet } from './InterviewResultsCardSheet';
+import { SaveAnswerDialog } from './SaveAnswerDialog';
 import ReactMarkdown from 'react-markdown';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { AnswerScore, TranscriptEntry } from '@/hooks/useVoiceInterview';
+import { useCreateInterviewReportToken } from '@/hooks/useInterviewReportToken';
+import { toast } from 'sonner';
 
 interface InterviewSummaryProps {
   summary: string;
@@ -16,6 +19,9 @@ interface InterviewSummaryProps {
   onShowTips?: () => void;
   transcript?: TranscriptEntry[];
   candidateName?: string;
+  sessionId?: string;
+  interviewType?: string;
+  roleContext?: string;
 }
 
 function ScoreBadge({ score }: { score: number }) {
@@ -48,12 +54,27 @@ function extractScore(summary: string): number | null {
   return null;
 }
 
-export function InterviewSummary({ summary, duration, scores, onRestart, onGoHome, onShowTips, transcript, candidateName }: InterviewSummaryProps) {
+export function InterviewSummary({
+  summary,
+  duration,
+  scores,
+  onRestart,
+  onGoHome,
+  onShowTips,
+  transcript,
+  candidateName,
+  sessionId,
+  interviewType,
+  roleContext,
+}: InterviewSummaryProps) {
   const mins = Math.floor(duration / 60);
   const secs = duration % 60;
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const [savingAnswerIndex, setSavingAnswerIndex] = useState<number | null>(null);
   const [showShareCard, setShowShareCard] = useState(false);
+  const [shareLink, setShareLink] = useState<string | null>(null);
   const reducedMotion = useReducedMotion();
+  const createToken = useCreateInterviewReportToken();
 
   const overallScore = useMemo(() => {
     const parsed = extractScore(summary);
@@ -91,6 +112,58 @@ export function InterviewSummary({ summary, duration, scores, onRestart, onGoHom
       console.error('[InterviewSummary] PDF generation failed', err);
       toast.error('Could not generate PDF. Please try again.', { id: toastId });
     }
+  };
+
+  const handleGenerateShareLink = async () => {
+    if (shareLink) {
+      await navigator.clipboard.writeText(shareLink).catch(() => {});
+      toast.success('Link copied!');
+      return;
+    }
+
+    const reportData = {
+      summary,
+      duration,
+      scores: scores.map(s => ({
+        questionIndex: s.questionIndex,
+        score: s.score,
+        tip: s.tip,
+        improvedAnswer: s.improvedAnswer,
+      })),
+      overallScore,
+      transcript: transcript?.map(t => ({
+        id: t.id,
+        role: t.role,
+        text: t.text,
+        timestamp: t.timestamp.toISOString(),
+      })),
+      candidateName,
+      interviewType,
+      createdAt: new Date().toISOString(),
+    };
+
+    createToken.mutate({ session_id: sessionId, report_data: reportData }, {
+      onSuccess: (data) => {
+        const link = `${window.location.origin}/interview/report/${data.token}`;
+        setShareLink(link);
+        navigator.clipboard.writeText(link).catch(() => {});
+        toast.success('Share link copied to clipboard! Expires in 30 days.');
+      },
+    });
+  };
+
+  const getInterviewerQuestion = (questionIndex: number): string => {
+    if (!transcript) return `Question ${questionIndex}`;
+    const interviewerMessages = transcript.filter(t => t.role === 'interviewer');
+    const q = interviewerMessages[questionIndex - 1];
+    return q?.text || `Question ${questionIndex}`;
+  };
+
+  const getUserAnswer = (questionIndex: number): string => {
+    if (!transcript) return '';
+    const userMessages = transcript.filter(t => t.role === 'user');
+    const a = userMessages[questionIndex - 1];
+    return a?.text || '';
   };
 
   return (
@@ -193,7 +266,7 @@ export function InterviewSummary({ summary, duration, scores, onRestart, onGoHom
                         exit={{ height: 0, opacity: 0 }}
                         className="overflow-hidden"
                       >
-                        <div className="px-3 pb-3 space-y-2">
+                        <div className="px-3 pb-3 space-y-3">
                           <div className="flex items-start gap-1.5">
                             <Lightbulb className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
                             <p className="text-xs text-muted-foreground">{s.tip}</p>
@@ -202,6 +275,25 @@ export function InterviewSummary({ summary, duration, scores, onRestart, onGoHom
                             <div className="bg-muted rounded-lg p-2.5 border border-border">
                               <p className="text-xs text-muted-foreground italic">"{s.improvedAnswer}"</p>
                             </div>
+                          )}
+                          {/* Save to Library */}
+                          {savingAnswerIndex === i ? (
+                            <SaveAnswerDialog
+                              questionText={getInterviewerQuestion(s.questionIndex)}
+                              answerText={getUserAnswer(s.questionIndex)}
+                              score={s.score}
+                              sessionId={sessionId}
+                              roleContext={roleContext}
+                              onSaved={() => setSavingAnswerIndex(null)}
+                            />
+                          ) : (
+                            <button
+                              onClick={() => setSavingAnswerIndex(i)}
+                              className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors min-h-[32px] touch-manipulation"
+                            >
+                              <BookmarkPlus className="w-3.5 h-3.5" />
+                              Save to Answer Library
+                            </button>
                           )}
                         </div>
                       </motion.div>
@@ -232,7 +324,7 @@ export function InterviewSummary({ summary, duration, scores, onRestart, onGoHom
             onClick={() => setShowShareCard(true)}
           >
             <Share2 className="w-4 h-4 mr-2" />
-            Share Results
+            Share Card
           </Button>
           <Button
             variant="outline"
@@ -240,9 +332,31 @@ export function InterviewSummary({ summary, duration, scores, onRestart, onGoHom
             onClick={handleSaveAsPdf}
           >
             <Download className="w-4 h-4 mr-2" />
-            Save as PDF
+            Save PDF
           </Button>
         </div>
+
+        {/* Shareable report link */}
+        <Button
+          variant="outline"
+          className="w-full min-h-[44px] border-dashed"
+          onClick={handleGenerateShareLink}
+          disabled={createToken.isPending}
+        >
+          {createToken.isPending ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Link2 className="w-4 h-4 mr-2" />
+          )}
+          {shareLink ? 'Copy Share Link' : 'Generate Share Link'}
+        </Button>
+
+        {shareLink && (
+          <div className="bg-muted rounded-xl p-3">
+            <p className="text-xs text-muted-foreground mb-1">Public link (expires in 30 days)</p>
+            <p className="text-xs font-mono text-foreground break-all">{shareLink}</p>
+          </div>
+        )}
 
         {/* Practice Tips as subtle text link */}
         {onShowTips && (
