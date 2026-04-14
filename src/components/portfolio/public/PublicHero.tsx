@@ -78,6 +78,7 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
       {/* Avatar — animated gradient ring */}
       <div className="relative mb-6">
         <div
+          aria-hidden="true"
           className="pf-avatar-ring"
           style={{ background: `conic-gradient(${accentColor}, transparent, ${accentColor})` }}
         />
@@ -113,31 +114,31 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
               )}
               {profile.availabilityStatus === 'actively-looking' && (
                 <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full" style={{
-                  background: 'rgba(34,197,94,0.15)',
-                  color: '#22c55e',
-                  border: '1px solid rgba(34,197,94,0.3)',
+                  background: 'color-mix(in srgb, var(--pf-success) 15%, transparent)',
+                  color: 'var(--pf-success)',
+                  border: '1px solid color-mix(in srgb, var(--pf-success) 30%, transparent)',
                 }}>
-                  <span className="w-2 h-2 rounded-full bg-[#22c55e] animate-pulse" />
+                  <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--pf-success)' }} />
                   Actively Looking
                 </span>
               )}
               {profile.availabilityStatus === 'open-to-offers' && (
                 <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full" style={{
-                  background: 'rgba(245,158,11,0.15)',
-                  color: '#f59e0b',
-                  border: '1px solid rgba(245,158,11,0.3)',
+                  background: 'color-mix(in srgb, var(--pf-warning) 15%, transparent)',
+                  color: 'var(--pf-warning)',
+                  border: '1px solid color-mix(in srgb, var(--pf-warning) 30%, transparent)',
                 }}>
-                  <span className="w-2 h-2 rounded-full bg-[#f59e0b]" />
+                  <span className="w-2 h-2 rounded-full" style={{ background: 'var(--pf-warning)' }} />
                   Open to Offers
                 </span>
               )}
               {!profile.availabilityStatus && profile.openToWork && (
                 <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full" style={{
-                  background: 'rgba(34,197,94,0.15)',
-                  color: '#22c55e',
-                  border: '1px solid rgba(34,197,94,0.3)',
+                  background: 'color-mix(in srgb, var(--pf-success) 15%, transparent)',
+                  color: 'var(--pf-success)',
+                  border: '1px solid color-mix(in srgb, var(--pf-success) 30%, transparent)',
                 }}>
-                  <span className="w-2 h-2 rounded-full bg-[#22c55e] animate-pulse" />
+                  <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--pf-success)' }} />
                   Open to Work
                 </span>
               )}
@@ -149,11 +150,11 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.4, ease: [0, 0, 0.2, 1] }}
                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium mb-3"
-                style={{ background: 'rgba(34,197,94,0.10)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.25)' }}
+                style={{ background: 'color-mix(in srgb, var(--pf-success) 10%, transparent)', color: 'var(--pf-success)', border: '1px solid color-mix(in srgb, var(--pf-success) 25%, transparent)' }}
               >
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#22c55e] opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#22c55e]" />
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: 'var(--pf-success)' }} />
+                  <span className="relative inline-flex rounded-full h-2 w-2" style={{ background: 'var(--pf-success)' }} />
                 </span>
                 Active today — responds within 24h
               </motion.div>

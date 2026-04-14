@@ -525,7 +525,7 @@ export default function PreviewPage() {
           >
             <Suspense fallback={<TemplateSkeleton />}>
               {currentResume.sections != null
-                ? <TemplateComponent resume={currentResume} />
+                ? <TemplateComponent resume={currentResume} accentColor={currentResume.customization?.accentColor} />
                 : <TemplateSkeleton />}
             </Suspense>
           </PreviewScaledWrapper>

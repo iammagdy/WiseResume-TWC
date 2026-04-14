@@ -40,7 +40,7 @@ interface TemplateThumbnailProps {
   resume: ResumeData;
 }
 
-export const templateComponents: Record<TemplateId, React.LazyExoticComponent<React.ComponentType<{ resume: ResumeData }>>> = {
+export const templateComponents: Record<TemplateId, React.LazyExoticComponent<React.ComponentType<{ resume: ResumeData; accentColor?: string }>>> = {
   modern: ModernTemplate,
   classic: ClassicTemplate,
   minimal: MinimalTemplate,
@@ -132,7 +132,7 @@ export const TemplateThumbnail = memo(function TemplateThumbnail({ templateId, r
               height: '792px',
             }}
           >
-            <TemplateComponent resume={resume} />
+            <TemplateComponent resume={resume} accentColor={resume.customization?.accentColor} />
           </div>
         </Suspense>
       ) : (

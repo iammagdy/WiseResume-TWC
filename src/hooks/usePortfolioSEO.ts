@@ -66,6 +66,22 @@ export function usePortfolioSEO(profile: PublicProfile | undefined | null) {
       if (needsSpaceGrotesk) fontFamilies.push('Space+Grotesk:wght@400;500;600;700');
       
       if (fontFamilies.length > 0) {
+        const preconnectId = 'pf-fonts-preconnect';
+        if (!document.getElementById(preconnectId)) {
+          const preconnect = document.createElement('link');
+          preconnect.id = preconnectId;
+          preconnect.rel = 'preconnect';
+          preconnect.href = 'https://fonts.googleapis.com';
+          document.head.appendChild(preconnect);
+
+          const preconnectGstatic = document.createElement('link');
+          preconnectGstatic.id = 'pf-fonts-preconnect-gstatic';
+          preconnectGstatic.rel = 'preconnect';
+          preconnectGstatic.href = 'https://fonts.gstatic.com';
+          preconnectGstatic.crossOrigin = 'anonymous';
+          document.head.appendChild(preconnectGstatic);
+        }
+
         const linkId = 'pf-theme-fonts';
         let link = document.getElementById(linkId) as HTMLLinkElement | null;
         if (!link) {
@@ -83,6 +99,10 @@ export function usePortfolioSEO(profile: PublicProfile | undefined | null) {
       document.documentElement.removeAttribute("data-theme");
       const fontLink = document.getElementById('pf-theme-fonts');
       if (fontLink) fontLink.remove();
+      const preconnectLink = document.getElementById('pf-fonts-preconnect');
+      if (preconnectLink) preconnectLink.remove();
+      const preconnectGstaticLink = document.getElementById('pf-fonts-preconnect-gstatic');
+      if (preconnectGstaticLink) preconnectGstaticLink.remove();
       const robotsMetaCleanup = document.querySelector('meta[name="robots"]');
       if (robotsMetaCleanup) robotsMetaCleanup.remove();
     };

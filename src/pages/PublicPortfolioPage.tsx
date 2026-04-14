@@ -91,6 +91,17 @@ function PortfolioSkeleton() {
   );
 }
 
+// ─── Slim Sections Skeleton ────────────────────────────────────────────────────
+function SectionsSkeleton() {
+  return (
+    <div className="max-w-4xl mx-auto px-6 space-y-3 py-4">
+      <Skeleton className="h-5 w-28" />
+      <Skeleton className="h-14 w-full rounded-xl" />
+      <Skeleton className="h-14 w-full rounded-xl" />
+    </div>
+  );
+}
+
 // ─── Not Found ────────────────────────────────────────────────────────────────
 function NotFound() {
   return (
@@ -99,7 +110,7 @@ function NotFound() {
         <SearchX className="w-16 h-16 mx-auto mb-4 text-white/60" />
         <h1 className="text-3xl font-bold text-white">Portfolio Not Found</h1>
         <p className="text-white/60">This portfolio doesn't exist or isn't public yet.</p>
-        <a href={window.location.origin} className="inline-flex items-center gap-2 mt-4 px-6 py-3 bg-[#e84545] text-white rounded-full font-medium text-sm hover:bg-[#e84545]/90 transition-colors">
+        <a href="https://resume.thewise.cloud" className="inline-flex items-center gap-2 mt-4 px-6 py-3 bg-[#e84545] text-white rounded-full font-medium text-sm hover:bg-[#e84545]/90 transition-colors">
           Create your free portfolio with WiseResume →
         </a>
       </div>
@@ -244,6 +255,8 @@ function PublicPortfolioContent() {
     ...themeVars,
     fontFamily: 'var(--pf-body-font, Inter, system-ui, sans-serif)',
     '--pf-bg-alpha': hexToRgba(themeConfig?.colors.bg || '#0a0a14', 0.88),
+    '--pf-success': '#22c55e',
+    '--pf-warning': '#f59e0b',
   } as React.CSSProperties;
 
   const initials = profile.fullName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
@@ -324,7 +337,7 @@ function PublicPortfolioContent() {
           allSkills={allSkills}
         />
 
-        <Suspense fallback={<PortfolioSkeleton />}>
+        <Suspense fallback={<SectionsSkeleton />}>
           <PublicSections 
             profile={profile}
             resume={resume}

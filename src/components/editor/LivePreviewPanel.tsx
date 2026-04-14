@@ -334,7 +334,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
               </style>
             )}
             <Suspense fallback={<PreviewSkeleton />}>
-              <TemplateComponent resume={filteredResume} />
+              <TemplateComponent resume={filteredResume} accentColor={filteredResume?.customization?.accentColor} />
             </Suspense>
 
             {/* Page break indicators — positions match PDF export snap algorithm */}
