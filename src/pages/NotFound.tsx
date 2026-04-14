@@ -1,5 +1,4 @@
-import { useLocation, useNavigate } from "react-router-dom";
-import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Home, AlertCircle, LayoutDashboard, FileText, Briefcase, Sparkles, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,13 +11,8 @@ const quickLinks = [
 ];
 
 const NotFound = () => {
-  const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-
-  useEffect(() => {
-    console.error("404 Error: User attempted to access non-existent route:", location.pathname);
-  }, [location.pathname]);
 
   const destination = isAuthenticated ? '/dashboard' : '/';
   const label = isAuthenticated ? 'Go to Dashboard' : 'Return to Home';

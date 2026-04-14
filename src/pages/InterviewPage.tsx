@@ -262,7 +262,6 @@ function InterviewPageContent() {
         },
         onError: (err) => {
           hasUnsavedSession.current = true;
-          console.error('Failed to save session:', err);
           toast.error('Failed to save interview', {
             description: 'A network or authentication error occurred. Your session won\'t be saved in history.',
             action: {

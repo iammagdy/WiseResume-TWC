@@ -79,7 +79,6 @@ export default function CareerPage() {
       setShowQuiz(false);
       haptics.success();
     } catch (err) {
-      console.error('Career assessment error:', err);
       toast.error(err instanceof Error ? err.message : 'Failed to analyze career path');
     } finally {
       setIsAnalyzing(false);

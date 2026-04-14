@@ -79,8 +79,7 @@ export default function AuthPage() {
         } else {
           await kindeRegister();
         }
-      } catch (err) {
-        console.error('[AuthPage] Kinde auth error:', err);
+      } catch {
         toast.error('Authentication is not available right now. Please try again later.');
       }
     })();
@@ -101,8 +100,7 @@ export default function AuthPage() {
               className="w-full"
               onClick={() => {
                 triggered.current = false;
-                void Promise.resolve(kindeLogin()).catch((err) => {
-                  console.error('[AuthPage] Kinde login error:', err);
+                void Promise.resolve(kindeLogin()).catch(() => {
                   toast.error('Unable to sign in. Please try again or contact support.');
                 });
               }}

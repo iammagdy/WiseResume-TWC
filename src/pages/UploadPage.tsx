@@ -134,7 +134,6 @@ export default function UploadPage() {
       setShowImportReview(true);
       triggerATSScoring(resumeData);
     } catch (error) {
-      console.error('OCR extraction failed:', error);
       if (error instanceof Error && error.message === 'AI_UNREACHABLE') {
         setErrorType('AI_UNREACHABLE');
         setShowErrorRecovery(true);
@@ -203,8 +202,7 @@ export default function UploadPage() {
         if (importATSScore) {
           useATSScoreHistoryStore.getState().addScore(newResume.id, importATSScore);
         }
-      } catch (error) {
-        console.error('Failed to save to cloud:', error);
+      } catch {
         setCurrentResume(validationResumeData);
       }
     } else {
@@ -302,7 +300,6 @@ export default function UploadPage() {
       triggerATSScoring(withNewIds);
       toast.success('JSON imported! No AI processing needed.', { duration: 3000 });
     } catch (error) {
-      console.error('Error parsing JSON:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to parse JSON file.');
     } finally {
       setIsProcessing(false);
@@ -362,7 +359,6 @@ export default function UploadPage() {
       setShowImportReview(true);
       triggerATSScoring(resumeData);
     } catch (error) {
-      console.error('Error parsing HTML:', error);
       if (error instanceof Error && error.message === 'AI_UNREACHABLE') {
         setErrorType('AI_UNREACHABLE');
       } else {
@@ -459,7 +455,6 @@ export default function UploadPage() {
       setShowImportReview(true);
       triggerATSScoring(resumeData);
     } catch (error) {
-      console.error('Error parsing Word document:', error);
       if (error instanceof Error && error.message === 'AI_UNREACHABLE') {
         setErrorType('AI_UNREACHABLE');
       } else {
@@ -620,16 +615,7 @@ export default function UploadPage() {
       setShowImportReview(true);
       triggerATSScoring(resumeData);
     } catch (error) {
-      console.error('❌ PDF processing error:', error);
-      console.error('Error details:', {
-        name: error?.name,
-        message: error?.message,
-        code: error?.code,
-        stack: error?.stack?.split('\n').slice(0, 3),
-      });
-      
       if (error instanceof PDFParseError) {
-        console.log('PDFParseError detected:', error.code);
         switch (error.code) {
           case 'PASSWORD_PROTECTED':
             setErrorType('PASSWORD_PROTECTED');
@@ -648,11 +634,9 @@ export default function UploadPage() {
             setShowErrorRecovery(true);
         }
       } else if (error instanceof Error && error.message === 'AI_UNREACHABLE') {
-        console.log('AI unreachable error, showing AI_UNREACHABLE recovery');
         setErrorType('AI_UNREACHABLE');
         setShowErrorRecovery(true);
       } else {
-        console.log('Generic error, showing UNKNOWN recovery');
         setErrorType('UNKNOWN');
         setShowErrorRecovery(true);
       }
@@ -710,8 +694,7 @@ export default function UploadPage() {
         templateId: newResume.template_id,
       });
       navigate('/editor');
-    } catch (error) {
-      console.error(error);
+    } catch {
       navigate('/editor');
     }
   }, [user, createResume, setCurrentResume, setCurrentResumeId, navigate]);
@@ -756,8 +739,7 @@ export default function UploadPage() {
     
     try {
       await handleFile(file);
-    } catch (error) {
-      console.error('Upload error:', error);
+    } catch {
       toast.error('Something went wrong. Please try again.');
       setIsProcessing(false);
     }

@@ -186,8 +186,7 @@ export default function PreviewPage() {
         updateResume({ contactInfo: { ...currentResume.contactInfo, photoUrl: url } });
       }
       toast.success('Photo added to resume');
-    } catch (error) {
-      console.error('Error uploading photo:', error);
+    } catch {
       toast.error('Failed to upload photo');
     }
   };
@@ -415,7 +414,6 @@ export default function PreviewPage() {
           return tryExport();
         }
 
-        console.error('Export error:', error);
         toast.error(errorMessage, {
           action: attempt >= MAX_RETRIES ? { label: 'Retry', onClick: () => handleExport(type, showPageNumbers, showBranding) } : undefined
         });
@@ -454,7 +452,6 @@ export default function PreviewPage() {
       if (err instanceof Error && err.name === 'AbortError') {
         toast.info('Cancelled. Tap again to save.');
       } else {
-        console.error('Save to Files error:', err);
         toast.error('Failed to save. Try downloading instead.');
       }
     } finally {
@@ -469,8 +466,7 @@ export default function PreviewPage() {
         const pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current, undefined, { showPageNumbers: true });
         const file = new File([pdfBlob], 'Resume.pdf', { type: 'application/pdf' });
         await navigator.share({ title: 'My Resume', files: [file] });
-      } catch (error) {
-        console.error('Share error:', error);
+      } catch {
         toast.error('Failed to share. Try downloading instead.');
       }
     } else {

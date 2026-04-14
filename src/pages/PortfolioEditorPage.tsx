@@ -243,8 +243,7 @@ export default function PortfolioEditorPage() {
         });
         if (error) throw error;
         setUsernameAvailable(data === true);
-      } catch (err) {
-        console.error('Failed to check username availability:', err);
+      } catch {
         setUsernameAvailable(null);
         toast.error('Failed to check username availability. Please try again.');
       } finally {
@@ -318,8 +317,7 @@ export default function PortfolioEditorPage() {
       const { bio: generatedBio } = await callPortfolioAI('bio', currentResumeId);
       setBio(generatedBio);
       toast.success('Bio generated!');
-    } catch (err: unknown) {
-      console.error('Bio generation failed:', err);
+    } catch {
       toast.error('Failed to generate bio. Please try again later.');
     } finally {
       setGeneratingBio(false);
@@ -334,8 +332,7 @@ export default function PortfolioEditorPage() {
       if (t) setMetaTitle(t);
       if (d) setMetaDescription(d);
       toast.success('SEO meta generated!');
-    } catch (err: unknown) {
-      console.error('SEO generation failed:', err);
+    } catch {
       toast.error('Failed to generate SEO meta. Please try again later.');
     } finally {
       setGeneratingSEO(false);
@@ -349,8 +346,7 @@ export default function PortfolioEditorPage() {
       const { headline } = await callPortfolioAI('availability');
       if (headline) setAvailabilityHeadline(headline);
       toast.success('Availability headline generated!');
-    } catch (err: unknown) {
-      console.error('Headline generation failed:', err);
+    } catch {
       toast.error('Failed to generate headline. Please try again later.');
     } finally {
       setGeneratingAvailability(false);
@@ -418,9 +414,7 @@ export default function PortfolioEditorPage() {
       
       // Save history snapshot (fire and forget to not block UI)
       if (overrides?.portfolioEnabled === undefined) {
-        saveSnapshot(updates as Record<string, unknown>).catch(e => {
-          console.error("Failed to save history snapshot", e);
-        });
+        saveSnapshot(updates as Record<string, unknown>).catch(() => {});
       }
 
       setLastSavedSnapshot(getCurrentSnapshot());
@@ -507,8 +501,7 @@ export default function PortfolioEditorPage() {
 
       toast.success('Portfolio restored successfully!');
       setShowHistory(false);
-    } catch (err) {
-      console.error('Failed to restore portfolio:', err);
+    } catch {
       toast.error('Failed to restore portfolio. Please try again.');
     } finally {
       setIsRestoringHistory(false);

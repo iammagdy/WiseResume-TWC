@@ -92,8 +92,7 @@ export default function StoreScreenshotsPage() {
         await new Promise((r) => setTimeout(r, 500));
       }
       toast.success('All screenshots downloaded!');
-    } catch (err) {
-      console.error(err);
+    } catch {
       toast.error('Failed to export some screenshots');
     } finally {
       setDownloading(false);
@@ -110,8 +109,7 @@ export default function StoreScreenshotsPage() {
       link.href = canvas.toDataURL('image/png');
       link.click();
       toast.success('Screenshot downloaded!');
-    } catch (err) {
-      console.error(err);
+    } catch {
       toast.error('Failed to capture screenshot');
     }
   }, []);

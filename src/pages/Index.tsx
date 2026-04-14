@@ -354,8 +354,7 @@ const Index = () => {
     if (plan) {
       navigate(`/auth?mode=signup&plan=${plan}`);
     } else {
-      void Promise.resolve(kindeRegister()).catch((err) => {
-        console.error('Auth error:', err);
+      void Promise.resolve(kindeRegister()).catch(() => {
         toast.error('Unable to start sign-up. Please try again or contact support.');
       });
     }
@@ -714,8 +713,7 @@ const Index = () => {
               <button
                 onClick={() => {
                   triggerHaptic.light();
-                  void Promise.resolve(kindeLogin()).catch((err) => {
-                    console.error('Auth error:', err);
+                  void Promise.resolve(kindeLogin()).catch(() => {
                     toast.error('Unable to sign in. Please try again or contact support.');
                   });
                 }}

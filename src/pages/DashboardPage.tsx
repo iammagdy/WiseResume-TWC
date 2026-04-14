@@ -191,8 +191,8 @@ function DashboardPageContent() {
         } else if (data?.onboarding_completed) {
           localStorage.setItem('wr-onboarding-completed', 'true');
         }
-      } catch (err) {
-        console.error('Failed to check onboarding:', err);
+      } catch {
+        // silently ignore — non-critical onboarding check
       }
     };
     run();

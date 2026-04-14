@@ -47,8 +47,7 @@ export default function ScreenshotsGalleryPage() {
     try {
       await captureAndDownload(id, `${id}.png`);
       toast.success('Screenshot downloaded!');
-    } catch (err) {
-      console.error(err);
+    } catch {
       toast.error('Failed to capture screenshot');
     } finally {
       setCapturingId(null);
@@ -64,8 +63,7 @@ export default function ScreenshotsGalleryPage() {
         await new Promise((r) => setTimeout(r, 500));
       }
       toast.success('All screenshots downloaded!');
-    } catch (err) {
-      console.error(err);
+    } catch {
       toast.error('Failed to export some screenshots');
     } finally {
       setDownloading(false);

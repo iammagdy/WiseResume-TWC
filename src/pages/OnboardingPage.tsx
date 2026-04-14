@@ -116,14 +116,12 @@ export default function OnboardingPage() {
           .upsert(payload as never, { onConflict: 'user_id' });
 
         if (error) {
-          console.error('[Onboarding] Failed to save profile data:', error);
           saveSucceeded = false;
         } else {
           saveSucceeded = true;
           queryClient.invalidateQueries({ queryKey: ['profile'] });
         }
-      } catch (err) {
-        console.error('[Onboarding] Unexpected error saving onboarding status:', err);
+      } catch {
         saveSucceeded = false;
       }
     }

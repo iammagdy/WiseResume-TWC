@@ -375,8 +375,7 @@ export default function TailorPage() {
 
       toast.success('Tailored resume created! Original preserved.', { duration: 4000 });
       clearPendingTailor();
-    } catch (error) {
-      console.error('Apply error:', error);
+    } catch {
       toast.error('Failed to create tailored resume');
     } finally {
       setIsApplying(false);

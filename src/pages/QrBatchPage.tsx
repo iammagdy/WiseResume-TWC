@@ -111,9 +111,8 @@ export default function QrBatchPage() {
 
       haptics.success();
       toast.success(`${entries.length} QR codes exported!`);
-    } catch (err) {
+    } catch {
       toast.error('Batch generation failed');
-      console.error(err);
     } finally {
       setGenerating(false);
     }
