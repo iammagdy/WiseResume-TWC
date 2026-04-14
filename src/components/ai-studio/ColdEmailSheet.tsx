@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { useAIAction } from '@/hooks/useAIAction';
@@ -20,6 +21,11 @@ import type { ResumeData } from '@/types/resume';
 interface ColdEmailSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+interface EmailVariants {
+  formal: string;
+  conversational: string;
 }
 
 function getTopSkills(resume: ResumeData | null): string {
@@ -50,6 +56,20 @@ function hasEnoughResumeContent(resume: ResumeData | null): boolean {
   return hasSummary || hasExperience;
 }
 
+function parseEmailVariants(content: string): EmailVariants | null {
+  try {
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    const parsed = JSON.parse(jsonMatch[0]);
+    if (typeof parsed?.formal === 'string' && typeof parsed?.conversational === 'string') {
+      return { formal: parsed.formal, conversational: parsed.conversational };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function ColdEmailSheet({ open, onOpenChange }: ColdEmailSheetProps) {
   const currentResume = useResumeStore(s => s.currentResume);
   const resumeId = (currentResume as { id?: string } | null)?.id;
@@ -57,20 +77,19 @@ export function ColdEmailSheet({ open, onOpenChange }: ColdEmailSheetProps) {
   const [company, setCompany] = useState('');
   const [jobTitle, setJobTitle] = useState('');
   const [jobSnippet, setJobSnippet] = useState('');
-  const [email, setEmail] = useState('');
+  const [variants, setVariants] = useState<EmailVariants | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isCopied, setIsCopied] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showDraftBanner, setShowDraftBanner] = useState(false);
   const [showContentWarning, setShowContentWarning] = useState(false);
   const { execute } = useAIAction({ operation: 'cold-email' });
-  const { draft, saveDraft, clearDraft, hasDraft } = useAIDraft<string>('cold-email', resumeId);
+  const { draft, saveDraft, clearDraft, hasDraft } = useAIDraft<EmailVariants>('cold-email', resumeId);
 
-  // Show draft banner when opening with a saved draft
   useEffect(() => {
-    if (open && hasDraft && !email) {
+    if (open && hasDraft && !variants) {
       setShowDraftBanner(true);
     }
-  }, [open, hasDraft, email]);
+  }, [open, hasDraft, variants]);
 
   const handleGenerate = async (force = false) => {
     if (!company.trim() || !jobTitle.trim()) {
@@ -111,10 +130,14 @@ export function ColdEmailSheet({ open, onOpenChange }: ColdEmailSheetProps) {
         if (error) throw new Error(error.message);
         const content = extractAIContent(responseData);
         if (!content) throw new Error('Empty response from AI');
-        return content;
+        const parsed = parseEmailVariants(content);
+        if (!parsed) {
+          return { formal: content, conversational: content };
+        }
+        return parsed;
       });
       if (data) {
-        setEmail(data);
+        setVariants(data);
         saveDraft(data);
       }
     } catch {
@@ -124,16 +147,16 @@ export function ColdEmailSheet({ open, onOpenChange }: ColdEmailSheetProps) {
     }
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(email);
-    setIsCopied(true);
+  const handleCopy = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
     haptics.light();
     toast.success('Email copied to clipboard!');
-    setTimeout(() => setIsCopied(false), 2000);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   const handleRegenerate = () => {
-    setEmail('');
+    setVariants(null);
     clearDraft();
     setShowDraftBanner(false);
     haptics.light();
@@ -154,11 +177,11 @@ export function ColdEmailSheet({ open, onOpenChange }: ColdEmailSheetProps) {
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-4">
-          {showDraftBanner && draft && !email && (
+          {showDraftBanner && draft && !variants && (
             <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-2">
               <p className="text-xs text-amber-700 dark:text-amber-400">Resume from last session?</p>
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setEmail(draft); setShowDraftBanner(false); }}>
+                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setVariants(draft); setShowDraftBanner(false); }}>
                   <RotateCcw className="w-3 h-3 mr-1" />
                   Restore
                 </Button>
@@ -169,7 +192,7 @@ export function ColdEmailSheet({ open, onOpenChange }: ColdEmailSheetProps) {
             </div>
           )}
 
-          {!email ? (
+          {!variants ? (
             <>
               <div className="space-y-3">
                 <div className="space-y-1.5">
@@ -211,7 +234,7 @@ export function ColdEmailSheet({ open, onOpenChange }: ColdEmailSheetProps) {
               )}
               <Button className="w-full gradient-primary" onClick={() => handleGenerate()} disabled={isLoading}>
                 {isLoading ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Generating email...</>
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Generating emails...</>
                 ) : (
                   <><Mail className="w-4 h-4 mr-2" />Generate Cold Email</>
                 )}
@@ -220,27 +243,53 @@ export function ColdEmailSheet({ open, onOpenChange }: ColdEmailSheetProps) {
           ) : (
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="gap-1.5" onClick={handleCopy}>
-                  {isCopied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-                  Copy Email
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="gap-1.5 ml-auto text-xs" 
-                  onClick={() => { 
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 ml-auto text-xs"
+                  onClick={() => {
                     handleRegenerate();
                     setShowContentWarning(false);
-                  }} 
+                  }}
                   disabled={isLoading}
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
                   Regenerate
                 </Button>
               </div>
-              <div className="p-4 rounded-xl bg-card border border-border">
-                <p className="text-sm whitespace-pre-wrap leading-relaxed">{email}</p>
-              </div>
+
+              <Tabs defaultValue="formal" className="w-full">
+                <TabsList className="w-full grid grid-cols-2 mb-3">
+                  <TabsTrigger value="formal" className="text-xs">Original</TabsTrigger>
+                  <TabsTrigger value="conversational" className="text-xs">Alternate Style</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="formal" className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground flex-1">Formal, professional tone</span>
+                    <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={() => handleCopy(variants.formal, 'formal')}>
+                      {copiedId === 'formal' ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                      Copy
+                    </Button>
+                  </div>
+                  <div className="p-4 rounded-xl bg-card border border-border">
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{variants.formal}</p>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="conversational" className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground flex-1">Warm, conversational tone</span>
+                    <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={() => handleCopy(variants.conversational, 'conversational')}>
+                      {copiedId === 'conversational' ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                      Copy
+                    </Button>
+                  </div>
+                  <div className="p-4 rounded-xl bg-card border border-border">
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{variants.conversational}</p>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </div>
           )}
         </div>

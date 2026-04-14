@@ -52,6 +52,15 @@ const CATEGORY_HINTS: Record<string, (score: number) => string> = {
   lengthDensity: (s) => s < 70 ? 'Add more detail to bullets' : '',
 };
 
+const CATEGORY_WEIGHTS: Record<string, number> = {
+  keywordOptimization: 0.30,
+  contentQuality: 0.25,
+  sectionStructure: 0.20,
+  parsability: 0.15,
+  contactCompleteness: 0.05,
+  lengthDensity: 0.05,
+};
+
 interface ATSScoreBreakdownProps {
   healthScore: ResumeHealthScore;
   isScoring?: boolean;
@@ -106,12 +115,22 @@ export const ATSScoreBreakdown = memo(function ATSScoreBreakdown({
           />
         </div>
         <div className="space-y-2">
-          {Object.entries(healthScore.categories).map(([key, score]) => {
+          {Object.entries(healthScore.categories)
+            .sort(([keyA, a], [keyB, b]) => {
+              const impactA = (100 - a) * (CATEGORY_WEIGHTS[keyA] ?? 0.1);
+              const impactB = (100 - b) * (CATEGORY_WEIGHTS[keyB] ?? 0.1);
+              return impactB - impactA;
+            })
+            .map(([key, score], idx) => {
             const hint = CATEGORY_HINTS[key]?.(score) || '';
+            const isTopFix = idx === 0 && score < 100;
             return (
               <div key={key} className="flex items-center gap-2">
                 <StatusIcon score={score} />
                 <span className="text-sm flex-1 min-w-0 truncate">{CATEGORY_LABELS[key] || key}</span>
+                {isTopFix && (
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive shrink-0">Fix first</span>
+                )}
                 <span className={cn('text-sm font-semibold tabular-nums', getScoreColorClass(score))}>{score}%</span>
                 {hint && !compact && (
                   <span className="text-xs text-muted-foreground hidden sm:inline">({hint})</span>

@@ -86,6 +86,7 @@ function InterviewPageContent() {
     resetInterview,
     retryAI,
     skipAITurn,
+    retryCurrentQuestion,
   } = useVoiceInterview(currentResume);
 
   // No navigation redirect — show an in-page empty state instead
@@ -628,6 +629,24 @@ function InterviewPageContent() {
             {showTextInput ? <KeyboardOff className="w-4 h-4 mr-1" /> : <Keyboard className="w-4 h-4 mr-1" />}
             {showTextInput ? 'Close' : 'Type'}
           </Button>
+          {/* Retry this question — shows after user has answered and AI has responded */}
+          {status === 'idle' &&
+            transcript.some(e => e.role === 'user') &&
+            transcript.length > 0 &&
+            transcript[transcript.length - 1].role === 'interviewer' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                haptics.light();
+                retryCurrentQuestion();
+              }}
+              className="min-h-[44px] text-xs gap-1"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Retry Question
+            </Button>
+          )}
           <Button
             variant="destructive"
             size="sm"

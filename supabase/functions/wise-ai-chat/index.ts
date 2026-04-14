@@ -96,19 +96,20 @@ Rules:
     case "cold_email":
       return `You are a professional career coach writing cold outreach emails for job seekers.
 
-Write a compelling cold email from ${s(payload.candidateName, 100)} to a recruiter at ${s(payload.company, 100)} for the role of ${s(payload.jobTitle, 100)}.
+Write TWO cold email variants from ${s(payload.candidateName, 100)} to a recruiter at ${s(payload.company, 100)} for the role of ${s(payload.jobTitle, 100)}.
 
 Candidate Summary: ${s(payload.summary, 600)}
 Top Skills: ${s(payload.topSkills, 400)}
 Recent Experience: ${s(payload.recentExperience, 400)}
 ${payload.jobSnippet ? `Job Description Snippet:\n${s(payload.jobSnippet, 800)}` : ""}
 
-Return ONLY the email text (no subject line needed, no JSON, no markdown). The email should be:
-- Professional yet warm
-- 150-200 words
-- Opens with a strong hook
-- Mentions 1-2 specific relevant skills or achievements
-- Has a clear call-to-action`;
+Return ONLY a JSON object with exactly these two keys:
+{
+  "formal": "<A polished, professional email — formal tone, 150-200 words, strong opening, 1-2 specific achievements, clear CTA>",
+  "conversational": "<A friendly, approachable email — warm conversational tone, 130-180 words, personal hook, 1-2 relevant skills, casual but purposeful CTA>"
+}
+
+Both emails should be compelling and tailored. No subject line needed. Return no markdown, no code blocks — just the JSON.`;
 
     case "portfolio_bio":
       return `You are a professional bio writer. Create three portfolio bio variants for this person.

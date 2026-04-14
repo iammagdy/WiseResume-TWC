@@ -298,6 +298,21 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
     </Button>
   );
 
+  const CharCounter = ({ text, limit }: { text: string; limit: number }) => {
+    const count = text.length;
+    const pct = count / limit;
+    const isWarning = pct >= 0.9 && pct < 1;
+    const isOver = pct >= 1;
+    return (
+      <span className={cn(
+        'text-[10px] tabular-nums shrink-0',
+        isOver ? 'text-destructive font-semibold' : isWarning ? 'text-warning font-medium' : 'text-muted-foreground'
+      )}>
+        {count}/{limit}
+      </span>
+    );
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="max-h-[90dvh] flex flex-col p-0">
@@ -402,10 +417,15 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
                     {result.headlines?.map((headline, i) => (
                       <div 
                         key={i}
-                        className="p-3 rounded-xl bg-muted border border-border flex items-center justify-between gap-3"
+                        className="p-3 rounded-xl bg-muted border border-border space-y-1.5"
                       >
-                        <p className="text-sm flex-1">{headline}</p>
-                        <CopyButton text={headline} id={`headline-${i}`} />
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm flex-1">{headline}</p>
+                          <CopyButton text={headline} id={`headline-${i}`} />
+                        </div>
+                        <div className="flex justify-end">
+                          <CharCounter text={headline} limit={220} />
+                        </div>
                       </div>
                     ))}
                   </TabsContent>
@@ -421,7 +441,10 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <Label className="text-sm">Short (~150 words)</Label>
-                            <CopyButton text={result.aboutSections.short} id="about-short" />
+                            <div className="flex items-center gap-2">
+                              <CharCounter text={result.aboutSections.short} limit={2600} />
+                              <CopyButton text={result.aboutSections.short} id="about-short" />
+                            </div>
                           </div>
                           <div className="p-3 rounded-xl bg-muted border border-border">
                             <p className="text-sm whitespace-pre-wrap">{result.aboutSections.short}</p>
@@ -431,7 +454,10 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <Label className="text-sm">Medium (~300 words)</Label>
-                            <CopyButton text={result.aboutSections.medium} id="about-medium" />
+                            <div className="flex items-center gap-2">
+                              <CharCounter text={result.aboutSections.medium} limit={2600} />
+                              <CopyButton text={result.aboutSections.medium} id="about-medium" />
+                            </div>
                           </div>
                           <div className="p-3 rounded-xl bg-muted border border-border">
                             <p className="text-sm whitespace-pre-wrap">{result.aboutSections.medium}</p>
@@ -441,7 +467,10 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <Label className="text-sm">Long (~500 words)</Label>
-                            <CopyButton text={result.aboutSections.long} id="about-long" />
+                            <div className="flex items-center gap-2">
+                              <CharCounter text={result.aboutSections.long} limit={2600} />
+                              <CopyButton text={result.aboutSections.long} id="about-long" />
+                            </div>
                           </div>
                           <div className="p-3 rounded-xl bg-muted border border-border max-h-[200px] overflow-y-auto">
                             <p className="text-sm whitespace-pre-wrap">{result.aboutSections.long}</p>
@@ -462,11 +491,17 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
                         />
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {result.suggestedSkills?.map((skill, i) => (
-                          <Badge key={i} variant="secondary" className="text-xs">
-                            {skill}
-                          </Badge>
-                        ))}
+                        {result.suggestedSkills?.map((skill, i) => {
+                          const isOver = skill.length > 50;
+                          return (
+                            <div key={i} className="flex flex-col items-center gap-0.5">
+                              <Badge variant="secondary" className={cn("text-xs", isOver && "border border-destructive/50")}>
+                                {skill}
+                              </Badge>
+                              <CharCounter text={skill} limit={50} />
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
 

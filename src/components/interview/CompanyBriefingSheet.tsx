@@ -1,9 +1,9 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Building2, Newspaper, Heart, Users, MessageSquareQuote, HelpCircle,
   Copy, X, Sparkles, Download, Search, FileText, Cpu, Star,
-  Swords, ShoppingBag, ArrowRight, Zap,
+  Swords, ShoppingBag, ArrowRight, Zap, Bookmark, Trash2, BookMarked,
 } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerClose } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useCompanyBriefing } from '@/hooks/useCompanyBriefing';
+import { useCompanyBriefingLibrary, useSaveCompanyBriefing, useDeleteCompanyBriefing } from '@/hooks/useCompanyBriefingLibrary';
 import { AITrustBadge } from '@/components/ui/AITrustBadge';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import type { CompanyBriefing } from '@/types/companyBriefing';
@@ -40,7 +41,12 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
   const [localJD, setLocalJD] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [inputMode, setInputMode] = useState<'company' | 'jd'>('company');
+  const [activeTab, setActiveTab] = useState<'generate' | 'saved'>('generate');
   const hasProvidedJD = jobDescription.trim().length > 0;
+
+  const saveCompanyBriefing = useSaveCompanyBriefing();
+  const deleteCompanyBriefing = useDeleteCompanyBriefing();
+  const { data: savedBriefings = [], isLoading: isSavedLoading } = useCompanyBriefingLibrary();
 
   useEffect(() => {
     if (open && !briefing && !isLoading && hasProvidedJD) {
@@ -50,7 +56,16 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
 
   const handleClose = () => {
     onOpenChange(false);
-    setTimeout(() => { reset(); setLocalJD(''); setCompanyName(''); }, 300);
+    setTimeout(() => { reset(); setLocalJD(''); setCompanyName(''); setActiveTab('generate'); }, 300);
+  };
+
+  const handleSave = () => {
+    if (!briefing) return;
+    haptics.light();
+    saveCompanyBriefing.mutate({
+      company_name: briefing.companySnapshot.name,
+      briefing,
+    });
   };
 
   const handleGenerate = () => {
@@ -107,8 +122,19 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
             <AIProviderVia className="ml-1" />
           </DrawerTitle>
           <div className="flex items-center gap-2">
-            {briefing && (
+            {briefing && activeTab === 'generate' && (
               <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleSave}
+                  className="h-9 w-9"
+                  title="Save briefing"
+                  aria-label="Save briefing"
+                  disabled={saveCompanyBriefing.isPending}
+                >
+                  <Bookmark className="w-4 h-4" />
+                </Button>
                 <Button variant="ghost" size="icon" onClick={handleDownloadPDF} className="h-9 w-9" title="Download PDF" aria-label="Download PDF">
                   <Download className="w-4 h-4" />
                 </Button>
@@ -125,69 +151,157 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
           </div>
         </DrawerHeader>
 
+        {/* Tab navigation */}
+        <div className="px-4 pb-2 shrink-0 border-b border-border">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'generate' | 'saved')}>
+            <TabsList className="w-full grid grid-cols-2">
+              <TabsTrigger value="generate" className="flex-1 gap-1.5 text-xs">
+                <Sparkles className="w-3.5 h-3.5" />
+                Generate
+              </TabsTrigger>
+              <TabsTrigger value="saved" className="flex-1 gap-1.5 text-xs">
+                <BookMarked className="w-3.5 h-3.5" />
+                Saved
+                {savedBriefings.length > 0 && (
+                  <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary/20 text-primary text-[10px] font-medium">
+                    {savedBriefings.length}
+                  </span>
+                )}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
         {/* Scrollable content with visible scrollbar */}
         <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-6 ai-output-scroll-fade scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
-          <AITrustBadge className="mb-3" />
+          {activeTab === 'generate' && (
+            <>
+              <AITrustBadge className="mb-3 mt-3" />
 
-          {/* Input Phase */}
-          {!hasProvidedJD && !briefing && !isLoading && !error && (
-            <div className="space-y-3 mb-4">
-              <Tabs value={inputMode} onValueChange={(v) => setInputMode(v as 'company' | 'jd')}>
-                <TabsList className="w-full">
-                  <TabsTrigger value="company" className="flex-1 gap-1.5">
-                    <Search className="w-3.5 h-3.5" />
-                    Company Name
-                  </TabsTrigger>
-                  <TabsTrigger value="jd" className="flex-1 gap-1.5">
-                    <FileText className="w-3.5 h-3.5" />
-                    Job Description
-                  </TabsTrigger>
-                </TabsList>
-                <TabsContent value="company">
-                  <Input
-                    placeholder="e.g. Google, Stripe, Amazon…"
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && canGenerate && handleGenerate()}
-                    className="text-sm"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1.5">
-                    Get a deep research report on any company
-                  </p>
-                </TabsContent>
-                <TabsContent value="jd">
-                  <Textarea
-                    placeholder="Paste the job description here…"
-                    value={localJD}
-                    onChange={(e) => setLocalJD(e.target.value)}
-                    rows={5}
-                    className="text-sm resize-none"
-                  />
-                </TabsContent>
-              </Tabs>
-              <Button onClick={handleGenerate} disabled={!canGenerate} className="w-full gap-2">
-                <Sparkles className="w-4 h-4" />
-                Generate Briefing
-              </Button>
-            </div>
+              {/* Input Phase */}
+              {!hasProvidedJD && !briefing && !isLoading && !error && (
+                <div className="space-y-3 mb-4">
+                  <Tabs value={inputMode} onValueChange={(v) => setInputMode(v as 'company' | 'jd')}>
+                    <TabsList className="w-full">
+                      <TabsTrigger value="company" className="flex-1 gap-1.5">
+                        <Search className="w-3.5 h-3.5" />
+                        Company Name
+                      </TabsTrigger>
+                      <TabsTrigger value="jd" className="flex-1 gap-1.5">
+                        <FileText className="w-3.5 h-3.5" />
+                        Job Description
+                      </TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="company">
+                      <Input
+                        placeholder="e.g. Google, Stripe, Amazon…"
+                        value={companyName}
+                        onChange={(e) => setCompanyName(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && canGenerate && handleGenerate()}
+                        className="text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1.5">
+                        Get a deep research report on any company
+                      </p>
+                    </TabsContent>
+                    <TabsContent value="jd">
+                      <Textarea
+                        placeholder="Paste the job description here…"
+                        value={localJD}
+                        onChange={(e) => setLocalJD(e.target.value)}
+                        rows={5}
+                        className="text-sm resize-none"
+                      />
+                    </TabsContent>
+                  </Tabs>
+                  <Button onClick={handleGenerate} disabled={!canGenerate} className="w-full gap-2">
+                    <Sparkles className="w-4 h-4" />
+                    Generate Briefing
+                  </Button>
+                </div>
+              )}
+
+              {isLoading && <BriefingLoadingProgress companyName={loadingTarget} />}
+              {error && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p className="text-sm">{error}</p>
+                  <Button variant="outline" size="sm" className="mt-3" onClick={() => {
+                    if (inputMode === 'company' && companyName.trim()) {
+                      generate({ companyName: companyName.trim(), resumeData });
+                    } else {
+                      generate({ jobDescription: hasProvidedJD ? jobDescription : localJD.trim(), resumeData });
+                    }
+                  }}>
+                    Try Again
+                  </Button>
+                </div>
+              )}
+              {briefing && <BriefingContent briefing={briefing} />}
+            </>
           )}
 
-          {isLoading && <BriefingLoadingProgress companyName={loadingTarget} />}
-          {error && (
-            <div className="text-center py-8 text-muted-foreground">
-              <p className="text-sm">{error}</p>
-              <Button variant="outline" size="sm" className="mt-3" onClick={() => {
-                if (inputMode === 'company' && companyName.trim()) {
-                  generate({ companyName: companyName.trim(), resumeData });
-                } else {
-                  generate({ jobDescription: hasProvidedJD ? jobDescription : localJD.trim(), resumeData });
-                }
-              }}>
-                Try Again
-              </Button>
+          {activeTab === 'saved' && (
+            <div className="mt-3 space-y-3">
+              {isSavedLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="p-4 rounded-2xl border border-border bg-card animate-pulse">
+                      <div className="h-4 w-32 bg-muted rounded mb-2" />
+                      <div className="h-3 w-24 bg-muted rounded" />
+                    </div>
+                  ))}
+                </div>
+              ) : savedBriefings.length === 0 ? (
+                <div className="text-center py-12 space-y-3">
+                  <BookMarked className="w-10 h-10 text-muted-foreground/40 mx-auto" />
+                  <p className="text-sm text-muted-foreground">No saved briefings yet</p>
+                  <p className="text-xs text-muted-foreground">Generate a briefing and tap the bookmark icon to save it here</p>
+                  <Button variant="outline" size="sm" onClick={() => setActiveTab('generate')}>
+                    Generate a Briefing
+                  </Button>
+                </div>
+              ) : (
+                savedBriefings.map((saved) => (
+                  <motion.div
+                    key={saved.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-4 rounded-2xl border border-border bg-card space-y-2"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-foreground truncate">{saved.company_name}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {new Date(saved.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+                        onClick={() => {
+                          haptics.light();
+                          deleteCompanyBriefing.mutate(saved.id);
+                        }}
+                        disabled={deleteCompanyBriefing.isPending}
+                        aria-label="Delete briefing"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {saved.briefing.productsOrServices?.slice(0, 3).map((p, i) => (
+                        <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-accent/60 text-accent-foreground">{p}</span>
+                      ))}
+                      {saved.briefing.companySnapshot.industry && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{saved.briefing.companySnapshot.industry}</span>
+                      )}
+                    </div>
+                  </motion.div>
+                ))
+              )}
             </div>
           )}
-          {briefing && <BriefingContent briefing={briefing} />}
         </div>
       </DrawerContent>
     </Drawer>

@@ -642,6 +642,53 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     callAI(lastCallAIWasEndRef.current);
   }, [callAI]);
 
+  const retryCurrentQuestion = useCallback(async () => {
+    window.speechSynthesis?.cancel();
+    setStatus('idle');
+
+    // Remove the last user message and last AI response from transcript (last 2 entries)
+    setTranscript(prev => {
+      const next = [...prev];
+      // Remove last AI response (if last is interviewer)
+      if (next.length > 0 && next[next.length - 1].role === 'interviewer') {
+        next.pop();
+      }
+      // Remove last user answer
+      if (next.length > 0 && next[next.length - 1].role === 'user') {
+        next.pop();
+      }
+      return next;
+    });
+
+    // Remove last 2 messages from conversation history (user + AI response)
+    const msgs = messagesRef.current;
+    let removed = 0;
+    while (msgs.length > 0 && removed < 2) {
+      const last = msgs[msgs.length - 1];
+      if (last.role === 'assistant' || last.role === 'user') {
+        msgs.pop();
+        removed++;
+      } else {
+        break;
+      }
+    }
+
+    // Undo the last score count
+    if (answerCountRef.current > 0) {
+      answerCountRef.current--;
+    }
+    setScores(prev => prev.slice(0, -1));
+    setLatestScore(null);
+
+    // Ask AI to re-ask the question in a fresh way
+    messagesRef.current.push({
+      role: 'user',
+      content: '(I would like to try again. Please ask me a fresh version of the same question — rephrase it slightly so I can practice.)',
+    });
+
+    await callAI();
+  }, [callAI]);
+
   const skipAITurn = useCallback(() => {
     setError(null);
     setStatus('idle');
@@ -954,5 +1001,6 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     resetInterview,
     retryAI,
     skipAITurn,
+    retryCurrentQuestion,
   };
 }
