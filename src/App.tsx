@@ -57,7 +57,7 @@ import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
 import { AnimatedSplash } from "@/components/AnimatedSplash";
-import DevToolsPage from "./pages/DevToolsPage";
+const DevToolsPage = lazyWithRetry(() => import("./pages/DevToolsPage"));
 
 const CommandPalette = lazyWithRetry(() => import("@/components/layout/CommandPalette"));
 
@@ -345,7 +345,7 @@ function AppRoutes() {
         </Route>
 
         {/* DevKit — self-contained email+password auth, no Kinde/Supabase session required */}
-        <Route path="/devkit" element={<DevToolsPage />} />
+        <Route path="/devkit" element={<Suspense fallback={<PageLoadingSpinner />}><DevToolsPage /></Suspense>} />
         
         <Route path="*" element={<Suspense fallback={<DetailSkeleton />}><NotFound /></Suspense>} />
       </Routes>

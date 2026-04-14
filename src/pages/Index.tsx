@@ -361,8 +361,6 @@ const Index = () => {
     }
   };
 
-  if (authLoading) return <PageLoadingSpinner />;
-
   return (
     <div
       className="lp-root min-h-screen"
@@ -682,7 +680,9 @@ const Index = () => {
               {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
 
-            {isAuthenticated ? (
+            {authLoading ? (
+              <div className="w-8 h-8 rounded-full animate-pulse" style={{ background: 'var(--lp-border-card)' }} />
+            ) : isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="touch-manipulation active:scale-95 transition-transform" aria-label="Account menu">
