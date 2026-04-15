@@ -33,7 +33,7 @@ function useLpAnimate() {
     );
     els.forEach((el) => io.observe(el));
     return () => io.disconnect();
-  });
+  }, []);
 }
 
 // ── Section: Hero ────────────────────────────────────────────────────────────
