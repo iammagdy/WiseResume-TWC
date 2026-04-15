@@ -164,7 +164,7 @@ function HeroSection() {
             textDecoration: 'none',
           }}
         >
-          See all pricing
+          See pricing
           <ChevronRight className="w-4 h-4" />
         </a>
       </div>
@@ -609,10 +609,9 @@ function ComparisonSection() {
 
 // ── Section: Contact / Demo Request Form ──────────────────────────────────────
 const COMPANY_SIZES = [
-  '50–200 employees',
-  '200–1,000 employees',
-  '1,000–5,000 employees',
-  '5,000+ employees',
+  '50–200',
+  '200–1000',
+  '1000+',
 ];
 
 function ContactSection() {
