@@ -234,6 +234,9 @@ function SuggestionCard({
   messageId: string;
   onAction: (messageId: string, index: number, status: 'accepted' | 'rejected') => void;
 }) {
+  const [showMoreOriginal, setShowMoreOriginal] = useState(false);
+  const [showMoreSuggested, setShowMoreSuggested] = useState(false);
+
   if (proposal.action === 'delete') {
     return (
       <DeleteConfirmCard
@@ -246,8 +249,6 @@ function SuggestionCard({
   }
 
   const isResolved = proposal.status === 'accepted' || proposal.status === 'rejected';
-  const [showMoreOriginal, setShowMoreOriginal] = useState(false);
-  const [showMoreSuggested, setShowMoreSuggested] = useState(false);
   const CLAMP_LEN = 200;
   const originalLong = proposal.original.length > CLAMP_LEN;
   const suggestedLong = proposal.suggested.length > CLAMP_LEN;

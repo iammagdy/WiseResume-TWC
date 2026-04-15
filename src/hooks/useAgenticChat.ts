@@ -495,7 +495,9 @@ export function useAgenticChat(contextFilter?: string) {
 
       try {
         const resumeList = allResumes.map(r => ({ id: r.id, title: r.title }));
-        const response = await sendChatMessage(text.trim(), messages, currentResume, { resumeList, contextFilter });
+        // Guest users (unauthenticated) keep pre-existing 10-message history limit
+        const historyToSend = user ? messages : messages.slice(-10);
+        const response = await sendChatMessage(text.trim(), historyToSend, currentResume, { resumeList, contextFilter });
 
         incrementUsage.mutate();
         toast.success('1 credit used', { description: 'AI chat', duration: 2500, icon: '⚡' });
@@ -520,9 +522,12 @@ export function useAgenticChat(contextFilter?: string) {
           }
 
           try {
+            const feedbackHistory = user
+              ? [...messages, userMsg, initialMsg]
+              : [...messages, userMsg, initialMsg].slice(-10);
             const feedbackResponse = await sendFunctionFeedback(
               text.trim(),
-              [...messages, userMsg, initialMsg],
+              feedbackHistory,
               currentResume,
               functionResult
             );
