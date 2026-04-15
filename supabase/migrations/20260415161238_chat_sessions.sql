@@ -12,7 +12,8 @@ ALTER TABLE chat_sessions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "chat_sessions_owner_all"
   ON chat_sessions FOR ALL
-  USING (auth.uid() = user_id);
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 
 -- chat_messages: individual messages within a session
 CREATE TABLE chat_messages (
@@ -29,6 +30,13 @@ ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "chat_messages_owner_all"
   ON chat_messages FOR ALL
   USING (
+    EXISTS (
+      SELECT 1 FROM chat_sessions cs
+      WHERE cs.id = chat_messages.session_id
+        AND cs.user_id = auth.uid()
+    )
+  )
+  WITH CHECK (
     EXISTS (
       SELECT 1 FROM chat_sessions cs
       WHERE cs.id = chat_messages.session_id
