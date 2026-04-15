@@ -1,13 +1,8 @@
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-};
-
-function json(data: unknown, status = 200) {
+function json(data: unknown, status = 200, corsHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -15,6 +10,8 @@ function json(data: unknown, status = 200) {
 }
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
@@ -51,12 +48,13 @@ Deno.serve(async (req) => {
     const { data, error, count } = await query;
     if (error) throw error;
 
-    return json({ success: true, entries: data ?? [], total: count ?? 0, page, per_page });
+    return json({ success: true, entries: data ?? [], total: count ?? 0, page, per_page }, 200, corsHeaders);
   } catch (err) {
     console.error('[admin-wisehire-waitlist]', err);
     return json(
       { success: false, error: err instanceof Error ? err.message : 'Internal server error' },
-      500
+      500,
+      corsHeaders
     );
   }
 });

@@ -1,3 +1,11 @@
+// wisehire-complete-signup: Completes the WiseHire HR account signup flow.
+//
+// Auth posture: AUTHENTICATED (user-gated).
+//   The caller must supply a valid Supabase session Bearer token; the function
+//   verifies it via serviceClient.auth.getUser() before performing any
+//   privileged DB writes. No admin password is required — this endpoint is
+//   intentionally accessible to any authenticated user who holds a valid
+//   invite token or early-access code.
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 

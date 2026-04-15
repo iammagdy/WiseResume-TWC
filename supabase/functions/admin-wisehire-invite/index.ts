@@ -1,13 +1,8 @@
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-};
-
-function json(data: unknown, status = 200) {
+function json(data: unknown, status = 200, corsHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -73,6 +68,8 @@ function buildInviteEmail(recipientEmail: string, inviteUrl: string, expiresAt: 
 }
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
@@ -92,7 +89,7 @@ Deno.serve(async (req) => {
     }
 
     if (!recipient_email?.trim()) {
-      return json({ success: false, error: 'recipient_email is required' }, 400);
+      return json({ success: false, error: 'recipient_email is required' }, 400, corsHeaders);
     }
 
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
@@ -100,7 +97,7 @@ Deno.serve(async (req) => {
     const APP_URL = Deno.env.get('WISEHIRE_APP_URL') ?? 'https://resume.thewise.cloud';
 
     if (!RESEND_API_KEY) {
-      return json({ success: false, error: 'RESEND_API_KEY not configured' }, 503);
+      return json({ success: false, error: 'RESEND_API_KEY not configured' }, 503, corsHeaders);
     }
 
     const supabase = getServiceClient();
@@ -176,12 +173,13 @@ Deno.serve(async (req) => {
       invite_url: inviteUrl,
       expires_at: expiresAt,
       message_id: messageId,
-    });
+    }, 200, corsHeaders);
   } catch (err) {
     console.error('[admin-wisehire-invite]', err);
     return json(
       { success: false, error: err instanceof Error ? err.message : 'Internal server error' },
-      500
+      500,
+      corsHeaders
     );
   }
 });

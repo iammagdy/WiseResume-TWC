@@ -1,11 +1,13 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+// send-push-notification: Sends a Web Push notification to all registered
+// subscriptions for a given user_id.
+//
+// Auth posture: ADMIN-GATED (requireAdminAuth).
+//   This function accepts an arbitrary user_id and sends push messages on
+//   their behalf, making it a privileged server-side operation. It is
+//   protected by the shared admin credential (DevKit session token or raw
+//   DEV_KIT_PASSWORD) and must never be callable by unauthenticated clients.
+import { requireAdminAuth } from '../_shared/adminAuth.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 
 // ─── Crypto Helpers ───
 
@@ -17,7 +19,6 @@ function base64UrlEncode(data: Uint8Array): string {
 }
 
 function base64ToUint8Array(base64: string): Uint8Array {
-  // Handle both standard base64 and base64url
   const normalized = base64.replace(/-/g, "+").replace(/_/g, "/");
   const padding = "=".repeat((4 - (normalized.length % 4)) % 4);
   const raw = atob(normalized + padding);
@@ -84,7 +85,6 @@ async function createVapidJwt(audience: string, vapidPrivateKey: Uint8Array, vap
   const payloadB64 = base64UrlEncode(enc.encode(JSON.stringify(payload)));
   const unsignedToken = `${headerB64}.${payloadB64}`;
 
-  // Import private key as ECDSA P-256
   const jwk = {
     kty: "EC",
     crv: "P-256",
@@ -107,50 +107,37 @@ async function encryptPayload(
   subscriptionPublicKey: Uint8Array,
   subscriptionAuth: Uint8Array
 ): Promise<{ encrypted: Uint8Array; localPublicKey: Uint8Array }> {
-  // Generate ephemeral ECDH key pair
   const localKeyPair = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
   const localPublicKeyRaw = new Uint8Array(await crypto.subtle.exportKey("raw", localKeyPair.publicKey));
 
-  // Import subscriber's public key
   const subscriberKey = await crypto.subtle.importKey("raw", subscriptionPublicKey, { name: "ECDH", namedCurve: "P-256" }, false, []);
 
-  // ECDH shared secret
   const sharedSecretBits = await crypto.subtle.deriveBits({ name: "ECDH", public: subscriberKey }, localKeyPair.privateKey, 256);
   const sharedSecret = new Uint8Array(sharedSecretBits);
 
   const enc = new TextEncoder();
 
-  // IKM info = "WebPush: info\0" + ua_public (65 bytes) + as_public (65 bytes)
   const ikmInfo = concatUint8Arrays(enc.encode("WebPush: info\0"), subscriptionPublicKey, localPublicKeyRaw);
-
-  // IKM = HKDF(auth, sharedSecret, ikmInfo, 32)
   const ikm = await hkdf(subscriptionAuth, sharedSecret, ikmInfo, 32);
 
-  // Generate 16-byte salt
   const salt = crypto.getRandomValues(new Uint8Array(16));
 
-  // CEK info = "Content-Encoding: aes128gcm\0"
   const cekInfo = enc.encode("Content-Encoding: aes128gcm\0");
   const contentEncryptionKey = await hkdf(salt, ikm, cekInfo, 16);
 
-  // Nonce info = "Content-Encoding: nonce\0"
   const nonceInfo = enc.encode("Content-Encoding: nonce\0");
   const nonce = await hkdf(salt, ikm, nonceInfo, 12);
 
-  // Pad payload with delimiter
-  const paddedPayload = concatUint8Arrays(payload, new Uint8Array([2])); // delimiter byte
+  const paddedPayload = concatUint8Arrays(payload, new Uint8Array([2]));
 
-  // Encrypt with AES-128-GCM
   const aesKey = await crypto.subtle.importKey("raw", contentEncryptionKey, { name: "AES-GCM" }, false, ["encrypt"]);
   const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce }, aesKey, paddedPayload));
 
-  // Build aes128gcm body: salt(16) + rs(4) + idlen(1) + keyid(65) + ciphertext
   const rs = 4096;
   const rsBytes = new Uint8Array(4);
   new DataView(rsBytes.buffer).setUint32(0, rs, false);
 
   const idlen = new Uint8Array([localPublicKeyRaw.length]);
-
   const encrypted = concatUint8Arrays(salt, rsBytes, idlen, localPublicKeyRaw, ciphertext);
 
   return { encrypted, localPublicKey: localPublicKeyRaw };
@@ -159,14 +146,42 @@ async function encryptPayload(
 // ─── Main Handler ───
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { user_id, title, body, url, icon, badge } = await req.json();
+    let body: Record<string, unknown> = {};
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    if (!user_id || !title || !body) {
+    const { password, user_id, title, body: notifBody, url, icon, badge } = body as {
+      password?: string;
+      user_id?: string;
+      title?: string;
+      body?: string;
+      url?: string;
+      icon?: string;
+      badge?: string;
+    };
+
+    try {
+      await requireAdminAuth(req, password ?? '');
+    } catch (authErr) {
+      if (authErr instanceof Response) return authErr;
+      throw authErr;
+    }
+
+    if (!user_id || !title || !notifBody) {
       return new Response(JSON.stringify({ error: "user_id, title, and body are required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -181,9 +196,9 @@ Deno.serve(async (req) => {
     const vapidPublicKey = base64ToUint8Array(vapidPublicKeyB64);
     const vapidPrivateKey = base64ToUint8Array(vapidPrivateKeyB64);
 
+    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.49.1");
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch subscriptions for user
     const { data: subscriptions, error: fetchError } = await supabase
       .from("push_subscriptions")
       .select("*")
@@ -199,14 +214,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    const payload = JSON.stringify({
+    const payloadBytes = new TextEncoder().encode(JSON.stringify({
       title,
-      body,
+      body: notifBody,
       url: url || "/",
       icon: icon || "/icons/icon-192x192.png",
       badge: badge || "/icons/icon-96x96.png",
-    });
-    const payloadBytes = new TextEncoder().encode(payload);
+    }));
 
     let sent = 0;
     let failed = 0;
@@ -252,7 +266,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Clean up expired subscriptions
     if (expiredEndpoints.length > 0) {
       await supabase
         .from("push_subscriptions")
@@ -267,7 +280,7 @@ Deno.serve(async (req) => {
     );
   } catch (err) {
     console.error("send-push-notification error:", err);
-    return new Response(JSON.stringify({ error: err.message || "Internal error" }), {
+    return new Response(JSON.stringify({ error: (err as Error).message || "Internal error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

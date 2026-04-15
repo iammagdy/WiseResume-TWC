@@ -1,10 +1,17 @@
+// weekly-digest: Sends in-app weekly career digest notifications to users who
+// have digest_enabled=true and have been inactive for 5+ days. Intended to be
+// triggered by a scheduled cron job, not by end users.
+//
+// Auth posture: CRON-SECRET-GATED (service-to-service only).
+//   The caller must supply the CRON_SECRET value in the Authorization header
+//   as "Bearer <CRON_SECRET>". This prevents arbitrary web clients from
+//   triggering bulk notification writes. The Supabase cron scheduler (or any
+//   trusted internal caller) must be configured with this secret.
+//   If CRON_SECRET is not set in the environment the check is skipped with a
+//   warning, so existing deployments without the secret do not break — but
+//   setting CRON_SECRET is strongly recommended.
+import { getCorsHeaders } from '../_shared/cors.ts';
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.0";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
 
 const TIPS = [
   "Quantify your achievements — numbers make bullets 3x more impactful.",
@@ -17,8 +24,33 @@ const TIPS = [
 ];
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
+  }
+
+  // ── Cron-secret gate ──
+  // This function must only be triggered by the Supabase cron scheduler or a
+  // trusted internal caller. Callers must supply the CRON_SECRET value in the
+  // Authorization header as "Bearer <CRON_SECRET>".
+  // Fails closed (503) if CRON_SECRET is not configured — do not deploy without it.
+  const CRON_SECRET = Deno.env.get('CRON_SECRET');
+  if (!CRON_SECRET) {
+    console.error('[weekly-digest] CRON_SECRET is not configured. Set it in Supabase Edge Function Secrets before enabling this function.');
+    return new Response(JSON.stringify({ error: 'Function not configured' }), {
+      status: 503,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+  const authHeader = req.headers.get('Authorization') ?? '';
+  const provided = authHeader.replace(/^Bearer\s+/i, '').trim();
+  if (provided !== CRON_SECRET) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   const supabase = createClient(

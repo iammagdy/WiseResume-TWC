@@ -2,12 +2,7 @@ import * as React from 'npm:react@18.3.1'
 import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { getServiceClient } from '../_shared/dbClient.ts'
 import { requireAdminAuth } from '../_shared/adminAuth.ts'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-}
+import { getCorsHeaders } from '../_shared/cors.ts';
 
 const SENDER_FROM = 'WiseResume <noreply@thewise.cloud>'
 const SITE_NAME = 'wiseresume'
@@ -54,6 +49,8 @@ async function sendResendEmail(options: {
 }
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
