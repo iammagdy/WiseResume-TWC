@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { ElementType } from 'react';
-import { RefreshCw, Users, Crown, AlertTriangle, Shield, Clock, FileText, TrendingUp, CalendarDays } from 'lucide-react';
+import { RefreshCw, Users, Crown, AlertTriangle, Shield, Clock, FileText, TrendingUp, CalendarDays, Briefcase, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
@@ -18,6 +18,8 @@ interface OverviewStats {
   totalLinks: number;
   newestUser: string | null;
   lastLoadedAt: Date;
+  hrCount: number;
+  jobSeekerCount: number;
 }
 
 function StatCard({
@@ -121,11 +123,14 @@ export function OverviewPanel() {
 
       let free = 0, pro = 0, premium = 0, trial = 0, suspended = 0;
       let totalResumes = 0, totalLinks = 0;
+      let hrCount = 0, jobSeekerCount = 0;
 
       const now = new Date();
       for (const u of allUsers) {
         totalResumes += u.resume_count ?? 0;
         totalLinks += u.link_count ?? 0;
+        if (u.account_type === 'hr') hrCount++;
+        else jobSeekerCount++;
         if (u.is_suspended) { suspended++; continue; }
         const trialActive = u.trial_plan && u.trial_expires_at && new Date(u.trial_expires_at) > now;
         if (trialActive) { trial++; continue; }
@@ -136,7 +141,7 @@ export function OverviewPanel() {
 
       const newestUser = allUsers.length > 0 ? allUsers[0].created_at : null;
 
-      setStats({ total, loadedCount: allUsers.length, free, pro, premium, trial, suspended, totalResumes, totalLinks, newestUser, lastLoadedAt: new Date() });
+      setStats({ total, loadedCount: allUsers.length, free, pro, premium, trial, suspended, totalResumes, totalLinks, newestUser, lastLoadedAt: new Date(), hrCount, jobSeekerCount });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load overview');
     } finally {
@@ -205,6 +210,20 @@ export function OverviewPanel() {
               value={stats.total}
               icon={Users}
               color="bg-primary/10 text-primary"
+            />
+            <StatCard
+              label="Job Seekers"
+              value={stats.jobSeekerCount}
+              icon={User}
+              color="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+              sub="WiseResume accounts"
+            />
+            <StatCard
+              label="HR Accounts"
+              value={stats.hrCount}
+              icon={Briefcase}
+              color={stats.hrCount > 0 ? 'bg-[#1D4ED8]/10 text-[#1D4ED8] dark:text-blue-400' : 'bg-muted text-muted-foreground'}
+              sub="WiseHire accounts"
             />
             <StatCard
               label="Free Plan"

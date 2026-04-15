@@ -1,3 +1,4 @@
+import { Briefcase, User } from 'lucide-react';
 import { type TestStatus } from './types';
 
 export function StatusBadge({ status }: { status: TestStatus }) {
@@ -12,6 +13,22 @@ export function StatusBadge({ status }: { status: TestStatus }) {
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${s.bg} ${s.text}`}>
       {s.label}
+    </span>
+  );
+}
+
+export function AccountTypeBadge({ accountType }: { accountType: string | null | undefined }) {
+  const isHr = accountType === 'hr';
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+        isHr
+          ? 'bg-blue-500/10 text-blue-700 border-blue-500/20 dark:text-blue-400'
+          : 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-400'
+      }`}
+    >
+      {isHr ? <Briefcase className="w-2.5 h-2.5 shrink-0" /> : <User className="w-2.5 h-2.5 shrink-0" />}
+      {isHr ? 'HR Account' : 'Job Seeker'}
     </span>
   );
 }

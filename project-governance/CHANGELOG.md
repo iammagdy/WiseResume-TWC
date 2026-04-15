@@ -4,6 +4,17 @@ Local changelog tracking WiseResume changes.
 
 ## 2026-04-15
 
+### WISEHIRE-PHASE2 — US3: Account Type Visibility in Dev Kit
+- **Summary**: HR vs Job Seeker account types are now fully visible in the admin dev kit. All existing users show "Job Seeker" (emerald badge). HR Account badge (WiseHire blue #1D4ED8) will appear as soon as the first HR user signs up.
+- **Changes**:
+  - `DevKitBadges.tsx` — new `AccountTypeBadge` component (emerald "Job Seeker" / blue "HR Account" with icon)
+  - `OverviewPanel.tsx` — two new stat cards: "Job Seekers" (emerald) and "HR Accounts" (blue), computed from the full user list
+  - `AdminUsersPanel.tsx` — `account_type` added to `AdminUser` interface; badge renders under email in every user row
+  - `UserDetailDrawer.tsx` — `AccountTypeBadge` shown in drawer header below email; avatar tint switches to WiseHire blue for HR accounts
+  - `supabase/functions/admin-list-users/index.ts` — both profile SELECT queries updated to include `account_type`; all 4 user record builders updated; function deployed
+- **Tasks completed**: T016–T021 ✅
+- **Spec reference**: `specs/001-wisehire-hr-platform/plan.md` Phase 2
+
 ### WISEHIRE-PHASE1-STEP-1 — Database Foundation
 - **Summary**: Applied all 8 WiseHire Phase 1 SQL migrations to Supabase. All 7 new tables created with RLS enabled. `profiles.account_type` column added with DEFAULT `'job_seeker'`. `candidate-resumes` storage bucket created. `WISEHIRE_INVITE_SECRET` (64-char hex HMAC key) set as a Supabase edge function secret.
 - **Migrations applied**: `20260420000001` through `20260420000008` — applied via Supabase Management API (CLI pooler auth blocked by Replit network; management API used as equivalent).

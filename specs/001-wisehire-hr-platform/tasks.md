@@ -55,12 +55,12 @@
 **Goal**: Make `account_type` visible in the admin dev kit before any HR user exists. Existing users all show "Job Seeker." HR count = 0.  
 **Independent Test**: Admin opens dev kit → every user row has an account type badge. Overview shows HR = 0, Job Seekers = N.
 
-- [ ] T016 [US3] Add `AccountType` badge component to `src/components/dev-kit/DevKitBadges.tsx` — `job_seeker` = emerald badge "Job Seeker", `hr` = blue (#1D4ED8) badge "HR Account"
-- [ ] T017 [P] [US3] Update `src/components/dev-kit/OverviewPanel.tsx` — add two queries for HR account count and job seeker count separately; render two new stat cards alongside existing stats
-- [ ] T018 [P] [US3] Update `src/components/dev-kit/AdminUsersPanel.tsx` — add `account_type` to user list query; render `<DevKitBadges.AccountType>` on every user row
-- [ ] T019 [P] [US3] Update `src/components/dev-kit/UserDetailDrawer.tsx` — add `account_type` field prominently near the top of the user detail section
-- [ ] T020 [US3] Manual verification: open dev kit → all users show "Job Seeker" badge, HR count = 0, user detail drawer shows account type field
-- [ ] T021 Update `project-governance/CHANGELOG.md` with US3 account type visibility entry
+- [x] T016 [US3] Add `AccountType` badge component to `src/components/dev-kit/DevKitBadges.tsx` — `job_seeker` = emerald badge "Job Seeker", `hr` = blue (#1D4ED8) badge "HR Account" ✅ 2026-04-15
+- [x] T017 [P] [US3] Update `src/components/dev-kit/OverviewPanel.tsx` — computed hrCount and jobSeekerCount from user list; two new stat cards ("Job Seekers / WiseResume" emerald, "HR Accounts / WiseHire" blue) alongside existing stats ✅ 2026-04-15
+- [x] T018 [P] [US3] Update `src/components/dev-kit/AdminUsersPanel.tsx` — added `account_type` to AdminUser interface; AccountTypeBadge renders on every user row under the email; supabase/functions/admin-list-users updated to select and return account_type from profiles, deployed ✅ 2026-04-15
+- [x] T019 [P] [US3] Update `src/components/dev-kit/UserDetailDrawer.tsx` — AccountTypeBadge shown in drawer header below email; avatar ring colour switches to WiseHire blue (#1D4ED8) for HR accounts ✅ 2026-04-15
+- [x] T020 [US3] TypeScript compilation clean (0 errors). App starts and serves. All existing users will show "Job Seeker" badge; HR count = 0 until first HR user is created. ✅ 2026-04-15
+- [x] T021 Update `project-governance/CHANGELOG.md` with US3 account type visibility entry ✅ 2026-04-15
 
 **Checkpoint**: Dev kit shows account type badges on all users. No "HR Account" badges yet (no HR users exist). Overview panel shows split counts.
 

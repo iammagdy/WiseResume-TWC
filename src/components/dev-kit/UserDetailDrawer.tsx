@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Crown, Shield, ShieldOff, Zap, StickyNote, Copy, Check, Clock, UserPen, AlertTriangle, Trash2, LogOut, UserX, FileText, ChevronRight, Fingerprint, Merge } from 'lucide-react';
+import { AccountTypeBadge } from './DevKitBadges';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -660,12 +661,15 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm shrink-0">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm shrink-0 ${user.account_type === 'hr' ? 'bg-[#1D4ED8]/10 text-[#1D4ED8] dark:text-blue-400' : 'bg-primary/10 text-primary'}`}>
               {getInitials(user)}
             </div>
             <div className="min-w-0">
               <p className="font-semibold text-sm truncate">{user.full_name || 'No name'}</p>
               <p className="text-xs text-muted-foreground truncate font-mono">{user.email}</p>
+              <div className="mt-1">
+                <AccountTypeBadge accountType={user.account_type} />
+              </div>
             </div>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} className="shrink-0">

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { RefreshCw, Search, Users, Download, Filter, ChevronDown, CheckSquare, Square, X, Crown, ShieldOff, Shield, Zap, AlertTriangle } from 'lucide-react';
+import { AccountTypeBadge } from './DevKitBadges';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +16,7 @@ export interface AdminUser {
   contact_email: string | null;
   full_name: string | null;
   plan_name: 'free' | 'pro' | 'premium';
+  account_type: 'job_seeker' | 'hr';
   plan_status: string;
   created_at: string;
   resume_count: number;
@@ -657,6 +659,7 @@ export function AdminUsersPanel({ onCountChange }: AdminUsersPanelProps) {
                               {user.full_name && (
                                 <p className="text-xs text-muted-foreground truncate max-w-[160px]">{user.full_name}</p>
                               )}
+                              <AccountTypeBadge accountType={user.account_type} />
                               {user.has_id_conflict && user.contact_email && (
                                 <p className="text-[10px] text-muted-foreground truncate max-w-[160px]">
                                   Real: {user.contact_email}

@@ -75,6 +75,7 @@ Deno.serve(async (req) => {
       contact_email: string | null;
       full_name: string | null;
       plan_name: string;
+      account_type: string;
       plan_status: string;
       plan_updated_at: string | null;
       trial_plan: string | null;
@@ -123,7 +124,7 @@ Deno.serve(async (req) => {
 
       const pageIds = pageSlice.map(u => u.id);
       const profilesResult = pageIds.length > 0
-        ? await supabase.from('profiles').select('user_id, full_name, created_at, contact_email').in('user_id', pageIds)
+        ? await supabase.from('profiles').select('user_id, full_name, created_at, contact_email, account_type').in('user_id', pageIds)
         : { data: [] };
 
       const profileMap = new Map(
@@ -139,6 +140,7 @@ Deno.serve(async (req) => {
           contact_email: (p.contact_email as string) ?? null,
           full_name: (p.full_name as string) ?? null,
           plan_name: 'free',
+          account_type: (p.account_type as string) ?? 'job_seeker',
           plan_status: 'active',
           plan_updated_at: null,
           trial_plan: null,
@@ -172,7 +174,7 @@ Deno.serve(async (req) => {
       creditsResult,
     ] = await Promise.all([
       supabase.auth.admin.listUsers({ page: 1, perPage: 10000 }),
-      supabase.from('profiles').select('user_id, full_name, created_at, is_suspended, suspension_reason, contact_email'),
+      supabase.from('profiles').select('user_id, full_name, created_at, is_suspended, suspension_reason, contact_email, account_type'),
       supabase.from('subscriptions').select('user_id, plan_name, status, plan_updated_at, trial_plan, trial_expires_at'),
       supabase.from('resumes').select('user_id'),
       supabase.from('short_links').select('owner_user_id'),
@@ -231,6 +233,7 @@ Deno.serve(async (req) => {
         contact_email: (p.contact_email as string) ?? null,
         full_name: (p.full_name as string) ?? null,
         plan_name: (s.plan_name as string) ?? 'free',
+        account_type: (p.account_type as string) ?? 'job_seeker',
         plan_status: (s.status as string) ?? 'active',
         plan_updated_at: (s.plan_updated_at as string) ?? null,
         trial_plan: (s.trial_plan as string) ?? null,
@@ -302,6 +305,7 @@ Deno.serve(async (req) => {
                 contact_email: (p.contact_email as string) ?? null,
                 full_name: (p.full_name as string) ?? null,
                 plan_name: (s.plan_name as string) ?? 'free',
+                account_type: (p.account_type as string) ?? 'job_seeker',
                 plan_status: (s.status as string) ?? 'active',
                 plan_updated_at: (s.plan_updated_at as string) ?? null,
                 trial_plan: (s.trial_plan as string) ?? null,
@@ -358,6 +362,7 @@ Deno.serve(async (req) => {
                     contact_email: (p2.contact_email as string) ?? null,
                     full_name: (p2.full_name as string) ?? null,
                     plan_name: (s2.plan_name as string) ?? 'free',
+                    account_type: (p2.account_type as string) ?? 'job_seeker',
                     plan_status: (s2.status as string) ?? 'active',
                     plan_updated_at: (s2.plan_updated_at as string) ?? null,
                     trial_plan: (s2.trial_plan as string) ?? null,
