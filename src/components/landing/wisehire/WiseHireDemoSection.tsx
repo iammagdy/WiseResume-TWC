@@ -58,7 +58,7 @@ export function WiseHireDemoSection() {
           </h2>
         </div>
 
-        <div className="lp-animate flex flex-col lg:flex-row gap-6 items-start">
+        <div className="flex flex-col lg:flex-row gap-6 items-start">
           {/* Tab selector — left on desktop, top on mobile */}
           <div className="flex flex-row lg:flex-col gap-2 w-full lg:w-64 lg:flex-shrink-0">
             {TABS.map((tab) => {

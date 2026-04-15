@@ -26,6 +26,8 @@ import { WiseHireHero } from '@/components/landing/wisehire/WiseHireHero';
 import { WiseHireFeatures } from '@/components/landing/wisehire/WiseHireFeatures';
 import { WiseHirePricing } from '@/components/landing/wisehire/WiseHirePricing';
 import { WiseHireDemoSection } from '@/components/landing/wisehire/WiseHireDemoSection';
+import { WiseHireTrustSection } from '@/components/landing/wisehire/WiseHireTrustSection';
+import { WiseHireFeatureTicker } from '@/components/landing/wisehire/WiseHireFeatureTicker';
 
 const features = [
   { icon: Sparkles, title: 'AI Resume Writing', desc: 'AI rewrites vague bullets into quantified achievements that recruiters remember.', colorDark: 'text-rose-400', colorLight: 'text-rose-600', bgDark: 'bg-rose-500/10', bgLight: 'bg-rose-100' },
@@ -245,9 +247,9 @@ function FeatureNumberedNav({ sectionIds, labels }: { sectionIds: string[]; labe
             onClick={() => scrollTo(id)}
             className="transition-all duration-200 text-xs sm:text-sm font-medium px-3 sm:px-4 py-1.5 rounded-full whitespace-nowrap"
             style={{
-              background: activeIdx === idx ? 'rgba(158,27,34,0.14)' : 'transparent',
+              background: activeIdx === idx ? 'var(--lp-brand-pill-bg)' : 'transparent',
               color: activeIdx === idx ? 'var(--lp-brand)' : 'var(--lp-text-subtle)',
-              border: activeIdx === idx ? '1px solid rgba(158,27,34,0.28)' : '1px solid transparent',
+              border: activeIdx === idx ? '1px solid var(--lp-brand-pill-border)' : '1px solid transparent',
             }}
           >
             {labels[idx]}
@@ -699,15 +701,30 @@ const Index = () => {
 
           <div className="flex items-center gap-2">
             {/* Nav links */}
-            <Link
-              to="/pricing"
-              className="text-sm font-medium px-3 py-1.5 rounded-lg transition-all duration-200"
-              style={{ color: 'var(--lp-text-muted)', background: 'transparent' }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text)'; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text-muted)'; }}
-            >
-              Pricing
-            </Link>
+            {mode === 'wisehire' ? (
+              <button
+                className="text-sm font-medium px-3 py-1.5 rounded-lg transition-all duration-200"
+                style={{ color: 'var(--lp-text-muted)', background: 'transparent' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--lp-text)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--lp-text-muted)'; }}
+                onClick={() => {
+                  const el = document.getElementById('wisehire-pricing');
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+              >
+                Pricing
+              </button>
+            ) : (
+              <Link
+                to="/pricing"
+                className="text-sm font-medium px-3 py-1.5 rounded-lg transition-all duration-200"
+                style={{ color: 'var(--lp-text-muted)', background: 'transparent' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text-muted)'; }}
+              >
+                Pricing
+              </Link>
+            )}
             <Link
               to="/whats-new"
               className="hidden xs:block text-sm font-medium px-3 py-1.5 rounded-lg transition-all duration-200"
@@ -757,7 +774,7 @@ const Index = () => {
                   <button className="touch-manipulation active:scale-95 transition-transform" aria-label="Account menu">
                     <Avatar className="h-8 w-8" style={{ border: '1px solid var(--lp-border-card)' }}>
                       <AvatarImage src={profile?.avatarUrl ?? undefined} />
-                      <AvatarFallback className="text-xs font-semibold" style={{ background: 'rgba(158,27,34,0.15)', color: '#E53E3E' }}>
+                      <AvatarFallback className="text-xs font-semibold" style={{ background: mode === 'wisehire' ? 'rgba(29,78,216,0.15)' : 'rgba(158,27,34,0.15)', color: mode === 'wisehire' ? '#3B82F6' : '#E53E3E' }}>
                         {getInitials() ?? <User className="w-3.5 h-3.5" />}
                       </AvatarFallback>
                     </Avatar>
@@ -808,6 +825,8 @@ const Index = () => {
           ═══════════════════════════════════════════════════════ */
           <>
             <WiseHireHero onOpenWaitlist={() => setWaitlistOpen(true)} />
+            <WiseHireTrustSection />
+            <WiseHireFeatureTicker />
             <WiseHireDemoSection />
             <WiseHireFeatures onOpenWaitlist={() => setWaitlistOpen(true)} />
             <WiseHirePricing onOpenWaitlist={() => setWaitlistOpen(true)} />
@@ -815,7 +834,7 @@ const Index = () => {
           </>
         ) : (
           /* ═══════════════════════════════════════════════════════
-             WISERESUEME MODE — existing WiseResume landing
+             WISERESUME MODE — existing WiseResume landing
           ═══════════════════════════════════════════════════════ */
           <>
         {/* ─── HERO ─── */}

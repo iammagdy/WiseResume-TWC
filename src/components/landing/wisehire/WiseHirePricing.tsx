@@ -70,6 +70,7 @@ interface WiseHirePricingProps {
 export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
   return (
     <section
+      id="wisehire-pricing"
       style={{
         background: 'var(--lp-bg)',
         width: '100%',
@@ -144,25 +145,25 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
                 transition: 'background 0.35s ease, border-color 0.35s ease, opacity 0.65s cubic-bezier(0.22,1,0.36,1), transform 0.65s cubic-bezier(0.22,1,0.36,1)',
               }}
             >
-              {/* Early Access badge */}
+              {/* Early Access badge — shown for every tier */}
               <div
                 style={{
                   position: 'absolute',
                   top: -11,
                   left: '50%',
                   transform: 'translateX(-50%)',
-                  background: tier.highlight ? '#1D4ED8' : 'var(--lp-card)',
-                  border: tier.highlight ? 'none' : '1px solid var(--lp-border-card)',
+                  background: 'var(--lp-card)',
+                  border: '1px solid var(--lp-border-card)',
                   borderRadius: 99,
                   padding: '3px 10px',
                   fontSize: '0.65rem',
                   fontWeight: 700,
-                  color: tier.highlight ? '#fff' : 'var(--lp-eyebrow)',
+                  color: 'var(--lp-eyebrow)',
                   whiteSpace: 'nowrap',
                   letterSpacing: '0.05em',
                 }}
               >
-                {tier.highlight ? '⭐ Most popular' : 'Early Access'}
+                Early Access
               </div>
 
               {/* Tier name */}
@@ -173,12 +174,33 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
                   letterSpacing: '0.06em',
                   textTransform: 'uppercase',
                   color: tier.highlight ? 'var(--lp-eyebrow)' : 'var(--lp-text-muted)',
-                  marginBottom: 10,
+                  marginBottom: tier.highlight ? 6 : 10,
                   transition: 'color 0.35s ease',
                 }}
               >
                 {tier.name}
               </p>
+
+              {/* Most Popular label — only on the highlighted tier */}
+              {tier.highlight && (
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    background: '#1D4ED8',
+                    color: '#fff',
+                    borderRadius: 99,
+                    padding: '2px 9px',
+                    fontSize: '0.62rem',
+                    fontWeight: 700,
+                    letterSpacing: '0.04em',
+                    marginBottom: 10,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  ⭐ Most Popular
+                </div>
+              )}
 
               {/* Price */}
               <div className="flex items-baseline gap-1 mb-2">

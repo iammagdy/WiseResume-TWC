@@ -44,7 +44,10 @@ export function PipelineDemo() {
     const cycle = () => {
       setCards((prev) => {
         const toMove = prev.find((c) => c.col < 3);
-        if (!toMove) return prev;
+        if (!toMove) {
+          setAnimId(null);
+          return INITIAL_CARDS;
+        }
         setAnimId(toMove.id);
         return prev.map((c) => c.id === toMove.id ? { ...c, col: c.col + 1 } : c);
       });

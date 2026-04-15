@@ -64,7 +64,7 @@ export function LandingToggle({ mode, onModeChange }: LandingToggleProps) {
         }}
         aria-pressed={mode === 'jobseeker'}
       >
-        Job Seeker
+        For Job Seekers
       </button>
 
       <button
@@ -84,7 +84,7 @@ export function LandingToggle({ mode, onModeChange }: LandingToggleProps) {
         }}
         aria-pressed={mode === 'wisehire'}
       >
-        Hiring / HR
+        For Companies
       </button>
     </div>
   );

@@ -24,15 +24,33 @@ export function BriefDemo() {
 
   useEffect(() => {
     if (!visible) return;
-    let current = 0;
-    const target = 87;
-    const step = () => {
-      current = Math.min(current + 2, target);
-      setScore(current);
-      if (current < target) requestAnimationFrame(step);
+    let cancelled = false;
+
+    const animate = () => {
+      let current = 0;
+      const target = 87;
+      const step = () => {
+        if (cancelled) return;
+        current = Math.min(current + 2, target);
+        setScore(current);
+        if (current < target) {
+          requestAnimationFrame(step);
+        } else {
+          setTimeout(() => {
+            if (!cancelled) {
+              setScore(0);
+              setTimeout(() => {
+                if (!cancelled) animate();
+              }, 500);
+            }
+          }, 2500);
+        }
+      };
+      setTimeout(() => { if (!cancelled) requestAnimationFrame(step); }, 200);
     };
-    const t = setTimeout(() => requestAnimationFrame(step), 200);
-    return () => clearTimeout(t);
+
+    animate();
+    return () => { cancelled = true; };
   }, [visible]);
 
   const radius = 32;

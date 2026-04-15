@@ -4,6 +4,36 @@ Local changelog tracking WiseResume changes.
 
 ## 2026-04-15
 
+### WISEHIRE-PHASE3-BUGFIX — Phase 3 Bug Fix & Spec Compliance Pass
+- **Summary**: 15-issue bug fix pass over the WiseHire Phase 3 landing page implementation. Covers spec violations, visual regressions, functional bugs, and governance gaps confirmed by spec-kit analysis plus 4 additional user-reported bugs.
+- **Fixed**:
+  - **Toggle labels** — "Job Seeker" → "For Job Seekers", "Hiring / HR" → "For Companies" (spec FR-001 / BRANDING.md)
+  - **Aurora background** — `AuroraBackground.tsx` now uses a `MutationObserver` to detect `data-lp-product="wisehire"` and switches to WiseHire teal/blue color stops (`#0D2E6E`, `#1D4ED8`, `#38BDF8`) instead of always rendering red
+  - **Demo section visibility** — Removed `lp-animate` from the outermost flex container in `WiseHireDemoSection` so the demo pane is visible immediately on render, not hidden until IntersectionObserver fires
+  - **BriefDemo loop** — Score dial now resets to 0 and re-animates every ~3 s (infinite cycle)
+  - **PipelineDemo loop** — Pipeline kanban resets to initial card positions when all 7 cards reach the Offer column, then cycles again
+  - **JDDemo loop** — Typewriter restarts 2.5 s after completion; all state resets cleanly
+  - **Pricing badge** — Every tier now shows an "Early Access" badge; Professional tier additionally shows a "⭐ Most Popular" inline pill
+  - **Pricing nav link** — In WiseHire mode, clicking "Pricing" in the nav smooth-scrolls to `#wisehire-pricing` instead of navigating to `/pricing` (WiseResume page)
+  - **AvatarFallback color** — Avatar fallback in the landing nav switches to WiseHire blue (`rgba(29,78,216,0.15)` / `#3B82F6`) in WiseHire mode instead of always showing crimson
+  - **FeatureNumberedNav crimson** — Replaced hardcoded `rgba(158,27,34,...)` active-state colours with `var(--lp-brand-pill-bg)` and `var(--lp-brand-pill-border)` CSS variables (respects mode)
+  - **Comment typo** — "WISERESUEME" → "WISERESUME" in Index.tsx
+- **New files**:
+  - `src/components/landing/wisehire/WiseHireTrustSection.tsx` — HR-specific social proof section (4 trust cards: AI screening, consistent scoring, speed, team alignment)
+  - `src/components/landing/wisehire/WiseHireFeatureTicker.tsx` — Scrolling marquee of WiseHire pillars (Brief Generator · JD Writer · Pipeline Board · Bulk Screening · Talent Pool)
+- **Section order after fix**: Hero → Trust → Feature Ticker → Demo → Features → Pricing → Footer
+- **Modified files**:
+  - `src/components/landing/LandingToggle.tsx` — label copy
+  - `src/components/landing/AuroraBackground.tsx` — MutationObserver + product-aware colour stops
+  - `src/components/landing/wisehire/WiseHireDemoSection.tsx` — lp-animate removed from flex container
+  - `src/components/landing/wisehire/BriefDemo.tsx` — replay loop
+  - `src/components/landing/wisehire/PipelineDemo.tsx` — reset loop
+  - `src/components/landing/wisehire/JDDemo.tsx` — restart loop
+  - `src/components/landing/wisehire/WiseHirePricing.tsx` — badge fix, `id="wisehire-pricing"`
+  - `src/pages/Index.tsx` — imports, section order, nav link, FeatureNumberedNav vars, AvatarFallback, typo
+- **Tasks completed**: Phase 3 Bug Fix Pass (all 15 issues + 4 user-reported bugs) ✅
+- **Spec reference**: `specs/001-wisehire-hr-platform/plan.md` Phase 3 bug fix
+
 ### WISEHIRE-PHASE3 — US1: Landing Page Toggle + Full WiseHire Theme
 - **Summary**: The landing page now has a sticky "I'm a: Job Seeker / Hiring / HR" toggle strip at the top. Clicking "Hiring / HR" switches the entire landing to WiseHire mode: blue brand (`#1D4ED8`), "WiseHire" in the header, WiseHire hero, tabbed demo section, 5-pillar features, 4-tier pricing, and a 4-field waitlist modal (UI stub only — no backend call). URL updates to `?for=companies` so the link is shareable. Switching back restores WiseResume fully. Both light and dark themes work correctly in both modes.
 - **New files**:
