@@ -33,6 +33,22 @@ const changelog: ChangelogEntry[] = [
   // ── April 2026 ──────────────────────────────────────────────
   {
     date: 'April 2026',
+    tag: 'Security',
+    tagBg: 'bg-emerald-500/10',
+    tagText: 'text-emerald-600 dark:text-emerald-400',
+    iconBg: 'bg-emerald-500/15',
+    icon: Shield,
+    title: 'Better Protection for You and Your Portfolio',
+    description:
+      "We've quietly upgraded the security layers across WiseResume. Your public portfolio page and your personal data are better protected than ever — and none of it changes anything about how you use the app.",
+    highlights: [
+      'Your contact details on your portfolio are now shielded from unwanted bots and scrapers',
+      'New safeguards make it harder for automated tools to interact with your public page',
+      'Continuous behind-the-scenes improvements to keep everything running safely and reliably',
+    ],
+  },
+  {
+    date: 'April 2026',
     tag: 'Improvements',
     tagBg: 'bg-green-500/10',
     tagText: 'text-green-600 dark:text-green-400',

@@ -3,27 +3,19 @@
     "version": "v3.3.0",
     "date": "Apr 15, 2026",
     "latest": true,
-    "summary": "Your portfolio is now better protected — contact emails are hidden from bots, scrapers are blocked at the server, and a new privacy section on the landing page explains exactly how.",
+    "summary": "Ongoing security improvements and reliability fixes to keep WiseResume fast, safe, and dependable.",
     "items": [
       {
-        "title": "Contact email hidden from bots and scrapers",
-        "description": "The 'Get in Touch' button on your public portfolio page still works exactly the same for real visitors — but bots and scrapers reading your page's source code can no longer find your email address. It's assembled in real time only when a person actually clicks the button."
+        "title": "We're always working to keep your data safe",
+        "description": "Behind the scenes we've added new layers of protection across WiseResume. Everything is quietly looked after so you can focus on your job search without worrying about the rest."
       },
       {
-        "title": "Scrapers and automation tools are now blocked",
-        "description": "Known scraper tools, headless browsers, and automation scripts are now detected and blocked before they can interact with any part of your portfolio. Legitimate search engines like Google, Bing, and social platforms like LinkedIn and Twitter are still fully allowed through."
+        "title": "Your contact details stay private",
+        "description": "We've made it harder for unwanted bots to collect your contact information from your public portfolio. Real visitors see everything normally — nothing changes for them."
       },
       {
-        "title": "Rate limiting on public portfolio endpoints",
-        "description": "Any IP address hitting your public portfolio endpoints too rapidly is now automatically throttled. This protects against bulk data collection and API abuse without affecting normal visitors."
-      },
-      {
-        "title": "New 'Your privacy is protected' section on the landing page",
-        "description": "A new section on the WiseResume landing page explains in plain language exactly how your data and your portfolio visitors are protected — no vague marketing badges, just four specific, honest callouts."
-      },
-      {
-        "title": "Security note in the portfolio editor",
-        "description": "When editing your contact email in the portfolio editor, a small note now confirms that the email is hidden from bots — so you know the protection is active without having to check anything yourself."
+        "title": "Ongoing improvements and bug fixes",
+        "description": "This update includes reliability fixes and behind-the-scenes improvements that make WiseResume faster and more dependable for everyone."
       }
     ]
   },
