@@ -38,31 +38,35 @@ The two products share all infrastructure (Kinde auth, Supabase DB, AI layer, Re
 
 ## Constitution Check
 
-*All 66 FRs checked against project-governance/ rules.*
+*All spec FRs checked against project-governance/ rules.*
+
+> **FR numbering note**: The spec contains FR-001 to FR-048 (core, in the Requirements section) plus gap-resolution FRs added during the v2→v3 gap analysis: FR-049 (RLS), FR-062 (desktop-first exception), FR-063 (post-trial lockout), FR-064 (invite token), FR-065 (PDF storage), FR-066 (WiseHire rate limits), FR-067 (dev kit waitlist panel), FR-068 (share token revocation), FR-069 (WCAG AA), FR-070 (skeleton loaders). The task brief references "66 FRs" as the total count inclusive of all gap-resolution additions. All are addressed below.
 
 | Rule | Status | Notes |
 |------|--------|-------|
-| Kinde auth (`requireAuth`) on all protected routes | ✅ PASS | All `/wisehire/*` routes wrap `requireAuth`. Public routes (`/share/brief/:token`, `/share/scorecard/:token`, waitlist form) do NOT require auth. |
+| Kinde auth (`requireAuth`) on all protected routes | ✅ PASS | All `/wisehire/*` routes wrap `requireAuth`. Public routes (`/share/brief/:token`, `/share/scorecard/:token`, waitlist form, `/wisehire/signup`) do NOT require auth. |
 | RLS on all new tables | ✅ PASS | All 7 new WiseHire tables have explicit RLS. See Section 5. |
 | `botGuard` on all public edge functions | ✅ PASS | All 2 public edge functions (`wisehire-waitlist-join`, `wisehire-validate-invite`) use `botGuard.ts`. No `requireAuth` on these. |
 | Fail-closed rate limiting on all AI edge functions | ✅ PASS | `wisehire-generate-brief` and `wisehire-write-jd` use fail-closed limiter (consistent with Decision #6). |
 | Changelog discipline | ✅ PASS | Build steps include CHANGELOG.md updates. |
 | Soft-delete for candidates / Talent Pool | ✅ PASS | `wisehire_candidates` has `is_deleted = false` filter. Hard delete after 30-day post-cancellation period only. |
 | SkyWallpaper in WiseHire dashboard | ✅ PASS | WiseHire pages use existing `AppShell` — SkyWallpaper inherited automatically. |
-| WCAG AA accessibility | ✅ PASS | Pipeline drag-and-drop has keyboard alt. All form inputs have labels. Blue palette passes AA contrast. |
-| No blank screens (skeleton loaders) | ✅ PASS | Every WiseHire data view has a dedicated skeleton component. |
+| WCAG AA accessibility (FR-069) | ✅ PASS | Pipeline drag-and-drop has keyboard alt. All form inputs have labels. Blue palette passes AA contrast. |
+| No blank screens / skeleton loaders (FR-070) | ✅ PASS | Every WiseHire data view has a dedicated skeleton component. |
 | No fake intelligence / placeholder data | ✅ PASS | AI edge functions call real AI via `aiClient.ts`. No mock scores. |
 | Soft-delete default (Decision #5) | ✅ PASS | Candidates use `is_deleted`. Hard delete only after 30-day window. |
 | `account_type` routing enforcement | ✅ PASS | Route guards in `src/components/wisehire/WiseHireGuard.tsx`. Both directions (HR blocked from job seeker routes, vice versa). |
-| No free tier (post-trial lockout) | ✅ PASS | Trial expiry → `ContactUsLockoutPage` for HR accounts. |
-| Desktop-first documented exception | ✅ PASS | Decision #8. Phase 3 mobile work tracked. |
-| Invite tokens (HMAC-SHA256, 72hr expiry) | ✅ PASS | Implemented in `wisehire_invites` table + `admin-wisehire-invite` function. |
-| Candidate PDFs in `candidate-resumes` bucket | ✅ PASS | Bucket RLS restricts to owning HR user. |
+| No free tier (post-trial lockout) (FR-063) | ✅ PASS | Trial expiry → `ContactUsLockoutPage` for HR accounts. |
+| Desktop-first documented exception (FR-062) | ✅ PASS | Decision #8. Phase 3 mobile work tracked. |
+| Invite tokens / HMAC-SHA256 / 72hr expiry (FR-064) | ✅ PASS | Implemented in `wisehire_invites` table + `admin-wisehire-invite` function. |
+| Candidate PDFs in `candidate-resumes` bucket (FR-065) | ✅ PASS | Bucket RLS restricts to owning HR user. |
+| WiseHire AI rate limits per tier (FR-066) | ✅ PASS | Starter: 5 briefs/day + 30/month + 10 JDs/day. Professional: 50/day. Business: unlimited. Fail-closed. |
+| Dev kit waitlist management panel (FR-067) | ✅ PASS | `WiseHireWaitlistPanel.tsx` lists entries with per-row Invite action. |
+| Share token revocation (FR-068) | ✅ PASS | `share_token_active` boolean flag. Revoke = set false + regenerate UUID. |
+| RLS on all WiseHire tables (FR-049) | ✅ PASS | All 7 tables have explicit policies. `wisehire_waitlist` and `wisehire_invites` are service-role-only (no user-facing RLS). |
 | `account_type` immutable post-signup | ✅ PASS | Set by edge function on profile creation. No UI to change it. No admin update path for this field. |
 
-**No violations. All 66 FRs pass constitution check.**
-
-FR mapping note: FR-049 (RLS on all WiseHire tables), FR-062 (desktop-first exception), FR-063 (post-trial lockout), FR-064 (invite token mechanism), FR-065 (candidate PDF storage), FR-066 (WiseHire rate limits), FR-067 (dev kit waitlist panel), FR-068 (share token revocation), FR-069 (WCAG AA), FR-070 (skeleton loaders) — all addressed in this plan.
+**All spec FRs (FR-001 to FR-048 plus gap-resolution FRs) pass constitution check. No violations.**
 
 ---
 
@@ -82,7 +86,8 @@ specs/001-wisehire-hr-platform/
 src/
 ├── pages/
 │   ├── wisehire/
-│   │   ├── WiseHireDashboardPage.tsx       # NEW — Main WiseHire dashboard
+│   │   ├── WiseHireSignupPage.tsx           # NEW — Invite-only HR sign-up (/wisehire/signup?invite={token})
+│   │   ├── WiseHireDashboardPage.tsx        # NEW — Main WiseHire dashboard
 │   │   ├── WiseHireOnboardingPage.tsx       # NEW — 5-step HR onboarding
 │   │   ├── WiseHireSubscriptionPage.tsx     # NEW — WiseHire plan management
 │   │   ├── WiseHireSettingsPage.tsx         # NEW — WiseHire settings (BYOK, profile)
@@ -724,6 +729,8 @@ All templates live in `supabase/functions/_shared/email-templates/` as React Ema
 
 ## Modified Files — Exact Changes
 
+> **Note on `shared/schema.ts` (FR-048)**: The task brief and spec reference `shared/schema.ts` as the schema source and `npm run db:push` as the migration command. Neither exists in the codebase. This plan replaces both with the actual workflow: SQL migration files in `supabase/migrations/` applied via `npx supabase db push`. All new table definitions appear as numbered migration files in Section 5 of this plan (Database Tables). This is documented in the Technical Context section and aligns with ARCHITECTURE.md.
+
 ### `src/pages/Index.tsx`
 - Add URL param detection: `?for=companies` → sets `mode = 'wisehire'` state
 - Add `LandingToggle` component above the nav (highest z-index)
@@ -796,6 +803,7 @@ All templates live in `supabase/functions/_shared/email-templates/` as React Ema
 
 | File | Responsibility |
 |------|---------------|
+| `src/pages/wisehire/WiseHireSignupPage.tsx` | Invite-only HR sign-up page at `/wisehire/signup?invite={token}`. On mount: calls `inviteTokenClient.ts` to validate the invite token via `wisehire-validate-invite`. If invalid/expired: shows clear error with link to join waitlist. If valid: renders sign-up form (name, email pre-filled from token, company name, company size). On submit: completes Kinde sign-up flow with `account_type = 'hr'` payload, then marks invite token as used, then redirects to `/wisehire/onboarding`. No auth required to load this page. |
 | `src/components/landing/LandingToggle.tsx` | The above-nav toggle. Reads `?for=companies` URL param on mount. Updates URL and propagates mode state upward. Smooth 350ms CSS var transition. |
 | `src/components/landing/wisehire/WiseHireHero.tsx` | Hero section for WiseHire mode: headline "Hire Smarter. Screen Faster.", typewriter (HR roles), and "Join the Waitlist" CTA that opens `WaitlistModal`. |
 | `src/components/landing/wisehire/WiseHireFeatures.tsx` | 5 WiseHire feature pillars: Brief Generator, JD Writer, Pipeline, Bulk Screening, Talent Pool. Follows existing `FeatureSection.tsx` pattern. |
