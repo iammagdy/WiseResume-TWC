@@ -19,7 +19,10 @@ WiseResume is an AI-powered career management PWA. Production URL: https://resum
 
 ## Project Structure
 - `src/` — Core frontend code (components, hooks, lib, pages, store)
+- `src/lib/edgeFunctions.ts` — Multipart/FormData-capable Edge Function client (file uploads)
+- `src/integrations/supabase/edgeFunctions.ts` — JSON Edge Function client (standard AI calls)
 - `supabase/` — Edge functions and database migrations
+- `server/` — Server-side utilities (db.ts for Neon Postgres connection if needed)
 - `public/` — Static assets and PWA manifest
 - `specs/` — Technical specifications
 - `project-governance/` — Architecture documentation
