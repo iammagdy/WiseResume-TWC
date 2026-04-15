@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { FileText, Sparkles } from 'lucide-react';
+import { Check, FileText, Sparkles } from 'lucide-react';
 
 const JD_LINES = [
   'About the role',
@@ -118,8 +118,9 @@ export function JDDemo() {
           </span>
         )}
         {done && (
-          <span style={{ marginLeft: 'auto', fontSize: '0.62rem', color: '#34D399', fontWeight: 600 }}>
-            ✓ Done
+          <span className="flex items-center gap-1" style={{ marginLeft: 'auto', fontSize: '0.62rem', color: '#34D399', fontWeight: 600 }}>
+            <Check className="w-3 h-3" />
+            Done
           </span>
         )}
       </div>
@@ -154,7 +155,7 @@ export function JDDemo() {
               flexShrink: 0,
             }}
           >
-            Generate ✦
+            Generate <Sparkles className="w-2.5 h-2.5 inline-block" />
           </div>
         </div>
       </div>
