@@ -156,7 +156,7 @@ export default function WiseHireEarlyAccessPage() {
     ? planOverride.replace('wisehire_', '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
     : 'WiseHire';
 
-  const daysLabel = planDays ? `${planDays}-day` : '7-day';
+  const daysLabel = planDays ? `${planDays}-day ` : '';
 
   // ── Completion mode ──
   if (isCompleteMode) {
@@ -211,7 +211,7 @@ export default function WiseHireEarlyAccessPage() {
       >
         <Zap className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
         <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
-          Early access confirmed — {daysLabel} {planLabel} access ready
+          Early access confirmed — {daysLabel}{planLabel} access ready
         </p>
       </div>
 
@@ -297,7 +297,7 @@ export default function WiseHireEarlyAccessPage() {
               Redirecting to create account…
             </>
           ) : (
-            'Create my WiseHire account'
+            'Create your WiseHire account'
           )}
         </Button>
 

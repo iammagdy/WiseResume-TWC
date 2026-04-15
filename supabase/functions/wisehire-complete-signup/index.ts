@@ -122,39 +122,37 @@ Deno.serve(async (req) => {
         console.error('[wisehire-complete-signup] invite update failed:', inviteErr.message);
       }
 
-      // Create wisehire_companies row
-      try {
-        const companyName = company_name?.trim() || 'My Company';
-        await serviceClient
-          .from('wisehire_companies')
-          .upsert(
-            { owner_id: userId, name: companyName, size: company_size?.trim() ?? '1-10', onboarding_completed: false },
-            { onConflict: 'owner_id', ignoreDuplicates: true },
-          );
-      } catch (ex) {
-        console.warn('[wisehire-complete-signup] company upsert exception:', ex);
+      // Create wisehire_companies row (non-fatal for invite path — preserves prior behaviour)
+      const inviteCompanyName = company_name?.trim() || 'My Company';
+      const { error: companyErr } = await serviceClient
+        .from('wisehire_companies')
+        .upsert(
+          { owner_id: userId, name: inviteCompanyName, size: company_size?.trim() ?? '1-10', onboarding_completed: false },
+          { onConflict: 'owner_id', ignoreDuplicates: true },
+        );
+      if (companyErr) {
+        console.warn('[wisehire-complete-signup] company upsert error (non-fatal):', companyErr.message);
       }
 
-      // Grant 7-day Professional trial
-      try {
-        const now = new Date().toISOString();
-        const trialEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-        await serviceClient
-          .from('subscriptions')
-          .upsert(
-            {
-              user_id: userId,
-              plan_name: 'wisehire_starter',
-              trial_plan: 'wisehire_professional',
-              trial_expires_at: trialEnd,
-              status: 'active',
-              current_period_start: now,
-              current_period_end: trialEnd,
-            },
-            { onConflict: 'user_id', ignoreDuplicates: true },
-          );
-      } catch (ex) {
-        console.warn('[wisehire-complete-signup] trial grant exception:', ex);
+      // Grant 7-day Professional trial (non-fatal for invite path — preserves prior behaviour)
+      const inviteNow = new Date().toISOString();
+      const trialEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { error: subErr } = await serviceClient
+        .from('subscriptions')
+        .upsert(
+          {
+            user_id: userId,
+            plan_name: 'wisehire_starter',
+            trial_plan: 'wisehire_professional',
+            trial_expires_at: trialEnd,
+            status: 'active',
+            current_period_start: inviteNow,
+            current_period_end: trialEnd,
+          },
+          { onConflict: 'user_id', ignoreDuplicates: true },
+        );
+      if (subErr) {
+        console.warn('[wisehire-complete-signup] trial grant error (non-fatal):', subErr.message);
       }
 
       // Audit log
