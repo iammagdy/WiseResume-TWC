@@ -12,9 +12,10 @@ import { UserPlus } from 'lucide-react';
 interface PipelineBoardProps {
   roleId?: string;
   roles: { id: string; title: string }[];
+  biasMode?: boolean;
 }
 
-export function PipelineBoard({ roleId, roles }: PipelineBoardProps) {
+export function PipelineBoard({ roleId, roles, biasMode = false }: PipelineBoardProps) {
   const { data: candidates = [], isLoading, updatePipelineStage, updateNotes, addCandidate } = usePipeline(roleId);
   const [selectedCandidate, setSelectedCandidate] = useState<PipelineCandidate | null>(null);
   const [showAddSheet, setShowAddSheet] = useState(false);
@@ -74,6 +75,7 @@ export function PipelineBoard({ roleId, roles }: PipelineBoardProps) {
               candidates={stageMap[stage.id] ?? []}
               onCandidateClick={(c) => setSelectedCandidate(c.id === selectedCandidate?.id ? null : c)}
               dragHandlers={dragHandlers}
+              biasMode={biasMode}
             />
           ))}
         </div>

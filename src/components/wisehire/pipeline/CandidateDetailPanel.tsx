@@ -93,6 +93,18 @@ export function CandidateDetailPanel({
           </div>
         )}
 
+        {/* Scorecard link */}
+        <div>
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Scorecard</p>
+          <Link
+            to={`/wisehire/scorecards/${candidate.id}${briefId ? `?briefId=${briefId}` : ''}`}
+            className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            <FileText className="h-3.5 w-3.5" />
+            Open interview scorecard
+          </Link>
+        </div>
+
         {/* Notes */}
         <div>
           <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Notes</p>

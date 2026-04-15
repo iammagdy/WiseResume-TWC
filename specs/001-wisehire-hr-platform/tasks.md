@@ -273,6 +273,60 @@
 
 ---
 
+## Phase 14 — US10: Bulk Resume Screening (T122–T131)
+
+- [x] T122 DB — Create `wisehire_bulk_screen_jobs` table (id, owner_id, role_id, status enum `pending|processing|done|error`, results JSONB, resume_count int, created_at) with RLS: owner reads/deletes own rows. Also verify `candidate-resumes` storage bucket exists and create `bulk-screening-uploads` bucket (private, owner-scoped RLS).
+- [x] T123 [US10] Create `supabase/functions/wisehire-bulk-screen/index.ts` — HR guard → validate multipart: up to 10 PDFs + JD text (≤ 8 000 chars) → for each PDF: extract text (regex strip, 3 000 char cap) → call AI once per resume (parallel `Promise.all`, GPT-4o-mini): score 0–100, strengths[], concerns[], one-line summary → sort descending by score → upsert `wisehire_bulk_screen_jobs` row with results → return `{ jobId, results[] }`. Rate limit: Starter 3 batches/day, Pro 20/day (via `checkRateLimit`).
+- [x] T124 [US10] Create `src/hooks/wisehire/useBulkScreen.ts` — TanStack Query: `useLatestBulkJobs(roleId?)` (list last 5 jobs); mutation `runBulkScreen({ files, jdText, roleId })` — uploads files via Supabase Storage then calls edge function; mutation `addToPipeline(candidateData, stage)` — creates `wisehire_candidates` row.
+- [x] T125 [P] [US10] Create `src/components/wisehire/bulk-screen/BulkScreenSkeleton.tsx` — skeleton: dropzone placeholder + 4 result row placeholders.
+- [x] T126 [P] [US10] Create `src/components/wisehire/bulk-screen/ResumeDropzone.tsx` — drag-and-drop or click-to-upload; accepts PDF only; max 10 files; shows file list with remove buttons; file size badge; disabled state during processing.
+- [x] T127 [US10] Create `src/components/wisehire/bulk-screen/BulkResultsTable.tsx` — ranked table: rank, name (from filename or extracted), match score chip (colour-coded), strengths + concerns inline, "Add to Pipeline" button per row (opens stage picker popover). Accepts `biasMode` boolean prop — masks name column when true.
+- [x] T128 [US10] Create `src/pages/wisehire/BulkScreenPage.tsx` — `WiseHireShell` wrapper; role selector (optional filter); `ResumeDropzone` + JD textarea; "Screen All" button; results: `BulkResultsTable`; previous jobs accordion (last 5). Route: `/wisehire/bulk-screen`.
+- [x] T129 [US10] Add "Bulk Screen" nav item to `WiseHireShell.tsx` (between Pipeline and Settings); add route `/wisehire/bulk-screen` inside `<WiseHireGuard>` in `App.tsx`; add lazy import.
+- [ ] T130 [US10] Manual verification — PENDING (requires real HR account): upload 3 PDFs + JD → ranked list in < 60s; "Add to Pipeline" creates candidate in Shortlisted; Starter without BYOK sees 402 prompt; rate limit enforced.
+- [x] T131 Update `project-governance/CHANGELOG.md` with US10 Bulk Screen entry.
+
+---
+
+## Phase 15 — US11: Bias Reduction Mode (T132–T137)
+
+- [x] T132 [US11] Create `src/hooks/wisehire/useBiasMode.ts` — wraps `localStorage` key `wisehire_bias_mode`; returns `{ biasMode: boolean, toggleBiasMode: () => void }`. Exported as a named hook.
+- [x] T133 [P] [US11] Create `src/components/wisehire/BiasToggle.tsx` — pill switch: "Bias Reduction" label + eye-off icon; reads/writes `useBiasMode`; shows tooltip "Hides names, schools, and graduation years". Designed to sit in a page toolbar.
+- [x] T134 [US11] Update `src/components/wisehire/pipeline/CandidateCard.tsx` — accept `biasMode` boolean prop; when true, replace candidate name with "Candidate #N" (index-based), hide email, hide any school/graduation metadata fields.
+- [x] T135 [US11] Update `src/components/wisehire/bulk-screen/BulkResultsTable.tsx` — wire `biasMode` from `useBiasMode` hook; when enabled, mask name column with "Applicant #N".
+- [x] T136 [US11] Update `src/pages/wisehire/PipelinePage.tsx` and `BulkScreenPage.tsx` — mount `<BiasToggle />` in the page toolbar; pass `biasMode` down to child components.
+- [x] T137 Update `project-governance/CHANGELOG.md` with US11 Bias Reduction entry.
+
+---
+
+## Phase 16 — US12: Interview Scorecard (T138–T150)
+
+- [x] T138 DB — Create `wisehire_scorecards` table: `id uuid PK`, `owner_id uuid → auth.uid()`, `candidate_id uuid → wisehire_candidates`, `brief_id uuid → wisehire_candidate_briefs`, `questions text[]`, `ratings int[]` (1–5 per question, null until submitted), `notes text[]`, `overall_score numeric` (avg of ratings), `submitted_at timestamptz`, `share_token uuid DEFAULT gen_random_uuid()`, `share_token_active bool DEFAULT true`, `created_at timestamptz`. RLS: owner CRUD own rows. Public read via `share_token` where `share_token_active = true`.
+- [x] T139 [US12] Create `src/hooks/wisehire/useScorecards.ts` — `useScorecards(candidateId)`: list scorecards for a candidate; `useScorecard(scorecardId)`: single scorecard; `usePublicScorecard(shareToken)`: public fetch. Mutations: `createScorecard({ candidateId, briefId, questions })` — creates row pre-populated with questions from brief, ratings/notes as empty arrays; `saveScorecard({ id, ratings, notes })` — updates ratings + notes + computes overall_score + sets submitted_at; `revokeShareToken(id)` — regenerates share_token UUID.
+- [x] T140 [P] [US12] Create `src/components/wisehire/scorecard/ScorecardSkeleton.tsx` — skeleton matching 8-question rating rows.
+- [x] T141 [US12] Create `src/components/wisehire/scorecard/ScorecardForm.tsx` — 8 question rows each with: question text, star rating (1–5 clickable stars), notes textarea; overall score computed live (avg of rated questions); "Save Draft" (partial save, no submitted_at) + "Submit" (sets submitted_at); disabled after submission.
+- [x] T142 [US12] Create `src/components/wisehire/scorecard/ScorecardView.tsx` — read-only scorecard: candidate name + role, overall score ring (reuse SVG from BriefOutput), per-question stars + notes, submitted date. Used in both the main app and the public share page.
+- [x] T143 [US12] Create `src/components/wisehire/scorecard/ScorecardShareModal.tsx` — copyable share URL (`/share/scorecard/:token`), external link button, "Revoke & Renew" with warning (old link immediately invalid).
+- [x] T144 [US12] Create `src/pages/wisehire/ScorecardPage.tsx` — fetches scorecard (or creates new one from brief if none exists for this candidate); shows `ScorecardForm` if not yet submitted, `ScorecardView` if submitted; share button opens `ScorecardShareModal`. Route: `/wisehire/scorecards/:candidateId`.
+- [x] T145 [US12] Create `src/pages/wisehire/PublicScorecardPage.tsx` — no auth; fetches via `share_token` (Supabase client, public RLS); renders `ScorecardView`; WiseHire branded header + footer; 404 state for invalid/revoked tokens. Route: `/share/scorecard/:shareToken`.
+- [x] T146 [US12] Update `src/components/wisehire/brief/BriefOutput.tsx` — add "Open Scorecard" button at the bottom; navigates to `/wisehire/scorecards/:candidateId?briefId=:briefId`.
+- [x] T147 [US12] Update `src/components/wisehire/pipeline/CandidateDetailPanel.tsx` — add "Scorecard" link below the brief link; shows score chip if a submitted scorecard exists for this candidate.
+- [x] T148 [US12] Add routes to `src/App.tsx`: `/wisehire/scorecards/:candidateId` (inside `<WiseHireGuard>`), `/share/scorecard/:shareToken` (public); add lazy imports.
+- [ ] T149 [US12] Manual verification — PENDING (requires real HR account): brief → "Open Scorecard" → pre-populated questions; rate all 8 → submit → score shown; share link works publicly; revoke invalidates.
+- [x] T150 Update `project-governance/CHANGELOG.md` with US12 Scorecard entry.
+
+---
+
+## Phase 17 — Phase 2 Polish (T151–T155)
+
+- [x] T151 [P] Verify all new Phase 2 pages have skeleton loading states (BulkScreenSkeleton, ScorecardSkeleton).
+- [x] T152 [P] Run Vitest: `npm run test` — confirm zero regressions vs 22 pre-existing baseline.
+- [x] T153 [P] WCAG AA check on any new colour values introduced in Phase 2 components.
+- [x] T154 Update `project-governance/ARCHITECTURE.md` — edge function count 83→84, add `wisehire-bulk-screen`, add `wisehire_scorecards` + `wisehire_bulk_screen_jobs` tables, update route table.
+- [x] T155 Final `project-governance/CHANGELOG.md` entry — Phase 2 complete summary.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies

@@ -43,7 +43,7 @@ You MUST NEVER assume outdated documentation (such as files in `legacy-docs/enha
 | State management | Zustand (global/persistent) + TanStack Query (server state) |
 | Authentication | Kinde Auth (provider) → Supabase (session) via token bridge |
 | Database | Supabase PostgreSQL with RLS |
-| Edge functions | Supabase Edge Functions (Deno runtime) — 83 functions |
+| Edge functions | Supabase Edge Functions (Deno runtime) — 84 functions |
 | File storage | Supabase Storage buckets |
 | Email | Resend (transactional + admin notifications) |
 | AI providers | OpenRouter, Groq, Gemini, OpenAI, Anthropic, Mistral, xAI, Cohere, Ollama |
@@ -353,7 +353,7 @@ All `/wisehire/*` routes enforce `account_type = 'hr'` via `WiseHireGuard`. Job 
 | `/wisehire/settings` | WiseHireGuard | Company profile + BYOK AI keys |
 | `/share/brief/:shareToken` | None | Public read-only brief (no auth required) |
 
-**WiseHire Edge Functions** (6 functions, all require `account_type = 'hr'`):
+**WiseHire Edge Functions** (7 functions, all require `account_type = 'hr'`):
 | Function | Purpose |
 |----------|---------|
 | `wisehire-waitlist-join` | Submit waiting list entry |
@@ -362,8 +362,9 @@ All `/wisehire/*` routes enforce `account_type = 'hr'` via `WiseHireGuard`. Job 
 | `admin-wisehire-invite` | Admin: send invite email |
 | `wisehire-write-jd` | AI job description generation (plan + BYOK + rate limit) |
 | `wisehire-generate-brief` | AI candidate brief generation (plan + BYOK + rate limits) |
+| `wisehire-bulk-screen` | AI bulk resume screening — up to 10 PDFs ranked against a JD |
 
-**WiseHire Database Tables** (7 tables, all with RLS):
+**WiseHire Database Tables** (9 tables, all with RLS):
 | Table | Purpose |
 |-------|---------|
 | `wisehire_companies` | Company profile (owner_id, name, size, etc.) |
@@ -373,6 +374,15 @@ All `/wisehire/*` routes enforce `account_type = 'hr'` via `WiseHireGuard`. Job 
 | `wisehire_pipeline_events` | Stage change audit trail |
 | `wisehire_waitlist` | Pre-launch waiting list |
 | `wisehire_invites` | HMAC-signed invite tokens |
+| `wisehire_bulk_screen_jobs` | Bulk screening job results (JSONB) |
+| `wisehire_scorecards` | Interview scorecards with 1–5 star ratings + share_token |
+
+**Phase 2 Routes added:**
+| Route | Purpose |
+|-------|---------|
+| `/wisehire/bulk-screen` | Bulk Resume Screening page |
+| `/wisehire/scorecards/:candidateId` | Interview Scorecard (fill + view) |
+| `/share/scorecard/:shareToken` | Public read-only scorecard |
 
 ---
 

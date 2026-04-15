@@ -1,3 +1,6 @@
+import { Link } from 'react-router-dom';
+import { ClipboardList } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import type { CandidateBrief } from '@/hooks/wisehire/useBriefs';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -132,6 +135,18 @@ export function BriefOutput({ brief, candidateName }: BriefOutputProps) {
 
       {brief.ai_model_used && (
         <p className="text-[10px] text-slate-300 dark:text-slate-600">AI: {brief.ai_model_used}</p>
+      )}
+
+      {/* Scorecard CTA */}
+      {brief.candidate_id && (
+        <div className="border-t pt-4">
+          <Button variant="outline" size="sm" className="gap-2 w-full sm:w-auto" asChild>
+            <Link to={`/wisehire/scorecards/${brief.candidate_id}?briefId=${brief.id}`}>
+              <ClipboardList className="h-4 w-4" />
+              Open Interview Scorecard
+            </Link>
+          </Button>
+        </div>
       )}
     </div>
   );

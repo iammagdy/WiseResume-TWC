@@ -8,6 +8,7 @@ interface CandidateCardProps {
   onDragStart?: (e: React.DragEvent) => void;
   onDragEnd?: (e: React.DragEvent) => void;
   isDragOver?: boolean;
+  biasMode?: boolean;
 }
 
 function ScoreBadge({ score }: { score: number | null | undefined }) {
@@ -28,6 +29,7 @@ export function CandidateCard({
   onClick,
   onDragStart,
   onDragEnd,
+  biasMode = false,
 }: CandidateCardProps) {
   const matchScore = (candidate.brief as { match_score: number | null } | null)?.match_score;
 
@@ -50,9 +52,9 @@ export function CandidateCard({
           </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate leading-tight">
-              {candidate.name}
+              {biasMode ? `Candidate #${candidate.id.slice(-4).toUpperCase()}` : candidate.name}
             </p>
-            {candidate.email && (
+            {!biasMode && candidate.email && (
               <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate mt-0.5">
                 {candidate.email}
               </p>

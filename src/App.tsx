@@ -156,6 +156,9 @@ const BriefGeneratorPage = lazyWithRetry(() => import("./pages/wisehire/BriefGen
 const BriefViewPage = lazyWithRetry(() => import("./pages/wisehire/BriefViewPage"));
 const PipelinePage = lazyWithRetry(() => import("./pages/wisehire/PipelinePage"));
 const PublicBriefPage = lazyWithRetry(() => import("./pages/share/PublicBriefPage"));
+const BulkScreenPage = lazyWithRetry(() => import("./pages/wisehire/BulkScreenPage"));
+const ScorecardPage = lazyWithRetry(() => import("./pages/wisehire/ScorecardPage"));
+const PublicScorecardPage = lazyWithRetry(() => import("./pages/wisehire/PublicScorecardPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -333,6 +336,8 @@ function AppRoutes() {
             <Route path="/wisehire/briefs" element={<Suspense fallback={<PageLoadingSpinner />}><BriefGeneratorPage /></Suspense>} />
             <Route path="/wisehire/briefs/:briefId" element={<Suspense fallback={<PageLoadingSpinner />}><BriefViewPage /></Suspense>} />
             <Route path="/wisehire/pipeline" element={<Suspense fallback={<PageLoadingSpinner />}><PipelinePage /></Suspense>} />
+            <Route path="/wisehire/bulk-screen" element={<Suspense fallback={<PageLoadingSpinner />}><BulkScreenPage /></Suspense>} />
+            <Route path="/wisehire/scorecards/:candidateId" element={<Suspense fallback={<PageLoadingSpinner />}><ScorecardPage /></Suspense>} />
           </Route>
 
           {/* Protected routes */}
@@ -392,6 +397,7 @@ function AppRoutes() {
         {/* Public share page - outside AppShell */}
         <Route path="/share/:token" element={<Suspense fallback={<ShareSkeleton />}><SharePage /></Suspense>} />
         <Route path="/share/brief/:shareToken" element={<Suspense fallback={<PageLoadingSpinner />}><PublicBriefPage /></Suspense>} />
+        <Route path="/share/scorecard/:shareToken" element={<Suspense fallback={<PageLoadingSpinner />}><PublicScorecardPage /></Suspense>} />
         <Route path="/interview/report/:token" element={<Suspense fallback={<PageLoadingSpinner />}><InterviewReportPage /></Suspense>} />
         <Route path="/p/:username" element={<Suspense fallback={<DetailSkeleton />}><PublicPortfolioPage /></Suspense>} />
         <Route path="/l/:linkId" element={<Suspense fallback={<DetailSkeleton />}><ShortLinkPage /></Suspense>} />

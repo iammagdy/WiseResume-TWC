@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { WiseHireShell } from '@/components/wisehire/WiseHireShell';
 import { PipelineBoard } from '@/components/wisehire/pipeline/PipelineBoard';
+import { BiasToggle } from '@/components/wisehire/BiasToggle';
+import { useBiasMode } from '@/hooks/wisehire/useBiasMode';
 import { useJDs } from '@/hooks/wisehire/useJDs';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -10,6 +12,7 @@ import { Layers } from 'lucide-react';
 export default function PipelinePage() {
   const { data: roles = [], isLoading: rolesLoading } = useJDs();
   const [filterRoleId, setFilterRoleId] = useState<string>('all');
+  const { biasMode, toggleBiasMode } = useBiasMode();
 
   const rolesForBoard = roles.map((r) => ({ id: r.id, title: r.title }));
 
@@ -27,23 +30,26 @@ export default function PipelinePage() {
             </p>
           </div>
 
-          {/* Role filter */}
-          {!rolesLoading && roles.length > 0 && (
-            <div className="flex items-center gap-2 shrink-0">
-              <Layers className="h-4 w-4 text-slate-400 shrink-0" />
-              <Select value={filterRoleId} onValueChange={setFilterRoleId}>
-                <SelectTrigger className="w-52">
-                  <SelectValue placeholder="All roles" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All roles</SelectItem>
-                  {roles.map((r) => (
-                    <SelectItem key={r.id} value={r.id}>{r.title}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Role filter */}
+            {!rolesLoading && roles.length > 0 && (
+              <div className="flex items-center gap-2">
+                <Layers className="h-4 w-4 text-slate-400 shrink-0" />
+                <Select value={filterRoleId} onValueChange={setFilterRoleId}>
+                  <SelectTrigger className="w-52">
+                    <SelectValue placeholder="All roles" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All roles</SelectItem>
+                    {roles.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>{r.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <BiasToggle biasMode={biasMode} onToggle={toggleBiasMode} />
+          </div>
         </div>
 
         {/* Board */}
@@ -51,6 +57,7 @@ export default function PipelinePage() {
           <PipelineBoard
             roleId={filterRoleId !== 'all' ? filterRoleId : undefined}
             roles={rolesForBoard}
+            biasMode={biasMode}
           />
         </div>
       </div>

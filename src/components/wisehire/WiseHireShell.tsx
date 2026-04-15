@@ -5,6 +5,7 @@ import {
   Sparkles,
   FileText,
   BarChart2,
+  FileSearch,
   Settings,
   CreditCard,
   LogOut,
@@ -32,6 +33,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'JD Writer', path: '/wisehire/jd-writer', icon: FileText },
   { label: 'Brief Generator', path: '/wisehire/briefs', icon: Sparkles },
   { label: 'Pipeline', path: '/wisehire/pipeline', icon: BarChart2 },
+  { label: 'Bulk Screen', path: '/wisehire/bulk-screen', icon: FileSearch },
   { label: 'Settings', path: '/wisehire/settings', icon: Settings },
   { label: 'Subscription', path: '/wisehire/subscription', icon: CreditCard },
 ];

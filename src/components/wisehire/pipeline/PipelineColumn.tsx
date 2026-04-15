@@ -12,9 +12,10 @@ interface PipelineColumnProps {
     onDragLeave: (e: React.DragEvent) => void;
     onDropZone: (toStage: string) => (e: React.DragEvent) => void;
   };
+  biasMode?: boolean;
 }
 
-export function PipelineColumn({ stage, candidates, onCandidateClick, dragHandlers }: PipelineColumnProps) {
+export function PipelineColumn({ stage, candidates, onCandidateClick, dragHandlers, biasMode = false }: PipelineColumnProps) {
   return (
     <div
       className="flex flex-col gap-2 min-w-[200px] w-52 shrink-0 bg-slate-50 dark:bg-slate-800/40 rounded-xl p-3 transition-colors"
@@ -45,6 +46,7 @@ export function PipelineColumn({ stage, candidates, onCandidateClick, dragHandle
             onClick={() => onCandidateClick(c)}
             onDragStart={dragHandlers.onDragStart(c.id, stage.id)}
             onDragEnd={dragHandlers.onDragEnd()}
+            biasMode={biasMode}
           />
         ))
       )}

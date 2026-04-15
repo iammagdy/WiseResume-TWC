@@ -2,6 +2,58 @@
 
 Local changelog tracking WiseResume changes.
 
+## 2026-04-15 (Phase 17 — Phase 2 Polish & Close-Out)
+
+### WISEHIRE-PHASE17 — Phase 2 Complete (T151–T155)
+
+- **T151 — Skeleton audit**: `BulkScreenSkeleton` (dropzone + 4 row placeholders) and `ScorecardSkeleton` (8-question row placeholders) confirmed present on all new pages.
+- **T152 — Zero regressions**: `tsc --noEmit` passes with no errors; no new Vitest failures.
+- **T153 — WCAG**: No new colour values introduced — all new components reuse existing Tailwind tokens (amber-600 for BiasToggle active state: 3.0:1 vs white on button, used with white text icon only — decorative; all text passes).
+- **T154 — ARCHITECTURE.md**: Updated edge function count 83→84, added `wisehire-bulk-screen`, documented 2 new DB tables (`wisehire_bulk_screen_jobs`, `wisehire_scorecards`), updated route table.
+- **T155 — Final CHANGELOG**: This entry. WiseHire Phase 2 declared complete.
+
+---
+
+## 2026-04-15 (Phases 14–16)
+
+### WISEHIRE-PHASE14 — US10: Bulk Resume Screening (T122–T131)
+
+- **DB** (`wisehire_bulk_screen_jobs`): table with `owner_id`, `role_id`, `status` enum, `results JSONB`, `resume_count`; RLS owner-all policy; `bulk-screening-uploads` storage bucket (private, PDF-only, 10 MB limit).
+- **Edge function** (`supabase/functions/wisehire-bulk-screen/index.ts`): HR guard → multipart form (up to 10 PDFs + JD text ≤ 8000 chars) → PDF text extraction (binary strip + 3000 char cap) → parallel AI scoring per resume (`Promise.all`, GPT-4o-mini): match_score 0–100, 3 strengths, 2 concerns, one-line summary → sort descending by score → persist job row → return `{ jobId, results[] }`. Rate limits: Starter 3/day (BYOK required), Pro 20/day (fail-closed via `checkRateLimit`). Deployed as function #84.
+- **Hook** (`src/hooks/wisehire/useBulkScreen.ts`): `useLatestBulkJobs(roleId?)` (last 5 jobs); mutation `useRunBulkScreen` (builds FormData, calls edge fn, handles 402/429); mutation `useAddCandidateFromScreen` (creates `wisehire_candidates` row in Shortlisted stage).
+- **Components** (`src/components/wisehire/bulk-screen/`):
+  - `BulkScreenSkeleton.tsx` — dropzone placeholder + 4 animated row placeholders.
+  - `ResumeDropzone.tsx` — drag-and-drop or browse; PDF-only filter; max 10 files; file list with remove buttons + size badge; disabled state during processing.
+  - `BulkResultsTable.tsx` — ranked table: rank chip, display name (masked when biasMode), match score colour chip, expandable strengths/concerns rows, "Add to Pipeline" popover with stage picker, added/loading states.
+- **Page** (`src/pages/wisehire/BulkScreenPage.tsx`): role selector, `ResumeDropzone`, JD textarea, "Screen All" button, live results, previous sessions accordion; wrapped in `WiseHireShell`.
+- **Nav + routes**: "Bulk Screen" nav item added to `WiseHireShell` (between Pipeline and Settings); `/wisehire/bulk-screen` inside `<WiseHireGuard>`.
+
+### WISEHIRE-PHASE15 — US11: Bias Reduction Mode (T132–T137)
+
+- **Hook** (`src/hooks/wisehire/useBiasMode.ts`): `localStorage` key `wisehire_bias_mode`; persists across page refreshes; `{ biasMode, toggleBiasMode }`.
+- **Component** (`src/components/wisehire/BiasToggle.tsx`): Amber pill button with eye/eye-off icon; tooltip "Hides names, schools, and graduation years"; accessible `aria-pressed`.
+- **Pipeline integration**: `biasMode` prop threaded through `PipelinePage` → `PipelineBoard` → `PipelineColumn` → `CandidateCard`; when enabled, candidate name replaced with "Candidate #[last 4 of UUID]", email hidden.
+- **Bulk Screen integration**: `biasMode` from `useBiasMode` wired into `BulkResultsTable`; name column masked to "Applicant #N".
+- **BiasToggle mounted** in both `PipelinePage` toolbar and `BulkScreenPage` header.
+
+### WISEHIRE-PHASE16 — US12: Interview Scorecard (T138–T150)
+
+- **DB** (`wisehire_scorecards`): `candidate_id` + `brief_id` FK, `questions text[]`, `ratings int[]` (null until rated), `notes text[]`, `overall_score numeric` (computed avg), `submitted_at`, `share_token uuid`, `share_token_active bool`. RLS: owner CRUD + public SELECT via `share_token_active = true`.
+- **Hook** (`src/hooks/wisehire/useScorecards.ts`): `useScorecards(candidateId)`, `useScorecard(id)`, `usePublicScorecard(token)`; mutations: `useCreateScorecard`, `useSaveScorecard` (draft + submit, computes overall_score), `useRevokeShareToken`.
+- **Components** (`src/components/wisehire/scorecard/`):
+  - `ScorecardSkeleton.tsx` — 8-question row skeletons with star placeholders.
+  - `ScorecardForm.tsx` — 8 question rows with 5-star click rating (hover preview), notes textarea; live average score banner; "Save Draft" + "Submit" (disabled after submission); star rating fully keyboard accessible.
+  - `ScorecardView.tsx` — read-only: SVG score ring (0–5, green/amber/red by value), per-question star display + notes blockquote.
+  - `ScorecardShareModal.tsx` — copyable share URL, external link, two-step revoke + renew.
+- **Pages**:
+  - `ScorecardPage.tsx` (`/wisehire/scorecards/:candidateId`): auto-creates scorecard from brief questions (or 8 generic questions if no brief); shows form if not submitted, view if submitted; "Share" button (visible post-submit).
+  - `PublicScorecardPage.tsx` (`/share/scorecard/:shareToken`): no auth; WiseHire branded header + footer; 404 state for invalid/revoked tokens.
+- **Brief integration**: `BriefOutput.tsx` gets "Open Interview Scorecard" button linking to `/wisehire/scorecards/:candidateId?briefId=:briefId` — scorecard auto-populates with brief's 8 questions.
+- **Pipeline integration**: `CandidateDetailPanel.tsx` gets "Scorecard" section linking to scorecard page with optional briefId.
+- **Routes**: `/wisehire/scorecards/:candidateId` (inside `<WiseHireGuard>`), `/share/scorecard/:shareToken` (public) registered in `App.tsx`.
+
+---
+
 ## 2026-04-15 (Phase 13 — Polish & Close-Out)
 
 ### WISEHIRE-PHASE13 — Phase 1 Complete (T114–T121)
