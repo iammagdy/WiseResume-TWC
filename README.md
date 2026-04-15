@@ -10,10 +10,10 @@
 
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white&style=flat-square)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white&style=flat-square)](https://www.typescriptlang.org/)
-[![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white&style=flat-square)](https://vitejs.dev/)
+[![Vite](https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white&style=flat-square)](https://vitejs.dev/)
 [![Supabase](https://img.shields.io/badge/Supabase-93_Edge_Functions-3ECF8E?logo=supabase&logoColor=white&style=flat-square)](https://supabase.com/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-38B2AC?logo=tailwind-css&logoColor=white&style=flat-square)](https://tailwindcss.com/)
-[![Framer Motion](https://img.shields.io/badge/Framer_Motion-11-black?logo=framer&logoColor=white&style=flat-square)](https://www.framer.com/motion/)
+[![Framer Motion](https://img.shields.io/badge/Framer_Motion-12-black?logo=framer&logoColor=white&style=flat-square)](https://www.framer.com/motion/)
 [![Capacitor](https://img.shields.io/badge/Capacitor-8_PWA-119EFF?logo=capacitor&logoColor=white&style=flat-square)](https://capacitorjs.com/)
 [![Kinde Auth](https://img.shields.io/badge/Auth-Kinde-000000?style=flat-square)](https://kinde.com/)
 
@@ -247,9 +247,9 @@ Available at [/enterprise](https://resume.thewise.cloud/enterprise):
 | Layer | Technology |
 |-------|-----------|
 | **Frontend** | React 18 + TypeScript 5 |
-| **Build** | Vite 5 (HMR, code splitting, lazy loading) |
+| **Build** | Vite 6 (HMR, code splitting, lazy loading) |
 | **Styling** | Tailwind CSS + Radix UI primitives + shadcn/ui |
-| **Animation** | Framer Motion 11 + GSAP (landing page) |
+| **Animation** | Framer Motion 12 (transitions, landing page animations) |
 | **State** | Zustand (global/persistent) + TanStack Query v5 (server state) |
 | **Auth** | Kinde Auth → Supabase via JWT token bridge |
 | **Database** | Supabase PostgreSQL with Row Level Security on all tables |
