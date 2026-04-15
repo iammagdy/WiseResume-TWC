@@ -1,25 +1,332 @@
 # Architecture Truth & Security Rules
 
 ## 1. Source of Architectural Truth
-You MUST NEVER assume outdated documentation (such as files in `legacy-docs/enhancements-for-vibe-coding/` or other older folders) represents the true architecture. The current codebase is the primary source of truth, and specifically:
-* **Authentication Provider**: **Kinde ONLY**
-  * The project uses a Kinde → Supabase Token Bridge consisting of a `token-exchange` edge function and a singleton `supabaseBridge.ts` lifecycle manager.
-* **Backend and Database**: **Supabase ONLY**
-  * Core tables include `resumes`, `profiles`, `cover_letters`, `interview_sessions`, and others with RLS.
-  * Edge Functions handle AI tools, email, PDF generation, parsing, etc.
 
-## 2. Modification Rules
-* Existing Edge Functions, database integrations, and current backend wiring MUST be inspected before any modification.
-* Do NOT assume outdated Auth documentation is correct if the current implementation shows otherwise.
-* **Do Not Touch**: Agents MUST NEVER manually modify auto-generated or read-only files. This includes:
+You MUST NEVER assume outdated documentation (such as files in `legacy-docs/enhancements-for-vibe-coding/` or other older folders) represents the true architecture. The current codebase is the primary source of truth, and specifically:
+
+* **Authentication Provider**: **Kinde ONLY**
+  * The project uses a Kinde → Supabase Token Bridge: `token-exchange` edge function + `supabaseBridge.ts` singleton lifecycle manager.
+  * Deterministic UUID v5 generated from the Kinde user ID for Supabase identity.
+  * OAuth uses implicit flow (not PKCE) for custom domain compatibility (see Decision #4).
+  * `supabaseBridge.ts` stores the bridge token in `localStorage` to prevent redundant exchanges on page refresh.
+* **Backend and Database**: **Supabase ONLY**
+  * All tables use Row Level Security (RLS). No table is accessible without proper auth.
+  * Edge Functions (Deno runtime) handle all heavy logic — AI calls, PDF generation, email, parsing.
+  * Schema lives in `shared/schema.ts`. Migrations run via `npm run db:push` (never hand-written SQL).
+* **Do Not Touch**: Agents MUST NEVER manually modify auto-generated or read-only files:
   * `src/integrations/supabase/types.ts`
   * `src/integrations/supabase/client.ts`
   * `.env`
   * `supabase/config.toml`
   * `bun.lock` / `package-lock.json`
 
-## 3. Security and Privacy Rules
+---
+
+## 2. Full Technology Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend framework | React 18 + Vite + TypeScript |
+| Styling | Tailwind CSS + Shadcn/UI + CSS Variables |
+| Animation | Framer Motion + GSAP (landing page only) |
+| 3D Background | React Three Fiber (SkyWallpaper) |
+| State management | Zustand (global/persistent) + TanStack Query (server state) |
+| Authentication | Kinde Auth (provider) → Supabase (session) via token bridge |
+| Database | Supabase PostgreSQL with RLS |
+| Edge functions | Supabase Edge Functions (Deno runtime) |
+| File storage | Supabase Storage |
+| Email | Resend (transactional + admin) via `admin-email-actions` and `auth-email-hook` |
+| AI providers | OpenRouter, Groq, Gemini, OpenAI, Anthropic, Mistral, xAI, Cohere, Ollama (via aiClient.ts) |
+| Voice | ElevenLabs (interview coach voice) |
+| Mobile | Capacitor (PWA wrapper, biometrics, haptics) |
+| Testing | Vitest (302 tests as of 2026-03-17) |
+
+---
+
+## 3. Authentication: Kinde → Supabase Token Bridge
+
+The token bridge is the core auth infrastructure. It MUST NOT be replaced or circumvented.
+
+1. User authenticates with Kinde (OAuth implicit flow)
+2. `token-exchange` edge function receives the Kinde JWT, verifies it, and issues a Supabase JWT
+3. The Supabase JWT uses a deterministic UUID v5 derived from the Kinde user ID — same user, same Supabase ID, forever
+4. `supabaseBridge.ts` manages the token lifecycle (init, refresh, persist to localStorage, clear)
+5. All authenticated API calls use the Supabase client with the bridge token
+6. The `me` edge function returns the current user's profile via the bridge
+
+**Files**: `supabase/functions/token-exchange/`, `src/lib/supabaseBridge.ts`, `src/contexts/AuthContext.tsx`
+
+---
+
+## 4. Database Tables (Current Schema)
+
+All tables use RLS. Schema defined in `shared/schema.ts`.
+
+### User & Account
+| Table | Purpose |
+|-------|---------|
+| `profiles` | Core user profile: name, email, bio, avatar, plan, `account_type` (`job_seeker` \| `hr`), `onboarding_completed`, `is_deleted` |
+| `user_preferences` | Theme, AI provider preference, notification settings |
+| `subscriptions` | Billing: plan tier (`free`, `pro`, `premium`, WiseHire tiers), trial dates, status |
+| `audit_logs` | All admin and security-sensitive actions with actor, action, timestamp |
+| `notifications` | In-app alerts for users |
+
+### Resume & Content (WiseResume)
+| Table | Purpose |
+|-------|---------|
+| `resumes` | Resume metadata: title, template, settings, owner |
+| `resume_sections` | Section data (JSONB) per resume |
+| `resume_versions` | Snapshot history for a resume |
+| `resume_experiences` | Work history entries |
+| `resume_educations` | Education entries |
+| `resume_skills` | Tagged skills and proficiency levels |
+| `resume_certifications` | Professional certificates |
+| `cover_letters` | Generated cover letters |
+| `resignation_letters` | Generated resignation letters |
+| `tailor_history` | Record of tailoring sessions and outputs |
+| `short_links` | Short URL mappings for resumes and portfolios |
+
+### AI & Credits (WiseResume)
+| Table | Purpose |
+|-------|---------|
+| `ai_credits` | Daily usage and limits per user (`credits_used_today`, `daily_limit`) |
+| `ai_usage_logs` | Audit trail of every AI action: endpoint, tokens, cost, user |
+| `credit_transactions` | History of credit additions/deductions |
+| `user_api_keys` | Encrypted BYOK API keys (AES-GCM-256, per-user salt) |
+| `rpc_rate_limits` | DB-backed IP and user rate limiting timestamps |
+| `discount_codes` | Coupon definitions: type, plan override, days, limits, expiry |
+| `coupon_redemptions` | Which user redeemed which coupon (prevents double-use) |
+
+### Portfolio & Career (WiseResume)
+| Table | Purpose |
+|-------|---------|
+| `portfolio_settings` | Public portfolio config: theme, visibility, username |
+| `portfolio_visits` | Analytics: views, device, IP (hashed), duration |
+| `job_applications` | Kanban tracker: company, role, status, JD, deadline |
+| `jobs` | Parsed job descriptions (from URL or text) |
+| `career_assessments` | AI career quiz results and milestone tracking |
+| `interview_sessions` | Mock interview transcripts and scores |
+
+### WiseHire (planned — Phase 1)
+| Table | Purpose |
+|-------|---------|
+| `wisehire_waitlist` | Pre-launch waitlist: name, email, company, size, submitted_at |
+| `wisehire_invites` | Signed invite tokens: HMAC-SHA256, 72-hour expiry, single-use |
+| `wisehire_companies` | HR company data: name, size, roles focus, AI key status |
+| `wisehire_roles` | Open positions: title, JD, status (open/closed), soft-delete |
+| `wisehire_candidates` | Candidates under evaluation: resume data, pipeline stage, notes, soft-delete |
+| `wisehire_candidate_briefs` | AI-generated briefs: match score, strengths, concerns, questions, share token |
+| `wisehire_pipeline_events` | Audit trail of pipeline stage changes per candidate |
+
+---
+
+## 5. Supabase Storage Buckets
+
+| Bucket | Contents | Access |
+|--------|----------|--------|
+| `avatars` | User profile photos | Owner read/write, public read |
+| `resumes` | Generated resume PDF/DOCX exports | Owner only |
+| `portfolios` | Portfolio-specific assets | Owner write, public read |
+| `temp` | Transient processing files | Owner only, auto-purged |
+| `candidate-resumes` | HR candidate PDF uploads (WiseHire, Phase 1) | Owning HR user only |
+
+---
+
+## 6. Edge Functions (78 total)
+
+All edge functions live in `supabase/functions/`. Every edge function that handles user data MUST include `requireAuth` middleware and `botGuard` protection from `_shared/`. Public endpoints (no auth) must still include `botGuard`.
+
+### AI & Content Generation (WiseResume)
+| Function | Purpose |
+|----------|---------|
+| `analyze-resume` | ATS analysis and optimization feedback |
+| `score-resume` | ATS score against a job description |
+| `tailor-resume` | Rewrite resume to match a JD |
+| `tailor-section` | Improve a specific resume section for a role |
+| `enhance-section` | General improvement of a resume section |
+| `explain-gap` | Frame an employment gap professionally |
+| `fill-gap` | Suggest content to address a resume gap |
+| `one-page-optimizer` | Shrink content to fit one page |
+| `generate-cover-letter` | Tailored cover letter from resume + JD |
+| `generate-resignation-letter` | Professional resignation letter |
+| `generate-portfolio-bio` | AI bio for public portfolio |
+| `generate-question-bank` | Interview questions for a specific role |
+| `generate-headshot` | AI-generated professional headshot |
+| `detect-and-humanize` | AI detection + humanization suggestions |
+| `optimize-for-linkedin` | Reformat resume for LinkedIn |
+| `company-briefing` | Company research brief for interview prep |
+| `career-assessment` | Career path assessment from user input |
+| `career-path-advisor` | Career move suggestions and gap analysis |
+| `wise-ai-chat` | General career AI assistant |
+| `agentic-chat` | Multi-turn agentic AI assistant |
+| `suggest-template` | AI-suggested resume template match |
+
+### Resume Parsing & Import
+| Function | Purpose |
+|----------|---------|
+| `parse-resume` | Two-pass AI extraction + OCR fallback + regex local parser |
+| `parse-linkedin` | LinkedIn profile import and structured extraction |
+| `parse-job-url` | Job description extraction from a URL |
+| `parse-job-text` | Job description structuring from pasted text |
+
+### Interview & Voice
+| Function | Purpose |
+|----------|---------|
+| `interview-chat` | AI interview session: questions, answers, scoring |
+| `recruiter-simulation` | Simulates an AI recruiter in an interview |
+| `elevenlabs-scribe-token` | Issues secure tokens for ElevenLabs voice-to-text |
+
+### Portfolio & Public
+| Function | Purpose |
+|----------|---------|
+| `ask-portfolio` | AI chat widget on public portfolio pages |
+| `create-portfolio-session` | Manages visitor sessions for public portfolios |
+| `track-portfolio-view` | Logs analytics and visitor data for portfolios |
+| `portfolio-meta` | Dynamic SEO metadata for portfolio links |
+| `og-image` | Dynamic Open Graph image generation |
+| `resolve-short-link` | Short URL redirect handler |
+| `fetch-github-projects` | Fetches public GitHub repos for portfolio |
+
+### Auth & User Identity
+| Function | Purpose |
+|----------|---------|
+| `token-exchange` | Kinde JWT → Supabase JWT bridge |
+| `me` | Returns current authenticated user's profile |
+| `auth-email-hook` | Custom Supabase auth email hook (branded templates) |
+| `manage-api-keys` | BYOK key storage with AES-GCM-256 encryption |
+| `validate-api-key` | Validates a user-provided AI key against the provider |
+
+### Admin & Dev Kit
+| Function | Purpose |
+|----------|---------|
+| `admin-list-users` | Paginated user list with search |
+| `admin-list-user-content` | Lists resumes, cover letters etc. for a user |
+| `admin-get-identity` | Full identity + Kinde data for a user |
+| `admin-update-profile` | Admin override of user profile fields |
+| `admin-set-plan` | Manually set a user's subscription tier |
+| `admin-grant-trial` | Grant a timed trial for any tier |
+| `admin-revoke-trial` | Revoke an active trial |
+| `admin-set-credits` | Override a user's AI credit limit |
+| `admin-suspend-user` | Ban / unsuspend a user |
+| `admin-delete-user` | Hard delete a user and all their data |
+| `admin-merge-identity` | Resolve Kinde shadow account conflicts |
+| `admin-revoke-sessions` | Invalidate all active sessions for a user |
+| `admin-save-note` | Add admin notes to a user's record |
+| `admin-email-actions` | Send magic links, confirmations, custom emails via Resend |
+| `admin-manage-coupons` | Create, list, toggle, delete coupon codes |
+| `admin-analytics` | Platform-wide analytics for dev kit |
+| `admin-audit-logs` | Retrieve audit log entries |
+| `admin-live-activity` | Real-time platform event feed |
+| `admin-check-access` | Verify admin token validity |
+| `admin-env-check` | Validate environment variable configuration |
+| `admin-github-status` | Check GitHub repo sync status |
+| `admin-get-settings` | Retrieve platform-wide settings |
+| `admin-update-settings` | Update platform-wide settings |
+| `verify-dev-kit` | Verifies dev kit password server-side |
+| `hard-purge` | Permanently purges soft-deleted data |
+
+### Coupons & Billing
+| Function | Purpose |
+|----------|---------|
+| `redeem-coupon` | User-facing coupon redemption with plan upgrade |
+| `validate-coupon` | Check coupon validity without redeeming |
+| `admin-manage-coupons` | Admin CRUD for coupon definitions |
+
+### Notifications & Engagement
+| Function | Purpose |
+|----------|---------|
+| `send-push-notification` | Push notification dispatch |
+| `weekly-digest` | Scheduled weekly summary email |
+| `send-resume-reminder` | Nudge users to update their resume |
+
+### Contact & Support
+| Function | Purpose |
+|----------|---------|
+| `send-contact-email` | Contact form submission handler |
+| `send-contact-inquiry` | Inquiry routing from portfolio/landing pages |
+| `send-feature-request` | Feature request submission |
+| `submit-contact-request` | General contact request handler |
+
+### Utility
+| Function | Purpose |
+|----------|---------|
+| `ai-health` | AI provider health check |
+| `ai-test` | Test AI endpoint for dev kit smoke tests |
+| `generate-store-screenshots` | App store screenshot generation |
+
+---
+
+## 7. AI System Architecture
+
+### Credit System
+* **Daily limits**: Free: 5 credits/day, Pro: 100 credits/day, Premium: unlimited (sentinel value `-1`)
+* **Atomic deduction**: Credits deducted BEFORE the AI call via `atomic_attempt_and_deduct_credit` RPC to prevent race conditions
+* **BYOK bypass**: When a user provides their own AI key, platform credit deduction is bypassed (`isByok: true`)
+
+### BYOK (Bring Your Own Key)
+* Keys stored in `user_api_keys` table encrypted with AES-GCM-256
+* Per-user salt: `user-api-keys-salt-v2-{userId}`
+* Supported providers: OpenAI, Anthropic, Gemini, Groq, Mistral, xAI, Cohere, OpenRouter, Ollama
+* **Priority routing** in `aiClient.ts`:
+  1. User BYOK key (if configured) — fails hard if key is invalid, no silent fallback
+  2. WiseResume managed AI (platform `OPENROUTER_API_KEY` or `GROQ_API_KEY`)
+  3. Legacy global `GEMINI_API_KEY`
+
+### Rate Limiting (Multi-Layer)
+* **Client-side**: In-memory limiter for UI responsiveness
+* **IP-based** (`checkIpRateLimit` in `_shared/rateLimiter.ts`): DB-backed via `rpc_rate_limits` table. Skips when IP is undetermined. Fail-open on DB error (intentional for public endpoints).
+* **User-based**: Enforced per-user in AI edge functions via credit system
+* **Fail-closed** (Decision #6): All AI endpoints block requests when the rate limiter DB is unreachable — cost control takes precedence over availability
+
+### WiseHire AI Rate Limits (Phase 1)
+| Tier | Daily Brief Limit | Monthly Cap | Bulk Batch Max |
+|------|------------------|-------------|----------------|
+| Starter | 5/day | 30/month | 10 resumes |
+| Professional | 50/day | None | 50 resumes |
+| Business | Unlimited | None | 50 resumes |
+
+---
+
+## 8. WiseHire Routing Structure (Phase 1)
+
+All WiseHire routes are protected and enforce `account_type = 'hr'`. Job seeker accounts are redirected away with a clear message.
+
+| Route | Purpose |
+|-------|---------|
+| `/?for=companies` | WiseHire landing page mode (same URL, toggle state) |
+| `/wisehire/dashboard` | WiseHire main dashboard |
+| `/wisehire/brief` | Candidate Brief generator |
+| `/wisehire/brief/:id` | View a saved brief |
+| `/wisehire/jd-writer` | Job Description writer |
+| `/wisehire/pipeline` | Candidate pipeline board |
+| `/wisehire/subscription` | WiseHire plan management |
+| `/wisehire/settings` | WiseHire account & AI settings |
+| `/wisehire/onboarding` | WiseHire onboarding flow |
+| `/share/brief/:token` | Public read-only brief (no auth required) |
+| `/share/scorecard/:token` | Public read-only scorecard (no auth required) |
+
+Phase 2+: `/wisehire/bulk-screen`, `/wisehire/analytics`
+Phase 3+: `/wisehire/talent-pool`
+
+---
+
+## 9. Security and Privacy Rules
+
 * **Data Exposure**: You MUST NEVER expose user data, interview content, resume data, private profile data, session data, tokens, or hidden fields improperly.
-* **Key Management**: BYOK (Bring Your Own Key) API keys MUST be handled securely.
-* **Public/Private Boundaries**: Public pages MUST expose ONLY intentionally public data.
+* **Key Management**: BYOK API keys MUST be encrypted at rest. Never log, expose, or transmit decrypted keys unnecessarily.
+* **Public/Private Boundaries**: Public pages MUST expose ONLY intentionally public data. Portfolio pages, brief share links, and scorecard share links expose only what the owner explicitly chose to share.
 * **Authorization**: You MUST NEVER weaken authentication, authorization, or data protection without explicit approval.
+* **RLS**: Every new Supabase table MUST have RLS policies. HR users can only access their own company's data.
+* **Soft Delete**: All user-facing deletions use `is_deleted = true` (Decision #5). Hard deletes are admin-only or occur after the 30-day post-cancellation window for WiseHire candidate data.
+* **Candidate Privacy (WiseHire)**: Candidate resume PDFs are stored in the `candidate-resumes` bucket with RLS restricting access to the owning HR user. Files are deleted when a candidate is hard-deleted.
+* **Bot Protection**: All public edge functions include `botGuard.ts` protection. Legitimate crawlers (Googlebot, etc.) are allow-listed. Malicious bots receive 403. Known scrapers are fingerprinted by 35+ UA patterns.
+
+---
+
+## 10. Modification Rules
+
+* Existing Edge Functions, database integrations, and current backend wiring MUST be inspected before any modification.
+* Do NOT assume outdated documentation is correct — inspect the actual codebase first.
+* Schema changes use `npm run db:push` only. Never write raw SQL migrations manually.
+* When adding new edge functions: always include `requireAuth` (authenticated routes) or `botGuard` (public routes), and rate limiting. Always register the function in this document.
+* When adding new database tables: always define RLS policies in the same migration. Always add the table to this document.
