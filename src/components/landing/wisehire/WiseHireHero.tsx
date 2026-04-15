@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, Building2, CheckCircle2 } from 'lucide-react';
 
 const WH_TYPEWRITER_WORDS = [
   'Hiring Manager',
@@ -125,7 +125,7 @@ export function WiseHireHero({ onOpenWaitlist }: WiseHireHeroProps) {
           transition: 'background 0.35s ease, border-color 0.35s ease',
         }}
       >
-        <span style={{ fontSize: '0.75rem', marginRight: '-2px' }}>🏢</span>
+        <Building2 className="w-4 h-4" style={{ color: 'var(--lp-eyebrow)' }} />
         <span
           className="font-display font-semibold tracking-tight"
           style={{ fontSize: '0.85rem', color: 'var(--lp-eyebrow)', transition: 'color 0.35s ease' }}

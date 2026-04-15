@@ -506,9 +506,9 @@ const Index = () => {
           from { opacity: 0; transform: translateY(20px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        .lp-hero-sub   { animation: lp-hero-in 0.6s cubic-bezier(0.22,1,0.36,1) 0.45s both; }
-        .lp-hero-cta   { animation: lp-hero-in 0.6s cubic-bezier(0.22,1,0.36,1) 0.65s both; }
-        .lp-hero-trust { animation: lp-hero-in 0.5s cubic-bezier(0.22,1,0.36,1) 0.82s both; }
+        .lp-hero-sub   { animation: lp-hero-in 0.6s cubic-bezier(0.22,1,0.36,1) 0.45s forwards; }
+        .lp-hero-cta   { animation: lp-hero-in 0.6s cubic-bezier(0.22,1,0.36,1) 0.65s forwards; }
+        .lp-hero-trust { animation: lp-hero-in 0.5s cubic-bezier(0.22,1,0.36,1) 0.82s forwards; }
 
         @media (prefers-reduced-motion: reduce) {
           .lp-hero-sub,.lp-hero-cta,.lp-hero-trust { animation: none; opacity: 1; transform: none; }
@@ -920,7 +920,7 @@ const Index = () => {
           <h1
             className="relative z-10 font-extrabold leading-[1.05] max-w-4xl"
             style={{
-              fontSize: 'clamp(1.9rem, 9vw, 7rem)',
+              fontSize: 'clamp(1.9rem, 9vw, 5.5rem)',
               color: 'var(--lp-text)',
               letterSpacing: '-0.035em',
               transition: 'color 0.3s ease',
@@ -931,7 +931,7 @@ const Index = () => {
               Stand out as a
             </span>
             {/* Line 2: typewriter role title only — always one line */}
-            <span style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+            <span style={{ display: 'block', whiteSpace: 'nowrap' }}>
               <span className="lp-gradient-text" style={{ display: 'inline-block', minWidth: '2ch' }}>
                 {typewriterWord || '\u00A0'}
                 <span className="lp-cursor" aria-hidden="true" />
@@ -1005,7 +1005,7 @@ const Index = () => {
             style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', color: 'var(--lp-text)', letterSpacing: '-0.02em' }}
           >
             Five tools. One platform.<br />
-            <span className="lp-gradient-text">Your unfair advantage in hiring.</span>
+            <span className="lp-gradient-text">Your unfair advantage in the job market.</span>
           </h2>
         </div>
 
