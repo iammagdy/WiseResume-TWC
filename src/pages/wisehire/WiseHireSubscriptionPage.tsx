@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle2, Clock, Sparkles, Tag, AlertCircle, Loader2, ArrowLeft } from 'lucide-react';
+import { WiseHireShell } from '@/components/wisehire/WiseHireShell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -113,7 +114,8 @@ export default function WiseHireSubscriptionPage() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-[#f0f5ff] dark:bg-[#00061a] py-10 px-4">
+    <WiseHireShell>
+    <div className="py-10 px-4">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="mb-2">
@@ -202,6 +204,7 @@ export default function WiseHireSubscriptionPage() {
         </p>
       </div>
     </div>
+    </WiseHireShell>
   );
 }
 

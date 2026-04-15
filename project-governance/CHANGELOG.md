@@ -2,6 +2,41 @@
 
 Local changelog tracking WiseResume changes.
 
+## 2026-04-15 (Phase 9)
+
+### WISEHIRE-PHASE9 — US1 (continued): WiseHire Dashboard Shell (T072–T080)
+
+- **Summary**: HR users now have a fully navigable WiseHire product shell with a sidebar nav, live stats, recent briefs, quick actions, and a working settings page with BYOK key management and company profile editing.
+
+- **New component** (`src/components/wisehire/WiseHireShell.tsx`):
+  - Sidebar layout: WiseHire brand + trial badge, 6 nav links (Dashboard, Brief Generator, JD Writer, Pipeline, Settings, Subscription), theme toggle, user avatar + sign-out
+  - Desktop: fixed 240px left sidebar; Mobile: top header with hamburger + slide-in sidebar overlay
+  - "Coming soon" items (Brief Generator, JD Writer, Pipeline) show a `toast.info` instead of navigating + display a "Soon" chip
+  - Active nav item highlighted with blue accent + chevron indicator
+
+- **New components** (`src/components/wisehire/dashboard/`):
+  - `DashboardStatsSkeleton.tsx` — 4-card pulse skeleton matching the real stats layout
+  - `DashboardStats.tsx` — live 4-card grid (Briefs Generated, Open Roles, Candidates in Pipeline, Avg Match Score); queries `wisehire_candidate_briefs`, `wisehire_roles`, `wisehire_candidates` in parallel; computes avg match score across all briefs; shows `—` when no data
+  - `RecentBriefs.tsx` — last 3 candidate briefs ordered by `created_at DESC`; shows candidate name, role title, relative date, colour-coded match score chip; empty state when no briefs; skeleton during loading; links to `/wisehire/brief/{id}`
+  - `QuickActions.tsx` — 3 action buttons (Generate Brief, Write a JD, View Pipeline); coming-soon items show toast; colour-coded icon squares
+
+- **Updated page** (`src/pages/wisehire/WiseHireDashboardPage.tsx`):
+  - Fully composed: `WiseHireShell` → page header → onboarding nudge banner → `DashboardStats` → `QuickActions` → `RecentBriefs`
+
+- **New page** (`src/pages/wisehire/WiseHireSettingsPage.tsx`):
+  - `CompanyProfileSection` — company name + size form; upserts `wisehire_companies`; toast on success
+  - `AIKeySection` — provider selector (OpenAI / Anthropic); masked key input with show/hide toggle; calls `manage-api-keys` edge function (list, set, delete actions); shows saved keys with remove button; "Get key" doc link per provider
+  - `AccountInfoSection` — read-only display of Kinde user name + email
+
+- **Updated page** (`src/pages/wisehire/WiseHireSubscriptionPage.tsx`):
+  - Wrapped in `WiseHireShell` so sidebar nav is visible
+
+- **Updated routing** (`src/App.tsx`):
+  - Added `/wisehire/settings` inside `<WiseHireGuard>`
+
+- **Pending**: T079 manual verification (requires deployed environment with real HR user)
+- **Spec reference**: `specs/001-wisehire-hr-platform/tasks.md` T072–T080
+
 ## 2026-04-15 (Phases 7 + 8)
 
 ### WISEHIRE-PHASE7 — US4: WiseHire Onboarding (T058–T061, T063)
