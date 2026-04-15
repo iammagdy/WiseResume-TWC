@@ -1,45 +1,38 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { corsHeaders } from '../_shared/cors.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { getAuthUser } from '../_shared/authMiddleware.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
+import { getServiceClient } from '../_shared/dbClient.ts';
+import { requireAuth, AuthError, authErrorResponse } from '../_shared/authMiddleware.ts';
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+function json(data: unknown, status = 200, cors: Record<string, string> = {}) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...cors, 'Content-Type': 'application/json' },
+  });
+}
+
+Deno.serve(async (req) => {
+  const origin = req.headers.get('origin');
+  const cors = getCorsHeaders(origin);
+
+  if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
 
   try {
-    const user = await getAuthUser(req);
-    if (!user) {
-      return new Response(JSON.stringify({ error: 'You must be signed in to apply.' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
+    const { userId, client: userClient } = await requireAuth(req);
+    const supabase = getServiceClient();
 
     // Block HR users from applying
     const { data: profile } = await supabase
       .from('profiles')
       .select('account_type, full_name, email')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single();
 
     if (profile?.account_type === 'hr') {
-      return new Response(JSON.stringify({ error: 'HR accounts cannot apply to roles.' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return json({ error: 'HR accounts cannot apply to roles.' }, 403, cors);
     }
 
     const { role_id, cover_note } = await req.json();
     if (!role_id) {
-      return new Response(JSON.stringify({ error: 'role_id is required.' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return json({ error: 'role_id is required.' }, 400, cors);
     }
 
     // Verify role is published
@@ -50,10 +43,7 @@ serve(async (req) => {
       .single();
 
     if (roleErr || !role || !role.published || role.is_deleted) {
-      return new Response(JSON.stringify({ error: 'Role not found or not open for applications.' }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return json({ error: 'Role not found or not open for applications.' }, 404, cors);
     }
 
     // Check for duplicate application
@@ -61,21 +51,18 @@ serve(async (req) => {
       .from('wisehire_applications')
       .select('id')
       .eq('role_id', role_id)
-      .eq('applicant_user_id', user.id)
+      .eq('applicant_user_id', userId)
       .maybeSingle();
 
     if (existing) {
-      return new Response(JSON.stringify({ error: 'You have already applied to this role.' }), {
-        status: 409,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return json({ error: 'You have already applied to this role.' }, 409, cors);
     }
 
     // Pull applicant's latest resume text from resume store
     const { data: resumes } = await supabase
       .from('resumes')
       .select('content')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .order('updated_at', { ascending: false })
       .limit(1);
 
@@ -83,15 +70,17 @@ serve(async (req) => {
       ? JSON.stringify(resumes[0].content).slice(0, 6000)
       : null;
 
-    const applicantName = profile?.full_name ?? user.email ?? 'Applicant';
-    const applicantEmail = profile?.email ?? user.email ?? '';
+    // Get email from auth user
+    const { data: { user: authUser } } = await userClient.auth.getUser();
+    const applicantName = profile?.full_name ?? authUser?.email ?? 'Applicant';
+    const applicantEmail = profile?.email ?? authUser?.email ?? '';
 
     // Create application row
     const { data: application, error: appErr } = await supabase
       .from('wisehire_applications')
       .insert({
         role_id,
-        applicant_user_id: user.id,
+        applicant_user_id: userId,
         applicant_name: applicantName,
         applicant_email: applicantEmail,
         resume_text: resumeText,
@@ -153,15 +142,10 @@ serve(async (req) => {
       }
     }
 
-    return new Response(
-      JSON.stringify({ ok: true, application_id: application.id }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
+    return json({ ok: true, application_id: application.id }, 200, cors);
   } catch (err) {
+    if (err instanceof AuthError) return authErrorResponse(err, origin);
     console.error('[wisehire-apply]', err);
-    return new Response(JSON.stringify({ error: 'Internal error' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return json({ error: 'Internal error' }, 500, getCorsHeaders(origin));
   }
 });

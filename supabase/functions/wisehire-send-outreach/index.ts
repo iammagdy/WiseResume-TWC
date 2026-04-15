@@ -1,60 +1,68 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { corsHeaders } from '../_shared/cors.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { getAuthUser } from '../_shared/authMiddleware.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
+import { getServiceClient } from '../_shared/dbClient.ts';
+import { requireAuth, AuthError, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { checkRateLimit } from '../_shared/rateLimiter.ts';
 
 const AI_DRAFT_SYSTEM = `You are a professional recruiter writing a concise outreach email to a candidate.
 Rules: friendly yet professional tone, 3–5 sentences, no generic filler, personalise using the candidate name and role title provided, end with a clear call to action.
 Output ONLY the email body (no subject line, no signature).`;
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+function json(data: unknown, status = 200, cors: Record<string, string> = {}) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...cors, 'Content-Type': 'application/json' },
+  });
+}
+
+Deno.serve(async (req) => {
+  const origin = req.headers.get('origin');
+  const cors = getCorsHeaders(origin);
+
+  if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
 
   try {
-    const user = await getAuthUser(req);
-    if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
+    const { userId } = await requireAuth(req);
+    const supabase = getServiceClient();
 
     // HR guard + plan
     const { data: profile } = await supabase
       .from('profiles')
       .select('account_type, plan')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single();
 
     if (profile?.account_type !== 'hr') {
-      return new Response(JSON.stringify({ error: 'WiseHire HR account required' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return json({ error: 'WiseHire HR account required' }, 403, cors);
     }
 
     // Rate limit: Starter 10/day, Pro 100/day
-    const limit = profile.plan === 'pro' ? 100 : 10;
-    const rl = await checkRateLimit(user.id, 'wisehire-send-outreach', limit, 86400);
+    const limit = profile.plan === 'wisehire_professional' || profile.plan === 'wisehire_business' || profile.plan === 'wisehire_enterprise' ? 100 : 10;
+    const rl = await checkRateLimit(userId, {
+      actionType: 'wisehire_send_outreach',
+      maxRequests: limit,
+      windowSeconds: 86_400,
+    });
     if (!rl.allowed) {
-      return new Response(JSON.stringify({ error: 'Daily outreach limit reached', remaining: 0 }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return json({ error: 'Daily outreach limit reached', remaining: 0 }, 429, cors);
     }
 
     const { candidate_id, subject, body, to_email, ai_draft, candidate_name, role_title } =
       await req.json();
 
     if (!candidate_id || !to_email) {
-      return new Response(JSON.stringify({ error: 'candidate_id and to_email are required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return json({ error: 'candidate_id and to_email are required' }, 400, cors);
     }
 
     // Verify candidate belongs to this HR user
     const { data: candidate, error: candErr } = await supabase
       .from('wisehire_candidates')
-      .select('id, full_name')
+      .select('id, name')
       .eq('id', candidate_id)
-      .eq('owner_id', user.id)
+      .eq('owner_id', userId)
       .single();
 
     if (candErr || !candidate) {
-      return new Response(JSON.stringify({ error: 'Candidate not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return json({ error: 'Candidate not found' }, 404, cors);
     }
 
     // AI draft mode — return draft without sending
@@ -63,56 +71,59 @@ serve(async (req) => {
       const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY');
 
       let draftBody = '';
-      const userPrompt = `Candidate name: ${candidate_name ?? candidate.full_name ?? 'the candidate'}\nRole: ${role_title ?? 'an open position'}\nWrite the outreach email body.`;
+      const userPrompt = `Candidate name: ${candidate_name ?? candidate.name ?? 'the candidate'}\nRole: ${role_title ?? 'an open position'}\nWrite the outreach email body.`;
 
       if (OPENAI_API_KEY || OPENROUTER_API_KEY) {
         const apiKey = OPENAI_API_KEY ?? OPENROUTER_API_KEY!;
         const baseUrl = OPENAI_API_KEY ? 'https://api.openai.com/v1' : 'https://openrouter.ai/api/v1';
         const model = OPENAI_API_KEY ? 'gpt-4o-mini' : 'openai/gpt-4o-mini';
 
-        const aiRes = await fetch(`${baseUrl}/chat/completions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-          body: JSON.stringify({
-            model,
-            messages: [
-              { role: 'system', content: AI_DRAFT_SYSTEM },
-              { role: 'user', content: userPrompt },
-            ],
-            max_tokens: 300,
-            temperature: 0.7,
-          }),
-        });
+        try {
+          const aiRes = await fetch(`${baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+              model,
+              messages: [
+                { role: 'system', content: AI_DRAFT_SYSTEM },
+                { role: 'user', content: userPrompt },
+              ],
+              max_tokens: 300,
+              temperature: 0.7,
+            }),
+          });
 
-        if (aiRes.ok) {
-          const aiData = await aiRes.json();
-          draftBody = aiData.choices?.[0]?.message?.content?.trim() ?? '';
+          if (aiRes.ok) {
+            const aiData = await aiRes.json();
+            draftBody = aiData.choices?.[0]?.message?.content?.trim() ?? '';
+          }
+        } catch (aiErr) {
+          console.warn('[wisehire-send-outreach] AI draft fetch failed:', aiErr);
         }
       }
 
-      return new Response(
-        JSON.stringify({ draft: draftBody || `Hi ${candidate_name ?? 'there'},\n\nI came across your profile and was impressed by your background. We have an exciting opportunity at our company that I think you'd be a great fit for.\n\nWould you be open to a quick chat this week?\n\nBest regards` }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
+      return json({
+        draft: draftBody || `Hi ${candidate_name ?? 'there'},\n\nI came across your profile and was impressed by your background. We have an exciting opportunity at our company that I think you'd be a great fit for.\n\nWould you be open to a quick chat this week?\n\nBest regards`,
+      }, 200, cors);
     }
 
     // Send mode — requires subject + body
     if (!subject || !body) {
-      return new Response(JSON.stringify({ error: 'subject and body required to send' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return json({ error: 'subject and body required to send' }, 400, cors);
     }
 
     // Get company name for "from" label
     const { data: company } = await supabase
       .from('wisehire_companies')
       .select('name')
-      .eq('owner_id', user.id)
+      .eq('owner_id', userId)
       .single();
 
     const fromLabel = company?.name ? `${company.name} via WiseHire` : 'WiseHire';
 
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
     let resendMessageId: string | null = null;
-    let status = 'saved';
+    let emailStatus = 'saved';
 
     if (RESEND_API_KEY) {
       const resendRes = await fetch('https://api.resend.com/emails', {
@@ -132,10 +143,10 @@ serve(async (req) => {
       const resendData = await resendRes.json();
       if (resendRes.ok) {
         resendMessageId = resendData.id;
-        status = 'sent';
+        emailStatus = 'sent';
       } else {
         console.error('[wisehire-send-outreach] Resend error:', JSON.stringify(resendData));
-        status = 'failed';
+        emailStatus = 'failed';
       }
     }
 
@@ -143,12 +154,12 @@ serve(async (req) => {
     const { data: record, error: insertErr } = await supabase
       .from('wisehire_outreach_emails')
       .insert({
-        owner_id: user.id,
+        owner_id: userId,
         candidate_id,
         to_email,
         subject,
         body,
-        status,
+        status: emailStatus,
         resend_message_id: resendMessageId,
       })
       .select()
@@ -156,12 +167,10 @@ serve(async (req) => {
 
     if (insertErr) throw insertErr;
 
-    return new Response(
-      JSON.stringify({ ok: true, id: record.id, status, remaining: rl.remaining }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
+    return json({ ok: true, id: record.id, status: emailStatus, remaining: rl.remaining }, 200, cors);
   } catch (err) {
+    if (err instanceof AuthError) return authErrorResponse(err, origin);
     console.error('[wisehire-send-outreach]', err);
-    return new Response(JSON.stringify({ error: 'Internal error' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return json({ error: 'Internal error' }, 500, getCorsHeaders(origin));
   }
 });

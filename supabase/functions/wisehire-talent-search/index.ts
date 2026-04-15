@@ -1,37 +1,46 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { corsHeaders } from '../_shared/cors.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { getAuthUser } from '../_shared/authMiddleware.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
+import { getServiceClient } from '../_shared/dbClient.ts';
+import { requireAuth, AuthError, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { checkRateLimit } from '../_shared/rateLimiter.ts';
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+function json(data: unknown, status = 200, cors: Record<string, string> = {}) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...cors, 'Content-Type': 'application/json' },
+  });
+}
+
+Deno.serve(async (req) => {
+  const origin = req.headers.get('origin');
+  const cors = getCorsHeaders(origin);
+
+  if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
 
   try {
-    const user = await getAuthUser(req);
-    if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
+    const { userId } = await requireAuth(req);
+    const supabase = getServiceClient();
 
     // HR guard
     const { data: profile } = await supabase
       .from('profiles')
       .select('account_type, plan')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single();
 
     if (profile?.account_type !== 'hr') {
-      return new Response(JSON.stringify({ error: 'WiseHire HR account required' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return json({ error: 'WiseHire HR account required' }, 403, cors);
     }
 
-    // Rate limit: Starter 10/day, Pro unlimited (200/day)
-    const limit = profile.plan === 'pro' ? 200 : 10;
-    const rl = await checkRateLimit(user.id, 'wisehire-talent-search', limit, 86400);
+    // Rate limit: Starter 10/day, Pro/Business+ 200/day
+    const isPro = ['wisehire_professional', 'wisehire_business', 'wisehire_enterprise'].includes(profile.plan ?? '');
+    const limit = isPro ? 200 : 10;
+    const rl = await checkRateLimit(userId, {
+      actionType: 'wisehire_talent_search',
+      maxRequests: limit,
+      windowSeconds: 86_400,
+    });
     if (!rl.allowed) {
-      return new Response(JSON.stringify({ error: 'Daily search limit reached', remaining: 0 }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return json({ error: 'Daily search limit reached', remaining: 0 }, 429, cors);
     }
 
     const { skills, experience_level, availability, remote_ok, query, limit: qLimit = 20, offset = 0 } =
@@ -65,12 +74,10 @@ serve(async (req) => {
       );
     }
 
-    return new Response(
-      JSON.stringify({ results: filtered, total: count ?? filtered.length, remaining: rl.remaining }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
+    return json({ results: filtered, total: count ?? filtered.length, remaining: rl.remaining }, 200, cors);
   } catch (err) {
+    if (err instanceof AuthError) return authErrorResponse(err, origin);
     console.error('[wisehire-talent-search]', err);
-    return new Response(JSON.stringify({ error: 'Internal error' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return json({ error: 'Internal error' }, 500, getCorsHeaders(origin));
   }
 });

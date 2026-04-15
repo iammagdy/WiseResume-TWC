@@ -147,11 +147,10 @@ Deno.serve(async (req) => {
       // Business+ — unlimited, skip
     } else {
       const dailyLimit = isStarter ? STARTER_DAILY_LIMIT : PRO_DAILY_LIMIT;
-      const rateLimitResult = await checkRateLimit({
-        userId,
-        action: 'wisehire_bulk_screen',
-        dailyLimit,
-        db,
+      const rateLimitResult = await checkRateLimit(userId, {
+        actionType: 'wisehire_bulk_screen',
+        maxRequests: dailyLimit,
+        windowSeconds: 86_400,
       });
       if (!rateLimitResult.allowed) {
         return json({
@@ -211,7 +210,7 @@ Return exactly this JSON structure:
             maxTokens: 400,
           });
 
-          const raw = aiResponse.choices?.[0]?.message?.content ?? '';
+          const raw = aiResponse.content ?? '';
           const jsonMatch = raw.match(/\{[\s\S]*\}/);
           if (!jsonMatch) throw new Error('No JSON in response');
 
@@ -260,8 +259,8 @@ Return exactly this JSON structure:
     return json({ jobId: jobRow?.id ?? null, results: sorted }, 200, cors);
 
   } catch (err) {
-    if (err instanceof AuthError) return authErrorResponse(err, req);
+    if (err instanceof AuthError) return authErrorResponse(err, origin);
     console.error('wisehire-bulk-screen error:', err);
-    return json({ error: 'Internal server error' }, 500, { 'Content-Type': 'application/json' });
+    return json({ error: 'Internal server error' }, 500, getCorsHeaders(origin));
   }
 });

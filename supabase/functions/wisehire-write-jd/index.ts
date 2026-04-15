@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
       return json({ error: 'Active WiseHire plan required' }, 402, cors);
     }
 
-    const isStarter = effectivePlan === WISEHIRE_STARTER_PLAN;
+    const isStarter = effectivePlan === 'wisehire_starter';
 
     // ── 4. BYOK check for Starter plan ───────────────────────────
     if (isStarter) {

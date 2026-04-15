@@ -1,52 +1,56 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { corsHeaders } from '../_shared/cors.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { getAuthUser } from '../_shared/authMiddleware.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
+import { getServiceClient } from '../_shared/dbClient.ts';
+import { requireAuth, AuthError, authErrorResponse } from '../_shared/authMiddleware.ts';
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+function json(data: unknown, status = 200, cors: Record<string, string> = {}) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...cors, 'Content-Type': 'application/json' },
+  });
+}
+
+Deno.serve(async (req) => {
+  const origin = req.headers.get('origin');
+  const cors = getCorsHeaders(origin);
+
+  if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
 
   try {
-    const user = await getAuthUser(req);
-    if (!user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
+    const { userId } = await requireAuth(req);
+    const supabase = getServiceClient();
 
     // HR guard
     const { data: hrProfile } = await supabase
       .from('profiles')
       .select('account_type')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single();
 
     if (hrProfile?.account_type !== 'hr') {
-      return new Response(JSON.stringify({ error: 'WiseHire HR account required' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return json({ error: 'WiseHire HR account required' }, 403, cors);
     }
 
     const { profile_id } = await req.json();
     if (!profile_id) {
-      return new Response(JSON.stringify({ error: 'profile_id required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return json({ error: 'profile_id required' }, 400, cors);
     }
 
     // Verify profile exists and is opted in
     const { data: tp, error: tpErr } = await supabase
       .from('talent_pool_profiles')
-      .select('id, user_id, opted_in')
+      .select('id, user_id, opted_in, view_count')
       .eq('id', profile_id)
       .single();
 
     if (tpErr || !tp || !tp.opted_in) {
-      return new Response(JSON.stringify({ error: 'Profile not found or not discoverable' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return json({ error: 'Profile not found or not discoverable' }, 404, cors);
     }
 
     // Get viewer's company id
     const { data: company } = await supabase
       .from('wisehire_companies')
       .select('id')
-      .eq('owner_id', user.id)
+      .eq('owner_id', userId)
       .single();
 
     // Record view
@@ -55,34 +59,19 @@ serve(async (req) => {
       viewer_company_id: company?.id ?? null,
     });
 
-    // Increment view count + update last_viewed_at
-    await supabase
-      .from('talent_pool_profiles')
-      .update({ view_count: supabase.rpc ? undefined : undefined, last_viewed_at: new Date().toISOString() })
-      .eq('id', profile_id);
-
-    // Use raw SQL increment for view_count
-    await supabase.rpc('increment_talent_view_count', { p_profile_id: profile_id }).catch(() => {
-      // RPC may not exist; fallback: fetch + update
-      return supabase
+    // Increment view_count (try RPC first, fallback to manual increment)
+    const { error: rpcErr } = await supabase.rpc('increment_talent_view_count', { p_profile_id: profile_id });
+    if (rpcErr) {
+      await supabase
         .from('talent_pool_profiles')
-        .select('view_count')
-        .eq('id', profile_id)
-        .single()
-        .then(({ data }) => {
-          return supabase
-            .from('talent_pool_profiles')
-            .update({ view_count: (data?.view_count ?? 0) + 1, last_viewed_at: new Date().toISOString() })
-            .eq('id', profile_id);
-        });
-    });
+        .update({ view_count: (tp.view_count ?? 0) + 1, last_viewed_at: new Date().toISOString() })
+        .eq('id', profile_id);
+    }
 
-    return new Response(
-      JSON.stringify({ ok: true }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
+    return json({ ok: true }, 200, cors);
   } catch (err) {
+    if (err instanceof AuthError) return authErrorResponse(err, origin);
     console.error('[wisehire-talent-view]', err);
-    return new Response(JSON.stringify({ error: 'Internal error' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return json({ error: 'Internal error' }, 500, getCorsHeaders(origin));
   }
 });
