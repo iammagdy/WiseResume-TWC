@@ -12,7 +12,7 @@ self.addEventListener('activate', (event) => {
       caches.keys().then(keys =>
         Promise.all(
           keys
-            .filter(k => !k.startsWith('workbox-') && !k.startsWith('google-fonts') && !k.startsWith('gstatic-fonts') && !k.startsWith('supabase-api') && !k.startsWith('navigation-cache'))
+            .filter(k => !k.startsWith('workbox-') && !k.startsWith('google-fonts') && !k.startsWith('gstatic-fonts') && !k.startsWith('navigation-cache'))
             .map(k => caches.delete(k))
         )
       ),
@@ -68,16 +68,10 @@ registerRoute(
   new NetworkOnly()
 );
 
-// Supabase REST API – network first with short cache
+// Supabase REST API – always network (no caching to prevent auth data leaking across sessions)
 registerRoute(
   /^https:\/\/.*\.supabase\.co\/rest\/.*/i,
-  new NetworkFirst({
-    cacheName: 'supabase-api-cache',
-    plugins: [
-      new ExpirationPlugin({ maxEntries: 50, maxAgeSeconds: 60 * 5 }),
-      new CacheableResponsePlugin({ statuses: [0, 200] }),
-    ],
-  })
+  new NetworkOnly()
 );
 
 // ─── Push Notification Handlers ───
