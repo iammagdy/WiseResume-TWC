@@ -5,6 +5,9 @@ import { useResumes } from '@/hooks/useResumes';
 import { sendChatMessage, sendFunctionFeedback, ChatMessage, SuggestionProposal, FunctionResult } from '@/lib/agenticChat';
 import { haptics } from '@/lib/haptics';
 import { useAICreditsMutations } from './useAICredits';
+import { useAuth } from './useAuth';
+import { supabase } from '@/integrations/supabase/safeClient';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { ResumeData } from '@/types/resume';
 
@@ -43,18 +46,30 @@ function sectionSnapshot(resume: ResumeData | null, sectionKey: SectionKey): str
   return JSON.stringify(val ?? '');
 }
 
+function deriveTitleFromMessage(text: string): string {
+  const trimmed = text.trim();
+  if (trimmed.length < 10) {
+    const d = new Date();
+    return `Chat — ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+  }
+  return trimmed.slice(0, 50);
+}
+
 export function useAgenticChat(contextFilter?: string) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isThinking, setIsThinking] = useState(false);
   const { currentResume, currentResumeId, updateResume, lastSavedAt } = useResumeStore();
   const { data: allResumes = [] } = useResumes();
   const { incrementUsage, checkCredits } = useAICreditsMutations();
+  const { user, isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Session persistence refs — use refs to avoid stale closures in fire-and-forget writes
+  const sessionIdRef = useRef<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const sessionLoadedRef = useRef(false);
 
   // Track the last-saved snapshot of section data so we can detect unsaved edits
-  // per-section before applying an AI function call.
-  // The snapshot is updated on:
-  //  1. A different resume being loaded (currentResumeId changes)
-  //  2. A successful save (lastSavedAt changes)
   const savedSnapshotRef = useRef<Partial<Record<SectionKey, string>>>({});
   const resumeLoaded = currentResume !== null;
 
@@ -63,24 +78,134 @@ export function useAgenticChat(contextFilter?: string) {
       savedSnapshotRef.current = {};
       return;
     }
-    // Capture the current state as the "last saved" baseline.
-    // This runs when:
-    //   - A new resume is loaded (currentResumeId changes)
-    //   - currentResume transitions from null to non-null (resumeLoaded becomes true)
-    //   - A save completes (lastSavedAt changes)
     savedSnapshotRef.current = {
       summary: sectionSnapshot(currentResume, 'summary'),
       experience: sectionSnapshot(currentResume, 'experience'),
       skills: sectionSnapshot(currentResume, 'skills'),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentResumeId, lastSavedAt, resumeLoaded]); // Refresh when resume ID, save, or load state changes
+  }, [currentResumeId, lastSavedAt, resumeLoaded]);
+
+  // Load the most recent session on mount (once per auth session)
+  useEffect(() => {
+    if (!isAuthenticated || !user || sessionLoadedRef.current) return;
+    sessionLoadedRef.current = true;
+
+    (async () => {
+      try {
+        const { data: sessions } = await supabase
+          .from('chat_sessions')
+          .select('id')
+          .order('updated_at', { ascending: false })
+          .limit(1);
+
+        if (!sessions || sessions.length === 0) return;
+        const latestId = sessions[0].id as string;
+
+        const { data: msgs } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .eq('session_id', latestId)
+          .order('created_at', { ascending: true });
+
+        if (!msgs || msgs.length === 0) return;
+
+        const loaded: ChatMessage[] = msgs.map((m) => ({
+          id: uuidv4(),
+          role: m.role as 'user' | 'assistant',
+          content: m.content as string,
+          timestamp: new Date(m.created_at as string).getTime(),
+          ...(m.function_call
+            ? { functionCall: (m.function_call as Record<string, unknown>) as { name: string; args: Record<string, unknown> } }
+            : {}),
+        }));
+
+        setMessages(loaded);
+        sessionIdRef.current = latestId;
+        setSessionId(latestId);
+      } catch {
+        // Silently fail — persistence is best-effort
+      }
+    })();
+  }, [isAuthenticated, user]);
+
+  // Public: load a specific historical session by ID
+  const loadSession = useCallback(async (id: string) => {
+    try {
+      const { data: msgs } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('session_id', id)
+        .order('created_at', { ascending: true });
+
+      const loaded: ChatMessage[] = (msgs ?? []).map((m) => ({
+        id: uuidv4(),
+        role: m.role as 'user' | 'assistant',
+        content: m.content as string,
+        timestamp: new Date(m.created_at as string).getTime(),
+        ...(m.function_call
+          ? { functionCall: (m.function_call as Record<string, unknown>) as { name: string; args: Record<string, unknown> } }
+          : {}),
+      }));
+
+      setMessages(loaded);
+      sessionIdRef.current = id;
+      setSessionId(id);
+    } catch {
+      // Silently fail
+    }
+  }, []);
+
+  // Fire-and-forget: create a new session row in DB
+  const createSession = useCallback(async (title: string): Promise<string | null> => {
+    if (!user) return null;
+    try {
+      const { data, error } = await supabase
+        .from('chat_sessions')
+        .insert({
+          user_id: user.id,
+          resume_id: currentResumeId ?? null,
+          title,
+        })
+        .select('id')
+        .single();
+      if (error || !data) return null;
+      queryClient.invalidateQueries({ queryKey: ['chat_sessions'] });
+      return data.id as string;
+    } catch {
+      return null;
+    }
+  }, [user, currentResumeId, queryClient]);
+
+  // Fire-and-forget: persist a message to DB
+  const persistMessage = useCallback((
+    sessionId: string,
+    role: 'user' | 'assistant',
+    content: string,
+    functionCallData?: { name: string; args: Record<string, unknown> }
+  ) => {
+    supabase
+      .from('chat_messages')
+      .insert({
+        session_id: sessionId,
+        role,
+        content,
+        function_call: functionCallData ?? null,
+      })
+      .then(() => {
+        // Touch updated_at on session
+        supabase
+          .from('chat_sessions')
+          .update({ updated_at: new Date().toISOString() })
+          .eq('id', sessionId)
+          .then(() => {});
+      });
+  }, []);
 
   const hasPendingEditsForSection = useCallback((functionName: string): boolean => {
     const sectionKey = getSectionKey(functionName);
     if (!sectionKey || !currentResume) return false;
     const savedValue = savedSnapshotRef.current[sectionKey];
-    // If no saved snapshot yet for this resume, we can't detect pending edits
     if (savedValue === undefined) return false;
     const currentValue = sectionSnapshot(currentResume, sectionKey);
     return currentValue !== savedValue;
@@ -210,7 +335,6 @@ export function useAgenticChat(contextFilter?: string) {
             return { name: functionName, result: { success: true, applied: contactUpdates } };
           }
           case 'proofread_and_fix': {
-            // Auto-apply all fixes
             const fixes = args.fixes as Array<{ section: string; original: string; corrected: string }>;
             let appliedCount = 0;
             fixes?.forEach((fix) => {
@@ -221,7 +345,6 @@ export function useAgenticChat(contextFilter?: string) {
                   appliedCount++;
                 }
               }
-              // Could add more section handling here
             });
             haptics.success();
             return { name: functionName, result: { success: true, applied: { fixesApplied: appliedCount } } };
@@ -240,6 +363,19 @@ export function useAgenticChat(contextFilter?: string) {
     (proposal: SuggestionProposal) => {
       if (!currentResume) return;
 
+      // Handle delete action
+      if (proposal.action === 'delete' && proposal.section === 'experience') {
+        const identifier = (proposal.itemId || proposal.original).toLowerCase();
+        const filtered = currentResume.experience.filter(
+          (exp) =>
+            !exp.company.toLowerCase().includes(identifier) &&
+            !exp.position.toLowerCase().includes(identifier)
+        );
+        updateResume({ experience: filtered });
+        haptics.success();
+        return;
+      }
+
       if (proposal.section === 'summary') {
         updateResume({ summary: proposal.suggested });
       } else if (proposal.section === 'experience' && proposal.itemId) {
@@ -251,7 +387,6 @@ export function useAgenticChat(contextFilter?: string) {
         );
         if (expIndex !== -1) {
           const updatedExp = { ...currentResume.experience[expIndex] };
-          // Try to replace in description or achievements
           if (updatedExp.description?.includes(proposal.original)) {
             updatedExp.description = updatedExp.description.replace(proposal.original, proposal.suggested);
           }
@@ -260,7 +395,6 @@ export function useAgenticChat(contextFilter?: string) {
           updateResume({ experience: newExperience });
         }
       } else if (proposal.section === 'skills') {
-        // For skills, the suggestion might be adding/removing specific skills
         const suggestedSkills = proposal.suggested.split(',').map((s) => s.trim()).filter(Boolean);
         if (suggestedSkills.length > 0) {
           updateResume({ skills: suggestedSkills });
@@ -281,18 +415,17 @@ export function useAgenticChat(contextFilter?: string) {
               ...updatedSuggestions[proposalIndex],
               status,
             };
-            
-            // If accepting, apply the suggestion
+
             if (status === 'accepted') {
               applySuggestion(updatedSuggestions[proposalIndex]);
             }
-            
+
             return { ...msg, suggestion: updatedSuggestions };
           }
           return msg;
         })
       );
-      
+
       haptics.light();
     },
     [applySuggestion]
@@ -302,7 +435,6 @@ export function useAgenticChat(contextFilter?: string) {
     async (text: string) => {
       if (!text.trim() || isThinking) return;
 
-      // Check credits before sending
       const hasCredits = await checkCredits();
       if (!hasCredits) return;
 
@@ -316,19 +448,32 @@ export function useAgenticChat(contextFilter?: string) {
       setMessages((prev) => [...prev, userMsg]);
       setIsThinking(true);
 
+      // Ensure a session exists before persisting; create on first message
+      let activeSessionId = sessionIdRef.current;
+      if (!activeSessionId && user) {
+        const title = deriveTitleFromMessage(text.trim());
+        const newId = await createSession(title);
+        if (newId) {
+          activeSessionId = newId;
+          sessionIdRef.current = newId;
+          setSessionId(newId);
+        }
+      }
+
+      if (activeSessionId) {
+        persistMessage(activeSessionId, 'user', text.trim());
+      }
+
       try {
         const resumeList = allResumes.map(r => ({ id: r.id, title: r.title }));
         const response = await sendChatMessage(text.trim(), messages, currentResume, { resumeList, contextFilter });
 
-        // Deduct credit on success
         incrementUsage.mutate();
         toast.success('1 credit used', { description: 'AI chat', duration: 2500, icon: '⚡' });
 
         if (response.type === 'function_call') {
-          // Execute function locally
           const functionResult = executeFunctionCall(response.functionName, response.args);
 
-          // Add initial response with function call indicator
           const initialMsg: ChatMessage = {
             id: uuidv4(),
             role: 'assistant',
@@ -341,7 +486,10 @@ export function useAgenticChat(contextFilter?: string) {
           };
           setMessages((prev) => [...prev, initialMsg]);
 
-          // Send feedback to AI for closed-loop confirmation
+          if (activeSessionId) {
+            persistMessage(activeSessionId, 'assistant', response.message, { name: response.functionName, args: response.args });
+          }
+
           try {
             const feedbackResponse = await sendFunctionFeedback(
               text.trim(),
@@ -358,12 +506,14 @@ export function useAgenticChat(contextFilter?: string) {
                 timestamp: Date.now(),
               };
               setMessages((prev) => [...prev, confirmMsg]);
+              if (activeSessionId) {
+                persistMessage(activeSessionId, 'assistant', feedbackResponse.content);
+              }
             }
           } catch {
             // If feedback fails, the initial message is still shown
           }
         } else if (response.type === 'suggestion') {
-          // Show suggestion cards for user approval
           const suggestionMsg: ChatMessage = {
             id: uuidv4(),
             role: 'assistant',
@@ -372,6 +522,9 @@ export function useAgenticChat(contextFilter?: string) {
             timestamp: Date.now(),
           };
           setMessages((prev) => [...prev, suggestionMsg]);
+          if (activeSessionId) {
+            persistMessage(activeSessionId, 'assistant', response.message);
+          }
         } else {
           const assistantMsg: ChatMessage = {
             id: uuidv4(),
@@ -380,6 +533,9 @@ export function useAgenticChat(contextFilter?: string) {
             timestamp: Date.now(),
           };
           setMessages((prev) => [...prev, assistantMsg]);
+          if (activeSessionId) {
+            persistMessage(activeSessionId, 'assistant', response.content);
+          }
         }
       } catch (error) {
         const errMsg: ChatMessage = {
@@ -397,18 +553,22 @@ export function useAgenticChat(contextFilter?: string) {
         setIsThinking(false);
       }
     },
-    [isThinking, messages, currentResume, executeFunctionCall, allResumes, contextFilter, checkCredits, incrementUsage]
+    [isThinking, messages, currentResume, executeFunctionCall, allResumes, contextFilter, checkCredits, incrementUsage, user, createSession, persistMessage]
   );
 
-  const clearChat = useCallback(() => {
+  const startNewSession = useCallback(() => {
     setMessages([]);
+    sessionIdRef.current = null;
+    setSessionId(null);
   }, []);
 
   return {
     messages,
     isThinking,
+    sessionId,
     sendMessage,
-    clearChat,
+    startNewSession,
+    loadSession,
     updateSuggestionStatus,
   };
 }

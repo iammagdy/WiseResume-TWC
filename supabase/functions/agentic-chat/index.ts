@@ -47,6 +47,7 @@ interface SuggestionResult {
     suggested: string;
     explanation: string;
     itemId?: string;
+    action?: "delete" | "update";
   }>;
   message: string;
 }
@@ -205,6 +206,22 @@ const TOOLS = [
           },
         },
         required: ["proposals"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_experience",
+      description: "Removes an existing work experience entry from the resume. ALWAYS use suggest_edits flow — this will show a confirmation card to the user before deleting. Use when the user explicitly asks to remove, delete, or drop a job from their resume.",
+      parameters: {
+        type: "object",
+        properties: {
+          identifier: { type: "string", description: "Company name or position to identify the entry to delete" },
+          itemId: { type: "string", description: "Optional: specific item ID if known" },
+          explanation: { type: "string", description: "Brief reason for the deletion (1 sentence)" },
+        },
+        required: ["identifier", "explanation"],
       },
     },
   },
@@ -411,6 +428,52 @@ Deno.serve(async (req: Request) => {
       }
 
       // Deduct credits for any AI tool call (cost=1 for chat)
+
+      // Handle delete_experience — return as a suggestion/confirmation card
+      if (functionName === "delete_experience") {
+        const identifier = (args.identifier as string) || "";
+        const explanation = (args.explanation as string) || "Remove this experience entry from the resume.";
+        const itemId = (args.itemId as string) || identifier;
+
+        // Try to find the matching experience in the current resume
+        let originalText = identifier;
+        try {
+          const resumeData = currentResume as Record<string, unknown>;
+          const experience = (resumeData?.experience as Array<Record<string, unknown>>) ?? [];
+          const lowerIdentifier = identifier.toLowerCase();
+          const matched = experience.find(
+            (exp) =>
+              String(exp.company ?? "").toLowerCase().includes(lowerIdentifier) ||
+              String(exp.position ?? "").toLowerCase().includes(lowerIdentifier)
+          );
+          if (matched) {
+            const pos = matched.position ? `${matched.position}` : "";
+            const comp = matched.company ? ` at ${matched.company}` : "";
+            const dates = matched.startDate ? ` (${matched.startDate}${matched.endDate ? ` – ${matched.endDate}` : matched.current ? " – Present" : ""})` : "";
+            originalText = `${pos}${comp}${dates}`.trim() || identifier;
+          }
+        } catch {
+          // fallback to identifier
+        }
+
+        const result: SuggestionResult = {
+          type: "suggestion",
+          proposals: [
+            {
+              section: "experience",
+              itemId,
+              original: originalText,
+              suggested: "",
+              explanation,
+              action: "delete",
+            },
+          ],
+          message: content || `I can remove the "${identifier}" experience entry. Please confirm below.`,
+        };
+        return new Response(JSON.stringify(result), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
       // Handle suggest_edits
       if (functionName === "suggest_edits") {

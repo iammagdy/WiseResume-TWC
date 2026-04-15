@@ -20,6 +20,10 @@ import {
   Mail,
   Globe,
   BarChart3,
+  Clock,
+  Trash2,
+  AlertTriangle,
+  ChevronLeft,
 } from 'lucide-react';
 import {
   Sheet,
@@ -43,6 +47,7 @@ import { AISheetErrorBoundary } from '@/components/ai/AISheetErrorBoundary';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useResumeStore } from '@/store/resumeStore';
 import { useShallow } from 'zustand/react/shallow';
+import { useChatSessions, useDeleteChatSession } from '@/hooks/useChatHistory';
 
 interface AgenticChatSheetProps {
   open: boolean;
@@ -85,6 +90,7 @@ function FunctionCallBadge({ name }: { name: string }) {
     update_summary: 'Updated Summary',
     add_experience: 'Added Experience',
     update_experience: 'Updated Experience',
+    delete_experience: 'Deleted Experience',
     update_skills: 'Updated Skills',
     add_skills: 'Added Skills',
     update_contact: 'Updated Contact',
@@ -95,6 +101,91 @@ function FunctionCallBadge({ name }: { name: string }) {
       <Wrench className="w-3 h-3" />
       {labels[name] || name}
     </span>
+  );
+}
+
+function DeleteConfirmCard({
+  proposal,
+  index,
+  messageId,
+  onAction,
+}: {
+  proposal: SuggestionProposal & { status?: 'pending' | 'accepted' | 'rejected' };
+  index: number;
+  messageId: string;
+  onAction: (messageId: string, index: number, status: 'accepted' | 'rejected') => void;
+}) {
+  const isResolved = proposal.status === 'accepted' || proposal.status === 'rejected';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.1 }}
+      className={cn(
+        'rounded-xl border p-3 space-y-2',
+        isResolved
+          ? proposal.status === 'accepted'
+            ? 'bg-destructive/5 border-destructive/20'
+            : 'bg-muted border-muted'
+          : 'bg-card border-destructive/30'
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-medium text-destructive flex items-center gap-1">
+          <AlertTriangle className="w-3 h-3" />
+          Remove Experience
+        </span>
+        {isResolved && (
+          <span
+            className={cn(
+              'text-xs px-2 py-0.5 rounded-full',
+              proposal.status === 'accepted'
+                ? 'bg-destructive/15 text-destructive'
+                : 'bg-muted text-muted-foreground'
+            )}
+          >
+            {proposal.status === 'accepted' ? 'Deleted' : 'Kept'}
+          </span>
+        )}
+      </div>
+
+      <div className="p-2 rounded-lg bg-destructive/5 border border-destructive/10">
+        <span className="text-xs text-destructive/70 font-medium block mb-1">Entry to remove:</span>
+        <p className="text-sm text-foreground/80 break-words">{proposal.original}</p>
+      </div>
+
+      <p className="text-xs text-muted-foreground italic break-words">{proposal.explanation}</p>
+
+      {!isResolved && (
+        <div className="flex gap-2 pt-1">
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1 text-xs border-destructive/30 text-destructive hover:bg-destructive/10"
+            onClick={() => {
+              haptics.success();
+              onAction(messageId, index, 'accepted');
+            }}
+          >
+            <Trash2 className="w-3.5 h-3.5 mr-1" />
+            Yes, Delete
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1 text-xs"
+            onClick={() => {
+              haptics.light();
+              onAction(messageId, index, 'rejected');
+            }}
+          >
+            <X className="w-3.5 h-3.5 mr-1" />
+            Cancel
+          </Button>
+        </div>
+      )}
+    </motion.div>
   );
 }
 
@@ -109,6 +200,17 @@ function SuggestionCard({
   messageId: string;
   onAction: (messageId: string, index: number, status: 'accepted' | 'rejected') => void;
 }) {
+  if (proposal.action === 'delete') {
+    return (
+      <DeleteConfirmCard
+        proposal={proposal}
+        index={index}
+        messageId={messageId}
+        onAction={onAction}
+      />
+    );
+  }
+
   const isResolved = proposal.status === 'accepted' || proposal.status === 'rejected';
   const [showMoreOriginal, setShowMoreOriginal] = useState(false);
   const [showMoreSuggested, setShowMoreSuggested] = useState(false);
@@ -271,13 +373,20 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
     messages,
     isThinking,
     sendMessage,
-    clearChat,
+    startNewSession,
+    loadSession,
     updateSuggestionStatus,
   } = useAgenticChat(activeContext);
   const [input, setInput] = useState('');
   const [resumePickerOpen, setResumePickerOpen] = useState(false);
+  const [chatPanel, setChatPanel] = useState<'chat' | 'history'>('chat');
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // History data
+  const { data: sessions = [] } = useChatSessions();
+  const deleteMutation = useDeleteChatSession();
 
   useEffect(() => {
     if (initialMessage && open) {
@@ -346,16 +455,43 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
               )}
             </SheetTitle>
             
-            {isAuthenticated && messages.length > 0 && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={clearChat}
-                className="text-muted-foreground"
-                aria-label="New Chat"
-              >
-                <MessageSquarePlus className="w-4 h-4" />
-              </Button>
+            {isAuthenticated && (
+              <div className="flex items-center gap-1">
+                {chatPanel === 'history' ? (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setChatPanel('chat')}
+                    className="text-muted-foreground"
+                    aria-label="Back to chat"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => { setChatPanel('history'); setDeleteConfirmId(null); }}
+                      className="text-muted-foreground"
+                      aria-label="Chat history"
+                    >
+                      <Clock className="w-4 h-4" />
+                    </Button>
+                    {messages.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={startNewSession}
+                        className="text-muted-foreground"
+                        aria-label="New Chat"
+                      >
+                        <MessageSquarePlus className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </>
+                )}
+              </div>
             )}
           </div>
         </SheetHeader>
@@ -390,6 +526,72 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
 
         {!isAuthenticated ? (
           <GuestShowcase onClose={() => onOpenChange(false)} onSignIn={handleSignIn} />
+        ) : chatPanel === 'history' ? (
+          <div className="flex-1 h-0 overflow-y-auto px-4 py-4">
+            <p className="text-xs text-muted-foreground font-medium mb-3">Recent conversations</p>
+            {sessions.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Clock className="w-8 h-8 text-muted-foreground/30 mb-3" />
+                <p className="text-sm text-muted-foreground">No saved conversations yet.</p>
+                <p className="text-xs text-muted-foreground/70 mt-1">Your chats will appear here.</p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {sessions.map((session) => (
+                  <div
+                    key={session.id}
+                    className="flex items-center gap-2 group rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors px-3 py-2.5"
+                  >
+                    <button
+                      className="flex-1 text-left min-w-0"
+                      onClick={async () => {
+                        await loadSession(session.id);
+                        setChatPanel('chat');
+                        haptics.light();
+                      }}
+                    >
+                      <p className="text-sm font-medium truncate">{session.title || 'Untitled chat'}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {new Date(session.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </p>
+                    </button>
+                    {deleteConfirmId === session.id ? (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="h-7 text-xs px-2"
+                          onClick={() => {
+                            deleteMutation.mutate(session.id);
+                            setDeleteConfirmId(null);
+                            haptics.light();
+                          }}
+                        >
+                          Delete
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs px-2"
+                          onClick={() => setDeleteConfirmId(null)}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    ) : (
+                      <button
+                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all shrink-0"
+                        onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(session.id); }}
+                        aria-label="Delete session"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         ) : (
           <>
             <div ref={scrollRef} className="flex-1 h-0 overflow-y-auto px-4 py-4">

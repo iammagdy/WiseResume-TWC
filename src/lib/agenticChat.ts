@@ -21,6 +21,7 @@ export interface SuggestionProposal {
   original: string;
   suggested: string;
   explanation: string;
+  action?: 'delete' | 'update';
   status?: 'pending' | 'accepted' | 'rejected';
 }
 

@@ -2,6 +2,22 @@
 
 Local changelog tracking WiseResume changes.
 
+## 2026-04-15 (Task #8 — Wise AI Phase 1: Chat Persistence + History)
+
+### FEAT — Wise AI chat session persistence (spec: 002-wise-ai-agent-evolution)
+
+- **DB** (`supabase/migrations/20260415161238_chat_sessions.sql`): Two new tables with RLS. `chat_sessions` (id, user_id FK→auth.users CASCADE, resume_id FK→resumes SET NULL, title, created_at, updated_at) + `chat_messages` (id, session_id FK→chat_sessions CASCADE, role CHECK IN ('user','assistant'), content, function_call JSONB). 50-session cap enforced by `trg_session_cap` trigger (AFTER INSERT, SECURITY DEFINER). Performance indexes on `(user_id, updated_at DESC)` and `(session_id, created_at ASC)`.
+- **`src/lib/agenticChat.ts`**: Added `action?: 'delete' | 'update'` to `SuggestionProposal` interface to support the delete-experience confirmation flow.
+- **`src/hooks/useChatHistory.ts`** (new): TanStack Query hooks — `useChatSessions()` (50-session list ordered by `updated_at DESC`, enabled only when authenticated), `useSessionMessages(sessionId)` (messages for a session), `useDeleteChatSession()` (mutation with cache invalidation).
+- **`src/hooks/useAgenticChat.ts`**: Full persistence layer added. On mount loads the latest session from DB (once per auth session). `sessionIdRef` tracks active session; session row created on FIRST user message with title derived from message text (first 50 chars; "Chat — [date]" if < 10 chars). All user and assistant messages persisted fire-and-forget via `persistMessage()`. New public exports: `startNewSession()` (clears messages + nulls sessionId), `loadSession(id)` (loads a historical session's messages from DB + sets sessionId). Added `delete_experience` acceptance logic in `applySuggestion`: when `action === 'delete'` and `section === 'experience'`, filters the matching entry from `currentResume.experience` via identifier lookup.
+- **`src/hooks/useChatHistory.ts`** (new): see above.
+- **`supabase/functions/agentic-chat/index.ts`**: Added `delete_experience` tool (params: `identifier`, `explanation`, optional `itemId`). Handler looks up the matching experience entry in `currentResume`, builds a human-readable description of the entry, and returns a `SuggestionResult` with `action: 'delete'` — the frontend shows a confirmation card before applying. `SuggestionResult` interface extended with `action?: 'delete' | 'update'`.
+- **`src/components/editor/AgenticChatSheet.tsx`**: History panel added behind a Clock icon button in the header. Toggles between `'chat'` and `'history'` panel states. History view: session list (title + date) with two-step inline delete confirm (Trash2 → Delete/Cancel). Clicking a session loads it via `loadSession()` and returns to chat view. Empty state shown when no sessions exist. New `DeleteConfirmCard` component: renders for `proposal.action === 'delete'` proposals — shows "Entry to remove" block with destructive styling + "Yes, Delete" / "Cancel" buttons instead of the standard Before/After diff. `FunctionCallBadge` updated with `delete_experience → 'Deleted Experience'` label. `clearChat` replaced with `startNewSession` throughout.
+
+**Files changed**: `supabase/migrations/20260415161238_chat_sessions.sql`, `src/lib/agenticChat.ts`, `src/hooks/useChatHistory.ts` (new), `src/hooks/useAgenticChat.ts`, `supabase/functions/agentic-chat/index.ts`, `src/components/editor/AgenticChatSheet.tsx`, `project-governance/ARCHITECTURE.md`, `project-governance/CHANGELOG.md`
+
+---
+
 ## 2026-04-15 (Task #7 — Build from Text resume creation mode)
 
 ### FEAT — "Build from Text" in CreateResumeDialog

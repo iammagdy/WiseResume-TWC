@@ -116,6 +116,12 @@ The token bridge is the core auth infrastructure. It MUST NOT be replaced or cir
 | `store_screenshots` | App store marketing screenshots (auto-generated) |
 | `messages` | Chat messages (portfolio AI chat, support) |
 
+**Wise AI Chat**
+| Table | Purpose |
+|-------|---------|
+| `chat_sessions` | Wise AI chat sessions: user_id FK→auth.users CASCADE, resume_id FK→resumes SET NULL (nullable), title, updated_at. 50-session cap enforced by DB trigger. RLS: `auth.uid() = user_id`. |
+| `chat_messages` | Messages within a session: session_id FK→chat_sessions CASCADE, role CHECK IN ('user','assistant'), content, function_call JSONB. RLS: owner via session join. |
+
 **AI & Credits**
 | Table | Purpose |
 |-------|---------|
@@ -222,7 +228,7 @@ All edge functions live in `supabase/functions/`. See also `supabase/functions/E
 | `career-assessment` | Career path assessment from user input |
 | `career-path-advisor` | Career move suggestions and gap analysis |
 | `wise-ai-chat` | AI Studio general career assistant (7 use cases) |
-| `agentic-chat` | Multi-turn agentic AI assistant |
+| `agentic-chat` | Multi-turn agentic AI assistant. 10 tools: update_summary, add_experience, update_experience, delete_experience, update_skills, add_skills, update_contact, add_project, suggest_edits, proofread_and_fix. Persists sessions to `chat_sessions` / `chat_messages`. |
 | `suggest-template` | AI-suggested resume template match |
 
 ### Resume Parsing & Import
