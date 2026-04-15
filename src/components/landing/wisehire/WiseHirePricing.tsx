@@ -4,12 +4,11 @@ import { Link } from 'react-router-dom';
 
 const containerVariants = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.04 } },
+  visible: { transition: { staggerChildren: 0.07 } },
 };
-const _ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
 const itemVariants = {
   hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: _ease } },
+  visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 240, damping: 26 } },
 };
 
 const tiers = [
@@ -97,10 +96,10 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
         {/* Heading */}
         <motion.div
           className="text-center mb-12"
-          initial={prefersReducedMotion ? {} : { opacity: 0, y: 22 }}
+          initial={prefersReducedMotion ? {} : { opacity: 0, y: 24 }}
           whileInView={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-          viewport={{ once: false, amount: 0.3 }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          viewport={{ once: false, amount: 0.25 }}
+          transition={{ type: 'spring', stiffness: 240, damping: 26 }}
         >
           <p
             style={{

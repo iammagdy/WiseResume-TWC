@@ -42,10 +42,10 @@ export function WiseHireDemoSection() {
         {/* Heading */}
         <motion.div
           className="text-center mb-10"
-          initial={prefersReducedMotion ? {} : { opacity: 0, y: 22 }}
+          initial={prefersReducedMotion ? {} : { opacity: 0, y: 24 }}
           whileInView={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
-          viewport={{ once: false, amount: 0.3 }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          viewport={{ once: false, amount: 0.25 }}
+          transition={{ type: 'spring', stiffness: 240, damping: 26 }}
         >
           <p
             style={{
@@ -78,7 +78,7 @@ export function WiseHireDemoSection() {
           initial={prefersReducedMotion ? {} : { opacity: 0, y: 24 }}
           whileInView={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
           viewport={{ once: false, amount: 0.1 }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
+          transition={{ type: 'spring', stiffness: 220, damping: 26, delay: 0.08 }}
         >
           {/* Tab selector — 3-col grid on mobile, vertical list on desktop */}
           <style>{`
