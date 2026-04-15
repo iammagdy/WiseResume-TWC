@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.0";
 import { checkIpRateLimit } from "../_shared/rateLimiter.ts";
+import { isMaliciousBot, hasForeignReferer, botBlockedResponse } from "../_shared/botGuard.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,6 +16,19 @@ serve(async (req) => {
 
   if (req.method !== "POST") {
     return new Response("Method Not Allowed", { status: 405, headers: corsHeaders });
+  }
+
+  // Layer 1: block known scraper tools by User-Agent
+  const ua = req.headers.get("user-agent");
+  if (isMaliciousBot(ua)) {
+    return botBlockedResponse(corsHeaders);
+  }
+
+  // Layer 2: block requests whose Referer is clearly from a foreign domain
+  // (this endpoint is only called by JS on our own portfolio pages)
+  const referer = req.headers.get("referer");
+  if (hasForeignReferer(referer, ["thewise.cloud", "localhost"])) {
+    return botBlockedResponse(corsHeaders);
   }
 
   const clientIp =

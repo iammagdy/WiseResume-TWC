@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { checkIpRateLimit } from '../_shared/rateLimiter.ts';
+import { isMaliciousBot, isKnownCrawler, botBlockedResponse } from '../_shared/botGuard.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -433,6 +434,13 @@ function buildFallbackSVG(): string {
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Block known scraper tools — but let legitimate crawlers (Googlebot,
+  // Twitterbot, etc.) through because they need this endpoint for link previews.
+  const ua = req.headers.get('user-agent');
+  if (isMaliciousBot(ua) && !isKnownCrawler(ua)) {
+    return botBlockedResponse(corsHeaders);
   }
 
   const clientIp =

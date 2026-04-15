@@ -1,29 +1,10 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { isMaliciousBot, isKnownCrawler, botBlockedResponse } from '../_shared/botGuard.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
-
-const KNOWN_CRAWLERS = [
-  'linkedinbot',
-  'twitterbot',
-  'facebookexternalhit',
-  'slackbot',
-  'whatsapp',
-  'discordbot',
-  'telegrambot',
-  'googlebot',
-  'bingbot',
-  'ia_archiver',
-  'applebot',
-];
-
-function isCrawler(ua: string | null): boolean {
-  if (!ua) return false;
-  const lower = ua.toLowerCase();
-  return KNOWN_CRAWLERS.some((c) => lower.includes(c));
-}
 
 function escapeHtml(str: string): string {
   return str
@@ -43,6 +24,12 @@ Deno.serve(async (req: Request) => {
     const url = new URL(req.url);
     const username = url.searchParams.get('username')?.toLowerCase();
     const ua = req.headers.get('user-agent');
+
+    // Block malicious scraper tools (but always let legitimate crawlers through
+    // so SEO and social previews continue to work correctly)
+    if (isMaliciousBot(ua) && !isKnownCrawler(ua)) {
+      return botBlockedResponse(corsHeaders);
+    }
 
     if (!username) {
       return new Response(JSON.stringify({ error: 'username required' }), {
@@ -66,7 +53,7 @@ Deno.serve(async (req: Request) => {
     const ogImageUrl = `${SUPABASE_URL}/functions/v1/og-image?username=${encodeURIComponent(username)}`;
 
     // Real browser — redirect to SPA
-    if (!isCrawler(ua)) {
+    if (!isKnownCrawler(ua)) {
       return new Response(null, {
         status: 302,
         headers: {
