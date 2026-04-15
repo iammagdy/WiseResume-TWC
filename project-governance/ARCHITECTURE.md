@@ -30,6 +30,16 @@ You MUST NEVER assume outdated documentation (such as files in `legacy-docs/enha
 * When adding new database tables: always write the SQL migration in a new file under `supabase/migrations/`, always define RLS policies in the same migration, then run `npx supabase db push`. Always add the table to this document.
 * When adding new edge functions: always include `requireAuth` (authenticated routes) or `botGuard` (public routes) from `_shared/`, plus rate limiting. Always register the function in Section 6 of this document.
 
+### Enforceable Rules (added 2026-04-15 — AI Audit)
+
+**Rule A — Four-Layer Security Invariant**: Every new AI endpoint MUST enforce all four layers in this exact order: (1) JWT auth via `requireAuth`, (2) rate limit via `checkRateLimit`/`checkUserRateLimit`, (3) atomic credit check via `checkAndDeductCredit`, (4) payload size guard via `checkPayloadSize`. Omitting any layer is a governance violation. BYOK users bypass layer 3 only; layers 1, 2, and 4 apply to all users.
+
+**Rule B — Deterministic Scoring is Sacred**: `score-resume` uses NO AI calls and MUST NOT deduct credits. Its scoring logic lives in `_shared/scoringFunctions.ts` and MUST remain deterministic. Any proposal to replace it with an AI model call requires a new spec and an explicit constitution amendment — it cannot be changed casually. This is an intentional cost and performance decision.
+
+**Rule C — Orphan Function Retention**: `fetch-github-projects` is an intentionally retained orphan pending UI wiring (a "Sync GitHub" button in portfolio settings). It MUST NOT be deleted without that wiring task being explicitly cancelled by the project owner. Removing it without cancelling the corresponding work item is a governance violation.
+
+**Rule D — Voice Pipeline Change Protocol**: The interview coaching voice pipeline has three sequential dependent layers: ElevenLabs Scribe STT → Gemma LLM (`interview-chat`) → browser `speechSynthesis` TTS. Any modification to `interview-chat`, `elevenlabs-scribe-token`, or the Web Speech API fallback path in `useVoiceInterview.ts` MUST be validated end-to-end across all three layers simultaneously before merging. Layer-by-layer testing in isolation is insufficient.
+
 ---
 
 ## 3. Full Technology Stack
@@ -315,15 +325,30 @@ All edge functions live in `supabase/functions/`. See also `supabase/functions/E
 * **Daily limits**: Free: 5 credits/day, Pro: 100 credits/day, Premium: unlimited (sentinel value `-1`)
 * **Atomic deduction**: Credits are deducted BEFORE the AI call via `atomic_attempt_and_deduct_credit` RPC to prevent race conditions
 * **BYOK bypass**: When a user provides their own AI key, platform credit deduction is bypassed (`isByok: true`)
+* **Cost**: Expensive endpoints (`generate-cover-letter`, `tailor-resume`) deduct 2 credits. All others deduct 1.
+* **`score-resume` exception**: This endpoint makes NO AI call and MUST NOT deduct credits (see Rule B in Section 2).
 
 ### BYOK (Bring Your Own Key)
 * Keys stored in `user_api_keys` table encrypted with AES-GCM-256
 * Per-user salt: `user-api-keys-salt-v2-{userId}`
 * Supported providers: OpenAI, Anthropic, Gemini, Groq, Mistral, xAI, Cohere, OpenRouter, Ollama
-* **Priority routing** in `aiClient.ts`:
-  1. User BYOK key (if configured) — fails hard if key is invalid, no silent fallback to platform key
-  2. WiseResume managed AI (platform `OPENROUTER_API_KEY` or `GROQ_API_KEY`)
-  3. Legacy global `GEMINI_API_KEY`
+* **Strict Mode**: If a user configures their own key, the system ONLY uses that key. No silent fallback to platform keys on failure.
+* **Hard vs. skippable errors**: Invalid key / payment required → abort immediately. Rate limit / 5xx / model 404 → advance to next provider in chain.
+
+### AI Routing Priority Chain (`supabase/functions/_shared/aiClient.ts` → `callAI()`)
+
+Full 8-step priority chain, evaluated in order:
+
+1. **User BYOK — direct providers**: OpenAI, Anthropic, Groq, Mistral, xAI, Cohere (whichever is configured).
+2. **User BYOK — OpenRouter**: User-supplied OpenRouter key with any model slug.
+3. **User BYOK — Ollama**: Custom base URL + local model slug (for self-hosted LLMs).
+4. **User BYOK — Gemini**: User-supplied Google Gemini key.
+5. **Platform OpenRouter**: Fetches available free models, ranks by context window + parameter count, tries best match with 8 s per-model timeout.
+6. **Platform Groq fallback**: Llama 3.3 via platform `GROQ_API_KEY` (activated when OpenRouter is rate-limited or unavailable).
+7. **Legacy Gemini**: Global `GEMINI_API_KEY` — last platform-managed resort.
+8. **Abort**: All steps exhausted → return AI error to caller.
+
+Steps 1–4 are user-controlled. Steps 5–7 are platform-managed. BYOK allowlist (enforced in `creditUtils.ts`) must stay in sync with steps 1–4.
 
 ### Rate Limiting (Multi-Layer)
 
@@ -342,6 +367,83 @@ Summary: public non-AI endpoints use fail-open IP limiting; authenticated AI end
 | Business/Enterprise | Unlimited | Unlimited | None |
 
 Rate limits are enforced via `checkRateLimit` in `_shared/rateLimiter.ts` using `ai_usage_logs` (fail-closed).
+
+### AI Studio Tools Inventory
+
+The AI Studio (`src/pages/AIStudioPage.tsx`) exposes 15 tools in three categories. Most route through `wise-ai-chat` or a dedicated edge function.
+
+#### Resume & Application
+| Tool | Edge Function | Notes |
+|------|--------------|-------|
+| Smart Tailor | `tailor-resume` | Multi-stage: job req analysis → full resume rewrite + ATS keyword injection. Costs 2 credits. |
+| Enhance Section | `enhance-section` | Improves writing in an individual resume section. |
+| 1-Page Wizard | `one-page-optimizer` | Condenses resume to one page. |
+| Humanize | `detect-and-humanize` | Rewrites AI-generated text to reduce AI-detector flags. |
+| Job Match / A-B Compare | `score-resume` | **Deterministic — no AI call, no credit deduction.** Pure scoring via `_shared/scoringFunctions.ts`. |
+| Recruiter Sim | `recruiter-simulation` | Simulates a recruiter review; surfaces red flags. |
+| Skills Gap | `wise-ai-chat` (type: `skills_gap`) | Compares candidate skills against a job description. |
+
+#### Career & Outreach
+| Tool | Edge Function | Notes |
+|------|--------------|-------|
+| Interview Prep | `interview-chat` | Voice-driven mock interview. See Voice Pipeline section below. |
+| Salary Coach | `wise-ai-chat` (type: `salary_negotiation`) | Returns opening line, justifications, counter-offer, email + call scripts as JSON. |
+| Cold Email | `wise-ai-chat` (type: `cold_email`) | Drafts outreach email from candidate profile + target role. |
+| Rejection Analyzer | `wise-ai-chat` (type: `job_rejection`) | Analyzes rejection letters and suggests improvements. |
+| Company Briefing | `company-briefing` | Researches a company and returns strategic interview prep content. |
+| Reference Letter | `wise-ai-chat` (type: `reference_letter`) | Generates a professional reference letter. |
+
+#### Personal Brand
+| Tool | Edge Function | Notes |
+|------|--------------|-------|
+| LinkedIn Optimizer | `optimize-for-linkedin` | Tailors profile sections for LinkedIn discoverability. |
+| Personal Branding | `wise-ai-chat` (type: `personal_branding`) | Returns three statements: formal, casual, bold (JSON). |
+| Portfolio Bio | `wise-ai-chat` (type: `portfolio_bio`) | Multiple bio lengths for websites and social media. |
+
+### `wise-ai-chat` Dispatch Map
+
+`POST /functions/v1/wise-ai-chat` accepts `{ type, payload }`. Valid `type` values:
+
+| Type | Purpose |
+|------|---------|
+| `personal_branding` | Three-variant personal statement (formal / casual / bold) |
+| `skills_gap` | Gap analysis between candidate skills and JD requirements |
+| `cold_email` | Outreach email draft |
+| `portfolio_bio` | Multi-length professional bio |
+| `salary_negotiation` | Negotiation script with counter-offer + email/call templates |
+| `job_rejection` | Rejection letter analysis + actionable feedback |
+| `reference_letter` | Professional reference letter |
+
+Returns `{ content: string, providerUsed: string, fallbackUsed: boolean }`.
+
+### Voice Interview Pipeline
+
+The interview coaching feature (`interview-chat` + `useVoiceInterview.ts`) is the most architecturally complex AI flow on the platform. It has three sequential dependent layers — a failure in any layer breaks the whole pipeline.
+
+```
+User speech
+  → [STT] ElevenLabs Scribe  (token from `elevenlabs-scribe-token` edge fn)
+       ↓  (fallback: browser Web Speech API)
+  → [LLM] `interview-chat` edge fn  (Gemma 4 via `callAI`)
+       ↓
+  → [TTS] browser `speechSynthesis`  (reads AI response aloud)
+```
+
+**Fallback path**: When ElevenLabs is unavailable or the user's browser cannot obtain a Scribe token, `useVoiceInterview.ts` falls back to the browser's native Web Speech API for STT. TTS always uses `speechSynthesis` (no ElevenLabs TTS dependency).
+
+**Scoring**: The LLM returns a score (1–10), actionable tips, and an "improved answer" for every user response.
+
+**Change protocol (Rule D)**: Any modification to any of these three layers must be validated end-to-end before merging. See Rule D in Section 2.
+
+### Key Frontend AI Hooks
+
+| Hook | File | Role |
+|------|------|------|
+| `useAIAction` | `src/hooks/useAIAction.ts` | General-purpose hook for executing a single AI prompt against an edge function. |
+| `useAICredits` | `src/hooks/useAICredits.ts` | Reads the user's daily credit balance; gates tool access for Free vs. Pro. |
+| `useVoiceInterview` | `src/hooks/useVoiceInterview.ts` | Manages the full voice interview session state (STT, LLM turn, TTS, scoring). |
+| `useAIEnhance` | `src/hooks/useAIEnhance.ts` | Specific hook for resume section enhancement via `enhance-section`. |
+| `usePlan` | `src/hooks/usePlan.ts` | Gates AI Studio access — most tools require the Pro plan. |
 
 ---
 

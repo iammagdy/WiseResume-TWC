@@ -2,6 +2,31 @@
 
 Local changelog tracking WiseResume changes.
 
+## 2026-04-15 (Governance — AI System Architecture Amendment)
+
+### GOV-AI-AUDIT — AI System Governance Update
+
+A full audit of all AI providers, AI Studio tools, and Supabase edge functions was run on 2026-04-15. Findings were used to expand `project-governance/ARCHITECTURE.md` and promote four structural observations into enforceable governance rules.
+
+**Section 2 (Modification Rules) — Four new enforceable rules added:**
+- **Rule A — Four-Layer Security Invariant**: Every new AI endpoint must enforce, in order: JWT auth → rate limit → atomic credit check → payload size guard. BYOK users bypass credit check only.
+- **Rule B — Deterministic Scoring is Sacred**: `score-resume` uses no AI and must not deduct credits. Its `_shared/scoringFunctions.ts` logic must remain deterministic. Replacing it with AI requires a spec + constitution amendment.
+- **Rule C — Orphan Function Retention**: `fetch-github-projects` is retained pending UI wiring ("Sync GitHub" in portfolio settings). Deletion without explicit owner sign-off is a governance violation.
+- **Rule D — Voice Pipeline Change Protocol**: The three-layer interview voice pipeline (ElevenLabs STT → Gemma LLM → browser TTS) must be validated end-to-end before any change merges.
+
+**Section 8 (AI System Architecture) — Expanded with:**
+- Credit system clarifications: 2-credit cost for `tailor-resume`/`generate-cover-letter`; `score-resume` credit exemption noted.
+- BYOK Strict Mode and hard-vs-skippable error distinction documented.
+- Full 8-step AI routing priority chain (previously only 3 steps documented).
+- AI Studio Tools Inventory: all 15 tools listed by category with edge function mappings.
+- `wise-ai-chat` dispatch map: all 7 accepted `type` values with purpose descriptions.
+- Voice Interview Pipeline: three-layer diagram, fallback path, and scoring behaviour documented.
+- Key Frontend AI Hooks table: `useAIAction`, `useAICredits`, `useVoiceInterview`, `useAIEnhance`, `usePlan`.
+
+**Files changed**: `project-governance/ARCHITECTURE.md`, `project-governance/CHANGELOG.md`
+
+---
+
 ## 2026-04-15 (Phase 20 — US17: Public Job Board + US18: Direct Applications)
 
 ### WISEHIRE-PHASE20-US17 — Public Job Board
