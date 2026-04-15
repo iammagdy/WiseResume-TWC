@@ -31,6 +31,7 @@ export interface PipelineCandidate {
   pipeline_stage: PipelineStage;
   notes: string | null;
   resume_pdf_path: string | null;
+  source: string | null;
   created_at: string;
   updated_at: string;
   brief?: { id: string; match_score: number | null } | null;

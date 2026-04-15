@@ -11,6 +11,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Download, UserPlus, CheckSquare, X, ChevronDown } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface PipelineBoardProps {
   roleId?: string;
@@ -107,6 +108,8 @@ export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: Pip
 
   function handleBulkMove() {
     if (!bulkTargetStage || selectedIds.size === 0) return;
+    const stageLabel = PIPELINE_STAGES.find((s) => s.id === bulkTargetStage)?.label ?? bulkTargetStage;
+    let moved = 0;
     for (const id of selectedIds) {
       const candidate = candidates.find((c) => c.id === id);
       if (!candidate || candidate.pipeline_stage === bulkTargetStage) continue;
@@ -115,11 +118,18 @@ export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: Pip
         toStage: bulkTargetStage as PipelineStage,
         fromStage: candidate.pipeline_stage,
       });
+      moved++;
+    }
+    if (moved === 0) {
+      toast.info(`All selected candidates are already in ${stageLabel}`);
+    } else {
+      toast.success(`Moved ${moved} candidate${moved === 1 ? '' : 's'} to ${stageLabel}`);
     }
     exitSelectionMode();
   }
 
   function handleBulkReject() {
+    let rejected = 0;
     for (const id of selectedIds) {
       const candidate = candidates.find((c) => c.id === id);
       if (!candidate || candidate.pipeline_stage === 'rejected') continue;
@@ -128,6 +138,12 @@ export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: Pip
         toStage: 'rejected',
         fromStage: candidate.pipeline_stage,
       });
+      rejected++;
+    }
+    if (rejected === 0) {
+      toast.info('All selected candidates are already rejected');
+    } else {
+      toast.success(`Rejected ${rejected} candidate${rejected === 1 ? '' : 's'}`);
     }
     exitSelectionMode();
   }

@@ -194,7 +194,7 @@ export function useHRAnalytics() {
       // ── Source breakdown ─────────────────────────────────────────────────
       const srcMap: Record<string, number> = {};
       for (const c of candidates) {
-        const src = (c.source as string | null) ?? 'manual';
+        const src = c.source ?? 'manual';
         const label = src === 'talent_pool' ? 'Talent Pool' : src === 'manual' ? 'Manual' : src === 'bulk_screen' ? 'Bulk Screen' : src;
         srcMap[label] = (srcMap[label] ?? 0) + 1;
       }
@@ -219,7 +219,7 @@ export function useHRAnalytics() {
             : new Date(evts[i - 1].created_at).getTime();
           const leftAt = new Date(evts[i].created_at).getTime();
           const days = (leftAt - enteredAt) / (1000 * 60 * 60 * 24);
-          if (days >= 0) {
+          if (days > 0) {
             if (!stageTimings[fromStage]) stageTimings[fromStage] = [];
             stageTimings[fromStage].push(days);
           }
@@ -232,11 +232,16 @@ export function useHRAnalytics() {
       };
       const stageOrder = ['shortlisted', 'contacted', 'interviewing', 'offer_sent', 'hired', 'rejected'];
       const avgDaysPerStage = Object.entries(stageTimings)
-        .map(([stage, times]) => ({
-          stage,
-          label: STAGE_LABELS[stage] ?? stage,
-          avgDays: Math.round(times.reduce((a, b) => a + b, 0) / times.length),
-        }))
+        .filter(([, times]) => times.length > 0)
+        .map(([stage, times]) => {
+          const avg = times.reduce((a, b) => a + b, 0) / times.length;
+          return {
+            stage,
+            label: STAGE_LABELS[stage] ?? stage,
+            avgDays: Number.isFinite(avg) ? Math.round(avg) : 0,
+          };
+        })
+        .filter((entry) => entry.avgDays > 0)
         .sort((a, b) => stageOrder.indexOf(a.stage) - stageOrder.indexOf(b.stage));
 
       return {
