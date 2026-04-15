@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, Building2, CheckCircle2, ChevronDown, Users } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ChevronDown, Users } from 'lucide-react';
+import { AppIcon } from '@/components/brand/AppIcon';
 
 const WH_TYPEWRITER_WORDS = [
   'Hiring Manager',
@@ -125,7 +126,7 @@ export function WiseHireHero({ onOpenWaitlist }: WiseHireHeroProps) {
           transition: 'background 0.35s ease, border-color 0.35s ease',
         }}
       >
-        <Building2 className="w-4 h-4" style={{ color: 'var(--lp-eyebrow)' }} />
+        <AppIcon size={18} showSparkle={false} className="rounded-md flex-shrink-0" />
         <span
           className="font-display font-semibold tracking-tight"
           style={{ fontSize: '0.85rem', color: 'var(--lp-eyebrow)', transition: 'color 0.35s ease' }}

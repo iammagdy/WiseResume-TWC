@@ -1,14 +1,14 @@
-import { useState } from 'react';
-import { CheckCircle2, Loader2, Mail, Building2, Users, Briefcase, ArrowLeft } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { CheckCircle2, Loader2, Mail, Building2, Users, Briefcase, ArrowLeft, ChevronDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useWaitlist } from '@/hooks/wisehire/useWaitlist';
 
 const COMPANY_SIZES = [
-  '1–10 employees',
-  '11–50 employees',
-  '51–200 employees',
-  '201–1,000 employees',
-  '1,000+ employees',
+  '1–10',
+  '11–50',
+  '51–200',
+  '201–1,000',
+  '1,000+',
 ];
 
 export default function WaitlistPage() {
@@ -17,6 +17,19 @@ export default function WaitlistPage() {
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
 
   const { mutate, isPending, isSuccess } = useWaitlist();
+
+  const [sizeOpen, setSizeOpen] = useState(false);
+  const sizeRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!sizeOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (sizeRef.current && !sizeRef.current.contains(e.target as Node)) {
+        setSizeOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [sizeOpen]);
 
   const validate = () => {
     const e: Partial<typeof form> = {};
@@ -193,16 +206,74 @@ export default function WaitlistPage() {
                   <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.78rem', fontWeight: 600, color: '#475569', marginBottom: 6 }}>
                     <Users className="w-3.5 h-3.5" /> Company Size
                   </label>
-                  <select
-                    value={form.size}
-                    onChange={(e) => setForm((f) => ({ ...f, size: e.target.value }))}
-                    style={{ ...inputStyle(errors.size), appearance: 'auto' }}
-                    onFocus={(e) => { (e.target as HTMLSelectElement).style.borderColor = '#1D4ED8'; }}
-                    onBlur={(e) => { (e.target as HTMLSelectElement).style.borderColor = errors.size ? '#ef4444' : '#e2e8f0'; }}
-                  >
-                    <option value="">Select company size…</option>
-                    {COMPANY_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
+                  <div ref={sizeRef} style={{ position: 'relative' }}>
+                    <button
+                      type="button"
+                      onClick={() => setSizeOpen((o) => !o)}
+                      style={{
+                        ...inputStyle(errors.size),
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <span style={{ color: form.size ? '#0f172a' : '#94a3b8' }}>
+                        {form.size || 'Select company size…'}
+                      </span>
+                      <ChevronDown
+                        className="w-4 h-4"
+                        style={{
+                          color: '#94a3b8',
+                          flexShrink: 0,
+                          transform: sizeOpen ? 'rotate(180deg)' : 'none',
+                          transition: 'transform 0.2s ease',
+                        }}
+                      />
+                    </button>
+                    {sizeOpen && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 'calc(100% + 4px)',
+                          left: 0,
+                          right: 0,
+                          zIndex: 300,
+                          borderRadius: 10,
+                          border: '1px solid #e2e8f0',
+                          background: '#fff',
+                          boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {COMPANY_SIZES.map((s) => (
+                          <button
+                            key={s}
+                            type="button"
+                            onClick={() => {
+                              setForm((f) => ({ ...f, size: s }));
+                              setSizeOpen(false);
+                              if (errors.size) setErrors((e) => ({ ...e, size: undefined }));
+                            }}
+                            style={{
+                              display: 'block',
+                              width: '100%',
+                              textAlign: 'left',
+                              padding: '9px 13px',
+                              fontSize: '0.875rem',
+                              color: s === form.size ? '#1D4ED8' : '#0f172a',
+                              background: s === form.size ? '#eff6ff' : 'transparent',
+                              border: 'none',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   {errors.size && <p style={{ fontSize: '0.72rem', color: '#ef4444', marginTop: 4 }}>{errors.size}</p>}
                 </div>
 

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, CheckCircle2, Loader2, Briefcase, Mail, Building2, Users, KeyRound, ArrowLeft } from 'lucide-react';
+import { X, CheckCircle2, Loader2, Briefcase, Mail, Building2, Users, KeyRound, ArrowLeft, ChevronDown } from 'lucide-react';
 import { useWaitlist } from '@/hooks/wisehire/useWaitlist';
 import { validateEarlyAccessCode } from '@/lib/wisehire/inviteTokenClient';
 
@@ -10,11 +10,11 @@ interface WaitlistModalProps {
 }
 
 const COMPANY_SIZES = [
-  '1–10 employees',
-  '11–50 employees',
-  '51–200 employees',
-  '201–1,000 employees',
-  '1,000+ employees',
+  '1–10',
+  '11–50',
+  '51–200',
+  '201–1,000',
+  '1,000+',
 ];
 
 type ModalView = 'waitlist' | 'early_access';
@@ -34,6 +34,19 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
   const [eaLoading, setEaLoading] = useState(false);
 
   const { mutate, isPending, isSuccess, reset: resetMutation } = useWaitlist();
+
+  const [sizeOpen, setSizeOpen] = useState(false);
+  const sizeRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!sizeOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (sizeRef.current && !sizeRef.current.contains(e.target as Node)) {
+        setSizeOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [sizeOpen]);
 
   if (!open) return null;
 
@@ -437,16 +450,74 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 600, color: 'var(--lp-text-muted)', marginBottom: 5 }}>
                   <Users className="w-3.5 h-3.5" /> Company Size
                 </label>
-                <select
-                  value={form.size}
-                  onChange={(e) => setForm((f) => ({ ...f, size: e.target.value }))}
-                  style={{ ...fieldStyle(errors.size), appearance: 'auto' }}
-                  onFocus={(e) => { (e.target as HTMLSelectElement).style.borderColor = '#1D4ED8'; }}
-                  onBlur={(e) => { (e.target as HTMLSelectElement).style.borderColor = errors.size ? '#ef4444' : 'var(--lp-border-card)'; }}
-                >
-                  <option value="">Select company size…</option>
-                  {COMPANY_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
+                <div ref={sizeRef} style={{ position: 'relative' }}>
+                  <button
+                    type="button"
+                    onClick={() => setSizeOpen((o) => !o)}
+                    style={{
+                      ...fieldStyle(errors.size),
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <span style={{ color: form.size ? 'inherit' : 'var(--lp-text-muted)' }}>
+                      {form.size || 'Select company size…'}
+                    </span>
+                    <ChevronDown
+                      className="w-4 h-4"
+                      style={{
+                        color: 'var(--lp-text-muted)',
+                        flexShrink: 0,
+                        transform: sizeOpen ? 'rotate(180deg)' : 'none',
+                        transition: 'transform 0.2s ease',
+                      }}
+                    />
+                  </button>
+                  {sizeOpen && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 4px)',
+                        left: 0,
+                        right: 0,
+                        zIndex: 300,
+                        borderRadius: 10,
+                        border: '1px solid var(--lp-border-card)',
+                        background: 'var(--lp-card)',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.22)',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {COMPANY_SIZES.map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => {
+                            setForm((f) => ({ ...f, size: s }));
+                            setSizeOpen(false);
+                            if (errors.size) setErrors((e) => ({ ...e, size: undefined }));
+                          }}
+                          style={{
+                            display: 'block',
+                            width: '100%',
+                            textAlign: 'left',
+                            padding: '9px 13px',
+                            fontSize: '0.875rem',
+                            color: s === form.size ? '#3B82F6' : 'var(--lp-text)',
+                            background: s === form.size ? 'rgba(29,78,216,0.1)' : 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 {errors.size && <p style={{ fontSize: '0.7rem', color: '#ef4444', marginTop: 3 }}>{errors.size}</p>}
               </div>
 
