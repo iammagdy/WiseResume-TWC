@@ -19,6 +19,7 @@ import { InstallButton } from '@/components/pwa/InstallButton';
 import { useThemeLogo } from '@/hooks/useThemeLogo';
 import { FeatureTicker } from '@/components/landing/FeatureTicker';
 import { FeatureSection, type FeatureSectionData } from '@/components/landing/FeatureSection';
+import { TrustSection } from '@/components/landing/TrustSection';
 
 const features = [
   { icon: Sparkles, title: 'AI Resume Writing', desc: 'AI rewrites vague bullets into quantified achievements that recruiters remember.', colorDark: 'text-rose-400', colorLight: 'text-rose-600', bgDark: 'bg-rose-500/10', bgLight: 'bg-rose-100' },
@@ -919,6 +920,9 @@ const Index = () => {
             </div>
           </div>
         </section>
+
+        {/* ─── TRUST SECTION ─── */}
+        <TrustSection />
 
         {/* ─── PWA INSTALL STRIP ─── */}
         <section className="px-4 sm:px-6 py-10" style={{ background: 'var(--lp-section-alt)', borderTop: '1px solid var(--lp-border)' }}>

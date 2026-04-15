@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Sparkles, Search, Loader2, Link2, Linkedin, Github, History, AlertCircle, Twitter
+  Sparkles, Search, Loader2, Link2, Linkedin, Github, History, AlertCircle, Twitter, ShieldCheck
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -90,6 +90,10 @@ export function MoreTab(props: MoreTabProps) {
               inputMode="email"
             />
             <p className="text-[11px] text-muted-foreground">Shown on your portfolio "Contact me" button. Defaults to your account email if empty.</p>
+            <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+              <ShieldCheck className="w-3 h-3 shrink-0 text-green-500" />
+              Hidden from bots — only real visitors clicking the button can see it.
+            </p>
           </div>
           <div className="space-y-1">
             <label className="text-xs font-medium text-foreground flex items-center gap-1.5">

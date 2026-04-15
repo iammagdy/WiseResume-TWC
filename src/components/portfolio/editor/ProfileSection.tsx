@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  User, Sparkles, Loader2, CheckCircle2, XCircle, Link2, Zap, Linkedin, Github,
+  User, Sparkles, Loader2, CheckCircle2, XCircle, Link2, Zap, Linkedin, Github, ShieldCheck,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -116,6 +116,10 @@ export function ProfileSection(props: ProfileSectionProps) {
         <label className="text-xs font-medium text-foreground">Contact Email</label>
         <Input type="email" placeholder="your@email.com" value={contactEmail} onChange={(e) => onContactEmailChange(e.target.value)} autoComplete="email" autoCapitalize="none" inputMode="email" />
         <p className="text-xs text-muted-foreground">Public email shown on your portfolio. Defaults to your account email if empty.</p>
+        <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+          <ShieldCheck className="w-3 h-3 shrink-0 text-green-500" />
+          Hidden from bots — only real visitors clicking the button can see it.
+        </p>
       </div>
 
       {/* Availability */}
