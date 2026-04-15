@@ -42,6 +42,7 @@ const HelpSheet = lazy(() => import('@/components/settings/HelpSheet').then((m) 
 const DeveloperCreditCard = lazy(() => import('@/components/settings/DeveloperCreditCard').then((m) => ({ default: m.DeveloperCreditCard })));
 
 // Extracted section components
+import { TalentPoolDiscoverableCard } from '@/components/settings/TalentPoolDiscoverableCard';
 import { AccountSection } from '@/components/settings/sections/AccountSection';
 import { AppearanceSection } from '@/components/settings/sections/AppearanceSection';
 import { AIVoiceSection } from '@/components/settings/sections/AIVoiceSection';
@@ -340,6 +341,16 @@ export default function SettingsPage() {
               <NotificationsSection />
             </div>
           </div>
+
+          {/* Career Visibility */}
+          {user && (
+            <div>
+              <SectionLabel>Career Visibility</SectionLabel>
+              <div className="mx-4">
+                <TalentPoolDiscoverableCard />
+              </div>
+            </div>
+          )}
 
           {/* Privacy & Security */}
           <div>

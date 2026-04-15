@@ -2,6 +2,31 @@
 
 Local changelog tracking WiseResume changes.
 
+## 2026-04-15 (Phase 18 — Phase 3: Talent Pool + HR Analytics)
+
+### WISEHIRE-PHASE18-US13 — Talent Pool Discovery
+
+- **DB** (`talent_pool_profiles`): `user_id` (unique), `full_name`, `headline`, `skills text[]`, `experience_level`, `availability`, `location`, `remote_ok`, `opted_in`, `opted_in_at`, `view_count`, `last_viewed_at`. RLS: owner CRUD + HR read (opted_in = true).
+- **DB** (`talent_pool_views`): `profile_id → talent_pool_profiles`, `viewer_company_id`, `viewed_at`. RLS: owner reads own views; authenticated can insert.
+- **Edge function** `wisehire-talent-search` (#85): HR guard → query filters (skills overlap, experience_level, availability, remote_ok, text search on name/headline/skills) → returns paginated opted-in profiles + `remaining` rate-limit header. Rate limit: Starter 10/day, Pro 200/day.
+- **Edge function** `wisehire-talent-view` (#86): HR guard → validates profile opted-in → inserts `talent_pool_views` row → increments `view_count` + updates `last_viewed_at`. Fire-and-forget from UI; job seekers see view timestamp (not company identity) in their Settings.
+- **Hook** `useTalentPool.ts`: `useTalentSearch(filters, enabled)` — server-filtered paginated search; `useRecordTalentView()` — silent mutation; `useAddTalentToPool()` — inserts `wisehire_candidates` row with resume_text synthesised from profile fields.
+- **Hook** `useTalentPoolProfile.ts`: `useMyTalentProfile()`, `useMyTalentViews()`, `useUpsertTalentProfile()` — job seeker side; upsert sets `opted_in_at` on opt-in, clears it on opt-out.
+- **Component** `TalentPoolDiscoverableCard` (Settings): toggle (Switch) + expandable form: headline, experience chips, availability chips, location input + remote_ok switch, skill tag editor (add/remove, Enter key, live-saving per field via `onBlur` / click). Privacy note shown inside form. Collapsed to toggle-only when opted out.
+- **Component** `TalentSearchFilters`: text search, experience_level select, availability select, remote_ok select, clear-all button.
+- **Component** `TalentProfileCard`: avatar initials, name, level badge, availability label, location chip, remote chip, view count, skill tags (up to 6 + overflow count), "Add to Pipeline" popover with stage picker (fires `useRecordTalentView` on open + `useAddTalentToPool` on stage select).
+- **Page** `/wisehire/talent-pool`: filter bar, count/remaining badge, profile list, empty state; added to WiseHireShell nav.
+- **Integration** `SettingsPage.tsx`: "Career Visibility" section added with `TalentPoolDiscoverableCard` (shown to signed-in users only, above Privacy & Security).
+
+### WISEHIRE-PHASE18-US14 — HR Analytics Dashboard
+
+- **Hook** `useHRAnalytics.ts`: parallel queries across `wisehire_candidates`, `wisehire_bulk_screen_jobs`, `wisehire_pipeline_events`, `wisehire_roles`, `wisehire_candidate_briefs`, `talent_pool_views`. Computes: `totalCandidates`, `totalScreened`, `avgMatchScore`, `candidatesByStage`, `candidatesOverTime` (last 6 months), `topSkills` (keyword scan across resume_text), `avgTimeToHire` (days from candidate created_at to hired event), `talentPoolViews`, `activeRoles`, `briefsGenerated`.
+- **Component** `HRAnalyticsSkeleton`: 4 stat card skeletons + 2 chart panel skeletons.
+- **Page** `/wisehire/analytics`: 8 stat cards (2 rows of 4), candidates-by-stage horizontal bar chart (colour-coded by stage), candidates-over-time mini bar chart (6 months), top-skills horizontal bar chart; empty state prompt when no candidates yet; added to WiseHireShell nav.
+- **ARCHITECTURE.md**: Updated edge function count 84→86, 2 new DB tables, 2 new routes.
+
+---
+
 ## 2026-04-15 (Phase 17 — Phase 2 Polish & Close-Out)
 
 ### WISEHIRE-PHASE17 — Phase 2 Complete (T151–T155)

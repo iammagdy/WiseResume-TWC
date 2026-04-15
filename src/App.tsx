@@ -159,6 +159,8 @@ const PublicBriefPage = lazyWithRetry(() => import("./pages/share/PublicBriefPag
 const BulkScreenPage = lazyWithRetry(() => import("./pages/wisehire/BulkScreenPage"));
 const ScorecardPage = lazyWithRetry(() => import("./pages/wisehire/ScorecardPage"));
 const PublicScorecardPage = lazyWithRetry(() => import("./pages/wisehire/PublicScorecardPage"));
+const TalentPoolPage = lazyWithRetry(() => import("./pages/wisehire/TalentPoolPage"));
+const WiseHireAnalyticsPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireAnalyticsPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -338,6 +340,8 @@ function AppRoutes() {
             <Route path="/wisehire/pipeline" element={<Suspense fallback={<PageLoadingSpinner />}><PipelinePage /></Suspense>} />
             <Route path="/wisehire/bulk-screen" element={<Suspense fallback={<PageLoadingSpinner />}><BulkScreenPage /></Suspense>} />
             <Route path="/wisehire/scorecards/:candidateId" element={<Suspense fallback={<PageLoadingSpinner />}><ScorecardPage /></Suspense>} />
+            <Route path="/wisehire/talent-pool" element={<Suspense fallback={<PageLoadingSpinner />}><TalentPoolPage /></Suspense>} />
+            <Route path="/wisehire/analytics" element={<Suspense fallback={<PageLoadingSpinner />}><WiseHireAnalyticsPage /></Suspense>} />
           </Route>
 
           {/* Protected routes */}

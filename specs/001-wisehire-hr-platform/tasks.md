@@ -375,3 +375,33 @@ At each checkpoint, validate the completed user story is independently functiona
 | Phase 11 | Brief from PDF + JD < 30s, public share works, revoke invalidates |
 | Phase 12 | Drag persists, keyboard mover works, events recorded, filter works |
 | Phase 13 | 302 baseline tests pass, all skeletons present, WCAG AA confirmed |
+
+---
+
+## Phase 18 — US13: Talent Pool Discovery + US14: HR Analytics
+
+### US13 — Talent Pool Discovery (T156–T168)
+
+- [x] T156: DB — `talent_pool_profiles` table + RLS (owner CRUD + HR read opted_in=true)
+- [x] T157: DB — `talent_pool_views` table + RLS + indexes
+- [x] T158: Edge fn `wisehire-talent-search` — HR guard + paginated filter search + rate limit
+- [x] T159: Edge fn `wisehire-talent-view` — HR guard + insert view + increment view_count
+- [x] T160: Hook `useTalentPool.ts` — useTalentSearch, useRecordTalentView, useAddTalentToPool
+- [x] T161: Hook `useTalentPoolProfile.ts` — useMyTalentProfile, useMyTalentViews, useUpsertTalentProfile
+- [x] T162: Component `TalentPoolSkeleton.tsx`
+- [x] T163: Component `TalentSearchFilters.tsx`
+- [x] T164: Component `TalentProfileCard.tsx` (avatar, skills, Add to Pipeline popover)
+- [x] T165: Component `TalentPoolDiscoverableCard.tsx` (job seeker settings)
+- [x] T166: Page `TalentPoolPage.tsx` (/wisehire/talent-pool)
+- [x] T167: WiseHireShell nav + App.tsx route + SettingsPage integration
+- [ ] T168: Manual verification (requires HR + job seeker accounts)
+
+### US14 — HR Analytics Dashboard (T169–T176)
+
+- [x] T169: Hook `useHRAnalytics.ts` — all computed metrics
+- [x] T170: Component `HRAnalyticsSkeleton.tsx`
+- [x] T171: Page `WiseHireAnalyticsPage.tsx` (/wisehire/analytics)
+- [x] T172: WiseHireShell nav + App.tsx route
+- [ ] T173: Manual verification
+- [ ] T174: CHANGELOG update — COMPLETED (this file)
+- [x] T175: ARCHITECTURE.md update (86 fns, 11 tables, new routes)
