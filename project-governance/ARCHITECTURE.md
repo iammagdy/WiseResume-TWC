@@ -370,7 +370,7 @@ Rate limits are enforced via `checkRateLimit` in `_shared/rateLimiter.ts` using 
 
 ### AI Studio Tools Inventory
 
-The AI Studio (`src/pages/AIStudioPage.tsx`) exposes 15 tools in three categories. Most route through `wise-ai-chat` or a dedicated edge function.
+The AI Studio (`src/pages/AIStudioPage.tsx`) exposes 16 tools in three categories. Most route through `wise-ai-chat` or a dedicated edge function. (`Job Match Score` and `A-B Compare` are distinct UI tools that share the same `score-resume` edge function.)
 
 #### Resume & Application
 | Tool | Edge Function | Notes |
@@ -379,7 +379,8 @@ The AI Studio (`src/pages/AIStudioPage.tsx`) exposes 15 tools in three categorie
 | Enhance Section | `enhance-section` | Improves writing in an individual resume section. |
 | 1-Page Wizard | `one-page-optimizer` | Condenses resume to one page. |
 | Humanize | `detect-and-humanize` | Rewrites AI-generated text to reduce AI-detector flags. |
-| Job Match / A-B Compare | `score-resume` | **Deterministic — no AI call, no credit deduction.** Pure scoring via `_shared/scoringFunctions.ts`. |
+| Job Match Score | `score-resume` | **Deterministic — no AI call, no credit deduction.** ATS score vs. a JD via `_shared/scoringFunctions.ts`. |
+| A-B Compare | `score-resume` | Runs the same deterministic scoring on two resume versions side-by-side; no separate AI call. |
 | Recruiter Sim | `recruiter-simulation` | Simulates a recruiter review; surfaces red flags. |
 | Skills Gap | `wise-ai-chat` (type: `skills_gap`) | Compares candidate skills against a job description. |
 
