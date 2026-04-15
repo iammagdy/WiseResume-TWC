@@ -314,8 +314,8 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
                     color: tier.highlight ? '#fff' : 'var(--lp-eyebrow)',
                     border: tier.highlight ? 'none' : '1.5px solid rgba(29,78,216,0.35)',
                   }}
-                  whileHover={{ scale: 1.04 }}
-                  whileTap={{ scale: 0.97 }}
+                  whileHover={prefersReducedMotion ? {} : { scale: 1.04 }}
+                  whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                 >
                   Join the Waitlist

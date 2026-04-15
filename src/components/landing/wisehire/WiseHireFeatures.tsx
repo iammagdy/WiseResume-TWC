@@ -174,8 +174,8 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
               cursor: 'pointer',
             }}
             onClick={onOpenWaitlist}
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.97 }}
+            whileHover={prefersReducedMotion ? {} : { scale: 1.04 }}
+            whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
             transition={{ type: 'spring', stiffness: 400, damping: 20 }}
           >
             <div
