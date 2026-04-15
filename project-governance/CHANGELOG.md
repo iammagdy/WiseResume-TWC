@@ -2,6 +2,43 @@
 
 Local changelog tracking WiseResume changes.
 
+## 2026-04-15 (Phase 6)
+
+### WISEHIRE-PHASE6 — US3: WiseHire Sign-Up + Routing Guards (T050–T055, T057)
+
+- **Summary**: Invite-gated sign-up flow is fully wired. Clicking an invite URL validates the token, collects name + company info, triggers Kinde registration, and completes the HR account setup on return. Route guards split the app cleanly into WiseResume (job seekers) and WiseHire (HR) zones.
+
+- **New edge functions**:
+  - `wisehire-validate-invite/index.ts` — public endpoint; validates token existence, HMAC-SHA256 signature, expiry, used_at, is_revoked; returns `{ valid, recipient_email, expires_at }` or `{ valid: false, reason }`
+  - `wisehire-complete-signup/index.ts` — authenticated endpoint (bridge JWT); re-validates invite → sets `profiles.account_type = 'hr'` → marks `wisehire_invites.used_at` → upserts draft `wisehire_companies` row (non-fatal if table absent) → audit log; idempotent (returns success if already HR)
+
+- **New frontend lib**:
+  - `src/lib/wisehire/inviteTokenClient.ts` — typed wrappers for both edge function calls; exports `WH_INVITE_STORAGE_KEY` and `WH_SIGNUP_REDIRECT_KEY` session-storage keys
+
+- **New hook**:
+  - `src/hooks/wisehire/useAccountType.ts` — React Query hook; fetches `account_type` from `profiles` (10 min stale time); returns `{ accountType, isHR, isJobSeeker, isLoading }`
+
+- **New pages**:
+  - `src/pages/wisehire/WiseHireSignupPage.tsx` — dual-mode: (1) no-auth + `?invite=TOKEN` → validates token → shows form (name, email read-only, company name, company size) → stores intent in `sessionStorage` → triggers `kindeRegister()`; (2) authenticated + `?complete=1` → reads `sessionStorage` → calls `wisehire-complete-signup` → redirects to `/wisehire/onboarding`; invalid/expired token → friendly error + "Join Waitlist" link
+  - `src/pages/wisehire/WiseHireDashboardPage.tsx` — placeholder dashboard for HR users (Phase 9 will fill this)
+  - `src/pages/wisehire/WiseHireOnboardingPage.tsx` — placeholder onboarding with "Welcome to WiseHire!" confirmation + link to dashboard (Phase 7 will fill this)
+
+- **New guard components**:
+  - `src/components/wisehire/WiseHireGuard.tsx` — Outlet wrapper for all `/wisehire/*` protected routes; checks auth (→ login), then account_type (→ /dashboard for job seekers); 12 s timeout safety net matches ProtectedRoute pattern
+  - `src/components/layout/JobSeekerRoute.tsx` — Outlet wrapper inside ProtectedRoute; redirects HR users (`account_type = 'hr'`) away from job seeker routes to `/wisehire/dashboard`
+
+- **Updated files**:
+  - `src/pages/AuthCallbackPage.tsx` — after successful Kinde auth, checks `sessionStorage.wh_signup_redirect`; if present, redirects to `{redirect}?complete=1` instead of `/dashboard`
+  - `src/App.tsx` — adds lazy imports for all three WiseHire pages; registers `/wisehire/signup` (public); registers `/wisehire/dashboard` + `/wisehire/onboarding` under `<WiseHireGuard>`; wraps all job seeker protected routes in `<JobSeekerRoute>`
+
+- **Sign-up flow summary**:
+  1. `/wisehire/signup?invite=TOKEN` → validate → form → `sessionStorage` → `kindeRegister()`
+  2. Kinde → `/auth/callback` → detect `wh_signup_redirect` → redirect to `/wisehire/signup?complete=1`
+  3. `/wisehire/signup?complete=1` (authenticated) → `wisehire-complete-signup` → `/wisehire/onboarding`
+
+- **Pending**: T056 manual verification (requires deployed edge functions + real invite token)
+- **Spec reference**: `specs/001-wisehire-hr-platform/tasks.md` T050–T057
+
 ## 2026-04-15 (Phase 5)
 
 ### WISEHIRE-PHASE5 — US6: Dev Kit WiseHire Admin Tools (T041–T047, T049)

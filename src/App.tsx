@@ -15,6 +15,8 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
+import { JobSeekerRoute } from "@/components/layout/JobSeekerRoute";
+import { WiseHireGuard } from "@/components/wisehire/WiseHireGuard";
 import { AuroraBackground } from "@/components/landing/AuroraBackground";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
@@ -142,6 +144,11 @@ const KindeAuthTestPage = lazyWithRetry(() => import("./pages/KindeAuthTestPage"
 const InviteRedirectPage = lazyWithRetry(() => import("./pages/InviteRedirectPage"));
 const SearchPage = lazyWithRetry(() => import("./pages/SearchPage"));
 const TailorPage = lazyWithRetry(() => import("./pages/TailorPage"));
+
+// WiseHire pages
+const WiseHireSignupPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireSignupPage"));
+const WiseHireDashboardPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireDashboardPage"));
+const WiseHireOnboardingPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireOnboardingPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -306,8 +313,18 @@ function AppRoutes() {
           <Route path="/whats-new" element={<Suspense fallback={<PageLoadingSpinner />}><WhatsNewPage /></Suspense>} />
           <Route path="/waitlist" element={<Suspense fallback={<PageLoadingSpinner />}><WaitlistPage /></Suspense>} />
 
+          {/* WiseHire public routes */}
+          <Route path="/wisehire/signup" element={<Suspense fallback={<PageLoadingSpinner />}><WiseHireSignupPage /></Suspense>} />
+
+          {/* WiseHire protected routes — HR accounts only */}
+          <Route element={<WiseHireGuard />}>
+            <Route path="/wisehire/dashboard" element={<Suspense fallback={<PageLoadingSpinner />}><WiseHireDashboardPage /></Suspense>} />
+            <Route path="/wisehire/onboarding" element={<Suspense fallback={<PageLoadingSpinner />}><WiseHireOnboardingPage /></Suspense>} />
+          </Route>
+
           {/* Protected routes */}
            <Route element={<ProtectedRoute />}>
+             <Route element={<JobSeekerRoute />}>
              <Route element={<AppShell />}>
                <Route path="/dashboard" element={<Suspense fallback={<DashboardSkeleton />}><DashboardPage /></Suspense>} />
                <Route path="/editor" element={<Suspense fallback={<EditorSkeleton />}><EditorPage /></Suspense>} />
@@ -353,6 +370,7 @@ function AppRoutes() {
                  <Route path="/tailor" element={<Suspense fallback={<PageLoadingSpinner />}><TailorPage /></Suspense>} />
                  <Route path="/tailor/:resumeId" element={<Suspense fallback={<PageLoadingSpinner />}><TailorPage /></Suspense>} />
               </Route>
+             </Route>
            </Route>
 
         {/* Invite referral redirect — public so unauthenticated users can follow the link */}
