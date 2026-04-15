@@ -223,6 +223,12 @@ Deno.serve(async (req) => {
     }
 
     const planOverride = rpcResult.plan_override as string;
+    // Defence-in-depth: ensure the RPC returned a WiseHire plan even if called
+    // directly without going through the public validation endpoint.
+    if (!planOverride || !planOverride.startsWith('wisehire_')) {
+      console.error('[wisehire-complete-signup] EA plan_override is not a wisehire plan:', planOverride);
+      return json({ success: false, error: 'invalid_early_access_code' }, 400, corsHeaders);
+    }
     const planDays = (rpcResult.plan_days as number | null) ?? 7;
 
     // ── Step 2: Set account_type = 'hr' ──
