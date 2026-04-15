@@ -363,45 +363,45 @@ export function useAgenticChat(contextFilter?: string) {
     (proposal: SuggestionProposal) => {
       if (!currentResume) return;
 
-      // Handle delete action
+      // Handle delete action — remove exactly ONE confirmed entry
       if (proposal.action === 'delete' && proposal.section === 'experience') {
-        const identifier = (proposal.itemId || '').toLowerCase();
-        let filtered = currentResume.experience;
+        const itemId = proposal.itemId || '';
 
-        // 1. Try exact UUID match on exp.id (when itemId is an internal ID)
-        if (identifier) {
-          const byId = currentResume.experience.filter((exp) => exp.id !== identifier);
-          if (byId.length < currentResume.experience.length) {
-            updateResume({ experience: byId });
+        // 1. Preferred: exact UUID match on exp.id (set by edge function when match found)
+        if (itemId) {
+          const targetIdx = currentResume.experience.findIndex((exp) => exp.id === itemId);
+          if (targetIdx !== -1) {
+            const updated = [
+              ...currentResume.experience.slice(0, targetIdx),
+              ...currentResume.experience.slice(targetIdx + 1),
+            ];
+            updateResume({ experience: updated });
             haptics.success();
             return;
           }
         }
 
-        // 2. Fall back to company/position text match
-        if (identifier) {
-          filtered = currentResume.experience.filter(
-            (exp) =>
-              !exp.company.toLowerCase().includes(identifier) &&
-              !exp.position.toLowerCase().includes(identifier)
-          );
-        } else {
-          // No identifier — try matching against original text if it's not JSON
-          const rawId = proposal.original.toLowerCase();
-          filtered = currentResume.experience.filter(
-            (exp) =>
-              !exp.company.toLowerCase().includes(rawId) &&
-              !exp.position.toLowerCase().includes(rawId)
-          );
-        }
+        // 2. Fallback: find the FIRST (and only first) matching entry by text
+        const fallbackKey = itemId.toLowerCase();
+        const textTargetIdx = fallbackKey
+          ? currentResume.experience.findIndex(
+              (exp) =>
+                exp.company.toLowerCase().includes(fallbackKey) ||
+                exp.position.toLowerCase().includes(fallbackKey)
+            )
+          : -1;
 
-        if (filtered.length === currentResume.experience.length) {
-          toast('Could not find the experience entry to delete. It may have already been removed.');
+        if (textTargetIdx !== -1) {
+          const updated = [
+            ...currentResume.experience.slice(0, textTargetIdx),
+            ...currentResume.experience.slice(textTargetIdx + 1),
+          ];
+          updateResume({ experience: updated });
+          haptics.success();
           return;
         }
 
-        updateResume({ experience: filtered });
-        haptics.success();
+        toast('Could not find the experience entry to delete. It may have already been removed.');
         return;
       }
 

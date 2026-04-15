@@ -437,6 +437,7 @@ Deno.serve(async (req: Request) => {
 
         // Try to find the matching experience in the current resume
         let originalText = identifier;
+        let resolvedItemId = itemId;
         try {
           const resumeData = currentResume as Record<string, unknown>;
           const experience = (resumeData?.experience as Array<Record<string, unknown>>) ?? [];
@@ -449,6 +450,10 @@ Deno.serve(async (req: Request) => {
           if (matched) {
             // Return the matched entry as a JSON string (per spec: original = matched entry JSON)
             originalText = JSON.stringify(matched);
+            // Set itemId to the entry's UUID so client can do exact-id deletion
+            if (matched.id && typeof matched.id === "string") {
+              resolvedItemId = matched.id;
+            }
           }
         } catch {
           // fallback to identifier
@@ -459,7 +464,7 @@ Deno.serve(async (req: Request) => {
           proposals: [
             {
               section: "experience",
-              itemId,
+              itemId: resolvedItemId,
               original: originalText,
               suggested: "",
               explanation,
