@@ -13,7 +13,8 @@ export default function JDWriterPage() {
   const [generatedJD, setGeneratedJD] = useState<JDData | null>(null);
   const [savedRoleId, setSavedRoleId] = useState<string | null>(null);
   const { data: roles = [], isLoading: rolesLoading, saveJD, deleteJD } = useJDs();
-  const { company } = useWiseHireAccount();
+  const { data: accountData } = useWiseHireAccount();
+  const company = accountData?.company;
 
   function handleResult(jd: JDData, roleId: string | null) {
     setGeneratedJD(jd);

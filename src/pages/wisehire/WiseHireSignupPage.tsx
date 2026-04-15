@@ -164,7 +164,7 @@ export default function WiseHireSignupPage() {
     sessionStorage.setItem('wh_company_size', companySize);
 
     // Trigger Kinde registration
-    kindeRegister({ authUrlParams: { login_hint: recipientEmail } });
+    kindeRegister({ loginHint: recipientEmail });
   }
 
   // ── Completion mode loading ──

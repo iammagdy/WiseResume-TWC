@@ -6,9 +6,10 @@ const containerVariants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.04 } },
 };
+const _ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
 const itemVariants = {
   hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: _ease } },
 };
 
 const tiers = [

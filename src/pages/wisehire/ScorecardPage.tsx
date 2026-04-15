@@ -22,6 +22,13 @@ import { useScorecardTemplates } from '@/hooks/wisehire/useScorecardTemplates';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
+// WiseHire tables live in a separate schema not yet reflected in the generated DB types.
+// This helper provides a single, narrowed access point for those tables.
+type WiseHireTableName = 'wisehire_candidates' | 'wisehire_candidate_briefs' | 'wisehire_scorecards';
+function wiseHireFrom(table: WiseHireTableName) {
+  return (supabase as unknown as { from(t: WiseHireTableName): ReturnType<typeof supabase.from> }).from(table);
+}
+
 export default function ScorecardPage() {
   const { candidateId } = useParams<{ candidateId: string }>();
   const [searchParams] = useSearchParams();
@@ -49,16 +56,14 @@ export default function ScorecardPage() {
     async function load() {
       setResolving(true);
       try {
-        const { data: candidate } = await supabase
-          .from('wisehire_candidates')
+        const { data: candidate } = await wiseHireFrom('wisehire_candidates')
           .select('name')
           .eq('id', candidateId)
           .maybeSingle();
-        if (candidate?.name) setCandidateName(candidate.name);
+        if ((candidate as { name?: string } | null)?.name) setCandidateName((candidate as { name: string }).name);
 
         if (briefId) {
-          const { data: brief } = await supabase
-            .from('wisehire_candidate_briefs')
+          const { data: brief } = await wiseHireFrom('wisehire_candidate_briefs')
             .select('interview_questions')
             .eq('id', briefId)
             .maybeSingle();
@@ -101,8 +106,7 @@ export default function ScorecardPage() {
     if (!template) return;
     setApplyingTemplate(true);
     try {
-      const { error } = await supabase
-        .from('wisehire_scorecards')
+      const { error } = await wiseHireFrom('wisehire_scorecards')
         .update({
           questions: template.questions,
           ratings: new Array(template.questions.length).fill(null),

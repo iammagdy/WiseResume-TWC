@@ -44,7 +44,7 @@ export function useTalentSearch(filters: TalentSearchFilters, enabled = true) {
   return useQuery({
     queryKey: ['talent-search', filters],
     queryFn: () =>
-      callEdge<{ results: TalentProfile[]; total: number }>('wisehire-talent-search', filters),
+      callEdge<{ results: TalentProfile[]; total: number; remaining?: number }>('wisehire-talent-search', filters),
     enabled: enabled && isAuthenticated && supabaseReady,
     staleTime: 30_000,
   });

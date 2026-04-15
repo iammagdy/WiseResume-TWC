@@ -33,7 +33,7 @@ describe("PublicHero", () => {
   });
 
   it("renders 'Open to Work' badge when enabled", () => {
-    const props = { ...defaultProps, profile: { ...mockProfile, openToWork: true } };
+    const props = { ...defaultProps, profile: { ...mockProfile, openToWork: true } as any };
     render(<PublicHero {...props} />);
     expect(screen.getByText("Open to Work")).toBeDefined();
   });
@@ -45,7 +45,7 @@ describe("PublicHero", () => {
         ...mockProfile, 
         linkedinUrl: "https://linkedin.com/in/johndoe",
         githubUrl: "https://github.com/johndoe"
-      } 
+      } as any
     };
     render(<PublicHero {...props} />);
     expect(screen.getByTitle("LinkedIn")).toBeDefined();

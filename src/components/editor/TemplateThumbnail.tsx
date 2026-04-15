@@ -86,7 +86,7 @@ function ThumbnailSkeleton() {
 }
 
 export const TemplateThumbnail = memo(function TemplateThumbnail({ templateId, resume }: TemplateThumbnailProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(0.15);
   
   const { ref: inViewRef, inView } = useInView({ rootMargin: '100px', triggerOnce: true });

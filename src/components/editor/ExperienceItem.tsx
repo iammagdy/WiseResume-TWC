@@ -9,7 +9,7 @@ import { Experience } from '@/types/resume';
 import { InlineAIButton } from './InlineAIButton';
 import { AIContextualNudge } from './AIContextualNudge';
 import { formatDateRange, calculateDuration } from '@/lib/dateUtils';
-import { ResumeNudge } from '@/hooks/useResumeNudges';
+import { NudgeState } from '@/hooks/useResumeNudges';
 import { MonthYearPicker } from './MonthYearPicker';
 
 interface ExperienceItemProps {
@@ -18,7 +18,7 @@ interface ExperienceItemProps {
   totalLength: number;
   isExpanded: boolean;
   isEnhancing: boolean;
-  entryNudges: ResumeNudge[];
+  entryNudges: NudgeState[];
   onToggleExpand: (id: string) => void;
   onUpdate: (id: string, updates: Partial<Experience>) => void;
   onDelete: (id: string) => void;
@@ -217,7 +217,6 @@ export const ExperienceItem = memo(function ExperienceItem({
                 <MonthYearPicker
                   value={exp.startDate}
                   onChange={handleStartDateChange}
-                  placeholder="Start date"
                 />
               </div>
               <div>
@@ -233,7 +232,6 @@ export const ExperienceItem = memo(function ExperienceItem({
                   <MonthYearPicker
                     value={exp.endDate}
                     onChange={handleEndDateChange}
-                    placeholder="End date"
                     disabled={exp.current}
                   />
                 )}

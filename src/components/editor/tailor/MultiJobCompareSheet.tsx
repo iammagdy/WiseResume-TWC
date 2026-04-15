@@ -90,7 +90,7 @@
  
    // Find best job (highest score)
    const bestJob = [...jobs].sort(
-     (a, b) => b.tailorResult.overallScore.after - a.tailorResult.overallScore.after
+     (a, b) => (b.tailorResult.overallScore?.after ?? 0) - (a.tailorResult.overallScore?.after ?? 0)
    )[0];
  
    const selectedJob = jobs.find(j => j.id === selectedJobId);
@@ -301,7 +301,7 @@
                    <strong className="text-foreground">{bestJob.jobTitle}</strong> at{' '}
                    <strong className="text-foreground">{bestJob.company}</strong> has the 
                    highest overall match at{' '}
-                   <strong className="text-success">{bestJob.tailorResult.overallScore.after}%</strong>
+                   <strong className="text-success">{bestJob.tailorResult.overallScore?.after ?? 0}%</strong>
                  </p>
                </motion.div>
              </TabsContent>
@@ -324,7 +324,7 @@
              </div>
              {selectedJob && (
                <Badge variant="secondary" className="bg-success/10 text-success border-success/30">
-                 {selectedJob.tailorResult.overallScore.after}% match
+                 {selectedJob.tailorResult.overallScore?.after ?? 0}% match
                </Badge>
              )}
            </div>

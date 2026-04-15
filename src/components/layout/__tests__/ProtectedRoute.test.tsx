@@ -9,19 +9,21 @@ vi.mock('@/hooks/useAuth', () => ({
   useAuth: vi.fn(),
 }));
 
+const makeAuth = (overrides = {}) => ({
+  isAuthenticated: false,
+  loading: false,
+  user: null as any,
+  signOut: vi.fn(),
+  supabaseReady: false,
+  supabaseSettled: false,
+  kindeUser: null as any,
+  getKindeToken: vi.fn().mockResolvedValue(null),
+  ...overrides,
+});
+
 describe('ProtectedRoute', () => {
   it('renders loading skeleton when loading is true', () => {
-    vi.mocked(useAuthHook.useAuth).mockReturnValue({
-      isAuthenticated: false,
-      loading: true,
-      user: null as any,
-      logout: vi.fn(),
-      signup: vi.fn(),
-      login: vi.fn(),
-      resetPassword: vi.fn(),
-      updatePassword: vi.fn(),
-      session: null
-    });
+    vi.mocked(useAuthHook.useAuth).mockReturnValue(makeAuth({ loading: true }));
 
     render(
       <MemoryRouter initialEntries={['/editor']}>
@@ -38,17 +40,7 @@ describe('ProtectedRoute', () => {
   });
 
   it('redirects to /auth when user is unauthenticated (Scenario 1.2)', () => {
-    vi.mocked(useAuthHook.useAuth).mockReturnValue({
-      isAuthenticated: false,
-      loading: false,
-      user: null as any,
-      logout: vi.fn(),
-      signup: vi.fn(),
-      login: vi.fn(),
-      resetPassword: vi.fn(),
-      updatePassword: vi.fn(),
-      session: null
-    });
+    vi.mocked(useAuthHook.useAuth).mockReturnValue(makeAuth({ isAuthenticated: false, loading: false }));
 
     render(
       <MemoryRouter initialEntries={['/editor']}>
@@ -69,17 +61,10 @@ describe('ProtectedRoute', () => {
   });
 
   it('renders outlet when user is authenticated', () => {
-    vi.mocked(useAuthHook.useAuth).mockReturnValue({
+    vi.mocked(useAuthHook.useAuth).mockReturnValue(makeAuth({
       isAuthenticated: true,
-      loading: false,
       user: { id: 'test-user' } as any,
-      logout: vi.fn(),
-      signup: vi.fn(),
-      login: vi.fn(),
-      resetPassword: vi.fn(),
-      updatePassword: vi.fn(),
-      session: {} as any
-    });
+    }));
 
     render(
       <MemoryRouter initialEntries={['/editor']}>

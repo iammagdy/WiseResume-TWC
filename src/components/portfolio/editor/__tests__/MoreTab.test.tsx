@@ -31,6 +31,7 @@ describe("MoreTab", () => {
     onWebsiteUrlChange: vi.fn(),
     openSections: new Set(["sociallinks", "seo"]),
     toggleSection: vi.fn(),
+    onOpenHistory: vi.fn(),
   };
 
   it("renders LinkedIn URL input", () => {

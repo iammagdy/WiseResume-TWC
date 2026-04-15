@@ -354,7 +354,7 @@ export function LiveActivityPanel() {
     for (const def of defs) {
       const start = Date.now();
       try {
-        const body = def.buildBody(getDevKitToken());
+        const body = def.buildBody(getDevKitToken() ?? '');
         const { data, error } = await edgeFunctions.functions.invoke(def.name, { body });
         const durationMs = Date.now() - start;
         const status = def.classify(data, error);

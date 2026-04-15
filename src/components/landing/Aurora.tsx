@@ -145,7 +145,7 @@ export default function Aurora(props: AuroraProps) {
         premultipliedAlpha: true,
         antialias: true,
         webgl: 2,
-      } as Parameters<typeof Renderer>[0]);
+      } as ConstructorParameters<typeof Renderer>[0]);
     } catch {
       return;
     }

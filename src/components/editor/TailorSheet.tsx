@@ -860,7 +860,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
           {isTailoring && progress && (
             <TailorProgressComponent
               progress={progress}
-              projectedScore={tailorResult?.overallScore}
+              projectedScore={tailorResult?.overallScore ?? undefined}
               matchingKeywords={tailorResult?.missingSkills?.length}
               onCancel={() => {
                 abortRef.current?.abort();

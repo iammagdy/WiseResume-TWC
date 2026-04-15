@@ -156,7 +156,7 @@ export function EditProfileSheet({
     portfolioFont: null,
     openToWork: false,
     availabilityHeadline: null,
-    portfolioExtras: null,
+    portfolioExtras: {},
     portfolioSyncMode: 'auto' as const,
     loginStreak: 1,
     lastLoginDate: null,

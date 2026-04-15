@@ -149,7 +149,7 @@ export default function WiseHireEarlyAccessPage() {
     sessionStorage.setItem('wh_ea_company_name', companyName.trim());
     sessionStorage.setItem('wh_ea_company_size', companySize);
 
-    kindeRegister({ authUrlParams: { login_hint: email.trim() } });
+    kindeRegister({ loginHint: email.trim() });
   }
 
   const planLabel = planOverride

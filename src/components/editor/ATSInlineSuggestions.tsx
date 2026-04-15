@@ -147,7 +147,7 @@ export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
             })}
 
             {/* Deep Analysis Results Panel */}
-            {deepResult && deepResult.improved && !isAnalyzing && (
+            {deepResult && Boolean(deepResult.improved) && !isAnalyzing && (
               <div className="mt-2 rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2.5">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-primary shrink-0" />

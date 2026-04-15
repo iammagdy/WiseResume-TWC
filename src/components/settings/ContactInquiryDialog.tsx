@@ -35,7 +35,7 @@ async function getAppVersion(): Promise<string> {
   } catch {
     cachedAppVersion = 'unknown';
   }
-  return cachedAppVersion;
+  return cachedAppVersion!; // always set to a string by the try/catch above
 }
 
 interface ContactInquiryDialogProps {

@@ -85,7 +85,7 @@ export const SkillsSection = memo(function SkillsSection() {
   const { getNudgeForSection, dismissNudge } = useResumeNudges({
     resume: currentResume,
     jobDescription,
-    hasMissingSkills,
+    hasMissingSkills: hasMissingSkills ?? undefined,
   });
 
   const jobTitleSuggestions = useMemo(() => {

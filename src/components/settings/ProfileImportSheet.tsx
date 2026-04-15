@@ -362,7 +362,7 @@ export function ProfileImportSheet({
           description: v.description,
         })),
         languages: (resumeData.languages || []).map((l) => ({
-          language: l.language,
+          language: l.name,
           proficiency: l.proficiency,
         })),
         projects: (resumeData.projects || []).map((p) => ({

@@ -71,11 +71,9 @@ vi.mock("@/integrations/supabase/safeClient", () => ({
 
 import { TailorSheet } from "@/components/editor/TailorSheet";
 import { JobAnalysisSheet } from "@/components/editor/JobAnalysisSheet";
-import { mockResumeStore, mockExecute } from "@/test/mocks/zustandStores";
+import { mockResumeStore } from "@/test/mocks/zustandStores";
 import { mockFetch } from "@/test/mocks/fetch";
 
-// Re-export mockExecute from zustandStores to use in tests
-// Actually need it from aiAction mock
 import * as aiActionMock from "@/test/mocks/aiAction";
 
 describe("TailorSheet (D6)", () => {

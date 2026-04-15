@@ -51,7 +51,8 @@ export const edgeFunctions = {
         });
 
         const text = await response.text();
-        let data: unknown = null;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let data: any = null; // Edge function responses are dynamic JSON; typed at call sites
         try {
           data = JSON.parse(text);
         } catch {

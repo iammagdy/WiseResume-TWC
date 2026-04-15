@@ -44,6 +44,8 @@ const baseProps = {
   onAvailabilityHeadlineChange: vi.fn(),
   onGenerateAvailability: vi.fn(),
   generatingAvailability: false,
+  availabilityStatus: 'not-looking' as const,
+  onAvailabilityStatusChange: vi.fn(),
 };
 
 describe("PortfolioUsernameConflict (D8)", () => {
