@@ -1,7 +1,7 @@
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAuth, AuthError, authErrorResponse } from '../_shared/authMiddleware.ts';
-import { checkRateLimit } from '../_shared/rateLimiter.ts';
+import { checkRateLimit, getUserPlan } from '../_shared/rateLimiter.ts';
 
 function json(data: unknown, status = 200, cors: Record<string, string> = {}) {
   return new Response(JSON.stringify(data), {
@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
     // HR guard
     const { data: profile } = await supabase
       .from('profiles')
-      .select('account_type, plan')
+      .select('account_type')
       .eq('user_id', userId)
       .single();
 
@@ -31,8 +31,9 @@ Deno.serve(async (req) => {
       return json({ error: 'WiseHire HR account required' }, 403, cors);
     }
 
-    // Rate limit: Starter 10/day, Pro/Business+ 200/day
-    const isPro = ['wisehire_professional', 'wisehire_business', 'wisehire_enterprise'].includes(profile.plan ?? '');
+    // Rate limit: Starter 10/day, Pro/Business+ 200/day (plan from subscriptions)
+    const effectivePlan = await getUserPlan(userId);
+    const isPro = ['wisehire_professional', 'wisehire_business', 'wisehire_enterprise'].includes(effectivePlan);
     const limit = isPro ? 200 : 10;
     const rl = await checkRateLimit(userId, {
       actionType: 'wisehire_talent_search',

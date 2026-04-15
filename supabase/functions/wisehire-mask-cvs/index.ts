@@ -133,21 +133,31 @@ Deno.serve(async (req) => {
     // ── 3. Subscription plan check ────────────────────────────────
     const { data: sub } = await db
       .from('subscriptions')
-      .select('plan_id, status, trial_ends_at')
+      .select('plan_name, status, trial_plan, trial_expires_at')
       .eq('user_id', userId)
-      .in('plan_id', WISEHIRE_PAID_PLANS)
       .maybeSingle();
 
-    const isActiveSub = sub && (
-      sub.status === 'active' ||
-      (sub.status === 'trialing' && sub.trial_ends_at && new Date(sub.trial_ends_at) > new Date())
+    const now = new Date();
+    const isTrialActive = !!(
+      sub?.trial_plan &&
+      sub?.trial_expires_at &&
+      WISEHIRE_PAID_PLANS.includes(sub.trial_plan) &&
+      new Date(sub.trial_expires_at) > now
     );
+    const isPaidActive = !!(
+      sub?.plan_name &&
+      WISEHIRE_PAID_PLANS.includes(sub.plan_name) &&
+      sub.status === 'active'
+    );
+    const isActiveSub = isTrialActive || isPaidActive;
+
     if (!isActiveSub) {
       return json({ error: 'Active WiseHire plan required' }, 403, cors);
     }
 
-    const isStarter = sub.plan_id === 'wisehire_starter';
-    const isPro = sub.plan_id === 'wisehire_professional';
+    const effectivePlan = isPaidActive ? sub!.plan_name : sub!.trial_plan;
+    const isStarter = effectivePlan === 'wisehire_starter';
+    const isPro = effectivePlan === 'wisehire_professional';
 
     // ── 4. BYOK check for Starter ─────────────────────────────────
     if (isStarter) {

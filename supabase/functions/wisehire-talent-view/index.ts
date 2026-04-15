@@ -30,6 +30,14 @@ Deno.serve(async (req) => {
       return json({ error: 'WiseHire HR account required' }, 403, cors);
     }
 
+    // Resolve profiles.id (PK) for FK joins (wisehire_* tables FK to profiles.id, not user_id)
+    const { data: profileRow } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+    const profileId = profileRow?.id ?? userId;
+
     const { profile_id } = await req.json();
     if (!profile_id) {
       return json({ error: 'profile_id required' }, 400, cors);
@@ -50,7 +58,7 @@ Deno.serve(async (req) => {
     const { data: company } = await supabase
       .from('wisehire_companies')
       .select('id')
-      .eq('owner_id', userId)
+      .eq('owner_id', profileId)
       .single();
 
     // Record view

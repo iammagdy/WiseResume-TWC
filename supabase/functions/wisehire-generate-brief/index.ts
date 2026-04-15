@@ -51,6 +51,14 @@ Deno.serve(async (req) => {
       return json({ error: 'Forbidden — WiseHire HR account required' }, 403, cors);
     }
 
+    // Resolve profiles.id (PK) for FK joins (wisehire_* tables FK to profiles.id, not user_id)
+    const { data: profileRow } = await db
+      .from('profiles')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+    const profileId = profileRow?.id ?? userId;
+
     // ── 2. Parse + validate body ─────────────────────────────────
     const body = await req.json().catch(() => ({}));
     const { candidate_id, jd_text } = body as { candidate_id?: string; jd_text?: string };
@@ -67,7 +75,7 @@ Deno.serve(async (req) => {
       .from('wisehire_candidates')
       .select('id, owner_id, name, resume_text, role_id')
       .eq('id', candidate_id)
-      .eq('owner_id', userId)
+      .eq('owner_id', profileId)
       .maybeSingle();
 
     if (candidateErr || !candidate) {
@@ -210,7 +218,7 @@ Return EXACTLY this JSON structure:
     const { data: brief, error: insertErr } = await db
       .from('wisehire_candidate_briefs')
       .insert({
-        owner_id: userId,
+        owner_id: profileId,
         candidate_id: candidate.id,
         role_id: candidate.role_id ?? null,
         match_score: matchScore,

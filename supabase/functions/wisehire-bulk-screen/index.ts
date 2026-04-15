@@ -117,21 +117,22 @@ Deno.serve(async (req) => {
     // ── 3. Subscription plan check ────────────────────────────────
     const { data: sub } = await db
       .from('subscriptions')
-      .select('plan_id, status, trial_ends_at')
+      .select('plan_name, status, trial_plan, trial_expires_at')
       .eq('user_id', userId)
-      .in('plan_id', WISEHIRE_PAID_PLANS)
       .maybeSingle();
 
-    const isActiveSub = sub && (
-      sub.status === 'active' ||
-      (sub.status === 'trialing' && sub.trial_ends_at && new Date(sub.trial_ends_at) > new Date())
-    );
+    // Resolve effective plan (honour active trial)
+    const isTrialActive = sub?.trial_plan && sub?.trial_expires_at &&
+      new Date(sub.trial_expires_at) > new Date();
+    const effectivePlan: string = isTrialActive ? sub!.trial_plan! : (sub?.plan_name ?? 'free');
+
+    const isActiveSub = WISEHIRE_PAID_PLANS.includes(effectivePlan);
     if (!isActiveSub) {
       return json({ error: 'Active WiseHire plan required' }, 403, cors);
     }
 
-    const isStarter = sub.plan_id === 'wisehire_starter';
-    const isPro = sub.plan_id === 'wisehire_professional';
+    const isStarter = effectivePlan === 'wisehire_starter';
+    const isPro = effectivePlan === 'wisehire_professional';
 
     // ── 4. BYOK check for Starter ─────────────────────────────────
     if (isStarter) {
@@ -240,10 +241,18 @@ Return exactly this JSON structure:
       .map((r, i) => ({ ...r, rank: i + 1 }));
 
     // ── 9. Persist job record ─────────────────────────────────────
+    // Resolve profiles.id (PK) for FK joins (wisehire_* tables FK to profiles.id)
+    const { data: profileRow } = await db
+      .from('profiles')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+    const profileId = profileRow?.id ?? userId;
+
     const { data: jobRow, error: jobErr } = await db
       .from('wisehire_bulk_screen_jobs')
       .insert({
-        owner_id: userId,
+        owner_id: profileId,
         role_id: roleId,
         status: 'done',
         results: sorted,

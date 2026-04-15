@@ -1,7 +1,7 @@
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAuth, AuthError, authErrorResponse } from '../_shared/authMiddleware.ts';
-import { checkRateLimit } from '../_shared/rateLimiter.ts';
+import { checkRateLimit, getUserPlan } from '../_shared/rateLimiter.ts';
 
 const AI_DRAFT_SYSTEM = `You are a professional recruiter writing a concise outreach email to a candidate.
 Rules: friendly yet professional tone, 3–5 sentences, no generic filler, personalise using the candidate name and role title provided, end with a clear call to action.
@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
     // HR guard + plan
     const { data: profile } = await supabase
       .from('profiles')
-      .select('account_type, plan')
+      .select('account_type')
       .eq('user_id', userId)
       .single();
 
@@ -35,8 +35,17 @@ Deno.serve(async (req) => {
       return json({ error: 'WiseHire HR account required' }, 403, cors);
     }
 
-    // Rate limit: Starter 10/day, Pro 100/day
-    const limit = profile.plan === 'wisehire_professional' || profile.plan === 'wisehire_business' || profile.plan === 'wisehire_enterprise' ? 100 : 10;
+    // Resolve profiles.id (PK) for FK joins (wisehire_* tables FK to profiles.id, not user_id)
+    const { data: profileRow } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+    const profileId = profileRow?.id ?? userId;
+
+    // Rate limit: Starter 10/day, Pro 100/day (plan from subscriptions)
+    const effectivePlan = await getUserPlan(userId);
+    const limit = ['wisehire_professional', 'wisehire_business', 'wisehire_enterprise'].includes(effectivePlan) ? 100 : 10;
     const rl = await checkRateLimit(userId, {
       actionType: 'wisehire_send_outreach',
       maxRequests: limit,
@@ -58,7 +67,7 @@ Deno.serve(async (req) => {
       .from('wisehire_candidates')
       .select('id, name')
       .eq('id', candidate_id)
-      .eq('owner_id', userId)
+      .eq('owner_id', profileId)
       .single();
 
     if (candErr || !candidate) {
@@ -116,7 +125,7 @@ Deno.serve(async (req) => {
     const { data: company } = await supabase
       .from('wisehire_companies')
       .select('name')
-      .eq('owner_id', userId)
+      .eq('owner_id', profileId)
       .single();
 
     const fromLabel = company?.name ? `${company.name} via WiseHire` : 'WiseHire';
@@ -154,7 +163,7 @@ Deno.serve(async (req) => {
     const { data: record, error: insertErr } = await supabase
       .from('wisehire_outreach_emails')
       .insert({
-        owner_id: userId,
+        owner_id: profileId,
         candidate_id,
         to_email,
         subject,

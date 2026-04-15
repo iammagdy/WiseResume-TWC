@@ -15,21 +15,30 @@
 - Redeployed `wisehire-waitlist-join` and `wisehire-validate-early-access` with `--no-verify-jwt` flag (public endpoints — bot-guarded internally)
 - Disabled JWT verification via Supabase management API for both public endpoints
 
-### Smoke Tests — All 15 WiseHire Functions Pass
+### Additional Bug Fixes (post-deploy, owner_id FK mismatch)
+- **wisehire-send-outreach**: Fixed `owner_id = userId` (auth UUID) → `owner_id = profileId` (profiles PK); all three `wisehire_candidates`, `wisehire_companies`, and `wisehire_outreach_emails` queries now use the correct FK value via a pre-query `SELECT id FROM profiles WHERE user_id = $userId`
+- **wisehire-talent-view**: Same profileId fix for `wisehire_companies` query
+- **wisehire-bulk-screen**: Same profileId fix for `wisehire_bulk_screen_jobs` insert
+- **wisehire-generate-brief**: Same profileId fix for `wisehire_candidates` query and `wisehire_candidate_briefs` insert
+- **wisehire-mask-cvs**: Fixed subscription plan query — updated column names `plan_id`→`plan_name`, `trial_ends_at`→`trial_expires_at`; added `trial_plan` support so trial HR accounts pass the plan gate
+
+### Smoke Tests — All WiseHire AI Functions Pass (Authenticated)
+Test account: `wisehire-smoketest@thewise.cloud` (account_type=hr, trial_plan=wisehire_professional until 2026-12-31)
+
 | Function | Type | Result |
 |---|---|---|
 | `wisehire-waitlist-join` | Public (bot-guarded) | ✅ Returns `success: true` / `already_registered` |
 | `wisehire-validate-invite` | Public | ✅ Returns `valid: false, reason: not_found` for unknown token |
 | `wisehire-validate-early-access` | Public (bot-guarded) | ✅ Returns `valid: false` for invalid code |
-| `wisehire-write-jd` | Auth-required | ✅ Correctly rejects unauthenticated with 401 |
+| `wisehire-write-jd` | Auth-required | ✅ Full JD generated (title, summary, responsibilities, requirements, benefits) |
+| `wisehire-talent-search` | Auth-required | ✅ Returns `{results, total, remaining}` |
+| `wisehire-send-outreach` | Auth-required | ✅ AI draft email generated (365–420 chars) |
+| `wisehire-generate-brief` | Auth-required | ✅ Candidate brief returned with `{brief}` |
+| `wisehire-mask-cvs` | Auth-required | ✅ CV masked (NAME redacted), `{results}` returned |
+| `wisehire-talent-view` | Auth-required | ✅ Returns `{ok: true}`, view logged |
 | `wisehire-bulk-screen` | Auth-required | ✅ Correctly rejects unauthenticated with 401 |
-| `wisehire-send-outreach` | Auth-required | ✅ Correctly rejects unauthenticated with 401 |
-| `wisehire-talent-search` | Auth-required | ✅ Correctly rejects unauthenticated with 401 |
-| `wisehire-talent-view` | Auth-required | ✅ Correctly rejects unauthenticated with 401 |
 | `wisehire-apply` | Auth-required | ✅ Correctly rejects unauthenticated with 401 |
 | `wisehire-complete-signup` | Auth-required | ✅ Correctly rejects unauthenticated with 401 |
-| `wisehire-generate-brief` | Auth-required | ✅ Correctly rejects unauthenticated with 401 |
-| `wisehire-mask-cvs` | Auth-required | ✅ Correctly rejects unauthenticated with 401 |
 | `admin-wisehire-invite` | Admin-password | ✅ Correctly rejects wrong password |
 | `admin-wisehire-waitlist` | Admin-password | ✅ Correctly rejects wrong password |
 
