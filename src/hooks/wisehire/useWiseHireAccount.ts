@@ -7,7 +7,6 @@ export interface WiseHireCompany {
   id: string;
   owner_id: string;
   name: string;
-  slug: string | null;
   size: string;
   role_types: string[] | null;
   monthly_volume: string | null;
@@ -87,7 +86,7 @@ export function useWiseHireAccount() {
       const [companyRes, subRes] = await Promise.all([
         supabase
           .from('wisehire_companies')
-          .select('id, owner_id, name, slug, size, role_types, monthly_volume, onboarding_completed, created_at, updated_at')
+          .select('id, owner_id, name, size, role_types, monthly_volume, onboarding_completed, created_at, updated_at')
           .eq('owner_id', userId)
           .maybeSingle(),
         supabase

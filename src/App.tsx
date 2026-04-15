@@ -160,9 +160,6 @@ const ScorecardPage = lazyWithRetry(() => import("./pages/wisehire/ScorecardPage
 const PublicScorecardPage = lazyWithRetry(() => import("./pages/wisehire/PublicScorecardPage"));
 const TalentPoolPage = lazyWithRetry(() => import("./pages/wisehire/TalentPoolPage"));
 const WiseHireAnalyticsPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireAnalyticsPage"));
-const PublicJobBoardPage = lazyWithRetry(() => import("./pages/jobs/PublicJobBoardPage"));
-const PublicJobPage = lazyWithRetry(() => import("./pages/jobs/PublicJobPage"));
-const MyApplicationsPage = lazyWithRetry(() => import("./pages/wisehire/MyApplicationsPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -327,11 +324,6 @@ function AppRoutes() {
           <Route path="/whats-new" element={<Suspense fallback={<PageLoadingSpinner />}><WhatsNewPage /></Suspense>} />
           <Route path="/waitlist" element={<Suspense fallback={<PageLoadingSpinner />}><WaitlistPage /></Suspense>} />
 
-          {/* Public job board routes — no auth required */}
-          <Route path="/jobs" element={<Suspense fallback={<PageLoadingSpinner />}><PublicJobBoardPage /></Suspense>} />
-          <Route path="/jobs/:companySlug" element={<Suspense fallback={<PageLoadingSpinner />}><PublicJobBoardPage /></Suspense>} />
-          <Route path="/jobs/:companySlug/:roleSlug" element={<Suspense fallback={<PageLoadingSpinner />}><PublicJobPage /></Suspense>} />
-
           {/* WiseHire public routes */}
           <Route path="/wisehire/signup" element={<Suspense fallback={<PageLoadingSpinner />}><WiseHireSignupPage /></Suspense>} />
 
@@ -392,7 +384,6 @@ function AppRoutes() {
                  <Route path="/qr-batch" element={<Suspense fallback={<DetailSkeleton />}><QrBatchPage /></Suspense>} />
                  <Route path="/qr-scan" element={<Suspense fallback={<DetailSkeleton />}><QrScanPage /></Suspense>} />
                  <Route path="/activity" element={<Navigate to="/applications" replace />} />
-                 <Route path="/my-applications" element={<Suspense fallback={<PageLoadingSpinner />}><MyApplicationsPage /></Suspense>} />
                  <Route path="/resume" element={<Navigate to="/editor" replace />} />
                  <Route path="/search" element={<Suspense fallback={<PageLoadingSpinner />}><SearchPage /></Suspense>} />
                  <Route path="/tailor" element={<Suspense fallback={<PageLoadingSpinner />}><TailorPage /></Suspense>} />

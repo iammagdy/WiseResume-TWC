@@ -9,13 +9,6 @@ export interface WiseHireRole {
   title: string;
   jd_text: string | null;
   status: string;
-  slug: string | null;
-  published: boolean;
-  location: string | null;
-  remote_ok: boolean;
-  salary_min: number | null;
-  salary_max: number | null;
-  employment_type: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -31,7 +24,7 @@ export function useJDs() {
       if (!userId) return [];
       const { data, error } = await supabase
         .from('wisehire_roles')
-        .select('id, title, jd_text, status, slug, published, location, remote_ok, salary_min, salary_max, employment_type, created_at, updated_at')
+        .select('id, title, jd_text, status, created_at, updated_at')
         .eq('owner_id', userId)
         .eq('is_deleted', false)
         .not('jd_text', 'is', null)
@@ -108,49 +101,5 @@ export function useJDs() {
     },
   });
 
-  const publishRole = useMutation({
-    mutationFn: async ({
-      roleId,
-      published,
-      slug,
-      location,
-      remote_ok,
-      salary_min,
-      salary_max,
-      employment_type,
-    }: {
-      roleId: string;
-      published: boolean;
-      slug?: string;
-      location?: string;
-      remote_ok?: boolean;
-      salary_min?: number | null;
-      salary_max?: number | null;
-      employment_type?: string;
-    }) => {
-      const updates: Record<string, unknown> = { published };
-      if (slug !== undefined) updates.slug = slug;
-      if (location !== undefined) updates.location = location;
-      if (remote_ok !== undefined) updates.remote_ok = remote_ok;
-      if (salary_min !== undefined) updates.salary_min = salary_min;
-      if (salary_max !== undefined) updates.salary_max = salary_max;
-      if (employment_type !== undefined) updates.employment_type = employment_type;
-
-      const { error } = await supabase
-        .from('wisehire_roles')
-        .update(updates)
-        .eq('id', roleId)
-        .eq('owner_id', userId);
-      if (error) throw new Error(error.message);
-    },
-    onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ['wisehire-jds', userId] });
-      toast.success(vars.published ? 'Role published to job board.' : 'Role unpublished.');
-    },
-    onError: (err) => {
-      toast.error(err instanceof Error ? err.message : 'Failed to update role');
-    },
-  });
-
-  return { ...query, saveJD, createRole, deleteJD, publishRole };
+  return { ...query, saveJD, createRole, deleteJD };
 }

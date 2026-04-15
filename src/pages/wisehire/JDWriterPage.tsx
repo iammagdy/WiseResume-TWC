@@ -87,7 +87,6 @@ export default function JDWriterPage() {
               isLoading={rolesLoading}
               onDelete={(id) => deleteJD.mutate(id)}
               isDeleting={deleteJD.isPending}
-              companySlug={company?.slug ?? null}
             />
           </TabsContent>
         </Tabs>
