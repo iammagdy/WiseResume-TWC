@@ -33,10 +33,13 @@ interface CompanyBriefingSheetProps {
     skills?: Array<{ name?: string; skill?: string } | string>;
     education?: Array<{ degree?: string; institution?: string; school?: string }>;
   };
+  initialCompanyName?: string;
+  initialBriefing?: CompanyBriefing | null;
+  onBriefingGenerated?: (briefing: CompanyBriefing, companyName: string) => void;
 }
 
-export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resumeData }: CompanyBriefingSheetProps) {
-  const { generate, briefing, isLoading, error, reset } = useCompanyBriefing();
+export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resumeData, initialCompanyName, initialBriefing, onBriefingGenerated }: CompanyBriefingSheetProps) {
+  const { generate, briefing: generatedBriefing, isLoading, error, reset } = useCompanyBriefing();
   const { user: authUser } = useAuth();
   const [localJD, setLocalJD] = useState('');
   const [companyName, setCompanyName] = useState('');
@@ -44,19 +47,43 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
   const [activeTab, setActiveTab] = useState<'generate' | 'saved'>('generate');
   const hasProvidedJD = jobDescription.trim().length > 0;
 
+  // Merge: prefer newly generated briefing over provided initial (cached) briefing
+  const briefing = generatedBriefing ?? initialBriefing ?? null;
+
   const saveCompanyBriefing = useSaveCompanyBriefing();
   const deleteCompanyBriefing = useDeleteCompanyBriefing();
   const { data: savedBriefings = [], isLoading: isSavedLoading } = useCompanyBriefingLibrary();
 
+  // Pre-fill company name when opened via chat tool
   useEffect(() => {
-    if (open && !briefing && !isLoading && hasProvidedJD) {
-      generate({ jobDescription, resumeData });
+    if (open && initialCompanyName) {
+      setCompanyName(initialCompanyName);
     }
-  }, [open]);
+  }, [open, initialCompanyName]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (briefing || isLoading) return;
+    if (hasProvidedJD) {
+      generate({ jobDescription, resumeData });
+    } else if (initialCompanyName && !initialBriefing) {
+      // Auto-generate when AI chat provides a company name with no cached data
+      generate({ companyName: initialCompanyName.trim(), resumeData });
+    }
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Notify parent when a fresh briefing is generated (for cache write)
+  useEffect(() => {
+    if (generatedBriefing && onBriefingGenerated) {
+      const name = companyName.trim() || generatedBriefing.companySnapshot.name;
+      onBriefingGenerated(generatedBriefing, name);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generatedBriefing]);
 
   const handleClose = () => {
     onOpenChange(false);
-    setTimeout(() => { reset(); setLocalJD(''); setCompanyName(''); setActiveTab('generate'); }, 300);
+    setTimeout(() => { reset(); setLocalJD(''); setCompanyName(initialCompanyName ?? ''); setActiveTab('generate'); }, 300);
   };
 
   const handleSave = () => {

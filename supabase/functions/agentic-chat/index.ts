@@ -228,6 +228,33 @@ const TOOLS = [
   {
     type: "function",
     function: {
+      name: "get_company_briefing",
+      description: "Opens the Company Briefing tool for a specific company. Use when the user asks to research a company, prepare for an interview, learn about a company's culture, tech stack, or leadership. This opens a detailed research panel with company snapshot, culture signals, and personalized talking points.",
+      parameters: {
+        type: "object",
+        properties: {
+          companyName: { type: "string", description: "The exact name of the company to research (e.g. 'Google', 'Stripe', 'Shopify')" },
+        },
+        required: ["companyName"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "open_job_tracker",
+      description: "Navigates the user to their job application tracker. Use when the user wants to track job applications, view their pipeline, see application status, manage their job search, or when they say things like 'show me my applications', 'open my job tracker', or 'where do I track jobs'.",
+      parameters: {
+        type: "object",
+        properties: {
+          message: { type: "string", description: "A brief friendly message to the user explaining what you're opening" },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "proofread_and_fix",
       description: "Scans the resume for spelling, grammar, and clarity issues. Returns structured fixes that can be auto-applied or shown for review.",
       parameters: {
@@ -297,6 +324,9 @@ The user may have multiple resumes — their list is provided. When they ask gen
 7. **add_project**: When user wants to add a new project or portfolio piece
 8. **suggest_edits**: For SUBJECTIVE changes like "make it more leadership-focused", "improve it". Show proposals for user confirmation. ALWAYS prefer this for any change that is destructive or hard to reverse.
 9. **proofread_and_fix**: When user asks to check for errors, typos, grammar, or spelling
+10. **delete_experience**: When user explicitly asks to REMOVE or DELETE a specific job/role from their resume. Shows a confirmation card before deleting.
+11. **get_company_briefing**: When user asks to research a company, prep for an interview at a company, or learn about company culture/tech. Opens a dedicated company research panel.
+12. **open_job_tracker**: When user wants to see/manage their job applications, pipeline, or job search tracker.
 
 ## Smart Confirmations
 - For any action that modifies the user's data, prefer using suggest_edits to show a confirm/decline flow

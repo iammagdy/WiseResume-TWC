@@ -48,6 +48,9 @@ import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useResumeStore } from '@/store/resumeStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useChatSessions, useDeleteChatSession } from '@/hooks/useChatHistory';
+import { useToolCache } from '@/hooks/useToolCache';
+import { CompanyBriefingSheet } from '@/components/interview/CompanyBriefingSheet';
+import type { CompanyBriefing } from '@/types/companyBriefing';
 
 function relativeDate(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -408,6 +411,8 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
     messages,
     isThinking,
     sessionId,
+    pendingAction,
+    clearPendingAction,
     sendMessage,
     startNewSession,
     loadSession,
@@ -417,6 +422,14 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
   const [resumePickerOpen, setResumePickerOpen] = useState(false);
   const [chatPanel, setChatPanel] = useState<'chat' | 'history'>('chat');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Company briefing (Phase 2 + 3)
+  const [briefingOpen, setBriefingOpen] = useState(false);
+  const [briefingCompanyName, setBriefingCompanyName] = useState('');
+  const [cachedBriefingData, setCachedBriefingData] = useState<CompanyBriefing | null>(null);
+  const [cachedBriefingAgeDays, setCachedBriefingAgeDays] = useState<number | null>(null);
+  const [pendingBriefingCompany, setPendingBriefingCompany] = useState<string | null>(null);
+  const { getCache, setCache, getCacheAge } = useToolCache();
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -445,6 +458,30 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
       setTimeout(() => inputRef.current?.focus(), 300);
     }
   }, [open, messages.length, isAuthenticated]);
+
+  // Phase 2+3: Handle pending action from useAgenticChat (e.g. get_company_briefing)
+  useEffect(() => {
+    if (!pendingAction) return;
+    clearPendingAction();
+
+    if (pendingAction.type === 'open_company_briefing') {
+      const company = pendingAction.companyName;
+      (async () => {
+        const cached = await getCache<CompanyBriefing>('get_company_briefing', company);
+        const ageDays = cached ? await getCacheAge('get_company_briefing', company) : null;
+        if (cached) {
+          setCachedBriefingData(cached);
+          setCachedBriefingAgeDays(ageDays);
+          setPendingBriefingCompany(company);
+        } else {
+          setBriefingCompanyName(company);
+          setCachedBriefingData(null);
+          setBriefingOpen(true);
+        }
+      })();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAction]);
 
   const handleSend = () => {
     if (!input.trim()) return;
@@ -478,6 +515,7 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
   };
 
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[85vh] flex flex-col p-0">
         <AISheetErrorBoundary key={String(open)} onClose={() => onOpenChange(false)}>
@@ -759,6 +797,56 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
                       </div>
                     </motion.div>
                   )}
+
+                  {/* Phase 3: Cache reuse card — shown when AI calls get_company_briefing and we have fresh cached data */}
+                  {pendingBriefingCompany && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex gap-2 items-start"
+                    >
+                      <AppIcon size={28} showSparkle={false} className="shrink-0 mt-0.5" />
+                      <div className="bg-card border border-border rounded-2xl rounded-bl-md px-3.5 py-3 max-w-[85%] space-y-2.5">
+                        <p className="text-sm">
+                          I have a briefing for <span className="font-semibold">{pendingBriefingCompany}</span>
+                          {cachedBriefingAgeDays !== null && cachedBriefingAgeDays > 0
+                            ? ` from ${cachedBriefingAgeDays} day${cachedBriefingAgeDays !== 1 ? 's' : ''} ago`
+                            : ' from earlier today'}
+                          . Use it or generate a fresh one?
+                        </p>
+                        <div className="flex gap-2 flex-wrap">
+                          <Button
+                            size="sm"
+                            className="h-8 text-xs"
+                            onClick={() => {
+                              setBriefingCompanyName(pendingBriefingCompany);
+                              setBriefingOpen(true);
+                              setPendingBriefingCompany(null);
+                              haptics.light();
+                            }}
+                          >
+                            View Saved Briefing
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs"
+                            onClick={async () => {
+                              const company = pendingBriefingCompany;
+                              setCachedBriefingData(null);
+                              setCachedBriefingAgeDays(null);
+                              setPendingBriefingCompany(null);
+                              setBriefingCompanyName(company);
+                              setBriefingOpen(true);
+                              haptics.light();
+                            }}
+                          >
+                            Generate Fresh
+                          </Button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
                 </div>
               )}
             </div>
@@ -830,5 +918,25 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
         </AISheetErrorBoundary>
       </SheetContent>
     </Sheet>
+
+    {/* Phase 2+3: Company Briefing Sheet — opened by get_company_briefing tool */}
+    <CompanyBriefingSheet
+      open={briefingOpen}
+      onOpenChange={(o) => {
+        setBriefingOpen(o);
+        if (!o) {
+          setCachedBriefingData(null);
+          setBriefingCompanyName('');
+        }
+      }}
+      jobDescription=""
+      resumeData={currentResume ?? undefined}
+      initialCompanyName={briefingCompanyName || undefined}
+      initialBriefing={cachedBriefingData}
+      onBriefingGenerated={(briefing, companyName) => {
+        setCache('get_company_briefing', companyName, briefing);
+      }}
+    />
+  </>
   );
 }

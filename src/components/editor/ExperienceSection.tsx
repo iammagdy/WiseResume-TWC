@@ -1,6 +1,7 @@
 import { useState, memo, useCallback, lazy, Suspense } from 'react';
 
-import { Plus, Briefcase, Linkedin, Sparkles, MoreHorizontal } from 'lucide-react';
+import { Plus, Briefcase, Linkedin, Sparkles, MoreHorizontal, Bot } from 'lucide-react';
+import { useChatTriggerStore } from '@/store/chatTriggerStore';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
 import { Experience } from '@/types/resume';
@@ -30,6 +31,7 @@ export const ExperienceSection = memo(function ExperienceSection() {
   const summary = useResumeStore(state => state.currentResume?.summary);
   const updateResume = useResumeStore(state => state.updateResume);
   const currentResume = useResumeStore(state => state.currentResume);
+  const setPendingPrompt = useChatTriggerStore(s => s.setPendingPrompt);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [enhancingExpId, setEnhancingExpId] = useState<string | null>(null);
   const [showDialog, setShowDialog] = useState(false);
@@ -235,6 +237,15 @@ export const ExperienceSection = memo(function ExperienceSection() {
             Boost All with AI
           </Button>
         )}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setPendingPrompt('Help me add a new work experience entry to my resume. Ask me for the details you need.')}
+          className="gap-1.5 min-h-[44px] sm:min-h-0 border-primary/30 text-primary hover:bg-primary/5"
+        >
+          <Bot className="w-4 h-4" />
+          Add with AI
+        </Button>
         <Button variant="outline" size="sm" onClick={addExperience} className="gap-2 min-h-[44px] sm:min-h-0">
           <Plus className="w-4 h-4" />
           Add

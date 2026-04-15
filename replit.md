@@ -105,6 +105,25 @@ See `.env.example`. Key variables:
 - `VITE_KINDE_CLIENT_ID` — Kinde client ID
 - `VITE_KINDE_DOMAIN` — Kinde domain
 
+## Wise AI — Recent Feature History
+
+### Phase 1 (Task #8, complete)
+- DB-backed chat sessions (`chat_sessions`, `chat_messages` tables)
+- Chat history sidebar in `AgenticChatSheet`
+- `delete_experience` tool
+- Auth-transition session clearing
+
+### Phase 2 (complete)
+- **New tools in `agentic-chat`**: `get_company_briefing` (#11) + `open_job_tracker` (#12)
+- **"Add with AI" button** in `ExperienceSection`: Bot-icon triggers pre-filled AI chat via `chatTriggerStore` (Zustand) → EditorPage forwards message as `chatInitialMessage`
+- **Frontend tool handlers**: `useAgenticChat` exports `pendingAction`; `AgenticChatSheet` handles briefing (opens `CompanyBriefingSheet` with cache check) and job tracker (navigates to `/applications`)
+
+### Phase 3 (complete)
+- **`tool_cache` DB table**: `(user_id, tool_name, cache_key, output JSONB, expires_at)` — 7-day TTL; unique index for upsert
+- **`useToolCache` hook** (`src/hooks/useToolCache.ts`): `getCache<T>`, `setCache`, `deleteCache`, `getCacheAge` — RLS-safe
+- **Cache-reuse UI** in `AgenticChatSheet`: inline card shows cached briefing age → "View Saved Briefing" or "Generate Fresh"
+- **`CompanyBriefingSheet` new props**: `initialCompanyName`, `initialBriefing`, `onBriefingGenerated` — auto-generates when name provided without cached data; fires `onBriefingGenerated` for cache write
+
 ## AI System
 - **Primary AI**: OpenRouter (`google/gemma-4-26b-a4b-it:free`) + Groq (`llama-3.3-70b-versatile`) — both free tiers
 - **Central AI client**: `supabase/functions/_shared/aiClient.ts`

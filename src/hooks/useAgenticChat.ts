@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { useNavigate } from 'react-router-dom';
 import { useResumeStore } from '@/store/resumeStore';
 import { useResumes } from '@/hooks/useResumes';
 import { sendChatMessage, sendFunctionFeedback, ChatMessage, SuggestionProposal, FunctionResult } from '@/lib/agenticChat';
@@ -10,6 +11,11 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { ResumeData } from '@/types/resume';
+
+export interface PendingChatAction {
+  type: 'open_company_briefing';
+  companyName: string;
+}
 
 const OVERWRITE_FUNCTIONS = new Set([
   'update_summary',
@@ -58,11 +64,13 @@ function deriveTitleFromMessage(text: string): string {
 export function useAgenticChat(contextFilter?: string) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isThinking, setIsThinking] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PendingChatAction | null>(null);
   const { currentResume, currentResumeId, updateResume, lastSavedAt } = useResumeStore();
   const { data: allResumes = [] } = useResumes();
   const { incrementUsage, checkCredits } = useAICreditsMutations();
   const { user, isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   // Session persistence refs — use refs to avoid stale closures in fire-and-forget writes
   const sessionIdRef = useRef<string | null>(null);
@@ -362,6 +370,16 @@ export function useAgenticChat(contextFilter?: string) {
             haptics.success();
             return { name: functionName, result: { success: true, applied: { fixesApplied: appliedCount } } };
           }
+          case 'get_company_briefing': {
+            const companyName = (args.companyName as string) || '';
+            setPendingAction({ type: 'open_company_briefing', companyName });
+            return { name: functionName, result: { success: true, applied: { companyName } } };
+          }
+          case 'open_job_tracker': {
+            navigate('/applications');
+            haptics.light();
+            return { name: functionName, result: { success: true, applied: { navigated: '/applications' } } };
+          }
           default:
             return { name: functionName, result: { success: false, error: `Unknown function: ${functionName}` } };
         }
@@ -369,7 +387,7 @@ export function useAgenticChat(contextFilter?: string) {
         return { name: functionName, result: { success: false, error: error instanceof Error ? error.message : 'Unknown error' } };
       }
     },
-    [currentResume, updateResume, confirmAndApply]
+    [currentResume, updateResume, confirmAndApply, navigate]
   );
 
   const applySuggestion = useCallback(
@@ -609,10 +627,14 @@ export function useAgenticChat(contextFilter?: string) {
     setSessionId(null);
   }, []);
 
+  const clearPendingAction = useCallback(() => setPendingAction(null), []);
+
   return {
     messages,
     isThinking,
     sessionId,
+    pendingAction,
+    clearPendingAction,
     sendMessage,
     startNewSession,
     loadSession,

@@ -64,6 +64,7 @@ import { EditorScrollForm } from '@/components/editor/EditorScrollForm';
 import { EditorSkeleton } from '@/components/layout/PageSkeletons';
 import { useTierGate } from '@/hooks/useTierGate';
 import { UpgradeDialog } from '@/components/plan/UpgradeDialog';
+import { useChatTriggerStore } from '@/store/chatTriggerStore';
 export default function EditorPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -174,6 +175,7 @@ export default function EditorPage() {
   const [showProfileImport, setShowProfileImport] = useState(false);
   const [showOnePage, setShowOnePage] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [chatInitialMessage, setChatInitialMessage] = useState<string | undefined>(undefined);
   const [showCareerPath, setShowCareerPath] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [showContentLibrary, setShowContentLibrary] = useState(false);
@@ -200,6 +202,15 @@ export default function EditorPage() {
   const [isQuickDownloading, setIsQuickDownloading] = useState(false);
   const [showSnapshots, setShowSnapshots] = useState(false);
   const [showKeywordHighlighter, setShowKeywordHighlighter] = useState(false);
+
+  // Chat trigger store — ExperienceSection (and other deep components) write here to open chat
+  const { pendingPrompt, clearPendingPrompt } = useChatTriggerStore();
+  useEffect(() => {
+    if (!pendingPrompt) return;
+    setChatInitialMessage(pendingPrompt);
+    setShowChat(true);
+    clearPendingPrompt();
+  }, [pendingPrompt, clearPendingPrompt]);
 
   const handleQuickDownload = useCallback(async () => {
     if (!currentResume) return;
@@ -1016,7 +1027,16 @@ export default function EditorPage() {
           {showAIDetector && <AIDetectorSheet open={showAIDetector} onOpenChange={setShowAIDetector} />}
           {showLinkedIn && <LinkedInOptimizerSheet open={showLinkedIn} onOpenChange={setShowLinkedIn} />}
           {showOnePage && <OnePageWizardSheet open={showOnePage} onOpenChange={setShowOnePage} />}
-          {showChat && <AgenticChatSheet open={showChat} onOpenChange={setShowChat} />}
+          {showChat && (
+            <AgenticChatSheet
+              open={showChat}
+              onOpenChange={(open) => {
+                setShowChat(open);
+                if (!open) setChatInitialMessage(undefined);
+              }}
+              initialMessage={chatInitialMessage}
+            />
+          )}
           {showCareerPath && <CareerPathSheet open={showCareerPath} onOpenChange={setShowCareerPath} />}
           {showVersionHistory && <VersionHistorySheet open={showVersionHistory} onOpenChange={setShowVersionHistory} resumeId={currentResumeId} />}
           {showProfileImport && (
