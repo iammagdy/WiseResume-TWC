@@ -203,38 +203,27 @@ Deno.serve(async (req) => {
       return json({ success: false, error: 'early_access_code_exhausted' }, 400, corsHeaders);
     }
 
-    const planOverride = coupon.plan_override as string | null;
-    if (!planOverride || !planOverride.startsWith('wisehire_')) {
-      return json({ success: false, error: 'invalid_early_access_code' }, 400, corsHeaders);
-    }
+    // ── Step 1: Atomic coupon validation + increment via DB RPC ──
+    // The RPC acquires a FOR UPDATE row lock so concurrent requests serialise;
+    // the server-side increment (uses_count = uses_count + 1) prevents lost updates.
+    const { data: rpcRows, error: rpcErr } = await serviceClient
+      .rpc('wisehire_redeem_early_access_code', { p_code: upperCode })
+      .returns<{ success: boolean; error_code: string | null; plan_override: string | null; plan_days: number | null }[]>();
 
-    // ── Step 1: Atomic coupon increment (guards against concurrent over-redemption) ──
-    // Only increment if uses_count has not been bumped past max_uses by a concurrent request.
-    const maxUses = coupon.max_uses as number;
-    const currentUses = coupon.uses_count as number;
-    let couponIncrementQuery = serviceClient
-      .from('discount_codes')
-      .update({ uses_count: currentUses + 1 })
-      .eq('id', coupon.id as string);
-
-    // Add the concurrency guard only when there is a hard limit
-    if (maxUses > 0) {
-      couponIncrementQuery = couponIncrementQuery.lt('uses_count', maxUses);
-    }
-
-    const { data: incrementedRows, error: incrementErr } = await couponIncrementQuery
-      .select('id')
-      .returns<{ id: string }[]>();
-
-    if (incrementErr) {
-      console.error('[wisehire-complete-signup] EA coupon increment error:', incrementErr.message);
+    if (rpcErr) {
+      console.error('[wisehire-complete-signup] EA redeem RPC error:', rpcErr.message);
       return json({ success: false, error: 'server_error' }, 500, corsHeaders);
     }
 
-    // If no row was updated under a limited code, another request beat us to the last slot
-    if (maxUses > 0 && (!incrementedRows || incrementedRows.length === 0)) {
-      return json({ success: false, error: 'early_access_code_exhausted' }, 409, corsHeaders);
+    const rpcResult = rpcRows?.[0];
+    if (!rpcResult?.success) {
+      const errCode = rpcResult?.error_code ?? 'invalid_early_access_code';
+      const status = errCode === 'early_access_code_exhausted' ? 409 : 400;
+      return json({ success: false, error: errCode }, status, corsHeaders);
     }
+
+    const planOverride = rpcResult.plan_override as string;
+    const planDays = (rpcResult.plan_days as number | null) ?? 7;
 
     // ── Step 2: Set account_type = 'hr' ──
     const profileUpdatesEA: Record<string, unknown> = { account_type: 'hr' };
@@ -247,11 +236,6 @@ Deno.serve(async (req) => {
 
     if (profileEAErr) {
       console.error('[wisehire-complete-signup] EA profile update failed:', profileEAErr.message);
-      // Roll back coupon increment to keep state consistent
-      await serviceClient
-        .from('discount_codes')
-        .update({ uses_count: currentUses })
-        .eq('id', coupon.id as string);
       return json({ success: false, error: 'profile_update_failed' }, 500, corsHeaders);
     }
 
@@ -266,15 +250,12 @@ Deno.serve(async (req) => {
 
     if (companyErr) {
       console.error('[wisehire-complete-signup] EA company upsert failed:', companyErr.message);
-      // Roll back profile and coupon
       await serviceClient.from('profiles').update({ account_type: 'jobseeker' }).eq('user_id', userId);
-      await serviceClient.from('discount_codes').update({ uses_count: currentUses }).eq('id', coupon.id as string);
       return json({ success: false, error: 'company_setup_failed' }, 500, corsHeaders);
     }
 
     // ── Step 4: Apply coupon plan to subscription (required) ──
     const now = new Date().toISOString();
-    const planDays = (coupon.plan_days as number | null) ?? 7;
     const planEnd = new Date(Date.now() + planDays * 24 * 60 * 60 * 1000).toISOString();
 
     const { error: subErr } = await serviceClient
@@ -295,10 +276,8 @@ Deno.serve(async (req) => {
 
     if (subErr) {
       console.error('[wisehire-complete-signup] EA subscription upsert failed:', subErr.message);
-      // Roll back profile, company, and coupon
       await serviceClient.from('profiles').update({ account_type: 'jobseeker' }).eq('user_id', userId);
       await serviceClient.from('wisehire_companies').delete().eq('owner_id', userId);
-      await serviceClient.from('discount_codes').update({ uses_count: currentUses }).eq('id', coupon.id as string);
       return json({ success: false, error: 'plan_activation_failed' }, 500, corsHeaders);
     }
 

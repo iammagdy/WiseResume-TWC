@@ -103,6 +103,7 @@ export default function WiseHireEarlyAccessPage() {
     }).then((result) => {
       sessionStorage.removeItem(WH_EARLY_ACCESS_CODE_KEY);
       sessionStorage.removeItem(WH_SIGNUP_REDIRECT_KEY);
+      sessionStorage.removeItem('wh_ea_email');
       sessionStorage.removeItem('wh_ea_full_name');
       sessionStorage.removeItem('wh_ea_company_name');
       sessionStorage.removeItem('wh_ea_company_size');
@@ -143,6 +144,7 @@ export default function WiseHireEarlyAccessPage() {
     // Persist through Kinde redirect
     sessionStorage.setItem(WH_EARLY_ACCESS_CODE_KEY, code ?? '');
     sessionStorage.setItem(WH_SIGNUP_REDIRECT_KEY, `/wisehire/signup-early-access/${code}`);
+    sessionStorage.setItem('wh_ea_email', email.trim());
     sessionStorage.setItem('wh_ea_full_name', fullName.trim());
     sessionStorage.setItem('wh_ea_company_name', companyName.trim());
     sessionStorage.setItem('wh_ea_company_size', companySize);
