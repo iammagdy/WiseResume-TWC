@@ -265,23 +265,25 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
                 disabled={loading}
                 style={{
                   marginTop: 4,
-                  background: '#1D4ED8',
-                  color: '#fff',
-                  border: 'none',
+                  background: loading ? '#fff' : '#1D4ED8',
+                  color: loading ? '#1D4ED8' : '#fff',
+                  border: loading ? '2px solid #1D4ED8' : 'none',
                   borderRadius: 10,
-                  padding: '11px 0',
+                  padding: loading ? '9px 0' : '11px 0',
                   fontSize: '0.9rem',
                   fontWeight: 700,
                   cursor: loading ? 'not-allowed' : 'pointer',
-                  opacity: loading ? 0.8 : 1,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 8,
-                  transition: 'opacity 0.2s',
+                  transition: 'background 0.2s, color 0.2s, border 0.2s',
                 }}
               >
-                {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Joining…</> : 'Join the Waitlist'}
+                {loading
+                  ? <><Loader2 className="w-4 h-4 animate-spin" style={{ color: '#1D4ED8' }} /> Joining…</>
+                  : 'Join the Waitlist'
+                }
               </button>
 
               <p style={{ fontSize: '0.68rem', color: 'var(--lp-text-subtle)', textAlign: 'center', lineHeight: 1.5 }}>

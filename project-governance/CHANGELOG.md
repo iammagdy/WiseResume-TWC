@@ -17,6 +17,7 @@ Local changelog tracking WiseResume changes.
   - **Pricing nav link** — In WiseHire mode, clicking "Pricing" in the nav smooth-scrolls to `#wisehire-pricing` instead of navigating to `/pricing` (WiseResume page)
   - **AvatarFallback color** — Avatar fallback in the landing nav switches to WiseHire blue (`rgba(29,78,216,0.15)` / `#3B82F6`) in WiseHire mode instead of always showing crimson
   - **FeatureNumberedNav crimson** — Replaced hardcoded `rgba(158,27,34,...)` active-state colours with `var(--lp-brand-pill-bg)` and `var(--lp-brand-pill-border)` CSS variables (respects mode)
+  - **Spinner color in WiseHire context** — `WaitlistModal` button loading state now switches to white background / WiseHire blue (#1D4ED8) text & border; `Loader2` icon given explicit `style={{ color: '#1D4ED8' }}` so the spinner is clearly WiseHire blue (not crimson-inherited)
   - **Comment typo** — "WISERESUEME" → "WISERESUME" in Index.tsx
 - **New files**:
   - `src/components/landing/wisehire/WiseHireTrustSection.tsx` — HR-specific social proof section (4 trust cards: AI screening, consistent scoring, speed, team alignment)
@@ -33,6 +34,7 @@ Local changelog tracking WiseResume changes.
   - `src/components/landing/wisehire/PipelineDemo.tsx` — reset loop
   - `src/components/landing/wisehire/JDDemo.tsx` — restart loop
   - `src/components/landing/wisehire/WiseHirePricing.tsx` — badge fix, `id="wisehire-pricing"`
+  - `src/components/landing/WaitlistModal.tsx` — button loading state switches to white-bg/blue-text; Loader2 explicitly colored #1D4ED8
   - `src/pages/Index.tsx` — imports, section order, nav link, FeatureNumberedNav vars, AvatarFallback, typo
 - **Tasks completed**: Phase 3 Bug Fix Pass (all 15 issues + 4 user-reported bugs) ✅
 - **Test status (npm run test — run 2026-04-15)**: 22 pre-existing failures across 9 test files; zero regressions introduced by this task (identical failures on the unmodified baseline commit b704b7a).
