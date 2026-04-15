@@ -140,9 +140,9 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
             );
           })}
 
-          {/* CTA card — fills the last slot */}
-          <div
-            className="lp-animate lp-from-right flex flex-col items-center justify-center gap-4 p-6 text-center"
+          {/* CTA card — fills the last slot; single <button> for full keyboard accessibility */}
+          <button
+            className="lp-animate lp-from-right flex flex-col items-center justify-center gap-4 p-6 text-center w-full"
             style={{
               borderRadius: 18,
               background: 'rgba(29,78,216,0.07)',
@@ -169,21 +169,19 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
               <p className="font-semibold text-sm mb-1" style={{ color: 'var(--lp-text)' }}>Get early access</p>
               <p className="text-xs" style={{ color: 'var(--lp-text-muted)' }}>Join the waitlist and be first to try WiseHire</p>
             </div>
-            <button
+            <span
               style={{
                 background: '#1D4ED8',
                 color: '#fff',
-                border: 'none',
                 borderRadius: 99,
                 padding: '7px 18px',
                 fontSize: '0.75rem',
                 fontWeight: 600,
-                cursor: 'pointer',
               }}
             >
               Join Waitlist
-            </button>
-          </div>
+            </span>
+          </button>
         </div>
       </div>
     </section>

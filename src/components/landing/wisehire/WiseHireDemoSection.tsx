@@ -22,8 +22,8 @@ export function WiseHireDemoSection() {
       style={{
         background: 'var(--lp-section-alt2)',
         borderTop: '1px solid var(--lp-border)',
-        borderBottom: '1px solid var(--lp-border)',
         width: '100%',
+        scrollMarginTop: '96px',
         transition: 'background 0.35s ease',
       }}
     >

@@ -659,6 +659,28 @@ const Index = () => {
         .lp-root[data-lp-product="wisehire"] .lp-separator {
           background: linear-gradient(90deg, transparent 0%, rgba(29,78,216,0.3) 30%, rgba(29,78,216,0.5) 50%, rgba(29,78,216,0.3) 70%, transparent 100%);
         }
+        /* Feature card hover — blue accent in WiseHire */
+        .lp-root[data-lp-product="wisehire"][data-lp-scheme="dark"] .lp-feature-card:hover {
+          border-color: rgba(29,78,216,0.28) !important;
+          background: rgba(29,78,216,0.06) !important;
+          transform: translateY(-3px);
+        }
+        .lp-root[data-lp-product="wisehire"][data-lp-scheme="light"] .lp-feature-card:hover {
+          border-color: rgba(29,78,216,0.25) !important;
+          background: rgba(29,78,216,0.05) !important;
+          transform: translateY(-3px);
+        }
+        /* Testimonial card hover — blue accent in WiseHire */
+        .lp-root[data-lp-product="wisehire"] .lp-testimonial-card:hover {
+          border-color: rgba(29,78,216,0.22) !important;
+          transform: translateY(-2px);
+        }
+        /* Theme toggle hover — blue accent in WiseHire */
+        .lp-root[data-lp-product="wisehire"] .lp-theme-toggle:hover {
+          background: rgba(29,78,216,0.12);
+          border-color: rgba(29,78,216,0.28);
+          color: var(--lp-brand);
+        }
       `}</style>
 
       <a
@@ -697,7 +719,7 @@ const Index = () => {
               className="w-10 h-10 object-contain rounded-xl"
               src={themeLogo}
               style={{
-                filter: mode === 'wisehire' ? 'hue-rotate(180deg) saturate(1.5) brightness(1.1)' : undefined,
+                filter: mode === 'wisehire' ? 'hue-rotate(220deg) saturate(2) brightness(0.85)' : undefined,
                 transition: 'filter 0.35s ease',
               }}
             />
@@ -877,7 +899,7 @@ const Index = () => {
                     transition: 'color 0.35s ease',
                   }}
                 >
-                  Ready to transform your hiring?
+                  Get early access
                 </p>
                 <h2
                   className="font-bold leading-tight"
@@ -908,7 +930,7 @@ const Index = () => {
               </div>
             </section>
 
-            <Footer lpMode />
+            <Footer lpMode product="wisehire" />
           </>
         ) : (
           /* ═══════════════════════════════════════════════════════
@@ -937,7 +959,7 @@ const Index = () => {
 
           {/* Brand pill */}
           <div
-            className="relative z-10 flex items-center gap-2 px-4 py-1.5 rounded-full mb-6"
+            className="relative z-10 flex items-center gap-2 px-4 py-1.5 rounded-full mb-6 lp-hero-sub"
             style={{
               background: 'var(--lp-brand-pill-bg)',
               border: '1px solid var(--lp-brand-pill-border)',
@@ -963,7 +985,7 @@ const Index = () => {
 
           {/* Eyebrow */}
           <p
-            className="relative z-10 mb-7"
+            className="relative z-10 mb-7 lp-hero-sub"
             style={{
               fontSize: '0.8rem',
               letterSpacing: '0.12em',
@@ -1123,6 +1145,59 @@ const Index = () => {
             <p className="font-semibold mb-1" style={{ color: 'var(--lp-text)' }}>Install WiseResume</p>
             <p className="text-sm mb-4" style={{ color: 'var(--lp-text-muted)' }}>Add to your home screen for a native app experience</p>
             <InstallButton />
+          </div>
+        </section>
+
+        {/* ─── WISERESUME CLOSING CTA ─── */}
+        <section
+          className="px-4 sm:px-6 text-center lp-animate"
+          style={{
+            background: 'var(--lp-section-alt)',
+            borderTop: '1px solid var(--lp-border)',
+            padding: 'clamp(52px, 6vw, 84px) clamp(20px, 4vw, 40px)',
+            transition: 'background 0.35s ease',
+          }}
+        >
+          <div className="max-w-2xl mx-auto">
+            <p
+              style={{
+                fontSize: '0.75rem',
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                color: 'var(--lp-eyebrow)',
+                fontWeight: 600,
+                marginBottom: '0.75rem',
+                transition: 'color 0.35s ease',
+              }}
+            >
+              Start today
+            </p>
+            <h2
+              className="font-bold leading-tight"
+              style={{
+                fontSize: 'clamp(1.75rem, 3.5vw, 2.75rem)',
+                color: 'var(--lp-text)',
+                letterSpacing: '-0.025em',
+                marginBottom: '0.75rem',
+                transition: 'color 0.35s ease',
+              }}
+            >
+              Your career edge<br />starts here.
+            </h2>
+            <p
+              className="max-w-md mx-auto text-sm mb-8"
+              style={{ color: 'var(--lp-text-muted)', lineHeight: 1.65, transition: 'color 0.35s ease' }}
+            >
+              Free to start. No credit card. AI-powered results from day one.
+            </p>
+            <button
+              onClick={() => handleCTA()}
+              className="inline-flex items-center gap-2 h-13 px-10 text-base font-semibold rounded-xl transition-all"
+              style={{ background: '#9E1B22', color: '#fff' }}
+            >
+              Get Started Free
+              <ArrowRight className="w-4 h-4" />
+            </button>
           </div>
         </section>
 
