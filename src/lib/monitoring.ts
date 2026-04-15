@@ -48,10 +48,13 @@ export function initMonitoring(): void {
       if (event.request?.data) {
         delete event.request.data;
       }
-      if (event.breadcrumbs?.values) {
-        event.breadcrumbs.values = event.breadcrumbs.values.filter(
-          (b) => !(b.category === 'storage' && typeof b.data?.key === 'string' && b.data.key.startsWith('wise_supabase'))
-        );
+      if (Array.isArray(event.breadcrumbs)) {
+        event.breadcrumbs = event.breadcrumbs.filter((b) => {
+          if (b.category === 'storage') return false;
+          const msg = b.message ?? '';
+          if (msg.includes('wise_supabase') || msg.includes('localStorage') || msg.includes('sessionStorage')) return false;
+          return true;
+        });
       }
       return event;
     },
