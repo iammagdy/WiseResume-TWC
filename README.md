@@ -3,6 +3,13 @@
 <img src="./src/assets/wiseresume-logo-light.webp" alt="The Wise Cloud" width="160" />
 
 <br />
+<br />
+
+<h3>
+  <img src="https://img.shields.io/badge/WiseResume-AI_Career_Platform-9E1B22?style=for-the-badge&logoColor=white" alt="WiseResume" />
+  &nbsp;
+  <img src="https://img.shields.io/badge/WiseHire-AI_HR_SaaS-1D4ED8?style=for-the-badge&logoColor=white" alt="WiseHire" />
+</h3>
 
 # The Wise Cloud
 
