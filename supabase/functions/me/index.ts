@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
+import { planDailyLimit } from '../_shared/planLimits.ts';
 
 serve(async (req) => {
   const origin = req.headers.get('origin');
@@ -68,17 +69,16 @@ serve(async (req) => {
     // premium/pro users see the correct limit instead of the free-tier value
     // stored in the database.
     // Sentinel -1 means "unlimited" (handled on the client side).
-    const PRO_DAILY_LIMIT = 100;
     const rawCredits = creditsResult.data;
     const today = new Date().toISOString().split('T')[0];
     let aiCreditsPayload: typeof rawCredits | { daily_usage: number; daily_limit: number; usage_date: string; total_usage: number; updated_at: string } | null = null;
     if (rawCredits) {
       if (effectivePlan === 'premium') {
-        aiCreditsPayload = { ...rawCredits, daily_limit: -1 };
+        aiCreditsPayload = { ...rawCredits, daily_limit: planDailyLimit('premium') };
       } else if (effectivePlan === 'pro') {
         // Only apply plan default if the stored limit is at or below it.
         // A higher value indicates an admin override — preserve it.
-        const planDefault = PRO_DAILY_LIMIT;
+        const planDefault = planDailyLimit('pro');
         const effectiveLimit = rawCredits.daily_limit > planDefault ? rawCredits.daily_limit : planDefault;
         aiCreditsPayload = { ...rawCredits, daily_limit: effectiveLimit };
       } else {
@@ -89,11 +89,11 @@ serve(async (req) => {
       // so the frontend always receives accurate credit info.
       let defaultLimit: number;
       if (effectivePlan === 'premium') {
-        defaultLimit = -1; // Unlimited sentinel
+        defaultLimit = planDailyLimit('premium');
       } else if (effectivePlan === 'pro') {
-        defaultLimit = PRO_DAILY_LIMIT;
+        defaultLimit = planDailyLimit('pro');
       } else {
-        defaultLimit = 5;
+        defaultLimit = planDailyLimit('free');
       }
       aiCreditsPayload = {
         daily_usage: 0,
