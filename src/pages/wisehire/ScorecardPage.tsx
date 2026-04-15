@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
-import { ArrowLeft, Share2, ClipboardList } from 'lucide-react';
+import { ArrowLeft, Share2, ClipboardList, LayoutTemplate, ChevronDown } from 'lucide-react';
 import { WiseHireShell } from '@/components/wisehire/WiseHireShell';
 import { ScorecardForm } from '@/components/wisehire/scorecard/ScorecardForm';
 import { ScorecardView } from '@/components/wisehire/scorecard/ScorecardView';
 import { ScorecardSkeleton } from '@/components/wisehire/scorecard/ScorecardSkeleton';
 import { ScorecardShareModal } from '@/components/wisehire/scorecard/ScorecardShareModal';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import {
   useScorecards,
@@ -14,6 +18,9 @@ import {
   useSaveScorecard,
   useRevokeShareToken,
 } from '@/hooks/wisehire/useScorecards';
+import { useScorecardTemplates } from '@/hooks/wisehire/useScorecardTemplates';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 export default function ScorecardPage() {
   const { candidateId } = useParams<{ candidateId: string }>();
@@ -24,13 +31,17 @@ export default function ScorecardPage() {
   const [candidateName, setCandidateName] = useState('');
   const [briefQuestions, setBriefQuestions] = useState<string[]>([]);
   const [resolving, setResolving] = useState(true);
+  const [applyingTemplate, setApplyingTemplate] = useState(false);
 
   const { data: scorecards = [], isLoading } = useScorecards(candidateId ?? '');
+  const { data: templates = [] } = useScorecardTemplates();
   const createScorecard = useCreateScorecard();
   const saveScorecard = useSaveScorecard();
   const revokeToken = useRevokeShareToken();
+  const qc = useQueryClient();
 
   const scorecard = scorecards[0] ?? null;
+  const isSubmitted = Boolean(scorecard?.submitted_at);
 
   useEffect(() => {
     if (!candidateId) { setResolving(false); return; }
@@ -84,7 +95,29 @@ export default function ScorecardPage() {
     createScorecard.mutate({ candidateId, briefId, questions });
   }, [resolving, isLoading, scorecard, candidateId, briefId, briefQuestions]);
 
-  const isSubmitted = Boolean(scorecard?.submitted_at);
+  async function handleApplyTemplate(templateId: string) {
+    if (!scorecard) return;
+    const template = templates.find((t) => t.id === templateId);
+    if (!template) return;
+    setApplyingTemplate(true);
+    try {
+      const { error } = await supabase
+        .from('wisehire_scorecards')
+        .update({
+          questions: template.questions,
+          ratings: new Array(template.questions.length).fill(null),
+          notes: new Array(template.questions.length).fill(''),
+        })
+        .eq('id', scorecard.id);
+      if (error) throw error;
+      await qc.invalidateQueries({ queryKey: ['scorecards', candidateId] });
+      toast.success(`Template "${template.title}" applied.`);
+    } catch {
+      toast.error('Failed to apply template.');
+    } finally {
+      setApplyingTemplate(false);
+    }
+  }
 
   if (resolving || isLoading || createScorecard.isPending) {
     return (
@@ -128,17 +161,51 @@ export default function ScorecardPage() {
             </div>
           </div>
 
-          {isSubmitted && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShareOpen(true)}
-              className="gap-2"
-            >
-              <Share2 className="h-4 w-4" />
-              Share
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {/* Template picker — only when not submitted */}
+            {!isSubmitted && templates.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1.5" disabled={applyingTemplate}>
+                    <LayoutTemplate className="h-3.5 w-3.5" />
+                    {applyingTemplate ? 'Applying…' : 'Use Template'}
+                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  {templates.map((t) => (
+                    <DropdownMenuItem
+                      key={t.id}
+                      onClick={() => handleApplyTemplate(t.id)}
+                      className="flex flex-col items-start gap-0.5"
+                    >
+                      <span className="font-medium text-sm">{t.title}</span>
+                      <span className="text-xs text-muted-foreground">{t.questions.length} questions</span>
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/wisehire/scorecard-templates" className="text-xs text-muted-foreground gap-1.5">
+                      <LayoutTemplate className="h-3.5 w-3.5" />
+                      Manage templates
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
+            {isSubmitted && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShareOpen(true)}
+                className="gap-2"
+              >
+                <Share2 className="h-4 w-4" />
+                Share
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Form or view */}

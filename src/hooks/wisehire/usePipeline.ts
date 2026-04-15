@@ -25,6 +25,7 @@ export interface PipelineCandidate {
   id: string;
   owner_id: string;
   role_id: string | null;
+  client_id: string | null;
   name: string;
   email: string | null;
   pipeline_stage: PipelineStage;
@@ -33,7 +34,7 @@ export interface PipelineCandidate {
   created_at: string;
   updated_at: string;
   brief?: { id: string; match_score: number | null } | null;
-  role?: { title: string } | null;
+  role?: { title: string; client_id: string | null } | null;
 }
 
 export interface PipelineEvent {
@@ -44,18 +45,18 @@ export interface PipelineEvent {
   moved_at: string;
 }
 
-export function usePipeline(roleId?: string) {
+export function usePipeline(roleId?: string, clientId?: string) {
   const { isAuthenticated, supabaseReady } = useAuth();
   const userId = getUserId();
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ['wisehire-pipeline', userId, roleId],
+    queryKey: ['wisehire-pipeline', userId, roleId, clientId],
     queryFn: async (): Promise<PipelineCandidate[]> => {
       if (!userId) return [];
       let q = supabase
         .from('wisehire_candidates')
-        .select('*, brief:wisehire_candidate_briefs(id, match_score), role:wisehire_roles(title)')
+        .select('*, brief:wisehire_candidate_briefs(id, match_score), role:wisehire_roles(title, client_id)')
         .eq('owner_id', userId)
         .eq('is_deleted', false)
         .order('created_at', { ascending: false });
@@ -67,7 +68,13 @@ export function usePipeline(roleId?: string) {
         console.warn('[usePipeline] fetch error:', error.message);
         return [];
       }
-      return (data ?? []) as PipelineCandidate[];
+      let results = (data ?? []) as PipelineCandidate[];
+      if (clientId) {
+        results = results.filter(
+          (c) => c.client_id === clientId || c.role?.client_id === clientId
+        );
+      }
+      return results;
     },
     enabled: isAuthenticated && supabaseReady && !!userId,
     staleTime: 30 * 1000,
@@ -97,23 +104,21 @@ export function usePipeline(roleId?: string) {
       if (updateResult.error) throw new Error(updateResult.error.message);
     },
     onMutate: async ({ candidateId, toStage }) => {
-      // Optimistic update
-      await queryClient.cancelQueries({ queryKey: ['wisehire-pipeline', userId, roleId] });
-      const prev = queryClient.getQueryData<PipelineCandidate[]>(['wisehire-pipeline', userId, roleId]);
-      queryClient.setQueryData<PipelineCandidate[]>(['wisehire-pipeline', userId, roleId], (old) =>
+      await queryClient.cancelQueries({ queryKey: ['wisehire-pipeline', userId, roleId, clientId] });
+      const prev = queryClient.getQueryData<PipelineCandidate[]>(['wisehire-pipeline', userId, roleId, clientId]);
+      queryClient.setQueryData<PipelineCandidate[]>(['wisehire-pipeline', userId, roleId, clientId], (old) =>
         (old ?? []).map((c) => c.id === candidateId ? { ...c, pipeline_stage: toStage } : c)
       );
       return { prev };
     },
     onError: (_err, _vars, context) => {
-      // Revert optimistic update
       if (context?.prev) {
-        queryClient.setQueryData(['wisehire-pipeline', userId, roleId], context.prev);
+        queryClient.setQueryData(['wisehire-pipeline', userId, roleId, clientId], context.prev);
       }
       toast.error('Failed to update stage. Please try again.');
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['wisehire-pipeline', userId, roleId] });
+      queryClient.invalidateQueries({ queryKey: ['wisehire-pipeline', userId] });
       queryClient.invalidateQueries({ queryKey: ['wisehire-dashboard-stats', userId] });
     },
   });
@@ -128,7 +133,7 @@ export function usePipeline(roleId?: string) {
       if (error) throw new Error(error.message);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['wisehire-pipeline', userId, roleId] });
+      queryClient.invalidateQueries({ queryKey: ['wisehire-pipeline', userId] });
     },
   });
 

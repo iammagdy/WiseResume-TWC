@@ -7,16 +7,43 @@ import { createDragHandlers, DragState } from '@/lib/wisehire/pipelineDragDrop';
 import { usePipeline, PIPELINE_STAGES } from '@/hooks/wisehire/usePipeline';
 import type { PipelineCandidate, PipelineStage } from '@/hooks/wisehire/usePipeline';
 import { Button } from '@/components/ui/button';
-import { UserPlus } from 'lucide-react';
+import { Download, UserPlus } from 'lucide-react';
 
 interface PipelineBoardProps {
   roleId?: string;
+  clientId?: string;
   roles: { id: string; title: string }[];
   biasMode?: boolean;
 }
 
-export function PipelineBoard({ roleId, roles, biasMode = false }: PipelineBoardProps) {
-  const { data: candidates = [], isLoading, updatePipelineStage, updateNotes, addCandidate } = usePipeline(roleId);
+function exportPipelineCSV(candidates: PipelineCandidate[]) {
+  const STAGE_LABELS: Record<string, string> = {
+    shortlisted: 'Shortlisted', contacted: 'Contacted', interviewing: 'Interviewing',
+    offer_sent: 'Offer Sent', hired: 'Hired', rejected: 'Rejected',
+  };
+  const headers = ['Name', 'Email', 'Stage', 'Role', 'Match Score (%)', 'Date Added'];
+  const rows = candidates.map((c) => [
+    c.name,
+    c.email ?? '',
+    STAGE_LABELS[c.pipeline_stage] ?? c.pipeline_stage,
+    c.role?.title ?? '',
+    c.brief?.match_score?.toString() ?? '',
+    new Date(c.created_at).toLocaleDateString(),
+  ]);
+  const csv = [headers, ...rows]
+    .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))
+    .join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `pipeline_export_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: PipelineBoardProps) {
+  const { data: candidates = [], isLoading, updatePipelineStage, updateNotes, addCandidate } = usePipeline(roleId, clientId);
   const [selectedCandidate, setSelectedCandidate] = useState<PipelineCandidate | null>(null);
   const [showAddSheet, setShowAddSheet] = useState(false);
   const dragState = useRef<DragState>({ candidateId: null, fromStage: null });
@@ -56,13 +83,25 @@ export function PipelineBoard({ roleId, roles, biasMode = false }: PipelineBoard
         <p className="text-sm text-slate-500 dark:text-slate-400">
           {candidates.length} candidate{candidates.length !== 1 ? 's' : ''}
         </p>
-        <Button
-          onClick={() => setShowAddSheet(true)}
-          className="bg-blue-700 hover:bg-blue-800 text-white h-8 text-xs font-semibold"
-        >
-          <UserPlus className="h-3.5 w-3.5 mr-1.5" />
-          Add Candidate
-        </Button>
+        <div className="flex items-center gap-2">
+          {candidates.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={() => exportPipelineCSV(candidates)}
+              className="h-8 text-xs font-semibold gap-1.5"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export CSV
+            </Button>
+          )}
+          <Button
+            onClick={() => setShowAddSheet(true)}
+            className="bg-blue-700 hover:bg-blue-800 text-white h-8 text-xs font-semibold"
+          >
+            <UserPlus className="h-3.5 w-3.5 mr-1.5" />
+            Add Candidate
+          </Button>
+        </div>
       </div>
 
       {/* Board + detail panel */}

@@ -4,17 +4,22 @@ import { PipelineBoard } from '@/components/wisehire/pipeline/PipelineBoard';
 import { BiasToggle } from '@/components/wisehire/BiasToggle';
 import { useBiasMode } from '@/hooks/wisehire/useBiasMode';
 import { useJDs } from '@/hooks/wisehire/useJDs';
+import { useClients } from '@/hooks/wisehire/useClients';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Layers } from 'lucide-react';
+import { Layers, Building2 } from 'lucide-react';
 
 export default function PipelinePage() {
   const { data: roles = [], isLoading: rolesLoading } = useJDs();
+  const { data: clients = [], isLoading: clientsLoading } = useClients();
   const [filterRoleId, setFilterRoleId] = useState<string>('all');
+  const [filterClientId, setFilterClientId] = useState<string>('all');
   const { biasMode, toggleBiasMode } = useBiasMode();
 
   const rolesForBoard = roles.map((r) => ({ id: r.id, title: r.title }));
+  const showClientFilter = !clientsLoading && clients.length > 0;
+  const showRoleFilter = !rolesLoading && roles.length > 0;
 
   return (
     <WiseHireShell>
@@ -31,8 +36,26 @@ export default function PipelinePage() {
           </div>
 
           <div className="flex items-center gap-3 flex-wrap">
+            {/* Client filter */}
+            {showClientFilter && (
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-slate-400 shrink-0" />
+                <Select value={filterClientId} onValueChange={setFilterClientId}>
+                  <SelectTrigger className="w-44">
+                    <SelectValue placeholder="All clients" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All clients</SelectItem>
+                    {clients.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {/* Role filter */}
-            {!rolesLoading && roles.length > 0 && (
+            {showRoleFilter && (
               <div className="flex items-center gap-2">
                 <Layers className="h-4 w-4 text-slate-400 shrink-0" />
                 <Select value={filterRoleId} onValueChange={setFilterRoleId}>
@@ -48,6 +71,7 @@ export default function PipelinePage() {
                 </Select>
               </div>
             )}
+
             <BiasToggle biasMode={biasMode} onToggle={toggleBiasMode} />
           </div>
         </div>
@@ -56,6 +80,7 @@ export default function PipelinePage() {
         <div className="flex-1 min-h-0">
           <PipelineBoard
             roleId={filterRoleId !== 'all' ? filterRoleId : undefined}
+            clientId={filterClientId !== 'all' ? filterClientId : undefined}
             roles={rolesForBoard}
             biasMode={biasMode}
           />

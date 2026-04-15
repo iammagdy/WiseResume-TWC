@@ -162,6 +162,7 @@ const TalentPoolPage = lazyWithRetry(() => import("./pages/wisehire/TalentPoolPa
 const WiseHireAnalyticsPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireAnalyticsPage"));
 const CandidateMaskingPage = lazyWithRetry(() => import("./pages/wisehire/CandidateMaskingPage"));
 const ClientsPage = lazyWithRetry(() => import("./pages/wisehire/ClientsPage"));
+const ScorecardTemplatesPage = lazyWithRetry(() => import("./pages/wisehire/ScorecardTemplatesPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -345,6 +346,7 @@ function AppRoutes() {
             <Route path="/wisehire/analytics" element={<Suspense fallback={<PageLoadingSpinner />}><WiseHireAnalyticsPage /></Suspense>} />
             <Route path="/wisehire/mask-cvs" element={<Suspense fallback={<PageLoadingSpinner />}><CandidateMaskingPage /></Suspense>} />
             <Route path="/wisehire/clients" element={<Suspense fallback={<PageLoadingSpinner />}><ClientsPage /></Suspense>} />
+            <Route path="/wisehire/scorecard-templates" element={<Suspense fallback={<PageLoadingSpinner />}><ScorecardTemplatesPage /></Suspense>} />
           </Route>
 
           {/* Protected routes */}
