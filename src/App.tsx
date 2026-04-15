@@ -393,6 +393,7 @@ function AuroraLayer() {
     path.startsWith('/p/');
 
   const theme = useSettingsStore((s) => s.theme);
+  const lpProduct = useSettingsStore((s) => s.lpProduct);
 
   useEffect(() => {
     if (!isPublicPage) return;
@@ -406,13 +407,16 @@ function AuroraLayer() {
         ? false
         : getSafeMatchMedia('(prefers-color-scheme: dark)').matches;
 
-    body.style.backgroundColor = isDark ? '#0a0000' : '#fff5f5';
+    const isWiseHire = lpProduct === 'wisehire';
+    body.style.backgroundColor = isWiseHire
+      ? (isDark ? '#00061a' : '#f0f5ff')
+      : (isDark ? '#0a0000' : '#fff5f5');
     document.documentElement.classList.add('aurora-active');
     return () => {
       body.style.backgroundColor = prevBodyBg;
       document.documentElement.classList.remove('aurora-active');
     };
-  }, [isPublicPage, theme]);
+  }, [isPublicPage, theme, lpProduct]);
 
   if (!isPublicPage) return null;
   return <AuroraBackground />;

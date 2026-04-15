@@ -287,11 +287,15 @@ const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [tailorOpen, setTailorOpen] = useState(false);
   const [ctaPulse, setCtaPulse] = useState(false);
-  const [mode, setMode] = useState<'jobseeker' | 'wisehire'>(() =>
-    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('for') === 'companies'
-      ? 'wisehire'
-      : 'jobseeker'
-  );
+  const [mode, setMode] = useState<'jobseeker' | 'wisehire'>(() => {
+    const product: 'jobseeker' | 'wisehire' =
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).get('for') === 'companies'
+        ? 'wisehire'
+        : 'jobseeker';
+    useSettingsStore.getState().setLpProduct(product);
+    return product;
+  });
   const [waitlistOpen, setWaitlistOpen] = useState(false);
 
   useEffect(() => {
