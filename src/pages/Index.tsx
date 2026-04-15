@@ -172,51 +172,6 @@ function useTypewriterWord(words: string[]) {
   return displayed;
 }
 
-function useScrollAnimation() {
-  useEffect(() => {
-    // Observe every .lp-animate element; add lp-visible on entry, remove on exit.
-    // This makes animations fully reversible (appear on scroll down, hide on scroll up).
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('lp-visible');
-          } else {
-            entry.target.classList.remove('lp-visible');
-          }
-        });
-      },
-      // rootMargin bottom -80px: element must be 80px inside viewport before revealing.
-      // rootMargin top -40px: element must be 40px past the top before hiding (gives a
-      // small grace window so fast scrollers don't flicker).
-      { threshold: 0, rootMargin: '-40px 0px -80px 0px' }
-    );
-
-    const observeAll = () =>
-      document.querySelectorAll('.lp-animate').forEach((el) => observer.observe(el));
-
-    observeAll();
-    // Re-scan once after 600 ms to catch elements rendered by Suspense lazy loads.
-    const t = setTimeout(observeAll, 600);
-
-    // Watch for new .lp-animate elements added to the DOM (e.g. when the mode
-    // toggle remounts FeatureSection components). Re-run observeAll whenever
-    // child nodes are added anywhere in the document.
-    const mutationObserver = new MutationObserver((mutations) => {
-      const hasAddedNodes = mutations.some((m) => m.addedNodes.length > 0);
-      if (hasAddedNodes) {
-        observeAll();
-      }
-    });
-    mutationObserver.observe(document.body, { childList: true, subtree: true });
-
-    return () => {
-      observer.disconnect();
-      mutationObserver.disconnect();
-      clearTimeout(t);
-    };
-  }, []);
-}
 
 function FeatureNumberedNav({ sectionIds, labels }: { sectionIds: string[]; labels: string[] }) {
   const [activeIdx, setActiveIdx] = useState(-1);
@@ -338,6 +293,16 @@ const lpItemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
 };
 
+const heroContainerVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.09, delayChildren: 0.05 } },
+};
+const _heroEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
+const heroItemVariants = {
+  hidden: { opacity: 0, y: 22 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: _heroEase } },
+};
+
 const WH_WRAPPER_VARIANTS = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.08, delayChildren: 0.04 } },
@@ -429,7 +394,6 @@ const Index = () => {
   }, [mode]);
 
   const typewriterWord = useTypewriterWord(TYPEWRITER_WORDS);
-  useScrollAnimation();
 
   const FEATURE_NAV_LABELS = ['01  Resume Builder', '02  AI Tailoring', '03  Portfolio', '04  Interview Coach', '05  Job Tracker'];
 
@@ -578,35 +542,6 @@ const Index = () => {
 
         .lp-root * { font-style: normal !important; }
 
-        /* Headline word entrance */
-        .lp-word {
-          display: inline-block;
-          opacity: 0;
-          transform: translateY(24px);
-          transition: opacity 0.6s cubic-bezier(0.22,1,0.36,1), transform 0.6s cubic-bezier(0.22,1,0.36,1);
-        }
-        .lp-word.lp-word-visible { opacity: 1; transform: translateY(0); }
-
-        /* Scroll animations — entrance */
-        .lp-animate {
-          opacity: 0;
-          transform: translateY(28px);
-          transition: opacity 0.65s cubic-bezier(0.22, 1, 0.36, 1), transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
-        }
-        .lp-animate.lp-visible { opacity: 1; transform: translateY(0); }
-
-        /* Exit is faster and uses a simple ease-in so the reverse feels snappy */
-        .lp-animate:not(.lp-visible) {
-          transition-duration: 0.38s;
-          transition-timing-function: ease-in;
-        }
-
-        /* Directional slides */
-        .lp-animate.lp-from-left  { transform: translateX(-40px); }
-        .lp-animate.lp-from-right { transform: translateX(40px); }
-        .lp-animate.lp-from-left.lp-visible,
-        .lp-animate.lp-from-right.lp-visible { transform: translateX(0); }
-
         /* CTA pulse */
         @keyframes lp-pulse {
           0%, 100% { box-shadow: 0 0 0 0 rgba(158,27,34,0); }
@@ -614,25 +549,7 @@ const Index = () => {
         }
         .lp-cta-pulse { animation: lp-pulse 2.8s ease-in-out infinite; }
 
-        /* Hero entrance */
-        @keyframes lp-hero-in {
-          from { opacity: 0; transform: translateY(20px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes lp-cta-in {
-          from { transform: translateY(20px); }
-          to   { transform: translateY(0); }
-        }
-        .lp-hero-sub   { animation: lp-hero-in 0.6s cubic-bezier(0.22,1,0.36,1) 0.45s both; }
-        .lp-hero-cta   { animation: lp-cta-in 0.6s cubic-bezier(0.22,1,0.36,1) 0.65s both; }
-        .lp-hero-trust { animation: lp-hero-in 0.5s cubic-bezier(0.22,1,0.36,1) 0.82s both; }
-
         @media (prefers-reduced-motion: reduce) {
-          .lp-hero-sub,.lp-hero-cta,.lp-hero-trust { animation: none; opacity: 1; transform: none; }
-          .lp-word { opacity: 1; transform: none; transition: none; }
-          /* Both with and without lp-visible — covers the higher-specificity exit rule */
-          .lp-animate,
-          .lp-animate:not(.lp-visible) { opacity: 1; transform: none; transition: none; }
           /* Disable gradient shimmer */
           .lp-gradient-text { animation: none !important; background-size: 100% 100% !important; }
           /* Disable pulse animations */
@@ -1173,124 +1090,139 @@ const Index = () => {
           {/* Parallax depth layer */}
           <HeroParallaxGlow prefersReducedMotion={prefersReducedMotion} />
 
-          {/* Brand pill */}
-          <div
-            className="relative z-10 flex items-center gap-2 px-4 py-1.5 rounded-full mb-6 lp-hero-sub"
-            style={{
-              background: 'var(--lp-brand-pill-bg)',
-              border: '1px solid var(--lp-brand-pill-border)',
-              boxShadow: '0 0 18px 0 var(--lp-brand-pill-glow)',
-            }}
+          {/* Stagger container wrapping all hero content */}
+          <motion.div
+            className="relative z-10 flex flex-col items-center text-center w-full"
+            variants={heroContainerVariants}
+            initial={prefersReducedMotion ? 'visible' : 'hidden'}
+            animate="visible"
           >
-            <img
-              alt=""
-              aria-hidden="true"
-              src={themeLogo}
-              className="w-5 h-5 object-contain rounded-md"
-            />
-            <span
-              className="font-display font-semibold tracking-tight"
+            {/* Brand pill */}
+            <motion.div
+              variants={heroItemVariants}
+              className="flex items-center gap-2 px-4 py-1.5 rounded-full mb-6"
               style={{
-                fontSize: '0.85rem',
-                color: 'var(--lp-eyebrow)',
+                background: 'var(--lp-brand-pill-bg)',
+                border: '1px solid var(--lp-brand-pill-border)',
+                boxShadow: '0 0 18px 0 var(--lp-brand-pill-glow)',
               }}
             >
-              WiseResume
-            </span>
-          </div>
-
-          {/* Eyebrow */}
-          <p
-            className="relative z-10 mb-7 lp-hero-sub"
-            style={{
-              fontSize: '0.8rem',
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: 'var(--lp-eyebrow)',
-              fontWeight: 600,
-              transition: 'color 0.3s ease',
-            }}
-          >
-            AI-Powered Career Platform
-          </p>
-
-          {/* Main headline — typewriter word lives inside H1 */}
-          <h1
-            className="relative z-10 font-extrabold leading-[1.05]"
-            style={{
-              fontSize: 'clamp(1.9rem, 9vw, 5.5rem)',
-              color: 'var(--lp-text)',
-              letterSpacing: '-0.035em',
-              transition: 'color 0.3s ease',
-              overflow: 'visible',
-              width: '100%',
-              maxWidth: '100vw',
-            }}
-          >
-            {/* Line 1: static "Stand out as a" — always one line */}
-            <span style={{ display: 'block', whiteSpace: 'nowrap' }}>
-              Stand out as a
-            </span>
-            {/* Line 2: typewriter role title only — always one line */}
-            <span style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'visible' }}>
-              <span className="lp-gradient-text" style={{ display: 'inline-block', minWidth: '12ch' }}>
-                {typewriterWord || '\u00A0'}
-                <span className="lp-cursor" aria-hidden="true" />
-              </span>
-            </span>
-          </h1>
-
-          {/* Subheading */}
-          <p
-            className="relative z-10 mt-6 mb-10 lp-hero-sub"
-            style={{
-              fontSize: 'clamp(1rem, 2.2vw, 1.2rem)',
-              lineHeight: 1.6,
-              color: 'var(--lp-text-muted)',
-              maxWidth: 500,
-            }}
-          >
-            AI that builds, tailors, and lands your next job.
-          </p>
-
-          {/* CTA — single primary action */}
-          <div className="relative z-10 lp-hero-cta">
-            {isAuthenticated ? (
-              <motion.button
-                onClick={() => { triggerHaptic.light(); navigate('/dashboard'); }}
-                className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2"
-                style={{ background: '#9E1B22', color: '#fff' }}
-                whileHover={prefersReducedMotion ? {} : { scale: 1.04 }}
-                whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+              <img
+                alt=""
+                aria-hidden="true"
+                src={themeLogo}
+                className="w-5 h-5 object-contain rounded-md"
+              />
+              <span
+                className="font-display font-semibold tracking-tight"
+                style={{
+                  fontSize: '0.85rem',
+                  color: 'var(--lp-eyebrow)',
+                }}
               >
-                Go to Dashboard
-                <ArrowRight className="w-4 h-4" />
-              </motion.button>
-            ) : (
-              <motion.button
-                onClick={() => handleCTA()}
-                className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2"
-                style={{ background: '#9E1B22', color: '#fff' }}
-                whileHover={prefersReducedMotion ? {} : { scale: 1.04 }}
-                whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-              >
-                Get Started Free
-                <ArrowRight className="w-4 h-4" />
-              </motion.button>
-            )}
-          </div>
-
-          {/* Trust badges */}
-          <div className="relative z-10 mt-8 flex items-center gap-5 sm:gap-7 text-xs flex-wrap justify-center lp-hero-trust">
-            {['Free to start', 'No credit card', 'AI-powered'].map((item) => (
-              <span key={item} className="flex items-center gap-1.5" style={{ color: 'var(--lp-trust-color)', transition: 'color 0.3s ease' }}>
-                <CheckCircle2 className="w-3.5 h-3.5" style={{ color: 'var(--lp-trust-icon)', transition: 'color 0.3s ease' }} />
-                {item}
+                WiseResume
               </span>
-            ))}
-          </div>
+            </motion.div>
+
+            {/* Eyebrow */}
+            <motion.p
+              variants={heroItemVariants}
+              className="mb-7"
+              style={{
+                fontSize: '0.8rem',
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                color: 'var(--lp-eyebrow)',
+                fontWeight: 600,
+                transition: 'color 0.3s ease',
+              }}
+            >
+              AI-Powered Career Platform
+            </motion.p>
+
+            {/* Main headline — typewriter word lives inside H1 */}
+            <motion.h1
+              variants={heroItemVariants}
+              className="font-extrabold leading-[1.05]"
+              style={{
+                fontSize: 'clamp(1.9rem, 9vw, 5.5rem)',
+                color: 'var(--lp-text)',
+                letterSpacing: '-0.035em',
+                transition: 'color 0.3s ease',
+                overflow: 'visible',
+                width: '100%',
+                maxWidth: '100vw',
+              }}
+            >
+              {/* Line 1: static "Stand out as a" — always one line */}
+              <span style={{ display: 'block', whiteSpace: 'nowrap' }}>
+                Stand out as a
+              </span>
+              {/* Line 2: typewriter role title only — always one line */}
+              <span style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'visible' }}>
+                <span className="lp-gradient-text" style={{ display: 'inline-block', minWidth: '12ch' }}>
+                  {typewriterWord || '\u00A0'}
+                  <span className="lp-cursor" aria-hidden="true" />
+                </span>
+              </span>
+            </motion.h1>
+
+            {/* Subheading */}
+            <motion.p
+              variants={heroItemVariants}
+              className="mt-6 mb-10"
+              style={{
+                fontSize: 'clamp(1rem, 2.2vw, 1.2rem)',
+                lineHeight: 1.6,
+                color: 'var(--lp-text-muted)',
+                maxWidth: 500,
+              }}
+            >
+              AI that builds, tailors, and lands your next job.
+            </motion.p>
+
+            {/* CTA — single primary action */}
+            <motion.div variants={heroItemVariants}>
+              {isAuthenticated ? (
+                <motion.button
+                  onClick={() => { triggerHaptic.light(); navigate('/dashboard'); }}
+                  className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2"
+                  style={{ background: '#9E1B22', color: '#fff' }}
+                  whileHover={prefersReducedMotion ? {} : { scale: 1.04 }}
+                  whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                >
+                  Go to Dashboard
+                  <ArrowRight className="w-4 h-4" />
+                </motion.button>
+              ) : (
+                <motion.button
+                  onClick={() => handleCTA()}
+                  className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2"
+                  style={{ background: '#9E1B22', color: '#fff' }}
+                  whileHover={prefersReducedMotion ? {} : { scale: 1.04 }}
+                  whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                >
+                  Get Started Free
+                  <ArrowRight className="w-4 h-4" />
+                </motion.button>
+              )}
+            </motion.div>
+
+            {/* Trust badges */}
+            <motion.div
+              variants={heroItemVariants}
+              className="mt-8 flex items-center gap-5 sm:gap-7 text-xs flex-wrap justify-center"
+            >
+              {['Free to start', 'No credit card', 'AI-powered'].map((item) => (
+                <span key={item} className="flex items-center gap-1.5" style={{ color: 'var(--lp-trust-color)', transition: 'color 0.3s ease' }}>
+                  <CheckCircle2 className="w-3.5 h-3.5" style={{ color: 'var(--lp-trust-icon)', transition: 'color 0.3s ease' }} />
+                  {item}
+                </span>
+              ))}
+            </motion.div>
+          </motion.div>
         </section>
 
         {/* ─── FEATURE TICKER ─── */}

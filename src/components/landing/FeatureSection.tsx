@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
 import { Check } from 'lucide-react';
 
@@ -40,15 +40,23 @@ const BAND_BG: Record<BandColor, string> = {
   tint: 'var(--lp-section-alt2)',
 };
 
+const _ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
+
 const containerVariants = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.04 } },
+  visible: { transition: { staggerChildren: 0.07 } },
 };
 
-const _ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
-const cardVariant = {
+function makeSlideVariant(xOffset: number) {
+  return {
+    hidden: { opacity: 0, x: xOffset, y: 8 },
+    visible: { opacity: 1, x: 0, y: 0, transition: { duration: 0.6, ease: _ease } },
+  };
+}
+
+const bulletsVariant = {
   hidden: { opacity: 0, y: 28 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.55, ease: _ease } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.52, ease: _ease } },
 };
 
 const DemoFallback = () => (
@@ -59,10 +67,14 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
   const BadgeIcon = data.badge.icon;
   const isRtl = data.direction === 'rtl';
   const sectionBg = BAND_BG[data.bandColor ?? 'dark1'];
+  const prefersReducedMotion = useReducedMotion();
+
+  const textSlide = makeSlideVariant(prefersReducedMotion ? 0 : (isRtl ? 32 : -32));
+  const mediaSlide = makeSlideVariant(prefersReducedMotion ? 0 : (isRtl ? -32 : 32));
 
   const textCard = (
     <motion.div
-      variants={cardVariant}
+      variants={textSlide}
       className="flex flex-col justify-center gap-5 p-8"
       style={{
         borderRadius: 24,
@@ -119,7 +131,7 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
 
   const mediaCard = (
     <motion.div
-      variants={cardVariant}
+      variants={mediaSlide}
       className="flex items-center justify-center p-6"
       style={{
         borderRadius: 24,
@@ -141,7 +153,7 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
 
   const bulletsCard = (
     <motion.div
-      variants={cardVariant}
+      variants={bulletsVariant}
       className="flex flex-col gap-3 p-6"
       style={{
         borderRadius: 20,
@@ -225,7 +237,7 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
       >
         <motion.div
           variants={containerVariants}
-          initial="hidden"
+          initial={prefersReducedMotion ? 'visible' : 'hidden'}
           whileInView="visible"
           viewport={{ once: false, amount: 0.1 }}
         >
