@@ -33,20 +33,6 @@ export function LandingToggle({ mode, onModeChange }: LandingToggleProps) {
         flexShrink: 0,
       }}
     >
-      <span
-        style={{
-          fontSize: '0.68rem',
-          letterSpacing: '0.04em',
-          color: 'var(--lp-text-subtle)',
-          fontWeight: 500,
-          marginRight: 2,
-          transition: 'color 0.35s ease',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        I'm a:
-      </span>
-
       <button
         onClick={handleJobSeeker}
         style={{

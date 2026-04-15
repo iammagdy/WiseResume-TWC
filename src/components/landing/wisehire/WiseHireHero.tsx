@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, Building2, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, Building2, CheckCircle2, ChevronDown, Users } from 'lucide-react';
 
 const WH_TYPEWRITER_WORDS = [
   'Hiring Manager',
@@ -204,10 +204,26 @@ export function WiseHireHero({ onOpenWaitlist }: WiseHireHeroProps) {
           Join the Waitlist
           <ArrowRight className="w-4 h-4" />
         </button>
+        <button
+          onClick={() => document.getElementById('wisehire-demo')?.scrollIntoView({ behavior: 'smooth' })}
+          className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2 transition-all"
+          style={{
+            background: 'transparent',
+            color: 'var(--lp-eyebrow)',
+            border: '1.5px solid rgba(29,78,216,0.35)',
+          }}
+        >
+          See it in action
+          <ChevronDown className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Trust badges */}
       <div className="relative z-10 mt-8 flex items-center gap-5 sm:gap-7 text-xs flex-wrap justify-center lp-hero-trust">
+        <span className="flex items-center gap-1.5" style={{ color: 'var(--lp-trust-color)', transition: 'color 0.3s ease' }}>
+          <Users className="w-3.5 h-3.5" style={{ color: 'var(--lp-trust-icon)', transition: 'color 0.3s ease' }} />
+          500+ on the waitlist
+        </span>
         {['Invite-only access', '7-day free trial', 'No credit card'].map((item) => (
           <span key={item} className="flex items-center gap-1.5" style={{ color: 'var(--lp-trust-color)', transition: 'color 0.3s ease' }}>
             <CheckCircle2 className="w-3.5 h-3.5" style={{ color: 'var(--lp-trust-icon)', transition: 'color 0.3s ease' }} />

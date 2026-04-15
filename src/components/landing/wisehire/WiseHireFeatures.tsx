@@ -1,4 +1,4 @@
-import { Brain, FileText, Kanban, Users, Archive } from 'lucide-react';
+import { Brain, FileText, Kanban, Users, Archive, Rocket } from 'lucide-react';
 
 const pillars = [
   {
@@ -163,7 +163,7 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
                 justifyContent: 'center',
               }}
             >
-              <span style={{ fontSize: '1.4rem' }}>🚀</span>
+              <Rocket className="w-6 h-6" style={{ color: '#3B82F6' }} />
             </div>
             <div>
               <p className="font-semibold text-sm mb-1" style={{ color: 'var(--lp-text)' }}>Get early access</p>

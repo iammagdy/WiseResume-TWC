@@ -1,4 +1,4 @@
-import { Check, Zap } from 'lucide-react';
+import { Check, Star, Zap } from 'lucide-react';
 
 const tiers = [
   {
@@ -187,6 +187,7 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
+                    gap: 4,
                     background: '#1D4ED8',
                     color: '#fff',
                     borderRadius: 99,
@@ -198,7 +199,7 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  ⭐ Most Popular
+                  <Star className="w-3 h-3" /> Most Popular
                 </div>
               )}
 

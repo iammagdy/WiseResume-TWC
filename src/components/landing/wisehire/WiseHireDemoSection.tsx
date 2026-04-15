@@ -18,6 +18,7 @@ export function WiseHireDemoSection() {
 
   return (
     <section
+      id="wisehire-demo"
       style={{
         background: 'var(--lp-section-alt2)',
         borderTop: '1px solid var(--lp-border)',

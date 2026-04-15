@@ -735,15 +735,17 @@ const Index = () => {
                 Pricing
               </Link>
             )}
-            <Link
-              to="/whats-new"
-              className="hidden xs:block text-sm font-medium px-3 py-1.5 rounded-lg transition-all duration-200"
-              style={{ color: 'var(--lp-text-muted)', background: 'transparent' }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text)'; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text-muted)'; }}
-            >
-              What's New
-            </Link>
+            {mode === 'jobseeker' && (
+              <Link
+                to="/whats-new"
+                className="hidden xs:block text-sm font-medium px-3 py-1.5 rounded-lg transition-all duration-200"
+                style={{ color: 'var(--lp-text-muted)', background: 'transparent' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text-muted)'; }}
+              >
+                What's New
+              </Link>
+            )}
             {/* Theme toggle */}
             <button
               className="lp-theme-toggle"
@@ -847,11 +849,65 @@ const Index = () => {
           ═══════════════════════════════════════════════════════ */
           <>
             <WiseHireHero onOpenWaitlist={() => setWaitlistOpen(true)} />
-            <WiseHireTrustSection />
             <WiseHireFeatureTicker />
             <WiseHireDemoSection />
+            <WiseHireTrustSection />
             <WiseHireFeatures onOpenWaitlist={() => setWaitlistOpen(true)} />
             <WiseHirePricing onOpenWaitlist={() => setWaitlistOpen(true)} />
+
+            {/* ─── WISEHIRE CLOSING CTA ─── */}
+            <section
+              className="px-4 sm:px-6 text-center lp-animate"
+              style={{
+                background: 'var(--lp-section-alt)',
+                borderTop: '1px solid var(--lp-border)',
+                padding: 'clamp(52px, 6vw, 84px) clamp(20px, 4vw, 40px)',
+                transition: 'background 0.35s ease',
+              }}
+            >
+              <div className="max-w-2xl mx-auto">
+                <p
+                  style={{
+                    fontSize: '0.75rem',
+                    letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
+                    color: 'var(--lp-eyebrow)',
+                    fontWeight: 600,
+                    marginBottom: '0.75rem',
+                    transition: 'color 0.35s ease',
+                  }}
+                >
+                  Ready to transform your hiring?
+                </p>
+                <h2
+                  className="font-bold leading-tight"
+                  style={{
+                    fontSize: 'clamp(1.75rem, 3.5vw, 2.75rem)',
+                    color: 'var(--lp-text)',
+                    letterSpacing: '-0.025em',
+                    marginBottom: '0.75rem',
+                    transition: 'color 0.35s ease',
+                  }}
+                >
+                  Join the waitlist.<br />Hire smarter from day one.
+                </h2>
+                <p
+                  className="max-w-md mx-auto text-sm mb-8"
+                  style={{ color: 'var(--lp-text-muted)', lineHeight: 1.65, transition: 'color 0.35s ease' }}
+                >
+                  Invite-only early access. No credit card required. Cancel anytime.
+                </p>
+                <button
+                  onClick={() => setWaitlistOpen(true)}
+                  className="inline-flex items-center gap-2 h-13 px-10 text-base font-semibold rounded-xl transition-all"
+                  style={{ background: '#1D4ED8', color: '#fff' }}
+                >
+                  Join the Waitlist
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </section>
+
             <Footer lpMode />
           </>
         ) : (
