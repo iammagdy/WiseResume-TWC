@@ -142,7 +142,7 @@ export function WiseHireHero({ onOpenWaitlist }: WiseHireHeroProps) {
 
       {/* WiseHire brand pill */}
       <div
-        className="relative z-10 flex items-center gap-2 px-4 py-1.5 rounded-full mb-6 lp-hero-sub"
+        className="relative z-10 flex items-center gap-2 px-4 py-1.5 rounded-full mb-6"
         style={{
           background: 'var(--lp-brand-pill-bg)',
           border: '1px solid var(--lp-brand-pill-border)',
@@ -169,7 +169,7 @@ export function WiseHireHero({ onOpenWaitlist }: WiseHireHeroProps) {
 
       {/* Eyebrow */}
       <p
-        className="relative z-10 mb-7 lp-hero-sub"
+        className="relative z-10 mb-7"
         style={{
           fontSize: '0.8rem',
           letterSpacing: '0.12em',
@@ -198,7 +198,7 @@ export function WiseHireHero({ onOpenWaitlist }: WiseHireHeroProps) {
 
       {/* Typewriter subtitle */}
       <p
-        className="relative z-10 mt-5 lp-hero-sub"
+        className="relative z-10 mt-5"
         style={{
           fontSize: 'clamp(1rem, 2.4vw, 1.35rem)',
           color: 'var(--lp-text-muted)',
@@ -215,7 +215,7 @@ export function WiseHireHero({ onOpenWaitlist }: WiseHireHeroProps) {
 
       {/* Subheading */}
       <p
-        className="relative z-10 mt-4 mb-10 lp-hero-sub"
+        className="relative z-10 mt-4 mb-10"
         style={{
           fontSize: 'clamp(0.95rem, 2vw, 1.1rem)',
           lineHeight: 1.65,
@@ -228,7 +228,7 @@ export function WiseHireHero({ onOpenWaitlist }: WiseHireHeroProps) {
       </p>
 
       {/* CTAs */}
-      <div className="relative z-10 lp-hero-cta flex flex-col sm:flex-row items-center gap-3">
+      <div className="relative z-10 flex flex-col sm:flex-row items-center gap-3">
         <motion.button
           onClick={onOpenWaitlist}
           className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2"
@@ -259,7 +259,7 @@ export function WiseHireHero({ onOpenWaitlist }: WiseHireHeroProps) {
 
       {/* Trust badges */}
       <motion.div
-        className="relative z-10 mt-8 flex items-center gap-5 sm:gap-7 text-xs flex-wrap justify-center lp-hero-trust"
+        className="relative z-10 mt-8 flex items-center gap-5 sm:gap-7 text-xs flex-wrap justify-center"
         initial={prefersReducedMotion ? {} : { opacity: 0, y: 16 }}
         whileInView={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
         viewport={{ once: false, amount: 0.5 }}
