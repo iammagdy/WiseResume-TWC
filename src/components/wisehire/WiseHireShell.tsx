@@ -14,6 +14,8 @@ import {
   ChevronRight,
   Users,
   TrendingUp,
+  Globe,
+  ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/use-theme';
@@ -36,6 +38,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Brief Generator', path: '/wisehire/briefs', icon: Sparkles },
   { label: 'Pipeline', path: '/wisehire/pipeline', icon: BarChart2 },
   { label: 'Bulk Screen', path: '/wisehire/bulk-screen', icon: FileSearch },
+  { label: 'CV Masking', path: '/wisehire/mask-cvs', icon: ShieldCheck },
   { label: 'Talent Pool', path: '/wisehire/talent-pool', icon: Users },
   { label: 'Analytics', path: '/wisehire/analytics', icon: TrendingUp },
   { label: 'Settings', path: '/wisehire/settings', icon: Settings },
