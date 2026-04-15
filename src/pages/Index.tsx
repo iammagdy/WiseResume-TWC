@@ -275,6 +275,7 @@ const Index = () => {
   const [scrolled, setScrolled] = useState(false);
   const storeTheme = useSettingsStore((s) => s.theme);
   const setThemeStore = useSettingsStore((s) => s.setTheme);
+  const setLpProduct = useSettingsStore((s) => s.setLpProduct);
   const [isDark, setIsDark] = useState(() => resolveIsDark(storeTheme));
 
   useEffect(() => {
@@ -292,6 +293,10 @@ const Index = () => {
       : 'jobseeker'
   );
   const [waitlistOpen, setWaitlistOpen] = useState(false);
+
+  useEffect(() => {
+    setLpProduct(mode);
+  }, [mode, setLpProduct]);
 
   useEffect(() => {
     const isWH = mode === 'wisehire';

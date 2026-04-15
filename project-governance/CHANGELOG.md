@@ -8,7 +8,7 @@ Local changelog tracking WiseResume changes.
 - **Summary**: 15-issue bug fix pass over the WiseHire Phase 3 landing page implementation. Covers spec violations, visual regressions, functional bugs, and governance gaps confirmed by spec-kit analysis plus 4 additional user-reported bugs.
 - **Fixed**:
   - **Toggle labels** — "Job Seeker" → "For Job Seekers", "Hiring / HR" → "For Companies" (spec FR-001 / BRANDING.md)
-  - **Aurora background** — `AuroraBackground.tsx` now uses a `MutationObserver` to detect `data-lp-product="wisehire"` and switches to WiseHire teal/blue color stops (`#0D2E6E`, `#1D4ED8`, `#38BDF8`) instead of always rendering red
+  - **Aurora background** — `AuroraBackground.tsx` now reads `lpProduct` from the Zustand settings store (via explicit prop wiring) to switch between WiseHire teal/blue (`#0D2E6E`, `#1D4ED8`, `#38BDF8`) and WiseResume red colour stops; `MutationObserver` approach removed
   - **Demo section visibility** — Removed `lp-animate` from the outermost flex container in `WiseHireDemoSection` so the demo pane is visible immediately on render, not hidden until IntersectionObserver fires
   - **BriefDemo loop** — Score dial now resets to 0 and re-animates every ~3 s (infinite cycle)
   - **PipelineDemo loop** — Pipeline kanban resets to initial card positions when all 7 cards reach the Offer column, then cycles again
@@ -24,7 +24,9 @@ Local changelog tracking WiseResume changes.
 - **Section order after fix**: Hero → Trust → Feature Ticker → Demo → Features → Pricing → Footer
 - **Modified files**:
   - `src/components/landing/LandingToggle.tsx` — label copy
-  - `src/components/landing/AuroraBackground.tsx` — MutationObserver + product-aware colour stops
+  - `src/components/landing/AuroraBackground.tsx` — Zustand store subscription replacing MutationObserver; reads `lpProduct` + `theme` for product-aware colour stops
+  - `src/store/settingsStore.ts` — added `lpProduct: 'jobseeker' | 'wisehire'` field + `setLpProduct` action; excluded from localStorage persistence via partialize
+  - `src/pages/Index.tsx` — `useEffect` syncs `mode` → `setLpProduct` in store on every mode change
   - `src/components/landing/wisehire/WiseHireDemoSection.tsx` — lp-animate removed from flex container
   - `src/components/landing/wisehire/BriefDemo.tsx` — replay loop
   - `src/components/landing/wisehire/PipelineDemo.tsx` — reset loop

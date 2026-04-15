@@ -51,6 +51,10 @@ interface SettingsState {
   
   // Theme
   theme: 'light' | 'dark' | 'system';
+
+  // Landing page product mode (not persisted — ephemeral session state)
+  lpProduct: 'jobseeker' | 'wisehire';
+  setLpProduct: (product: 'jobseeker' | 'wisehire') => void;
   
   // Export
   lastExportType: string | null;
@@ -206,6 +210,7 @@ const defaultSettings = {
   hasSeenAIStudioTour: false,
   elevenlabsApiKey: '',
   theme: 'system' as 'light' | 'dark' | 'system',
+  lpProduct: 'jobseeker' as 'jobseeker' | 'wisehire',
   lastExportType: null as string | null,
   // AI Provider defaults
   aiProvider: 'wiseresume' as AIProvider,
@@ -282,6 +287,7 @@ export const useSettingsStore = create<SettingsState>()(
       setHasSeenAIStudioTour: (value) => set({ hasSeenAIStudioTour: value }),
       setElevenlabsApiKey: (key) => set({ elevenlabsApiKey: key }),
       setTheme: (theme) => set({ theme }),
+      setLpProduct: (product) => set({ lpProduct: product }),
       setLastExportType: (type) => set({ lastExportType: type }),
       
       // AI Provider Actions
@@ -359,9 +365,12 @@ export const useSettingsStore = create<SettingsState>()(
       partialize: (state) => {
         // Exclude sensitive keys from localStorage persistence
         // Keys are now stored server-side via manage-api-keys edge function
+        // lpProduct is ephemeral session state — never persisted
         const {
           geminiApiKey, elevenlabsApiKey, ollamaApiKey, openrouterApiKey,
           openaiApiKey, anthropicApiKey, groqApiKey, mistralApiKey, xaiApiKey, cohereApiKey,
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          lpProduct: _lpProduct,
           ...rest
         } = state;
         return rest;
