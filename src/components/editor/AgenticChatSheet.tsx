@@ -49,6 +49,30 @@ import { useResumeStore } from '@/store/resumeStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useChatSessions, useDeleteChatSession } from '@/hooks/useChatHistory';
 
+function relativeDate(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const minutes = Math.floor(diff / 60_000);
+  const hours = Math.floor(diff / 3_600_000);
+  const days = Math.floor(diff / 86_400_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 7) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function parseExperienceOriginal(original: string): { position?: string; company?: string; raw: string } {
+  try {
+    const parsed = JSON.parse(original);
+    if (typeof parsed === 'object' && parsed !== null) {
+      return { position: parsed.position, company: parsed.company, raw: original };
+    }
+  } catch {
+    // not JSON
+  }
+  return { raw: original };
+}
+
 interface AgenticChatSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -152,7 +176,17 @@ function DeleteConfirmCard({
 
       <div className="p-2 rounded-lg bg-destructive/5 border border-destructive/10">
         <span className="text-xs text-destructive/70 font-medium block mb-1">Entry to remove:</span>
-        <p className="text-sm text-foreground/80 break-words">{proposal.original}</p>
+        {(() => {
+          const parsed = parseExperienceOriginal(proposal.original);
+          if (parsed.position || parsed.company) {
+            return (
+              <p className="text-sm text-foreground/80 break-words">
+                {[parsed.position, parsed.company].filter(Boolean).join(' at ')}
+              </p>
+            );
+          }
+          return <p className="text-sm text-foreground/80 break-words">{proposal.original}</p>;
+        })()}
       </div>
 
       <p className="text-xs text-muted-foreground italic break-words">{proposal.explanation}</p>
@@ -552,8 +586,14 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
                     >
                       <p className="text-sm font-medium truncate">{session.title || 'Untitled chat'}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {new Date(session.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {relativeDate(session.updated_at)}
                       </p>
+                      {session.resume_id && !allResumes.some(r => r.id === session.resume_id) && (
+                        <p className="text-[10px] text-warning/70 mt-0.5 flex items-center gap-1">
+                          <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
+                          Resume was deleted
+                        </p>
+                      )}
                     </button>
                     {deleteConfirmId === session.id ? (
                       <div className="flex items-center gap-1 shrink-0">

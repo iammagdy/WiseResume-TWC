@@ -69,7 +69,7 @@ export async function sendChatMessage(
     throw new Error(`Too many messages. Please wait ${rateCheck.waitSeconds}s.`);
   }
 
-  const historyForApi = conversationHistory.slice(-10).map((m) => ({
+  const historyForApi = conversationHistory.slice(-50).map((m) => ({
     role: m.role,
     content: m.content,
   }));

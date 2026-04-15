@@ -380,7 +380,7 @@ Deno.serve(async (req: Request) => {
     // Build messages array
     const messages: any[] = [
       { role: "system", content: SYSTEM_PROMPT + contextPrompt + resumeContext + resumeListContext },
-      ...(conversationHistory || []).slice(-10).map(m => ({
+      ...(conversationHistory || []).slice(-50).map(m => ({
         role: m.role,
         content: m.content,
         ...(m.name ? { name: m.name } : {}),
@@ -447,10 +447,8 @@ Deno.serve(async (req: Request) => {
               String(exp.position ?? "").toLowerCase().includes(lowerIdentifier)
           );
           if (matched) {
-            const pos = matched.position ? `${matched.position}` : "";
-            const comp = matched.company ? ` at ${matched.company}` : "";
-            const dates = matched.startDate ? ` (${matched.startDate}${matched.endDate ? ` – ${matched.endDate}` : matched.current ? " – Present" : ""})` : "";
-            originalText = `${pos}${comp}${dates}`.trim() || identifier;
+            // Return the matched entry as a JSON string (per spec: original = matched entry JSON)
+            originalText = JSON.stringify(matched);
           }
         } catch {
           // fallback to identifier
