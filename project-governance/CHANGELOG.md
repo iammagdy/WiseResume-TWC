@@ -2,6 +2,48 @@
 
 Local changelog tracking WiseResume changes.
 
+## 2026-04-15
+
+### BOT-SCRAPER-PROTECTION
+- **Summary**: Multi-layer bot and scraper protection added entirely within the codebase — no DNS, Cloudflare, or Hostinger changes required.
+- **Bot Guard Utility** (`supabase/functions/_shared/botGuard.ts`):
+  - `isMaliciousBot(ua)` — fingerprints 35+ known scraper tools and automation libraries (Python requests/urllib/httpx, Scrapy, curl, wget, Selenium, Playwright, Puppeteer, Go/Java/Ruby HTTP clients, and vulnerability scanners like Nuclei and Nikto).
+  - `isKnownCrawler(ua)` — allow-list for legitimate search/social crawlers (Googlebot, Bingbot, Twitterbot, facebookexternalhit, LinkedInBot, SlackBot, DiscordBot, Telegram, Apple, Yandex, DuckDuckGo). Always exempted from blocks.
+  - `hasForeignReferer(referer, allowedHosts)` — detects requests whose Referer header originates from an external domain.
+  - `botBlockedResponse(corsHeaders)` — standard 403 JSON response for blocked requests.
+- **`track-portfolio-view`**: Three-layer protection — UA fingerprinting → 403, Referer validation (allows `thewise.cloud` and `localhost`) → 403, IP rate limit → 429 after 30 req/min (database-backed).
+- **`og-image`**: UA fingerprinting (known crawlers exempted for link previews), IP rate limit → 429 after 60 req/min.
+- **`portfolio-meta`**: Malicious bots blocked before any DB query; replaced local inline `isCrawler()` with shared `isKnownCrawler()`.
+- **`checkIpRateLimit`** added to `_shared/rateLimiter.ts`: Persistent DB-backed IP rate limiting via `rpc_rate_limits` table. Fail-open on DB error. Skips limiting when client IP is undetermined.
+- **`public/robots.txt`**: `User-agent: *` now has `Disallow: /p/`. Named crawlers keep `Allow: /`. Sitemap directive added.
+- **Files**: `_shared/botGuard.ts` (new), `_shared/rateLimiter.ts`, `track-portfolio-view/index.ts`, `og-image/index.ts`, `portfolio-meta/index.ts`, `public/robots.txt`
+
+### EMAIL-OBFUSCATION
+- **Summary**: Contact email addresses on public portfolio pages are no longer present in the raw HTML — bots cannot harvest them by reading page source.
+- The "Get in Touch" button in `PublicHero.tsx` and `StickyHeader.tsx` now stores the email split across `data-eu` (user part) and `data-ed` (domain part) attributes. The `mailto:` link is assembled in JavaScript only when a real user clicks the button. Zero UX change for human visitors.
+- **Files**: `src/components/portfolio/public/PublicHero.tsx`, `src/components/portfolio/public/StickyHeader.tsx`
+
+### TRUST-SECURITY-MESSAGING
+- **Summary**: Added specific, plain-language security messaging for users — explaining exactly what protects them, not generic marketing copy.
+- **Landing page** (`src/components/landing/TrustSection.tsx`): New "Your privacy is protected" section with 4 callout cards: email hidden from bots, public/private portfolio toggle, AI chat HMAC tokens, resume data never shared or used for training. Fully dark/light mode aware via `--lp-*` CSS variables. Uses `lp-animate` scroll animation consistent with all other landing sections.
+- **Portfolio editor**: Inline `ShieldCheck` note beneath the contact email input in `MoreTab.tsx` and `ProfileSection.tsx` explaining the bot-obfuscation.
+- `Index.tsx` updated: `<TrustSection />` inserted between the feature grid and the PWA install strip.
+- **Files**: `src/components/landing/TrustSection.tsx` (new), `src/pages/Index.tsx`, `src/components/portfolio/editor/MoreTab.tsx`, `src/components/portfolio/editor/ProfileSection.tsx`
+
+### PORTFOLIO-ACCESSIBILITY-ANIMATION-TOKENS (Tasks #5, #6, #7)
+- **Summary**: Three-phase audit fixing 18 findings across accessibility, interaction quality, and design tokens on public portfolio pages.
+- **Task #5 — Accessibility & touch targets**: All interactive elements meet 44×44 px minimum; muted `#9ca3af` colour replaced with contrast-safe values on light themes; missing `aria-label` on icon-only social buttons added; focus rings made visible and consistent.
+- **Task #6 — Interaction & animation quality**: Scroll-triggered animations smoothed (cubic-bezier, staggered delays); `active:scale-95` press states added; `prefers-reduced-motion` respected; hover scale transitions unified.
+- **Task #7 — Design tokens, fonts & polish**: Portfolio theme CSS variables consolidated (`--pf-heading-font`, `--pf-body-font`, etc.); font loading improved (display swap, subset); light theme text contrast corrected across all 9 themes; border radius and spacing tokens unified.
+
+### LANDING-PERFORMANCE-CLEANUP (Phases 1–3)
+- **Summary**: Fixed FCP regression and removed dead bundle weight from the landing page.
+- **Phase 1**: Fixed import errors causing blank screen on first load.
+- **Phase 2**: Removed Three.js, GSAP, and all debug `console.log` calls from the bundle.
+- **Phase 3**: UX flow improvements — CTA pulse animation, hero trust badges, feature ticker.
+- **Cleanup**: Removed orphaned `PageLoadingSpinner` import and Supabase 401 warm-up fetch from `Index.tsx`.
+- **Files**: `src/pages/Index.tsx`, various component files
+
 ## 2026-03-24
 
 ### PARSING-ATS-AUDIT
