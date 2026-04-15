@@ -506,9 +506,13 @@ const Index = () => {
           from { opacity: 0; transform: translateY(20px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        .lp-hero-sub   { animation: lp-hero-in 0.6s cubic-bezier(0.22,1,0.36,1) 0.45s forwards; }
-        .lp-hero-cta   { animation: lp-hero-in 0.6s cubic-bezier(0.22,1,0.36,1) 0.65s forwards; }
-        .lp-hero-trust { animation: lp-hero-in 0.5s cubic-bezier(0.22,1,0.36,1) 0.82s forwards; }
+        @keyframes lp-cta-in {
+          from { transform: translateY(20px); }
+          to   { transform: translateY(0); }
+        }
+        .lp-hero-sub   { animation: lp-hero-in 0.6s cubic-bezier(0.22,1,0.36,1) 0.45s both; }
+        .lp-hero-cta   { animation: lp-cta-in 0.6s cubic-bezier(0.22,1,0.36,1) 0.65s both; }
+        .lp-hero-trust { animation: lp-hero-in 0.5s cubic-bezier(0.22,1,0.36,1) 0.82s both; }
 
         @media (prefers-reduced-motion: reduce) {
           .lp-hero-sub,.lp-hero-cta,.lp-hero-trust { animation: none; opacity: 1; transform: none; }
