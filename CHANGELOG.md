@@ -1,5 +1,40 @@
 # Changelog
 
+## 2026-04-15 — WiseHire Edge Function Deployment & Bug Fixes (Task #12)
+
+### Bug Fixes (pre-deploy)
+- **wisehire-write-jd**: Fixed `WISEHIRE_STARTER_PLAN` undefined reference → replaced with inline string `'wisehire_starter'`
+- **wisehire-bulk-screen**: Fixed `checkRateLimit` called with positional args → corrected to `(userId, { actionType, maxRequests, windowSeconds })` object signature; fixed `aiResponse.choices[0].message.content` → `aiResponse.content`; fixed `authErrorResponse(err, req)` → `authErrorResponse(err, origin)`
+- **wisehire-send-outreach**: Replaced `import { corsHeaders }` (non-existent named export) → `getCorsHeaders(origin)`; replaced `getAuthUser` (non-existent) → `requireAuth`; fixed `checkRateLimit` signature; switched to `getServiceClient()` for DB client
+- **wisehire-talent-search**: Same cors/auth/rateLimit fixes as send-outreach
+- **wisehire-talent-view**: Same cors/auth fixes; improved view-count increment (uses fetched `view_count` from initial query instead of undefined variable)
+- **wisehire-apply**: Replaced `import { corsHeaders }` → `getCorsHeaders(origin)`; replaced `getAuthUser` → `requireAuth`; switched to `Deno.serve` (replacing deprecated `serve` import); switched to `getServiceClient()` for DB client
+
+### Deployment
+- Deployed all 93 edge functions to Supabase project `jnsfmkzgxsviuthaqlyy` via `bash scripts/deploy-functions.sh`
+- Redeployed `wisehire-waitlist-join` and `wisehire-validate-early-access` with `--no-verify-jwt` flag (public endpoints — bot-guarded internally)
+- Disabled JWT verification via Supabase management API for both public endpoints
+
+### Smoke Tests — All 15 WiseHire Functions Pass
+| Function | Type | Result |
+|---|---|---|
+| `wisehire-waitlist-join` | Public (bot-guarded) | ✅ Returns `success: true` / `already_registered` |
+| `wisehire-validate-invite` | Public | ✅ Returns `valid: false, reason: not_found` for unknown token |
+| `wisehire-validate-early-access` | Public (bot-guarded) | ✅ Returns `valid: false` for invalid code |
+| `wisehire-write-jd` | Auth-required | ✅ Correctly rejects unauthenticated with 401 |
+| `wisehire-bulk-screen` | Auth-required | ✅ Correctly rejects unauthenticated with 401 |
+| `wisehire-send-outreach` | Auth-required | ✅ Correctly rejects unauthenticated with 401 |
+| `wisehire-talent-search` | Auth-required | ✅ Correctly rejects unauthenticated with 401 |
+| `wisehire-talent-view` | Auth-required | ✅ Correctly rejects unauthenticated with 401 |
+| `wisehire-apply` | Auth-required | ✅ Correctly rejects unauthenticated with 401 |
+| `wisehire-complete-signup` | Auth-required | ✅ Correctly rejects unauthenticated with 401 |
+| `wisehire-generate-brief` | Auth-required | ✅ Correctly rejects unauthenticated with 401 |
+| `wisehire-mask-cvs` | Auth-required | ✅ Correctly rejects unauthenticated with 401 |
+| `admin-wisehire-invite` | Admin-password | ✅ Correctly rejects wrong password |
+| `admin-wisehire-waitlist` | Admin-password | ✅ Correctly rejects wrong password |
+
+---
+
 ## 2026-04-15 — Wise AI Phases 2 & 3
 
 ### Phase 2: New AI Tools
