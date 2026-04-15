@@ -380,7 +380,7 @@ Deno.serve(async (req: Request) => {
     // Build messages array
     const messages: any[] = [
       { role: "system", content: SYSTEM_PROMPT + contextPrompt + resumeContext + resumeListContext },
-      ...(conversationHistory || []).slice(-50).map(m => ({
+      ...(conversationHistory || []).map(m => ({
         role: m.role,
         content: m.content,
         ...(m.name ? { name: m.name } : {}),

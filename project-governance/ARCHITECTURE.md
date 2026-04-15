@@ -119,7 +119,7 @@ The token bridge is the core auth infrastructure. It MUST NOT be replaced or cir
 **Wise AI Chat**
 | Table | Purpose |
 |-------|---------|
-| `chat_sessions` | Wise AI chat sessions: user_id FK→auth.users CASCADE, resume_id FK→resumes SET NULL (nullable), title, updated_at. 50-session cap enforced by DB trigger. RLS: `auth.uid() = user_id`. |
+| `chat_sessions` | Wise AI chat sessions: user_id FK→auth.users CASCADE, resume_id FK→resumes SET NULL (nullable), title, updated_at. Sessions are never auto-pruned (cap of 50 is a UI display limit only). RLS: `auth.uid() = user_id`. |
 | `chat_messages` | Messages within a session: session_id FK→chat_sessions CASCADE, role CHECK IN ('user','assistant'), content, function_call JSONB. RLS: owner via session join. |
 
 **AI & Credits**

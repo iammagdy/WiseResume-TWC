@@ -42,22 +42,3 @@ CREATE INDEX chat_sessions_user_updated_idx
 
 CREATE INDEX chat_messages_session_created_idx
   ON chat_messages (session_id, created_at ASC);
-
--- Trigger: enforce 50-session cap per user after insert
-CREATE OR REPLACE FUNCTION enforce_session_cap()
-RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
-BEGIN
-  DELETE FROM chat_sessions
-  WHERE id IN (
-    SELECT id FROM chat_sessions
-    WHERE user_id = NEW.user_id
-    ORDER BY updated_at DESC
-    OFFSET 50
-  );
-  RETURN NEW;
-END;
-$$;
-
-CREATE TRIGGER trg_session_cap
-  AFTER INSERT ON chat_sessions
-  FOR EACH ROW EXECUTE FUNCTION enforce_session_cap();

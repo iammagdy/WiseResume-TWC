@@ -406,6 +406,7 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
   const {
     messages,
     isThinking,
+    sessionId,
     sendMessage,
     startNewSession,
     loadSession,
@@ -603,6 +604,10 @@ export function AgenticChatSheet({ open, onOpenChange, initialMessage }: Agentic
                           className="h-7 text-xs px-2"
                           onClick={() => {
                             deleteMutation.mutate(session.id);
+                            // If this was the active session, clear it so next send creates a new one
+                            if (sessionId === session.id) {
+                              startNewSession();
+                            }
                             setDeleteConfirmId(null);
                             haptics.light();
                           }}
