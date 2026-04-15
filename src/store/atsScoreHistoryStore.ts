@@ -13,6 +13,7 @@ export interface ScoreHistoryEntry {
     parsability: number;
     contactCompleteness: number;
     lengthDensity: number;
+    templateFriendliness: number;
   };
 }
 
@@ -39,7 +40,8 @@ export const useATSScoreHistoryStore = create<ATSScoreHistoryState>()(
               last.categories.sectionStructure === categories.sectionStructure &&
               last.categories.parsability === categories.parsability &&
               last.categories.contactCompleteness === categories.contactCompleteness &&
-              last.categories.lengthDensity === categories.lengthDensity) {
+              last.categories.lengthDensity === categories.lengthDensity &&
+              last.categories.templateFriendliness === categories.templateFriendliness) {
             return state; // No change, skip duplicate
           }
           const newEntry: ScoreHistoryEntry = {

@@ -6,6 +6,11 @@ import { toast } from 'sonner';
 import { useAIHealthStore } from '@/store/aiHealthStore';
 import { useATSScoreHistoryStore } from '@/store/atsScoreHistoryStore';
 
+export interface WeakBullet {
+  text: string;
+  reason: 'no_action_verb' | 'no_metric' | 'both';
+}
+
 export interface ResumeHealthScore {
   overallScore: number;
   categories: {
@@ -19,6 +24,9 @@ export interface ResumeHealthScore {
   };
   topStrength: string;
   topImprovement: string;
+  keywordGaps?: string[];
+  weakBullets?: WeakBullet[];
+  tenseHint?: string;
   scoredAt: string;
 }
 

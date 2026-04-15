@@ -64,10 +64,16 @@ serve(async (req) => {
     // ── Compute ALL 7 deterministic scores ───────────────────────────
     const contactCompleteness = scoreContactCompleteness(resume.contactInfo || {});
     const sectionStructure = scoreSectionStructure(resume);
-    const parsability = scoreParsability(resume);
+    const parsabilityResult = scoreParsability(resume);
+    const parsability = parsabilityResult.score;
+    const tenseHint = parsabilityResult.tenseHint;
     const lengthDensity = scoreLengthDensity(resume);
-    const keywordOptimization = scoreKeywordOptimization(resume);
-    const contentQuality = scoreContentQuality(resume);
+    const keywordResult = scoreKeywordOptimization(resume);
+    const keywordOptimization = keywordResult.score;
+    const keywordGaps = keywordResult.keywordGaps;
+    const contentResult = scoreContentQuality(resume);
+    const contentQuality = contentResult.score;
+    const weakBullets = contentResult.weakBullets;
     const templateFriendliness = scoreTemplateFriendliness(templateId);
 
     const overallScore = Math.round(
@@ -97,6 +103,9 @@ serve(async (req) => {
       categories,
       topStrength,
       topImprovement,
+      keywordGaps,
+      weakBullets,
+      ...(tenseHint ? { tenseHint } : {}),
     };
 
     // Only record usage for local users (cross-project users don't exist in auth.users)
