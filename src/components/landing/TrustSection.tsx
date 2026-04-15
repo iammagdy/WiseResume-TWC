@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { EyeOff, Eye, ShieldCheck, Database } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -37,6 +37,7 @@ const itemVariants = {
 };
 
 export function TrustSection() {
+  const prefersReducedMotion = useReducedMotion();
   return (
     <section
       aria-labelledby="trust-heading"
@@ -55,9 +56,9 @@ export function TrustSection() {
         <motion.div
           className="text-center mb-12"
           variants={itemVariants}
-          initial="hidden"
+          initial={prefersReducedMotion ? 'visible' : 'hidden'}
           whileInView="visible"
-          viewport={{ once: false, amount: 0.3 }}
+          viewport={{ once: false, amount: 0.25 }}
         >
           <p
             style={{
@@ -96,7 +97,7 @@ export function TrustSection() {
         <motion.div
           className="grid grid-cols-1 sm:grid-cols-2 gap-4"
           variants={containerVariants}
-          initial="hidden"
+          initial={prefersReducedMotion ? 'visible' : 'hidden'}
           whileInView="visible"
           viewport={{ once: false, amount: 0.1 }}
         >

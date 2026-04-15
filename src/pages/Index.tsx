@@ -1247,7 +1247,7 @@ const Index = () => {
         <motion.div
           className="text-center px-4 sm:px-6 py-16 max-w-4xl mx-auto"
           variants={lpItemVariants}
-          initial="hidden"
+          initial={prefersReducedMotion ? 'visible' : 'hidden'}
           whileInView="visible"
           viewport={{ once: false, amount: 0.2 }}
           style={{ background: 'var(--lp-bg)' }}
@@ -1279,7 +1279,7 @@ const Index = () => {
             <motion.div
               className="text-center mb-12"
               variants={lpItemVariants}
-              initial="hidden"
+              initial={prefersReducedMotion ? 'visible' : 'hidden'}
               whileInView="visible"
               viewport={{ once: false, amount: 0.2 }}
             >
@@ -1297,7 +1297,7 @@ const Index = () => {
             <motion.div
               className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-3xl mx-auto"
               variants={lpContainerVariants}
-              initial="hidden"
+              initial={prefersReducedMotion ? 'visible' : 'hidden'}
               whileInView="visible"
               viewport={{ once: false, amount: 0.1 }}
             >
@@ -1335,7 +1335,7 @@ const Index = () => {
           <motion.div
             className="max-w-xl mx-auto text-center"
             variants={lpItemVariants}
-            initial="hidden"
+            initial={prefersReducedMotion ? 'visible' : 'hidden'}
             whileInView="visible"
             viewport={{ once: false, amount: 0.2 }}
           >
@@ -1349,7 +1349,7 @@ const Index = () => {
         <motion.section
           className="text-center"
           variants={lpItemVariants}
-          initial="hidden"
+          initial={prefersReducedMotion ? 'visible' : 'hidden'}
           whileInView="visible"
           viewport={{ once: false, amount: 0.15 }}
           style={{
