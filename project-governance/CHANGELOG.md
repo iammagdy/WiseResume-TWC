@@ -26,7 +26,7 @@ Local changelog tracking WiseResume changes.
   - `src/components/landing/LandingToggle.tsx` — label copy
   - `src/components/landing/AuroraBackground.tsx` — Zustand store subscription replacing MutationObserver; reads `lpProduct` + `theme` for product-aware colour stops
   - `src/store/settingsStore.ts` — added `lpProduct: 'jobseeker' | 'wisehire'` field + `setLpProduct` action; excluded from localStorage persistence via partialize
-  - `src/pages/Index.tsx` — `useState` initializer calls `useSettingsStore.getState().setLpProduct(product)` synchronously before first render (eliminates first-paint desync on `?for=companies` direct load); `useEffect` keeps store in sync on subsequent mode toggles
+  - `src/pages/Index.tsx` — `useLayoutEffect` (fires before browser paint) calls `setLpProduct(mode)` on every mode change, including initial mount; eliminates first-paint desync on `?for=companies` direct load without render-phase side effects; `useLayoutEffect` added to React import
   - `src/App.tsx` (AuroraLayer) — body `backgroundColor` is now product-aware: WiseHire dark `#00061a` / light `#f0f5ff`; WiseResume dark `#0a0000` / light `#fff5f5`; `lpProduct` added to effect dependency array
   - `src/components/landing/wisehire/WiseHireDemoSection.tsx` — lp-animate removed from flex container
   - `src/components/landing/wisehire/BriefDemo.tsx` — replay loop

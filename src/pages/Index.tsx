@@ -9,7 +9,7 @@ import { useProfile } from '@/hooks/useProfile';
 import triggerHaptic from '@/lib/haptics';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { useReducedMotion } from 'framer-motion';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useLayoutEffect, useState, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { useSettingsStore } from '@/store/settingsStore';
 import { getSafeMatchMedia } from '@/lib/envUtils';
@@ -287,18 +287,15 @@ const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [tailorOpen, setTailorOpen] = useState(false);
   const [ctaPulse, setCtaPulse] = useState(false);
-  const [mode, setMode] = useState<'jobseeker' | 'wisehire'>(() => {
-    const product: 'jobseeker' | 'wisehire' =
-      typeof window !== 'undefined' &&
-      new URLSearchParams(window.location.search).get('for') === 'companies'
-        ? 'wisehire'
-        : 'jobseeker';
-    useSettingsStore.getState().setLpProduct(product);
-    return product;
-  });
+  const [mode, setMode] = useState<'jobseeker' | 'wisehire'>(() =>
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('for') === 'companies'
+      ? 'wisehire'
+      : 'jobseeker'
+  );
   const [waitlistOpen, setWaitlistOpen] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setLpProduct(mode);
   }, [mode, setLpProduct]);
 
