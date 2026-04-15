@@ -340,7 +340,7 @@ const lpItemVariants = {
 
 const WH_WRAPPER_VARIANTS = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.07, delayChildren: 0.04 } },
+  visible: { transition: { staggerChildren: 0.08, delayChildren: 0.04 } },
   exit: {
     transition: { staggerChildren: 0.028, staggerDirection: -1 },
   },
