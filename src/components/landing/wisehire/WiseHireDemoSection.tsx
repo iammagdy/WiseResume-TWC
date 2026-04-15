@@ -1,13 +1,19 @@
 import { useState } from 'react';
-import { Brain, Kanban, FileText } from 'lucide-react';
+import { Brain, Kanban, FileText, Upload, Archive, CheckCircle2 } from 'lucide-react';
 import { BriefDemo } from './BriefDemo';
 import { PipelineDemo } from './PipelineDemo';
 import { JDDemo } from './JDDemo';
+import { BulkScreeningDemo } from './BulkScreeningDemo';
+import { TalentPoolDemo } from './TalentPoolDemo';
+import { OfferTrackerDemo } from './OfferTrackerDemo';
 
 const TABS = [
   { key: 'brief', label: 'Brief Generator', icon: Brain, desc: 'AI reads a CV and produces a structured candidate brief with match score, strengths, red flags, and interview questions — in under 10 seconds.' },
-  { key: 'pipeline', label: 'Pipeline Board', icon: Kanban, desc: 'Visualise your full hiring funnel with drag-and-drop kanban. Every candidate, every stage, every status — at a glance.' },
   { key: 'jd', label: 'JD Writer', icon: FileText, desc: 'Type a job title, click generate. AI writes a complete, bias-aware job description tailored to the role and your company voice.' },
+  { key: 'pipeline', label: 'Pipeline Board', icon: Kanban, desc: 'Visualise your full hiring funnel with drag-and-drop kanban. Every candidate, every stage, every status — at a glance.' },
+  { key: 'bulk', label: 'Bulk Screening', icon: Upload, desc: 'Upload multiple CVs at once. AI scores and ranks every applicant against your role criteria — no manual reading required.' },
+  { key: 'pool', label: 'Talent Pool', icon: Archive, desc: 'Never lose a great candidate. Build a searchable pool of past applicants you can re-engage for future roles instantly.' },
+  { key: 'offers', label: 'Offer Tracker', icon: CheckCircle2, desc: 'Track every offer from sent to signed. See salary, status, and next steps for each candidate in one live view.' },
 ] as const;
 
 type TabKey = (typeof TABS)[number]['key'];
@@ -60,61 +66,65 @@ export function WiseHireDemoSection() {
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6 items-start">
-          {/* Tab selector — left on desktop, top on mobile */}
-          <div className="flex flex-row lg:flex-col gap-2 w-full lg:w-64 lg:flex-shrink-0">
-            {TABS.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = active === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => setActive(tab.key)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '10px 14px',
-                    borderRadius: 12,
-                    border: `1px solid ${isActive ? 'rgba(29,78,216,0.35)' : 'var(--lp-border-card)'}`,
-                    background: isActive ? 'rgba(29,78,216,0.08)' : 'var(--lp-card-glass)',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'all 0.2s ease',
-                    flex: '1 1 auto',
-                    minWidth: 0,
-                  }}
-                >
-                  <div
+          {/* Tab selector — 3-col grid on mobile, vertical list on desktop */}
+          <style>{`
+            .wh-tab-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; width: 100%; }
+            @media (min-width: 1024px) { .wh-tab-grid { display: flex; flex-direction: column; gap: 6px; width: 224px; flex-shrink: 0; } }
+          `}</style>
+          <div className="wh-tab-grid">
+              {TABS.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = active === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActive(tab.key)}
                     style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 8,
-                      background: isActive ? 'rgba(29,78,216,0.15)' : 'var(--lp-card-glass)',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                      transition: 'background 0.2s ease',
+                      gap: 8,
+                      padding: '9px 12px',
+                      borderRadius: 12,
+                      border: `1px solid ${isActive ? 'rgba(29,78,216,0.35)' : 'var(--lp-border-card)'}`,
+                      background: isActive ? 'rgba(29,78,216,0.08)' : 'var(--lp-card-glass)',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'all 0.2s ease',
+                      minWidth: 0,
                     }}
                   >
-                    <Icon className="w-4 h-4" style={{ color: isActive ? '#3B82F6' : 'var(--lp-text-muted)', transition: 'color 0.2s ease' }} />
-                  </div>
-                  <span
-                    style={{
-                      fontSize: '0.78rem',
-                      fontWeight: isActive ? 700 : 500,
-                      color: isActive ? 'var(--lp-text)' : 'var(--lp-text-muted)',
-                      transition: 'color 0.2s ease',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    {tab.label}
-                  </span>
-                </button>
-              );
-            })}
+                    <div
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 8,
+                        background: isActive ? 'rgba(29,78,216,0.15)' : 'var(--lp-card-glass)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        transition: 'background 0.2s ease',
+                      }}
+                    >
+                      <Icon className="w-3.5 h-3.5" style={{ color: isActive ? '#3B82F6' : 'var(--lp-text-muted)', transition: 'color 0.2s ease' }} />
+                    </div>
+                    <span
+                      style={{
+                        fontSize: '0.73rem',
+                        fontWeight: isActive ? 700 : 500,
+                        color: isActive ? 'var(--lp-text)' : 'var(--lp-text-muted)',
+                        transition: 'color 0.2s ease',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        minWidth: 0,
+                      }}
+                    >
+                      {tab.label}
+                    </span>
+                  </button>
+                );
+              })}
           </div>
 
           {/* Demo pane */}
@@ -145,8 +155,11 @@ export function WiseHireDemoSection() {
 
               <div className="flex justify-center">
                 {active === 'brief' && <BriefDemo />}
-                {active === 'pipeline' && <PipelineDemo />}
                 {active === 'jd' && <JDDemo />}
+                {active === 'pipeline' && <PipelineDemo />}
+                {active === 'bulk' && <BulkScreeningDemo />}
+                {active === 'pool' && <TalentPoolDemo />}
+                {active === 'offers' && <OfferTrackerDemo />}
               </div>
             </div>
           </div>

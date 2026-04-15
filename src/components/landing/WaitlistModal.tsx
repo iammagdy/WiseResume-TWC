@@ -25,6 +25,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
   const [form, setForm] = useState({ name: '', company: '', email: '', size: '' });
   const [errors, setErrors] = useState<Partial<typeof form>>({});
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const [view, setView] = useState<ModalView>('waitlist');
   const [eaCode, setEaCode] = useState('');
@@ -51,6 +52,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
     const errs = validate();
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setErrors({});
+    setSubmitError('');
     mutate(
       {
         name: form.name.trim(),
@@ -61,6 +63,9 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
       {
         onSuccess: (data) => {
           if (data.already_registered) setAlreadyRegistered(true);
+        },
+        onError: (err) => {
+          setSubmitError(err.message || 'Something went wrong. Please try again.');
         },
       }
     );
@@ -98,6 +103,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
       setForm({ name: '', company: '', email: '', size: '' });
       setErrors({});
       setAlreadyRegistered(false);
+      setSubmitError('');
       resetMutation();
       setView('waitlist');
       setEaCode('');
@@ -469,6 +475,10 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
                   : 'Join the Waitlist'
                 }
               </button>
+
+              {submitError && (
+                <p style={{ fontSize: '0.75rem', color: '#ef4444', textAlign: 'center', marginTop: -4 }}>{submitError}</p>
+              )}
 
               <p style={{ fontSize: '0.68rem', color: 'var(--lp-text-subtle)', textAlign: 'center', lineHeight: 1.5 }}>
                 No spam. No credit card. Invite-only early access.
