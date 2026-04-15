@@ -38,6 +38,9 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
   const [sizeOpen, setSizeOpen] = useState(false);
   const sizeRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    if (!open) setSizeOpen(false);
+  }, [open]);
+  useEffect(() => {
     if (!sizeOpen) return;
     const handler = (e: MouseEvent) => {
       if (sizeRef.current && !sizeRef.current.contains(e.target as Node)) {
@@ -453,6 +456,9 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
                 <div ref={sizeRef} style={{ position: 'relative' }}>
                   <button
                     type="button"
+                    aria-haspopup="listbox"
+                    aria-expanded={sizeOpen}
+                    aria-label="Company size"
                     onClick={() => setSizeOpen((o) => !o)}
                     style={{
                       ...fieldStyle(errors.size),
@@ -478,6 +484,8 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
                   </button>
                   {sizeOpen && (
                     <div
+                      role="listbox"
+                      aria-label="Company size options"
                       style={{
                         position: 'absolute',
                         top: 'calc(100% + 4px)',
@@ -495,6 +503,8 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
                         <button
                           key={s}
                           type="button"
+                          role="option"
+                          aria-selected={s === form.size}
                           onClick={() => {
                             setForm((f) => ({ ...f, size: s }));
                             setSizeOpen(false);

@@ -209,6 +209,9 @@ export default function WaitlistPage() {
                   <div ref={sizeRef} style={{ position: 'relative' }}>
                     <button
                       type="button"
+                      aria-haspopup="listbox"
+                      aria-expanded={sizeOpen}
+                      aria-label="Company size"
                       onClick={() => setSizeOpen((o) => !o)}
                       style={{
                         ...inputStyle(errors.size),
@@ -234,6 +237,8 @@ export default function WaitlistPage() {
                     </button>
                     {sizeOpen && (
                       <div
+                        role="listbox"
+                        aria-label="Company size options"
                         style={{
                           position: 'absolute',
                           top: 'calc(100% + 4px)',
@@ -251,6 +256,8 @@ export default function WaitlistPage() {
                           <button
                             key={s}
                             type="button"
+                            role="option"
+                            aria-selected={s === form.size}
                             onClick={() => {
                               setForm((f) => ({ ...f, size: s }));
                               setSizeOpen(false);
