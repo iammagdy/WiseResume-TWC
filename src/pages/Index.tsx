@@ -345,6 +345,14 @@ const WH_WRAPPER_VARIANTS = {
     transition: { staggerChildren: 0.028, staggerDirection: -1 },
   },
 };
+const WH_EXIT_DIRS: Array<{ x?: number; y?: number; scale?: number }> = [
+  { x: -30, y: -30, scale: 0.96 },  // 0: up-left
+  { x: 70,  y: -10, scale: 0.97 },  // 1: right
+  { y: -18, scale: 0.85 },           // 2: scale-down
+  { x: 55,  y: -20, scale: 0.97 },  // 3: right
+  { y: -52, scale: 0.95 },           // 4: up
+  { y: -12, scale: 0.88 },           // 5: scale-down
+];
 const WH_SECTION_ITEM = {
   hidden: { opacity: 0, y: 40, scale: 0.98 },
   visible: {
@@ -353,10 +361,9 @@ const WH_SECTION_ITEM = {
   },
   exit: (i: number) => ({
     opacity: 0,
-    y: -(22 + i * 9),
+    ...(WH_EXIT_DIRS[i] ?? { y: -30, scale: 0.96 }),
     filter: 'blur(3px)',
-    scale: 0.97,
-    transition: { duration: 0.14, ease: [0.4, 0, 1, 1] },
+    transition: { duration: 0.16, ease: [0.4, 0, 1, 1] },
   }),
 };
 const WR_WRAPPER_VARIANTS = {
@@ -1079,8 +1086,8 @@ const Index = () => {
             >
               <motion.div
                 className="max-w-2xl mx-auto"
-                initial={{ opacity: 0, y: 28 }}
-                whileInView={{ opacity: 1, y: 0 }}
+                initial={prefersReducedMotion ? {} : { opacity: 0, y: 28 }}
+                whileInView={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
                 viewport={{ once: false, amount: 0.4 }}
                 transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
               >

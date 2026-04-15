@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { motion, useInView } from 'framer-motion';
+import { motion, useInView, useReducedMotion } from 'framer-motion';
 import { ArrowRight, CheckCircle2, ChevronDown, Users } from 'lucide-react';
 import { AppIcon } from '@/components/brand/AppIcon';
 
@@ -79,6 +79,7 @@ interface WiseHireHeroProps {
 export function WiseHireHero({ onOpenWaitlist }: WiseHireHeroProps) {
   const typewriterWord = useWHTypewriter(WH_TYPEWRITER_WORDS);
   const waitlistCount = useCountUp(500);
+  const prefersReducedMotion = useReducedMotion();
 
   return (
     <section
@@ -257,7 +258,13 @@ export function WiseHireHero({ onOpenWaitlist }: WiseHireHeroProps) {
       </div>
 
       {/* Trust badges */}
-      <div className="relative z-10 mt-8 flex items-center gap-5 sm:gap-7 text-xs flex-wrap justify-center lp-hero-trust">
+      <motion.div
+        className="relative z-10 mt-8 flex items-center gap-5 sm:gap-7 text-xs flex-wrap justify-center lp-hero-trust"
+        initial={prefersReducedMotion ? {} : { opacity: 0, y: 16 }}
+        whileInView={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+        viewport={{ once: false, amount: 0.5 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay: 0.15 }}
+      >
         <span ref={waitlistCount.ref} className="flex items-center gap-1.5" style={{ color: 'var(--lp-trust-color)', transition: 'color 0.3s ease' }}>
           <Users className="w-3.5 h-3.5" style={{ color: 'var(--lp-trust-icon)', transition: 'color 0.3s ease' }} />
           {waitlistCount.value}+ on the waitlist
@@ -268,7 +275,7 @@ export function WiseHireHero({ onOpenWaitlist }: WiseHireHeroProps) {
             {item}
           </span>
         ))}
-      </div>
+      </motion.div>
     </section>
   );
 }

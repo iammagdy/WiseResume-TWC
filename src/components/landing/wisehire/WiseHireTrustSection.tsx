@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Users, BrainCircuit, Target, Zap } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -35,6 +35,7 @@ const trustItems: { icon: LucideIcon; headline: string; body: string }[] = [
 ];
 
 export function WiseHireTrustSection() {
+  const prefersReducedMotion = useReducedMotion();
   return (
     <section
       aria-labelledby="wisehire-trust-heading"
@@ -52,8 +53,8 @@ export function WiseHireTrustSection() {
       >
         <motion.div
           className="text-center mb-12"
-          initial={{ opacity: 0, y: 22 }}
-          whileInView={{ opacity: 1, y: 0 }}
+          initial={prefersReducedMotion ? {} : { opacity: 0, y: 22 }}
+          whileInView={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
           viewport={{ once: false, amount: 0.3 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         >
@@ -94,7 +95,7 @@ export function WiseHireTrustSection() {
         <motion.div
           className="grid grid-cols-1 sm:grid-cols-2 gap-4"
           variants={containerVariants}
-          initial="hidden"
+          initial={prefersReducedMotion ? 'visible' : 'hidden'}
           whileInView="visible"
           viewport={{ once: false, amount: 0.1 }}
         >

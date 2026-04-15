@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Brain, Kanban, FileText, Upload, Archive, CheckCircle2 } from 'lucide-react';
 import { BriefDemo } from './BriefDemo';
 import { PipelineDemo } from './PipelineDemo';
@@ -22,6 +22,7 @@ type TabKey = (typeof TABS)[number]['key'];
 export function WiseHireDemoSection() {
   const [active, setActive] = useState<TabKey>('brief');
   const activeTab = TABS.find((t) => t.key === active)!;
+  const prefersReducedMotion = useReducedMotion();
 
   return (
     <section
@@ -41,8 +42,8 @@ export function WiseHireDemoSection() {
         {/* Heading */}
         <motion.div
           className="text-center mb-10"
-          initial={{ opacity: 0, y: 22 }}
-          whileInView={{ opacity: 1, y: 0 }}
+          initial={prefersReducedMotion ? {} : { opacity: 0, y: 22 }}
+          whileInView={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
           viewport={{ once: false, amount: 0.3 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         >
@@ -74,8 +75,8 @@ export function WiseHireDemoSection() {
 
         <motion.div
           className="flex flex-col lg:flex-row gap-6 items-start"
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
+          initial={prefersReducedMotion ? {} : { opacity: 0, y: 24 }}
+          whileInView={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
           viewport={{ once: false, amount: 0.1 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
         >

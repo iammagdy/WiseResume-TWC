@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Brain, FileText, Kanban, Users, Archive, Rocket } from 'lucide-react';
 
 const containerVariants = {
@@ -48,6 +48,7 @@ interface WiseHireFeaturesProps {
 }
 
 export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
+  const prefersReducedMotion = useReducedMotion();
   return (
     <section
       style={{
@@ -65,8 +66,8 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
         {/* Heading */}
         <motion.div
           className="text-center mb-12"
-          initial={{ opacity: 0, y: 22 }}
-          whileInView={{ opacity: 1, y: 0 }}
+          initial={prefersReducedMotion ? {} : { opacity: 0, y: 22 }}
+          whileInView={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
           viewport={{ once: false, amount: 0.3 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         >
@@ -107,7 +108,7 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
         <motion.div
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
           variants={containerVariants}
-          initial="hidden"
+          initial={prefersReducedMotion ? 'visible' : 'hidden'}
           whileInView="visible"
           viewport={{ once: false, amount: 0.1 }}
         >
