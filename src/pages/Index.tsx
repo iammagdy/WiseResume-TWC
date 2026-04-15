@@ -1191,6 +1191,7 @@ const Index = () => {
               Free to start. No credit card. AI-powered results from day one.
             </p>
             <button
+              type="button"
               onClick={() => handleCTA()}
               className="inline-flex items-center gap-2 h-13 px-10 text-base font-semibold rounded-xl transition-all"
               style={{ background: '#9E1B22', color: '#fff' }}
