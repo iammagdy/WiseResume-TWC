@@ -1,7 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Upload, Copy, ArrowRight, GitBranch, Linkedin, Type } from 'lucide-react';
+import { FileText, Upload, Copy, ArrowRight, GitBranch, Linkedin, Type, Loader2 } from 'lucide-react';
 
 const ProfileImportSheet = lazy(() =>
   import('@/components/settings/ProfileImportSheet').then((m) => ({ default: m.ProfileImportSheet })),
@@ -37,6 +37,44 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+
+import type { ProfileData } from '@/components/settings/ProfileImportSheet';
+import type { Experience, Education, Certification } from '@/types/resume';
+
+function mapProfileDataToResumeFields(data: Partial<ProfileData>): {
+  experience: Experience[];
+  education: Education[];
+  skills: string[];
+  certifications: Certification[];
+} {
+  return {
+    experience: (data.experience || []).map((exp, i) => ({
+      id: String(i + 1),
+      company: exp.company,
+      position: exp.title,
+      startDate: exp.startDate,
+      endDate: exp.endDate,
+      current: exp.current,
+      description: exp.description,
+      achievements: [],
+    })),
+    education: (data.education || []).map((edu, i) => ({
+      id: String(i + 1),
+      institution: edu.institution,
+      degree: edu.degree,
+      field: edu.field || '',
+      startDate: edu.startYear || '',
+      endDate: edu.endYear || '',
+    })),
+    skills: data.skills || [],
+    certifications: (data.certifications || []).map((c, i) => ({
+      id: String(i + 1),
+      name: c.name,
+      issuer: c.organization || '',
+      date: c.date || '',
+    })),
+  };
+}
 
 interface CreateResumeDialogProps {
   open: boolean;
@@ -86,8 +124,9 @@ export function CreateResumeDialog({
 
   // Build-from-text state
   const [pasteText, setPasteText] = useState('');
-  const [pasteTitle, setPasteTitle] = useState('');
+  const [pasteTitle, setPasteTitle] = useState('My Resume');
   const [pasteError, setPasteError] = useState<string | null>(null);
+  const [pasteSubmitAttempted, setPasteSubmitAttempted] = useState(false);
 
   // Tailored form extra fields
   const [tailoredJobTitle, setTailoredJobTitle] = useState('');
@@ -306,8 +345,9 @@ export function CreateResumeDialog({
     setTailoredCompany('');
     setTailoredJobDescription('');
     setPasteText('');
-    setPasteTitle('');
+    setPasteTitle('My Resume');
     setPasteError(null);
+    setPasteSubmitAttempted(false);
     onOpenChange(false);
   };
 
@@ -325,7 +365,12 @@ export function CreateResumeDialog({
   };
 
   const handlePasteCreate = async () => {
-    if (!pasteText.trim() || !user) return;
+    setPasteSubmitAttempted(true);
+    if (!pasteText.trim()) {
+      setPasteError('Please paste some text about your career before generating.');
+      return;
+    }
+    if (!user) return;
     setIsCreating(true);
     setPasteError(null);
     try {
@@ -335,13 +380,8 @@ export function CreateResumeDialog({
       if (fnError) throw fnError;
       if (data?.error) throw new Error(data.message || data.error);
 
-      const parsed = data as {
-        summary?: string;
-        experience?: Array<{ title: string; company: string; startDate: string; endDate: string; description: string; current: boolean }>;
-        education?: Array<{ institution: string; degree: string; field?: string; startYear?: string; endYear?: string }>;
-        skills?: string[];
-        certifications?: Array<{ name: string; organization: string; date: string }>;
-      };
+      const parsed = data as Partial<ProfileData> & { summary?: string };
+      const mapped = mapProfileDataToResumeFields(parsed);
 
       const newResume = await createResume.mutateAsync({
         resume: {
@@ -352,31 +392,7 @@ export function CreateResumeDialog({
             location: profile?.location || '',
           },
           summary: parsed.summary || '',
-          experience: (parsed.experience || []).map((exp, i) => ({
-            id: String(i + 1),
-            company: exp.company,
-            position: exp.title,
-            startDate: exp.startDate,
-            endDate: exp.endDate,
-            current: exp.current,
-            description: exp.description,
-            achievements: [],
-          })),
-          education: (parsed.education || []).map((edu, i) => ({
-            id: String(i + 1),
-            institution: edu.institution,
-            degree: edu.degree,
-            field: edu.field || '',
-            startDate: edu.startYear || '',
-            endDate: edu.endYear || '',
-          })),
-          skills: parsed.skills || [],
-          certifications: (parsed.certifications || []).map((c, i) => ({
-            id: String(i + 1),
-            name: c.name,
-            issuer: c.organization || '',
-            date: c.date || '',
-          })),
+          ...mapped,
           templateId: defaultTemplateId || 'modern',
         },
         title: pasteTitle.trim() || 'My Resume',
@@ -739,14 +755,14 @@ export function CreateResumeDialog({
               <Label htmlFor="paste-text">Your career text</Label>
               <Textarea
                 id="paste-text"
-                placeholder="Paste anything: a bio, CV notes, a job history, or bullet points about your career..."
+                placeholder="Paste anything — job history, a bio, notes, or bullet points. The AI will structure it into a full resume."
                 value={pasteText}
-                onChange={(e) => { setPasteText(e.target.value); setPasteError(null); }}
+                onChange={(e) => { setPasteText(e.target.value); setPasteError(null); setPasteSubmitAttempted(false); }}
                 className="min-h-[160px] resize-none text-sm"
                 autoFocus
               />
               <p className="text-xs text-muted-foreground">
-                AI will extract your experience, skills, and education from whatever you paste.
+                Works with rough notes, copy-pasted bios, or any career text you have on hand.
               </p>
             </div>
 
@@ -764,20 +780,32 @@ export function CreateResumeDialog({
               <p className="text-sm text-destructive">{pasteError}</p>
             )}
 
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={() => { setMode(null); setPasteError(null); }}
-                className="flex-1"
+            {isCreating && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Structuring your career history…</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => { setMode(null); setPasteError(null); setPasteSubmitAttempted(false); }}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 Back
-              </Button>
+              </button>
               <Button
                 onClick={handlePasteCreate}
-                disabled={!pasteText.trim() || isCreating}
-                className="flex-1 gradient-primary"
+                disabled={isCreating}
+                className="gradient-primary"
               >
-                {isCreating ? 'Building...' : 'Build Resume'}
+                {isCreating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Generating…
+                  </>
+                ) : 'Generate Resume'}
               </Button>
             </div>
           </div>
@@ -797,29 +825,12 @@ export function CreateResumeDialog({
                 location: profile?.location || '',
               };
               try {
+                const mapped = mapProfileDataToResumeFields(data);
                 const newResume = await createResume.mutateAsync({
                   resume: {
                     contactInfo,
                     summary: data.summary || '',
-                    experience: (data.experience || []).map((exp, i) => ({
-                      id: String(i + 1),
-                      company: exp.company,
-                      position: exp.title,
-                      startDate: exp.startDate,
-                      endDate: exp.endDate,
-                      current: exp.current,
-                      description: exp.description,
-                      achievements: [],
-                    })),
-                    education: (data.education || []).map((edu, i) => ({
-                      id: String(i + 1),
-                      institution: edu.institution,
-                      degree: edu.degree,
-                      field: edu.field || '',
-                      startDate: edu.startYear || '',
-                      endDate: edu.endYear || '',
-                    })),
-                    skills: data.skills || [],
+                    ...mapped,
                     certifications: [],
                     templateId: defaultTemplateId || 'modern',
                   },
