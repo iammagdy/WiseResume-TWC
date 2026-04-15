@@ -34,15 +34,19 @@ export function JDDemo() {
 
   useEffect(() => {
     if (!done) return;
+    let inner: ReturnType<typeof setTimeout>;
     const t = setTimeout(() => {
       setDone(false);
       setGenerating(false);
       setLineIdx(0);
       setCharIdx(0);
       setDisplayedLines(['']);
-      setTimeout(() => setGenerating(true), 600);
+      inner = setTimeout(() => setGenerating(true), 600);
     }, 2500);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      clearTimeout(inner);
+    };
   }, [done]);
 
   useEffect(() => {

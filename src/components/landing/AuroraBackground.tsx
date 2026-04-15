@@ -34,7 +34,7 @@ export function AuroraBackground({ product }: AuroraBackgroundProps = {}) {
       <Aurora
         colorStops={
           isWiseHire
-            ? (isDark ? ['#0D2E6E', '#1D4ED8', '#38BDF8'] : ['#1D4ED8', '#3B82F6', '#93C5FD'])
+            ? ['#0D2E6E', '#1D4ED8', '#38BDF8']
             : (isDark ? ['#7c0404', '#706666', '#8e0101'] : ['#d94040', '#b03535', '#e04545'])
         }
         blend={isDark ? 0.47 : 0.55}
