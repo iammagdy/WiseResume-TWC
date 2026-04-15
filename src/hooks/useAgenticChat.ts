@@ -68,6 +68,19 @@ export function useAgenticChat(contextFilter?: string) {
   const sessionIdRef = useRef<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const sessionLoadedRef = useRef(false);
+  const prevUserIdRef = useRef<string | undefined>(undefined);
+
+  // Reset all in-memory session state on auth change (user switch or logout)
+  // This prevents user-A's conversation leaking to user-B in the same SPA runtime
+  useEffect(() => {
+    const currentUserId = user?.id;
+    if (prevUserIdRef.current === currentUserId) return;
+    prevUserIdRef.current = currentUserId;
+    setMessages([]);
+    sessionIdRef.current = null;
+    setSessionId(null);
+    sessionLoadedRef.current = false;
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Track the last-saved snapshot of section data so we can detect unsaved edits
   const savedSnapshotRef = useRef<Partial<Record<SectionKey, string>>>({});
