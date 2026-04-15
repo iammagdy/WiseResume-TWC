@@ -42,7 +42,7 @@ function isNegotiationResult(value: unknown): value is NegotiationResult {
 }
 
 function isNumericValue(value: string): boolean {
-  return value.trim() !== '' && /^\d+([.,]\d+)*$/.test(value.trim().replace(/[\s]/g, ''));
+  return value.trim() !== '' && /^\d{1,20}([.,]\d{1,3})?$/.test(value.trim().replace(/\s/g, ''));
 }
 
 export function SalaryNegotiationSheet({ open, onOpenChange }: SalaryNegotiationSheetProps) {

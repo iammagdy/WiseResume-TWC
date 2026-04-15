@@ -47,17 +47,25 @@ try {
   reportWebVitals();
 } catch (error) {
   console.error('❌ Failed to render app:', error);
-  // Display error on screen
-  document.body.innerHTML = `
-    <div style="padding: 20px; font-family: sans-serif; background: #0a0a14; color: white; min-height: 100vh;">
-      <h1>⚠️ App Initialization Error</h1>
-      <p>The app failed to start. Please check the console for details.</p>
-      <pre style="background: #1f2937; padding: 15px; border-radius: 8px; overflow: auto;">${error instanceof Error ? error.message : String(error)}</pre>
-      <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; background: #9E1B22; color: white; border: none; border-radius: 8px; cursor: pointer;">
-        Reload App
-      </button>
-    </div>
-  `;
+  const wrap = document.createElement('div');
+  wrap.setAttribute('style', 'padding:20px;font-family:sans-serif;background:#0a0a14;color:white;min-height:100vh');
+  const h1 = document.createElement('h1');
+  h1.textContent = '⚠️ App Initialization Error';
+  const p = document.createElement('p');
+  p.textContent = 'The app failed to start. Please check the console for details.';
+  const pre = document.createElement('pre');
+  pre.setAttribute('style', 'background:#1f2937;padding:15px;border-radius:8px;overflow:auto');
+  pre.textContent = error instanceof Error ? error.message : String(error);
+  const btn = document.createElement('button');
+  btn.setAttribute('style', 'margin-top:20px;padding:10px 20px;background:#9E1B22;color:white;border:none;border-radius:8px;cursor:pointer');
+  btn.textContent = 'Reload App';
+  btn.addEventListener('click', () => location.reload());
+  wrap.appendChild(h1);
+  wrap.appendChild(p);
+  wrap.appendChild(pre);
+  wrap.appendChild(btn);
+  document.body.innerHTML = '';
+  document.body.appendChild(wrap);
 }
 
 const updateSW = registerSW({

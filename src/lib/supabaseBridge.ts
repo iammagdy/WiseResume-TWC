@@ -32,7 +32,7 @@ const IDLE_CLEAR_MS = 4 * 60 * 60 * 1000; // 4 hours
 
 function loadState(): BridgeState {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = sessionStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed.supabaseToken && parsed.expiresAt && parsed.expiresAt > Date.now() / 1000 + 60) {
@@ -50,7 +50,7 @@ function loadState(): BridgeState {
 
 function persistState(s: BridgeState) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
       supabaseToken: s.supabaseToken,
       userId: s.userId,
       expiresAt: s.expiresAt,
@@ -61,7 +61,7 @@ function persistState(s: BridgeState) {
 
 function updateLastActive(): void {
   try {
-    localStorage.setItem(LAST_ACTIVE_KEY, String(Date.now()));
+    sessionStorage.setItem(LAST_ACTIVE_KEY, String(Date.now()));
   } catch {}
 }
 
@@ -73,7 +73,7 @@ if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
       try {
-        const raw = localStorage.getItem(LAST_ACTIVE_KEY);
+        const raw = sessionStorage.getItem(LAST_ACTIVE_KEY);
         const lastActive = raw ? parseInt(raw, 10) : 0;
         if (lastActive && Date.now() - lastActive > IDLE_CLEAR_MS) {
           clearBridge();
@@ -225,8 +225,8 @@ export function clearBridge(): void {
   state.lastError = null;
   exchangePromise = null;
   _getKindeTokenFn = null;
-  try { localStorage.removeItem(STORAGE_KEY); } catch {}
-  try { localStorage.removeItem(LAST_ACTIVE_KEY); } catch {}
+  try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+  try { sessionStorage.removeItem(LAST_ACTIVE_KEY); } catch {}
 }
 
 /**

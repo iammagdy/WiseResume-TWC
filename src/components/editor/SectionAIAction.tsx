@@ -34,7 +34,7 @@ export const SectionAIAction = memo(function SectionAIAction({ section }: Sectio
         certifications: () => { if (Array.isArray(content)) updateResume({ certifications: content }); },
         languages: () => { if (Array.isArray(content)) updateResume({ languages: content }); },
       };
-      applyMap[section]?.();
+      if (Object.prototype.hasOwnProperty.call(applyMap, section)) applyMap[section]();
       toast.success('AI suggestion applied!');
     },
   });
@@ -77,7 +77,7 @@ export const SectionAIAction = memo(function SectionAIAction({ section }: Sectio
         certifications: () => { if (Array.isArray(result.improved)) updateResume({ certifications: result.improved }); },
         languages: () => { if (Array.isArray(result.improved)) updateResume({ languages: result.improved }); },
       };
-      applyMap[section]?.();
+      if (Object.prototype.hasOwnProperty.call(applyMap, section)) applyMap[section]();
       toast.success('AI suggestion applied!');
     }
   };

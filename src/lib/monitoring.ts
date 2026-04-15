@@ -48,6 +48,11 @@ export function initMonitoring(): void {
       if (event.request?.data) {
         delete event.request.data;
       }
+      if (event.breadcrumbs?.values) {
+        event.breadcrumbs.values = event.breadcrumbs.values.filter(
+          (b) => !(b.category === 'storage' && typeof b.data?.key === 'string' && b.data.key.startsWith('wise_supabase'))
+        );
+      }
       return event;
     },
   });
