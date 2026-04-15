@@ -11,4 +11,6 @@ User-agent: facebookexternalhit
 Allow: /
 
 User-agent: *
-Allow: /
+Disallow: /p/
+
+Sitemap: https://resume.thewise.cloud/sitemap.xml

@@ -1,6 +1,22 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.0";
 
+const IP_RATE_LIMIT = 30;
+const IP_WINDOW_MS = 60_000;
+const ipCounters = new Map<string, { count: number; resetAt: number }>();
+
+function checkIpRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = ipCounters.get(ip);
+  if (!entry || now >= entry.resetAt) {
+    ipCounters.set(ip, { count: 1, resetAt: now + IP_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= IP_RATE_LIMIT) return false;
+  entry.count++;
+  return true;
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -14,6 +30,22 @@ serve(async (req) => {
 
   if (req.method !== "POST") {
     return new Response("Method Not Allowed", { status: 405, headers: corsHeaders });
+  }
+
+  const clientIp =
+    (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() ||
+    req.headers.get("x-real-ip") ||
+    "unknown";
+
+  if (!checkIpRateLimit(clientIp)) {
+    return new Response(JSON.stringify({ error: "Too Many Requests" }), {
+      status: 429,
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "application/json",
+        "Retry-After": "60",
+      },
+    });
   }
 
   try {

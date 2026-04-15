@@ -243,15 +243,27 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
             )}
 
             <div className={`flex items-center ${heroJustify} gap-3 flex-wrap`}>
-              {profile.contactEmail && (
-                <a
-                  href={`mailto:${profile.contactEmail}`}
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm transition-all hover:scale-105 active:scale-95 shadow-lg pf-cta-entrance"
-                  style={{ background: accentColor, color: '#fff', boxShadow: `0 4px 20px -4px ${accentColor}60`, animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
-                >
-                  <Mail className="w-4 h-4" /> Get in Touch
-                </a>
-              )}
+              {profile.contactEmail && (() => {
+                const atIdx = profile.contactEmail.indexOf('@');
+                const eu = atIdx > -1 ? profile.contactEmail.slice(0, atIdx) : profile.contactEmail;
+                const ed = atIdx > -1 ? profile.contactEmail.slice(atIdx + 1) : '';
+                return (
+                  <a
+                    href="#"
+                    data-eu={eu}
+                    data-ed={ed}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      const el = e.currentTarget;
+                      window.location.href = `mailto:${el.dataset.eu}@${el.dataset.ed}`;
+                    }}
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm transition-all hover:scale-105 active:scale-95 shadow-lg pf-cta-entrance"
+                    style={{ background: accentColor, color: '#fff', boxShadow: `0 4px 20px -4px ${accentColor}60`, animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
+                  >
+                    <Mail className="w-4 h-4" /> Get in Touch
+                  </a>
+                );
+              })()}
             </div>
           </>
         );

@@ -34,13 +34,26 @@ export function StickyHeader({ name, avatarUrl, initials, contactEmail, accentCo
           {name || 'Portfolio'}
         </span>
       </div>
-      {contactEmail && (
-        <a href={`mailto:${contactEmail}`}
-          className="text-xs font-semibold px-3 py-2.5 rounded-full transition-opacity hover:opacity-85 inline-flex items-center min-h-[44px]"
-          style={{ background: accentColor, color: '#fff' }}>
-          Get in Touch
-        </a>
-      )}
+      {contactEmail && (() => {
+        const atIdx = contactEmail.indexOf('@');
+        const eu = atIdx > -1 ? contactEmail.slice(0, atIdx) : contactEmail;
+        const ed = atIdx > -1 ? contactEmail.slice(atIdx + 1) : '';
+        return (
+          <a
+            href="#"
+            data-eu={eu}
+            data-ed={ed}
+            onClick={(e) => {
+              e.preventDefault();
+              const el = e.currentTarget;
+              window.location.href = `mailto:${el.dataset.eu}@${el.dataset.ed}`;
+            }}
+            className="text-xs font-semibold px-3 py-2.5 rounded-full transition-opacity hover:opacity-85 inline-flex items-center min-h-[44px]"
+            style={{ background: accentColor, color: '#fff' }}>
+            Get in Touch
+          </a>
+        );
+      })()}
     </div>
   );
 }
