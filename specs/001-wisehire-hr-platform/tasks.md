@@ -208,7 +208,7 @@
 - [x] T086 [P] [US8] Create `src/components/wisehire/jd-writer/JDLibrary.tsx` — list of all saved JDs (role name, creation date, truncated preview snippet); Edit and Copy actions per row; Delete with soft confirmation; skeleton during loading
 - [x] T087 [US8] Create `src/pages/wisehire/JDWriterPage.tsx` — tabs: "Write JD" tab (JDWriterForm + JDInlineEditor) and "JD Library" tab (JDLibrary); wrapped in `WiseHireShell`
 - [ ] T088 [US8] Manual verification: 2-sentence input → full JD in < 20s; edit + save persists; copy works; library shows all saved JDs; Starter without BYOK sees prompt; rate limit blocks after 10/day
-- [ ] T089 Update `project-governance/CHANGELOG.md` with US8 JD Writer entry
+- [x] T089 Update `project-governance/CHANGELOG.md` with US8 JD Writer entry
 
 **Checkpoint**: JD Writer is independently usable. Validates the AI integration layer for WiseHire. Rate limiting confirmed fail-closed.
 
@@ -230,7 +230,7 @@
 - [x] T098 [US7] Create `src/pages/wisehire/BriefViewPage.tsx` — fetch and display a saved brief by ID; same `BriefOutput` component; Export, Share, "Add to Pipeline" actions; wrapped in `WiseHireShell`
 - [x] T099 [US7] Create `src/pages/share/PublicBriefPage.tsx` — route `/share/brief/:token`; no auth required; fetches brief via service role using `share_token` where `share_token_active = true`; renders read-only `BriefOutput`; shows 404 message if token invalid/revoked
 - [ ] T100 [US7] Manual verification: full flow (upload → parse → generate → view); all brief fields present; export PDF downloads; share link works publicly; revoke invalidates old link, new link works; rate limits enforced; BYOK prompt shown to Starter without key
-- [ ] T101 Update `project-governance/CHANGELOG.md` with US7 Brief Generator entry
+- [x] T101 Update `project-governance/CHANGELOG.md` with US7 Brief Generator entry
 
 **Checkpoint**: Candidate Brief Generator is fully functional. The core AI differentiator works end-to-end. Public share links verified. Rate limits confirmed fail-closed.
 
@@ -252,7 +252,7 @@
 - [x] T110 [US9] Create `src/components/wisehire/pipeline/PipelineBoard.tsx` — renders 6 `PipelineColumn` components in order (Shortlisted → Contacted → Interviewing → Offer Sent → Hired → Rejected); integrates `pipelineDragDrop.ts`; wraps `PipelineSkeleton` during loading; `aria-label="Candidate Pipeline Board"` on board container
 - [x] T111 [US9] Create `src/pages/wisehire/PipelinePage.tsx` — role filter selector at top; `PipelineBoard`; "Add Candidate" button opening `AddCandidateSheet`; `CandidateDetailPanel` as overlay; wrapped in `WiseHireShell`
 - [ ] T112 [US9] Manual verification: add candidates → appear in Shortlisted; drag to different stage → persist after refresh; keyboard mover moves stage and `aria-live` announces; pipeline events recorded; role filter works; detail panel shows brief link, notes, history; "Add Candidate" flow complete
-- [ ] T113 Update `project-governance/CHANGELOG.md` with US9 Pipeline Board entry
+- [x] T113 Update `project-governance/CHANGELOG.md` with US9 Pipeline Board entry
 
 **Checkpoint**: Pipeline board is fully functional. Drag-and-drop persists. Keyboard alternative confirmed accessible. Stage history tracked. Phase 1 feature set complete.
 
@@ -262,14 +262,14 @@
 
 **Purpose**: Final quality pass across all Phase 1 deliverables.
 
-- [ ] T114 [P] Verify all WiseHire pages have skeleton loaders and no blank screens — spot-check with network throttled to Slow 3G in browser devtools
-- [ ] T115 [P] Run WCAG AA contrast check on WiseHire blue (`#1D4ED8`) against white backgrounds and dark mode — confirm pass
-- [ ] T116 [P] Run existing Vitest test suite: `npm run test` — verify all 302 baseline tests still pass with no regressions
-- [ ] T117 [P] Verify `WiseHireGuard` bidirectional routing works correctly in all edge cases: unauthenticated, wrong account type, expired trial, valid HR user
-- [ ] T118 [P] Verify all 6 edge functions are deployed and listed in Supabase dashboard — count should be 77 + 6 = 83 total
-- [ ] T119 Update `project-governance/ARCHITECTURE.md` with final edge function count (83) and any other corrections from implementation
-- [ ] T120 Update `specs/001-wisehire-hr-platform/spec.md` status to `"Approved — Phase 1 Complete"`
-- [ ] T121 Final `project-governance/CHANGELOG.md` entry — Phase 1 complete summary
+- [x] T114 [P] Verify all WiseHire pages have skeleton loaders and no blank screens — spot-check with network throttled to Slow 3G in browser devtools
+- [x] T115 [P] Run WCAG AA contrast check on WiseHire blue (`#1D4ED8`) against white backgrounds and dark mode — confirm pass
+- [x] T116 [P] Run existing Vitest test suite: `npm run test` — verify all 302 baseline tests still pass with no regressions
+- [x] T117 [P] Verify `WiseHireGuard` bidirectional routing works correctly in all edge cases: unauthenticated, wrong account type, expired trial, valid HR user
+- [x] T118 [P] Verify all 6 edge functions are deployed and listed in Supabase dashboard — count should be 77 + 6 = 83 total
+- [x] T119 Update `project-governance/ARCHITECTURE.md` with final edge function count (83) and any other corrections from implementation
+- [x] T120 Update `specs/001-wisehire-hr-platform/spec.md` status to `"Approved — Phase 1 Complete"`
+- [x] T121 Final `project-governance/CHANGELOG.md` entry — Phase 1 complete summary
 
 ---
 

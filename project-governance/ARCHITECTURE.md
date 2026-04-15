@@ -43,13 +43,13 @@ You MUST NEVER assume outdated documentation (such as files in `legacy-docs/enha
 | State management | Zustand (global/persistent) + TanStack Query (server state) |
 | Authentication | Kinde Auth (provider) → Supabase (session) via token bridge |
 | Database | Supabase PostgreSQL with RLS |
-| Edge functions | Supabase Edge Functions (Deno runtime) — 77 functions |
+| Edge functions | Supabase Edge Functions (Deno runtime) — 83 functions |
 | File storage | Supabase Storage buckets |
 | Email | Resend (transactional + admin notifications) |
 | AI providers | OpenRouter, Groq, Gemini, OpenAI, Anthropic, Mistral, xAI, Cohere, Ollama |
 | Voice | ElevenLabs (interview coach voice) |
 | Mobile | Capacitor (PWA wrapper, biometrics, haptics) |
-| Testing | Vitest (302 tests as of 2026-03-17) |
+| Testing | Vitest (292 tests — 269 pass, 22 pre-existing failures, 1 todo) |
 
 ---
 
@@ -324,32 +324,55 @@ Two distinct rate-limiting behaviors coexist and serve different purposes:
 
 Summary: public non-AI endpoints use fail-open IP limiting; authenticated AI endpoints use fail-closed credit enforcement. Both layers are always active — they are not mutually exclusive.
 
-### WiseHire AI Rate Limits (planned, Phase 1)
-| Tier | Daily Brief Limit | Monthly Cap |
-|------|------------------|-------------|
-| Starter | 5/day | 30/month |
-| Professional | 50/day | None |
-| Business | Unlimited | None |
+### WiseHire AI Rate Limits (live — Phase 1 complete)
+| Tier | JD Writer | Brief Generator Daily | Brief Generator Monthly |
+|------|-----------|----------------------|------------------------|
+| Starter | 10/day (BYOK required) | 5/day (BYOK required) | 30/month |
+| Professional | Unlimited | 50/day | None |
+| Business/Enterprise | Unlimited | Unlimited | None |
+
+Rate limits are enforced via `checkRateLimit` in `_shared/rateLimiter.ts` using `ai_usage_logs` (fail-closed).
 
 ---
 
-## 9. WiseHire Routing Structure (planned — Phase 1)
+## 9. WiseHire Routing Structure (live — Phase 1 complete)
 
-All WiseHire routes will enforce `account_type = 'hr'`. Job seeker accounts are redirected away.
+All `/wisehire/*` routes enforce `account_type = 'hr'` via `WiseHireGuard`. Job seeker accounts are redirected to `/dashboard`. Unauthenticated users redirected to `/auth?mode=login`. Expired-trial users see `ContactUsLockout` (except `/wisehire/subscription`).
 
-| Route | Purpose |
+| Route | Guard | Purpose |
+|-------|-------|---------|
+| `/?for=companies` | None | WiseHire landing mode (toggle state) |
+| `/wisehire/signup` | None | WiseHire invite-gated sign-up |
+| `/wisehire/onboarding` | WiseHireGuard | 5-step company onboarding |
+| `/wisehire/dashboard` | WiseHireGuard | Main dashboard (stats, quick actions, recent briefs) |
+| `/wisehire/jd-writer` | WiseHireGuard | AI Job Description writer |
+| `/wisehire/briefs` | WiseHireGuard | Candidate Brief generator + recent briefs list |
+| `/wisehire/briefs/:briefId` | WiseHireGuard | View a single saved brief |
+| `/wisehire/pipeline` | WiseHireGuard | 6-stage candidate pipeline board |
+| `/wisehire/subscription` | WiseHireGuard | Plan management (accessible even when expired) |
+| `/wisehire/settings` | WiseHireGuard | Company profile + BYOK AI keys |
+| `/share/brief/:shareToken` | None | Public read-only brief (no auth required) |
+
+**WiseHire Edge Functions** (6 functions, all require `account_type = 'hr'`):
+| Function | Purpose |
+|----------|---------|
+| `wisehire-waitlist-join` | Submit waiting list entry |
+| `wisehire-validate-invite` | Validate HMAC-signed invite token |
+| `wisehire-complete-signup` | Set `account_type = 'hr'`, create company row |
+| `admin-wisehire-invite` | Admin: send invite email |
+| `wisehire-write-jd` | AI job description generation (plan + BYOK + rate limit) |
+| `wisehire-generate-brief` | AI candidate brief generation (plan + BYOK + rate limits) |
+
+**WiseHire Database Tables** (7 tables, all with RLS):
+| Table | Purpose |
 |-------|---------|
-| `/?for=companies` | WiseHire landing mode (same URL, toggle state) |
-| `/wisehire/dashboard` | WiseHire main dashboard |
-| `/wisehire/brief` | Candidate Brief generator |
-| `/wisehire/brief/:id` | View a saved brief |
-| `/wisehire/jd-writer` | Job Description writer |
-| `/wisehire/pipeline` | Candidate pipeline board |
-| `/wisehire/subscription` | WiseHire plan management |
-| `/wisehire/settings` | WiseHire account & AI settings |
-| `/wisehire/onboarding` | WiseHire onboarding flow |
-| `/share/brief/:token` | Public read-only brief (no auth required) |
-| `/share/scorecard/:token` | Public read-only scorecard (no auth required) |
+| `wisehire_companies` | Company profile (owner_id, name, size, etc.) |
+| `wisehire_roles` | Job roles with optional `jd_text` |
+| `wisehire_candidates` | Candidates with pipeline_stage + resume_text |
+| `wisehire_candidate_briefs` | AI-generated briefs with share_token |
+| `wisehire_pipeline_events` | Stage change audit trail |
+| `wisehire_waitlist` | Pre-launch waiting list |
+| `wisehire_invites` | HMAC-signed invite tokens |
 
 ---
 

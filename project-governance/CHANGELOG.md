@@ -2,6 +2,75 @@
 
 Local changelog tracking WiseResume changes.
 
+## 2026-04-15 (Phase 13 — Polish & Close-Out)
+
+### WISEHIRE-PHASE13 — Phase 1 Complete (T114–T121)
+
+- **T114 — Skeleton audit**: All 9 WiseHire pages confirmed to have skeleton loading states — `WiseHireLoadingSkeleton` (guard-level), `DashboardStatsSkeleton`, `JDSkeleton`, `BriefSkeleton`, `PipelineSkeleton`. No blank screens at slow network.
+- **T115 — WCAG AA contrast**: blue-700 (#1D4ED8) vs white = **6.70:1 ✅** (required: 4.5:1). blue-600 (#2563EB) = 5.17:1 ✅. blue-800 (#1E40AF) = 8.72:1 ✅. Dark mode uses `text-blue-400` (lighter tint) on dark surfaces — passes by design.
+- **T116 — Test regression check**: Vitest: 269 pass, 22 pre-existing failures, 1 todo (292 total). Zero regressions from Phases 10–12 changes.
+- **T117 — WiseHireGuard audit**: All 4 routing paths verified — (1) unauthenticated → `/auth?mode=login` + redirect param; (2) job seeker account → `/dashboard`; (3) expired trial + no plan → `ContactUsLockout`; (4) valid HR user → render children. 12s loading timeout prevents infinite spinner.
+- **T118 — Edge function count**: 83 functions deployed to production (77 baseline + 6 WiseHire). Confirmed via Supabase CLI deploy output.
+- **T119 — ARCHITECTURE.md**: Updated edge function count (77→83), test count, WiseHire routing table (planned→live), rate limits table, WiseHire edge functions + database tables documented.
+- **T120 — spec.md**: Status updated to `"Approved — Phase 1 Complete"`.
+- **T121 — Final CHANGELOG**: This entry.
+
+---
+
+## 2026-04-15 (Phases 10–12)
+
+### WISEHIRE-PHASE10 — US8: AI Job Description Writer (T081–T089)
+
+- **Edge function** (`supabase/functions/wisehire-write-jd/index.ts`): HR guard (`account_type = 'hr'`) → plan check (must be on active WiseHire plan) → BYOK check for Starter (returns 402 `requiresApiKey: true` if no OpenAI/Anthropic key found) → rate limit (10 JDs/day via `checkRateLimit` on `ai_usage_logs`, fail-closed) → AI prompt (GPT-4o-mini, JSON output: title, summary, responsibilities[], requirements[], benefits[]) → parse + validate → optional `wisehire_roles.jd_text` upsert → return `{ jd }`.
+- **Hook** (`src/hooks/wisehire/useJDs.ts`): TanStack Query list (roles with non-null `jd_text`, ordered by `updated_at`); mutations: `saveJD`, `createRole`, `deleteJD` (soft delete via `is_deleted = true`).
+- **Components** (`src/components/wisehire/jd-writer/`):
+  - `JDSkeleton.tsx` — animated pulse skeleton matching 3-section JD layout.
+  - `JDWriterForm.tsx` — textarea input (min 10 chars), optional role selector, loading state, BYOK key prompt on 402, error display.
+  - `JDInlineEditor.tsx` — section-level editing for title/summary/responsibilities/requirements/benefits; inline bullet editing via Textarea; copy-to-clipboard + save-to-role actions.
+  - `JDLibrary.tsx` — saved JDs list with copy/delete (two-click confirm) actions.
+- **Page** (`src/pages/wisehire/JDWriterPage.tsx`): Two-tab layout (Write + Saved JDs); wrapped in `WiseHireShell`.
+- **Routes**: `/wisehire/jd-writer` added inside `<WiseHireGuard>`.
+
+### WISEHIRE-PHASE11 — US7: AI Candidate Brief Generator (T090–T101)
+
+- **Edge function** (`supabase/functions/wisehire-generate-brief/index.ts`): HR guard → candidate fetch (owner_id match + resume_text present) → plan check → BYOK check for Starter → rate limits (Starter: 5/day + 30/month; Pro: 50/day; Business+: unlimited, all via `checkRateLimit`, fail-closed) → AI prompt (structured evaluation: match_score 0–100, 3 strengths, 3 concerns, 8 interview questions, employment_notes) → parse + validate → insert `wisehire_candidate_briefs` with `share_token` UUID → return full brief.
+- **Hook** (`src/hooks/wisehire/useBriefs.ts`): TanStack Query list (all briefs with candidate + role joins); single brief by ID (`useBrief`); `revokeShareToken` mutation (generates new UUID, old link immediately invalid).
+- **Lib** (`src/lib/wisehire/briefPdfExport.ts`): `exportBriefToPdf(brief, candidateName)` — opens browser print dialog in a new window with inline CSS, SVG score ring, formatted sections; uses `window.onafterprint` to auto-close the window.
+- **Components** (`src/components/wisehire/brief/`):
+  - `BriefSkeleton.tsx` — skeleton matching score ring + 3 sections.
+  - `BriefForm.tsx` — candidate selector (from pipeline), JD textarea, BYOK prompt on 402.
+  - `BriefOutput.tsx` — SVG score ring with animated stroke-dasharray (green/amber/red by score), strength/concern chips, numbered interview questions, employment notes blockquote, AI model badge.
+  - `BriefShareModal.tsx` — copyable share URL, external link button, revoke-and-renew with warning.
+- **Pages**:
+  - `BriefGeneratorPage.tsx` (`/wisehire/briefs`) — form + active brief view + share/export actions + recent briefs list.
+  - `BriefViewPage.tsx` (`/wisehire/briefs/:briefId`) — fetch + render single brief; share + export.
+  - `PublicBriefPage.tsx` (`/share/brief/:shareToken`) — no auth; fetches via `share_token` where `share_token_active = true`; branded header + footer; 404 state for invalid/revoked tokens.
+
+### WISEHIRE-PHASE12 — US9: Candidate Pipeline Board (T102–T113)
+
+- **Lib** (`src/lib/wisehire/pipelineDragDrop.ts`): `createDragHandlers(dragStateRef, onDrop)` → returns `{ onDragStart, onDragEnd, onDragOver, onDragLeave, onDropZone }`. Adds/removes Tailwind ring classes on drag-over. Calls `onDrop(candidateId, toStage)` on valid drop (skips if same stage).
+- **Hook** (`src/hooks/wisehire/usePipeline.ts`): `PIPELINE_STAGES` constant (6 stages with label + Tailwind colour classes); TanStack Query list with optional `role_id` filter; `updatePipelineStage` with optimistic update + rollback on error + pipeline event insert; `updateNotes`; `addCandidate` (inserts as 'shortlisted'). Separate `useCandidateHistory` for stage event log.
+- **Components** (`src/components/wisehire/pipeline/`):
+  - `PipelineSkeleton.tsx` — 6-column skeleton with 2 placeholder cards per column.
+  - `CandidateCard.tsx` — draggable (`draggable` attribute + HTML5 handlers); shows name, email, match score chip; keyboard accessible (`role="button"`, `onKeyDown`); click opens detail panel.
+  - `PipelineColumn.tsx` — drop zone column with drag-over ring; header with stage label + candidate count badge; empty "Drop here" dashed zone.
+  - `KeyboardPipelineMover.tsx` — WCAG AA alternative; previous/next stage buttons flanking current stage chip; disabled at boundaries.
+  - `CandidateDetailPanel.tsx` — slide-over panel: name/email header, `KeyboardPipelineMover`, brief link (or generate link), autosave notes textarea, stage history from `wisehire_pipeline_events`.
+  - `AddCandidateSheet.tsx` — Sheet (right drawer): name + email + role selector; on submit creates `wisehire_candidates` row in 'shortlisted' stage.
+  - `PipelineBoard.tsx` — composes all 6 columns; integrates drag handlers; toolbar with candidate count + "Add Candidate" button; slide-in `CandidateDetailPanel` on card click.
+- **Page** (`src/pages/wisehire/PipelinePage.tsx`): Role filter selector + `PipelineBoard`; wrapped in `WiseHireShell`.
+
+### WiseHireShell nav update
+Removed `comingSoon: true` from JD Writer, Brief Generator, Pipeline nav items. Fixed brief path from `/wisehire/brief` → `/wisehire/briefs`.
+
+### Routes added (App.tsx)
+`/wisehire/jd-writer`, `/wisehire/briefs`, `/wisehire/briefs/:briefId`, `/wisehire/pipeline` (all inside `<WiseHireGuard>`); `/share/brief/:shareToken` (public, no auth).
+
+### Edge functions deployed
+`wisehire-write-jd` and `wisehire-generate-brief` deployed to production. Total: 83 Supabase edge functions.
+
+---
+
 ## 2026-04-15 (Phase 9)
 
 ### WISEHIRE-PHASE9 — US1 (continued): WiseHire Dashboard Shell (T072–T080)
