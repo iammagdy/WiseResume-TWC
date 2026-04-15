@@ -71,17 +71,17 @@
 **Goal**: Visitor can toggle between WiseResume and WiseHire landing views. Full theme switch < 400ms. URL updates. WiseHire mode shareable.  
 **Independent Test**: Click "For Companies" → full theme switch. Copy URL → reopens in WiseHire mode. All CTAs open waitlist modal (stub OK for now). Click "For Job Seekers" → returns to WiseResume.
 
-- [ ] T022 [US1] Add `--lp-brand` CSS variable switching to the existing `--lp-*` system — `#9E1B22` for WiseResume mode, `#1D4ED8` for WiseHire mode; add `data-lp-scheme="wisehire"` attribute toggle on root; transition duration 350ms
-- [ ] T023 [US1] Create `src/components/landing/LandingToggle.tsx` — above-nav sticky toggle with "For Job Seekers" and "For Companies" buttons; reads `?for=companies` URL param on mount; propagates `mode` state upward via callback or context; updates URL with `history.pushState`
-- [ ] T024 [P] [US1] Create `src/components/landing/wisehire/WiseHireHero.tsx` — headline "Hire Smarter. Screen Faster.", typewriter cycling through "Hiring Manager" / "Recruiter" / "HR Director" / "Head of People", "Join the Waitlist" CTA (opens `WaitlistModal`), "Log In" link
-- [ ] T025 [P] [US1] Create `src/components/landing/wisehire/WiseHireFeatures.tsx` — 5 pillars: Brief Generator, JD Writer, Pipeline Board, Bulk Screening, Talent Pool; follows existing `FeatureSection.tsx` pattern
-- [ ] T026 [P] [US1] Create `src/components/landing/wisehire/WiseHirePricing.tsx` — 4 tier cards (Starter $49/Professional $149/Business $399/Enterprise custom); "Early Access" badge on each; "Join the Waitlist" CTA; no payment button
-- [ ] T027 [P] [US1] Create animated demo components `src/components/landing/wisehire/BriefDemo.tsx`, `PipelineDemo.tsx`, `JDDemo.tsx` — static CSS/Framer Motion animations, no real data
-- [ ] T028 [P] [US1] Create `src/components/landing/wisehire/WiseHireDemoSection.tsx` — wraps the three demo components in a tabbed or side-by-side "see it in action" section
-- [ ] T029 [US1] Create `src/components/landing/WaitlistModal.tsx` — stub only (4-field form UI, no backend connection yet; shows a placeholder confirmation on submit)
-- [ ] T030 [US1] Update `src/pages/Index.tsx` — add mode state (`'wisehire' | 'jobseeker'`), render `<LandingToggle>`, conditionally render WiseResume vs WiseHire content sections based on mode, update `<meta>` OG tags on mode change, wire `data-lp-scheme` attribute
-- [ ] T031 [US1] Manual verification: full toggle flow < 400ms, URL updates, OG tags switch, both directions work, WaitlistModal opens on CTA click
-- [ ] T032 Update `project-governance/CHANGELOG.md` with US1 landing toggle entry
+- [x] T022 [US1] Add `--lp-brand` CSS variable switching to the existing `--lp-*` system — `#9E1B22` for WiseResume mode, `#1D4ED8` for WiseHire mode; add `data-lp-product="wisehire"` attribute toggle on root; transition duration 350ms
+- [x] T023 [US1] Create `src/components/landing/LandingToggle.tsx` — above-nav sticky toggle with "Job Seeker" and "Hiring / HR" buttons; reads `?for=companies` URL param on mount; propagates `mode` state upward via callback; updates URL with `history.pushState`
+- [x] T024 [P] [US1] Create `src/components/landing/wisehire/WiseHireHero.tsx` — headline "Hire Smarter. Screen Faster.", typewriter cycling through "Hiring Manager" / "Recruiter" / "HR Director" / "Head of People" / "Talent Partner", "Join the Waitlist" CTA (opens `WaitlistModal`), "Log In" link
+- [x] T025 [P] [US1] Create `src/components/landing/wisehire/WiseHireFeatures.tsx` — 5 pillars: Brief Generator, JD Writer, Pipeline Board, Bulk Screening, Talent Pool; follows existing feature card pattern
+- [x] T026 [P] [US1] Create `src/components/landing/wisehire/WiseHirePricing.tsx` — 4 tier cards (Starter $49/Professional $149/Business $399/Enterprise custom); "Early Access" badge on each; "Join the Waitlist" CTA; no payment button
+- [x] T027 [P] [US1] Create animated demo components `src/components/landing/wisehire/BriefDemo.tsx`, `PipelineDemo.tsx`, `JDDemo.tsx` — CSS/JS animations, no real data
+- [x] T028 [P] [US1] Create `src/components/landing/wisehire/WiseHireDemoSection.tsx` — wraps the three demo components in a tabbed "see it in action" section
+- [x] T029 [US1] Create `src/components/landing/WaitlistModal.tsx` — stub only (4-field form: email, name, company, company size; shows confirmation on submit; no backend call)
+- [x] T030 [US1] Update `src/pages/Index.tsx` — add mode state (`'wisehire' | 'jobseeker'`), render `<LandingToggle>` in header, conditionally render WiseResume vs WiseHire content sections based on mode, update `<meta>` OG tags and document title on mode change, wire `data-lp-product` attribute
+- [x] T031 [US1] Manual verification: toggle switches < 400ms, URL updates with `?for=companies`, OG tags/title switch, both directions work, WaitlistModal stub opens on CTA click, dark mode applies correct WiseHire blue scheme
+- [x] T032 Update `project-governance/CHANGELOG.md` with US1 landing toggle entry
 
 **Checkpoint**: Landing page toggle fully functional. WiseHire mode is visually complete with all sections. Waitlist modal opens but is a UI stub. No backend calls yet.
 

@@ -4,6 +4,23 @@ Local changelog tracking WiseResume changes.
 
 ## 2026-04-15
 
+### WISEHIRE-PHASE3 — US1: Landing Page Toggle + Full WiseHire Theme
+- **Summary**: The landing page now has a sticky "I'm a: Job Seeker / Hiring / HR" toggle strip at the top. Clicking "Hiring / HR" switches the entire landing to WiseHire mode: blue brand (`#1D4ED8`), "WiseHire" in the header, WiseHire hero, tabbed demo section, 5-pillar features, 4-tier pricing, and a 4-field waitlist modal (UI stub only — no backend call). URL updates to `?for=companies` so the link is shareable. Switching back restores WiseResume fully. Both light and dark themes work correctly in both modes.
+- **New files**:
+  - `src/components/landing/LandingToggle.tsx` — product switcher strip embedded in the header above the nav row
+  - `src/components/landing/WaitlistModal.tsx` — 4-field form (email, name, company, size) with placeholder confirmation; no backend call
+  - `src/components/landing/wisehire/WiseHireHero.tsx` — hero with typewriter (Hiring Manager / Recruiter / HR Director / Head of People / Talent Partner), "Join the Waitlist" CTA, "Log In" secondary CTA, trust badges
+  - `src/components/landing/wisehire/WiseHireFeatures.tsx` — 5 pillar cards (Brief Generator, JD Writer, Pipeline Board, Bulk Screening, Talent Pool) + CTA card
+  - `src/components/landing/wisehire/WiseHirePricing.tsx` — 4 tier pricing cards (Starter $49, Professional $149, Business $399, Enterprise custom) with Early Access badge
+  - `src/components/landing/wisehire/BriefDemo.tsx` — animated mock AI candidate brief with live score dial
+  - `src/components/landing/wisehire/PipelineDemo.tsx` — animated kanban pipeline board with auto-advancing cards
+  - `src/components/landing/wisehire/JDDemo.tsx` — streaming typewriter JD writer UI simulation
+  - `src/components/landing/wisehire/WiseHireDemoSection.tsx` — tabbed demo container (Brief Generator / Pipeline Board / JD Writer)
+- **Modified files**:
+  - `src/pages/Index.tsx` — mode state, `data-lp-product="wisehire"` attribute, WiseHire CSS variable overrides, `LandingToggle` in header, `WaitlistModal` rendered at root, OG meta tag + document title updates on mode change, hero paddingTop adjusted for toggle strip height
+- **Tasks completed**: T022–T032 ✅
+- **Spec reference**: `specs/001-wisehire-hr-platform/plan.md` Phase 3 / US1
+
 ### WISEHIRE-PHASE2 — US3: Account Type Visibility in Dev Kit
 - **Summary**: HR vs Job Seeker account types are now fully visible in the admin dev kit. All existing users show "Job Seeker" (emerald badge). HR Account badge (WiseHire blue #1D4ED8) will appear as soon as the first HR user signs up.
 - **Changes**:

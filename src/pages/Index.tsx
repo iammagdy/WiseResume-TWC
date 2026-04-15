@@ -20,6 +20,12 @@ import { useThemeLogo } from '@/hooks/useThemeLogo';
 import { FeatureTicker } from '@/components/landing/FeatureTicker';
 import { FeatureSection, type FeatureSectionData } from '@/components/landing/FeatureSection';
 import { TrustSection } from '@/components/landing/TrustSection';
+import { LandingToggle } from '@/components/landing/LandingToggle';
+import { WaitlistModal } from '@/components/landing/WaitlistModal';
+import { WiseHireHero } from '@/components/landing/wisehire/WiseHireHero';
+import { WiseHireFeatures } from '@/components/landing/wisehire/WiseHireFeatures';
+import { WiseHirePricing } from '@/components/landing/wisehire/WiseHirePricing';
+import { WiseHireDemoSection } from '@/components/landing/wisehire/WiseHireDemoSection';
 
 const features = [
   { icon: Sparkles, title: 'AI Resume Writing', desc: 'AI rewrites vague bullets into quantified achievements that recruiters remember.', colorDark: 'text-rose-400', colorLight: 'text-rose-600', bgDark: 'bg-rose-500/10', bgLight: 'bg-rose-100' },
@@ -278,6 +284,28 @@ const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [tailorOpen, setTailorOpen] = useState(false);
   const [ctaPulse, setCtaPulse] = useState(false);
+  const [mode, setMode] = useState<'jobseeker' | 'wisehire'>(() =>
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('for') === 'companies'
+      ? 'wisehire'
+      : 'jobseeker'
+  );
+  const [waitlistOpen, setWaitlistOpen] = useState(false);
+
+  useEffect(() => {
+    const isWH = mode === 'wisehire';
+    document.title = isWH ? 'WiseHire — Hire Smarter. Screen Faster.' : 'WiseResume — AI-Powered Career Platform';
+    const setMeta = (name: string, content: string) => {
+      let el = document.querySelector<HTMLMetaElement>(`meta[property="${name}"]`) ??
+               document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`);
+      if (!el) { el = document.createElement('meta'); el.setAttribute(name.startsWith('og:') ? 'property' : 'name', name); document.head.appendChild(el); }
+      el.setAttribute('content', content);
+    };
+    setMeta('og:title', isWH ? 'WiseHire — Hire Smarter. Screen Faster.' : 'WiseResume — AI-Powered Career Platform');
+    setMeta('og:description', isWH
+      ? 'AI-powered hiring platform. Brief Generator, JD Writer, Pipeline Board and more. Now in early access.'
+      : 'AI that builds, tailors, and lands your next job. ATS scoring, interview coaching, and more.');
+    setMeta('og:url', isWH ? `${window.location.origin}/?for=companies` : window.location.origin);
+  }, [mode]);
 
   const typewriterWord = useTypewriterWord(TYPEWRITER_WORDS);
   useScrollAnimation();
@@ -355,6 +383,7 @@ const Index = () => {
       className="lp-root min-h-screen"
       data-theme="landing"
       data-lp-scheme={isDark ? 'dark' : 'light'}
+      data-lp-product={mode === 'wisehire' ? 'wisehire' : undefined}
       style={{ colorScheme: isDark ? 'dark' : 'light' }}
     >
       <style>{`
@@ -587,19 +616,50 @@ const Index = () => {
           from { clip-path: circle(0% at var(--lp-ripple-x, 50%) var(--lp-ripple-y, 50%)); }
           to   { clip-path: circle(150% at var(--lp-ripple-x, 50%) var(--lp-ripple-y, 50%)); }
         }
+
+        /* ── WISEHIRE PRODUCT OVERRIDES ─────────────────────────── */
+        /* Applied when data-lp-product="wisehire" — switches brand colour to WiseHire blue */
+        .lp-root[data-lp-product="wisehire"] {
+          --lp-brand: #1D4ED8;
+          --lp-hero-glow: rgba(29,78,216,0.20);
+          --lp-eyebrow: #3B82F6;
+          --lp-trust-icon: rgba(29,78,216,0.75);
+          --lp-brand-pill-bg: rgba(29,78,216,0.10);
+          --lp-brand-pill-border: rgba(29,78,216,0.28);
+          --lp-brand-pill-glow: rgba(29,78,216,0.15);
+          transition: all 0.35s ease;
+        }
+        .lp-root[data-lp-product="wisehire"][data-lp-scheme="light"] {
+          --lp-bg: rgba(240,245,255,0.62);
+          --lp-section-alt: #eef2fb;
+          --lp-section-alt2: #e8eef8;
+          --lp-header-scrolled-bg: rgba(240,245,255,0.94);
+          --lp-header-scrolled-border: rgba(29,78,216,0.12);
+          --lp-nav-bg: rgba(240,245,255,0.96);
+          --lp-nav-border: rgba(29,78,216,0.1);
+          --lp-hero-glow: rgba(29,78,216,0.10);
+          --lp-trust-color: rgba(15,15,26,0.4);
+          --lp-trust-icon: rgba(29,78,216,0.80);
+          --lp-brand-pill-bg: rgba(29,78,216,0.07);
+          --lp-brand-pill-border: rgba(29,78,216,0.22);
+        }
+        /* Separator variant for WiseHire */
+        .lp-root[data-lp-product="wisehire"] .lp-separator {
+          background: linear-gradient(90deg, transparent 0%, rgba(29,78,216,0.3) 30%, rgba(29,78,216,0.5) 50%, rgba(29,78,216,0.3) 70%, transparent 100%);
+        }
       `}</style>
 
       <a
         href="#landing-main"
         className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:p-4 focus:rounded-md focus:m-2"
-        style={{ background: '#9E1B22', color: '#fff' }}
+        style={{ background: 'var(--lp-brand)', color: '#fff' }}
       >
         Skip to content
       </a>
 
       {/* Progress bar */}
       <div className="fixed top-0 left-0 right-0 h-[2px] z-[60] pointer-events-none" style={{ display: 'none' }}>
-        <div ref={progressRef} className="h-full transition-[width] duration-75 ease-out" style={{ background: '#9E1B22' }} />
+        <div ref={progressRef} className="h-full transition-[width] duration-75 ease-out" style={{ background: 'var(--lp-brand)' }} />
       </div>
 
       {/* Sticky Header */}
@@ -607,14 +667,34 @@ const Index = () => {
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'lp-header-scrolled' : 'bg-transparent'}`}
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
+        {/* Product toggle strip — always visible, sits above the nav row */}
+        <LandingToggle mode={mode} onModeChange={(m) => {
+          triggerHaptic.light();
+          setMode(m);
+        }} />
+
         <div className="flex items-center justify-between px-4 sm:px-6 h-14 max-w-6xl mx-auto">
           <button
             onClick={() => { triggerHaptic.light(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
             className="flex items-center gap-2.5 touch-manipulation"
-            aria-label="WiseResume – scroll to top"
+            aria-label={mode === 'wisehire' ? 'WiseHire – scroll to top' : 'WiseResume – scroll to top'}
           >
-            <img alt="WiseResume" loading="lazy" className="w-10 h-10 object-contain rounded-xl" src={themeLogo} />
-            <span className="font-display font-extrabold text-base tracking-tight" style={{ color: 'var(--lp-logo-text)' }}>WiseResume</span>
+            <img
+              alt={mode === 'wisehire' ? 'WiseHire' : 'WiseResume'}
+              loading="lazy"
+              className="w-10 h-10 object-contain rounded-xl"
+              src={themeLogo}
+              style={{
+                filter: mode === 'wisehire' ? 'hue-rotate(180deg) saturate(1.5) brightness(1.1)' : undefined,
+                transition: 'filter 0.35s ease',
+              }}
+            />
+            <span
+              className="font-display font-extrabold text-base tracking-tight"
+              style={{ color: 'var(--lp-logo-text)', transition: 'color 0.35s ease' }}
+            >
+              {mode === 'wisehire' ? 'WiseHire' : 'WiseResume'}
+            </span>
           </button>
 
           <div className="flex items-center gap-2">
@@ -722,13 +802,29 @@ const Index = () => {
       </header>
 
       <main id="landing-main" className="w-full">
+        {mode === 'wisehire' ? (
+          /* ═══════════════════════════════════════════════════════
+             WISEHIRE MODE — full WiseHire landing experience
+          ═══════════════════════════════════════════════════════ */
+          <>
+            <WiseHireHero onOpenWaitlist={() => setWaitlistOpen(true)} />
+            <WiseHireDemoSection />
+            <WiseHireFeatures onOpenWaitlist={() => setWaitlistOpen(true)} />
+            <WiseHirePricing onOpenWaitlist={() => setWaitlistOpen(true)} />
+            <Footer lpMode />
+          </>
+        ) : (
+          /* ═══════════════════════════════════════════════════════
+             WISERESUEME MODE — existing WiseResume landing
+          ═══════════════════════════════════════════════════════ */
+          <>
         {/* ─── HERO ─── */}
         <section
           ref={heroRef}
           className="relative flex flex-col items-center text-center px-4 sm:px-6 overflow-hidden"
           style={{
             background: 'var(--lp-bg)',
-            paddingTop: 'calc(5.5rem + env(safe-area-inset-top))',
+            paddingTop: 'calc(7.75rem + env(safe-area-inset-top))',
             paddingBottom: '4rem',
           }}
         >
@@ -934,8 +1030,12 @@ const Index = () => {
         </section>
 
         <Footer lpMode />
+          </>
+        )}
       </main>
 
+      {/* Waitlist modal — shown when any WiseHire CTA is clicked */}
+      <WaitlistModal open={waitlistOpen} onClose={() => setWaitlistOpen(false)} />
 
       {/* Quick tailor sheet */}
       {isAuthenticated && (
