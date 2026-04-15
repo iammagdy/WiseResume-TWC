@@ -438,14 +438,16 @@ Deno.serve(async (req: Request) => {
   const clientIp =
     (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() ||
     req.headers.get('x-real-ip') ||
-    'unknown';
+    null;
 
-  const ipLimit = await checkIpRateLimit(clientIp, 'og-image', 60, 60);
-  if (!ipLimit.allowed) {
-    return new Response('Too Many Requests', {
-      status: 429,
-      headers: { ...corsHeaders, 'Retry-After': String(ipLimit.retryAfterSeconds) },
-    });
+  if (clientIp) {
+    const ipLimit = await checkIpRateLimit(clientIp, 'og-image', 60, 60);
+    if (!ipLimit.allowed) {
+      return new Response('Too Many Requests', {
+        status: 429,
+        headers: { ...corsHeaders, 'Retry-After': String(ipLimit.retryAfterSeconds) },
+      });
+    }
   }
 
   try {

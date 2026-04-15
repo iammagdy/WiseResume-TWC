@@ -20,18 +20,20 @@ serve(async (req) => {
   const clientIp =
     (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() ||
     req.headers.get("x-real-ip") ||
-    "unknown";
+    null;
 
-  const ipLimit = await checkIpRateLimit(clientIp, "track-portfolio-view", 30, 60);
-  if (!ipLimit.allowed) {
-    return new Response(JSON.stringify({ error: "Too Many Requests" }), {
-      status: 429,
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json",
-        "Retry-After": String(ipLimit.retryAfterSeconds),
-      },
-    });
+  if (clientIp) {
+    const ipLimit = await checkIpRateLimit(clientIp, "track-portfolio-view", 30, 60);
+    if (!ipLimit.allowed) {
+      return new Response(JSON.stringify({ error: "Too Many Requests" }), {
+        status: 429,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+          "Retry-After": String(ipLimit.retryAfterSeconds),
+        },
+      });
+    }
   }
 
   try {
