@@ -208,7 +208,35 @@ Deno.serve(async (req) => {
       return json({ success: false, error: 'invalid_early_access_code' }, 400, corsHeaders);
     }
 
-    // Set account_type = 'hr'
+    // ── Step 1: Atomic coupon increment (guards against concurrent over-redemption) ──
+    // Only increment if uses_count has not been bumped past max_uses by a concurrent request.
+    const maxUses = coupon.max_uses as number;
+    const currentUses = coupon.uses_count as number;
+    let couponIncrementQuery = serviceClient
+      .from('discount_codes')
+      .update({ uses_count: currentUses + 1 })
+      .eq('id', coupon.id as string);
+
+    // Add the concurrency guard only when there is a hard limit
+    if (maxUses > 0) {
+      couponIncrementQuery = couponIncrementQuery.lt('uses_count', maxUses);
+    }
+
+    const { data: incrementedRows, error: incrementErr } = await couponIncrementQuery
+      .select('id')
+      .returns<{ id: string }[]>();
+
+    if (incrementErr) {
+      console.error('[wisehire-complete-signup] EA coupon increment error:', incrementErr.message);
+      return json({ success: false, error: 'server_error' }, 500, corsHeaders);
+    }
+
+    // If no row was updated under a limited code, another request beat us to the last slot
+    if (maxUses > 0 && (!incrementedRows || incrementedRows.length === 0)) {
+      return json({ success: false, error: 'early_access_code_exhausted' }, 409, corsHeaders);
+    }
+
+    // ── Step 2: Set account_type = 'hr' ──
     const profileUpdatesEA: Record<string, unknown> = { account_type: 'hr' };
     if (full_name?.trim()) profileUpdatesEA.full_name = full_name.trim();
 
@@ -219,58 +247,62 @@ Deno.serve(async (req) => {
 
     if (profileEAErr) {
       console.error('[wisehire-complete-signup] EA profile update failed:', profileEAErr.message);
+      // Roll back coupon increment to keep state consistent
+      await serviceClient
+        .from('discount_codes')
+        .update({ uses_count: currentUses })
+        .eq('id', coupon.id as string);
       return json({ success: false, error: 'profile_update_failed' }, 500, corsHeaders);
     }
 
-    // Create wisehire_companies row
-    try {
-      const companyName = company_name?.trim() || 'My Company';
-      await serviceClient
-        .from('wisehire_companies')
-        .upsert(
-          { owner_id: userId, name: companyName, size: company_size?.trim() ?? '1-10', onboarding_completed: false },
-          { onConflict: 'owner_id', ignoreDuplicates: true },
-        );
-    } catch (ex) {
-      console.warn('[wisehire-complete-signup] EA company upsert exception:', ex);
+    // ── Step 3: Create wisehire_companies row (required) ──
+    const companyName = company_name?.trim() || 'My Company';
+    const { error: companyErr } = await serviceClient
+      .from('wisehire_companies')
+      .upsert(
+        { owner_id: userId, name: companyName, size: company_size?.trim() ?? '1-10', onboarding_completed: false },
+        { onConflict: 'owner_id', ignoreDuplicates: true },
+      );
+
+    if (companyErr) {
+      console.error('[wisehire-complete-signup] EA company upsert failed:', companyErr.message);
+      // Roll back profile and coupon
+      await serviceClient.from('profiles').update({ account_type: 'jobseeker' }).eq('user_id', userId);
+      await serviceClient.from('discount_codes').update({ uses_count: currentUses }).eq('id', coupon.id as string);
+      return json({ success: false, error: 'company_setup_failed' }, 500, corsHeaders);
     }
 
-    // Apply coupon plan to subscription (this IS the plan grant — no separate 7-day trial)
-    try {
-      const now = new Date().toISOString();
-      const planDays = (coupon.plan_days as number | null) ?? 7;
-      const planEnd = new Date(Date.now() + planDays * 24 * 60 * 60 * 1000).toISOString();
+    // ── Step 4: Apply coupon plan to subscription (required) ──
+    const now = new Date().toISOString();
+    const planDays = (coupon.plan_days as number | null) ?? 7;
+    const planEnd = new Date(Date.now() + planDays * 24 * 60 * 60 * 1000).toISOString();
 
-      await serviceClient
-        .from('subscriptions')
-        .upsert(
-          {
-            user_id: userId,
-            plan_name: planOverride,
-            trial_plan: planOverride,
-            trial_expires_at: planEnd,
-            status: 'active',
-            current_period_start: now,
-            current_period_end: planEnd,
-            coupon_code: upperCode,
-          },
-          { onConflict: 'user_id', ignoreDuplicates: false },
-        );
-    } catch (ex) {
-      console.warn('[wisehire-complete-signup] EA subscription upsert exception:', ex);
+    const { error: subErr } = await serviceClient
+      .from('subscriptions')
+      .upsert(
+        {
+          user_id: userId,
+          plan_name: planOverride,
+          trial_plan: planOverride,
+          trial_expires_at: planEnd,
+          status: 'active',
+          current_period_start: now,
+          current_period_end: planEnd,
+          coupon_code: upperCode,
+        },
+        { onConflict: 'user_id', ignoreDuplicates: false },
+      );
+
+    if (subErr) {
+      console.error('[wisehire-complete-signup] EA subscription upsert failed:', subErr.message);
+      // Roll back profile, company, and coupon
+      await serviceClient.from('profiles').update({ account_type: 'jobseeker' }).eq('user_id', userId);
+      await serviceClient.from('wisehire_companies').delete().eq('owner_id', userId);
+      await serviceClient.from('discount_codes').update({ uses_count: currentUses }).eq('id', coupon.id as string);
+      return json({ success: false, error: 'plan_activation_failed' }, 500, corsHeaders);
     }
 
-    // Increment uses_count on the coupon
-    try {
-      await serviceClient
-        .from('discount_codes')
-        .update({ uses_count: (coupon.uses_count as number) + 1 })
-        .eq('id', coupon.id as string);
-    } catch (ex) {
-      console.warn('[wisehire-complete-signup] EA coupon increment exception:', ex);
-    }
-
-    // Audit log
+    // ── Audit log (non-fatal) ──
     try {
       await serviceClient.from('audit_logs').insert({
         user_id: userId,
@@ -279,7 +311,8 @@ Deno.serve(async (req) => {
         metadata: {
           early_access_code: upperCode,
           plan_override: planOverride,
-          company_name: company_name ?? null,
+          plan_days: planDays,
+          company_name: companyName,
           completed_at: new Date().toISOString(),
         },
       });

@@ -113,7 +113,10 @@ export default function WiseHireEarlyAccessPage() {
         const errMap: Record<string, string> = {
           invalid_early_access_code: 'Your early access code is not valid.',
           early_access_code_expired: 'Your early access code has expired.',
-          early_access_code_exhausted: 'This early access code has already reached its maximum uses.',
+          early_access_code_exhausted: 'This early access code has reached its maximum uses. Please contact support.',
+          company_setup_failed: 'Could not set up your company profile. Please try again or contact support.',
+          plan_activation_failed: 'Could not activate your plan. Please try again or contact support.',
+          profile_update_failed: 'Could not update your account. Please try again or contact support.',
         };
         setCompletionError(
           errMap[result.error] ?? 'Something went wrong completing your sign-up. Please try again or contact support.',
