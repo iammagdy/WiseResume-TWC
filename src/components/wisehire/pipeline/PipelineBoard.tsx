@@ -7,7 +7,10 @@ import { createDragHandlers, DragState } from '@/lib/wisehire/pipelineDragDrop';
 import { usePipeline, PIPELINE_STAGES } from '@/hooks/wisehire/usePipeline';
 import type { PipelineCandidate, PipelineStage } from '@/hooks/wisehire/usePipeline';
 import { Button } from '@/components/ui/button';
-import { Download, UserPlus } from 'lucide-react';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import { Download, UserPlus, CheckSquare, X, ChevronDown } from 'lucide-react';
 
 interface PipelineBoardProps {
   roleId?: string;
@@ -48,6 +51,10 @@ export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: Pip
   const [showAddSheet, setShowAddSheet] = useState(false);
   const dragState = useRef<DragState>({ candidateId: null, fromStage: null });
 
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkTargetStage, setBulkTargetStage] = useState<string>('');
+
   const stageMap = Object.fromEntries(PIPELINE_STAGES.map((s) => [s.id, [] as PipelineCandidate[]]));
   for (const c of candidates) {
     const stage = c.pipeline_stage in stageMap ? c.pipeline_stage : 'shortlisted';
@@ -55,6 +62,7 @@ export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: Pip
   }
 
   const dragHandlers = createDragHandlers(dragState, (candidateId, toStage) => {
+    if (selectionMode) return;
     const candidate = candidates.find((c) => c.id === candidateId);
     if (!candidate) return;
     updatePipelineStage.mutate({
@@ -74,34 +82,145 @@ export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: Pip
     }
   }
 
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function selectAll() {
+    setSelectedIds(new Set(candidates.map((c) => c.id)));
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+  }
+
+  function exitSelectionMode() {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+    setBulkTargetStage('');
+  }
+
+  function handleBulkMove() {
+    if (!bulkTargetStage || selectedIds.size === 0) return;
+    for (const id of selectedIds) {
+      const candidate = candidates.find((c) => c.id === id);
+      if (!candidate || candidate.pipeline_stage === bulkTargetStage) continue;
+      updatePipelineStage.mutate({
+        candidateId: id,
+        toStage: bulkTargetStage as PipelineStage,
+        fromStage: candidate.pipeline_stage,
+      });
+    }
+    exitSelectionMode();
+  }
+
+  function handleBulkReject() {
+    for (const id of selectedIds) {
+      const candidate = candidates.find((c) => c.id === id);
+      if (!candidate || candidate.pipeline_stage === 'rejected') continue;
+      updatePipelineStage.mutate({
+        candidateId: id,
+        toStage: 'rejected',
+        fromStage: candidate.pipeline_stage,
+      });
+    }
+    exitSelectionMode();
+  }
+
   if (isLoading) return <PipelineSkeleton />;
 
   return (
     <div className="flex flex-col gap-4 h-full">
       {/* Toolbar */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          {candidates.length} candidate{candidates.length !== 1 ? 's' : ''}
-        </p>
-        <div className="flex items-center gap-2">
-          {candidates.length > 0 && (
-            <Button
-              variant="outline"
-              onClick={() => exportPipelineCSV(candidates)}
-              className="h-8 text-xs font-semibold gap-1.5"
-            >
-              <Download className="h-3.5 w-3.5" />
-              Export CSV
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        {selectionMode ? (
+          <div className="flex items-center gap-2 flex-wrap flex-1">
+            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              {selectedIds.size} selected
+            </span>
+            <Button variant="ghost" size="sm" onClick={selectAll} className="h-8 text-xs">
+              Select all ({candidates.length})
             </Button>
-          )}
-          <Button
-            onClick={() => setShowAddSheet(true)}
-            className="bg-blue-700 hover:bg-blue-800 text-white h-8 text-xs font-semibold"
-          >
-            <UserPlus className="h-3.5 w-3.5 mr-1.5" />
-            Add Candidate
-          </Button>
-        </div>
+            {selectedIds.size > 0 && (
+              <Button variant="ghost" size="sm" onClick={clearSelection} className="h-8 text-xs">
+                Clear
+              </Button>
+            )}
+            <div className="flex items-center gap-1.5 ml-auto">
+              <Select value={bulkTargetStage} onValueChange={setBulkTargetStage}>
+                <SelectTrigger className="h-8 text-xs w-36 gap-1">
+                  <ChevronDown className="h-3 w-3" />
+                  <SelectValue placeholder="Move to…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PIPELINE_STAGES.filter((s) => s.id !== 'rejected').map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                className="h-8 text-xs bg-blue-700 hover:bg-blue-800 text-white"
+                disabled={!bulkTargetStage || selectedIds.size === 0 || updatePipelineStage.isPending}
+                onClick={handleBulkMove}
+              >
+                Move
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                disabled={selectedIds.size === 0 || updatePipelineStage.isPending}
+                onClick={handleBulkReject}
+              >
+                Reject
+              </Button>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={exitSelectionMode}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {candidates.length} candidate{candidates.length !== 1 ? 's' : ''}
+            </p>
+            <div className="flex items-center gap-2">
+              {candidates.length > 1 && (
+                <Button
+                  variant="outline"
+                  onClick={() => { setSelectionMode(true); setSelectedCandidate(null); }}
+                  className="h-8 text-xs font-semibold gap-1.5"
+                >
+                  <CheckSquare className="h-3.5 w-3.5" />
+                  Select
+                </Button>
+              )}
+              {candidates.length > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={() => exportPipelineCSV(candidates)}
+                  className="h-8 text-xs font-semibold gap-1.5"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Export CSV
+                </Button>
+              )}
+              <Button
+                onClick={() => setShowAddSheet(true)}
+                className="bg-blue-700 hover:bg-blue-800 text-white h-8 text-xs font-semibold"
+              >
+                <UserPlus className="h-3.5 w-3.5 mr-1.5" />
+                Add Candidate
+              </Button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Board + detail panel */}
@@ -112,15 +231,20 @@ export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: Pip
               key={stage.id}
               stage={stage}
               candidates={stageMap[stage.id] ?? []}
-              onCandidateClick={(c) => setSelectedCandidate(c.id === selectedCandidate?.id ? null : c)}
+              onCandidateClick={(c) => {
+                if (selectionMode) return;
+                setSelectedCandidate(c.id === selectedCandidate?.id ? null : c);
+              }}
               dragHandlers={dragHandlers}
               biasMode={biasMode}
+              selectionMode={selectionMode}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelect}
             />
           ))}
         </div>
 
-        {/* Slide-in detail panel */}
-        {selectedCandidate && (
+        {!selectionMode && selectedCandidate && (
           <CandidateDetailPanel
             candidate={selectedCandidate}
             onClose={() => setSelectedCandidate(null)}

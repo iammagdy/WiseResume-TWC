@@ -1,17 +1,19 @@
 import { WiseHireShell } from '@/components/wisehire/WiseHireShell';
 import { HRAnalyticsSkeleton } from '@/components/wisehire/analytics/AnalyticsSkeleton';
 import { useHRAnalytics } from '@/hooks/wisehire/useHRAnalytics';
-import { BarChart2, Users, Zap, Clock, Star, Eye, Briefcase, FileText } from 'lucide-react';
+import { BarChart2, Users, Zap, Clock, Star, Eye, Briefcase, FileText, TrendingDown, Database } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const STAGE_COLORS: Record<string, string> = {
   shortlisted: '#3b82f6',
-  screening: '#8b5cf6',
-  interview: '#f59e0b',
-  offer: '#10b981',
+  contacted: '#8b5cf6',
+  interviewing: '#f59e0b',
+  offer_sent: '#f97316',
   hired: '#22c55e',
   rejected: '#ef4444',
 };
+
+const SOURCE_COLORS = ['#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#f97316', '#ec4899'];
 
 function StatCard({
   label,
@@ -46,18 +48,32 @@ function StatCard({
   );
 }
 
-function BarRow({ label, value, max, color }: { label: string; value: number; max: number; color?: string }) {
+function BarRow({
+  label,
+  value,
+  max,
+  color,
+  suffix = '',
+}: {
+  label: string;
+  value: number;
+  max: number;
+  color?: string;
+  suffix?: string;
+}) {
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;
   return (
     <div className="flex items-center gap-3">
-      <p className="text-xs text-slate-600 dark:text-slate-400 w-24 shrink-0 capitalize">{label}</p>
+      <p className="text-xs text-slate-600 dark:text-slate-400 w-28 shrink-0 truncate capitalize">{label}</p>
       <div className="flex-1 bg-slate-100 dark:bg-slate-800 rounded-full h-2 overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-700"
           style={{ width: `${pct}%`, backgroundColor: color ?? '#3b82f6' }}
         />
       </div>
-      <span className="text-xs font-medium text-slate-700 dark:text-slate-300 w-6 text-right">{value}</span>
+      <span className="text-xs font-medium text-slate-700 dark:text-slate-300 w-12 text-right shrink-0">
+        {value}{suffix}
+      </span>
     </div>
   );
 }
@@ -82,13 +98,46 @@ function MiniBarChart({ data }: { data: { month: string; count: number }[] }) {
   );
 }
 
+function FunnelChart({ data }: { data: { stage: string; label: string; count: number; pct: number }[] }) {
+  if (data.every((d) => d.count === 0)) {
+    return <p className="text-xs text-slate-400 py-4">No pipeline data yet.</p>;
+  }
+  return (
+    <div className="space-y-2">
+      {data.map((entry, i) => (
+        <div key={entry.stage} className="space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">{entry.label}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{entry.count}</span>
+              {i > 0 && (
+                <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-full">
+                  {entry.pct}%
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-700"
+              style={{
+                width: `${entry.pct}%`,
+                backgroundColor: i === 0 ? '#3b82f6' : i === 1 ? '#8b5cf6' : i === 2 ? '#f59e0b' : i === 3 ? '#f97316' : '#22c55e',
+              }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function WiseHireAnalyticsPage() {
   const { data, isLoading, error } = useHRAnalytics();
 
   return (
     <WiseHireShell>
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
-        {/* Header */}
         <div>
           <div className="flex items-center gap-2 mb-1">
             <BarChart2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -105,26 +154,15 @@ export default function WiseHireAnalyticsPage() {
           <div className="py-12 text-center text-sm text-slate-500">Failed to load analytics. Please refresh.</div>
         ) : data ? (
           <>
-            {/* Stat cards */}
+            {/* Stat cards row 1 */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard label="Total candidates" value={data.totalCandidates} icon={Users} color="blue" />
               <StatCard label="Resumes screened" value={data.totalScreened} icon={Zap} color="purple" />
-              <StatCard
-                label="Avg match score"
-                value={data.avgMatchScore}
-                icon={Star}
-                suffix="%"
-                color="amber"
-              />
-              <StatCard
-                label="Avg time to hire"
-                value={data.avgTimeToHire}
-                icon={Clock}
-                suffix=" days"
-                color="emerald"
-              />
+              <StatCard label="Avg match score" value={data.avgMatchScore} icon={Star} suffix="%" color="amber" />
+              <StatCard label="Avg time to hire" value={data.avgTimeToHire} icon={Clock} suffix=" days" color="emerald" />
             </div>
 
+            {/* Stat cards row 2 */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard label="Active roles" value={data.activeRoles} icon={Briefcase} color="blue" />
               <StatCard label="Briefs generated" value={data.briefsGenerated} icon={FileText} color="purple" />
@@ -137,9 +175,8 @@ export default function WiseHireAnalyticsPage() {
               />
             </div>
 
-            {/* Charts row */}
+            {/* Charts row: stage distribution + over time */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Candidates by stage */}
               <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
                 <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-4">Candidates by stage</h2>
                 {data.candidatesByStage.length === 0 ? (
@@ -151,7 +188,7 @@ export default function WiseHireAnalyticsPage() {
                       .map((s) => (
                         <BarRow
                           key={s.stage}
-                          label={s.stage}
+                          label={s.stage.replace('_', ' ')}
                           value={s.count}
                           max={data.totalCandidates}
                           color={STAGE_COLORS[s.stage]}
@@ -161,7 +198,6 @@ export default function WiseHireAnalyticsPage() {
                 )}
               </div>
 
-              {/* Candidates over time */}
               <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
                 <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-4">
                   New candidates over time
@@ -170,25 +206,87 @@ export default function WiseHireAnalyticsPage() {
               </div>
             </div>
 
-            {/* Top skills */}
-            {data.topSkills.length > 0 && (
+            {/* Conversion funnel + Source breakdown */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
-                <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-4">
-                  Top skills in your applicant pool
-                </h2>
-                <div className="space-y-2.5">
-                  {data.topSkills.map((s) => (
-                    <BarRow
-                      key={s.skill}
-                      label={s.skill}
-                      value={s.count}
-                      max={data.topSkills[0].count}
-                      color="#8b5cf6"
-                    />
-                  ))}
+                <div className="flex items-center gap-2 mb-4">
+                  <TrendingDown className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+                  <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Hiring funnel</h2>
                 </div>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 mb-3">
+                  Percentage of shortlisted candidates that reached each stage.
+                </p>
+                <FunnelChart data={data.stageFunnel} />
               </div>
-            )}
+
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Database className="h-4 w-4 text-purple-500 dark:text-purple-400" />
+                  <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Candidate sources</h2>
+                </div>
+                {data.sourceBreakdown.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-4">No data yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {data.sourceBreakdown.map((s, i) => (
+                      <BarRow
+                        key={s.source}
+                        label={s.source}
+                        value={s.count}
+                        max={data.sourceBreakdown[0].count}
+                        color={SOURCE_COLORS[i % SOURCE_COLORS.length]}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Avg days per stage + top skills */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {data.avgDaysPerStage.length > 0 && (
+                <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Clock className="h-4 w-4 text-amber-500 dark:text-amber-400" />
+                    <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Avg days per stage</h2>
+                  </div>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 mb-3">
+                    How long candidates typically stay in each stage before moving.
+                  </p>
+                  <div className="space-y-3">
+                    {data.avgDaysPerStage.map((s) => (
+                      <BarRow
+                        key={s.stage}
+                        label={s.label}
+                        value={s.avgDays}
+                        max={Math.max(...data.avgDaysPerStage.map((d) => d.avgDays), 1)}
+                        color={STAGE_COLORS[s.stage] ?? '#3b82f6'}
+                        suffix=" d"
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {data.topSkills.length > 0 && (
+                <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
+                  <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-4">
+                    Top skills in your applicant pool
+                  </h2>
+                  <div className="space-y-2.5">
+                    {data.topSkills.map((s) => (
+                      <BarRow
+                        key={s.skill}
+                        label={s.skill}
+                        value={s.count}
+                        max={data.topSkills[0].count}
+                        color="#8b5cf6"
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {data.totalCandidates === 0 && (
               <div className="text-center py-10 text-slate-400 text-sm">

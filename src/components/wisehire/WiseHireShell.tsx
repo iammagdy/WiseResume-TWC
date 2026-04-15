@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   Building2,
   ClipboardList,
+  Briefcase,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/use-theme';
@@ -38,6 +39,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', path: '/wisehire/dashboard', icon: Home },
   { label: 'JD Writer', path: '/wisehire/jd-writer', icon: FileText },
   { label: 'Brief Generator', path: '/wisehire/briefs', icon: Sparkles },
+  { label: 'Roles', path: '/wisehire/roles', icon: Briefcase },
   { label: 'Pipeline', path: '/wisehire/pipeline', icon: BarChart2 },
   { label: 'Bulk Screen', path: '/wisehire/bulk-screen', icon: FileSearch },
   { label: 'SC Templates', path: '/wisehire/scorecard-templates', icon: ClipboardList },
