@@ -63,7 +63,17 @@ export default function CandidateMaskingPage() {
     if (!results) return;
     const zip = new JSZip();
     results.forEach((r) => {
-      zip.file(`${r.label.replace(' ', '_')}_masked.txt`, r.maskedText);
+      const highlighted = r.maskedText.replace(/\[([^\]]+)\]/g, (_: string, label: string) =>
+        `<mark style="background:#fef08a;color:#713f12;border-radius:3px;padding:0 3px;font-family:monospace;font-size:.82em;font-weight:700;border:1px solid #fde047">[${label}]</mark>`
+      );
+      const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${r.label} – Anonymised CV</title>` +
+        `<style>body{font-family:Georgia,serif;max-width:750px;margin:40px auto;padding:0 24px;color:#1a202c;line-height:1.75;background:#fff}` +
+        `h1{color:#1e40af;font-size:1.25rem}hr{border:none;border-top:1px solid #e2e8f0;margin:20px 0}` +
+        `.cv-body{font-size:.9rem;line-height:1.8;color:#374151}.footer{margin-top:40px;font-size:.72rem;color:#94a3b8;text-align:center;border-top:1px solid #e2e8f0;padding-top:16px}</style></head>` +
+        `<body><h1>${r.label}</h1><p style="font-size:.8rem;color:#64748b">Source: ${r.filename} · WiseHire CV Masking</p><hr>` +
+        `<div class="cv-body">${highlighted.replace(/\n/g, '<br>')}</div>` +
+        `<div class="footer">Anonymised for bias-free candidate review.</div></body></html>`;
+      zip.file(`${r.label.replace(' ', '_')}_masked.html`, html);
     });
     const blob = await zip.generateAsync({ type: 'blob' });
     const url = URL.createObjectURL(blob);

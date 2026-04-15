@@ -16,6 +16,7 @@ import {
   TrendingUp,
   Globe,
   ShieldCheck,
+  Building2,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/use-theme';
@@ -40,6 +41,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Bulk Screen', path: '/wisehire/bulk-screen', icon: FileSearch },
   { label: 'CV Masking', path: '/wisehire/mask-cvs', icon: ShieldCheck },
   { label: 'Talent Pool', path: '/wisehire/talent-pool', icon: Users },
+  { label: 'Clients', path: '/wisehire/clients', icon: Building2 },
   { label: 'Analytics', path: '/wisehire/analytics', icon: TrendingUp },
   { label: 'Settings', path: '/wisehire/settings', icon: Settings },
   { label: 'Subscription', path: '/wisehire/subscription', icon: CreditCard },

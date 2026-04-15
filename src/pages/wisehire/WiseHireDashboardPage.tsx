@@ -7,6 +7,8 @@ import { WiseHireShell } from '@/components/wisehire/WiseHireShell';
 import { DashboardStats } from '@/components/wisehire/dashboard/DashboardStats';
 import { RecentBriefs } from '@/components/wisehire/dashboard/RecentBriefs';
 import { QuickActions } from '@/components/wisehire/dashboard/QuickActions';
+import { PipelineBreakdown } from '@/components/wisehire/dashboard/PipelineBreakdown';
+import { RecentActivity } from '@/components/wisehire/dashboard/RecentActivity';
 
 const NUDGE_DISMISSED_KEY = 'wh_onboarding_nudge_dismissed';
 
@@ -71,6 +73,12 @@ export default function WiseHireDashboardPage() {
 
         {/* Stats */}
         <DashboardStats />
+
+        {/* Pipeline breakdown + recent activity */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <PipelineBreakdown />
+          <RecentActivity />
+        </div>
 
         {/* Quick actions */}
         <QuickActions />
