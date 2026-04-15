@@ -85,8 +85,14 @@ BEGIN
   ON CONFLICT (owner_id) DO NOTHING;
 
   -- ── 5. Upsert subscription ────────────────────────────────────────
-  v_plan_days := COALESCE(v_coupon.plan_days, 7);
-  v_plan_end  := p_now + (v_plan_days || ' days')::INTERVAL;
+  -- plan_days = NULL means no fixed duration (perpetual / admin-managed).
+  -- Leave trial_expires_at and current_period_end as NULL in that case.
+  v_plan_days := v_coupon.plan_days;
+  v_plan_end  := CASE
+                   WHEN v_plan_days IS NOT NULL
+                   THEN p_now + (v_plan_days || ' days')::INTERVAL
+                   ELSE NULL
+                 END;
 
   INSERT INTO subscriptions (
     user_id, plan_name, trial_plan, trial_expires_at, status,
