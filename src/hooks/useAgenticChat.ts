@@ -365,12 +365,41 @@ export function useAgenticChat(contextFilter?: string) {
 
       // Handle delete action
       if (proposal.action === 'delete' && proposal.section === 'experience') {
-        const identifier = (proposal.itemId || proposal.original).toLowerCase();
-        const filtered = currentResume.experience.filter(
-          (exp) =>
-            !exp.company.toLowerCase().includes(identifier) &&
-            !exp.position.toLowerCase().includes(identifier)
-        );
+        const identifier = (proposal.itemId || '').toLowerCase();
+        let filtered = currentResume.experience;
+
+        // 1. Try exact UUID match on exp.id (when itemId is an internal ID)
+        if (identifier) {
+          const byId = currentResume.experience.filter((exp) => exp.id !== identifier);
+          if (byId.length < currentResume.experience.length) {
+            updateResume({ experience: byId });
+            haptics.success();
+            return;
+          }
+        }
+
+        // 2. Fall back to company/position text match
+        if (identifier) {
+          filtered = currentResume.experience.filter(
+            (exp) =>
+              !exp.company.toLowerCase().includes(identifier) &&
+              !exp.position.toLowerCase().includes(identifier)
+          );
+        } else {
+          // No identifier — try matching against original text if it's not JSON
+          const rawId = proposal.original.toLowerCase();
+          filtered = currentResume.experience.filter(
+            (exp) =>
+              !exp.company.toLowerCase().includes(rawId) &&
+              !exp.position.toLowerCase().includes(rawId)
+          );
+        }
+
+        if (filtered.length === currentResume.experience.length) {
+          toast('Could not find the experience entry to delete. It may have already been removed.');
+          return;
+        }
+
         updateResume({ experience: filtered });
         haptics.success();
         return;
