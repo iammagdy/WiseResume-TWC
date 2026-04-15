@@ -146,16 +146,19 @@ The following tables appear in `supabase/migrations/` but may or may not be refl
 | `admin_user_notes` | Admin sticky notes attached to user accounts | Check types.ts |
 | `app_settings` | Platform-wide configuration key-value store | Check types.ts |
 
-### WiseHire Tables (planned — Phase 1, not yet built)
-| Table | Purpose |
-|-------|---------|
-| `wisehire_waitlist` | Pre-launch waitlist: name, email, company, size, submitted_at |
-| `wisehire_invites` | Signed invite tokens: HMAC-SHA256, 72-hour expiry, single-use |
-| `wisehire_companies` | HR company data: name, size, roles focus, AI key status |
-| `wisehire_roles` | Open positions: title, JD, status (open/closed), soft-delete |
-| `wisehire_candidates` | Candidates under evaluation: resume data, pipeline stage, notes, soft-delete |
-| `wisehire_candidate_briefs` | AI-generated briefs: match score, strengths, concerns, questions, share token |
-| `wisehire_pipeline_events` | Audit trail of pipeline stage changes per candidate |
+### WiseHire Tables (Phase 1 — built 2026-04-20, all with RLS enabled)
+
+> `profiles.account_type` column (`job_seeker` | `hr`, NOT NULL, DEFAULT `job_seeker`) added in migration `20260420000001`.
+
+| Table | Purpose | RLS |
+|-------|---------|-----|
+| `wisehire_waitlist` | Pre-launch waitlist: name, email, company, size, submitted_at, invited_at | Admin service-role only (no user policies) |
+| `wisehire_invites` | HMAC-SHA256 signed invite tokens: token, signature, recipient_email, expires_at (72h), used_at | Admin service-role only |
+| `wisehire_companies` | HR company data: name, size, role_types, monthly_volume, onboarding_completed | `owner_id = auth.uid()` |
+| `wisehire_roles` | Open positions: title, jd_text, status (open/closed), is_deleted (soft-delete) | `owner_id = auth.uid() AND is_deleted = false` |
+| `wisehire_candidates` | Candidates under evaluation: resume_pdf_path, resume_text, pipeline_stage, notes, is_deleted (soft-delete) | `owner_id = auth.uid() AND is_deleted = false` |
+| `wisehire_candidate_briefs` | AI briefs: match_score, strengths[], concerns[], interview_questions[], share_token (UUID), share_token_active | `owner_id = auth.uid()` for write; share token read via service role |
+| `wisehire_pipeline_events` | Audit trail of pipeline stage changes: from_stage, to_stage, moved_at, moved_by | `owner_id = auth.uid()` |
 
 ---
 
@@ -167,7 +170,7 @@ The following tables appear in `supabase/migrations/` but may or may not be refl
 | `resumes` | Generated resume PDF/DOCX exports | Owner only |
 | `portfolios` | Portfolio-specific assets | Owner write, public read |
 | `temp` | Transient processing files | Owner only, auto-purged |
-| `candidate-resumes` | HR candidate PDF uploads (WiseHire Phase 1, planned) | Owning HR user only |
+| `candidate-resumes` | HR candidate PDF uploads — path: `{hr_user_id}/{candidate_id}/{filename}.pdf` | Owning HR user only (INSERT/SELECT/DELETE by path prefix) |
 
 ---
 

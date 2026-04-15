@@ -4,6 +4,18 @@ Local changelog tracking WiseResume changes.
 
 ## 2026-04-15
 
+### WISEHIRE-PHASE1-STEP-1 — Database Foundation
+- **Summary**: Applied all 8 WiseHire Phase 1 SQL migrations to Supabase. All 7 new tables created with RLS enabled. `profiles.account_type` column added with DEFAULT `'job_seeker'`. `candidate-resumes` storage bucket created. `WISEHIRE_INVITE_SECRET` (64-char hex HMAC key) set as a Supabase edge function secret.
+- **Migrations applied**: `20260420000001` through `20260420000008` — applied via Supabase Management API (CLI pooler auth blocked by Replit network; management API used as equivalent).
+- **Tables created**: `wisehire_waitlist`, `wisehire_invites`, `wisehire_companies`, `wisehire_roles`, `wisehire_candidates`, `wisehire_candidate_briefs`, `wisehire_pipeline_events`
+- **Column added**: `profiles.account_type TEXT NOT NULL DEFAULT 'job_seeker' CHECK (account_type IN ('job_seeker', 'hr'))`
+- **RLS verified**: All 7 tables have RLS enabled; `wisehire_companies`, `wisehire_roles`, `wisehire_candidates`, `wisehire_candidate_briefs`, `wisehire_pipeline_events` have `owner_id = auth.uid()` policies; `wisehire_waitlist` and `wisehire_invites` are admin service-role-only.
+- **New env secret**: `WISEHIRE_INVITE_SECRET` set in Supabase edge function secrets.
+- **Governance updated**: `ARCHITECTURE.md` WiseHire tables moved from "planned" to "built". Storage bucket updated.
+- **Tasks completed**: T001–T015 ✅
+- **Files**: `supabase/migrations/20260420000001-8_wisehire_*.sql` (8 new files)
+- **Spec reference**: `specs/001-wisehire-hr-platform/plan.md` Phase 1, Step 1
+
 ### WISEHIRE-PHASE1-TASKS
 - **Summary**: Wrote `specs/001-wisehire-hr-platform/tasks.md` — the full Phase 3 SDD task list for WiseHire Phase 1 implementation. 121 checkboxed tasks organised across 13 phases, mapped to all 9 Phase 1 user stories. Completes the Spec → Plan → Tasks → Implementation SDD workflow. Also updated spec.md status to "Approved — Implementation in Progress".
 - **Structure**: Phase 1 (DB foundation, T001–T015), Phase 2 (US3 account type visibility, T016–T021), Phase 3 (US1 landing toggle, T022–T032), Phase 4 (US2 waitlist backend, T033–T040), Phase 5 (US6 dev kit admin tools, T041–T049), Phase 6 (US3 sign-up + routing, T050–T057), Phase 7 (US4 onboarding, T058–T063), Phase 8 (US5 trial + subscription, T064–T071), Phase 9 (US1 dashboard shell, T072–T080), Phase 10 (US8 JD Writer, T081–T089), Phase 11 (US7 Brief Generator, T090–T101), Phase 12 (US9 Pipeline Board, T102–T113), Phase 13 (polish, T114–T121).
