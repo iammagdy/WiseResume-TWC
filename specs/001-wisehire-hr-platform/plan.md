@@ -77,7 +77,8 @@ The two products share all infrastructure (Kinde auth, Supabase DB, AI layer, Re
 ```text
 specs/001-wisehire-hr-platform/
 ├── spec.md              # Approved spec (DO NOT MODIFY without user approval)
-└── plan.md              # This file
+├── plan.md              # This file — technical blueprint
+└── tasks.md             # Phase 3 SDD task list — 121 tasks across 13 phases
 ```
 
 ### Source Code Layout

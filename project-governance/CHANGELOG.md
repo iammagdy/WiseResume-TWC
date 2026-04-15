@@ -4,6 +4,12 @@ Local changelog tracking WiseResume changes.
 
 ## 2026-04-15
 
+### WISEHIRE-PHASE1-TASKS
+- **Summary**: Wrote `specs/001-wisehire-hr-platform/tasks.md` — the full Phase 3 SDD task list for WiseHire Phase 1 implementation. 121 checkboxed tasks organised across 13 phases, mapped to all 9 Phase 1 user stories. Completes the Spec → Plan → Tasks → Implementation SDD workflow. Also updated spec.md status to "Approved — Implementation in Progress".
+- **Structure**: Phase 1 (DB foundation, T001–T015), Phase 2 (US3 account type visibility, T016–T021), Phase 3 (US1 landing toggle, T022–T032), Phase 4 (US2 waitlist backend, T033–T040), Phase 5 (US6 dev kit admin tools, T041–T049), Phase 6 (US3 sign-up + routing, T050–T057), Phase 7 (US4 onboarding, T058–T063), Phase 8 (US5 trial + subscription, T064–T071), Phase 9 (US1 dashboard shell, T072–T080), Phase 10 (US8 JD Writer, T081–T089), Phase 11 (US7 Brief Generator, T090–T101), Phase 12 (US9 Pipeline Board, T102–T113), Phase 13 (polish, T114–T121).
+- **Parallel opportunities**: Phases 2+3 in parallel after Phase 1. Phases 7+8 in parallel after Phase 6. Phases 10+11+12 in parallel after Phase 9.
+- **Files**: `specs/001-wisehire-hr-platform/tasks.md` (new), `specs/001-wisehire-hr-platform/spec.md` (status updated)
+
 ### WISEHIRE-PHASE1-PLAN (Task #13)
 - **Summary**: Wrote the complete technical implementation plan for WiseHire Phase 1 at `specs/001-wisehire-hr-platform/plan.md`. Covers all 66 FRs from the approved spec, full database schema, edge function interfaces, email templates, exact file modifications, and a sequenced 11-step build order.
 - **Constitution check**: All 66 FRs passed against governance rules. Key verifications: `requireAuth` on all `/wisehire/*` routes, RLS on all 7 new tables + `candidate-resumes` storage bucket, `botGuard` on 2 public edge functions, fail-closed rate limiting on both AI functions, `account_type` routing enforced bidirectionally, soft-delete for candidates, SkyWallpaper via AppShell, WCAG AA documented (keyboard pipeline mover).
