@@ -72,7 +72,13 @@ export function WiseHireDemoSection() {
           </h2>
         </motion.div>
 
-        <div className="flex flex-col lg:flex-row gap-6 items-start">
+        <motion.div
+          className="flex flex-col lg:flex-row gap-6 items-start"
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: false, amount: 0.1 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
+        >
           {/* Tab selector — 3-col grid on mobile, vertical list on desktop */}
           <style>{`
             .wh-tab-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; width: 100%; }
@@ -170,7 +176,7 @@ export function WiseHireDemoSection() {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
     </section>
   );

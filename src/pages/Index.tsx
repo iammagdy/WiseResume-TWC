@@ -342,28 +342,31 @@ const WH_WRAPPER_VARIANTS = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.07, delayChildren: 0.04 } },
   exit: {
-    opacity: 0,
-    scale: 0.94,
-    filter: 'blur(10px)',
-    transition: { duration: 0.22, ease: [0.4, 0, 1, 1] },
+    transition: { staggerChildren: 0.028, staggerDirection: -1 },
   },
 };
 const WH_SECTION_ITEM = {
-  hidden: { opacity: 0, y: 36, scale: 0.99 },
+  hidden: { opacity: 0, y: 40, scale: 0.98 },
   visible: {
     opacity: 1, y: 0, scale: 1,
     transition: { type: 'spring', stiffness: 260, damping: 28 },
   },
-  exit: {},
+  exit: (i: number) => ({
+    opacity: 0,
+    y: -(22 + i * 9),
+    filter: 'blur(3px)',
+    scale: 0.97,
+    transition: { duration: 0.14, ease: [0.4, 0, 1, 1] },
+  }),
 };
 const WR_WRAPPER_VARIANTS = {
   hidden: {},
   visible: {},
   exit: {
     opacity: 0,
-    scale: 0.94,
-    filter: 'blur(10px)',
-    transition: { duration: 0.22, ease: [0.4, 0, 1, 1] },
+    scale: 0.95,
+    filter: 'blur(8px)',
+    transition: { duration: 0.2, ease: [0.4, 0, 1, 1] },
   },
 };
 
@@ -832,15 +835,14 @@ const Index = () => {
         <div ref={progressRef} className="h-full transition-[width] duration-75 ease-out" style={{ background: 'var(--lp-brand)' }} />
       </div>
 
-      {/* Brand transition flash overlay */}
+      {/* Brand transition flash overlay — fires between exit and enter */}
       <AnimatePresence>
         {flashActive && (
           <motion.div
             key="brand-flash"
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
+            animate={{ opacity: 1, transition: { duration: 0.08 } }}
+            exit={{ opacity: 0, transition: { duration: 0.12 } }}
             aria-hidden="true"
             style={{
               position: 'fixed',
@@ -861,11 +863,6 @@ const Index = () => {
         {/* Product toggle strip — always visible, sits above the nav row */}
         <LandingToggle mode={mode} onModeChange={(m) => {
           triggerHaptic.light();
-          if (!prefersReducedMotion) {
-            setFlashColor(m === 'wisehire' ? 'rgba(29,78,216,0.08)' : 'rgba(158,27,34,0.07)');
-            setFlashActive(true);
-            setTimeout(() => setFlashActive(false), 420);
-          }
           setMode(m);
         }} />
 
@@ -1027,7 +1024,17 @@ const Index = () => {
       </header>
 
       <main id="landing-main" className="w-full">
-        <AnimatePresence mode="wait" initial={false}>
+        <AnimatePresence
+          mode="wait"
+          initial={false}
+          onExitComplete={() => {
+            if (!prefersReducedMotion) {
+              setFlashColor(mode === 'wisehire' ? 'rgba(29,78,216,0.15)' : 'rgba(158,27,34,0.13)');
+              setFlashActive(true);
+              setTimeout(() => setFlashActive(false), 200);
+            }
+          }}
+        >
         {mode === 'wisehire' ? (
           /* ═══════════════════════════════════════════════════════
              WISEHIRE MODE — full WiseHire landing experience
@@ -1039,27 +1046,27 @@ const Index = () => {
             animate="visible"
             exit={prefersReducedMotion ? 'visible' : 'exit'}
           >
-            <motion.div variants={WH_SECTION_ITEM}>
+            <motion.div variants={WH_SECTION_ITEM} custom={0}>
               <WiseHireHero onOpenWaitlist={() => setWaitlistOpen(true)} />
               <SoftDivider product="wisehire" />
               <WiseHireFeatureTicker />
             </motion.div>
-            <motion.div variants={WH_SECTION_ITEM}>
+            <motion.div variants={WH_SECTION_ITEM} custom={1}>
               <WiseHireDemoSection />
             </motion.div>
-            <motion.div variants={WH_SECTION_ITEM}>
+            <motion.div variants={WH_SECTION_ITEM} custom={2}>
               <SoftDivider product="wisehire" />
               <WiseHireTrustSection />
             </motion.div>
-            <motion.div variants={WH_SECTION_ITEM}>
+            <motion.div variants={WH_SECTION_ITEM} custom={3}>
               <SoftDivider product="wisehire" />
               <WiseHireFeatures onOpenWaitlist={() => setWaitlistOpen(true)} />
             </motion.div>
-            <motion.div variants={WH_SECTION_ITEM}>
+            <motion.div variants={WH_SECTION_ITEM} custom={4}>
               <SoftDivider product="wisehire" />
               <WiseHirePricing onOpenWaitlist={() => setWaitlistOpen(true)} />
             </motion.div>
-            <motion.div variants={WH_SECTION_ITEM}>
+            <motion.div variants={WH_SECTION_ITEM} custom={5}>
             {/* ─── WISEHIRE CLOSING CTA ─── */}
             <section
               className="text-center"
@@ -1070,7 +1077,13 @@ const Index = () => {
                 transition: 'background 0.35s ease',
               }}
             >
-              <div className="max-w-2xl mx-auto">
+              <motion.div
+                className="max-w-2xl mx-auto"
+                initial={{ opacity: 0, y: 28 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: false, amount: 0.4 }}
+                transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+              >
                 <p
                   style={{
                     fontSize: '0.75rem',
@@ -1114,7 +1127,7 @@ const Index = () => {
                   Join the Waitlist
                   <ArrowRight className="w-4 h-4" />
                 </motion.button>
-              </div>
+              </motion.div>
             </section>
 
             <Footer lpMode product="wisehire" />

@@ -1,5 +1,5 @@
 import { BrainCircuit, FileEdit, Kanban, Users, Layers } from 'lucide-react';
-import { useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 
 const ITEMS = [
   { icon: BrainCircuit, label: 'Brief Generator', color: '#60A5FA' },
@@ -43,6 +43,12 @@ export function WiseHireFeatureTicker() {
   const allItems = [...ITEMS, ...ITEMS];
 
   return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      whileInView={{ opacity: 1 }}
+      viewport={{ once: false, amount: 0.5 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
+    >
     <div
       className="relative overflow-hidden py-5 group select-none"
       style={{
@@ -77,5 +83,6 @@ export function WiseHireFeatureTicker() {
         style={{ background: 'linear-gradient(to left, var(--lp-bg), transparent)' }}
       />
     </div>
+    </motion.div>
   );
 }
