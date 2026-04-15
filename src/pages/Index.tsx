@@ -338,6 +338,35 @@ const lpItemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
 };
 
+const WH_WRAPPER_VARIANTS = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.07, delayChildren: 0.04 } },
+  exit: {
+    opacity: 0,
+    scale: 0.94,
+    filter: 'blur(10px)',
+    transition: { duration: 0.22, ease: [0.4, 0, 1, 1] },
+  },
+};
+const WH_SECTION_ITEM = {
+  hidden: { opacity: 0, y: 36, scale: 0.99 },
+  visible: {
+    opacity: 1, y: 0, scale: 1,
+    transition: { type: 'spring', stiffness: 260, damping: 28 },
+  },
+  exit: {},
+};
+const WR_WRAPPER_VARIANTS = {
+  hidden: {},
+  visible: {},
+  exit: {
+    opacity: 0,
+    scale: 0.94,
+    filter: 'blur(10px)',
+    transition: { duration: 0.22, ease: [0.4, 0, 1, 1] },
+  },
+};
+
 const Index = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
@@ -366,6 +395,8 @@ const Index = () => {
       : 'jobseeker'
   );
   const [waitlistOpen, setWaitlistOpen] = useState(false);
+  const [flashActive, setFlashActive] = useState(false);
+  const [flashColor, setFlashColor] = useState('rgba(29,78,216,0.08)');
 
   useLayoutEffect(() => {
     setLpProduct(mode);
@@ -801,6 +832,27 @@ const Index = () => {
         <div ref={progressRef} className="h-full transition-[width] duration-75 ease-out" style={{ background: 'var(--lp-brand)' }} />
       </div>
 
+      {/* Brand transition flash overlay */}
+      <AnimatePresence>
+        {flashActive && (
+          <motion.div
+            key="brand-flash"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            aria-hidden="true"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 200,
+              background: flashColor,
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Sticky Header */}
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'lp-header-scrolled' : 'bg-transparent'}`}
@@ -809,6 +861,11 @@ const Index = () => {
         {/* Product toggle strip — always visible, sits above the nav row */}
         <LandingToggle mode={mode} onModeChange={(m) => {
           triggerHaptic.light();
+          if (!prefersReducedMotion) {
+            setFlashColor(m === 'wisehire' ? 'rgba(29,78,216,0.08)' : 'rgba(158,27,34,0.07)');
+            setFlashActive(true);
+            setTimeout(() => setFlashActive(false), 420);
+          }
           setMode(m);
         }} />
 
@@ -977,25 +1034,35 @@ const Index = () => {
           ═══════════════════════════════════════════════════════ */
           <motion.div
             key="wisehire"
-            initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={prefersReducedMotion ? {} : { opacity: 0, y: -8 }}
-            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            variants={WH_WRAPPER_VARIANTS}
+            initial={prefersReducedMotion ? 'visible' : 'hidden'}
+            animate="visible"
+            exit={prefersReducedMotion ? 'visible' : 'exit'}
           >
-            <WiseHireHero onOpenWaitlist={() => setWaitlistOpen(true)} />
-            <SoftDivider product="wisehire" />
-            <WiseHireFeatureTicker />
-            <WiseHireDemoSection />
-            <SoftDivider product="wisehire" />
-            <WiseHireTrustSection />
-            <SoftDivider product="wisehire" />
-            <WiseHireFeatures onOpenWaitlist={() => setWaitlistOpen(true)} />
-            <SoftDivider product="wisehire" />
-            <WiseHirePricing onOpenWaitlist={() => setWaitlistOpen(true)} />
-
+            <motion.div variants={WH_SECTION_ITEM}>
+              <WiseHireHero onOpenWaitlist={() => setWaitlistOpen(true)} />
+              <SoftDivider product="wisehire" />
+              <WiseHireFeatureTicker />
+            </motion.div>
+            <motion.div variants={WH_SECTION_ITEM}>
+              <WiseHireDemoSection />
+            </motion.div>
+            <motion.div variants={WH_SECTION_ITEM}>
+              <SoftDivider product="wisehire" />
+              <WiseHireTrustSection />
+            </motion.div>
+            <motion.div variants={WH_SECTION_ITEM}>
+              <SoftDivider product="wisehire" />
+              <WiseHireFeatures onOpenWaitlist={() => setWaitlistOpen(true)} />
+            </motion.div>
+            <motion.div variants={WH_SECTION_ITEM}>
+              <SoftDivider product="wisehire" />
+              <WiseHirePricing onOpenWaitlist={() => setWaitlistOpen(true)} />
+            </motion.div>
+            <motion.div variants={WH_SECTION_ITEM}>
             {/* ─── WISEHIRE CLOSING CTA ─── */}
             <section
-              className="text-center lp-animate"
+              className="text-center"
               style={{
                 background: 'var(--lp-section-alt)',
                 borderTop: '1px solid var(--lp-border)',
@@ -1051,6 +1118,7 @@ const Index = () => {
             </section>
 
             <Footer lpMode product="wisehire" />
+            </motion.div>
           </motion.div>
         ) : (
           /* ═══════════════════════════════════════════════════════
@@ -1058,10 +1126,10 @@ const Index = () => {
           ═══════════════════════════════════════════════════════ */
           <motion.div
             key="wiseresume"
-            initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={prefersReducedMotion ? {} : { opacity: 0, y: -8 }}
-            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            variants={WR_WRAPPER_VARIANTS}
+            initial={prefersReducedMotion ? 'visible' : 'hidden'}
+            animate="visible"
+            exit={prefersReducedMotion ? 'visible' : 'exit'}
           >
         {/* ─── HERO ─── */}
         <section

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { Brain, Kanban, FileText, Upload, Archive, CheckCircle2 } from 'lucide-react';
 import { BriefDemo } from './BriefDemo';
 import { PipelineDemo } from './PipelineDemo';
@@ -38,7 +39,13 @@ export function WiseHireDemoSection() {
         style={{ padding: 'clamp(52px, 6vw, 84px) clamp(20px, 4vw, 40px)' }}
       >
         {/* Heading */}
-        <div className="text-center mb-10 lp-animate">
+        <motion.div
+          className="text-center mb-10"
+          initial={{ opacity: 0, y: 22 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: false, amount: 0.3 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        >
           <p
             style={{
               fontSize: '0.75rem',
@@ -63,7 +70,7 @@ export function WiseHireDemoSection() {
           >
             Watch AI handle the heavy lifting
           </h2>
-        </div>
+        </motion.div>
 
         <div className="flex flex-col lg:flex-row gap-6 items-start">
           {/* Tab selector — 3-col grid on mobile, vertical list on desktop */}

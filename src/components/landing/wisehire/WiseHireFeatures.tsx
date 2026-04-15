@@ -63,7 +63,13 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
         style={{ padding: 'clamp(52px, 6vw, 84px) clamp(20px, 4vw, 40px)' }}
       >
         {/* Heading */}
-        <div className="text-center mb-12 lp-animate">
+        <motion.div
+          className="text-center mb-12"
+          initial={{ opacity: 0, y: 22 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: false, amount: 0.3 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        >
           <p
             style={{
               fontSize: '0.75rem',
@@ -95,7 +101,7 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
           >
             Everything your hiring team needs in one place — from writing the JD to making the offer.
           </p>
-        </div>
+        </motion.div>
 
         {/* Pillars grid */}
         <motion.div

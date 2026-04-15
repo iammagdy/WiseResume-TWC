@@ -93,7 +93,13 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
         style={{ padding: 'clamp(52px, 6vw, 84px) clamp(20px, 4vw, 40px)' }}
       >
         {/* Heading */}
-        <div className="text-center mb-12 lp-animate">
+        <motion.div
+          className="text-center mb-12"
+          initial={{ opacity: 0, y: 22 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: false, amount: 0.3 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        >
           <p
             style={{
               fontSize: '0.75rem',
@@ -138,7 +144,7 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
               Early Access — 40% off all tiers for waitlist members
             </span>
           </div>
-        </div>
+        </motion.div>
 
         {/* Pricing cards */}
         <motion.div

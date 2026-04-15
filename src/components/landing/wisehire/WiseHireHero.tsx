@@ -149,7 +149,15 @@ export function WiseHireHero({ onOpenWaitlist }: WiseHireHeroProps) {
           transition: 'background 0.35s ease, border-color 0.35s ease',
         }}
       >
-        <AppIcon size={18} showSparkle={false} className="rounded-md flex-shrink-0" />
+        <div
+          style={{
+            filter: 'hue-rotate(220deg) saturate(2) brightness(0.85)',
+            lineHeight: 0,
+            flexShrink: 0,
+          }}
+        >
+          <AppIcon size={18} showSparkle={false} className="rounded-md" />
+        </div>
         <span
           className="font-display font-semibold tracking-tight"
           style={{ fontSize: '0.85rem', color: 'var(--lp-eyebrow)', transition: 'color 0.35s ease' }}

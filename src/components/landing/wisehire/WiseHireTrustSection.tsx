@@ -50,7 +50,13 @@ export function WiseHireTrustSection() {
         className="max-w-6xl mx-auto w-full"
         style={{ padding: 'clamp(48px, 6vw, 80px) clamp(20px, 4vw, 40px)' }}
       >
-        <div className="text-center mb-12 lp-animate">
+        <motion.div
+          className="text-center mb-12"
+          initial={{ opacity: 0, y: 22 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: false, amount: 0.3 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        >
           <p
             style={{
               fontSize: '0.75rem',
@@ -83,7 +89,7 @@ export function WiseHireTrustSection() {
           >
             AI that gives your team an unfair advantage — without replacing the human judgement that great hiring requires.
           </p>
-        </div>
+        </motion.div>
 
         <motion.div
           className="grid grid-cols-1 sm:grid-cols-2 gap-4"
