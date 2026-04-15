@@ -178,40 +178,23 @@ Deno.serve(async (req) => {
     // ════════════════════════════════════════════════════════════
     // PATH B — Early access code (coupon-gated, no invite needed)
     // ════════════════════════════════════════════════════════════
-    const upperCode = early_access_code!.trim().toUpperCase();
-
-    const { data: coupon, error: couponErr } = await serviceClient
-      .from('discount_codes')
-      .select('id, code, is_active, expires_at, max_uses, uses_count, plan_override, plan_days')
-      .eq('code', upperCode)
-      .maybeSingle();
-
-    if (couponErr) {
-      console.error('[wisehire-complete-signup] coupon fetch error:', couponErr.message);
-      return json({ success: false, error: 'server_error' }, 500, corsHeaders);
-    }
-
-    if (!coupon || !coupon.is_active) {
-      return json({ success: false, error: 'invalid_early_access_code' }, 400, corsHeaders);
-    }
-
-    if (coupon.expires_at && new Date(coupon.expires_at as string) < new Date()) {
-      return json({ success: false, error: 'early_access_code_expired' }, 400, corsHeaders);
-    }
-
-    if ((coupon.max_uses as number) > 0 && (coupon.uses_count as number) >= (coupon.max_uses as number)) {
-      return json({ success: false, error: 'early_access_code_exhausted' }, 400, corsHeaders);
-    }
-
-    // ── Step 1: Atomic coupon validation + increment via DB RPC ──
-    // The RPC acquires a FOR UPDATE row lock so concurrent requests serialise;
-    // the server-side increment (uses_count = uses_count + 1) prevents lost updates.
+    // Delegate entirely to an atomic PL/pgSQL RPC that runs all steps
+    // (validate + lock coupon → increment uses_count → update profile →
+    //  upsert company → upsert subscription → audit log) inside one
+    // transaction.  Any failure rolls back the coupon increment automatically.
     const { data: rpcRows, error: rpcErr } = await serviceClient
-      .rpc('wisehire_redeem_early_access_code', { p_code: upperCode })
-      .returns<{ success: boolean; error_code: string | null; plan_override: string | null; plan_days: number | null }[]>();
+      .rpc('wisehire_activate_early_access', {
+        p_user_id:      userId,
+        p_code:         early_access_code!.trim(),
+        p_full_name:    full_name?.trim() ?? null,
+        p_company_name: company_name?.trim() ?? null,
+        p_company_size: company_size?.trim() ?? null,
+        p_now:          new Date().toISOString(),
+      })
+      .returns<{ success: boolean; error_code: string | null; plan_override: string | null }[]>();
 
     if (rpcErr) {
-      console.error('[wisehire-complete-signup] EA redeem RPC error:', rpcErr.message);
+      console.error('[wisehire-complete-signup] EA activate RPC error:', rpcErr.message);
       return json({ success: false, error: 'server_error' }, 500, corsHeaders);
     }
 
@@ -222,86 +205,14 @@ Deno.serve(async (req) => {
       return json({ success: false, error: errCode }, status, corsHeaders);
     }
 
-    const planOverride = rpcResult.plan_override as string;
-    // Defence-in-depth: ensure the RPC returned a WiseHire plan even if called
-    // directly without going through the public validation endpoint.
-    if (!planOverride || !planOverride.startsWith('wisehire_')) {
-      console.error('[wisehire-complete-signup] EA plan_override is not a wisehire plan:', planOverride);
+    // Defence-in-depth: the RPC already enforces wisehire_ prefix inside the DB,
+    // but we verify here as well so a client bypassing the public validator cannot
+    // obtain HR access via a non-WiseHire coupon.
+    const planOverride = rpcResult.plan_override ?? '';
+    if (!planOverride.startsWith('wisehire_')) {
+      console.error('[wisehire-complete-signup] EA plan_override not a wisehire plan:', planOverride);
       return json({ success: false, error: 'invalid_early_access_code' }, 400, corsHeaders);
     }
-    const planDays = (rpcResult.plan_days as number | null) ?? 7;
-
-    // ── Step 2: Set account_type = 'hr' ──
-    const profileUpdatesEA: Record<string, unknown> = { account_type: 'hr' };
-    if (full_name?.trim()) profileUpdatesEA.full_name = full_name.trim();
-
-    const { error: profileEAErr } = await serviceClient
-      .from('profiles')
-      .update(profileUpdatesEA)
-      .eq('user_id', userId);
-
-    if (profileEAErr) {
-      console.error('[wisehire-complete-signup] EA profile update failed:', profileEAErr.message);
-      return json({ success: false, error: 'profile_update_failed' }, 500, corsHeaders);
-    }
-
-    // ── Step 3: Create wisehire_companies row (required) ──
-    const companyName = company_name?.trim() || 'My Company';
-    const { error: companyErr } = await serviceClient
-      .from('wisehire_companies')
-      .upsert(
-        { owner_id: userId, name: companyName, size: company_size?.trim() ?? '1-10', onboarding_completed: false },
-        { onConflict: 'owner_id', ignoreDuplicates: true },
-      );
-
-    if (companyErr) {
-      console.error('[wisehire-complete-signup] EA company upsert failed:', companyErr.message);
-      await serviceClient.from('profiles').update({ account_type: 'jobseeker' }).eq('user_id', userId);
-      return json({ success: false, error: 'company_setup_failed' }, 500, corsHeaders);
-    }
-
-    // ── Step 4: Apply coupon plan to subscription (required) ──
-    const now = new Date().toISOString();
-    const planEnd = new Date(Date.now() + planDays * 24 * 60 * 60 * 1000).toISOString();
-
-    const { error: subErr } = await serviceClient
-      .from('subscriptions')
-      .upsert(
-        {
-          user_id: userId,
-          plan_name: planOverride,
-          trial_plan: planOverride,
-          trial_expires_at: planEnd,
-          status: 'active',
-          current_period_start: now,
-          current_period_end: planEnd,
-          coupon_code: upperCode,
-        },
-        { onConflict: 'user_id', ignoreDuplicates: false },
-      );
-
-    if (subErr) {
-      console.error('[wisehire-complete-signup] EA subscription upsert failed:', subErr.message);
-      await serviceClient.from('profiles').update({ account_type: 'jobseeker' }).eq('user_id', userId);
-      await serviceClient.from('wisehire_companies').delete().eq('owner_id', userId);
-      return json({ success: false, error: 'plan_activation_failed' }, 500, corsHeaders);
-    }
-
-    // ── Audit log (non-fatal) ──
-    try {
-      await serviceClient.from('audit_logs').insert({
-        user_id: userId,
-        category: 'auth',
-        action: 'wisehire_early_access_complete',
-        metadata: {
-          early_access_code: upperCode,
-          plan_override: planOverride,
-          plan_days: planDays,
-          company_name: companyName,
-          completed_at: new Date().toISOString(),
-        },
-      });
-    } catch { /* non-fatal */ }
 
     return json({ success: true }, 200, corsHeaders);
   } catch (err) {
