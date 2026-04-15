@@ -4,6 +4,18 @@ Local changelog tracking WiseResume changes.
 
 ## 2026-04-15
 
+### WISEHIRE-PHASE1-PLAN (Task #13)
+- **Summary**: Wrote the complete technical implementation plan for WiseHire Phase 1 at `specs/001-wisehire-hr-platform/plan.md`. Covers all 66 FRs from the approved spec, full database schema, edge function interfaces, email templates, exact file modifications, and a sequenced 11-step build order.
+- **Constitution check**: All 66 FRs passed against governance rules. Key verifications: `requireAuth` on all `/wisehire/*` routes, RLS on all 7 new tables + `candidate-resumes` storage bucket, `botGuard` on 2 public edge functions, fail-closed rate limiting on both AI functions, `account_type` routing enforced bidirectionally, soft-delete for candidates, SkyWallpaper via AppShell, WCAG AA documented (keyboard pipeline mover).
+- **New tables specified**: `wisehire_waitlist`, `wisehire_invites`, `wisehire_companies`, `wisehire_roles`, `wisehire_candidates`, `wisehire_candidate_briefs`, `wisehire_pipeline_events` + `profiles.account_type` column (8 SQL migrations).
+- **New edge functions specified**: `wisehire-waitlist-join` (public), `wisehire-validate-invite` (public), `wisehire-generate-brief` (auth+HR), `wisehire-write-jd` (auth+HR), `admin-wisehire-waitlist` (admin), `admin-wisehire-invite` (admin).
+- **New email templates specified**: `wisehire-invite.tsx`, `wisehire-waitlist-confirmation.tsx`, `wisehire-waitlist-notification.tsx`.
+- **Files modified**: `Index.tsx` (toggle + WiseHire mode), `App.tsx` (routes), `OverviewPanel.tsx`, `AdminUsersPanel.tsx`, `UserDetailDrawer.tsx`, `CouponsPanel.tsx`, `EmailManagementPanel.tsx`, `admin-email-actions/index.ts`, `DevKitBadges.tsx`.
+- **New files**: 50+ new pages, components, hooks, lib files across `src/pages/wisehire/`, `src/components/wisehire/`, `src/components/landing/wisehire/`, `src/hooks/wisehire/`, `src/lib/wisehire/`.
+- **Build order**: 11 independently deployable steps: Schema → Landing Toggle → Waitlist Backend → Dev Kit Badges → Dev Kit Admin Tools → Sign-Up + Onboarding → Trial + Subscription → Dashboard Shell → JD Writer → Candidate Brief → Pipeline Board.
+- **Files**: `specs/001-wisehire-hr-platform/plan.md` (new)
+- **Spec reference**: `specs/001-wisehire-hr-platform/spec.md`
+
 ### GOVERNANCE-COMPREHENSIVE-UPDATE (Task #12)
 - **Summary**: All six governance files comprehensively rewritten to reflect the full platform from day 1 to now, and to officially register WiseHire as the second product under The Wise Cloud umbrella.
 - **CONSTITUTION.md**: Updated Section 1 (Purpose) to cover both WiseResume and WiseHire under The Wise Cloud. Updated approved brand list to include WiseHire. Added Section 7: WiseHire Governance covering desktop-first exception, no free tier, invite-only pre-launch, account type isolation, candidate data privacy, and shared infrastructure rules. Updated Section 6.1 to enforce account_type routing discipline for all agents.
