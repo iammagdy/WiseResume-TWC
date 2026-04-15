@@ -229,7 +229,7 @@ All edge functions live in `supabase/functions/`. See also `supabase/functions/E
 | Function | Purpose |
 |----------|---------|
 | `parse-resume` | Two-pass AI extraction + OCR fallback + regex local parser |
-| `parse-linkedin` | LinkedIn profile import and structured extraction |
+| `parse-linkedin` | LinkedIn/Indeed/Xing/Wellfound profile import and structured extraction. Also used with `platform: 'generic'` by the "Build from Text" mode in `CreateResumeDialog` to convert freeform career notes into a structured resume. |
 | `parse-job-url` | Job description extraction from a URL |
 | `parse-job-text` | Job description structuring from pasted text |
 

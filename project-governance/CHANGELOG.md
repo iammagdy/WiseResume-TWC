@@ -2,6 +2,18 @@
 
 Local changelog tracking WiseResume changes.
 
+## 2026-04-15 (Task #7 — Build from Text resume creation mode)
+
+### FEAT — "Build from Text" in CreateResumeDialog
+
+- **`CreateResumeDialog.tsx`**: Added fifth `CreateMode` value `'paste'`. New "Build from Text" option appears in the mode picker (after "Import Profile"). Mode renders a textarea for freeform career text and an optional title input. On submit, calls `parse-linkedin` edge function with `platform: 'generic'`, maps the parsed `ProfileData` to `ResumeData` (same field mapping as `showLocalImport`), creates the resume via `useResumeMutations.createResume`, and navigates to `/editor`. Errors render inline below the textarea (no toast). Loading state shows "Building..." on the submit button. State (`pasteText`, `pasteTitle`, `pasteError`) is reset in `resetAndClose`.
+- **`parse-linkedin/index.ts`** — `generic` platform hint updated: added explicit instruction that input may be informal or bullet-point notes, and that AI must never invent data not present in the text.
+- **Intent**: Competes directly with Google's "Smart CV Generator" — lets users build a structured resume from any unstructured career text (notes, a bio, informal bullet points) without needing a polished LinkedIn export or PDF.
+
+**Files changed**: `src/components/dashboard/CreateResumeDialog.tsx`, `supabase/functions/parse-linkedin/index.ts`, `project-governance/ARCHITECTURE.md`, `project-governance/CHANGELOG.md`
+
+---
+
 ## 2026-04-15 (Governance — AI System Architecture Amendment)
 
 ### GOV-AI-AUDIT — AI System Governance Update

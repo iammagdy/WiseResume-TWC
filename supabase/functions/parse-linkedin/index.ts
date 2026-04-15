@@ -70,7 +70,7 @@ serve(async (req) => {
       indeed: "The input is from an Indeed resume profile. Indeed uses sections like 'Summary', 'Work Experience', 'Education', 'Skills', 'Certifications'. Date formats may vary.",
       xing: "The input is from a Xing profile (European professional network). Xing uses sections like 'About me', 'Experience', 'Education', 'Qualifications', 'Languages'. May include German or European formatting.",
       wellfound: "The input is from a Wellfound (AngelList) profile used for startup job seekers. Focus on 'Bio', 'Experience', 'Education', 'Skills'. May include startup-specific roles.",
-      generic: "The input is from a general professional profile or resume. Extract all available structured data regardless of the source format.",
+      generic: "The input is from a general professional profile or resume. The input may be informal, conversational, or even bullet-point notes — not a polished profile. Extract whatever career data is present. Never invent data that is not stated.",
     };
     const platformHint = platformHints[platform] || platformHints.generic;
 

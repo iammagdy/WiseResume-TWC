@@ -1,7 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Upload, Copy, ArrowRight, GitBranch, Linkedin } from 'lucide-react';
+import { FileText, Upload, Copy, ArrowRight, GitBranch, Linkedin, Type } from 'lucide-react';
 
 const ProfileImportSheet = lazy(() =>
   import('@/components/settings/ProfileImportSheet').then((m) => ({ default: m.ProfileImportSheet })),
@@ -23,6 +23,7 @@ import { useResumeMutations, DatabaseResume, dbToResumeData } from '@/hooks/useR
 import haptics from '@/lib/haptics';
 import { useResumeStore } from '@/store/resumeStore';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { useAuth } from '@/hooks/useAuth';
 import { getUserId } from '@/lib/supabaseBridge';
 import { useProfile } from '@/hooks/useProfile';
@@ -46,7 +47,7 @@ interface CreateResumeDialogProps {
   onLinkedInImport?: () => void;
 }
 
-type CreateMode = 'blank' | 'upload' | 'duplicate' | 'tailored';
+type CreateMode = 'blank' | 'upload' | 'duplicate' | 'tailored' | 'paste';
 type ExperienceLevel = 'student' | 'early' | 'mid' | 'senior' | 'career-change';
 
 const EXPERIENCE_LEVELS: { value: ExperienceLevel; label: string; description: string }[] = [
@@ -82,6 +83,11 @@ export function CreateResumeDialog({
   const [blankStep, setBlankStep] = useState<'intake' | 'title'>('intake');
   const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel | ''>('');
   const [intakeJobTitle, setIntakeJobTitle] = useState('');
+
+  // Build-from-text state
+  const [pasteText, setPasteText] = useState('');
+  const [pasteTitle, setPasteTitle] = useState('');
+  const [pasteError, setPasteError] = useState<string | null>(null);
 
   // Tailored form extra fields
   const [tailoredJobTitle, setTailoredJobTitle] = useState('');
@@ -299,6 +305,9 @@ export function CreateResumeDialog({
     setTailoredJobTitle('');
     setTailoredCompany('');
     setTailoredJobDescription('');
+    setPasteText('');
+    setPasteTitle('');
+    setPasteError(null);
     onOpenChange(false);
   };
 
@@ -313,6 +322,86 @@ export function CreateResumeDialog({
   const handleIntakeContinue = () => {
     if (!experienceLevel) return;
     setBlankStep('title');
+  };
+
+  const handlePasteCreate = async () => {
+    if (!pasteText.trim() || !user) return;
+    setIsCreating(true);
+    setPasteError(null);
+    try {
+      const { data, error: fnError } = await edgeFunctions.functions.invoke('parse-linkedin', {
+        body: { profileText: pasteText.trim(), platform: 'generic' },
+      });
+      if (fnError) throw fnError;
+      if (data?.error) throw new Error(data.message || data.error);
+
+      const parsed = data as {
+        summary?: string;
+        experience?: Array<{ title: string; company: string; startDate: string; endDate: string; description: string; current: boolean }>;
+        education?: Array<{ institution: string; degree: string; field?: string; startYear?: string; endYear?: string }>;
+        skills?: string[];
+        certifications?: Array<{ name: string; organization: string; date: string }>;
+      };
+
+      const newResume = await createResume.mutateAsync({
+        resume: {
+          contactInfo: {
+            fullName: profile?.fullName || '',
+            email: '',
+            phone: '',
+            location: profile?.location || '',
+          },
+          summary: parsed.summary || '',
+          experience: (parsed.experience || []).map((exp, i) => ({
+            id: String(i + 1),
+            company: exp.company,
+            position: exp.title,
+            startDate: exp.startDate,
+            endDate: exp.endDate,
+            current: exp.current,
+            description: exp.description,
+            achievements: [],
+          })),
+          education: (parsed.education || []).map((edu, i) => ({
+            id: String(i + 1),
+            institution: edu.institution,
+            degree: edu.degree,
+            field: edu.field || '',
+            startDate: edu.startYear || '',
+            endDate: edu.endYear || '',
+          })),
+          skills: parsed.skills || [],
+          certifications: (parsed.certifications || []).map((c, i) => ({
+            id: String(i + 1),
+            name: c.name,
+            issuer: c.organization || '',
+            date: c.date || '',
+          })),
+          templateId: defaultTemplateId || 'modern',
+        },
+        title: pasteTitle.trim() || 'My Resume',
+      });
+
+      setCurrentResumeId(newResume.id);
+      setCurrentResume({
+        id: newResume.id,
+        contactInfo: newResume.contact_info,
+        summary: newResume.summary || '',
+        experience: newResume.experience || [],
+        education: newResume.education || [],
+        skills: newResume.skills || [],
+        certifications: newResume.certifications || [],
+        templateId: newResume.template_id || 'modern',
+      });
+
+      onOpenChange(false);
+      navigate('/editor');
+    } catch (err) {
+      console.error('Build-from-text error:', err);
+      setPasteError(err instanceof Error ? err.message : 'Failed to process your text. Please try again.');
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   // Free-tier gate: only 1 resume allowed. Only activate once plan is loaded to avoid
@@ -394,6 +483,21 @@ export function CreateResumeDialog({
               <div className="flex-1 text-left">
                 <p className="font-medium">Import Profile</p>
                 <p className="text-sm text-muted-foreground">LinkedIn, Indeed, Xing & more</p>
+              </div>
+              <ArrowRight className="w-5 h-5 text-muted-foreground" />
+            </motion.button>
+
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={() => { haptics.light(); setMode('paste'); }}
+              className="w-full flex items-center gap-4 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 transition-all touch-manipulation"
+            >
+              <div className="w-12 h-12 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                <Type className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="font-medium">Build from Text</p>
+                <p className="text-sm text-muted-foreground">Paste any career notes, bio, or freeform text</p>
               </div>
               <ArrowRight className="w-5 h-5 text-muted-foreground" />
             </motion.button>
@@ -625,6 +729,55 @@ export function CreateResumeDialog({
                 className="flex-1 gradient-primary"
               >
                 {isCreating ? 'Creating...' : 'Create Tailored'}
+              </Button>
+            </div>
+          </div>
+        ) : mode === 'paste' ? (
+          /* Build from Text Form */
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="paste-text">Your career text</Label>
+              <Textarea
+                id="paste-text"
+                placeholder="Paste anything: a bio, CV notes, a job history, or bullet points about your career..."
+                value={pasteText}
+                onChange={(e) => { setPasteText(e.target.value); setPasteError(null); }}
+                className="min-h-[160px] resize-none text-sm"
+                autoFocus
+              />
+              <p className="text-xs text-muted-foreground">
+                AI will extract your experience, skills, and education from whatever you paste.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="paste-title">Resume title <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Input
+                id="paste-title"
+                placeholder="e.g., Software Engineer Resume"
+                value={pasteTitle}
+                onChange={(e) => setPasteTitle(e.target.value)}
+              />
+            </div>
+
+            {pasteError && (
+              <p className="text-sm text-destructive">{pasteError}</p>
+            )}
+
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => { setMode(null); setPasteError(null); }}
+                className="flex-1"
+              >
+                Back
+              </Button>
+              <Button
+                onClick={handlePasteCreate}
+                disabled={!pasteText.trim() || isCreating}
+                className="flex-1 gradient-primary"
+              >
+                {isCreating ? 'Building...' : 'Build Resume'}
               </Button>
             </div>
           </div>
