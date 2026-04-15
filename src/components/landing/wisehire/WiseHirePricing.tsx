@@ -1,4 +1,5 @@
 import { Check, Star, Zap } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const tiers = [
   {
@@ -255,23 +256,46 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
               </ul>
 
               {/* CTA */}
-              <button
-                onClick={onOpenWaitlist}
-                style={{
-                  width: '100%',
-                  padding: '10px 0',
-                  borderRadius: 10,
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  background: tier.highlight ? '#1D4ED8' : 'transparent',
-                  color: tier.highlight ? '#fff' : 'var(--lp-eyebrow)',
-                  border: tier.highlight ? 'none' : '1.5px solid rgba(29,78,216,0.35)',
-                }}
-              >
-                Join the Waitlist
-              </button>
+              {tier.name === 'Enterprise' ? (
+                <Link
+                  to="/enterprise"
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    padding: '10px 0',
+                    borderRadius: 10,
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    background: 'transparent',
+                    color: 'var(--lp-eyebrow)',
+                    border: '1.5px solid rgba(29,78,216,0.35)',
+                    textAlign: 'center',
+                    textDecoration: 'none',
+                  }}
+                >
+                  Learn More
+                </Link>
+              ) : (
+                <button
+                  onClick={onOpenWaitlist}
+                  style={{
+                    width: '100%',
+                    padding: '10px 0',
+                    borderRadius: 10,
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    background: tier.highlight ? '#1D4ED8' : 'transparent',
+                    color: tier.highlight ? '#fff' : 'var(--lp-eyebrow)',
+                    border: tier.highlight ? 'none' : '1.5px solid rgba(29,78,216,0.35)',
+                  }}
+                >
+                  Join the Waitlist
+                </button>
+              )}
             </div>
           ))}
         </div>

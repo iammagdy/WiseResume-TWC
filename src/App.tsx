@@ -145,6 +145,7 @@ const SearchPage = lazyWithRetry(() => import("./pages/SearchPage"));
 const TailorPage = lazyWithRetry(() => import("./pages/TailorPage"));
 
 // WiseHire pages
+const EnterprisePage = lazyWithRetry(() => import("./pages/wisehire/EnterprisePage"));
 const WiseHireSignupPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireSignupPage"));
 const WiseHireEarlyAccessPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireEarlyAccessPage"));
 const WiseHireDashboardPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireDashboardPage"));
@@ -328,6 +329,9 @@ function AppRoutes() {
           <Route path="/pricing" element={<Suspense fallback={<PageLoadingSpinner />}><PricingPage /></Suspense>} />
           <Route path="/whats-new" element={<Suspense fallback={<PageLoadingSpinner />}><WhatsNewPage /></Suspense>} />
           <Route path="/waitlist" element={<Suspense fallback={<PageLoadingSpinner />}><WaitlistPage /></Suspense>} />
+
+          {/* WiseHire Enterprise page — public, no auth */}
+          <Route path="/enterprise" element={<Suspense fallback={<PageLoadingSpinner />}><EnterprisePage /></Suspense>} />
 
           {/* WiseHire public routes */}
           <Route path="/wisehire/signup" element={<Suspense fallback={<PageLoadingSpinner />}><WiseHireSignupPage /></Suspense>} />
