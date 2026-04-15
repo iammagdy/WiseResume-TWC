@@ -24,18 +24,17 @@ Local changelog tracking WiseResume changes.
   - `src/components/landing/wisehire/WiseHireFeatureTicker.tsx` — Scrolling marquee of WiseHire pillars (Brief Generator · JD Writer · Pipeline Board · Bulk Screening · Talent Pool)
 - **Section order after fix**: Hero → Trust → Feature Ticker → Demo → Features → Pricing → Footer
 - **Modified files**:
-  - `src/components/landing/LandingToggle.tsx` — label copy
-  - `src/components/landing/AuroraBackground.tsx` — Zustand store subscription replacing MutationObserver; reads `lpProduct` + `theme` for product-aware colour stops
+  - `src/components/landing/LandingToggle.tsx` — label copy ("For Job Seekers" / "For Companies")
+  - `src/components/landing/AuroraBackground.tsx` — Zustand store subscription replacing MutationObserver; reads `lpProduct` + `theme` for product-aware colour stops; accepts optional `product` prop for route-scoped override
   - `src/store/settingsStore.ts` — added `lpProduct: 'jobseeker' | 'wisehire'` field + `setLpProduct` action; excluded from localStorage persistence via partialize
-  - `src/pages/Index.tsx` — `useLayoutEffect` (fires before browser paint) calls `setLpProduct(mode)` on every mode change, including initial mount; eliminates first-paint desync on `?for=companies` direct load without render-phase side effects; `useLayoutEffect` added to React import
-  - `src/App.tsx` (AuroraLayer) — body `backgroundColor` is now product-aware: WiseHire dark `#00061a` / light `#f0f5ff`; WiseResume dark `#0a0000` / light `#fff5f5`; `lpProduct` added to effect dependency array
+  - `src/pages/Index.tsx` — section order fix; nav Pricing link; FeatureNumberedNav CSS vars; AvatarFallback; comment typo; `useLayoutEffect` syncs `mode` → `setLpProduct` before browser paint (eliminates first-paint desync on `?for=companies`)
+  - `src/App.tsx` (AuroraLayer) — body background and AuroraBackground both use `effectiveLpProduct` = `lpProduct` on `/` only, `'jobseeker'` on all other public routes (prevents WiseHire aurora bleeding to `/pricing`, `/whats-new`, etc.)
   - `src/components/landing/wisehire/WiseHireDemoSection.tsx` — lp-animate removed from flex container
-  - `src/components/landing/wisehire/BriefDemo.tsx` — replay loop
-  - `src/components/landing/wisehire/PipelineDemo.tsx` — reset loop
-  - `src/components/landing/wisehire/JDDemo.tsx` — restart loop
+  - `src/components/landing/wisehire/BriefDemo.tsx` — replay loop; animation step 2→1, pause 2500→3000ms; total loop ~5s
+  - `src/components/landing/wisehire/PipelineDemo.tsx` — reset loop (all cards → restart)
+  - `src/components/landing/wisehire/JDDemo.tsx` — typewriter restart loop
   - `src/components/landing/wisehire/WiseHirePricing.tsx` — badge fix, `id="wisehire-pricing"`
-  - `src/components/landing/WaitlistModal.tsx` — button loading state switches to white-bg/blue-text; Loader2 explicitly colored #1D4ED8
-  - `src/pages/Index.tsx` — imports, section order, nav link, FeatureNumberedNav vars, AvatarFallback, typo
+  - `src/components/landing/WaitlistModal.tsx` — button loading state: white-bg + blue border + Loader2 explicitly #1D4ED8
 - **Tasks completed**: Phase 3 Bug Fix Pass (all 15 issues + 4 user-reported bugs) ✅
 - **Test status (npm run test — run 2026-04-15)**: 22 pre-existing failures across 9 test files; zero regressions introduced by this task (identical failures on the unmodified baseline commit b704b7a).
   - Pre-existing failures (not caused by Phase 3 work):

@@ -394,6 +394,8 @@ function AuroraLayer() {
 
   const theme = useSettingsStore((s) => s.theme);
   const lpProduct = useSettingsStore((s) => s.lpProduct);
+  const isLandingPage = path === '/';
+  const effectiveLpProduct = isLandingPage ? lpProduct : 'jobseeker';
 
   useEffect(() => {
     if (!isPublicPage) return;
@@ -407,7 +409,7 @@ function AuroraLayer() {
         ? false
         : getSafeMatchMedia('(prefers-color-scheme: dark)').matches;
 
-    const isWiseHire = lpProduct === 'wisehire';
+    const isWiseHire = effectiveLpProduct === 'wisehire';
     body.style.backgroundColor = isWiseHire
       ? (isDark ? '#00061a' : '#f0f5ff')
       : (isDark ? '#0a0000' : '#fff5f5');
@@ -416,10 +418,10 @@ function AuroraLayer() {
       body.style.backgroundColor = prevBodyBg;
       document.documentElement.classList.remove('aurora-active');
     };
-  }, [isPublicPage, theme, lpProduct]);
+  }, [isPublicPage, theme, effectiveLpProduct]);
 
   if (!isPublicPage) return null;
-  return <AuroraBackground />;
+  return <AuroraBackground product={effectiveLpProduct} />;
 }
 
 function PrefetchOnIdle() {

@@ -3,9 +3,14 @@ import Aurora from './Aurora';
 import { useSettingsStore } from '@/store/settingsStore';
 import { getSafeMatchMedia } from '@/lib/envUtils';
 
-export function AuroraBackground() {
+interface AuroraBackgroundProps {
+  product?: 'jobseeker' | 'wisehire';
+}
+
+export function AuroraBackground({ product }: AuroraBackgroundProps = {}) {
   const theme = useSettingsStore((s) => s.theme);
-  const lpProduct = useSettingsStore((s) => s.lpProduct);
+  const storeLpProduct = useSettingsStore((s) => s.lpProduct);
+  const lpProduct = product ?? storeLpProduct;
 
   const isDark = useMemo(() => {
     if (theme === 'dark') return true;

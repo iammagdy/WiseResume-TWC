@@ -31,7 +31,7 @@ export function BriefDemo() {
       const target = 87;
       const step = () => {
         if (cancelled) return;
-        current = Math.min(current + 2, target);
+        current = Math.min(current + 1, target);
         setScore(current);
         if (current < target) {
           requestAnimationFrame(step);
@@ -43,7 +43,7 @@ export function BriefDemo() {
                 if (!cancelled) animate();
               }, 500);
             }
-          }, 2500);
+          }, 3000);
         }
       };
       setTimeout(() => { if (!cancelled) requestAnimationFrame(step); }, 200);
