@@ -1,21 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.0";
-
-const IP_RATE_LIMIT = 30;
-const IP_WINDOW_MS = 60_000;
-const ipCounters = new Map<string, { count: number; resetAt: number }>();
-
-function checkIpRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = ipCounters.get(ip);
-  if (!entry || now >= entry.resetAt) {
-    ipCounters.set(ip, { count: 1, resetAt: now + IP_WINDOW_MS });
-    return true;
-  }
-  if (entry.count >= IP_RATE_LIMIT) return false;
-  entry.count++;
-  return true;
-}
+import { checkIpRateLimit } from "../_shared/rateLimiter.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -37,13 +22,14 @@ serve(async (req) => {
     req.headers.get("x-real-ip") ||
     "unknown";
 
-  if (!checkIpRateLimit(clientIp)) {
+  const ipLimit = await checkIpRateLimit(clientIp, "track-portfolio-view", 30, 60);
+  if (!ipLimit.allowed) {
     return new Response(JSON.stringify({ error: "Too Many Requests" }), {
       status: 429,
       headers: {
         ...corsHeaders,
         "Content-Type": "application/json",
-        "Retry-After": "60",
+        "Retry-After": String(ipLimit.retryAfterSeconds),
       },
     });
   }

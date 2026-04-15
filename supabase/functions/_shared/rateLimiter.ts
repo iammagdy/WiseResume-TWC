@@ -87,6 +87,57 @@ export async function checkRateLimit(
 }
 
 /**
+ * Check and record an IP-based rate limit against the `rpc_rate_limits` table.
+ *
+ * Unlike the user-based limiter this targets anonymous/public endpoints.
+ * Fail-open: if the DB query errors, the request is allowed through so that
+ * a transient DB issue does not block legitimate visitors. DB errors are
+ * logged for observability.
+ *
+ * @param ip             Client IP address (from x-forwarded-for or x-real-ip)
+ * @param endpoint       Logical endpoint key, e.g. "track-portfolio-view"
+ * @param maxRequests    Maximum requests per window
+ * @param windowSeconds  Sliding window size in seconds (default 60)
+ */
+export async function checkIpRateLimit(
+  ip: string,
+  endpoint: string,
+  maxRequests: number,
+  windowSeconds = 60,
+): Promise<{ allowed: boolean; retryAfterSeconds: number }> {
+  const supabase = getServiceClient();
+  const windowStart = new Date(Date.now() - windowSeconds * 1000).toISOString();
+
+  const { count, error: countError } = await supabase
+    .from('rpc_rate_limits')
+    .select('*', { count: 'exact', head: true })
+    .eq('ip_address', ip)
+    .eq('endpoint', endpoint)
+    .gte('created_at', windowStart);
+
+  if (countError) {
+    console.error('[ipRateLimit] count query failed (fail-open):', countError);
+    return { allowed: true, retryAfterSeconds: 0 };
+  }
+
+  const used = count ?? 0;
+
+  if (used >= maxRequests) {
+    return { allowed: false, retryAfterSeconds: windowSeconds };
+  }
+
+  const { error: insertError } = await supabase
+    .from('rpc_rate_limits')
+    .insert({ ip_address: ip, endpoint });
+
+  if (insertError) {
+    console.error('[ipRateLimit] insert failed (allowing current request):', insertError);
+  }
+
+  return { allowed: true, retryAfterSeconds: 0 };
+}
+
+/**
  * Record a usage event for rate limiting.
  */
 export async function recordUsage(
