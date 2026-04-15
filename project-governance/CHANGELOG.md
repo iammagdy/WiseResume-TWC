@@ -34,6 +34,18 @@ Local changelog tracking WiseResume changes.
   - `src/components/landing/wisehire/WiseHirePricing.tsx` — badge fix, `id="wisehire-pricing"`
   - `src/pages/Index.tsx` — imports, section order, nav link, FeatureNumberedNav vars, AvatarFallback, typo
 - **Tasks completed**: Phase 3 Bug Fix Pass (all 15 issues + 4 user-reported bugs) ✅
+- **Test status (npm run test — run 2026-04-15)**: 22 pre-existing failures across 9 test files; zero regressions introduced by this task (identical failures on the unmodified baseline commit b704b7a).
+  - Pre-existing failures (not caused by Phase 3 work):
+    - `src/lib/ai/fixHelpers.test.ts` — 8 failures (findTargetContent; resume section lookup logic mismatch)
+    - `src/pages/__tests__/ApplicationsTracker-D9.test.tsx` — 3 failures (Supabase real-time mock; pre-dates Phase 3)
+    - `src/pages/__tests__/ApplicationsDeadline-D9.test.tsx` — 3 failures (same cause as above)
+    - `src/pages/__tests__/ApplicationsAnalytics-D9.test.tsx` — 3 failures (same cause as above)
+    - `src/hooks/__tests__/Auth-D3.test.tsx` — 2 failures (Kinde auth provider mock; pre-dates Phase 3)
+    - `src/components/layout/__tests__/ProtectedRoute.test.tsx` — 1 failure (same auth mock)
+    - `src/pages/__tests__/PortfolioEditorPage.test.tsx` — 1 failure (portfolio URL status bar; pre-dates Phase 3)
+    - `src/integrations/supabase/safeClient.test.ts` — 1 failure (env-var fallback URL; pre-dates Phase 3)
+    - `src/pages/__tests__/Pages-D5.test.tsx` — hangs/crashes in jsdom (legacy build warning; pre-dates Phase 3)
+  - These failures are tracked as pre-existing technical debt for a future test-governance task.
 - **Spec reference**: `specs/001-wisehire-hr-platform/plan.md` Phase 3 bug fix
 
 ### WISEHIRE-PHASE3 — US1: Landing Page Toggle + Full WiseHire Theme
