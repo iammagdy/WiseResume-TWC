@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { FileText, Copy, Trash2, ChevronRight, CheckCheck, Loader2 } from 'lucide-react';
+import { FileText, Copy, Trash2, CheckCheck, Loader2, Globe, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import type { WiseHireRole } from '@/hooks/wisehire/useJDs';
+import { PublishRoleSheet } from '@/components/wisehire/job-board/PublishRoleSheet';
 import { toast } from 'sonner';
 
 interface JDLibraryProps {
@@ -11,11 +12,13 @@ interface JDLibraryProps {
   isLoading: boolean;
   onDelete: (id: string) => void;
   isDeleting: boolean;
+  companySlug: string | null;
 }
 
-export function JDLibrary({ roles, isLoading, onDelete, isDeleting }: JDLibraryProps) {
+export function JDLibrary({ roles, isLoading, onDelete, isDeleting, companySlug }: JDLibraryProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [publishRole, setPublishRole] = useState<WiseHireRole | null>(null);
 
   async function handleCopy(jdText: string, id: string) {
     await navigator.clipboard.writeText(jdText);
@@ -57,47 +60,76 @@ export function JDLibrary({ roles, isLoading, onDelete, isDeleting }: JDLibraryP
   }
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden">
-      {roles.map((role) => (
-        <div key={role.id} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
-            <FileText className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+    <>
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden">
+        {roles.map((role) => (
+          <div key={role.id} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
+              <FileText className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{role.title}</p>
+                {role.published && (
+                  <Badge className="text-[9px] h-4 px-1.5 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 shrink-0">
+                    Live
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-slate-400 dark:text-slate-500">
+                {formatDistanceToNow(new Date(role.updated_at), { addSuffix: true })}
+                {role.jd_text && ` · ${role.jd_text.split('\n').length} lines`}
+              </p>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0"
+                onClick={() => setPublishRole(role)}
+                title={role.published ? 'Manage listing' : 'Publish to job board'}
+              >
+                {role.published
+                  ? <Globe className="h-3.5 w-3.5 text-emerald-500" />
+                  : <EyeOff className="h-3.5 w-3.5 text-slate-400 group-hover:text-blue-500 transition-colors" />}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0"
+                onClick={() => role.jd_text && handleCopy(role.jd_text, role.id)}
+                disabled={!role.jd_text}
+                title="Copy"
+              >
+                {copiedId === role.id
+                  ? <CheckCheck className="h-3.5 w-3.5 text-emerald-500" />
+                  : <Copy className="h-3.5 w-3.5 text-slate-400" />}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`h-7 w-7 p-0 ${confirmDeleteId === role.id ? 'text-red-500' : 'text-slate-400 hover:text-red-500'}`}
+                onClick={() => handleDeleteClick(role.id)}
+                disabled={isDeleting}
+                title={confirmDeleteId === role.id ? 'Click again to confirm' : 'Delete'}
+              >
+                {isDeleting
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  : <Trash2 className="h-3.5 w-3.5" />}
+              </Button>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{role.title}</p>
-            <p className="text-xs text-slate-400 dark:text-slate-500">
-              {formatDistanceToNow(new Date(role.updated_at), { addSuffix: true })}
-              {role.jd_text && ` · ${role.jd_text.split('\n').length} lines`}
-            </p>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 w-7 p-0"
-              onClick={() => role.jd_text && handleCopy(role.jd_text, role.id)}
-              disabled={!role.jd_text}
-              title="Copy"
-            >
-              {copiedId === role.id
-                ? <CheckCheck className="h-3.5 w-3.5 text-emerald-500" />
-                : <Copy className="h-3.5 w-3.5 text-slate-400" />}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className={`h-7 w-7 p-0 ${confirmDeleteId === role.id ? 'text-red-500' : 'text-slate-400 hover:text-red-500'}`}
-              onClick={() => handleDeleteClick(role.id)}
-              disabled={isDeleting}
-              title={confirmDeleteId === role.id ? 'Click again to confirm' : 'Delete'}
-            >
-              {isDeleting
-                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                : <Trash2 className="h-3.5 w-3.5" />}
-            </Button>
-          </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+
+      {publishRole && (
+        <PublishRoleSheet
+          role={publishRole}
+          companySlug={companySlug}
+          open={!!publishRole}
+          onOpenChange={(v) => { if (!v) setPublishRole(null); }}
+        />
+      )}
+    </>
   );
 }

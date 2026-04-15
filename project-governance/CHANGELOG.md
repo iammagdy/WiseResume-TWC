@@ -2,6 +2,35 @@
 
 Local changelog tracking WiseResume changes.
 
+## 2026-04-15 (Phase 20 — US17: Public Job Board + US18: Direct Applications)
+
+### WISEHIRE-PHASE20-US17 — Public Job Board
+
+- **DB** (`wisehire_roles`): added `slug text`, `published boolean DEFAULT false`, `location text`, `remote_ok boolean`, `salary_min int`, `salary_max int`, `employment_type text`. Unique index on slug (where not null). Public SELECT policy for `anon` on `published=true AND NOT is_deleted` rows.
+- **DB** (`wisehire_companies`): added `slug text`. Unique index. Public SELECT policy for `anon` on all rows.
+- **Hook** `usePublicJobs.ts`: `useAllPublishedRoles()` — all live roles with company join; `usePublicCompanyJobs(companySlug)` — company-scoped board; `usePublicRole(companySlug, roleSlug)` — single role detail.
+- **Hook** `useJDs.ts` updated: `WiseHireRole` now includes `slug/published/location/remote_ok/salary_min/salary_max/employment_type`; new `publishRole` mutation (update published + all listing fields).
+- **Hook** `useWiseHireAccount.ts`: `WiseHireCompany` now includes `slug`; select extended.
+- **Component** `PublishRoleSheet.tsx`: slide-in sheet from JD library: toggle published on/off, set slug (auto-slugified from title), employment type, location, remote_ok, salary range; copyable public URL preview.
+- **Component** `JobCard.tsx`: public role card with salary/location/remote badges + formatted distance timestamp; links to role detail page.
+- **Component** `JDLibrary.tsx` updated: publish/unpublish icon per row (Globe green=live, EyeOff=hidden); "Live" badge on published roles; opens `PublishRoleSheet` on click.
+- **Page** `PublicJobBoardPage.tsx` (`/jobs`, `/jobs/:companySlug`): public board with company header and role list; anon-accessible; no auth required.
+- **Page** `PublicJobPage.tsx` (`/jobs/:companySlug/:roleSlug`): full JD view with meta badges; two ApplyButton CTAs; falls back gracefully to 404 state.
+- **App.tsx**: added three public routes `/jobs`, `/jobs/:companySlug`, `/jobs/:companySlug/:roleSlug` outside auth wrapper.
+
+### WISEHIRE-PHASE20-US18 — One-Click Apply
+
+- **DB** (`wisehire_applications`): `role_id → wisehire_roles`, `candidate_id → wisehire_candidates`, `applicant_user_id`, `applicant_name/email`, `resume_text`, `cover_note`, `status`, `applied_at`. RLS: HR owner SELECT; applicant full CRUD on own rows.
+- **DB** (`wisehire_candidates`): added `source text DEFAULT 'manual'`.
+- **Edge function** `wisehire-apply` (#88): auth guard → block HR accounts → verify role is published → duplicate check → pull latest resume from `resumes` table → insert `wisehire_applications` row → insert `wisehire_candidates` row (owner=role.owner, stage=shortlisted, source=job_board) → link candidate back to application → optional Resend email to HR.
+- **Hook** `useApplications.ts`: `useMyApplications()` — job seeker's application history with role+company join; `useHasApplied(roleId)` — live dedup check; `useApplyToRole()` — mutation wrapping edge function with toast feedback.
+- **Component** `ApplyButton.tsx`: unauthenticated → "Sign in to Apply" link; already applied → "Application Submitted" disabled badge; else → "Apply Now" opens cover-note dialog → submits.
+- **Page** `MyApplicationsPage.tsx` (`/my-applications`): job seeker's application list with status badges (applied/shortlisted/screening/interview/offer/hired/rejected), role meta, timestamps.
+- **App.tsx**: `/my-applications` route added inside `ProtectedRoute > AppShell`.
+- **AppShell**: `/my-applications` added to `TAB_ROUTES`.
+
+---
+
 ## 2026-04-15 (Phase 19 — Phase 4: Outreach & Notes)
 
 ### WISEHIRE-PHASE19-US15 — Candidate Outreach

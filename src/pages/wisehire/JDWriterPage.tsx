@@ -5,6 +5,7 @@ import { JDInlineEditor, JDData } from '@/components/wisehire/jd-writer/JDInline
 import { JDLibrary } from '@/components/wisehire/jd-writer/JDLibrary';
 import { JDSkeleton } from '@/components/wisehire/jd-writer/JDSkeleton';
 import { useJDs } from '@/hooks/wisehire/useJDs';
+import { useWiseHireAccount } from '@/hooks/wisehire/useWiseHireAccount';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileText, Library } from 'lucide-react';
 
@@ -12,6 +13,7 @@ export default function JDWriterPage() {
   const [generatedJD, setGeneratedJD] = useState<JDData | null>(null);
   const [savedRoleId, setSavedRoleId] = useState<string | null>(null);
   const { data: roles = [], isLoading: rolesLoading, saveJD, deleteJD } = useJDs();
+  const { company } = useWiseHireAccount();
 
   function handleResult(jd: JDData, roleId: string | null) {
     setGeneratedJD(jd);
@@ -85,6 +87,7 @@ export default function JDWriterPage() {
               isLoading={rolesLoading}
               onDelete={(id) => deleteJD.mutate(id)}
               isDeleting={deleteJD.isPending}
+              companySlug={company?.slug ?? null}
             />
           </TabsContent>
         </Tabs>

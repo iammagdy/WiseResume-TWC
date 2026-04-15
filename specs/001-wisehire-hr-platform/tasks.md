@@ -431,3 +431,32 @@ At each checkpoint, validate the completed user story is independently functiona
 - [x] T190: `CandidateDetailPanel.tsx` integration — Team Notes section
 - [ ] T191: Manual verification
 - [x] T192: CHANGELOG + ARCHITECTURE.md update
+
+---
+
+## Phase 20 — US17: Public Job Board + US18: Direct Applications
+
+### US17 — Public Job Board (T193–T202)
+
+- [x] T193: DB — `wisehire_roles` new columns: slug, published, location, remote_ok, salary_min, salary_max, employment_type + unique index on slug + anon SELECT policy for published roles
+- [x] T194: DB — `wisehire_companies` slug column + unique index + anon SELECT policy (all companies)
+- [x] T195: Hook `usePublicJobs.ts` — useAllPublishedRoles, usePublicCompanyJobs, usePublicRole
+- [x] T196: Hook `useJDs.ts` updated — WiseHireRole includes new fields; publishRole mutation added
+- [x] T197: Hook `useWiseHireAccount.ts` updated — WiseHireCompany includes slug; select extended
+- [x] T198: Component `PublishRoleSheet.tsx` — slug, employment_type, location, remote_ok, salary range; live URL preview with copy; publish/unpublish toggle
+- [x] T199: Component `JobCard.tsx` — public role listing card with badges + distance timestamp
+- [x] T200: Component `JDLibrary.tsx` updated — Globe/EyeOff icons per row; Live badge; opens PublishRoleSheet
+- [x] T201: Page `PublicJobBoardPage.tsx` (/jobs, /jobs/:companySlug) — anon public board
+- [x] T202: App.tsx routes — /jobs, /jobs/:companySlug, /jobs/:companySlug/:roleSlug
+
+### US18 — One-Click Apply (T203–T211)
+
+- [x] T203: DB — `wisehire_applications` table + RLS (HR owner SELECT; applicant full CRUD on own rows)
+- [x] T204: DB — `wisehire_candidates.source` column added (DEFAULT 'manual')
+- [x] T205: Edge fn `wisehire-apply` (#88) — auth guard, HR block, published check, dedup, resume pull, application insert, candidate pipeline insert (source=job_board), HR Resend notification
+- [x] T206: Hook `useApplications.ts` — useMyApplications, useHasApplied, useApplyToRole
+- [x] T207: Component `ApplyButton.tsx` — unauthenticated/applied/open states; cover note dialog
+- [x] T208: Page `PublicJobPage.tsx` (/jobs/:companySlug/:roleSlug) — full JD view + two ApplyButton CTAs + 404 fallback
+- [x] T209: Page `MyApplicationsPage.tsx` (/my-applications) — job seeker application tracker with status badges
+- [x] T210: App.tsx — /my-applications route inside ProtectedRoute > AppShell; AppShell TAB_ROUTES updated
+- [x] T211: CHANGELOG + tasks.md update; TypeScript clean (0 errors); app restarts clean
