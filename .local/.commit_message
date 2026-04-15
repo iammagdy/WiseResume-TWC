@@ -1,0 +1,8 @@
+Update app version and user-facing changelog for release v2.5.4.
+
+- Bumped package.json version from 2.5.3 to 2.5.4.
+- Added a plain-language changelog entry for users in public/changelog.json.
+- Added a short release note to project-governance/CHANGELOG.md.
+- Focused the user-facing notes on the visible improvement to admin email search responsiveness and the clearer release note format.
+
+No functional code changes were made in this step.
