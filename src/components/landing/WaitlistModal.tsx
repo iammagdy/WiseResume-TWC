@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { X, CheckCircle2, Loader2, Briefcase, Mail, Building2, Users } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { X, CheckCircle2, Loader2, Briefcase, Mail, Building2, Users, KeyRound, ArrowLeft } from 'lucide-react';
 import { useWaitlist } from '@/hooks/wisehire/useWaitlist';
+import { validateEarlyAccessCode } from '@/lib/wisehire/inviteTokenClient';
 
 interface WaitlistModalProps {
   open: boolean;
@@ -15,10 +17,20 @@ const COMPANY_SIZES = [
   '1,000+ employees',
 ];
 
+type ModalView = 'waitlist' | 'early_access';
+
 export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
+  const navigate = useNavigate();
+
   const [form, setForm] = useState({ name: '', company: '', email: '', size: '' });
   const [errors, setErrors] = useState<Partial<typeof form>>({});
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
+
+  const [view, setView] = useState<ModalView>('waitlist');
+  const [eaCode, setEaCode] = useState('');
+  const [eaEmail, setEaEmail] = useState('');
+  const [eaError, setEaError] = useState('');
+  const [eaLoading, setEaLoading] = useState(false);
 
   const { mutate, isPending, isSuccess, reset: resetMutation } = useWaitlist();
 
@@ -48,12 +60,36 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
       },
       {
         onSuccess: (data) => {
-          if (data.already_registered) {
-            setAlreadyRegistered(true);
-          }
+          if (data.already_registered) setAlreadyRegistered(true);
         },
       }
     );
+  };
+
+  const handleEarlyAccessSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEaError('');
+
+    const trimCode = eaCode.trim().toUpperCase();
+    const trimEmail = eaEmail.trim();
+
+    if (!trimCode) { setEaError('Please enter your early access code.'); return; }
+    if (!trimEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimEmail)) {
+      setEaError('Please enter a valid work email.');
+      return;
+    }
+
+    setEaLoading(true);
+    const result = await validateEarlyAccessCode(trimCode);
+    setEaLoading(false);
+
+    if (!result.valid) {
+      setEaError(result.error);
+      return;
+    }
+
+    handleClose();
+    navigate(`/wisehire/signup-early-access/${encodeURIComponent(trimCode)}?email=${encodeURIComponent(trimEmail)}`);
   };
 
   const handleClose = () => {
@@ -63,6 +99,10 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
       setErrors({});
       setAlreadyRegistered(false);
       resetMutation();
+      setView('waitlist');
+      setEaCode('');
+      setEaEmail('');
+      setEaError('');
     }, 300);
   };
 
@@ -133,6 +173,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
           <X className="w-4 h-4" />
         </button>
 
+        {/* ── Success state ── */}
         {submitted ? (
           <div style={{ textAlign: 'center', padding: '8px 0' }}>
             <div
@@ -181,7 +222,129 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
               Close
             </button>
           </div>
+
+        ) : view === 'early_access' ? (
+          /* ── Early access code view ── */
+          <>
+            <button
+              type="button"
+              onClick={() => { setView('waitlist'); setEaError(''); }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                background: 'none',
+                border: 'none',
+                color: 'var(--lp-text-muted)',
+                fontSize: '0.78rem',
+                cursor: 'pointer',
+                marginBottom: 20,
+                padding: 0,
+              }}
+            >
+              <ArrowLeft className="w-3.5 h-3.5" /> Back to waitlist
+            </button>
+
+            <div style={{ marginBottom: 22 }}>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  background: 'rgba(29,78,216,0.10)',
+                  border: '1px solid rgba(29,78,216,0.22)',
+                  borderRadius: 99,
+                  padding: '4px 12px',
+                  marginBottom: 14,
+                }}
+              >
+                <KeyRound className="w-3.5 h-3.5" style={{ color: '#3B82F6' }} />
+                <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#3B82F6' }}>Early Access</span>
+              </div>
+              <h2
+                style={{
+                  fontSize: '1.2rem',
+                  fontWeight: 700,
+                  color: 'var(--lp-text)',
+                  letterSpacing: '-0.025em',
+                  marginBottom: 6,
+                }}
+              >
+                Enter your early access code
+              </h2>
+              <p style={{ fontSize: '0.8rem', color: 'var(--lp-text-muted)', lineHeight: 1.5 }}>
+                Got a code? Skip the waitlist and set up your WiseHire account right now.
+              </p>
+            </div>
+
+            <form onSubmit={handleEarlyAccessSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 600, color: 'var(--lp-text-muted)', marginBottom: 5 }}>
+                  <Mail className="w-3.5 h-3.5" /> Work Email
+                </label>
+                <input
+                  type="email"
+                  placeholder="you@company.com"
+                  value={eaEmail}
+                  onChange={(e) => setEaEmail(e.target.value)}
+                  style={fieldStyle()}
+                  disabled={eaLoading}
+                  onFocus={(ev) => { (ev.target as HTMLInputElement).style.borderColor = '#1D4ED8'; }}
+                  onBlur={(ev) => { (ev.target as HTMLInputElement).style.borderColor = 'var(--lp-border-card)'; }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 600, color: 'var(--lp-text-muted)', marginBottom: 5 }}>
+                  <KeyRound className="w-3.5 h-3.5" /> Early Access Code
+                </label>
+                <input
+                  type="text"
+                  placeholder="WISE-XXXX"
+                  value={eaCode}
+                  onChange={(e) => setEaCode(e.target.value.toUpperCase())}
+                  style={{ ...fieldStyle(), fontFamily: 'monospace', letterSpacing: '0.05em' }}
+                  disabled={eaLoading}
+                  autoComplete="off"
+                  onFocus={(ev) => { (ev.target as HTMLInputElement).style.borderColor = '#1D4ED8'; }}
+                  onBlur={(ev) => { (ev.target as HTMLInputElement).style.borderColor = 'var(--lp-border-card)'; }}
+                />
+              </div>
+
+              {eaError && (
+                <p style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: -6 }}>{eaError}</p>
+              )}
+
+              <button
+                type="submit"
+                disabled={eaLoading}
+                style={{
+                  marginTop: 4,
+                  background: eaLoading ? '#fff' : '#1D4ED8',
+                  color: eaLoading ? '#1D4ED8' : '#fff',
+                  border: eaLoading ? '2px solid #1D4ED8' : 'none',
+                  borderRadius: 10,
+                  padding: eaLoading ? '9px 0' : '11px 0',
+                  fontSize: '0.9rem',
+                  fontWeight: 700,
+                  cursor: eaLoading ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  transition: 'background 0.2s, color 0.2s, border 0.2s',
+                }}
+              >
+                {eaLoading
+                  ? <><Loader2 className="w-4 h-4 animate-spin" style={{ color: '#1D4ED8' }} /> Verifying…</>
+                  : 'Continue with Early Access'
+                }
+              </button>
+            </form>
+          </>
+
         ) : (
+          /* ── Waitlist form ── */
           <>
             <div style={{ marginBottom: 24 }}>
               <div
@@ -310,6 +473,23 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
               <p style={{ fontSize: '0.68rem', color: 'var(--lp-text-subtle)', textAlign: 'center', lineHeight: 1.5 }}>
                 No spam. No credit card. Invite-only early access.
               </p>
+
+              <button
+                type="button"
+                onClick={() => { setView('early_access'); setEaError(''); }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--lp-text-muted)',
+                  fontSize: '0.75rem',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  padding: 0,
+                  marginTop: -4,
+                }}
+              >
+                Already have an early access code?
+              </button>
             </form>
           </>
         )}

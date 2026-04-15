@@ -146,6 +146,7 @@ const TailorPage = lazyWithRetry(() => import("./pages/TailorPage"));
 
 // WiseHire pages
 const WiseHireSignupPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireSignupPage"));
+const WiseHireEarlyAccessPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireEarlyAccessPage"));
 const WiseHireDashboardPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireDashboardPage"));
 const WiseHireOnboardingPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireOnboardingPage"));
 const WiseHireSubscriptionPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireSubscriptionPage"));
@@ -330,6 +331,7 @@ function AppRoutes() {
 
           {/* WiseHire public routes */}
           <Route path="/wisehire/signup" element={<Suspense fallback={<PageLoadingSpinner />}><WiseHireSignupPage /></Suspense>} />
+          <Route path="/wisehire/signup-early-access/:code" element={<Suspense fallback={<PageLoadingSpinner />}><WiseHireEarlyAccessPage /></Suspense>} />
 
           {/* WiseHire protected routes — HR accounts only */}
           <Route element={<WiseHireGuard />}>

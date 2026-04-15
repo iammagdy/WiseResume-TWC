@@ -33,7 +33,6 @@ Deno.serve(async (req) => {
 
     const serviceClient = getServiceClient();
 
-    // Use service client to verify JWT and get user
     const { data: { user }, error: userErr } = await serviceClient.auth.getUser(bridgeToken);
     if (userErr || !user?.id) {
       console.error('[wisehire-complete-signup] getUser failed:', userErr?.message);
@@ -43,37 +42,22 @@ Deno.serve(async (req) => {
     const userId = user.id;
 
     const body = await req.json();
-    const { invite_token, full_name, company_name, company_size } = body as {
+    const { invite_token, early_access_code, full_name, company_name, company_size } = body as {
       invite_token?: string;
+      early_access_code?: string;
       full_name?: string;
       company_name?: string;
       company_size?: string;
     };
 
-    if (!invite_token?.trim()) {
-      return json({ success: false, error: 'invite_token is required' }, 400, corsHeaders);
+    const hasInvite = !!invite_token?.trim();
+    const hasEarlyAccess = !!early_access_code?.trim();
+
+    if (!hasInvite && !hasEarlyAccess) {
+      return json({ success: false, error: 'invite_token or early_access_code is required' }, 400, corsHeaders);
     }
 
-    const WISEHIRE_INVITE_SECRET =
-      Deno.env.get('WISEHIRE_INVITE_SECRET') ?? Deno.env.get('DEV_KIT_PASSWORD') ?? '';
-
-    // Re-validate invite token (prevents replay after expiry/revoke)
-    const { data: invite, error: fetchErr } = await serviceClient
-      .from('wisehire_invites')
-      .select('token, token_signature, recipient_email, expires_at, used_at, is_revoked')
-      .eq('token', invite_token.trim())
-      .maybeSingle();
-
-    if (fetchErr) {
-      console.error('[wisehire-complete-signup] DB fetch error:', fetchErr.message);
-      return json({ success: false, error: 'server_error' }, 500, corsHeaders);
-    }
-
-    if (!invite) return json({ success: false, error: 'invite_not_found' }, 404, corsHeaders);
-    if (invite.is_revoked) return json({ success: false, error: 'invite_revoked' }, 400, corsHeaders);
-
-    // Allow re-completion if invite was already used by the same user (idempotent)
-    // We check if the profile already has account_type = hr
+    // ── Check idempotency: already HR ──
     const { data: existingProfile } = await serviceClient
       .from('profiles')
       .select('account_type')
@@ -81,91 +65,209 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (existingProfile?.account_type === 'hr') {
-      // Already completed — idempotent success
       return json({ success: true, already_completed: true }, 200, corsHeaders);
     }
 
-    if (invite.used_at) return json({ success: false, error: 'invite_already_used' }, 400, corsHeaders);
-    if (new Date(invite.expires_at) < new Date()) {
-      return json({ success: false, error: 'invite_expired' }, 400, corsHeaders);
+    // ════════════════════════════════════════════════════════════
+    // PATH A — Invite token (existing behaviour, fully unchanged)
+    // ════════════════════════════════════════════════════════════
+    if (hasInvite) {
+      const WISEHIRE_INVITE_SECRET =
+        Deno.env.get('WISEHIRE_INVITE_SECRET') ?? Deno.env.get('DEV_KIT_PASSWORD') ?? '';
+
+      const { data: invite, error: fetchErr } = await serviceClient
+        .from('wisehire_invites')
+        .select('token, token_signature, recipient_email, expires_at, used_at, is_revoked')
+        .eq('token', invite_token!.trim())
+        .maybeSingle();
+
+      if (fetchErr) {
+        console.error('[wisehire-complete-signup] DB fetch error:', fetchErr.message);
+        return json({ success: false, error: 'server_error' }, 500, corsHeaders);
+      }
+
+      if (!invite) return json({ success: false, error: 'invite_not_found' }, 404, corsHeaders);
+      if (invite.is_revoked) return json({ success: false, error: 'invite_revoked' }, 400, corsHeaders);
+      if (invite.used_at) return json({ success: false, error: 'invite_already_used' }, 400, corsHeaders);
+      if (new Date(invite.expires_at) < new Date()) {
+        return json({ success: false, error: 'invite_expired' }, 400, corsHeaders);
+      }
+
+      const signatureOk = await hmacVerify(invite.token, invite.token_signature, WISEHIRE_INVITE_SECRET);
+      if (!signatureOk) {
+        return json({ success: false, error: 'invalid_signature' }, 400, corsHeaders);
+      }
+
+      // Set account_type = 'hr'
+      const profileUpdates: Record<string, unknown> = { account_type: 'hr' };
+      if (full_name?.trim()) profileUpdates.full_name = full_name.trim();
+
+      const { error: profileErr } = await serviceClient
+        .from('profiles')
+        .update(profileUpdates)
+        .eq('user_id', userId);
+
+      if (profileErr) {
+        console.error('[wisehire-complete-signup] profile update failed:', profileErr.message);
+        return json({ success: false, error: 'profile_update_failed' }, 500, corsHeaders);
+      }
+
+      // Mark invite as used
+      const { error: inviteErr } = await serviceClient
+        .from('wisehire_invites')
+        .update({ used_at: new Date().toISOString() })
+        .eq('token', invite_token!.trim());
+
+      if (inviteErr) {
+        console.error('[wisehire-complete-signup] invite update failed:', inviteErr.message);
+      }
+
+      // Create wisehire_companies row
+      try {
+        const companyName = company_name?.trim() || 'My Company';
+        await serviceClient
+          .from('wisehire_companies')
+          .upsert(
+            { owner_id: userId, name: companyName, size: company_size?.trim() ?? '1-10', onboarding_completed: false },
+            { onConflict: 'owner_id', ignoreDuplicates: true },
+          );
+      } catch (ex) {
+        console.warn('[wisehire-complete-signup] company upsert exception:', ex);
+      }
+
+      // Grant 7-day Professional trial
+      try {
+        const now = new Date().toISOString();
+        const trialEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+        await serviceClient
+          .from('subscriptions')
+          .upsert(
+            {
+              user_id: userId,
+              plan_name: 'wisehire_starter',
+              trial_plan: 'wisehire_professional',
+              trial_expires_at: trialEnd,
+              status: 'active',
+              current_period_start: now,
+              current_period_end: trialEnd,
+            },
+            { onConflict: 'user_id', ignoreDuplicates: true },
+          );
+      } catch (ex) {
+        console.warn('[wisehire-complete-signup] trial grant exception:', ex);
+      }
+
+      // Audit log
+      try {
+        await serviceClient.from('audit_logs').insert({
+          user_id: userId,
+          category: 'auth',
+          action: 'wisehire_signup_complete',
+          metadata: {
+            invite_token: invite_token!.trim(),
+            recipient_email: invite.recipient_email,
+            company_name: company_name ?? null,
+            completed_at: new Date().toISOString(),
+          },
+        });
+      } catch { /* non-fatal */ }
+
+      return json({ success: true }, 200, corsHeaders);
     }
 
-    const signatureOk = await hmacVerify(invite.token, invite.token_signature, WISEHIRE_INVITE_SECRET);
-    if (!signatureOk) {
-      return json({ success: false, error: 'invalid_signature' }, 400, corsHeaders);
+    // ════════════════════════════════════════════════════════════
+    // PATH B — Early access code (coupon-gated, no invite needed)
+    // ════════════════════════════════════════════════════════════
+    const upperCode = early_access_code!.trim().toUpperCase();
+
+    const { data: coupon, error: couponErr } = await serviceClient
+      .from('discount_codes')
+      .select('id, code, is_active, expires_at, max_uses, uses_count, plan_override, plan_days')
+      .eq('code', upperCode)
+      .maybeSingle();
+
+    if (couponErr) {
+      console.error('[wisehire-complete-signup] coupon fetch error:', couponErr.message);
+      return json({ success: false, error: 'server_error' }, 500, corsHeaders);
     }
 
-    // Set account_type = 'hr' on the profile
-    const profileUpdates: Record<string, unknown> = { account_type: 'hr' };
-    if (full_name?.trim()) profileUpdates.full_name = full_name.trim();
+    if (!coupon || !coupon.is_active) {
+      return json({ success: false, error: 'invalid_early_access_code' }, 400, corsHeaders);
+    }
 
-    const { error: profileErr } = await serviceClient
+    if (coupon.expires_at && new Date(coupon.expires_at as string) < new Date()) {
+      return json({ success: false, error: 'early_access_code_expired' }, 400, corsHeaders);
+    }
+
+    if ((coupon.max_uses as number) > 0 && (coupon.uses_count as number) >= (coupon.max_uses as number)) {
+      return json({ success: false, error: 'early_access_code_exhausted' }, 400, corsHeaders);
+    }
+
+    const planOverride = coupon.plan_override as string | null;
+    if (!planOverride || !planOverride.startsWith('wisehire_')) {
+      return json({ success: false, error: 'invalid_early_access_code' }, 400, corsHeaders);
+    }
+
+    // Set account_type = 'hr'
+    const profileUpdatesEA: Record<string, unknown> = { account_type: 'hr' };
+    if (full_name?.trim()) profileUpdatesEA.full_name = full_name.trim();
+
+    const { error: profileEAErr } = await serviceClient
       .from('profiles')
-      .update(profileUpdates)
+      .update(profileUpdatesEA)
       .eq('user_id', userId);
 
-    if (profileErr) {
-      console.error('[wisehire-complete-signup] profile update failed:', profileErr.message);
+    if (profileEAErr) {
+      console.error('[wisehire-complete-signup] EA profile update failed:', profileEAErr.message);
       return json({ success: false, error: 'profile_update_failed' }, 500, corsHeaders);
     }
 
-    // Mark invite as used
-    const { error: inviteErr } = await serviceClient
-      .from('wisehire_invites')
-      .update({ used_at: new Date().toISOString() })
-      .eq('token', invite_token.trim());
-
-    if (inviteErr) {
-      console.error('[wisehire-complete-signup] invite update failed:', inviteErr.message);
-      // Non-fatal — profile already updated
-    }
-
-    // Create draft wisehire_companies row (non-fatal on error)
+    // Create wisehire_companies row
     try {
       const companyName = company_name?.trim() || 'My Company';
-      const { error: companyErr } = await serviceClient
+      await serviceClient
         .from('wisehire_companies')
         .upsert(
-          {
-            owner_id: userId,
-            name: companyName,
-            size: company_size?.trim() ?? '1-10',
-            onboarding_completed: false,
-          },
+          { owner_id: userId, name: companyName, size: company_size?.trim() ?? '1-10', onboarding_completed: false },
           { onConflict: 'owner_id', ignoreDuplicates: true },
         );
-
-      if (companyErr) {
-        console.warn('[wisehire-complete-signup] company upsert skipped:', companyErr.message);
-      }
-    } catch (companyEx) {
-      console.warn('[wisehire-complete-signup] company upsert exception:', companyEx);
+    } catch (ex) {
+      console.warn('[wisehire-complete-signup] EA company upsert exception:', ex);
     }
 
-    // Grant 7-day Professional trial (non-fatal on error)
+    // Apply coupon plan to subscription (this IS the plan grant — no separate 7-day trial)
     try {
       const now = new Date().toISOString();
-      const trialEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-      const { error: subErr } = await serviceClient
+      const planDays = (coupon.plan_days as number | null) ?? 7;
+      const planEnd = new Date(Date.now() + planDays * 24 * 60 * 60 * 1000).toISOString();
+
+      await serviceClient
         .from('subscriptions')
         .upsert(
           {
             user_id: userId,
-            plan_name: 'wisehire_starter',
-            trial_plan: 'wisehire_professional',
-            trial_expires_at: trialEnd,
+            plan_name: planOverride,
+            trial_plan: planOverride,
+            trial_expires_at: planEnd,
             status: 'active',
             current_period_start: now,
-            current_period_end: trialEnd,
+            current_period_end: planEnd,
+            coupon_code: upperCode,
           },
-          { onConflict: 'user_id', ignoreDuplicates: true },
+          { onConflict: 'user_id', ignoreDuplicates: false },
         );
+    } catch (ex) {
+      console.warn('[wisehire-complete-signup] EA subscription upsert exception:', ex);
+    }
 
-      if (subErr) {
-        console.warn('[wisehire-complete-signup] trial grant skipped:', subErr.message);
-      }
-    } catch (subEx) {
-      console.warn('[wisehire-complete-signup] trial grant exception:', subEx);
+    // Increment uses_count on the coupon
+    try {
+      await serviceClient
+        .from('discount_codes')
+        .update({ uses_count: (coupon.uses_count as number) + 1 })
+        .eq('id', coupon.id as string);
+    } catch (ex) {
+      console.warn('[wisehire-complete-signup] EA coupon increment exception:', ex);
     }
 
     // Audit log
@@ -173,17 +275,15 @@ Deno.serve(async (req) => {
       await serviceClient.from('audit_logs').insert({
         user_id: userId,
         category: 'auth',
-        action: 'wisehire_signup_complete',
+        action: 'wisehire_early_access_complete',
         metadata: {
-          invite_token: invite_token.trim(),
-          recipient_email: invite.recipient_email,
+          early_access_code: upperCode,
+          plan_override: planOverride,
           company_name: company_name ?? null,
           completed_at: new Date().toISOString(),
         },
       });
-    } catch {
-      // Non-fatal
-    }
+    } catch { /* non-fatal */ }
 
     return json({ success: true }, 200, corsHeaders);
   } catch (err) {

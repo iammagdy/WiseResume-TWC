@@ -46,3 +46,45 @@ export async function completeWiseHireSignup(
 /** Session-storage key used to carry the invite token through the Kinde register redirect */
 export const WH_INVITE_STORAGE_KEY = 'wh_invite_token';
 export const WH_SIGNUP_REDIRECT_KEY = 'wh_signup_redirect';
+
+/** Session-storage key used to carry the early access code through the Kinde register redirect */
+export const WH_EARLY_ACCESS_CODE_KEY = 'wh_early_access_code';
+
+export type ValidateEarlyAccessResult =
+  | { valid: true; plan_override: string; plan_days: number | null }
+  | { valid: false; error: string };
+
+export async function validateEarlyAccessCode(code: string): Promise<ValidateEarlyAccessResult> {
+  const { data, error } = await supabase.functions.invoke('wisehire-validate-early-access', {
+    body: { code },
+  });
+
+  if (error) {
+    console.error('[inviteTokenClient] wisehire-validate-early-access error:', error);
+    return { valid: false, error: 'Failed to validate code. Please try again.' };
+  }
+
+  return data as ValidateEarlyAccessResult;
+}
+
+export interface CompleteEarlyAccessPayload {
+  early_access_code: string;
+  full_name?: string;
+  company_name?: string;
+  company_size?: string;
+}
+
+export async function completeEarlyAccessSignup(
+  payload: CompleteEarlyAccessPayload,
+): Promise<CompleteSignupResult> {
+  const { data, error } = await supabase.functions.invoke('wisehire-complete-signup', {
+    body: payload,
+  });
+
+  if (error) {
+    console.error('[inviteTokenClient] wisehire-complete-signup (early access) error:', error);
+    return { success: false, error: error.message ?? 'server_error' };
+  }
+
+  return data as CompleteSignupResult;
+}
