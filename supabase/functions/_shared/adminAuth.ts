@@ -17,12 +17,7 @@
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-};
+import { getCorsHeaders } from './cors.ts';
 
 async function verifySessionToken(token: string, secretKey: string): Promise<string | null> {
   try {
@@ -51,6 +46,31 @@ async function verifySessionToken(token: string, secretKey: string): Promise<str
 }
 
 /**
+ * Compares two strings in constant time using HMAC-SHA-256 to prevent timing attacks.
+ * Both strings are signed with the same random key; the resulting MACs are compared,
+ * which leaks no information about where the values first differ.
+ */
+async function constantTimeEqual(a: string, b: string): Promise<boolean> {
+  const enc = new TextEncoder();
+  const keyMaterial = crypto.getRandomValues(new Uint8Array(32));
+  const key = await crypto.subtle.importKey(
+    'raw', keyMaterial, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  const [macA, macB] = await Promise.all([
+    crypto.subtle.sign('HMAC', key, enc.encode(a)),
+    crypto.subtle.sign('HMAC', key, enc.encode(b)),
+  ]);
+  const viewA = new Uint8Array(macA);
+  const viewB = new Uint8Array(macB);
+  if (viewA.length !== viewB.length) return false;
+  let diff = 0;
+  for (let i = 0; i < viewA.length; i++) {
+    diff |= viewA[i] ^ viewB[i];
+  }
+  return diff === 0;
+}
+
+/**
  * Verifies admin identity for an incoming edge function request.
  *
  * PRIMARY PATH (session token):
@@ -63,18 +83,27 @@ async function verifySessionToken(token: string, secretKey: string): Promise<str
  *   Supabase JWT + comparing the raw DEV_KIT_PASSWORD. This requires an active
  *   Supabase session and is kept for backward compatibility only.
  *
- * @param req      The incoming edge function request.
- * @param password Either a session token (primary) or the raw admin password (legacy).
+ * @param req         The incoming edge function request.
+ * @param password    Either a session token (primary) or the raw admin password (legacy).
+ * @param corsHeaders Optional pre-computed CORS headers to use in error responses.
+ *                    When omitted, headers are derived from the request Origin.
  * @returns The verified caller email on success.
  * @throws A Response object with appropriate HTTP status on any failure.
  */
-export async function requireAdminAuth(req: Request, password: string): Promise<string> {
+export async function requireAdminAuth(
+  req: Request,
+  password: string,
+  corsHeaders?: Record<string, string>,
+): Promise<string> {
+  const origin = req.headers.get('Origin');
+  const headers = corsHeaders ?? getCorsHeaders(origin);
+
   const SECRET_PASSWORD = Deno.env.get('DEV_KIT_PASSWORD')?.trim();
 
   if (!SECRET_PASSWORD) {
     throw new Response(
       JSON.stringify({ success: false, error: 'Admin functions are not configured' }),
-      { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 503, headers: { ...headers, 'Content-Type': 'application/json' } }
     );
   }
 
@@ -90,14 +119,14 @@ export async function requireAdminAuth(req: Request, password: string): Promise<
         success: false,
         error: 'ADMIN_EMAILS is not configured. Set it in Supabase Edge Function Secrets.',
       }),
-      { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 503, headers: { ...headers, 'Content-Type': 'application/json' } }
     );
   }
 
   if (!password) {
     throw new Response(
       JSON.stringify({ success: false, error: 'Unauthorized' }),
-      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 401, headers: { ...headers, 'Content-Type': 'application/json' } }
     );
   }
 
@@ -108,7 +137,7 @@ export async function requireAdminAuth(req: Request, password: string): Promise<
     if (!allowed.includes(normalised)) {
       throw new Response(
         JSON.stringify({ success: false, error: 'Forbidden: email not in admin allowlist' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 403, headers: { ...headers, 'Content-Type': 'application/json' } }
       );
     }
     return normalised;
@@ -119,7 +148,7 @@ export async function requireAdminAuth(req: Request, password: string): Promise<
   if (!authHeader?.startsWith('Bearer ')) {
     throw new Response(
       JSON.stringify({ success: false, error: 'Unauthorized' }),
-      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 401, headers: { ...headers, 'Content-Type': 'application/json' } }
     );
   }
 
@@ -136,21 +165,22 @@ export async function requireAdminAuth(req: Request, password: string): Promise<
   if (!callerEmail) {
     throw new Response(
       JSON.stringify({ success: false, error: 'Unauthorized' }),
-      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 401, headers: { ...headers, 'Content-Type': 'application/json' } }
     );
   }
 
   if (!allowed.includes(callerEmail)) {
     throw new Response(
       JSON.stringify({ success: false, error: 'Forbidden: email not in admin allowlist' }),
-      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 403, headers: { ...headers, 'Content-Type': 'application/json' } }
     );
   }
 
-  if (password !== SECRET_PASSWORD) {
+  const passwordMatch = await constantTimeEqual(password, SECRET_PASSWORD);
+  if (!passwordMatch) {
     throw new Response(
       JSON.stringify({ success: false, error: 'Unauthorized' }),
-      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 401, headers: { ...headers, 'Content-Type': 'application/json' } }
     );
   }
 

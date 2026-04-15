@@ -1,11 +1,13 @@
 /**
- * Strips Markdown formatting from plain text strings.
+ * Strips Markdown formatting and HTML tags from plain text strings.
  * Preserves list bullet prefixes (- item, * item) as valid resume bullets.
  */
 export function stripMarkdown(text: string): string {
   if (typeof text !== 'string') return text;
 
   return text
+    // HTML tags: strip all tags to prevent XSS if content reaches a render context
+    .replace(/<[^>]*>/g, '')
     // Bold: **text** or __text__
     .replace(/(\*\*|__)(.*?)\1/g, '$2')
     // Italic: *text* or _text_ (but not list bullets at line start)
