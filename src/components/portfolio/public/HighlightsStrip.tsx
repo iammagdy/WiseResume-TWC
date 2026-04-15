@@ -1,4 +1,5 @@
 import { useRef, useCallback, useEffect, useMemo } from 'react';
+import { useReducedMotion } from 'framer-motion';
 
 export interface Highlight {
   id: string;
@@ -14,6 +15,7 @@ interface HighlightsStripProps {
 export function HighlightsStrip({ highlights, accentColor }: HighlightsStripProps) {
   const stripRef = useRef<HTMLDivElement | null>(null);
   const counterRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const prefersReduced = useReducedMotion();
 
   const setCounterRef = useCallback((el: HTMLSpanElement | null, idx: number) => {
     counterRefs.current[idx] = el;
@@ -28,7 +30,6 @@ export function HighlightsStrip({ highlights, accentColor }: HighlightsStripProp
 
   useEffect(() => {
     if (!stripRef.current) return;
-    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     const observer = new IntersectionObserver(([entry]) => {
       if (!entry.isIntersecting) return;
@@ -56,7 +57,7 @@ export function HighlightsStrip({ highlights, accentColor }: HighlightsStripProp
 
     observer.observe(stripRef.current);
     return () => observer.disconnect();
-  }, [parsedValues]);
+  }, [parsedValues, prefersReduced]);
 
   if (!highlights.length) return null;
 

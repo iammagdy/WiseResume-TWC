@@ -3,11 +3,10 @@ import { motion, useInView, useReducedMotion } from 'framer-motion';
 import { ArrowRight, CheckCircle2, ChevronDown, Users } from 'lucide-react';
 import { AppIcon } from '@/components/brand/AppIcon';
 
-function useCountUp(target: number, duration = 1400) {
-  const [value, setValue] = useState(0);
+function useCountUp(target: number, prefersReduced: boolean | null, duration = 1400) {
+  const [value, setValue] = useState(prefersReduced ? target : 0);
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true, amount: 0.5 });
-  const prefersReduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   useEffect(() => {
     if (!inView) return;
@@ -34,13 +33,17 @@ const WH_TYPEWRITER_WORDS = [
   'Talent Partner',
 ];
 
-function useWHTypewriter(words: string[]) {
-  const [displayed, setDisplayed] = useState('');
+function useWHTypewriter(words: string[], prefersReduced: boolean | null) {
+  const [displayed, setDisplayed] = useState(prefersReduced ? words[0] : '');
   const [wordIdx, setWordIdx] = useState(0);
-  const [charIdx, setCharIdx] = useState(0);
+  const [charIdx, setCharIdx] = useState(prefersReduced ? words[0].length : 0);
   const [phase, setPhase] = useState<'typing' | 'erasing'>('typing');
 
   useEffect(() => {
+    if (prefersReduced) {
+      setDisplayed(words[0]);
+      return;
+    }
     const current = words[wordIdx];
     if (phase === 'typing') {
       if (charIdx < current.length) {
@@ -67,7 +70,7 @@ function useWHTypewriter(words: string[]) {
         setPhase('typing');
       }
     }
-  }, [phase, charIdx, wordIdx, words]);
+  }, [phase, charIdx, wordIdx, words, prefersReduced]);
 
   return displayed;
 }
@@ -77,9 +80,9 @@ interface WiseHireHeroProps {
 }
 
 export function WiseHireHero({ onOpenWaitlist }: WiseHireHeroProps) {
-  const typewriterWord = useWHTypewriter(WH_TYPEWRITER_WORDS);
-  const waitlistCount = useCountUp(500);
   const prefersReducedMotion = useReducedMotion();
+  const typewriterWord = useWHTypewriter(WH_TYPEWRITER_WORDS, prefersReducedMotion);
+  const waitlistCount = useCountUp(500, prefersReducedMotion);
 
   return (
     <section
@@ -209,7 +212,7 @@ export function WiseHireHero({ onOpenWaitlist }: WiseHireHeroProps) {
         Built for the{' '}
         <span className="wh-gradient-text" style={{ display: 'inline-block', minWidth: '2ch', fontWeight: 700 }}>
           {typewriterWord || '\u00A0'}
-          <span className="wh-cursor" aria-hidden="true" />
+          {!prefersReducedMotion && <span className="wh-cursor" aria-hidden="true" />}
         </span>
       </p>
 
@@ -233,8 +236,8 @@ export function WiseHireHero({ onOpenWaitlist }: WiseHireHeroProps) {
           onClick={onOpenWaitlist}
           className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2"
           style={{ background: '#1D4ED8', color: '#fff' }}
-          whileHover={{ scale: 1.04 }}
-          whileTap={{ scale: 0.97 }}
+          whileHover={prefersReducedMotion ? undefined : { scale: 1.04 }}
+          whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
           transition={{ type: 'spring', stiffness: 400, damping: 20 }}
         >
           Join the Waitlist
@@ -248,8 +251,8 @@ export function WiseHireHero({ onOpenWaitlist }: WiseHireHeroProps) {
             color: 'var(--lp-eyebrow)',
             border: '1.5px solid rgba(29,78,216,0.35)',
           }}
-          whileHover={{ scale: 1.04 }}
-          whileTap={{ scale: 0.97 }}
+          whileHover={prefersReducedMotion ? undefined : { scale: 1.04 }}
+          whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
           transition={{ type: 'spring', stiffness: 400, damping: 20 }}
         >
           See it in action
@@ -260,8 +263,8 @@ export function WiseHireHero({ onOpenWaitlist }: WiseHireHeroProps) {
       {/* Trust badges */}
       <motion.div
         className="relative z-10 mt-8 flex items-center gap-5 sm:gap-7 text-xs flex-wrap justify-center"
-        initial={prefersReducedMotion ? {} : { opacity: 0, y: 16 }}
-        whileInView={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+        initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }}
+        whileInView={prefersReducedMotion ? false : { opacity: 1, y: 0 }}
         viewport={{ once: false, amount: 0.5 }}
         transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay: 0.15 }}
       >

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { haptics } from '@/lib/haptics';
 
@@ -11,7 +11,7 @@ const APP_NAME = 'WiseResume';
 
 export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
   const [visible, setVisible] = useState(true);
-  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const prefersReduced = useReducedMotion();
 
   const dismiss = useCallback(() => {
     if (!visible) return;
@@ -37,8 +37,8 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
           key="splash"
           className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-background overflow-hidden"
           initial={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3, ease: 'easeInOut' }}
+          exit={prefersReduced ? { opacity: 1 } : { opacity: 0 }}
+          transition={prefersReduced ? { duration: 0 } : { duration: 0.3, ease: 'easeInOut' }}
           onClick={dismiss}
           role="button"
           tabIndex={0}
@@ -54,39 +54,27 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
           </div>
 
           <motion.div
-            initial={prefersReduced ? { opacity: 1 } : { scale: 0.7, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={
-              prefersReduced
-                ? { duration: 0.2 }
-                : { duration: 0.5, ease: [0.34, 1.56, 0.64, 1], delay: 0.1 }
-            }
+            initial={prefersReduced ? false : { scale: 0.7, opacity: 0 }}
+            animate={prefersReduced ? false : { scale: 1, opacity: 1 }}
+            transition={{ duration: 0.5, ease: [0.34, 1.56, 0.64, 1], delay: 0.1 }}
           >
             <AppIcon size={72} />
           </motion.div>
 
           <motion.h1
             className="mt-5 text-2xl font-bold text-foreground tracking-tight"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={
-              prefersReduced
-                ? { duration: 0.2, delay: 0.1 }
-                : { duration: 0.4, ease: 'easeOut', delay: 0.5 }
-            }
+            initial={prefersReduced ? false : { opacity: 0, y: 10 }}
+            animate={prefersReduced ? false : { opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: 'easeOut', delay: 0.5 }}
           >
             {APP_NAME}
           </motion.h1>
 
           <motion.p
             className="mt-1.5 text-sm text-muted-foreground"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={
-              prefersReduced
-                ? { duration: 0.2, delay: 0.2 }
-                : { delay: 0.8, duration: 0.4, ease: 'easeOut' }
-            }
+            initial={prefersReduced ? false : { opacity: 0 }}
+            animate={prefersReduced ? false : { opacity: 1 }}
+            transition={{ delay: 0.8, duration: 0.4, ease: 'easeOut' }}
           >
             Your AI Career Partner
           </motion.p>

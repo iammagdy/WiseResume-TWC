@@ -1,15 +1,16 @@
 import { useRef, useEffect } from 'react';
+import { useReducedMotion } from 'framer-motion';
 
 export function BioReveal({ bio }: { bio: string }) {
   const containerRef = useRef<HTMLParagraphElement>(null);
   const observedRef = useRef(false);
+  const prefersReduced = useReducedMotion();
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el || observedRef.current) return;
     observedRef.current = true;
 
-    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const inners = el.querySelectorAll<HTMLElement>('.pf-bio-line-inner');
 
     if (prefersReduced) {
@@ -32,7 +33,7 @@ export function BioReveal({ bio }: { bio: string }) {
 
     obs.observe(el);
     return () => obs.disconnect();
-  }, [bio]);
+  }, [bio, prefersReduced]);
 
   const sentences = bio.split(/(?<=\.)\s+/).filter(Boolean);
 

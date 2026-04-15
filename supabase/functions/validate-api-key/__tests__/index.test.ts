@@ -1,4 +1,4 @@
-import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
+import { assertEquals } from "https://deno.land/std@0.224.0/testing/asserts.ts";
 // Note: validate-api-key is heavily tied to Deno.serve and doesn't export its handler,
 // so we mock its expected behavior in a unit test approach.
 
