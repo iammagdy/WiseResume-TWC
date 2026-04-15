@@ -10,7 +10,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
   },
   android: {
      backgroundColor: '#0a0a14',
-     allowMixedContent: true,
+     allowMixedContent: false,
      captureInput: true,
      webContentsDebuggingEnabled: false
    },

@@ -16,7 +16,10 @@ const CSP_BASE = [
 ];
 
 // Production CSP — served via meta tag injected at build time (not in dev).
-const CSP = [...CSP_BASE, "script-src 'self'"].join('; ');
+// Note: frame-ancestors is included here for defense-in-depth, but meta-tag
+// CSP does not enforce frame-ancestors in all browsers — the _headers file
+// provides the authoritative HTTP header for frame-ancestors enforcement.
+const CSP = [...CSP_BASE, "script-src 'self'", "frame-ancestors 'none'"].join('; ');
 
 function cspPlugin(): Plugin {
   return {
