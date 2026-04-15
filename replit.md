@@ -268,6 +268,32 @@ bash scripts/deploy-functions.sh                      # redeploy all edge functi
 - `src/components/applications/KanbanBoard.tsx` — `DndContext` with PointerSensor (distance:8) + TouchSensor (delay:200ms), all-app `useJobApplications()`, optimistic `localCards` state with server sync + rollback on error, 6 columns, `DragOverlay` with simplified card preview.
 - Dependencies: `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities` installed.
 
+## WiseHire — AI HR SaaS Platform (Phases 10–12)
+
+WiseHire is a separate HR SaaS product embedded in the same Replit workspace. HR users (`profiles.account_type = 'hr'`) access it at `/wisehire/*` routes, guarded by `WiseHireGuard`.
+
+### Phase 10 — AI JD Writer (US8) — COMPLETE
+- **Edge function**: `wisehire-write-jd` — HR guard, plan check, BYOK check (Starter needs OpenAI/Anthropic key), rate limit 10/day, AI prompt, JSON parse, optional role upsert
+- **Hook**: `useJDs.ts` — TanStack Query: list roles with jd_text, mutations: saveJD, createRole, deleteJD
+- **Components**: `JDSkeleton.tsx`, `JDWriterForm.tsx`, `JDInlineEditor.tsx`, `JDLibrary.tsx`
+- **Page**: `JDWriterPage.tsx` (at `/wisehire/jd-writer`) — tab layout: Write + Saved JDs
+
+### Phase 11 — AI Brief Generator (US7) — COMPLETE
+- **Edge function**: `wisehire-generate-brief` — candidate fetch, BYOK check, rate limit (Starter: 5/day+30/mo; Pro: 50/day), AI evaluation prompt, brief insert with share_token
+- **Hook**: `useBriefs.ts` + `useBrief.ts` — brief list + single brief fetch; `revokeShareToken` mutation
+- **Lib**: `briefPdfExport.ts` — browser print API for PDF export
+- **Components**: `BriefSkeleton.tsx`, `BriefForm.tsx`, `BriefOutput.tsx` (score ring SVG), `BriefShareModal.tsx`
+- **Pages**: `BriefGeneratorPage.tsx` (`/wisehire/briefs`), `BriefViewPage.tsx` (`/wisehire/briefs/:briefId`), `PublicBriefPage.tsx` (`/share/brief/:shareToken`) — no-auth public view
+
+### Phase 12 — Candidate Pipeline Board (US9) — COMPLETE
+- **Lib**: `pipelineDragDrop.ts` — `createDragHandlers(dragStateRef, onDrop)` → HTML5 drag event handlers
+- **Hook**: `usePipeline.ts` + `useCandidateHistory.ts` — 6 PIPELINE_STAGES constant; optimistic stage updates; `addCandidate` inserts as 'shortlisted'; pipeline events logging
+- **Components**: `PipelineSkeleton.tsx`, `PipelineColumn.tsx`, `CandidateCard.tsx`, `KeyboardPipelineMover.tsx`, `CandidateDetailPanel.tsx`, `AddCandidateSheet.tsx`, `PipelineBoard.tsx`
+- **Page**: `PipelinePage.tsx` (`/wisehire/pipeline`) — role filter + board + detail panel slide-over
+
+### WiseHireShell Nav (updated)
+JD Writer, Brief Generator, Pipeline are now live (comingSoon flags removed).
+
 ## Bug Fixes (Post-Redesign Audit)
 - **AuthContext `user.id`**: Now uses only the bridge UUID (from `token-exchange`), never the raw Kinde ID (`kp_xxx`). If bridge hasn't settled, `user` is null to prevent UUID type errors.
 - **Data query gating**: All hooks with `enabled: !!user` naturally wait for the bridge since `user` is null until bridge provides a UUID.

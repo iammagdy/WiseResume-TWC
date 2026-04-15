@@ -151,6 +151,11 @@ const WiseHireDashboardPage = lazyWithRetry(() => import("./pages/wisehire/WiseH
 const WiseHireOnboardingPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireOnboardingPage"));
 const WiseHireSubscriptionPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireSubscriptionPage"));
 const WiseHireSettingsPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireSettingsPage"));
+const JDWriterPage = lazyWithRetry(() => import("./pages/wisehire/JDWriterPage"));
+const BriefGeneratorPage = lazyWithRetry(() => import("./pages/wisehire/BriefGeneratorPage"));
+const BriefViewPage = lazyWithRetry(() => import("./pages/wisehire/BriefViewPage"));
+const PipelinePage = lazyWithRetry(() => import("./pages/wisehire/PipelinePage"));
+const PublicBriefPage = lazyWithRetry(() => import("./pages/share/PublicBriefPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -324,6 +329,10 @@ function AppRoutes() {
             <Route path="/wisehire/onboarding" element={<Suspense fallback={<PageLoadingSpinner />}><WiseHireOnboardingPage /></Suspense>} />
             <Route path="/wisehire/subscription" element={<Suspense fallback={<PageLoadingSpinner />}><WiseHireSubscriptionPage /></Suspense>} />
             <Route path="/wisehire/settings" element={<Suspense fallback={<PageLoadingSpinner />}><WiseHireSettingsPage /></Suspense>} />
+            <Route path="/wisehire/jd-writer" element={<Suspense fallback={<PageLoadingSpinner />}><JDWriterPage /></Suspense>} />
+            <Route path="/wisehire/briefs" element={<Suspense fallback={<PageLoadingSpinner />}><BriefGeneratorPage /></Suspense>} />
+            <Route path="/wisehire/briefs/:briefId" element={<Suspense fallback={<PageLoadingSpinner />}><BriefViewPage /></Suspense>} />
+            <Route path="/wisehire/pipeline" element={<Suspense fallback={<PageLoadingSpinner />}><PipelinePage /></Suspense>} />
           </Route>
 
           {/* Protected routes */}
@@ -382,6 +391,7 @@ function AppRoutes() {
 
         {/* Public share page - outside AppShell */}
         <Route path="/share/:token" element={<Suspense fallback={<ShareSkeleton />}><SharePage /></Suspense>} />
+        <Route path="/share/brief/:shareToken" element={<Suspense fallback={<PageLoadingSpinner />}><PublicBriefPage /></Suspense>} />
         <Route path="/interview/report/:token" element={<Suspense fallback={<PageLoadingSpinner />}><InterviewReportPage /></Suspense>} />
         <Route path="/p/:username" element={<Suspense fallback={<DetailSkeleton />}><PublicPortfolioPage /></Suspense>} />
         <Route path="/l/:linkId" element={<Suspense fallback={<DetailSkeleton />}><ShortLinkPage /></Suspense>} />

@@ -29,9 +29,9 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', path: '/wisehire/dashboard', icon: Home },
-  { label: 'Brief Generator', path: '/wisehire/brief', icon: Sparkles, comingSoon: true },
-  { label: 'JD Writer', path: '/wisehire/jd-writer', icon: FileText, comingSoon: true },
-  { label: 'Pipeline', path: '/wisehire/pipeline', icon: BarChart2, comingSoon: true },
+  { label: 'JD Writer', path: '/wisehire/jd-writer', icon: FileText },
+  { label: 'Brief Generator', path: '/wisehire/briefs', icon: Sparkles },
+  { label: 'Pipeline', path: '/wisehire/pipeline', icon: BarChart2 },
   { label: 'Settings', path: '/wisehire/settings', icon: Settings },
   { label: 'Subscription', path: '/wisehire/subscription', icon: CreditCard },
 ];
