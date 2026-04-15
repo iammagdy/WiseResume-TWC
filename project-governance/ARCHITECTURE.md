@@ -146,7 +146,7 @@ The following tables appear in `supabase/migrations/` but may or may not be refl
 | `admin_user_notes` | Admin sticky notes attached to user accounts | Check types.ts |
 | `app_settings` | Platform-wide configuration key-value store | Check types.ts |
 
-### WiseHire Tables (Phase 1 — built 2026-04-20, all with RLS enabled)
+### WiseHire Tables (Phases 1–20 — all with RLS enabled)
 
 > `profiles.account_type` column (`job_seeker` | `hr`, NOT NULL, DEFAULT `job_seeker`) added in migration `20260420000001`.
 
@@ -154,11 +154,21 @@ The following tables appear in `supabase/migrations/` but may or may not be refl
 |-------|---------|-----|
 | `wisehire_waitlist` | Pre-launch waitlist: name, email, company, size, submitted_at, invited_at | Admin service-role only (no user policies) |
 | `wisehire_invites` | HMAC-SHA256 signed invite tokens: token, signature, recipient_email, expires_at (72h), used_at | Admin service-role only |
-| `wisehire_companies` | HR company data: name, size, role_types, monthly_volume, onboarding_completed | `owner_id = auth.uid()` |
-| `wisehire_roles` | Open positions: title, jd_text, status (open/closed), is_deleted (soft-delete) | `owner_id = auth.uid() AND is_deleted = false` |
-| `wisehire_candidates` | Candidates under evaluation: resume_pdf_path, resume_text, pipeline_stage, notes, is_deleted (soft-delete) | `owner_id = auth.uid() AND is_deleted = false` |
-| `wisehire_candidate_briefs` | AI briefs: match_score, strengths[], concerns[], interview_questions[], share_token (UUID), share_token_active | `owner_id = auth.uid()` for write; share token read via service role |
+| `wisehire_companies` | HR company data: name, size, role_types, monthly_volume, onboarding_completed, slug (public job board) | `owner_id = auth.uid()` (+ anon SELECT policy for slug-based lookup) |
+| `wisehire_roles` | Open positions: title, jd_text, status, is_deleted, slug, published, location, remote_ok, salary_min/max, employment_type, client_id | `owner_id = auth.uid() AND is_deleted = false` (+ anon SELECT policy for published roles) |
+| `wisehire_candidates` | Candidates under evaluation: name, email, resume_pdf_path, resume_text, pipeline_stage, notes, source, client_id, is_deleted | `owner_id = auth.uid() AND is_deleted = false` |
+| `wisehire_candidate_briefs` | AI briefs: match_score, strengths[], concerns[], interview_questions[], employment_notes, share_token (UUID), share_token_active | `owner_id = auth.uid()` for write; share token read via service role |
 | `wisehire_pipeline_events` | Audit trail of pipeline stage changes: from_stage, to_stage, moved_at, moved_by | `owner_id = auth.uid()` |
+| `wisehire_bulk_screen_jobs` | Bulk screening job results: status enum, results JSONB, resume_count | `owner_id = auth.uid()` |
+| `wisehire_scorecards` | Interview scorecards: questions[], ratings[], notes[], overall_score, share_token, share_token_active | `owner_id = auth.uid()` for write; share token public read |
+| `wisehire_scorecard_templates` | Reusable scorecard question templates with category and default_questions[] | `owner_id = auth.uid()` |
+| `wisehire_candidate_notes` | Threaded team notes on candidates: tag (general/highlight/concern), pinned, author | `owner_id = auth.uid()` |
+| `wisehire_outreach_emails` | Outreach email log: candidate_id, subject, body, status, resend_id | `owner_id = auth.uid()` |
+| `wisehire_clients` | Client company records for agency/recruiter use: name, contact, industry | `owner_id = auth.uid()` |
+| `wisehire_saved_searches` | Saved talent pool search filter presets | `owner_id = auth.uid()` |
+| `wisehire_applications` | Job seeker applications to published roles: resume_path, cover_note, status | HR owner SELECT; applicant full CRUD on own rows |
+| `talent_pool_profiles` | Job seeker opt-in discovery profiles: skills[], experience_level, availability, opted_in | Owner CRUD; HR read where opted_in = true |
+| `talent_pool_views` | Audit log of HR views on talent profiles: viewed_at, view_count | Owner CRUD |
 
 ---
 
@@ -174,7 +184,7 @@ The following tables appear in `supabase/migrations/` but may or may not be refl
 
 ---
 
-## 7. Edge Functions (77 total)
+## 7. Edge Functions (92 total)
 
 All edge functions live in `supabase/functions/`. See also `supabase/functions/EDGE_FUNCTION_AUDIT.md` for trigger types and call sites.
 
@@ -335,7 +345,7 @@ Rate limits are enforced via `checkRateLimit` in `_shared/rateLimiter.ts` using 
 
 ---
 
-## 9. WiseHire Routing Structure (live — Phase 1 complete)
+## 9. WiseHire Routing Structure (live — Phases 1–20 complete)
 
 All `/wisehire/*` routes enforce `account_type = 'hr'` via `WiseHireGuard`. Job seeker accounts are redirected to `/dashboard`. Unauthenticated users redirected to `/auth?mode=login`. Expired-trial users see `ContactUsLockout` (except `/wisehire/subscription`).
 
@@ -345,53 +355,64 @@ All `/wisehire/*` routes enforce `account_type = 'hr'` via `WiseHireGuard`. Job 
 | `/wisehire/signup` | None | WiseHire invite-gated sign-up |
 | `/wisehire/onboarding` | WiseHireGuard | 5-step company onboarding |
 | `/wisehire/dashboard` | WiseHireGuard | Main dashboard (stats, quick actions, recent briefs) |
-| `/wisehire/jd-writer` | WiseHireGuard | AI Job Description writer |
+| `/wisehire/jd-writer` | WiseHireGuard | AI Job Description writer + JD library |
 | `/wisehire/briefs` | WiseHireGuard | Candidate Brief generator + recent briefs list |
 | `/wisehire/briefs/:briefId` | WiseHireGuard | View a single saved brief |
 | `/wisehire/pipeline` | WiseHireGuard | 6-stage candidate pipeline board |
+| `/wisehire/bulk-screen` | WiseHireGuard | Bulk Resume Screening (up to 10 PDFs) |
+| `/wisehire/scorecards/:candidateId` | WiseHireGuard | Interview Scorecard (fill + view) |
+| `/wisehire/talent-pool` | WiseHireGuard | HR Talent Pool search + add to pipeline |
+| `/wisehire/analytics` | WiseHireGuard | HR Analytics Dashboard (zero-config) |
+| `/wisehire/mask-cvs` | WiseHireGuard | CV Masking tool (remove PII from resumes) |
+| `/wisehire/clients` | WiseHireGuard | Client company management (agency use) |
+| `/wisehire/roles` | WiseHireGuard | Roles management (status, client, pipeline filter) |
+| `/wisehire/scorecard-templates` | WiseHireGuard | Reusable scorecard question templates |
 | `/wisehire/subscription` | WiseHireGuard | Plan management (accessible even when expired) |
 | `/wisehire/settings` | WiseHireGuard | Company profile + BYOK AI keys |
 | `/share/brief/:shareToken` | None | Public read-only brief (no auth required) |
+| `/share/scorecard/:shareToken` | None | Public read-only scorecard (no auth required) |
+| `/jobs` | None | Public job board — all published roles |
+| `/jobs/:companySlug` | None | Public job board — single company |
+| `/jobs/:companySlug/:roleSlug` | None | Public role detail + apply |
+| `/my-applications` | ProtectedRoute + AppShell | Job seeker application tracker |
 
-**WiseHire Edge Functions** (7 functions, all require `account_type = 'hr'`):
-| Function | Purpose |
-|----------|---------|
-| `wisehire-waitlist-join` | Submit waiting list entry |
-| `wisehire-validate-invite` | Validate HMAC-signed invite token |
-| `wisehire-complete-signup` | Set `account_type = 'hr'`, create company row |
-| `admin-wisehire-invite` | Admin: send invite email |
-| `wisehire-write-jd` | AI job description generation (plan + BYOK + rate limit) |
-| `wisehire-generate-brief` | AI candidate brief generation (plan + BYOK + rate limits) |
-| `wisehire-bulk-screen` | AI bulk resume screening — up to 10 PDFs ranked against a JD |
-| `wisehire-talent-search` | HR Talent Pool search — filters opted-in job seeker profiles |
-| `wisehire-talent-view` | Records a profile view and increments view_count |
-| `wisehire-send-outreach` | HR sends AI-drafted or custom outreach email via Resend |
+**WiseHire Edge Functions** (13 functions):
+| Function | Auth requirement | Purpose |
+|----------|-----------------|---------|
+| `wisehire-waitlist-join` | None (botGuard) | Submit waiting list entry |
+| `wisehire-validate-invite` | None (botGuard) | Validate HMAC-signed invite token |
+| `wisehire-complete-signup` | requireAuth | Set `account_type = 'hr'`, create company row, grant 7-day trial |
+| `admin-wisehire-invite` | Admin token | Send branded invite email, sign token, write audit log |
+| `admin-wisehire-waitlist` | Admin token | Paginated waitlist list with search |
+| `wisehire-write-jd` | requireAuth + HR check | AI JD generation with BYOK routing + rate limiting |
+| `wisehire-generate-brief` | requireAuth + HR check | AI candidate brief generation with rate limits |
+| `wisehire-bulk-screen` | requireAuth + HR check | AI bulk screening — up to 10 PDFs ranked against a JD |
+| `wisehire-mask-cvs` | requireAuth + HR check | AI PII removal from resume text |
+| `wisehire-talent-search` | requireAuth + HR check | Paginated talent pool search with filters |
+| `wisehire-talent-view` | requireAuth + HR check | Record a profile view + increment view_count |
+| `wisehire-send-outreach` | requireAuth + HR check | AI-drafted or custom outreach email via Resend |
+| `wisehire-apply` | requireAuth + job-seeker check | One-click apply to a published role |
 
-**WiseHire Database Tables** (9 tables, all with RLS):
+**WiseHire Database Tables** (17 tables, all with RLS):
 | Table | Purpose |
 |-------|---------|
-| `wisehire_companies` | Company profile (owner_id, name, size, etc.) |
-| `wisehire_roles` | Job roles with optional `jd_text` |
-| `wisehire_candidates` | Candidates with pipeline_stage + resume_text |
-| `wisehire_candidate_briefs` | AI-generated briefs with share_token |
-| `wisehire_pipeline_events` | Stage change audit trail |
+| `wisehire_companies` | Company profile (owner_id, name, size, slug, onboarding_completed) |
+| `wisehire_roles` | Job roles with JD text, status, publish state, salary, location, client_id |
+| `wisehire_candidates` | Candidates with pipeline_stage, resume_text, source, client_id |
+| `wisehire_candidate_briefs` | AI-generated briefs with match_score, share_token |
+| `wisehire_pipeline_events` | Stage change audit trail (from_stage, to_stage) |
 | `wisehire_waitlist` | Pre-launch waiting list |
 | `wisehire_invites` | HMAC-signed invite tokens |
 | `wisehire_bulk_screen_jobs` | Bulk screening job results (JSONB) |
-| `wisehire_scorecards` | Interview scorecards with 1–5 star ratings + share_token |
-| `talent_pool_profiles` | Job seeker opt-in profiles discoverable by HR |
+| `wisehire_scorecards` | Interview scorecards: ratings[], notes[], overall_score, share_token |
+| `wisehire_scorecard_templates` | Reusable scorecard question templates |
+| `wisehire_candidate_notes` | Team notes: tag (general/highlight/concern), pinnable |
+| `wisehire_outreach_emails` | Outreach email log per candidate |
+| `wisehire_clients` | Client company records for agency/recruiter use |
+| `wisehire_saved_searches` | Saved talent pool filter presets |
+| `wisehire_applications` | Job seeker applications to published roles |
+| `talent_pool_profiles` | Job seeker opt-in discovery profiles |
 | `talent_pool_views` | Audit log of HR views on talent profiles |
-| `wisehire_outreach_emails` | Outreach email log per candidate (subject, body, status, Resend ID) |
-| `wisehire_candidate_notes` | Team notes on candidates (tag: general/highlight/concern, pinnable) |
-
-**Phase 2 Routes added:**
-| Route | Purpose |
-|-------|---------|
-| `/wisehire/bulk-screen` | Bulk Resume Screening page |
-| `/wisehire/scorecards/:candidateId` | Interview Scorecard (fill + view) |
-| `/share/scorecard/:shareToken` | Public read-only scorecard |
-| `/wisehire/talent-pool` | HR Talent Pool search + add to pipeline |
-| `/wisehire/analytics` | HR Analytics Dashboard (zero-config) |
 
 ---
 

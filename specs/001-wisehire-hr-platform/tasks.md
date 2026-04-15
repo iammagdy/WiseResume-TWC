@@ -129,14 +129,14 @@
 **Goal**: An invited user clicks the invite link, is validated, completes HR sign-up, and their profile is permanently typed `account_type = 'hr'`. Route guards prevent cross-product navigation.  
 **Independent Test**: Invited user signs up → profile `account_type = 'hr'` confirmed in Supabase and dev kit badge shows "HR Account". Job seeker navigates to `/wisehire/dashboard` → redirected. HR user navigates to `/dashboard` → redirected. Expired/used invite shows clear error.
 
-- [ ] T050 [US3] Create `supabase/functions/wisehire-validate-invite/index.ts` — public edge function: `botGuard` → look up token in `wisehire_invites` → verify HMAC-SHA256 signature → check `expires_at > now()` → check `used_at IS NULL` and `is_revoked = false` → return `{ valid, recipient_email }` or `{ valid: false, reason }`
-- [ ] T051 [US3] Create `src/lib/wisehire/inviteTokenClient.ts` — client helper: calls `wisehire-validate-invite`, returns typed `{ valid, recipient_email, error }` for use by the signup page
-- [ ] T052 [US3] Create `src/pages/wisehire/WiseHireSignupPage.tsx` — route `/wisehire/signup?invite={token}`: on mount validates token via `inviteTokenClient`; invalid/expired → friendly error + "Join Waitlist" link; valid → renders sign-up form (name, email pre-filled, company name, company size); on submit → complete Kinde sign-up with `account_type = 'hr'` metadata → mark invite token `used_at = now()` via service function → redirect to `/wisehire/onboarding`
-- [ ] T053 [US3] Create `src/components/wisehire/WiseHireGuard.tsx` — route wrapper: checks auth (redirect unauthenticated to login) + checks `account_type = 'hr'` (redirect job seekers to `/dashboard` with a clear message) + checks trial/plan status (expired trial with no active plan → redirect to `/wisehire/contact`). Renders children if all checks pass.
-- [ ] T054 [US3] Update `src/App.tsx` — add lazy imports for all WiseHire pages; register `/wisehire/*` route group wrapped in `<WiseHireGuard>`; register public routes `/wisehire/signup`, `/share/brief/:token`, `/share/scorecard/:token`; add post-trial lockout redirect
-- [ ] T055 [US3] Update existing job seeker route guards to redirect HR users away from `/dashboard` and WiseResume pages to `/wisehire/dashboard`
+- [x] T050 [US3] Create `supabase/functions/wisehire-validate-invite/index.ts` — public edge function: `botGuard` → look up token in `wisehire_invites` → verify HMAC-SHA256 signature → check `expires_at > now()` → check `used_at IS NULL` and `is_revoked = false` → return `{ valid, recipient_email }` or `{ valid: false, reason }`
+- [x] T051 [US3] Create `src/lib/wisehire/inviteTokenClient.ts` — client helper: calls `wisehire-validate-invite`, returns typed `{ valid, recipient_email, error }` for use by the signup page
+- [x] T052 [US3] Create `src/pages/wisehire/WiseHireSignupPage.tsx` — route `/wisehire/signup?invite={token}`: on mount validates token via `inviteTokenClient`; invalid/expired → friendly error + "Join Waitlist" link; valid → renders sign-up form (name, email pre-filled, company name, company size); on submit → complete Kinde sign-up with `account_type = 'hr'` metadata → mark invite token `used_at = now()` via service function → redirect to `/wisehire/onboarding`
+- [x] T053 [US3] Create `src/components/wisehire/WiseHireGuard.tsx` — route wrapper: checks auth (redirect unauthenticated to login) + checks `account_type = 'hr'` (redirect job seekers to `/dashboard` with a clear message) + checks trial/plan status (expired trial with no active plan → redirect to `/wisehire/contact`). Renders children if all checks pass.
+- [x] T054 [US3] Update `src/App.tsx` — add lazy imports for all WiseHire pages; register `/wisehire/*` route group wrapped in `<WiseHireGuard>`; register public routes `/wisehire/signup`, `/share/brief/:token`, `/share/scorecard/:token`; add post-trial lockout redirect
+- [x] T055 [US3] Update existing job seeker route guards to redirect HR users away from `/dashboard` and WiseResume pages to `/wisehire/dashboard`
 - [ ] T056 [US3] Manual verification: full invite → sign-up flow; `account_type = 'hr'` confirmed in Supabase; bidirectional route guard tested (both directions); expired invite shows error
-- [ ] T057 Update `project-governance/CHANGELOG.md` with US3 sign-up + routing entry
+- [x] T057 Update `project-governance/CHANGELOG.md` with US3 sign-up + routing entry
 
 **Checkpoint**: Invite → sign-up flow complete. `account_type` immutably set to `'hr'`. Route guards enforce separation in both directions. No HR user can reach WiseResume tools and vice versa.
 
@@ -147,12 +147,12 @@
 **Goal**: After HR sign-up, new users go through a 5-step WiseHire onboarding — not the WiseResume onboarding. Progress saves to localStorage. Completion saves to Supabase.  
 **Independent Test**: Complete all 5 steps → `wisehire_companies` row created, `profiles.onboarding_completed = true`, land on `/wisehire/dashboard`. Skip mid-flow → return to onboarding → progress restored from localStorage. Starter tier user → step 4 shows BYOK prompt.
 
-- [ ] T058 [US4] Create `src/pages/wisehire/WiseHireOnboardingPage.tsx` — 5-step flow: (1) Welcome screen, (2) Company Identity (name pre-filled, team size selector), (3) Hiring Context (role types checkboxes, monthly volume selector), (4) AI Setup — shown only for Starter tier, prompts to add AI key with link to Settings, (5) "You're ready" with CTA to create first Role. Step progress persisted to localStorage under key `wisehire_onboarding_draft`. "Skip" button on every step routes to `/wisehire/dashboard`. Back/forward navigation between steps.
-- [ ] T059 [US4] On final step completion: upsert `wisehire_companies` row (name, size, role_types, monthly_volume, onboarding_completed = true); update `profiles.onboarding_completed = true`; clear localStorage draft; redirect to `/wisehire/dashboard`
-- [ ] T060 [US4] Add onboarding incomplete nudge banner to `WiseHireDashboardPage` (Phase 8 shell) — shown when `onboarding_completed = false`, dismissible for session, matches existing WiseResume dashboard nudge pattern
-- [ ] T061 [US4] Post-sign-up redirect: after HR sign-up completion in `WiseHireSignupPage.tsx`, route to `/wisehire/onboarding` (not `/wisehire/dashboard`)
+- [x] T058 [US4] Create `src/pages/wisehire/WiseHireOnboardingPage.tsx` — 5-step flow: (1) Welcome screen, (2) Company Identity (name pre-filled, team size selector), (3) Hiring Context (role types checkboxes, monthly volume selector), (4) AI Setup — shown only for Starter tier, prompts to add AI key with link to Settings, (5) "You're ready" with CTA to create first Role. Step progress persisted to localStorage under key `wisehire_onboarding_draft`. "Skip" button on every step routes to `/wisehire/dashboard`. Back/forward navigation between steps.
+- [x] T059 [US4] On final step completion: upsert `wisehire_companies` row (name, size, role_types, monthly_volume, onboarding_completed = true); update `profiles.onboarding_completed = true`; clear localStorage draft; redirect to `/wisehire/dashboard`
+- [x] T060 [US4] Add onboarding incomplete nudge banner to `WiseHireDashboardPage` (Phase 8 shell) — shown when `onboarding_completed = false`, dismissible for session, matches existing WiseResume dashboard nudge pattern
+- [x] T061 [US4] Post-sign-up redirect: after HR sign-up completion in `WiseHireSignupPage.tsx`, route to `/wisehire/onboarding` (not `/wisehire/dashboard`)
 - [ ] T062 [US4] Manual verification: complete 5-step flow → company row in DB, completion flag set, redirect to dashboard. Skip → dashboard with nudge banner. Return → localStorage restores progress. Starter tier sees BYOK prompt on step 4.
-- [ ] T063 Update `project-governance/CHANGELOG.md` with US4 onboarding entry
+- [x] T063 Update `project-governance/CHANGELOG.md` with US4 onboarding entry
 
 **Checkpoint**: New HR users are routed to onboarding immediately post-sign-up. Onboarding data seeds `wisehire_companies`. Returning users see their progress.
 
@@ -163,14 +163,14 @@
 **Goal**: New HR accounts automatically receive a 7-day Professional trial. Trial badge visible in dashboard throughout trial. WiseHire subscription page shows "Early Access" tiers. Coupon redemption works. Post-trial lockout is functional.  
 **Independent Test**: New HR user signs up → subscription shows 7-day Professional trial. Trial badge in dashboard. Admin creates WiseHire coupon → HR user redeems it → plan updated. Simulate expired trial → lockout screen shown.
 
-- [ ] T064 [US5] Create `src/hooks/wisehire/useWiseHireAccount.ts` — TanStack Query hook: fetches HR user's `wisehire_companies` row, their `subscriptions` record, and computes `{ isTrialActive, daysRemaining, currentPlan, isExpiredWithNoPlan }`
-- [ ] T065 [US5] Add 7-day Professional trial auto-grant to HR profile creation flow: after `account_type = 'hr'` profile is created in `WiseHireSignupPage`, call existing subscription/trial service to insert a `wisehire_professional` plan with 7-day duration
-- [ ] T066 [P] [US5] Create `src/components/wisehire/TrialCountdownBadge.tsx` — uses `useWiseHireAccount`; shows "N days left in trial" with day count; shows "Early Access" if on coupon plan; hides if not in trial; links to `/wisehire/subscription`
-- [ ] T067 [P] [US5] Create `src/components/wisehire/ContactUsLockout.tsx` — full-screen overlay: "Your trial has ended", "Contact us to continue using WiseHire", email link to `contact@thewise.cloud`, clean WiseHire-branded layout
-- [ ] T068 [US5] Create `src/pages/wisehire/WiseHireSubscriptionPage.tsx` — WiseHire tier cards (Starter/Pro/Business/Enterprise) each with "Early Access" badge and a disabled "Join Waitlist" CTA (no Stripe button); coupon code input that calls existing `redeem-coupon` edge function; current plan status display; trial countdown if active
-- [ ] T069 [US5] Verify `WiseHireGuard.tsx` correctly redirects to `/wisehire/contact` (lockout) when `isExpiredWithNoPlan = true`
+- [x] T064 [US5] Create `src/hooks/wisehire/useWiseHireAccount.ts` — TanStack Query hook: fetches HR user's `wisehire_companies` row, their `subscriptions` record, and computes `{ isTrialActive, daysRemaining, currentPlan, isExpiredWithNoPlan }`
+- [x] T065 [US5] Add 7-day Professional trial auto-grant to HR profile creation flow: after `account_type = 'hr'` profile is created in `WiseHireSignupPage`, call existing subscription/trial service to insert a `wisehire_professional` plan with 7-day duration
+- [x] T066 [P] [US5] Create `src/components/wisehire/TrialCountdownBadge.tsx` — uses `useWiseHireAccount`; shows "N days left in trial" with day count; shows "Early Access" if on coupon plan; hides if not in trial; links to `/wisehire/subscription`
+- [x] T067 [P] [US5] Create `src/components/wisehire/ContactUsLockout.tsx` — full-screen overlay: "Your trial has ended", "Contact us to continue using WiseHire", email link to `contact@thewise.cloud`, clean WiseHire-branded layout
+- [x] T068 [US5] Create `src/pages/wisehire/WiseHireSubscriptionPage.tsx` — WiseHire tier cards (Starter/Pro/Business/Enterprise) each with "Early Access" badge and a disabled "Join Waitlist" CTA (no Stripe button); coupon code input that calls existing `redeem-coupon` edge function; current plan status display; trial countdown if active
+- [x] T069 [US5] Verify `WiseHireGuard.tsx` correctly redirects to `/wisehire/contact` (lockout) when `isExpiredWithNoPlan = true`
 - [ ] T070 [US5] Manual verification: new signup gets 7-day trial, badge shows in dashboard, subscription page renders, coupon redemption updates plan, expired trial triggers lockout
-- [ ] T071 Update `project-governance/CHANGELOG.md` with US5 trial + subscription entry
+- [x] T071 Update `project-governance/CHANGELOG.md` with US5 trial + subscription entry
 
 **Checkpoint**: Trial auto-grants on sign-up. Trial badge visible throughout dashboard. Coupon system extended for WiseHire tiers. Expired trial → lockout (not broken UI, not free tier).
 
@@ -181,15 +181,15 @@
 **Goal**: HR users have a functional dashboard with sidebar nav, skeleton stats, quick actions, and settings (BYOK). SkyWallpaper is visible via AppShell inheritance.  
 **Independent Test**: HR user logs in → WiseHire dashboard loads with sidebar nav, trial badge in header, SkyWallpaper visible. All nav links route correctly. Settings page BYOK save works.
 
-- [ ] T072 [US1] Create `src/components/wisehire/WiseHireShell.tsx` — sidebar layout using existing `AppShell` pattern: nav links (Dashboard, Brief Generator, JD Writer, Pipeline, Settings, Subscription), `<TrialCountdownBadge>` in sidebar header, WiseHire blue accent colours, user avatar/menu at bottom
-- [ ] T073 [P] [US1] Create `src/components/wisehire/dashboard/DashboardStatsSkeleton.tsx` — skeleton for 4 stat cards (matched layout to the real stat cards)
-- [ ] T074 [P] [US1] Create `src/components/wisehire/dashboard/DashboardStats.tsx` — 4 stat cards (Total Briefs Generated, Open Roles, Candidates in Pipeline, Avg Match Score); queries `wisehire_candidate_briefs`, `wisehire_roles`, `wisehire_candidates`; shows `DashboardStatsSkeleton` during loading
-- [ ] T075 [P] [US1] Create `src/components/wisehire/dashboard/RecentBriefs.tsx` — last 3 `wisehire_candidate_briefs` ordered by `created_at DESC`; shows candidate name, match score chip, date; links to `/wisehire/brief/{id}`; shows empty state if none
-- [ ] T076 [P] [US1] Create `src/components/wisehire/dashboard/QuickActions.tsx` — three action buttons: "Generate Brief" → `/wisehire/brief`, "Write a JD" → `/wisehire/jd-writer`, "View Pipeline" → `/wisehire/pipeline`
-- [ ] T077 [US1] Create `src/pages/wisehire/WiseHireDashboardPage.tsx` — composes `WiseHireShell` + `DashboardStats` + `RecentBriefs` + `QuickActions` + onboarding nudge banner (if incomplete)
-- [ ] T078 [US1] Create `src/pages/wisehire/WiseHireSettingsPage.tsx` — BYOK section (reuses existing `manage-api-keys` edge function and UI pattern); profile info section (company name, size, HR user name)
+- [x] T072 [US1] Create `src/components/wisehire/WiseHireShell.tsx` — sidebar layout using existing `AppShell` pattern: nav links (Dashboard, Brief Generator, JD Writer, Pipeline, Settings, Subscription), `<TrialCountdownBadge>` in sidebar header, WiseHire blue accent colours, user avatar/menu at bottom
+- [x] T073 [P] [US1] Create `src/components/wisehire/dashboard/DashboardStatsSkeleton.tsx` — skeleton for 4 stat cards (matched layout to the real stat cards)
+- [x] T074 [P] [US1] Create `src/components/wisehire/dashboard/DashboardStats.tsx` — 4 stat cards (Total Briefs Generated, Open Roles, Candidates in Pipeline, Avg Match Score); queries `wisehire_candidate_briefs`, `wisehire_roles`, `wisehire_candidates`; shows `DashboardStatsSkeleton` during loading
+- [x] T075 [P] [US1] Create `src/components/wisehire/dashboard/RecentBriefs.tsx` — last 3 `wisehire_candidate_briefs` ordered by `created_at DESC`; shows candidate name, match score chip, date; links to `/wisehire/brief/{id}`; shows empty state if none
+- [x] T076 [P] [US1] Create `src/components/wisehire/dashboard/QuickActions.tsx` — three action buttons: "Generate Brief" → `/wisehire/brief`, "Write a JD" → `/wisehire/jd-writer`, "View Pipeline" → `/wisehire/pipeline`
+- [x] T077 [US1] Create `src/pages/wisehire/WiseHireDashboardPage.tsx` — composes `WiseHireShell` + `DashboardStats` + `RecentBriefs` + `QuickActions` + onboarding nudge banner (if incomplete)
+- [x] T078 [US1] Create `src/pages/wisehire/WiseHireSettingsPage.tsx` — BYOK section (reuses existing `manage-api-keys` edge function and UI pattern); profile info section (company name, size, HR user name)
 - [ ] T079 [US1] Manual verification: dashboard loads with SkyWallpaper visible, nav links all work, skeleton shows during data load, trial badge in sidebar, settings BYOK save works
-- [ ] T080 Update `project-governance/CHANGELOG.md` with US1 dashboard shell entry
+- [x] T080 Update `project-governance/CHANGELOG.md` with US1 dashboard shell entry
 
 **Checkpoint**: HR users have a fully navigable WiseHire product shell. Dashboard shows live stats and recent briefs. All nav destinations have pages (even if empty). SkyWallpaper confirmed via AppShell.
 
@@ -200,8 +200,8 @@
 **Goal**: HR user types a short description, receives a full JD within 20 seconds, can edit inline, save to a role, and copy.  
 **Independent Test**: Enter 2 sentences → full structured JD returned within 20s. Edit and save → JD persists to `wisehire_roles`. Copy → clipboard. JD Library shows all saved JDs. Starter with no AI key → clear BYOK prompt.
 
-- [ ] T081 [US8] Create `supabase/functions/wisehire-write-jd/index.ts` — `requireAuth` → `account_type = 'hr'` check → validate input (min 10 chars) → check daily JD rate limit fail-closed (Starter: 10/day, Professional/Business: unlimited) → call `aiClient.ts` with bias-reduced JD prompt → parse JSON response `{ title, summary, responsibilities, requirements, benefits }` → if `role_id` provided update `wisehire_roles.jd_text` → return structured JD
-- [ ] T082 [US8] Create `src/hooks/wisehire/useJDs.ts` — TanStack Query hook: list saved JDs from `wisehire_roles` where `jd_text IS NOT NULL`; mutations for save and delete
+- [x] T081 [US8] Create `supabase/functions/wisehire-write-jd/index.ts` — `requireAuth` → `account_type = 'hr'` check → validate input (min 10 chars) → check daily JD rate limit fail-closed (Starter: 10/day, Professional/Business: unlimited) → call `aiClient.ts` with bias-reduced JD prompt → parse JSON response `{ title, summary, responsibilities, requirements, benefits }` → if `role_id` provided update `wisehire_roles.jd_text` → return structured JD
+- [x] T082 [US8] Create `src/hooks/wisehire/useJDs.ts` — TanStack Query hook: list saved JDs from `wisehire_roles` where `jd_text IS NOT NULL`; mutations for save and delete
 - [x] T083 [P] [US8] Create `src/components/wisehire/jd-writer/JDSkeleton.tsx` — skeleton matching the JD writer output layout
 - [x] T084 [P] [US8] Create `src/components/wisehire/jd-writer/JDWriterForm.tsx` — textarea (min 10 chars, enforced client-side), role selector dropdown (from `wisehire_roles`), "Write JD" button; shows loading state; calls `wisehire-write-jd`; on Starter with no API key shows BYOK prompt inline
 - [x] T085 [P] [US8] Create `src/components/wisehire/jd-writer/JDInlineEditor.tsx` — editable JD output with labelled sections (Summary, Responsibilities, Requirements, Benefits); Save button; Copy to Clipboard button; integrates with `useJDs` save mutation
@@ -219,9 +219,9 @@
 **Goal**: HR user uploads a resume PDF and pastes a JD; receives a complete Candidate Brief within 30 seconds. Brief is exportable as PDF and shareable via a public read-only link.  
 **Independent Test**: Upload PDF + paste JD → complete brief (score, 3 strengths, 3 concerns, 8 questions, employment notes) within 30s. Export PDF works. Share link opens publicly without auth. Revoking share link invalidates old URL. Starter without BYOK sees prompt. Rate limit blocks after 5/day.
 
-- [ ] T090 [US7] Create `supabase/functions/wisehire-generate-brief/index.ts` — `requireAuth` → `account_type = 'hr'` check → fetch `wisehire_candidates` and confirm `owner_id` match → check `resume_text` is not null → check BYOK status (Starter: return `requiresApiKey: true` if none) → fail-closed rate limit (Starter: 5/day + 30/month cap; Professional: 50/day) → build and call AI prompt via `aiClient.ts` → parse and validate JSON response → insert into `wisehire_candidate_briefs` → return full brief
-- [ ] T091 [US7] Create `src/hooks/wisehire/useBriefs.ts` — TanStack Query: list briefs by `owner_id`; fetch single brief by ID; mutations for share token revocation
-- [ ] T092 [P] [US7] Create `src/lib/wisehire/briefPdfExport.ts` — client-side PDF generation of brief output (using browser print stylesheet or a lightweight PDF library); accepts brief data, triggers download with candidate name in filename
+- [x] T090 [US7] Create `supabase/functions/wisehire-generate-brief/index.ts` — `requireAuth` → `account_type = 'hr'` check → fetch `wisehire_candidates` and confirm `owner_id` match → check `resume_text` is not null → check BYOK status (Starter: return `requiresApiKey: true` if none) → fail-closed rate limit (Starter: 5/day + 30/month cap; Professional: 50/day) → build and call AI prompt via `aiClient.ts` → parse and validate JSON response → insert into `wisehire_candidate_briefs` → return full brief
+- [x] T091 [US7] Create `src/hooks/wisehire/useBriefs.ts` — TanStack Query: list briefs by `owner_id`; fetch single brief by ID; mutations for share token revocation
+- [x] T092 [P] [US7] Create `src/lib/wisehire/briefPdfExport.ts` — client-side PDF generation of brief output (using browser print stylesheet or a lightweight PDF library); accepts brief data, triggers download with candidate name in filename
 - [x] T093 [P] [US7] Create `src/components/wisehire/brief/BriefSkeleton.tsx` — skeleton matching full brief output layout
 - [x] T094 [P] [US7] Create `src/components/wisehire/brief/BriefForm.tsx` — file upload input (PDF only, max 10MB, WCAG-labelled); JD textarea; role selector; "Generate Brief" button with loading/streaming state; after PDF selected: upload to `candidate-resumes` bucket, create `wisehire_candidates` row, call `parse-resume` to extract text, then call `wisehire-generate-brief`; BYOK prompt if Starter and no key configured
 - [x] T095 [P] [US7] Create `src/components/wisehire/brief/BriefOutput.tsx` — renders: match score ring (0–100 with colour gradient), strengths chips (3), concerns chips (3), numbered interview questions list (8), employment notes section, created_at timestamp
@@ -241,8 +241,8 @@
 **Goal**: HR user manages candidates in a Kanban board with 6 fixed stages. Drag-and-drop persists after refresh. Keyboard alternative provided for WCAG AA. Pipeline events recorded.  
 **Independent Test**: Add candidates → appear in Shortlisted. Drag to Interviewing → persists after browser refresh. Keyboard mover: tab to card → select stage → press Enter → stage updates. Filter by role shows only that role's candidates. Pipeline event recorded for each stage change.
 
-- [ ] T102 [US9] Create `src/lib/wisehire/pipelineDragDrop.ts` — drag-and-drop state logic: `onDragStart`, `onDragOver`, `onDrop` handlers; optimistic UI update → then calls `usePipeline.updatePipelineStage` mutation; handles drop cancelled/error (reverts optimistic update)
-- [ ] T103 [US9] Create `src/hooks/wisehire/usePipeline.ts` — TanStack Query: list `wisehire_candidates` filtered by `owner_id` and optionally `role_id`, grouped by `pipeline_stage`; mutation `updatePipelineStage(candidateId, toStage)` — updates `wisehire_candidates.pipeline_stage` and inserts a `wisehire_pipeline_events` row
+- [x] T102 [US9] Create `src/lib/wisehire/pipelineDragDrop.ts` — drag-and-drop state logic: `onDragStart`, `onDragOver`, `onDrop` handlers; optimistic UI update → then calls `usePipeline.updatePipelineStage` mutation; handles drop cancelled/error (reverts optimistic update)
+- [x] T103 [US9] Create `src/hooks/wisehire/usePipeline.ts` — TanStack Query: list `wisehire_candidates` filtered by `owner_id` and optionally `role_id`, grouped by `pipeline_stage`; mutation `updatePipelineStage(candidateId, toStage)` — updates `wisehire_candidates.pipeline_stage` and inserts a `wisehire_pipeline_events` row
 - [x] T104 [P] [US9] Create `src/components/wisehire/pipeline/PipelineSkeleton.tsx` — skeleton for 6-column Kanban (2–3 placeholder cards per column)
 - [x] T105 [P] [US9] Create `src/components/wisehire/pipeline/PipelineColumn.tsx` — single stage column: header with stage label and candidate count badge; droppable zone (accepts `onDragOver`, `onDrop`); renders list of `CandidateCard`
 - [x] T106 [P] [US9] Create `src/components/wisehire/pipeline/CandidateCard.tsx` — draggable card: `draggable` attribute; `onDragStart` handler; shows candidate name, role name, match score chip (if brief exists); keyboard focus ring; click → opens `CandidateDetailPanel`; accessible `role="button"` and `aria-label`
@@ -403,7 +403,7 @@ At each checkpoint, validate the completed user story is independently functiona
 - [x] T171: Page `WiseHireAnalyticsPage.tsx` (/wisehire/analytics)
 - [x] T172: WiseHireShell nav + App.tsx route
 - [ ] T173: Manual verification
-- [ ] T174: CHANGELOG update — COMPLETED (this file)
+- [x] T174: CHANGELOG update — COMPLETED (this file)
 - [x] T175: ARCHITECTURE.md update (86 fns, 11 tables, new routes)
 
 ---

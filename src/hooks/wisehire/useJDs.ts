@@ -6,10 +6,18 @@ import { toast } from 'sonner';
 
 export interface WiseHireRole {
   id: string;
+  company_id: string;
   title: string;
   jd_text: string | null;
   status: string;
   client_id: string | null;
+  slug: string | null;
+  published: boolean | null;
+  location: string | null;
+  remote_ok: boolean | null;
+  salary_min: number | null;
+  salary_max: number | null;
+  employment_type: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -25,7 +33,7 @@ export function useJDs() {
       if (!userId) return [];
       const { data, error } = await supabase
         .from('wisehire_roles')
-        .select('id, title, jd_text, status, client_id, created_at, updated_at')
+        .select('id, company_id, title, jd_text, status, client_id, slug, published, location, remote_ok, salary_min, salary_max, employment_type, created_at, updated_at')
         .eq('owner_id', userId)
         .eq('is_deleted', false)
         .not('jd_text', 'is', null)
