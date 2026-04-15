@@ -17,7 +17,7 @@ import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
 import type { AdminUser } from './AdminUsersPanel';
 
-type EmailAction = 'resend_confirmation' | 'send_magic_link' | 'send_otp' | 'send_password_reset' | 'send_custom';
+type EmailAction = 'resend_confirmation' | 'send_magic_link' | 'send_otp' | 'send_password_reset' | 'send_custom' | 'wisehire_invite';
 
 const ACTION_LABELS: Record<EmailAction, string> = {
   resend_confirmation: 'Resend Confirmation Email',
@@ -25,6 +25,7 @@ const ACTION_LABELS: Record<EmailAction, string> = {
   send_otp: 'Send OTP / Verification Code',
   send_password_reset: 'Send Password Reset',
   send_custom: 'Send Custom Email',
+  wisehire_invite: 'Send WiseHire Invite',
 };
 
 const ACTION_DESCRIPTIONS: Record<EmailAction, string> = {
@@ -33,6 +34,7 @@ const ACTION_DESCRIPTIONS: Record<EmailAction, string> = {
   send_otp: 'Sends a one-time verification code for reauthentication.',
   send_password_reset: 'Sends a link to reset the user\'s password.',
   send_custom: 'Compose and send a one-off custom email to this user via Resend.',
+  wisehire_invite: 'Generates a signed 72-hour invite link and sends a WiseHire-branded email. The invite URL is shown after sending.',
 };
 
 function formatDate(iso: string | null): string {
@@ -344,6 +346,17 @@ function ComposeEmailForm({
   };
 
   const isCustomMode = action === 'send_custom';
+  const isWiseHireInvite = action === 'wisehire_invite';
+
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [inviteCopied, setInviteCopied] = useState(false);
+
+  const handleCopyInvite = async () => {
+    if (!inviteUrl) return;
+    await navigator.clipboard.writeText(inviteUrl);
+    setInviteCopied(true);
+    setTimeout(() => setInviteCopied(false), 2000);
+  };
 
   const handleSend = async () => {
     if (!selectedUser && !emailSearch.trim()) {
@@ -356,8 +369,23 @@ function ComposeEmailForm({
     }
 
     setSending(true);
+    setInviteUrl(null);
     try {
       const password = getDevKitToken();
+      const recipientEmail = selectedUser?.email ?? emailSearch.trim();
+
+      if (isWiseHireInvite) {
+        const { data, error: err } = await edgeFunctions.functions.invoke('admin-wisehire-invite', {
+          body: { password, recipient_email: recipientEmail },
+        });
+        if (err) throw new Error(err.message);
+        const result = data as { success?: boolean; error?: string; invite_url?: string; expires_at?: string };
+        if (result?.success === false) throw new Error(result.error ?? 'Unknown error');
+        toast.success(`WiseHire invite sent to ${recipientEmail}`);
+        setInviteUrl(result.invite_url ?? null);
+        return;
+      }
+
       const body: Record<string, unknown> = {
         password,
         action,
@@ -526,6 +554,20 @@ function ComposeEmailForm({
           <><Send className="w-4 h-4" />{ACTION_LABELS[action]}</>
         )}
       </Button>
+
+      {inviteUrl && (
+        <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-1.5">
+          <p className="text-xs font-medium text-primary">Invite link generated</p>
+          <p className="text-xs font-mono break-all text-foreground">{inviteUrl}</p>
+          <button
+            onClick={handleCopyInvite}
+            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+          >
+            {inviteCopied ? <CheckCircle className="w-3 h-3" /> : <Send className="w-3 h-3" />}
+            {inviteCopied ? 'Copied!' : 'Copy link'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

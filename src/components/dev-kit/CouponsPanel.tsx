@@ -57,7 +57,7 @@ export function CouponsPanel({ onCountChange }: CouponsPanelProps) {
   const [newCode, setNewCode] = useState('');
   const [newType, setNewType] = useState<'percent' | 'plan_upgrade'>('plan_upgrade');
   const [newValue, setNewValue] = useState('');
-  const [newPlan, setNewPlan] = useState<'pro' | 'premium'>('pro');
+  const [newPlan, setNewPlan] = useState<'pro' | 'premium' | 'wisehire_starter' | 'wisehire_professional' | 'wisehire_business'>('pro');
   const [newDays, setNewDays] = useState('30');
   const [newExpiry, setNewExpiry] = useState('');
   const [newMaxUses, setNewMaxUses] = useState('0');
@@ -323,11 +323,18 @@ export function CouponsPanel({ onCountChange }: CouponsPanelProps) {
                   <p className="text-xs text-muted-foreground mb-1">Plan</p>
                   <select
                     value={newPlan}
-                    onChange={(e) => setNewPlan(e.target.value as 'pro' | 'premium')}
+                    onChange={(e) => setNewPlan(e.target.value as typeof newPlan)}
                     className="w-full text-sm bg-background border border-border rounded-md px-2 py-2 focus:outline-none focus:ring-1 focus:ring-primary"
                   >
-                    <option value="pro">Pro</option>
-                    <option value="premium">Premium</option>
+                    <optgroup label="WiseResume">
+                      <option value="pro">Pro</option>
+                      <option value="premium">Premium</option>
+                    </optgroup>
+                    <optgroup label="WiseHire Tiers">
+                      <option value="wisehire_starter">WiseHire Starter</option>
+                      <option value="wisehire_professional">WiseHire Professional</option>
+                      <option value="wisehire_business">WiseHire Business</option>
+                    </optgroup>
                   </select>
                 </div>
                 <div>

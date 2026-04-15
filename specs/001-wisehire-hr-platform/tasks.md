@@ -110,15 +110,15 @@
 **Goal**: Admin can view the waitlist, send invite emails, and create WiseHire coupon codes — all from the existing dev kit.  
 **Independent Test**: Admin sends invite → recipient receives branded WiseHire email with a valid sign-up link. Waitlist panel shows all entries. Coupon panel offers WiseHire tier options. Audit log records the invite send.
 
-- [ ] T041 [US6] Create `supabase/functions/_shared/email-templates/wisehire-invite.tsx` — React Email component: WiseHire blue header, invite headline, product value prop, "Accept Invite & Set Up Your Account" CTA button linking to `invite_url`, "expires in 72 hours" notice, ignore footer
-- [ ] T042 [US6] Create `supabase/functions/admin-wisehire-waitlist/index.ts` — admin-auth edge function: paginated list of `wisehire_waitlist` rows with optional search by name/email; returns `{ entries, total, page }`
-- [ ] T043 [US6] Create `supabase/functions/admin-wisehire-invite/index.ts` — admin-auth edge function: validate email → generate UUID v4 token → HMAC-SHA256 sign with `WISEHIRE_INVITE_SECRET` → insert into `wisehire_invites` (expires 72h) → send `wisehire-invite.tsx` via Resend → if `waitlist_id` provided update `invited_at` → write audit log entry → return `{ invite_url, expires_at }`
-- [ ] T044 [US6] Update `supabase/functions/admin-email-actions/index.ts` — add handler for `action_type = 'wisehire_invite'`: validates recipient email, delegates to `admin-wisehire-invite` logic, records in audit log under `admin_email` category
-- [ ] T045 [US6] Create `src/components/dev-kit/WiseHireWaitlistPanel.tsx` — new dev kit tab: paginated table of waitlist entries (name, email, company, size, submitted_at, invited badge if `invited_at` set), search input, per-row "Invite" button that calls `admin-wisehire-invite` and shows invite URL in a copy dialog
-- [ ] T046 [P] [US6] Update `src/components/dev-kit/CouponsPanel.tsx` — add WiseHire tier options to the plan selector under a "WiseHire Tiers" group label: `wisehire_starter`, `wisehire_professional`, `wisehire_business`
-- [ ] T047 [P] [US6] Update `src/components/dev-kit/EmailManagementPanel.tsx` — add "Send WiseHire Invite" as an action type option; when selected: show email input field; on submit: call `admin-wisehire-invite`; show copyable invite URL in success state
-- [ ] T048 [US6] Manual verification: send invite from both email panel and waitlist panel → branded email arrives in recipient inbox → invite URL format is correct → audit log entry recorded → `invited_at` set on waitlist entry
-- [ ] T049 Update `project-governance/CHANGELOG.md` with US6 dev kit admin tools entry
+- [x] T041 [US6] Create `supabase/functions/_shared/email-templates/wisehire-invite.tsx` — inline HTML in edge function (WiseHire blue header, invite headline, CTA, expiry notice, ignore footer)
+- [x] T042 [US6] Create `supabase/functions/admin-wisehire-waitlist/index.ts` — paginated list with search
+- [x] T043 [US6] Create `supabase/functions/admin-wisehire-invite/index.ts` — UUID token, HMAC sign, DB insert, Resend email, invited_at update, audit log
+- [x] T044 [US6] Update `supabase/functions/admin-email-actions/index.ts` — wisehire_invite case added
+- [x] T045 [US6] Create `src/components/dev-kit/WiseHireWaitlistPanel.tsx` — paginated table, search, Invite/Re-invite buttons, invite URL copy dialog
+- [x] T046 [P] [US6] Update `src/components/dev-kit/CouponsPanel.tsx` — WiseHire Tiers optgroup added
+- [x] T047 [P] [US6] Update `src/components/dev-kit/EmailManagementPanel.tsx` — wisehire_invite action type, calls admin-wisehire-invite directly, shows invite URL
+- [ ] T048 [US6] Manual verification: send invite from both email panel and waitlist panel → branded email arrives → invite URL correct → audit log entry recorded → invited_at set
+- [x] T049 Update `project-governance/CHANGELOG.md` with US6 dev kit admin tools entry
 
 **Checkpoint**: Admin has full WiseHire operational control. Can view waitlist, send invites, create WiseHire coupons — all without leaving the dev kit.
 

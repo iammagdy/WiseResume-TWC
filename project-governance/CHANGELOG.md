@@ -2,6 +2,24 @@
 
 Local changelog tracking WiseResume changes.
 
+## 2026-04-15 (Phase 5)
+
+### WISEHIRE-PHASE5 — US6: Dev Kit WiseHire Admin Tools (T041–T047, T049)
+- **Summary**: Admin now has full WiseHire operational control from inside the dev kit. View the entire waitlist, search by name/email/company, send invite emails per-row, re-invite anyone, and copy the invite URL from a confirmation dialog. Coupons panel extended with WiseHire tier options. Email panel extended with "Send WiseHire Invite" action that routes to the dedicated invite function and shows the copyable invite URL.
+- **New edge functions**:
+  - `admin-wisehire-waitlist/index.ts` — paginated list of waitlist entries with optional search; returns `{ entries, total, page, per_page }`
+  - `admin-wisehire-invite/index.ts` — UUID v4 token + HMAC-SHA256 (WISEHIRE_INVITE_SECRET) → insert into `wisehire_invites` (72h expiry) → Resend invite email → update `wisehire_waitlist.invited_at` → audit log entry
+- **Updated edge functions**:
+  - `admin-email-actions/index.ts` — `wisehire_invite` case added; inline token/sign/insert/send logic; audit log under `admin_email` category
+- **New frontend component**:
+  - `src/components/dev-kit/WiseHireWaitlistPanel.tsx` — paginated table (name, email, company, size, submitted date, invited badge), search, Invite/Re-invite per-row button, invite URL copy dialog; added as "WiseHire" tab in DevToolsPage
+- **Updated frontend**:
+  - `CouponsPanel.tsx` — WiseHire Tiers optgroup (`wisehire_starter`, `wisehire_professional`, `wisehire_business`) added to plan selector
+  - `EmailManagementPanel.tsx` — `wisehire_invite` action type added; calls `admin-wisehire-invite` directly (not email-actions); shows copyable invite URL in success state
+  - `DevToolsPage.tsx` — "WiseHire" tab added between Email and Coupons; mounts `WiseHireWaitlistPanel`
+- **Pending**: T048 manual verification (requires deployed edge functions + Resend domain verification)
+- **Spec reference**: `specs/001-wisehire-hr-platform/tasks.md` T041–T049
+
 ## 2026-04-15 (continued)
 
 ### WISEHIRE-PHASE4 — US2: Waitlist Backend + Login Button Removal

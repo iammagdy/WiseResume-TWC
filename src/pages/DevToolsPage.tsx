@@ -14,6 +14,7 @@ import {
   BarChart2,
   Rocket,
   Mail,
+  Briefcase,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -27,13 +28,14 @@ import { AnalyticsPanel } from '@/components/dev-kit/AnalyticsPanel';
 import { LiveActivityPanel } from '@/components/dev-kit/LiveActivityPanel';
 import { DeploymentPanel } from '@/components/dev-kit/DeploymentPanel';
 import { EmailManagementPanel } from '@/components/dev-kit/EmailManagementPanel';
+import { WiseHireWaitlistPanel } from '@/components/dev-kit/WiseHireWaitlistPanel';
 import { DEV_KIT_VERSION } from '@/components/dev-kit/config';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { DevKitSessionProvider, useDevKitSession } from '@/contexts/DevKitSessionContext';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-type Tab = 'overview' | 'analytics' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email';
+type Tab = 'overview' | 'analytics' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire';
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -42,6 +44,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'deployment', label: 'Deployment', icon: Rocket },
   { id: 'users', label: 'Users', icon: Users },
   { id: 'email', label: 'Email', icon: Mail },
+  { id: 'wisehire', label: 'WiseHire', icon: Briefcase },
   { id: 'coupons', label: 'Coupons', icon: Tag },
   { id: 'settings', label: 'Settings', icon: Settings },
   { id: 'activity', label: 'Audit Log', icon: Clock },
@@ -447,6 +450,21 @@ function DevToolsInner() {
                   </p>
                 </div>
                 <EmailManagementPanel />
+              </div>
+            )}
+
+            {activeTab === 'wisehire' && (
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-lg font-semibold flex items-center gap-2">
+                    <Briefcase className="w-5 h-5 text-primary" />
+                    WiseHire Waitlist
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    View everyone who signed up for early access. Send invite emails directly from here — each invite generates a signed 72-hour link.
+                  </p>
+                </div>
+                <WiseHireWaitlistPanel />
               </div>
             )}
 
