@@ -31,8 +31,6 @@ export function LandingToggle({ mode, onModeChange }: LandingToggleProps) {
         height: 42,
         padding: '0 16px',
         background: 'transparent',
-        borderBottom: '1px solid var(--lp-border)',
-        transition: 'border-color 0.35s ease',
         flexShrink: 0,
       }}
     >
