@@ -120,28 +120,52 @@ Deno.serve(async (req) => {
       // Non-fatal — profile already updated
     }
 
-    // Optionally create a draft wisehire_companies row (Phase 7 table — non-fatal if absent)
-    if (company_name?.trim()) {
-      try {
-        const { error: companyErr } = await serviceClient
-          .from('wisehire_companies')
-          .upsert(
-            {
-              owner_user_id: userId,
-              name: company_name.trim(),
-              size: company_size?.trim() ?? null,
-              plan: 'trial',
-              trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-            },
-            { onConflict: 'owner_user_id', ignoreDuplicates: true },
-          );
+    // Create draft wisehire_companies row (non-fatal on error)
+    try {
+      const companyName = company_name?.trim() || 'My Company';
+      const { error: companyErr } = await serviceClient
+        .from('wisehire_companies')
+        .upsert(
+          {
+            owner_id: userId,
+            name: companyName,
+            size: company_size?.trim() ?? '1-10',
+            onboarding_completed: false,
+          },
+          { onConflict: 'owner_id', ignoreDuplicates: true },
+        );
 
-        if (companyErr) {
-          console.warn('[wisehire-complete-signup] company upsert skipped:', companyErr.message);
-        }
-      } catch (companyEx) {
-        console.warn('[wisehire-complete-signup] company upsert exception:', companyEx);
+      if (companyErr) {
+        console.warn('[wisehire-complete-signup] company upsert skipped:', companyErr.message);
       }
+    } catch (companyEx) {
+      console.warn('[wisehire-complete-signup] company upsert exception:', companyEx);
+    }
+
+    // Grant 7-day Professional trial (non-fatal on error)
+    try {
+      const now = new Date().toISOString();
+      const trialEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { error: subErr } = await serviceClient
+        .from('subscriptions')
+        .upsert(
+          {
+            user_id: userId,
+            plan_name: 'wisehire_starter',
+            trial_plan: 'wisehire_professional',
+            trial_expires_at: trialEnd,
+            status: 'active',
+            current_period_start: now,
+            current_period_end: trialEnd,
+          },
+          { onConflict: 'user_id', ignoreDuplicates: true },
+        );
+
+      if (subErr) {
+        console.warn('[wisehire-complete-signup] trial grant skipped:', subErr.message);
+      }
+    } catch (subEx) {
+      console.warn('[wisehire-complete-signup] trial grant exception:', subEx);
     }
 
     // Audit log

@@ -2,6 +2,56 @@
 
 Local changelog tracking WiseResume changes.
 
+## 2026-04-15 (Phases 7 + 8)
+
+### WISEHIRE-PHASE7 — US4: WiseHire Onboarding (T058–T061, T063)
+
+- **Summary**: New HR users are immediately routed through a 5-step onboarding flow after sign-up. Progress persists to localStorage so returning users resume where they left off. Completion upserts the `wisehire_companies` row and sets `profiles.onboarding_completed = true`. The dashboard shows a dismissible nudge banner if onboarding is incomplete.
+
+- **New page** (`src/pages/wisehire/WiseHireOnboardingPage.tsx` — replaces placeholder):
+  - Step 1: Welcome screen — company name preview, three-item setup checklist, "Let's get started" CTA
+  - Step 2: Company Identity — editable company name (pre-filled from signup), team size selector
+  - Step 3: Hiring Context — role types (10 checkboxes), monthly volume (5-option dropdown)
+  - Step 4: AI Setup — conditionally shows BYOK prompt (Starter tier) or "AI is ready" banner (Professional/trial)
+  - Step 5: "You're all set!" — summary card + Complete → upserts DB + clears draft + redirects to `/wisehire/dashboard`
+  - Every step has a "Skip for now" link → `/wisehire/dashboard`; steps 2–4 have Back/Next navigation
+  - Draft persisted to `localStorage['wisehire_onboarding_draft']`; company name/size pre-filled from `sessionStorage` (sign-up data)
+
+- **Updated pages**:
+  - `src/pages/wisehire/WiseHireDashboardPage.tsx` — onboarding nudge banner (shown when `!company.onboarding_completed`; dismissible via `sessionStorage` flag); `TrialCountdownBadge` in header
+
+- **T061 note**: Post-sign-up redirect to `/wisehire/onboarding` was already wired in Phase 6 (`wisehire-complete-signup` → complete mode → navigate to onboarding)
+
+- **Spec reference**: `specs/001-wisehire-hr-platform/tasks.md` T058–T063
+
+---
+
+### WISEHIRE-PHASE8 — US5: Trial + Subscription (T064–T069, T071)
+
+- **Summary**: New HR accounts automatically receive a 7-day Professional trial on sign-up. A trial countdown badge appears in the dashboard header. The subscription page shows all WiseHire tiers with coupon redemption. Expired trial with no plan shows a full-screen lockout.
+
+- **Edge function updates**:
+  - `wisehire-complete-signup/index.ts` — fixed `owner_user_id` → `owner_id` (was incorrect column name); removed invalid `plan`/`trial_ends_at` columns; now upserts `wisehire_companies` with correct schema; grants 7-day Professional trial: upserts `subscriptions` with `plan_name = 'wisehire_starter'`, `trial_plan = 'wisehire_professional'`, `trial_expires_at = now + 7 days`; `ignoreDuplicates: true` so re-runs don't overwrite existing subscription
+
+- **New hook**:
+  - `src/hooks/wisehire/useWiseHireAccount.ts` — parallel fetches `wisehire_companies` (by `owner_id`) and `subscriptions` (by `user_id`); computes `{ isTrialActive, daysRemaining, currentPlan, isExpiredWithNoPlan, company, subscription }`; `isExpiredWithNoPlan = !isTrialActive && plan_name not in wisehire_*`
+
+- **New components**:
+  - `src/components/wisehire/TrialCountdownBadge.tsx` — shows "N days left in trial" (amber/red when ≤ 3 days); shows "Early Access" pill for coupon plans; hidden when neither; links to `/wisehire/subscription`
+  - `src/components/wisehire/ContactUsLockout.tsx` — full-screen lockout; "Your trial has ended"; mailto CTA to `contact@thewise.cloud`; "View plans" link to `/wisehire/subscription`; sign-out button
+
+- **New page**:
+  - `src/pages/wisehire/WiseHireSubscriptionPage.tsx` — 4-tier grid (Starter, Professional, Business, Enterprise); each with "Early Access" badge; Professional with "⭐ Most Popular"; current plan highlighted; coupon code input (calls `redeem-coupon` edge function); current plan status banner (trial countdown, coupon, or expired warning); enterprise tier has "Contact us" email CTA; non-enterprise tiers have disabled "Join Waitlist" CTA
+
+- **Updated components**:
+  - `src/components/wisehire/WiseHireGuard.tsx` — now imports `useWiseHireAccount`; renders `ContactUsLockout` inline when `isExpiredWithNoPlan` (allows `/wisehire/subscription` through so expired users can apply a coupon)
+
+- **Updated routing** (`src/App.tsx`):
+  - Added `/wisehire/subscription` inside `<WiseHireGuard>`
+
+- **Pending**: T070 manual verification (requires deployed edge functions + real HR user with signed-up account)
+- **Spec reference**: `specs/001-wisehire-hr-platform/tasks.md` T064–T071
+
 ## 2026-04-15 (Phase 6)
 
 ### WISEHIRE-PHASE6 — US3: WiseHire Sign-Up + Routing Guards (T050–T055, T057)

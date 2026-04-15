@@ -149,6 +149,7 @@ const TailorPage = lazyWithRetry(() => import("./pages/TailorPage"));
 const WiseHireSignupPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireSignupPage"));
 const WiseHireDashboardPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireDashboardPage"));
 const WiseHireOnboardingPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireOnboardingPage"));
+const WiseHireSubscriptionPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireSubscriptionPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -320,6 +321,7 @@ function AppRoutes() {
           <Route element={<WiseHireGuard />}>
             <Route path="/wisehire/dashboard" element={<Suspense fallback={<PageLoadingSpinner />}><WiseHireDashboardPage /></Suspense>} />
             <Route path="/wisehire/onboarding" element={<Suspense fallback={<PageLoadingSpinner />}><WiseHireOnboardingPage /></Suspense>} />
+            <Route path="/wisehire/subscription" element={<Suspense fallback={<PageLoadingSpinner />}><WiseHireSubscriptionPage /></Suspense>} />
           </Route>
 
           {/* Protected routes */}

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Navigate, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useAccountType } from '@/hooks/wisehire/useAccountType';
+import { useWiseHireAccount } from '@/hooks/wisehire/useWiseHireAccount';
+import { ContactUsLockout } from '@/components/wisehire/ContactUsLockout';
 
 const LOADING_TIMEOUT_MS = 12_000;
 
@@ -11,11 +13,13 @@ const LOADING_TIMEOUT_MS = 12_000;
  * Rules:
  *  1. Not authenticated → redirect to /auth?mode=login
  *  2. Authenticated but account_type !== 'hr' → redirect to /dashboard (job seeker product)
- *  3. HR user → render children
+ *  3. HR user with expired trial and no plan → show ContactUsLockout
+ *  4. HR user on active trial or paid plan → render children
  */
 export function WiseHireGuard() {
   const { isAuthenticated, loading, supabaseSettled } = useAuth();
   const { accountType, isLoading: accountTypeLoading } = useAccountType();
+  const { data: whAccount, isLoading: whAccountLoading } = useWiseHireAccount();
   const navigate = useNavigate();
   const location = useLocation();
   const isAuthenticatedRef = useRef(isAuthenticated);
@@ -41,9 +45,7 @@ export function WiseHireGuard() {
   }, [navigate]);
 
   // Wait for Kinde auth loading
-  if (loading) {
-    return <WiseHireLoadingSkeleton />;
-  }
+  if (loading) return <WiseHireLoadingSkeleton />;
 
   // Not authenticated → send to login
   if (!isAuthenticated) {
@@ -54,19 +56,26 @@ export function WiseHireGuard() {
     return <Navigate to={`/auth?mode=login${redirectParam}`} replace />;
   }
 
-  // Wait for Supabase bridge (with timeout safety net)
-  if (!loadingTimedOut && !supabaseSettled) {
-    return <WiseHireLoadingSkeleton />;
-  }
-
-  // Wait for account type query (with timeout safety net)
-  if (!loadingTimedOut && accountTypeLoading) {
+  // Wait for Supabase bridge + account type (with timeout)
+  if (!loadingTimedOut && (!supabaseSettled || accountTypeLoading)) {
     return <WiseHireLoadingSkeleton />;
   }
 
   // Wrong product — redirect job seekers back to their dashboard
   if (accountType !== null && accountType !== 'hr') {
     return <Navigate to="/dashboard" replace />;
+  }
+
+  // Wait for WiseHire account data (with timeout)
+  if (!loadingTimedOut && whAccountLoading) {
+    return <WiseHireLoadingSkeleton />;
+  }
+
+  // Trial expired + no paid plan → full-screen lockout
+  // Allow access to /wisehire/subscription so they can apply a coupon
+  const isSubscriptionPage = location.pathname === '/wisehire/subscription';
+  if (whAccount?.isExpiredWithNoPlan && !isSubscriptionPage) {
+    return <ContactUsLockout />;
   }
 
   return <Outlet />;
