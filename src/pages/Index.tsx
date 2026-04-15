@@ -802,7 +802,7 @@ const Index = () => {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            ) : (
+            ) : mode === 'jobseeker' ? (
               <button
                 onClick={() => {
                   triggerHaptic.light();
@@ -818,6 +818,18 @@ const Index = () => {
                 }}
               >
                 Sign In
+              </button>
+            ) : (
+              <button
+                onClick={() => setWaitlistOpen(true)}
+                className="text-sm font-semibold px-4 py-1.5 rounded-lg transition-all duration-200"
+                style={{
+                  color: '#fff',
+                  background: '#1D4ED8',
+                  border: '1px solid #1D4ED8',
+                }}
+              >
+                Join Waitlist
               </button>
             )}
           </div>

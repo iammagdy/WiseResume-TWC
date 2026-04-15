@@ -127,6 +127,7 @@ const TermsPage = lazyWithRetry(() => import("./pages/TermsPage"));
 const PricingPage = lazyWithRetry(() => import("./pages/PricingPage"));
 const WhatsNewPage = lazyWithRetry(() => import("./pages/WhatsNewPage"));
 const HelpPage = lazyWithRetry(() => import("./pages/HelpPage"));
+const WaitlistPage = lazyWithRetry(() => import("./pages/WaitlistPage"));
 const InterviewReportPage = lazyWithRetry(() => import("./pages/InterviewReportPage"));
 const AnalyticsPage = lazyWithRetry(() => import("./pages/AnalyticsPage"));
 const SubscriptionPage = lazyWithRetry(() => import("./pages/SubscriptionPage"));
@@ -303,6 +304,7 @@ function AppRoutes() {
           {/* Public marketing routes — no AppShell, no auth required */}
           <Route path="/pricing" element={<Suspense fallback={<PageLoadingSpinner />}><PricingPage /></Suspense>} />
           <Route path="/whats-new" element={<Suspense fallback={<PageLoadingSpinner />}><WhatsNewPage /></Suspense>} />
+          <Route path="/waitlist" element={<Suspense fallback={<PageLoadingSpinner />}><WaitlistPage /></Suspense>} />
 
           {/* Protected routes */}
            <Route element={<ProtectedRoute />}>

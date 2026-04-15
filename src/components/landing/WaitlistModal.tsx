@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X, CheckCircle2, Loader2, Briefcase, Mail, Building2, Users } from 'lucide-react';
+import { useWaitlist } from '@/hooks/wisehire/useWaitlist';
 
 interface WaitlistModalProps {
   open: boolean;
@@ -16,9 +17,10 @@ const COMPANY_SIZES = [
 
 export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
   const [form, setForm] = useState({ name: '', company: '', email: '', size: '' });
-  const [submitted, setSubmitted] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Partial<typeof form>>({});
+  const [alreadyRegistered, setAlreadyRegistered] = useState(false);
+
+  const { mutate, isPending, isSuccess, reset: resetMutation } = useWaitlist();
 
   if (!open) return null;
 
@@ -37,16 +39,31 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
     const errs = validate();
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setErrors({});
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setSubmitted(true);
-    }, 1100);
+    mutate(
+      {
+        name: form.name.trim(),
+        email: form.email.trim(),
+        company_name: form.company.trim(),
+        company_size: form.size,
+      },
+      {
+        onSuccess: (data) => {
+          if (data.already_registered) {
+            setAlreadyRegistered(true);
+          }
+        },
+      }
+    );
   };
 
   const handleClose = () => {
     onClose();
-    setTimeout(() => { setSubmitted(false); setForm({ name: '', company: '', email: '', size: '' }); setErrors({}); }, 300);
+    setTimeout(() => {
+      setForm({ name: '', company: '', email: '', size: '' });
+      setErrors({});
+      setAlreadyRegistered(false);
+      resetMutation();
+    }, 300);
   };
 
   const fieldStyle = (err?: string): React.CSSProperties => ({
@@ -61,6 +78,8 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
     transition: 'border-color 0.2s ease',
     boxSizing: 'border-box',
   });
+
+  const submitted = isSuccess;
 
   return (
     <div
@@ -139,10 +158,12 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
                 letterSpacing: '-0.02em',
               }}
             >
-              You're on the list!
+              {alreadyRegistered ? "You're already on the list!" : "You're on the list!"}
             </h2>
             <p style={{ fontSize: '0.875rem', color: 'var(--lp-text-muted)', lineHeight: 1.6, marginBottom: 24 }}>
-              Thanks for your interest in WiseHire. We'll be in touch soon with early access details.
+              {alreadyRegistered
+                ? "We already have your details. We'll reach out when your invite is ready."
+                : "We'll be in touch when your invite is ready. Check your inbox for a confirmation."}
             </p>
             <button
               onClick={handleClose}
@@ -262,17 +283,17 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={isPending}
                 style={{
                   marginTop: 4,
-                  background: loading ? '#fff' : '#1D4ED8',
-                  color: loading ? '#1D4ED8' : '#fff',
-                  border: loading ? '2px solid #1D4ED8' : 'none',
+                  background: isPending ? '#fff' : '#1D4ED8',
+                  color: isPending ? '#1D4ED8' : '#fff',
+                  border: isPending ? '2px solid #1D4ED8' : 'none',
                   borderRadius: 10,
-                  padding: loading ? '9px 0' : '11px 0',
+                  padding: isPending ? '9px 0' : '11px 0',
                   fontSize: '0.9rem',
                   fontWeight: 700,
-                  cursor: loading ? 'not-allowed' : 'pointer',
+                  cursor: isPending ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -280,7 +301,7 @@ export function WaitlistModal({ open, onClose }: WaitlistModalProps) {
                   transition: 'background 0.2s, color 0.2s, border 0.2s',
                 }}
               >
-                {loading
+                {isPending
                   ? <><Loader2 className="w-4 h-4 animate-spin" style={{ color: '#1D4ED8' }} /> Joining…</>
                   : 'Join the Waitlist'
                 }

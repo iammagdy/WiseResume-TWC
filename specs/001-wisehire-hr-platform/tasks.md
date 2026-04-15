@@ -92,14 +92,14 @@
 **Goal**: Waitlist form submits to the database. Submitter receives confirmation email. Admin receives notification email.  
 **Independent Test**: Submit form → row appears in `wisehire_waitlist`. Submitter's inbox gets confirmation. `contact@thewise.cloud` gets notification. Duplicate email returns friendly message, no duplicate row.
 
-- [ ] T033 [US2] Create `supabase/functions/_shared/email-templates/wisehire-waitlist-confirmation.tsx` — React Email component: WiseHire blue header, "Thanks for joining, {name}!", confirmation copy, "Log In" footer link
-- [ ] T034 [P] [US2] Create `supabase/functions/_shared/email-templates/wisehire-waitlist-notification.tsx` — React Email component: internal notification format, name/email/company/size/timestamp fields, "View in Dev Kit" link
-- [ ] T035 [US2] Create `supabase/functions/wisehire-waitlist-join/index.ts` — public edge function: `botGuard` → validate fields → check for duplicate email → insert into `wisehire_waitlist` → send both Resend emails (email failures logged, non-fatal) → return success message
-- [ ] T036 [US2] Create `src/hooks/wisehire/useWaitlist.ts` — TanStack Mutation hook: calls `wisehire-waitlist-join`, exposes `{ mutate, isPending, isSuccess, error }`
-- [ ] T037 [US2] Update `src/components/landing/WaitlistModal.tsx` — wire form submit to `useWaitlist`, show loading state during submission, show success confirmation "You're on the list. We'll be in touch." on success, show error message on failure
-- [ ] T038 [US2] Create `src/pages/WaitlistPage.tsx` — standalone page at `/waitlist` as fallback (same success content as modal)
+- [x] T033 [US2] Create `supabase/functions/_shared/email-templates/wisehire-waitlist-confirmation.tsx` — React Email component: WiseHire blue header, "Thanks for joining, {name}!", confirmation copy, "Log In" footer link — DONE (inline HTML in edge function)
+- [x] T034 [P] [US2] Create `supabase/functions/_shared/email-templates/wisehire-waitlist-notification.tsx` — React Email component: internal notification format, name/email/company/size/timestamp fields, "View in Dev Kit" link — DONE (inline HTML in edge function)
+- [x] T035 [US2] Create `supabase/functions/wisehire-waitlist-join/index.ts` — public edge function: `botGuard` → validate fields → check for duplicate email → insert into `wisehire_waitlist` → send both Resend emails (email failures logged, non-fatal) → return success message
+- [x] T036 [US2] Create `src/hooks/wisehire/useWaitlist.ts` — TanStack Mutation hook: calls `wisehire-waitlist-join`, exposes `{ mutate, isPending, isSuccess, error }`
+- [x] T037 [US2] Update `src/components/landing/WaitlistModal.tsx` — wire form submit to `useWaitlist`, show loading state during submission, show success confirmation "You're on the list. We'll be in touch." on success, show error message on failure
+- [x] T038 [US2] Create `src/pages/WaitlistPage.tsx` — standalone page at `/waitlist` as fallback (same success content as modal)
 - [ ] T039 [US2] Manual verification: submit form → DB row created, emails delivered (both), duplicate email returns friendly message, all fields validated
-- [ ] T040 Update `project-governance/CHANGELOG.md` with US2 waitlist backend entry
+- [x] T040 Update `project-governance/CHANGELOG.md` with US2 waitlist backend entry
 
 **Checkpoint**: Waitlist form is fully functional end-to-end. Emails deliver within 60 seconds per SC-006 and SC-007.
 

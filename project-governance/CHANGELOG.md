@@ -2,6 +2,22 @@
 
 Local changelog tracking WiseResume changes.
 
+## 2026-04-15 (continued)
+
+### WISEHIRE-PHASE4 — US2: Waitlist Backend + Login Button Removal
+- **Summary**: WiseHire waitlist form is now fully functional end-to-end. Submitting the form inserts a row in `wisehire_waitlist`, sends a confirmation email to the signup, and sends an internal notification to `contact@thewise.cloud`. Duplicate emails get a friendly "already on the list" message. "Log In" / "Sign In" buttons removed from WiseHire mode — every CTA funnels to the waitlist.
+- **Changes**:
+  - **Login removal** — "Log In" secondary CTA removed from `WiseHireHero.tsx`; in WiseHire mode the nav "Sign In" button replaced with a "Join Waitlist" button
+  - **Edge function** — `supabase/functions/wisehire-waitlist-join/index.ts`: bot guard → field validation → duplicate check → DB insert → Resend emails (non-fatal) → returns success/already_registered
+  - **Email templates** — HTML confirmation email (WiseHire blue header, "You're on the list!") + internal admin notification (name/email/company/size/timestamp) — both inline in the edge function
+  - **Hook** — `src/hooks/wisehire/useWaitlist.ts`: TanStack Mutation wrapping `supabase.functions.invoke('wisehire-waitlist-join')`
+  - **WaitlistModal wiring** — `src/components/landing/WaitlistModal.tsx` now calls `useWaitlist` instead of the fake `setTimeout`; shows real loading, real success, real error; duplicate email shows tailored "already on the list" message
+  - **WaitlistPage** — `src/pages/WaitlistPage.tsx`: standalone page at `/waitlist` with the same form and success state; "Back to WiseHire" link
+  - **Route** — `/waitlist` added to `src/App.tsx` as a public route (no auth required)
+- **New files**: `supabase/functions/wisehire-waitlist-join/index.ts`, `src/hooks/wisehire/useWaitlist.ts`, `src/pages/WaitlistPage.tsx`
+- **Modified files**: `src/components/landing/WiseHireHero.tsx`, `src/pages/Index.tsx`, `src/components/landing/WaitlistModal.tsx`, `src/App.tsx`
+- **Spec reference**: `specs/001-wisehire-hr-platform/tasks.md` T033–T038, T040
+
 ## 2026-04-15
 
 ### WISEHIRE-PHASE3-BUGFIX — Phase 3 Bug Fix & Spec Compliance Pass

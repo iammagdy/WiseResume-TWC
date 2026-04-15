@@ -204,17 +204,6 @@ export function WiseHireHero({ onOpenWaitlist }: WiseHireHeroProps) {
           Join the Waitlist
           <ArrowRight className="w-4 h-4" />
         </button>
-        <a
-          href="/auth?mode=signin"
-          className="h-12 px-6 text-sm font-medium rounded-xl flex items-center gap-2 transition-all duration-200"
-          style={{
-            color: 'var(--lp-text-muted)',
-            border: '1px solid var(--lp-border-card)',
-            background: 'var(--lp-card-glass)',
-          }}
-        >
-          Log In
-        </a>
       </div>
 
       {/* Trust badges */}
