@@ -64,6 +64,17 @@ The following secrets must be set in Supabase Dashboard → Settings → Edge Fu
 
 Note: The old EMERGENT_LLM_KEY is no longer used and should be removed if present.
 
+### GitHub Actions Secrets Required
+The following secrets must be set in the GitHub repo under Settings → Secrets and variables → Actions. All four `VITE_` vars are statically inlined by Vite at build time — missing any one of them will cause that feature to silently break in production:
+- `VITE_SUPABASE_URL` — Supabase project URL
+- `VITE_SUPABASE_PUBLISHABLE_KEY` — Supabase anonymous/publishable key
+- `VITE_KINDE_CLIENT_ID` — Kinde application client ID (KindeProvider won't initialise without this)
+- `VITE_KINDE_DOMAIN` — Kinde domain, e.g. `https://thewisecloud.kinde.com` (KindeProvider won't initialise without this)
+- `FTP_PASSWORD` — Hostinger FTP password for the deploy step
+- `SENTRY_AUTH_TOKEN` — (optional) Sentry token for source map uploads
+- `SENTRY_ORG` — (optional) Sentry org slug
+- `SENTRY_PROJECT` — (optional) Sentry project slug
+
 ---
 
 ## ✅ Checklist

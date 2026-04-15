@@ -212,6 +212,10 @@ The Sentry upload step is gated on `SENTRY_AUTH_TOKEN` being present in the buil
 **Required GitHub Actions secrets (add via repo Settings → Secrets):**
 | Secret | Description |
 |---|---|
+| `VITE_SUPABASE_URL` | Supabase project URL (must be present at build time — Vite inlines it statically) |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase anonymous/publishable key |
+| `VITE_KINDE_CLIENT_ID` | Kinde application client ID — required for KindeProvider to initialise |
+| `VITE_KINDE_DOMAIN` | Kinde domain (e.g. `https://thewisecloud.kinde.com`) — required for KindeProvider to initialise |
 | `SENTRY_AUTH_TOKEN` | Sentry auth token with `project:releases` and `org:read` scopes. Generate at https://sentry.io/settings/account/api/auth-tokens/ |
 | `SENTRY_ORG` | Your Sentry organization slug (e.g. `thewise-cloud`) |
 | `SENTRY_PROJECT` | Your Sentry project slug (e.g. `wiseresume`) |

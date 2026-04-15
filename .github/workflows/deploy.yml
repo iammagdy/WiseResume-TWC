@@ -35,6 +35,8 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_KINDE_CLIENT_ID: ${{ secrets.VITE_KINDE_CLIENT_ID }}
+          VITE_KINDE_DOMAIN: ${{ secrets.VITE_KINDE_DOMAIN }}
 
       - name: Write version file
         run: |
