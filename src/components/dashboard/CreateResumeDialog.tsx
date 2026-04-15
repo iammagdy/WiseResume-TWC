@@ -126,7 +126,6 @@ export function CreateResumeDialog({
   const [pasteText, setPasteText] = useState('');
   const [pasteTitle, setPasteTitle] = useState('My Resume');
   const [pasteError, setPasteError] = useState<string | null>(null);
-  const [pasteSubmitAttempted, setPasteSubmitAttempted] = useState(false);
 
   // Tailored form extra fields
   const [tailoredJobTitle, setTailoredJobTitle] = useState('');
@@ -347,7 +346,6 @@ export function CreateResumeDialog({
     setPasteText('');
     setPasteTitle('My Resume');
     setPasteError(null);
-    setPasteSubmitAttempted(false);
     onOpenChange(false);
   };
 
@@ -365,7 +363,6 @@ export function CreateResumeDialog({
   };
 
   const handlePasteCreate = async () => {
-    setPasteSubmitAttempted(true);
     if (!pasteText.trim()) {
       setPasteError('Please paste some text about your career before generating.');
       return;
@@ -757,7 +754,7 @@ export function CreateResumeDialog({
                 id="paste-text"
                 placeholder="Paste anything — job history, a bio, notes, or bullet points. The AI will structure it into a full resume."
                 value={pasteText}
-                onChange={(e) => { setPasteText(e.target.value); setPasteError(null); setPasteSubmitAttempted(false); }}
+                onChange={(e) => { setPasteText(e.target.value); setPasteError(null); }}
                 className="min-h-[160px] resize-none text-sm"
                 autoFocus
               />
@@ -790,7 +787,7 @@ export function CreateResumeDialog({
             <div className="flex items-center justify-between">
               <button
                 type="button"
-                onClick={() => { setMode(null); setPasteError(null); setPasteSubmitAttempted(false); }}
+                onClick={() => { setMode(null); setPasteError(null); }}
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 Back
