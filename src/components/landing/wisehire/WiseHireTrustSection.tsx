@@ -2,14 +2,34 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { Users, BrainCircuit, Target, Zap } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
+const ENTRY_DIRS = [
+  { x: -90, y: 70 },
+  { x: 90, y: 70 },
+  { x: -90, y: 80 },
+  { x: 90, y: 80 },
+];
+
 const containerVariants = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.07 } },
+  visible: { transition: { staggerChildren: 0.09 } },
 };
-const itemVariants = {
-  hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 240, damping: 26 } },
-};
+
+function makeItemVariant(i: number, reduced: boolean | null) {
+  if (reduced) {
+    return {
+      hidden: { opacity: 0 },
+      visible: { opacity: 1, transition: { duration: 0.25 } },
+    };
+  }
+  const dir = ENTRY_DIRS[i] ?? { x: 0, y: 80 };
+  return {
+    hidden: { opacity: 0, x: dir.x, y: dir.y },
+    visible: {
+      opacity: 1, x: 0, y: 0,
+      transition: { type: 'spring' as const, stiffness: 200, damping: 22 },
+    },
+  };
+}
 
 const trustItems: { icon: LucideIcon; headline: string; body: string }[] = [
   {
@@ -36,6 +56,11 @@ const trustItems: { icon: LucideIcon; headline: string; body: string }[] = [
 
 export function WiseHireTrustSection() {
   const prefersReducedMotion = useReducedMotion();
+
+  const headingVariant = prefersReducedMotion
+    ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.25 } } }
+    : { hidden: { opacity: 0, y: 80 }, visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 200, damping: 22 } } };
+
   return (
     <section
       aria-labelledby="wisehire-trust-heading"
@@ -53,10 +78,10 @@ export function WiseHireTrustSection() {
       >
         <motion.div
           className="text-center mb-12"
-          initial={prefersReducedMotion ? {} : { opacity: 0, y: 24 }}
-          whileInView={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+          variants={headingVariant}
+          initial="hidden"
+          whileInView="visible"
           viewport={{ once: false, amount: 0.25 }}
-          transition={{ type: 'spring', stiffness: 240, damping: 26 }}
         >
           <p
             style={{
@@ -95,16 +120,17 @@ export function WiseHireTrustSection() {
         <motion.div
           className="grid grid-cols-1 sm:grid-cols-2 gap-4"
           variants={containerVariants}
-          initial={prefersReducedMotion ? 'visible' : 'hidden'}
+          initial="hidden"
           whileInView="visible"
           viewport={{ once: false, amount: 0.1 }}
         >
           {trustItems.map((item, i) => {
             const Icon = item.icon;
+            const itemVariant = makeItemVariant(i, prefersReducedMotion);
             return (
               <motion.div
                 key={item.headline}
-                variants={itemVariants}
+                variants={itemVariant}
                 className="lp-testimonial-card flex items-start gap-4 p-6"
                 style={{
                   borderRadius: 20,

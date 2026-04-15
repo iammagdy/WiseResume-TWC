@@ -2,14 +2,34 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { Check, Star, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+const ENTRY_DIRS = [
+  { x: -100, y: 80 },
+  { x: 0, y: 100 },
+  { x: 0, y: 100 },
+  { x: 100, y: 80 },
+];
+
 const containerVariants = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.07 } },
+  visible: { transition: { staggerChildren: 0.08 } },
 };
-const itemVariants = {
-  hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 240, damping: 26 } },
-};
+
+function makeItemVariant(i: number, reduced: boolean | null) {
+  if (reduced) {
+    return {
+      hidden: { opacity: 0 },
+      visible: { opacity: 1, transition: { duration: 0.25 } },
+    };
+  }
+  const dir = ENTRY_DIRS[i] ?? { x: 0, y: 80 };
+  return {
+    hidden: { opacity: 0, x: dir.x, y: dir.y },
+    visible: {
+      opacity: 1, x: 0, y: 0,
+      transition: { type: 'spring' as const, stiffness: 200, damping: 22 },
+    },
+  };
+}
 
 const tiers = [
   {
@@ -80,6 +100,11 @@ interface WiseHirePricingProps {
 
 export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
   const prefersReducedMotion = useReducedMotion();
+
+  const headingVariant = prefersReducedMotion
+    ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.25 } } }
+    : { hidden: { opacity: 0, y: 80 }, visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 200, damping: 22 } } };
+
   return (
     <section
       id="wisehire-pricing"
@@ -93,13 +118,12 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
         className="max-w-6xl mx-auto w-full"
         style={{ padding: 'clamp(52px, 6vw, 84px) clamp(20px, 4vw, 40px)' }}
       >
-        {/* Heading */}
         <motion.div
           className="text-center mb-12"
-          initial={prefersReducedMotion ? {} : { opacity: 0, y: 24 }}
-          whileInView={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+          variants={headingVariant}
+          initial="hidden"
+          whileInView="visible"
           viewport={{ once: false, amount: 0.25 }}
-          transition={{ type: 'spring', stiffness: 240, damping: 26 }}
         >
           <p
             style={{
@@ -132,7 +156,6 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
           >
             Join the waitlist now for early access pricing — locked in for life.
           </p>
-          {/* Early Access notice */}
           <div
             className="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-full"
             style={{
@@ -147,18 +170,17 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
           </div>
         </motion.div>
 
-        {/* Pricing cards */}
         <motion.div
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
           variants={containerVariants}
-          initial={prefersReducedMotion ? 'visible' : 'hidden'}
+          initial="hidden"
           whileInView="visible"
           viewport={{ once: false, amount: 0.1 }}
         >
           {tiers.map((tier, i) => (
             <motion.div
               key={tier.name}
-              variants={itemVariants}
+              variants={makeItemVariant(i, prefersReducedMotion)}
               className="flex flex-col"
               style={{
                 borderRadius: 20,
@@ -169,7 +191,6 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
                 transition: 'background 0.35s ease, border-color 0.35s ease',
               }}
             >
-              {/* Early Access badge — shown for every tier */}
               <div
                 style={{
                   position: 'absolute',
@@ -190,7 +211,6 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
                 Early Access
               </div>
 
-              {/* Tier name */}
               <p
                 style={{
                   fontSize: '0.8rem',
@@ -205,7 +225,6 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
                 {tier.name}
               </p>
 
-              {/* Most Popular label — only on the highlighted tier */}
               {tier.highlight && (
                 <div
                   style={{
@@ -227,7 +246,6 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
                 </div>
               )}
 
-              {/* Price */}
               <div className="flex items-baseline gap-1 mb-2">
                 <span
                   style={{
@@ -247,7 +265,6 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
                 )}
               </div>
 
-              {/* Tagline */}
               <p
                 style={{
                   fontSize: '0.72rem',
@@ -261,7 +278,6 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
                 {tier.tagline}
               </p>
 
-              {/* Features */}
               <ul className="flex flex-col gap-2.5 flex-1 mb-6">
                 {tier.features.map((f) => (
                   <li key={f} className="flex items-start gap-2.5">
@@ -278,7 +294,6 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
                 ))}
               </ul>
 
-              {/* CTA */}
               {tier.name === 'Enterprise' ? (
                 <Link
                   to="/enterprise"

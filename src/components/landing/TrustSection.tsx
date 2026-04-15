@@ -25,19 +25,42 @@ const trustItems: { icon: LucideIcon; headline: string; body: string }[] = [
   },
 ];
 
+const ENTRY_DIRS = [
+  { x: -90, y: 70 },
+  { x: 90, y: 70 },
+  { x: -90, y: 80 },
+  { x: 90, y: 80 },
+];
+
 const containerVariants = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.07 } },
+  visible: { transition: { staggerChildren: 0.09 } },
 };
 
-const _ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
-const itemVariants = {
-  hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: _ease } },
-};
+function makeItemVariant(i: number, reduced: boolean | null) {
+  if (reduced) {
+    return {
+      hidden: { opacity: 0 },
+      visible: { opacity: 1, transition: { duration: 0.25 } },
+    };
+  }
+  const dir = ENTRY_DIRS[i] ?? { x: 0, y: 80 };
+  return {
+    hidden: { opacity: 0, x: dir.x, y: dir.y },
+    visible: {
+      opacity: 1, x: 0, y: 0,
+      transition: { type: 'spring' as const, stiffness: 200, damping: 22 },
+    },
+  };
+}
 
 export function TrustSection() {
   const prefersReducedMotion = useReducedMotion();
+
+  const headingVariant = prefersReducedMotion
+    ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.25 } } }
+    : { hidden: { opacity: 0, y: 80 }, visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 200, damping: 22 } } };
+
   return (
     <section
       aria-labelledby="trust-heading"
@@ -55,8 +78,8 @@ export function TrustSection() {
       >
         <motion.div
           className="text-center mb-12"
-          variants={itemVariants}
-          initial={prefersReducedMotion ? 'visible' : 'hidden'}
+          variants={headingVariant}
+          initial="hidden"
           whileInView="visible"
           viewport={{ once: false, amount: 0.25 }}
         >
@@ -97,16 +120,17 @@ export function TrustSection() {
         <motion.div
           className="grid grid-cols-1 sm:grid-cols-2 gap-4"
           variants={containerVariants}
-          initial={prefersReducedMotion ? 'visible' : 'hidden'}
+          initial="hidden"
           whileInView="visible"
           viewport={{ once: false, amount: 0.1 }}
         >
-          {trustItems.map((item) => {
+          {trustItems.map((item, i) => {
             const Icon = item.icon;
+            const itemVariant = makeItemVariant(i, prefersReducedMotion);
             return (
               <motion.div
                 key={item.headline}
-                variants={itemVariants}
+                variants={itemVariant}
                 className="lp-testimonial-card flex items-start gap-4 p-6"
                 style={{
                   borderRadius: 20,

@@ -302,43 +302,60 @@ const heroItemVariants = {
   visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 260, damping: 26 } },
 };
 
-const WH_WRAPPER_VARIANTS = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.08, delayChildren: 0.04 } },
-  exit: {
-    transition: { staggerChildren: 0.028, staggerDirection: -1 },
-  },
-};
-const WH_EXIT_DIRS: Array<{ x?: number; y?: number; scale?: number }> = [
-  { x: -30, y: -30, scale: 0.96 },  // 0: up-left
-  { x: 70,  y: -10, scale: 0.97 },  // 1: right
-  { y: -18, scale: 0.85 },           // 2: scale-down
-  { x: 55,  y: -20, scale: 0.97 },  // 3: right
-  { y: -52, scale: 0.95 },           // 4: up
-  { y: -12, scale: 0.88 },           // 5: scale-down
+const SECTION_EXIT_VECTORS: Array<{ x: number; y: number; rotate: number }> = [
+  { x: -130, y: -90,  rotate: 5  },  // 0: top-left
+  { x: 0,    y: -160, rotate: -3 },  // 1: straight up
+  { x: 150,  y: -50,  rotate: -4 },  // 2: top-right
+  { x: -150, y: 80,   rotate: 3  },  // 3: bottom-left
+  { x: 120,  y: 100,  rotate: -5 },  // 4: bottom-right
+  { x: 0,    y: 140,  rotate: 4  },  // 5: straight down
 ];
-const WH_SECTION_ITEM = {
-  hidden: { opacity: 0, y: 40, scale: 0.98 },
-  visible: {
-    opacity: 1, y: 0, scale: 1,
-    transition: { type: 'spring', stiffness: 260, damping: 28 },
-  },
-  exit: (i: number) => ({
-    opacity: 0,
-    ...(WH_EXIT_DIRS[i] ?? { y: -30, scale: 0.96 }),
-    filter: 'blur(3px)',
-    transition: { duration: 0.16, ease: [0.4, 0, 1, 1] },
-  }),
-};
-const WR_WRAPPER_VARIANTS = {
+
+const SECTION_ENTRY_VECTORS: Array<{ x: number; y: number }> = [
+  { x: 120,  y: 100 },   // 0: from bottom-right
+  { x: -110, y: 90  },   // 1: from bottom-left
+  { x: -130, y: -60 },   // 2: from top-left
+  { x: 140,  y: -70 },   // 3: from top-right
+  { x: 0,    y: -120 },  // 4: from top
+  { x: -100, y: 90  },   // 5: from bottom-left
+];
+
+const SCATTER_WRAPPER_VARIANTS = {
   hidden: {},
-  visible: {},
-  exit: {
-    opacity: 0,
-    scale: 0.95,
-    filter: 'blur(8px)',
-    transition: { duration: 0.2, ease: [0.4, 0, 1, 1] },
+  visible: { transition: { staggerChildren: 0.05 } },
+  exit: { transition: { staggerChildren: 0 } },
+};
+
+const SECTION_ENTRY_ROTATIONS = [2, -2, 3, -3, 2, -2];
+
+const SCATTER_SECTION_ITEM = {
+  hidden: (i: number) => {
+    const e = SECTION_ENTRY_VECTORS[i] ?? { x: 0, y: 100 };
+    return { opacity: 0, x: e.x, y: e.y, rotate: SECTION_ENTRY_ROTATIONS[i] ?? 2, filter: 'blur(0px)' };
   },
+  visible: {
+    opacity: 1, x: 0, y: 0, rotate: 0, filter: 'blur(0px)',
+    transition: { type: 'spring' as const, stiffness: 300, damping: 20 },
+  },
+  exit: (i: number) => {
+    const e = SECTION_EXIT_VECTORS[i] ?? { x: 0, y: -100, rotate: 0 };
+    return {
+      opacity: 0, x: e.x, y: e.y, rotate: e.rotate, filter: 'blur(4px)',
+      transition: { duration: 0.22, ease: [0.4, 0, 1, 1] as [number, number, number, number] },
+    };
+  },
+};
+
+const REDUCED_MOTION_WRAPPER = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { duration: 0.25 } },
+  exit: { opacity: 0, transition: { duration: 0.25 } },
+};
+
+const REDUCED_SECTION_ITEM = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { duration: 0.25 } },
+  exit: { opacity: 0, transition: { duration: 0.25 } },
 };
 
 const Index = () => {
@@ -468,7 +485,7 @@ const Index = () => {
       data-theme="landing"
       data-lp-scheme={isDark ? 'dark' : 'light'}
       data-lp-product={mode === 'wisehire' ? 'wisehire' : undefined}
-      style={{ colorScheme: isDark ? 'dark' : 'light' }}
+      style={{ colorScheme: isDark ? 'dark' : 'light', overflowX: 'hidden' }}
     >
       <style>{`
         /* ── DARK THEME (default) ───────────────────────────────── */
@@ -946,17 +963,10 @@ const Index = () => {
         </div>
       </header>
 
-      <main id="landing-main" className="w-full">
+      <main id="landing-main" className="w-full" style={{ position: 'relative' }}>
         <AnimatePresence
-          mode="wait"
+          mode="popLayout"
           initial={false}
-          onExitComplete={() => {
-            if (!prefersReducedMotion) {
-              setFlashColor(mode === 'wisehire' ? 'rgba(29,78,216,0.15)' : 'rgba(158,27,34,0.13)');
-              setFlashActive(true);
-              setTimeout(() => setFlashActive(false), 200);
-            }
-          }}
         >
         {mode === 'wisehire' ? (
           /* ═══════════════════════════════════════════════════════
@@ -964,32 +974,32 @@ const Index = () => {
           ═══════════════════════════════════════════════════════ */
           <motion.div
             key="wisehire"
-            variants={WH_WRAPPER_VARIANTS}
-            initial={prefersReducedMotion ? 'visible' : 'hidden'}
+            variants={prefersReducedMotion ? REDUCED_MOTION_WRAPPER : SCATTER_WRAPPER_VARIANTS}
+            initial="hidden"
             animate="visible"
-            exit={prefersReducedMotion ? 'visible' : 'exit'}
+            exit="exit"
           >
-            <motion.div variants={WH_SECTION_ITEM} custom={0}>
+            <motion.div variants={prefersReducedMotion ? REDUCED_SECTION_ITEM : SCATTER_SECTION_ITEM} custom={0}>
               <WiseHireHero onOpenWaitlist={() => setWaitlistOpen(true)} />
               <SoftDivider product="wisehire" />
               <WiseHireFeatureTicker />
             </motion.div>
-            <motion.div variants={WH_SECTION_ITEM} custom={1}>
+            <motion.div variants={prefersReducedMotion ? REDUCED_SECTION_ITEM : SCATTER_SECTION_ITEM} custom={1}>
               <WiseHireDemoSection />
             </motion.div>
-            <motion.div variants={WH_SECTION_ITEM} custom={2}>
+            <motion.div variants={prefersReducedMotion ? REDUCED_SECTION_ITEM : SCATTER_SECTION_ITEM} custom={2}>
               <SoftDivider product="wisehire" />
               <WiseHireTrustSection />
             </motion.div>
-            <motion.div variants={WH_SECTION_ITEM} custom={3}>
+            <motion.div variants={prefersReducedMotion ? REDUCED_SECTION_ITEM : SCATTER_SECTION_ITEM} custom={3}>
               <SoftDivider product="wisehire" />
               <WiseHireFeatures onOpenWaitlist={() => setWaitlistOpen(true)} />
             </motion.div>
-            <motion.div variants={WH_SECTION_ITEM} custom={4}>
+            <motion.div variants={prefersReducedMotion ? REDUCED_SECTION_ITEM : SCATTER_SECTION_ITEM} custom={4}>
               <SoftDivider product="wisehire" />
               <WiseHirePricing onOpenWaitlist={() => setWaitlistOpen(true)} />
             </motion.div>
-            <motion.div variants={WH_SECTION_ITEM} custom={5}>
+            <motion.div variants={prefersReducedMotion ? REDUCED_SECTION_ITEM : SCATTER_SECTION_ITEM} custom={5}>
             {/* ─── WISEHIRE CLOSING CTA ─── */}
             <section
               className="text-center"
@@ -1062,12 +1072,13 @@ const Index = () => {
           ═══════════════════════════════════════════════════════ */
           <motion.div
             key="wiseresume"
-            variants={WR_WRAPPER_VARIANTS}
-            initial={prefersReducedMotion ? 'visible' : 'hidden'}
+            variants={prefersReducedMotion ? REDUCED_MOTION_WRAPPER : SCATTER_WRAPPER_VARIANTS}
+            initial="hidden"
             animate="visible"
-            exit={prefersReducedMotion ? 'visible' : 'exit'}
+            exit="exit"
           >
-        {/* ─── HERO ─── */}
+        {/* ─── SECTION 0: HERO + TICKER ─── */}
+        <motion.div variants={prefersReducedMotion ? REDUCED_SECTION_ITEM : SCATTER_SECTION_ITEM} custom={0}>
         <section
           ref={heroRef}
           className="relative flex flex-col items-center text-center px-4 sm:px-6 overflow-hidden"
@@ -1224,26 +1235,25 @@ const Index = () => {
           </motion.div>
         </section>
 
-        {/* ─── FEATURE TICKER ─── */}
+        {/* ─── FEATURE TICKER (still inside section 0) ─── */}
         <motion.div
           initial={prefersReducedMotion ? 'visible' : 'hidden'}
           whileInView="visible"
           viewport={{ once: false, amount: 0.15 }}
           variants={{
-            hidden: { opacity: 0, y: 18 },
-            visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 240, damping: 28 } },
+            hidden: { opacity: 0, y: 60 },
+            visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 200, damping: 22 } },
           }}
         >
           <FeatureTicker lpMode />
         </motion.div>
+        </motion.div>{/* ── end section 0 ── */}
 
-        {/* ─── SEPARATOR ─── */}
+        {/* ─── SECTION 1: FEATURE NAV + HEADING + FEATURE BAND SECTIONS ─── */}
+        <motion.div variants={prefersReducedMotion ? REDUCED_SECTION_ITEM : SCATTER_SECTION_ITEM} custom={1}>
         <div className="lp-separator" aria-hidden="true" />
-
-        {/* ─── NUMBERED FEATURE NAV ─── */}
         <FeatureNumberedNav sectionIds={FEATURE_IDS} labels={FEATURE_NAV_LABELS} />
 
-        {/* ─── FEATURE SECTIONS HEADING ─── */}
         <motion.div
           className="text-center px-4 sm:px-6 py-16 max-w-4xl mx-auto"
           variants={lpItemVariants}
@@ -1265,15 +1275,14 @@ const Index = () => {
         </motion.div>
 
         <SoftDivider />
-
-        {/* ─── ALTERNATING FEATURE BAND SECTIONS ─── */}
         {featureSections.map((section) => (
           <FeatureSection key={section.id} data={section} />
         ))}
-
         <SoftDivider />
+        </motion.div>{/* ── end section 1 ── */}
 
-        {/* ─── EVERYTHING YOU NEED GRID ─── */}
+        {/* ─── SECTION 2: EVERYTHING YOU NEED GRID ─── */}
+        <motion.div variants={prefersReducedMotion ? REDUCED_SECTION_ITEM : SCATTER_SECTION_ITEM} custom={2}>
         <section className="px-4 sm:px-6 py-20" style={{ background: 'var(--lp-bg)' }}>
           <div className="max-w-6xl mx-auto">
             <motion.div
@@ -1324,13 +1333,16 @@ const Index = () => {
             </motion.div>
           </div>
         </section>
+        </motion.div>{/* ── end section 2 ── */}
 
+        {/* ─── SECTION 3: TRUST SECTION ─── */}
+        <motion.div variants={prefersReducedMotion ? REDUCED_SECTION_ITEM : SCATTER_SECTION_ITEM} custom={3}>
         <SoftDivider />
-
-        {/* ─── TRUST SECTION ─── */}
         <TrustSection />
+        </motion.div>{/* ── end section 3 ── */}
 
-        {/* ─── PWA INSTALL STRIP ─── */}
+        {/* ─── SECTION 4: PWA STRIP ─── */}
+        <motion.div variants={prefersReducedMotion ? REDUCED_SECTION_ITEM : SCATTER_SECTION_ITEM} custom={4}>
         <section className="px-4 sm:px-6 py-10" style={{ background: 'var(--lp-section-alt)', borderTop: '1px solid var(--lp-border)' }}>
           <motion.div
             className="max-w-xl mx-auto text-center"
@@ -1344,14 +1356,12 @@ const Index = () => {
             <InstallButton />
           </motion.div>
         </section>
+        </motion.div>{/* ── end section 4 ── */}
 
-        {/* ─── WISERESUME CLOSING CTA ─── */}
-        <motion.section
+        {/* ─── SECTION 5: CLOSING CTA + FOOTER ─── */}
+        <motion.div variants={prefersReducedMotion ? REDUCED_SECTION_ITEM : SCATTER_SECTION_ITEM} custom={5}>
+        <section
           className="text-center"
-          variants={lpItemVariants}
-          initial={prefersReducedMotion ? 'visible' : 'hidden'}
-          whileInView="visible"
-          viewport={{ once: false, amount: 0.15 }}
           style={{
             background: 'var(--lp-section-alt)',
             borderTop: '1px solid var(--lp-border)',
@@ -1404,9 +1414,10 @@ const Index = () => {
               <ArrowRight className="w-4 h-4" />
             </motion.button>
           </div>
-        </motion.section>
-
+        </section>
         <Footer lpMode />
+        </motion.div>{/* ── end section 5 ── */}
+
           </motion.div>
         )}
         </AnimatePresence>

@@ -24,6 +24,14 @@ export function WiseHireDemoSection() {
   const activeTab = TABS.find((t) => t.key === active)!;
   const prefersReducedMotion = useReducedMotion();
 
+  const headingVariant = prefersReducedMotion
+    ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.25 } } }
+    : { hidden: { opacity: 0, y: 80 }, visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 200, damping: 22 } } };
+
+  const contentVariant = prefersReducedMotion
+    ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.25 } } }
+    : { hidden: { opacity: 0, y: 90, x: -90 }, visible: { opacity: 1, y: 0, x: 0, transition: { type: 'spring' as const, stiffness: 200, damping: 22, delay: 0.08 } } };
+
   return (
     <section
       id="wisehire-demo"
@@ -39,13 +47,12 @@ export function WiseHireDemoSection() {
         className="max-w-6xl mx-auto w-full"
         style={{ padding: 'clamp(52px, 6vw, 84px) clamp(20px, 4vw, 40px)' }}
       >
-        {/* Heading */}
         <motion.div
           className="text-center mb-10"
-          initial={prefersReducedMotion ? {} : { opacity: 0, y: 24 }}
-          whileInView={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+          variants={headingVariant}
+          initial="hidden"
+          whileInView="visible"
           viewport={{ once: false, amount: 0.25 }}
-          transition={{ type: 'spring', stiffness: 240, damping: 26 }}
         >
           <p
             style={{
@@ -75,12 +82,11 @@ export function WiseHireDemoSection() {
 
         <motion.div
           className="flex flex-col lg:flex-row gap-6 items-start"
-          initial={prefersReducedMotion ? {} : { opacity: 0, y: 24 }}
-          whileInView={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+          variants={contentVariant}
+          initial="hidden"
+          whileInView="visible"
           viewport={{ once: false, amount: 0.1 }}
-          transition={{ type: 'spring', stiffness: 220, damping: 26, delay: 0.08 }}
         >
-          {/* Tab selector — 3-col grid on mobile, vertical list on desktop */}
           <style>{`
             .wh-tab-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; width: 100%; }
             @media (min-width: 1024px) { .wh-tab-grid { display: flex; flex-direction: column; gap: 6px; width: 224px; flex-shrink: 0; } }
@@ -141,7 +147,6 @@ export function WiseHireDemoSection() {
               })}
           </div>
 
-          {/* Demo pane */}
           <div className="flex-1 min-w-0">
             <div
               style={{

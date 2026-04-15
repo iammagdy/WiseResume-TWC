@@ -42,19 +42,28 @@ const BAND_BG: Record<BandColor, string> = {
 
 const containerVariants = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.07 } },
+  visible: { transition: { staggerChildren: 0.09 } },
 };
 
-function makeSlideVariant(xOffset: number) {
+function makeSlideVariant(xOffset: number, yOffset = 70) {
   return {
-    hidden: { opacity: 0, x: xOffset, y: 8 },
-    visible: { opacity: 1, x: 0, y: 0, transition: { type: 'spring' as const, stiffness: 240, damping: 26 } },
+    hidden: { opacity: 0, x: xOffset, y: yOffset },
+    visible: {
+      opacity: 1,
+      x: 0,
+      y: 0,
+      transition: { type: 'spring' as const, stiffness: 200, damping: 22 },
+    },
   };
 }
 
 const bulletsVariant = {
-  hidden: { opacity: 0, y: 28 },
-  visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 220, damping: 26 } },
+  hidden: { opacity: 0, y: 100 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { type: 'spring' as const, stiffness: 200, damping: 22 },
+  },
 };
 
 const DemoFallback = () => (
@@ -67,8 +76,17 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
   const sectionBg = BAND_BG[data.bandColor ?? 'dark1'];
   const prefersReducedMotion = useReducedMotion();
 
-  const textSlide = makeSlideVariant(prefersReducedMotion ? 0 : (isRtl ? 32 : -32));
-  const mediaSlide = makeSlideVariant(prefersReducedMotion ? 0 : (isRtl ? -32 : 32));
+  const textSlide = prefersReducedMotion
+    ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.25 } } }
+    : makeSlideVariant(isRtl ? 100 : -100, 40);
+
+  const mediaSlide = prefersReducedMotion
+    ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.25 } } }
+    : makeSlideVariant(isRtl ? -100 : 100, 40);
+
+  const bulletsSlide = prefersReducedMotion
+    ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.25 } } }
+    : bulletsVariant;
 
   const textCard = (
     <motion.div
@@ -151,7 +169,7 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
 
   const bulletsCard = (
     <motion.div
-      variants={bulletsVariant}
+      variants={bulletsSlide}
       className="flex flex-col gap-3 p-6"
       style={{
         borderRadius: 20,

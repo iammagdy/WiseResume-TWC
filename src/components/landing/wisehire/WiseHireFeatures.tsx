@@ -1,14 +1,36 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import { Brain, FileText, Kanban, Users, Archive, Rocket } from 'lucide-react';
 
+const ENTRY_DIRS = [
+  { x: -100, y: 70 },
+  { x: 100, y: 70 },
+  { x: -100, y: 80 },
+  { x: 100, y: 80 },
+  { x: 0, y: 90 },
+  { x: 0, y: 90 },
+];
+
 const containerVariants = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.07 } },
+  visible: { transition: { staggerChildren: 0.08 } },
 };
-const itemVariants = {
-  hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 240, damping: 26 } },
-};
+
+function makeItemVariant(i: number, reduced: boolean | null) {
+  if (reduced) {
+    return {
+      hidden: { opacity: 0 },
+      visible: { opacity: 1, transition: { duration: 0.25 } },
+    };
+  }
+  const dir = ENTRY_DIRS[i] ?? { x: 0, y: 80 };
+  return {
+    hidden: { opacity: 0, x: dir.x, y: dir.y },
+    visible: {
+      opacity: 1, x: 0, y: 0,
+      transition: { type: 'spring' as const, stiffness: 200, damping: 22 },
+    },
+  };
+}
 
 const pillars = [
   {
@@ -49,6 +71,11 @@ interface WiseHireFeaturesProps {
 
 export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
   const prefersReducedMotion = useReducedMotion();
+
+  const headingVariant = prefersReducedMotion
+    ? { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { duration: 0.25 } } }
+    : { hidden: { opacity: 0, y: 80 }, visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 200, damping: 22 } } };
+
   return (
     <section
       style={{
@@ -63,13 +90,12 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
         className="max-w-6xl mx-auto w-full"
         style={{ padding: 'clamp(52px, 6vw, 84px) clamp(20px, 4vw, 40px)' }}
       >
-        {/* Heading */}
         <motion.div
           className="text-center mb-12"
-          initial={prefersReducedMotion ? {} : { opacity: 0, y: 24 }}
-          whileInView={prefersReducedMotion ? {} : { opacity: 1, y: 0 }}
+          variants={headingVariant}
+          initial="hidden"
+          whileInView="visible"
           viewport={{ once: false, amount: 0.25 }}
-          transition={{ type: 'spring', stiffness: 240, damping: 26 }}
         >
           <p
             style={{
@@ -104,20 +130,20 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
           </p>
         </motion.div>
 
-        {/* Pillars grid */}
         <motion.div
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
           variants={containerVariants}
-          initial={prefersReducedMotion ? 'visible' : 'hidden'}
+          initial="hidden"
           whileInView="visible"
           viewport={{ once: false, amount: 0.1 }}
         >
           {pillars.map((pillar, i) => {
             const Icon = pillar.icon;
+            const itemVariant = makeItemVariant(i, prefersReducedMotion);
             return (
               <motion.div
                 key={pillar.title}
-                variants={itemVariants}
+                variants={itemVariant}
                 className="lp-feature-card flex flex-col gap-4 p-6"
                 style={{
                   borderRadius: 18,
@@ -165,7 +191,7 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
 
           {/* CTA card — fills the last slot */}
           <motion.button
-            variants={itemVariants}
+            variants={makeItemVariant(5, prefersReducedMotion)}
             className="flex flex-col items-center justify-center gap-4 p-6 text-center w-full"
             style={{
               borderRadius: 18,
