@@ -44,7 +44,9 @@ The landing page at the root URL presents both products via a toggle: **"For Job
 * Company Briefing (`company-briefing`) — research tool for interview prep
 * Career Advisor (`career-path-advisor`, `career-assessment`) — career path and skill gap analysis
 * AI Humanizer (`detect-and-humanize`) — makes AI-written text sound human
-* Wise AI Chat (`wise-ai-chat`, `agentic-chat`) — general career AI assistant
+* Salary Negotiation Assistant (`wise-ai-chat`) — scripts and talking points for salary discussions
+* Cold Email Generator (`wise-ai-chat`) — outreach emails to recruiters and hiring managers
+* Wise AI Chat (`wise-ai-chat`, `agentic-chat`) — general career AI assistant (7 use cases total)
 
 **Public Portfolio Builder**
 * Converts resume data into a public portfolio website at `/p/:username`
