@@ -161,9 +161,6 @@ const PublicScorecardPage = lazyWithRetry(() => import("./pages/wisehire/PublicS
 const TalentPoolPage = lazyWithRetry(() => import("./pages/wisehire/TalentPoolPage"));
 const WiseHireAnalyticsPage = lazyWithRetry(() => import("./pages/wisehire/WiseHireAnalyticsPage"));
 const CandidateMaskingPage = lazyWithRetry(() => import("./pages/wisehire/CandidateMaskingPage"));
-const PublicJobBoardPage = lazyWithRetry(() => import("./pages/jobs/PublicJobBoardPage"));
-const PublicJobPage = lazyWithRetry(() => import("./pages/jobs/PublicJobPage"));
-const MyApplicationsPage = lazyWithRetry(() => import("./pages/wisehire/MyApplicationsPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
