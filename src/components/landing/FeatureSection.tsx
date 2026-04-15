@@ -40,8 +40,6 @@ const BAND_BG: Record<BandColor, string> = {
   tint: 'var(--lp-section-alt2)',
 };
 
-const _ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
-
 const containerVariants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.07 } },
@@ -50,13 +48,13 @@ const containerVariants = {
 function makeSlideVariant(xOffset: number) {
   return {
     hidden: { opacity: 0, x: xOffset, y: 8 },
-    visible: { opacity: 1, x: 0, y: 0, transition: { duration: 0.6, ease: _ease } },
+    visible: { opacity: 1, x: 0, y: 0, transition: { type: 'spring' as const, stiffness: 240, damping: 26 } },
   };
 }
 
 const bulletsVariant = {
   hidden: { opacity: 0, y: 28 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.52, ease: _ease } },
+  visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 220, damping: 26 } },
 };
 
 const DemoFallback = () => (

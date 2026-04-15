@@ -297,10 +297,9 @@ const heroContainerVariants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.09, delayChildren: 0.05 } },
 };
-const _heroEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
 const heroItemVariants = {
   hidden: { opacity: 0, y: 22 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: _heroEase } },
+  visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 260, damping: 26 } },
 };
 
 const WH_WRAPPER_VARIANTS = {
@@ -1226,7 +1225,17 @@ const Index = () => {
         </section>
 
         {/* ─── FEATURE TICKER ─── */}
-        <FeatureTicker lpMode />
+        <motion.div
+          initial={prefersReducedMotion ? 'visible' : 'hidden'}
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.15 }}
+          variants={{
+            hidden: { opacity: 0, y: 18 },
+            visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 240, damping: 28 } },
+          }}
+        >
+          <FeatureTicker lpMode />
+        </motion.div>
 
         {/* ─── SEPARATOR ─── */}
         <div className="lp-separator" aria-hidden="true" />
