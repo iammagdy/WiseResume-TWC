@@ -232,7 +232,7 @@ function FeatureNumberedNav({ sectionIds, labels }: { sectionIds: string[]; labe
       className="w-full overflow-x-auto py-4 px-4 sm:px-6"
       style={{
         position: 'sticky',
-        top: 56,
+        top: 92,
         zIndex: 40,
         background: 'var(--lp-nav-bg)',
         backdropFilter: 'blur(14px)',
@@ -639,6 +639,7 @@ const Index = () => {
           --lp-brand-pill-bg: rgba(29,78,216,0.10);
           --lp-brand-pill-border: rgba(29,78,216,0.28);
           --lp-brand-pill-glow: rgba(29,78,216,0.15);
+          --lp-section-alt2: #0b0f1c;
           transition: all 0.35s ease;
         }
         .lp-root[data-lp-product="wisehire"][data-lp-scheme="light"] {
@@ -879,7 +880,7 @@ const Index = () => {
 
             {/* ─── WISEHIRE CLOSING CTA ─── */}
             <section
-              className="px-4 sm:px-6 text-center lp-animate"
+              className="text-center lp-animate"
               style={{
                 background: 'var(--lp-section-alt)',
                 borderTop: '1px solid var(--lp-border)',
@@ -920,8 +921,9 @@ const Index = () => {
                   Invite-only early access. No credit card required. Cancel anytime.
                 </p>
                 <button
+                  type="button"
                   onClick={() => setWaitlistOpen(true)}
-                  className="inline-flex items-center gap-2 h-13 px-10 text-base font-semibold rounded-xl transition-all"
+                  className="inline-flex items-center gap-2 h-12 px-10 text-base font-semibold rounded-xl transition-all"
                   style={{ background: '#1D4ED8', color: '#fff' }}
                 >
                   Join the Waitlist
@@ -1150,7 +1152,7 @@ const Index = () => {
 
         {/* ─── WISERESUME CLOSING CTA ─── */}
         <section
-          className="px-4 sm:px-6 text-center lp-animate"
+          className="text-center lp-animate"
           style={{
             background: 'var(--lp-section-alt)',
             borderTop: '1px solid var(--lp-border)',
@@ -1193,7 +1195,7 @@ const Index = () => {
             <button
               type="button"
               onClick={() => handleCTA()}
-              className="inline-flex items-center gap-2 h-13 px-10 text-base font-semibold rounded-xl transition-all"
+              className="inline-flex items-center gap-2 h-12 px-10 text-base font-semibold rounded-xl transition-all"
               style={{ background: '#9E1B22', color: '#fff' }}
             >
               Get Started Free

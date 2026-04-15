@@ -81,13 +81,13 @@ export function WiseHireTrustSection() {
             return (
               <div
                 key={item.headline}
-                className={`lp-animate ${i % 2 === 0 ? 'lp-from-left' : 'lp-from-right'} flex items-start gap-4 p-6`}
+                className={`lp-animate lp-testimonial-card ${i % 2 === 0 ? 'lp-from-left' : 'lp-from-right'} flex items-start gap-4 p-6`}
                 style={{
                   borderRadius: 20,
                   background: 'var(--lp-card-glass)',
                   border: '1px solid var(--lp-border-card)',
                   transitionDelay: `${i * 70}ms`,
-                  transition: 'background 0.35s ease, border-color 0.35s ease, opacity 0.65s cubic-bezier(0.22,1,0.36,1), transform 0.65s cubic-bezier(0.22,1,0.36,1)',
+                  transition: 'background 0.35s ease, border-color 0.35s ease, transform 0.22s ease, opacity 0.65s cubic-bezier(0.22,1,0.36,1)',
                 }}
               >
                 <div

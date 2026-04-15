@@ -9,6 +9,7 @@ export function LandingToggle({ mode, onModeChange }: LandingToggleProps) {
     const url = new URL(window.location.href);
     url.searchParams.delete('for');
     window.history.pushState({}, '', url.toString());
+    window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
   const handleCompanies = () => {
@@ -16,6 +17,7 @@ export function LandingToggle({ mode, onModeChange }: LandingToggleProps) {
     const url = new URL(window.location.href);
     url.searchParams.set('for', 'companies');
     window.history.pushState({}, '', url.toString());
+    window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
   return (
