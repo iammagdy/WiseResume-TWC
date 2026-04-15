@@ -198,7 +198,23 @@ function useScrollAnimation() {
     observeAll();
     // Re-scan once after 600 ms to catch elements rendered by Suspense lazy loads.
     const t = setTimeout(observeAll, 600);
-    return () => { observer.disconnect(); clearTimeout(t); };
+
+    // Watch for new .lp-animate elements added to the DOM (e.g. when the mode
+    // toggle remounts FeatureSection components). Re-run observeAll whenever
+    // child nodes are added anywhere in the document.
+    const mutationObserver = new MutationObserver((mutations) => {
+      const hasAddedNodes = mutations.some((m) => m.addedNodes.length > 0);
+      if (hasAddedNodes) {
+        observeAll();
+      }
+    });
+    mutationObserver.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+      mutationObserver.disconnect();
+      clearTimeout(t);
+    };
   }, []);
 }
 
