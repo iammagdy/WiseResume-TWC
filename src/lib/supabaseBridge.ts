@@ -30,6 +30,8 @@ const STORAGE_KEY = 'wise_supabase_bridge_state';
 const LAST_ACTIVE_KEY = 'wr-bridge-last-active';
 const IDLE_CLEAR_MS = 4 * 60 * 60 * 1000; // 4 hours
 
+try { localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(LAST_ACTIVE_KEY); } catch {}
+
 function loadState(): BridgeState {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
