@@ -1,6 +1,30 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { motion, useInView } from 'framer-motion';
 import { ArrowRight, CheckCircle2, ChevronDown, Users } from 'lucide-react';
 import { AppIcon } from '@/components/brand/AppIcon';
+
+function useCountUp(target: number, duration = 1400) {
+  const [value, setValue] = useState(0);
+  const ref = useRef<HTMLSpanElement>(null);
+  const inView = useInView(ref, { once: true, amount: 0.5 });
+  const prefersReduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  useEffect(() => {
+    if (!inView) return;
+    if (prefersReduced) { setValue(target); return; }
+    const start = performance.now();
+    const raf = (now: number) => {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const ease = 1 - Math.pow(1 - progress, 3);
+      setValue(Math.round(ease * target));
+      if (progress < 1) requestAnimationFrame(raf);
+    };
+    requestAnimationFrame(raf);
+  }, [inView, target, duration, prefersReduced]);
+
+  return { value, ref };
+}
 
 const WH_TYPEWRITER_WORDS = [
   'Hiring Manager',
@@ -54,12 +78,7 @@ interface WiseHireHeroProps {
 
 export function WiseHireHero({ onOpenWaitlist }: WiseHireHeroProps) {
   const typewriterWord = useWHTypewriter(WH_TYPEWRITER_WORDS);
-  const [ctaPulse, setCtaPulse] = useState(false);
-
-  useEffect(() => {
-    const t = setTimeout(() => setCtaPulse(true), 1800);
-    return () => clearTimeout(t);
-  }, []);
+  const waitlistCount = useCountUp(500);
 
   return (
     <section
@@ -72,23 +91,26 @@ export function WiseHireHero({ onOpenWaitlist }: WiseHireHeroProps) {
       }}
     >
       <style>{`
-        @keyframes wh-pulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(29,78,216,0); }
-          50% { box-shadow: 0 0 0 10px rgba(29,78,216,0.14); }
+        @keyframes wh-shimmer {
+          0%   { background-position: 0% 50%; }
+          50%  { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
         }
-        .wh-cta-pulse { animation: wh-pulse 2.8s ease-in-out infinite; }
-
         .wh-gradient-text {
-          background: linear-gradient(135deg, #60A5FA 0%, #3B82F6 40%, #1D4ED8 100%);
+          background: linear-gradient(135deg, #60A5FA 0%, #93C5FD 25%, #3B82F6 50%, #60A5FA 75%, #1D4ED8 100%);
+          background-size: 300% 300%;
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
+          animation: wh-shimmer 4s ease infinite;
         }
         .lp-root[data-lp-scheme="light"] .wh-gradient-text {
-          background: linear-gradient(135deg, #1D4ED8 0%, #2563EB 50%, #3B82F6 100%);
+          background: linear-gradient(135deg, #1D4ED8 0%, #3B82F6 25%, #2563EB 50%, #1D4ED8 75%, #3B82F6 100%);
+          background-size: 300% 300%;
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
+          animation: wh-shimmer 4s ease infinite;
         }
         .wh-cursor {
           display: inline-block;
@@ -102,7 +124,8 @@ export function WiseHireHero({ onOpenWaitlist }: WiseHireHeroProps) {
         }
         @keyframes lp-blink { 0%,100%{opacity:1} 50%{opacity:0} }
         @media (prefers-reduced-motion: reduce) {
-          .wh-cta-pulse { animation: none; }
+          .wh-cursor { animation: none !important; opacity: 1 !important; }
+          .wh-gradient-text { animation: none !important; background-size: 100% 100% !important; }
         }
       `}</style>
 
@@ -197,33 +220,39 @@ export function WiseHireHero({ onOpenWaitlist }: WiseHireHeroProps) {
 
       {/* CTAs */}
       <div className="relative z-10 lp-hero-cta flex flex-col sm:flex-row items-center gap-3">
-        <button
+        <motion.button
           onClick={onOpenWaitlist}
-          className={`h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2 transition-all ${ctaPulse ? 'wh-cta-pulse' : ''}`}
+          className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2"
           style={{ background: '#1D4ED8', color: '#fff' }}
+          whileHover={{ scale: 1.04 }}
+          whileTap={{ scale: 0.97 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
         >
           Join the Waitlist
           <ArrowRight className="w-4 h-4" />
-        </button>
-        <button
+        </motion.button>
+        <motion.button
           onClick={() => document.getElementById('wisehire-demo')?.scrollIntoView({ behavior: 'smooth' })}
-          className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2 transition-all"
+          className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2"
           style={{
             background: 'transparent',
             color: 'var(--lp-eyebrow)',
             border: '1.5px solid rgba(29,78,216,0.35)',
           }}
+          whileHover={{ scale: 1.04 }}
+          whileTap={{ scale: 0.97 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
         >
           See it in action
           <ChevronDown className="w-4 h-4" />
-        </button>
+        </motion.button>
       </div>
 
       {/* Trust badges */}
       <div className="relative z-10 mt-8 flex items-center gap-5 sm:gap-7 text-xs flex-wrap justify-center lp-hero-trust">
-        <span className="flex items-center gap-1.5" style={{ color: 'var(--lp-trust-color)', transition: 'color 0.3s ease' }}>
+        <span ref={waitlistCount.ref} className="flex items-center gap-1.5" style={{ color: 'var(--lp-trust-color)', transition: 'color 0.3s ease' }}>
           <Users className="w-3.5 h-3.5" style={{ color: 'var(--lp-trust-icon)', transition: 'color 0.3s ease' }} />
-          500+ on the waitlist
+          {waitlistCount.value}+ on the waitlist
         </span>
         {['Invite-only access', '7-day free trial', 'No credit card'].map((item) => (
           <span key={item} className="flex items-center gap-1.5" style={{ color: 'var(--lp-trust-color)', transition: 'color 0.3s ease' }}>

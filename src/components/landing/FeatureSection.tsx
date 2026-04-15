@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react';
+import { motion } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
 import { Check } from 'lucide-react';
 
@@ -39,6 +40,16 @@ const BAND_BG: Record<BandColor, string> = {
   tint: 'var(--lp-section-alt2)',
 };
 
+const containerVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.04 } },
+};
+
+const cardVariant = {
+  hidden: { opacity: 0, y: 28 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] } },
+};
+
 const DemoFallback = () => (
   <div style={{ width: 260, height: 280, borderRadius: 20, background: 'var(--lp-card-glass)' }} />
 );
@@ -49,14 +60,15 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
   const sectionBg = BAND_BG[data.bandColor ?? 'dark1'];
 
   const textCard = (
-    <div
-      className={`lp-animate ${isRtl ? 'lp-from-right' : 'lp-from-left'} flex flex-col justify-center gap-5 p-8`}
+    <motion.div
+      variants={cardVariant}
+      className="flex flex-col justify-center gap-5 p-8"
       style={{
         borderRadius: 24,
         background: 'var(--lp-card-glass)',
         border: '1px solid var(--lp-border-card)',
         minHeight: 280,
-        transition: 'background 0.3s ease, border-color 0.3s ease, opacity 0.65s cubic-bezier(0.22,1,0.36,1), transform 0.65s cubic-bezier(0.22,1,0.36,1)',
+        transition: 'background 0.3s ease, border-color 0.3s ease',
       }}
     >
       {data.categoryLabel && (
@@ -101,18 +113,19 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
           {data.desc}
         </p>
       </div>
-    </div>
+    </motion.div>
   );
 
   const mediaCard = (
-    <div
-      className={`lp-animate ${isRtl ? 'lp-from-left' : 'lp-from-right'} flex items-center justify-center p-6`}
+    <motion.div
+      variants={cardVariant}
+      className="flex items-center justify-center p-6"
       style={{
         borderRadius: 24,
         background: 'var(--lp-card-glass)',
         border: '1px solid var(--lp-border-card)',
         minHeight: 280,
-        transition: 'background 0.3s ease, border-color 0.3s ease, opacity 0.65s cubic-bezier(0.22,1,0.36,1) 100ms, transform 0.65s cubic-bezier(0.22,1,0.36,1) 100ms',
+        transition: 'background 0.3s ease, border-color 0.3s ease',
       }}
     >
       <Suspense fallback={<DemoFallback />}>
@@ -122,17 +135,18 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
         {data.demo === 'interview' && <LazyInterviewDemo />}
         {data.demo === 'tracker' && <LazyTrackerDemo />}
       </Suspense>
-    </div>
+    </motion.div>
   );
 
   const bulletsCard = (
-    <div
-      className="lp-animate flex flex-col gap-3 p-6"
+    <motion.div
+      variants={cardVariant}
+      className="flex flex-col gap-3 p-6"
       style={{
         borderRadius: 20,
         background: 'var(--lp-card-glass)',
         border: '1px solid var(--lp-border-card)',
-        transition: 'background 0.3s ease, border-color 0.3s ease, opacity 0.65s cubic-bezier(0.22,1,0.36,1) 200ms, transform 0.65s cubic-bezier(0.22,1,0.36,1) 200ms',
+        transition: 'background 0.3s ease, border-color 0.3s ease',
       }}
     >
       <div className="flex items-center gap-2 mb-1">
@@ -150,11 +164,11 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
         </p>
       </div>
       <ul className="flex flex-wrap gap-2">
-        {data.bullets.map((bullet, i) => (
+        {data.bullets.map((bullet) => (
           <li
             key={bullet}
             className="flex items-start gap-2 text-sm"
-            style={{ color: 'var(--lp-text)', transitionDelay: `${i * 70}ms`, minWidth: '240px', flex: '1 1 240px', transition: 'color 0.3s ease' }}
+            style={{ color: 'var(--lp-text)', minWidth: '240px', flex: '1 1 240px', transition: 'color 0.3s ease' }}
           >
             <span
               className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
@@ -166,7 +180,7 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
           </li>
         ))}
       </ul>
-    </div>
+    </motion.div>
   );
 
   return (
@@ -208,14 +222,21 @@ export function FeatureSection({ data, sectionRef }: FeatureSectionProps) {
         className="max-w-6xl mx-auto w-full relative"
         style={{ padding: 'clamp(48px, 6vw, 80px) clamp(20px, 4vw, 40px)' }}
       >
-        <div
-          className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4"
-          style={{ direction: isRtl ? 'rtl' : 'ltr' }}
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.1 }}
         >
-          <div style={{ direction: 'ltr' }} data-direction={isRtl ? 'right' : 'left'}>{textCard}</div>
-          <div style={{ direction: 'ltr' }} data-direction={isRtl ? 'left' : 'right'}>{mediaCard}</div>
-        </div>
-        <div>{bulletsCard}</div>
+          <div
+            className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4"
+            style={{ direction: isRtl ? 'rtl' : 'ltr' }}
+          >
+            <div style={{ direction: 'ltr' }} data-direction={isRtl ? 'right' : 'left'}>{textCard}</div>
+            <div style={{ direction: 'ltr' }} data-direction={isRtl ? 'left' : 'right'}>{mediaCard}</div>
+          </div>
+          <div>{bulletsCard}</div>
+        </motion.div>
       </div>
     </section>
   );

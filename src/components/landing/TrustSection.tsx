@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import { EyeOff, Eye, ShieldCheck, Database } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -24,6 +25,16 @@ const trustItems: { icon: LucideIcon; headline: string; body: string }[] = [
   },
 ];
 
+const containerVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.07 } },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 24 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] } },
+};
+
 export function TrustSection() {
   return (
     <section
@@ -40,7 +51,13 @@ export function TrustSection() {
         className="max-w-6xl mx-auto w-full"
         style={{ padding: 'clamp(48px, 6vw, 80px) clamp(20px, 4vw, 40px)' }}
       >
-        <div className="text-center mb-12 lp-animate">
+        <motion.div
+          className="text-center mb-12"
+          variants={itemVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.3 }}
+        >
           <p
             style={{
               fontSize: '0.75rem',
@@ -73,21 +90,27 @@ export function TrustSection() {
           >
             Specific protections built into the platform — not marketing language.
           </p>
-        </div>
+        </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {trustItems.map((item, i) => {
+        <motion.div
+          className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.1 }}
+        >
+          {trustItems.map((item) => {
             const Icon = item.icon;
             return (
-              <div
+              <motion.div
                 key={item.headline}
-                className={`lp-animate lp-testimonial-card ${i % 2 === 0 ? 'lp-from-left' : 'lp-from-right'} flex items-start gap-4 p-6`}
+                variants={itemVariants}
+                className="lp-testimonial-card flex items-start gap-4 p-6"
                 style={{
                   borderRadius: 20,
                   background: 'var(--lp-card-glass)',
                   border: '1px solid var(--lp-border-card)',
-                  transitionDelay: `${i * 70}ms`,
-                  transition: 'background 0.3s ease, border-color 0.3s ease, transform 0.22s ease, opacity 0.65s cubic-bezier(0.22,1,0.36,1)',
+                  transition: 'background 0.3s ease, border-color 0.3s ease',
                 }}
               >
                 <div
@@ -110,10 +133,10 @@ export function TrustSection() {
                     {item.body}
                   </p>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
-        </div>
+        </motion.div>
       </div>
     </section>
   );

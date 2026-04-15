@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import triggerHaptic from '@/lib/haptics';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
-import { useReducedMotion } from 'framer-motion';
+import { useReducedMotion, motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import { useEffect, useLayoutEffect, useState, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -282,6 +282,62 @@ function resolveIsDark(theme: 'light' | 'dark' | 'system'): boolean {
   return getSafeMatchMedia('(prefers-color-scheme: dark)').matches;
 }
 
+function HeroParallaxGlow({ prefersReducedMotion }: { prefersReducedMotion: boolean | null }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const { scrollY } = useScroll();
+  const y = useTransform(scrollY, [0, 600], [0, prefersReducedMotion ? 0 : -80]);
+
+  return (
+    <motion.div
+      ref={ref}
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 overflow-hidden"
+      style={{ y }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          top: '10%',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: '70vw',
+          height: '40vh',
+          borderRadius: '50%',
+          background: 'radial-gradient(ellipse at center, var(--lp-hero-glow) 0%, transparent 70%)',
+          filter: 'blur(40px)',
+          opacity: 0.7,
+        }}
+      />
+    </motion.div>
+  );
+}
+
+function SoftDivider({ product = 'wiseresume' }: { product?: 'wiseresume' | 'wisehire' }) {
+  const color = product === 'wisehire'
+    ? 'rgba(29,78,216,0.13)'
+    : 'rgba(158,27,34,0.10)';
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        width: '100%',
+        height: 1,
+        background: `linear-gradient(to right, transparent 0%, ${color} 20%, ${color} 80%, transparent 100%)`,
+        margin: 0,
+      }}
+    />
+  );
+}
+
+const lpContainerVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.06 } },
+};
+const lpItemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
+};
+
 const Index = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
@@ -536,6 +592,13 @@ const Index = () => {
           /* Both with and without lp-visible — covers the higher-specificity exit rule */
           .lp-animate,
           .lp-animate:not(.lp-visible) { opacity: 1; transform: none; transition: none; }
+          /* Disable gradient shimmer */
+          .lp-gradient-text { animation: none !important; background-size: 100% 100% !important; }
+          /* Disable pulse animations */
+          .lp-cta-pulse { animation: none !important; }
+          .wh-cta-pulse { animation: none !important; }
+          /* Disable view transition */
+          ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
         }
 
         /* Header scrolled */
@@ -557,6 +620,9 @@ const Index = () => {
           animation: lp-blink 1s step-end infinite;
         }
         @keyframes lp-blink { 0%,100%{opacity:1} 50%{opacity:0} }
+        @media (prefers-reduced-motion: reduce) {
+          .lp-cursor { animation: none !important; opacity: 1 !important; }
+        }
 
         /* Feature card hover */
         .lp-feature-card {
@@ -589,20 +655,42 @@ const Index = () => {
           background: linear-gradient(90deg, transparent 0%, rgba(158,27,34,0.3) 30%, rgba(158,27,34,0.5) 50%, rgba(158,27,34,0.3) 70%, transparent 100%);
         }
 
-        /* Gradient text — dark */
+        /* Gradient text — dark with shimmer */
+        @keyframes lp-shimmer {
+          0%   { background-position: 0% 50%; }
+          50%  { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
         .lp-gradient-text {
-          background: linear-gradient(135deg, #E53E3E 0%, #C41E3A 50%, #9E1B22 100%);
+          background: linear-gradient(135deg, #E53E3E 0%, #FF6B6B 25%, #C41E3A 50%, #FF8080 75%, #9E1B22 100%);
+          background-size: 300% 300%;
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
+          animation: lp-shimmer 4s ease infinite;
         }
 
         /* Gradient text — light (deeper crimson so it reads on light bg) */
         .lp-root[data-lp-scheme="light"] .lp-gradient-text {
-          background: linear-gradient(135deg, #9E1B22 0%, #B31B1B 50%, #E11D48 100%);
+          background: linear-gradient(135deg, #9E1B22 0%, #E11D48 25%, #B31B1B 50%, #C53030 75%, #9E1B22 100%);
+          background-size: 300% 300%;
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
+          animation: lp-shimmer 4s ease infinite;
+        }
+
+        /* Soft section divider gradient */
+        .lp-section-divider {
+          height: 60px;
+          width: 100%;
+          pointer-events: none;
+        }
+        .lp-section-divider-top {
+          background: linear-gradient(to bottom, var(--lp-section-alt), transparent);
+        }
+        .lp-section-divider-bottom {
+          background: linear-gradient(to top, var(--lp-section-alt), transparent);
         }
 
         /* Theme toggle button */
@@ -882,16 +970,27 @@ const Index = () => {
       </header>
 
       <main id="landing-main" className="w-full">
+        <AnimatePresence mode="wait" initial={false}>
         {mode === 'wisehire' ? (
           /* ═══════════════════════════════════════════════════════
              WISEHIRE MODE — full WiseHire landing experience
           ═══════════════════════════════════════════════════════ */
-          <>
+          <motion.div
+            key="wisehire"
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={prefersReducedMotion ? {} : { opacity: 0, y: -8 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+          >
             <WiseHireHero onOpenWaitlist={() => setWaitlistOpen(true)} />
+            <SoftDivider product="wisehire" />
             <WiseHireFeatureTicker />
             <WiseHireDemoSection />
+            <SoftDivider product="wisehire" />
             <WiseHireTrustSection />
+            <SoftDivider product="wisehire" />
             <WiseHireFeatures onOpenWaitlist={() => setWaitlistOpen(true)} />
+            <SoftDivider product="wisehire" />
             <WiseHirePricing onOpenWaitlist={() => setWaitlistOpen(true)} />
 
             {/* ─── WISEHIRE CLOSING CTA ─── */}
@@ -936,25 +1035,34 @@ const Index = () => {
                 >
                   Invite-only early access. No credit card required. Cancel anytime.
                 </p>
-                <button
+                <motion.button
                   type="button"
                   onClick={() => setWaitlistOpen(true)}
-                  className="inline-flex items-center gap-2 h-12 px-10 text-base font-semibold rounded-xl transition-all"
+                  className="inline-flex items-center gap-2 h-12 px-10 text-base font-semibold rounded-xl"
                   style={{ background: '#1D4ED8', color: '#fff' }}
+                  whileHover={prefersReducedMotion ? {} : { scale: 1.04 }}
+                  whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                 >
                   Join the Waitlist
                   <ArrowRight className="w-4 h-4" />
-                </button>
+                </motion.button>
               </div>
             </section>
 
             <Footer lpMode product="wisehire" />
-          </>
+          </motion.div>
         ) : (
           /* ═══════════════════════════════════════════════════════
              WISERESUME MODE — existing WiseResume landing
           ═══════════════════════════════════════════════════════ */
-          <>
+          <motion.div
+            key="wiseresume"
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={prefersReducedMotion ? {} : { opacity: 0, y: -8 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+          >
         {/* ─── HERO ─── */}
         <section
           ref={heroRef}
@@ -974,6 +1082,8 @@ const Index = () => {
               transition: 'background 0.3s ease',
             }}
           />
+          {/* Parallax depth layer */}
+          <HeroParallaxGlow prefersReducedMotion={prefersReducedMotion} />
 
           {/* Brand pill */}
           <div
@@ -1018,12 +1128,15 @@ const Index = () => {
 
           {/* Main headline — typewriter word lives inside H1 */}
           <h1
-            className="relative z-10 font-extrabold leading-[1.05] max-w-4xl"
+            className="relative z-10 font-extrabold leading-[1.05]"
             style={{
               fontSize: 'clamp(1.9rem, 9vw, 5.5rem)',
               color: 'var(--lp-text)',
               letterSpacing: '-0.035em',
               transition: 'color 0.3s ease',
+              overflow: 'visible',
+              width: '100%',
+              maxWidth: '100vw',
             }}
           >
             {/* Line 1: static "Stand out as a" — always one line */}
@@ -1031,8 +1144,8 @@ const Index = () => {
               Stand out as a
             </span>
             {/* Line 2: typewriter role title only — always one line */}
-            <span style={{ display: 'block', whiteSpace: 'nowrap' }}>
-              <span className="lp-gradient-text" style={{ display: 'inline-block', minWidth: '2ch' }}>
+            <span style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'visible' }}>
+              <span className="lp-gradient-text" style={{ display: 'inline-block', minWidth: '12ch' }}>
                 {typewriterWord || '\u00A0'}
                 <span className="lp-cursor" aria-hidden="true" />
               </span>
@@ -1055,23 +1168,29 @@ const Index = () => {
           {/* CTA — single primary action */}
           <div className="relative z-10 lp-hero-cta">
             {isAuthenticated ? (
-              <button
+              <motion.button
                 onClick={() => { triggerHaptic.light(); navigate('/dashboard'); }}
-                className={`h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2 transition-all ${ctaPulse ? 'lp-cta-pulse' : ''}`}
+                className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2"
                 style={{ background: '#9E1B22', color: '#fff' }}
+                whileHover={prefersReducedMotion ? {} : { scale: 1.04 }}
+                whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
               >
                 Go to Dashboard
                 <ArrowRight className="w-4 h-4" />
-              </button>
+              </motion.button>
             ) : (
-              <button
+              <motion.button
                 onClick={() => handleCTA()}
-                className={`h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2 transition-all ${ctaPulse ? 'lp-cta-pulse' : ''}`}
+                className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2"
                 style={{ background: '#9E1B22', color: '#fff' }}
+                whileHover={prefersReducedMotion ? {} : { scale: 1.04 }}
+                whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
               >
                 Get Started Free
                 <ArrowRight className="w-4 h-4" />
-              </button>
+              </motion.button>
             )}
           </div>
 
@@ -1096,7 +1215,14 @@ const Index = () => {
         <FeatureNumberedNav sectionIds={FEATURE_IDS} labels={FEATURE_NAV_LABELS} />
 
         {/* ─── FEATURE SECTIONS HEADING ─── */}
-        <div className="text-center px-4 sm:px-6 py-16 max-w-4xl mx-auto lp-animate" style={{ background: 'var(--lp-bg)' }}>
+        <motion.div
+          className="text-center px-4 sm:px-6 py-16 max-w-4xl mx-auto"
+          variants={lpItemVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.2 }}
+          style={{ background: 'var(--lp-bg)' }}
+        >
           <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--lp-eyebrow)', fontWeight: 600, marginBottom: '0.75rem' }}>
             See it in action
           </p>
@@ -1107,17 +1233,27 @@ const Index = () => {
             Five tools. One platform.<br />
             <span className="lp-gradient-text">Your unfair advantage in the job market.</span>
           </h2>
-        </div>
+        </motion.div>
+
+        <SoftDivider />
 
         {/* ─── ALTERNATING FEATURE BAND SECTIONS ─── */}
         {featureSections.map((section) => (
           <FeatureSection key={section.id} data={section} />
         ))}
 
+        <SoftDivider />
+
         {/* ─── EVERYTHING YOU NEED GRID ─── */}
         <section className="px-4 sm:px-6 py-20" style={{ background: 'var(--lp-bg)' }}>
           <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-12 lp-animate">
+            <motion.div
+              className="text-center mb-12"
+              variants={lpItemVariants}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: false, amount: 0.2 }}
+            >
               <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--lp-eyebrow)', fontWeight: 600, marginBottom: '0.75rem' }}>
                 Full toolkit
               </p>
@@ -1127,18 +1263,24 @@ const Index = () => {
               <p style={{ color: 'var(--lp-text-muted)' }} className="max-w-md mx-auto">
                 One platform for your entire job search
               </p>
-            </div>
+            </motion.div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-3xl mx-auto">
-              {features.map((f, i) => (
-                <div
+            <motion.div
+              className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-3xl mx-auto"
+              variants={lpContainerVariants}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: false, amount: 0.1 }}
+            >
+              {features.map((f) => (
+                <motion.div
                   key={f.title}
-                  className={`flex items-start gap-4 p-5 lp-animate ${i % 2 === 0 ? 'lp-from-left' : 'lp-from-right'} lp-feature-card`}
+                  variants={lpItemVariants}
+                  className="flex items-start gap-4 p-5 lp-feature-card"
                   style={{
                     borderRadius: 16,
                     background: 'var(--lp-card)',
                     border: '1px solid var(--lp-border-card)',
-                    transitionDelay: `${i * 60}ms`,
                   }}
                 >
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isDark ? f.bgDark : f.bgLight}`}>
@@ -1148,27 +1290,39 @@ const Index = () => {
                     <h3 className="font-semibold text-sm mb-1" style={{ color: 'var(--lp-text)' }}>{f.title}</h3>
                     <p className="text-xs leading-relaxed" style={{ color: 'var(--lp-text-muted)' }}>{f.desc}</p>
                   </div>
-                </div>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           </div>
         </section>
+
+        <SoftDivider />
 
         {/* ─── TRUST SECTION ─── */}
         <TrustSection />
 
         {/* ─── PWA INSTALL STRIP ─── */}
         <section className="px-4 sm:px-6 py-10" style={{ background: 'var(--lp-section-alt)', borderTop: '1px solid var(--lp-border)' }}>
-          <div className="max-w-xl mx-auto text-center lp-animate">
+          <motion.div
+            className="max-w-xl mx-auto text-center"
+            variants={lpItemVariants}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: false, amount: 0.2 }}
+          >
             <p className="font-semibold mb-1" style={{ color: 'var(--lp-text)' }}>Install WiseResume</p>
             <p className="text-sm mb-4" style={{ color: 'var(--lp-text-muted)' }}>Add to your home screen for a native app experience</p>
             <InstallButton />
-          </div>
+          </motion.div>
         </section>
 
         {/* ─── WISERESUME CLOSING CTA ─── */}
-        <section
-          className="text-center lp-animate"
+        <motion.section
+          className="text-center"
+          variants={lpItemVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.15 }}
           style={{
             background: 'var(--lp-section-alt)',
             borderTop: '1px solid var(--lp-border)',
@@ -1208,21 +1362,25 @@ const Index = () => {
             >
               Free to start. No credit card. AI-powered results from day one.
             </p>
-            <button
+            <motion.button
               type="button"
               onClick={() => handleCTA()}
-              className="inline-flex items-center gap-2 h-12 px-10 text-base font-semibold rounded-xl transition-all"
+              className="inline-flex items-center gap-2 h-12 px-10 text-base font-semibold rounded-xl"
               style={{ background: '#9E1B22', color: '#fff' }}
+              whileHover={prefersReducedMotion ? {} : { scale: 1.04 }}
+              whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
             >
               Get Started Free
               <ArrowRight className="w-4 h-4" />
-            </button>
+            </motion.button>
           </div>
-        </section>
+        </motion.section>
 
         <Footer lpMode />
-          </>
+          </motion.div>
         )}
+        </AnimatePresence>
       </main>
 
       {/* Waitlist modal — shown when any WiseHire CTA is clicked */}

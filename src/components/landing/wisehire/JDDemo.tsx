@@ -20,6 +20,7 @@ const JD_LINES = [
 ];
 
 export function JDDemo() {
+  const prefersReduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const [lineIdx, setLineIdx] = useState(0);
   const [charIdx, setCharIdx] = useState(0);
   const [displayedLines, setDisplayedLines] = useState<string[]>(['']);
@@ -195,7 +196,7 @@ export function JDDemo() {
                     marginLeft: 1,
                     verticalAlign: 'middle',
                     borderRadius: 1,
-                    animation: 'lp-blink 0.8s step-end infinite',
+                    animation: prefersReduced ? 'none' : 'lp-blink 0.8s step-end infinite',
                   }}
                 />
               )}

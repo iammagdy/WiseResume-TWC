@@ -1,4 +1,14 @@
+import { motion } from 'framer-motion';
 import { Brain, FileText, Kanban, Users, Archive, Rocket } from 'lucide-react';
+
+const containerVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.04 } },
+};
+const itemVariants = {
+  hidden: { opacity: 0, y: 24 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } },
+};
 
 const pillars = [
   {
@@ -88,18 +98,24 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
         </div>
 
         {/* Pillars grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <motion.div
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.1 }}
+        >
           {pillars.map((pillar, i) => {
             const Icon = pillar.icon;
             return (
-              <div
+              <motion.div
                 key={pillar.title}
-                className={`lp-animate lp-feature-card ${i % 2 === 0 ? 'lp-from-left' : 'lp-from-right'} flex flex-col gap-4 p-6`}
+                variants={itemVariants}
+                className="lp-feature-card flex flex-col gap-4 p-6"
                 style={{
                   borderRadius: 18,
                   background: 'var(--lp-card)',
                   border: '1px solid var(--lp-border-card)',
-                  transitionDelay: `${i * 60}ms`,
                 }}
               >
                 <div className="flex items-start gap-4">
@@ -136,21 +152,24 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
                     </p>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
 
-          {/* CTA card — fills the last slot; single <button> for full keyboard accessibility */}
-          <button
-            className="lp-animate lp-from-right flex flex-col items-center justify-center gap-4 p-6 text-center w-full"
+          {/* CTA card — fills the last slot */}
+          <motion.button
+            variants={itemVariants}
+            className="flex flex-col items-center justify-center gap-4 p-6 text-center w-full"
             style={{
               borderRadius: 18,
               background: 'rgba(29,78,216,0.07)',
               border: '1px solid rgba(29,78,216,0.18)',
-              transitionDelay: `${pillars.length * 60}ms`,
               cursor: 'pointer',
             }}
             onClick={onOpenWaitlist}
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.97 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
           >
             <div
               style={{
@@ -181,8 +200,8 @@ export function WiseHireFeatures({ onOpenWaitlist }: WiseHireFeaturesProps) {
             >
               Join Waitlist
             </span>
-          </button>
-        </div>
+          </motion.button>
+        </motion.div>
       </div>
     </section>
   );

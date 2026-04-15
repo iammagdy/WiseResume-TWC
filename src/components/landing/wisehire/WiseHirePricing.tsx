@@ -1,5 +1,15 @@
+import { motion } from 'framer-motion';
 import { Check, Star, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
+
+const containerVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.04 } },
+};
+const itemVariants = {
+  hidden: { opacity: 0, y: 24 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } },
+};
 
 const tiers = [
   {
@@ -131,19 +141,25 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
         </div>
 
         {/* Pricing cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <motion.div
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.1 }}
+        >
           {tiers.map((tier, i) => (
-            <div
+            <motion.div
               key={tier.name}
-              className="lp-animate flex flex-col"
+              variants={itemVariants}
+              className="flex flex-col"
               style={{
                 borderRadius: 20,
                 background: tier.highlight ? 'rgba(29,78,216,0.08)' : 'var(--lp-card)',
                 border: tier.highlight ? '1.5px solid rgba(29,78,216,0.35)' : '1px solid var(--lp-border-card)',
                 padding: '24px 20px',
                 position: 'relative',
-                transitionDelay: `${i * 60}ms`,
-                transition: 'background 0.35s ease, border-color 0.35s ease, opacity 0.65s cubic-bezier(0.22,1,0.36,1), transform 0.65s cubic-bezier(0.22,1,0.36,1)',
+                transition: 'background 0.35s ease, border-color 0.35s ease',
               }}
             >
               {/* Early Access badge — shown for every tier */}
@@ -278,7 +294,7 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
                   Learn More
                 </Link>
               ) : (
-                <button
+                <motion.button
                   onClick={onOpenWaitlist}
                   style={{
                     width: '100%',
@@ -287,18 +303,20 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
                     fontSize: '0.8rem',
                     fontWeight: 700,
                     cursor: 'pointer',
-                    transition: 'all 0.2s ease',
                     background: tier.highlight ? '#1D4ED8' : 'transparent',
                     color: tier.highlight ? '#fff' : 'var(--lp-eyebrow)',
                     border: tier.highlight ? 'none' : '1.5px solid rgba(29,78,216,0.35)',
                   }}
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                 >
                   Join the Waitlist
-                </button>
+                </motion.button>
               )}
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   );

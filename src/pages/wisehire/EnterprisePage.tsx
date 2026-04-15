@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
@@ -15,26 +16,19 @@ import {
   X,
 } from 'lucide-react';
 
-// ── lp-animate intersection observer ────────────────────────────────────────
-function useLpAnimate() {
-  useEffect(() => {
-    const els = document.querySelectorAll('.lp-animate:not(.lp-visible)');
-    if (!els.length) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            e.target.classList.add('lp-visible');
-            io.unobserve(e.target);
-          }
-        });
-      },
-      { threshold: 0.08 },
-    );
-    els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, []);
-}
+const containerVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.04 } },
+};
+const itemVariants = {
+  hidden: { opacity: 0, y: 24 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } },
+};
+const logoItemVariants = {
+  hidden: { opacity: 0, y: 12 },
+  visible: { opacity: 0.4, y: 0, transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] } },
+};
+
 
 // ── Section: Hero ────────────────────────────────────────────────────────────
 function HeroSection() {
@@ -49,24 +43,30 @@ function HeroSection() {
       }}
     >
       <style>{`
+        @keyframes wh-shimmer {
+          0%   { background-position: 0% 50%; }
+          50%  { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
         .wh-gradient-text {
-          background: linear-gradient(135deg, #60A5FA 0%, #3B82F6 40%, #1D4ED8 100%);
+          background: linear-gradient(135deg, #60A5FA 0%, #93C5FD 25%, #3B82F6 50%, #60A5FA 75%, #1D4ED8 100%);
+          background-size: 300% 300%;
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
+          animation: wh-shimmer 4s ease infinite;
         }
         .lp-root[data-lp-scheme="light"] .wh-gradient-text {
-          background: linear-gradient(135deg, #1D4ED8 0%, #2563EB 50%, #3B82F6 100%);
+          background: linear-gradient(135deg, #1D4ED8 0%, #3B82F6 25%, #2563EB 50%, #1D4ED8 75%, #3B82F6 100%);
+          background-size: 300% 300%;
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
+          animation: wh-shimmer 4s ease infinite;
         }
-        @keyframes wh-pulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(29,78,216,0); }
-          50% { box-shadow: 0 0 0 10px rgba(29,78,216,0.14); }
+        @media (prefers-reduced-motion: reduce) {
+          .wh-gradient-text { animation: none !important; background-size: 100% 100% !important; }
         }
-        .wh-cta-pulse { animation: wh-pulse 2.8s ease-in-out infinite; }
-        @media (prefers-reduced-motion: reduce) { .wh-cta-pulse { animation: none; } }
       `}</style>
 
       {/* Radial glow */}
@@ -146,27 +146,33 @@ function HeroSection() {
 
       {/* CTAs */}
       <div className="relative z-10 flex flex-col sm:flex-row items-center gap-3">
-        <a
+        <motion.a
           href="#enterprise-contact"
-          className="wh-cta-pulse h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2 transition-all"
+          className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2"
           style={{ background: '#1D4ED8', color: '#fff', textDecoration: 'none' }}
+          whileHover={{ scale: 1.04 }}
+          whileTap={{ scale: 0.97 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
         >
           Request a Demo
           <ArrowRight className="w-4 h-4" />
-        </a>
-        <a
+        </motion.a>
+        <motion.a
           href="/?for=companies#wisehire-pricing"
-          className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2 transition-all"
+          className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2"
           style={{
             background: 'transparent',
             color: 'var(--lp-eyebrow)',
             border: '1.5px solid rgba(29,78,216,0.35)',
             textDecoration: 'none',
           }}
+          whileHover={{ scale: 1.04 }}
+          whileTap={{ scale: 0.97 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
         >
           See pricing
           <ChevronRight className="w-4 h-4" />
-        </a>
+        </motion.a>
       </div>
 
       {/* Trust badges */}
@@ -205,23 +211,35 @@ function SocialProofSection() {
         className="max-w-6xl mx-auto w-full text-center"
         style={{ padding: 'clamp(28px, 4vw, 48px) clamp(20px, 4vw, 40px)' }}
       >
-        <p
-          className="lp-animate text-xs uppercase tracking-widest font-semibold mb-8"
+        <motion.p
+          className="text-xs uppercase tracking-widest font-semibold mb-8"
           style={{ color: 'var(--lp-text-muted)', transition: 'color 0.35s ease' }}
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: false, amount: 0.5 }}
+          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
         >
           Trusted by enterprise teams at
-        </p>
-        <div className="lp-animate flex flex-wrap justify-center gap-x-8 gap-y-3">
+        </motion.p>
+        <motion.div
+          className="flex flex-wrap justify-center gap-x-8 gap-y-3"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.3 }}
+        >
           {logos.map((name) => (
-            <span
+            <motion.span
               key={name}
-              className="font-bold text-base tracking-tight opacity-40 hover:opacity-70 transition-opacity"
-              style={{ color: 'var(--lp-text)', transition: 'color 0.35s ease' }}
+              variants={logoItemVariants}
+              className="font-bold text-base tracking-tight"
+              style={{ color: 'var(--lp-text)', transition: 'color 0.35s ease', cursor: 'default' }}
+              whileHover={{ opacity: 0.7 }}
             >
               {name}
-            </span>
+            </motion.span>
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   );
@@ -273,7 +291,13 @@ function EnterpriseFeaturesSection() {
         className="max-w-6xl mx-auto w-full"
         style={{ padding: 'clamp(52px, 6vw, 84px) clamp(20px, 4vw, 40px)' }}
       >
-        <div className="text-center mb-12 lp-animate">
+        <motion.div
+          className="text-center mb-12"
+          variants={itemVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.3 }}
+        >
           <p
             style={{
               fontSize: '0.75rem',
@@ -305,20 +329,26 @@ function EnterpriseFeaturesSection() {
           >
             WiseHire Enterprise is built to meet the security, scale, and compliance requirements of large organisations.
           </p>
-        </div>
+        </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <motion.div
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.1 }}
+        >
           {ENT_FEATURES.map((feat, i) => {
             const Icon = feat.icon;
             return (
-              <div
+              <motion.div
                 key={feat.title}
-                className={`lp-animate lp-feature-card flex items-start gap-4 p-6 ${i % 2 === 0 ? 'lp-from-left' : 'lp-from-right'}`}
+                variants={itemVariants}
+                className="lp-feature-card flex items-start gap-4 p-6"
                 style={{
                   borderRadius: 18,
                   background: 'var(--lp-card)',
                   border: '1px solid var(--lp-border-card)',
-                  transitionDelay: `${i * 55}ms`,
                 }}
               >
                 <div
@@ -341,10 +371,10 @@ function EnterpriseFeaturesSection() {
                     {feat.desc}
                   </p>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
-        </div>
+        </motion.div>
       </div>
     </section>
   );
@@ -383,7 +413,13 @@ function HowItWorksSection() {
         className="max-w-6xl mx-auto w-full"
         style={{ padding: 'clamp(52px, 6vw, 84px) clamp(20px, 4vw, 40px)' }}
       >
-        <div className="text-center mb-12 lp-animate">
+        <motion.div
+          className="text-center mb-12"
+          variants={itemVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.3 }}
+        >
           <p
             style={{
               fontSize: '0.75rem',
@@ -408,22 +444,28 @@ function HowItWorksSection() {
           >
             From call to live in days
           </h2>
-        </div>
+        </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {HOW_STEPS.map((s, i) => (
-            <div
+        <motion.div
+          className="grid grid-cols-1 md:grid-cols-3 gap-6"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.1 }}
+        >
+          {HOW_STEPS.map((s, idx) => (
+            <motion.div
               key={s.step}
-              className="lp-animate relative flex flex-col gap-4 p-7"
+              variants={itemVariants}
+              className="relative flex flex-col gap-4 p-7"
               style={{
                 borderRadius: 20,
                 background: 'var(--lp-card-glass)',
                 border: '1px solid var(--lp-border-card)',
-                transitionDelay: `${i * 80}ms`,
               }}
             >
               {/* Connector line (desktop) */}
-              {i < HOW_STEPS.length - 1 && (
+              {idx < HOW_STEPS.length - 1 && (
                 <div
                   aria-hidden="true"
                   className="hidden md:block absolute top-1/3 -right-3 w-6 h-px"
@@ -450,9 +492,9 @@ function HowItWorksSection() {
                   {s.desc}
                 </p>
               </div>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   );
@@ -482,7 +524,13 @@ function ComparisonSection() {
         className="max-w-4xl mx-auto w-full"
         style={{ padding: 'clamp(52px, 6vw, 84px) clamp(20px, 4vw, 40px)' }}
       >
-        <div className="text-center mb-12 lp-animate">
+        <motion.div
+          className="text-center mb-12"
+          variants={itemVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.3 }}
+        >
           <p
             style={{
               fontSize: '0.75rem',
@@ -507,10 +555,14 @@ function ComparisonSection() {
           >
             What makes Enterprise different
           </h2>
-        </div>
+        </motion.div>
 
-        <div
-          className="lp-animate overflow-hidden"
+        <motion.div
+          className="overflow-hidden"
+          variants={itemVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.1 }}
           style={{ borderRadius: 20, border: '1px solid var(--lp-border-card)', overflow: 'hidden' }}
         >
           {/* Header row */}
@@ -601,7 +653,7 @@ function ComparisonSection() {
               </div>
             </div>
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   );
@@ -644,7 +696,13 @@ function ContactSection() {
         className="max-w-2xl mx-auto w-full"
         style={{ padding: 'clamp(52px, 6vw, 84px) clamp(20px, 4vw, 40px)' }}
       >
-        <div className="text-center mb-10 lp-animate">
+        <motion.div
+          className="text-center mb-10"
+          variants={itemVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.3 }}
+        >
           <p
             style={{
               fontSize: '0.75rem',
@@ -676,11 +734,14 @@ function ContactSection() {
           >
             Tell us about your team and we'll be in touch within one business day.
           </p>
-        </div>
+        </motion.div>
 
         {submitted ? (
-          <div
-            className="lp-animate flex flex-col items-center gap-4 py-10 text-center rounded-2xl"
+          <motion.div
+            className="flex flex-col items-center gap-4 py-10 text-center rounded-2xl"
+            variants={itemVariants}
+            initial="hidden"
+            animate="visible"
             style={{ background: 'var(--lp-card)', border: '1px solid var(--lp-border-card)' }}
           >
             <div
@@ -697,11 +758,15 @@ function ContactSection() {
                 We'll be in touch within one business day.
               </p>
             </div>
-          </div>
+          </motion.div>
         ) : (
-          <form
+          <motion.form
             onSubmit={handleSubmit}
-            className="lp-animate flex flex-col gap-4 p-8 rounded-2xl"
+            className="flex flex-col gap-4 p-8 rounded-2xl"
+            variants={itemVariants}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: false, amount: 0.1 }}
             style={{ background: 'var(--lp-card)', border: '1px solid var(--lp-border-card)' }}
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -811,19 +876,22 @@ function ContactSection() {
               />
             </div>
 
-            <button
+            <motion.button
               type="submit"
-              className="w-full h-11 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all hover:opacity-90"
+              className="w-full h-11 rounded-xl text-sm font-semibold flex items-center justify-center gap-2"
               style={{ background: '#1D4ED8', color: '#fff' }}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
             >
               Request Demo
               <ArrowRight className="w-4 h-4" />
-            </button>
+            </motion.button>
 
             <p className="text-xs text-center" style={{ color: 'var(--lp-text-muted)' }}>
               We respect your privacy. No spam, ever.
             </p>
-          </form>
+          </motion.form>
         )}
       </div>
     </section>
@@ -838,8 +906,12 @@ function FooterCtaSection() {
         className="max-w-4xl mx-auto w-full text-center"
         style={{ padding: 'clamp(52px, 6vw, 84px) clamp(20px, 4vw, 40px)' }}
       >
-        <div
-          className="lp-animate rounded-3xl p-12 flex flex-col items-center gap-6"
+        <motion.div
+          className="rounded-3xl p-12 flex flex-col items-center gap-6"
+          variants={itemVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.2 }}
           style={{
             background: 'rgba(29,78,216,0.07)',
             border: '1px solid rgba(29,78,216,0.18)',
@@ -871,28 +943,38 @@ function FooterCtaSection() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-3">
-            <a
+            <motion.a
               href="#enterprise-contact"
-              className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2 transition-all hover:opacity-90"
+              className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2"
               style={{ background: '#1D4ED8', color: '#fff', textDecoration: 'none' }}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
             >
               Talk to Sales
               <ArrowRight className="w-4 h-4" />
-            </a>
-            <Link
-              to="/?for=companies"
-              className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2 transition-all"
-              style={{
-                background: 'transparent',
-                color: 'var(--lp-eyebrow)',
-                border: '1.5px solid rgba(29,78,216,0.35)',
-                textDecoration: 'none',
-              }}
+            </motion.a>
+            <motion.div
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
             >
-              Back to WiseHire
-            </Link>
+              <Link
+                to="/?for=companies"
+                className="h-12 px-8 text-base font-semibold rounded-xl flex items-center gap-2"
+                style={{
+                  background: 'transparent',
+                  color: 'var(--lp-eyebrow)',
+                  border: '1.5px solid rgba(29,78,216,0.35)',
+                  textDecoration: 'none',
+                  display: 'flex',
+                }}
+              >
+                Back to WiseHire
+              </Link>
+            </motion.div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Footer nav */}
         <div className="mt-10 flex flex-wrap justify-center gap-6 text-xs" style={{ color: 'var(--lp-text-muted)' }}>
@@ -943,21 +1025,22 @@ function EnterpriseNav() {
           Enterprise
         </span>
       </Link>
-      <a
+      <motion.a
         href="#enterprise-contact"
-        className="h-9 px-5 text-sm font-semibold rounded-lg flex items-center gap-1.5 transition-all hover:opacity-90"
+        className="h-9 px-5 text-sm font-semibold rounded-lg flex items-center gap-1.5"
         style={{ background: '#1D4ED8', color: '#fff', textDecoration: 'none' }}
+        whileHover={{ scale: 1.04 }}
+        whileTap={{ scale: 0.97 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 20 }}
       >
         Request Demo
-      </a>
+      </motion.a>
     </nav>
   );
 }
 
 // ── Page root ─────────────────────────────────────────────────────────────────
 export default function EnterprisePage() {
-  useLpAnimate();
-
   useEffect(() => {
     document.title = 'WiseHire Enterprise — Hire at Scale';
     return () => { document.title = 'WiseResume — AI-Powered Career Platform'; };
@@ -965,18 +1048,33 @@ export default function EnterprisePage() {
 
   return (
     <div
-      className="lp-root min-h-[100dvh] flex flex-col"
+      className="lp-root min-h-[100dvh] flex flex-col relative"
       data-lp-product="wisehire"
       style={{ background: 'var(--lp-bg)', transition: 'background 0.35s ease' }}
     >
-      <EnterpriseNav />
-      <HeroSection />
-      <SocialProofSection />
-      <EnterpriseFeaturesSection />
-      <HowItWorksSection />
-      <ComparisonSection />
-      <ContactSection />
-      <FooterCtaSection />
+      {/* Atmospheric background — indigo/blue gradient mesh */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0"
+        style={{
+          zIndex: 0,
+          background: `
+            radial-gradient(ellipse 80% 50% at 50% -10%, rgba(29,78,216,0.18) 0%, transparent 60%),
+            radial-gradient(ellipse 50% 40% at 80% 60%, rgba(99,102,241,0.10) 0%, transparent 55%),
+            radial-gradient(ellipse 40% 30% at 10% 80%, rgba(14,165,233,0.07) 0%, transparent 55%)
+          `,
+        }}
+      />
+      <div className="relative" style={{ zIndex: 1 }}>
+        <EnterpriseNav />
+        <HeroSection />
+        <SocialProofSection />
+        <EnterpriseFeaturesSection />
+        <HowItWorksSection />
+        <ComparisonSection />
+        <ContactSection />
+        <FooterCtaSection />
+      </div>
     </div>
   );
 }

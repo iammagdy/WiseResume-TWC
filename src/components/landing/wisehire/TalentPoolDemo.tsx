@@ -21,6 +21,7 @@ function avatarBg(i: number) {
 }
 
 export function TalentPoolDemo() {
+  const prefersReduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const [searchIdx, setSearchIdx] = useState(0);
   const [typedSearch, setTypedSearch] = useState('');
 
@@ -110,7 +111,7 @@ export function TalentPoolDemo() {
                 marginLeft: 1,
                 verticalAlign: 'middle',
                 borderRadius: 1,
-                animation: 'lp-blink 0.8s step-end infinite',
+                animation: prefersReduced ? 'none' : 'lp-blink 0.8s step-end infinite',
               }}
             />
           )}

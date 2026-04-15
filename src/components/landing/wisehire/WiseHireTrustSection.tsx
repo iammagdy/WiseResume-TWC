@@ -1,5 +1,15 @@
+import { motion } from 'framer-motion';
 import { Users, BrainCircuit, Target, Zap } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+
+const containerVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.04 } },
+};
+const itemVariants = {
+  hidden: { opacity: 0, y: 24 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } },
+};
 
 const trustItems: { icon: LucideIcon; headline: string; body: string }[] = [
   {
@@ -75,19 +85,25 @@ export function WiseHireTrustSection() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <motion.div
+          className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: false, amount: 0.1 }}
+        >
           {trustItems.map((item, i) => {
             const Icon = item.icon;
             return (
-              <div
+              <motion.div
                 key={item.headline}
-                className={`lp-animate lp-testimonial-card ${i % 2 === 0 ? 'lp-from-left' : 'lp-from-right'} flex items-start gap-4 p-6`}
+                variants={itemVariants}
+                className="lp-testimonial-card flex items-start gap-4 p-6"
                 style={{
                   borderRadius: 20,
                   background: 'var(--lp-card-glass)',
                   border: '1px solid var(--lp-border-card)',
-                  transitionDelay: `${i * 70}ms`,
-                  transition: 'background 0.35s ease, border-color 0.35s ease, transform 0.22s ease, opacity 0.65s cubic-bezier(0.22,1,0.36,1)',
+                  transition: 'background 0.35s ease, border-color 0.35s ease',
                 }}
               >
                 <div
@@ -110,10 +126,10 @@ export function WiseHireTrustSection() {
                     {item.body}
                   </p>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
-        </div>
+        </motion.div>
       </div>
     </section>
   );
