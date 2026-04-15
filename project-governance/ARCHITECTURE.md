@@ -43,7 +43,7 @@ You MUST NEVER assume outdated documentation (such as files in `legacy-docs/enha
 | State management | Zustand (global/persistent) + TanStack Query (server state) |
 | Authentication | Kinde Auth (provider) → Supabase (session) via token bridge |
 | Database | Supabase PostgreSQL with RLS |
-| Edge functions | Supabase Edge Functions (Deno runtime) — 86 functions |
+| Edge functions | Supabase Edge Functions (Deno runtime) — 87 functions |
 | File storage | Supabase Storage buckets |
 | Email | Resend (transactional + admin notifications) |
 | AI providers | OpenRouter, Groq, Gemini, OpenAI, Anthropic, Mistral, xAI, Cohere, Ollama |
@@ -365,6 +365,7 @@ All `/wisehire/*` routes enforce `account_type = 'hr'` via `WiseHireGuard`. Job 
 | `wisehire-bulk-screen` | AI bulk resume screening — up to 10 PDFs ranked against a JD |
 | `wisehire-talent-search` | HR Talent Pool search — filters opted-in job seeker profiles |
 | `wisehire-talent-view` | Records a profile view and increments view_count |
+| `wisehire-send-outreach` | HR sends AI-drafted or custom outreach email via Resend |
 
 **WiseHire Database Tables** (9 tables, all with RLS):
 | Table | Purpose |
@@ -380,6 +381,8 @@ All `/wisehire/*` routes enforce `account_type = 'hr'` via `WiseHireGuard`. Job 
 | `wisehire_scorecards` | Interview scorecards with 1–5 star ratings + share_token |
 | `talent_pool_profiles` | Job seeker opt-in profiles discoverable by HR |
 | `talent_pool_views` | Audit log of HR views on talent profiles |
+| `wisehire_outreach_emails` | Outreach email log per candidate (subject, body, status, Resend ID) |
+| `wisehire_candidate_notes` | Team notes on candidates (tag: general/highlight/concern, pinnable) |
 
 **Phase 2 Routes added:**
 | Route | Purpose |

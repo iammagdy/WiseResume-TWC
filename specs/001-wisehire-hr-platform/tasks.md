@@ -405,3 +405,29 @@ At each checkpoint, validate the completed user story is independently functiona
 - [ ] T173: Manual verification
 - [ ] T174: CHANGELOG update — COMPLETED (this file)
 - [x] T175: ARCHITECTURE.md update (86 fns, 11 tables, new routes)
+
+---
+
+## Phase 19 — US15: Candidate Outreach + US16: Team Notes (Phase 4)
+
+### US15 — Candidate Outreach (T177–T185)
+
+- [x] T177: DB — `wisehire_outreach_emails` table + RLS + indexes
+- [x] T178: Edge fn `wisehire-send-outreach` (#87) — AI draft + send via Resend + persist log
+- [x] T179: Hook `useOutreach.ts` — useOutreachHistory, useAIDraftOutreach, useSendOutreach
+- [x] T180: Component `OutreachDialog.tsx` — To/Subject/Body, AI Draft, Send
+- [x] T181: Component `OutreachHistory.tsx` — status-coloured sent log
+- [x] T182: `CandidateDetailPanel.tsx` integration — Send icon in header + Outreach section
+- [ ] T183: Manual verification (requires HR + Resend configured)
+- [x] T184: ARCHITECTURE.md update (87 fns, 13 tables)
+- [x] T185: CHANGELOG update
+
+### US16 — Team Notes & Collaboration (T186–T192)
+
+- [x] T186: DB — `wisehire_candidate_notes` table + RLS + indexes
+- [x] T187: Hook `useCandidateNotes.ts` — list, add, delete, togglePin
+- [x] T188: Component `NoteTag.tsx` — general/highlight/concern badge (clickable + read-only)
+- [x] T189: Component `CandidateNotes.tsx` — compose box + threaded list + pin/delete
+- [x] T190: `CandidateDetailPanel.tsx` integration — Team Notes section
+- [ ] T191: Manual verification
+- [x] T192: CHANGELOG + ARCHITECTURE.md update

@@ -2,6 +2,27 @@
 
 Local changelog tracking WiseResume changes.
 
+## 2026-04-15 (Phase 19 — Phase 4: Outreach & Notes)
+
+### WISEHIRE-PHASE19-US15 — Candidate Outreach
+
+- **DB** (`wisehire_outreach_emails`): `owner_id`, `candidate_id → wisehire_candidates`, `to_email`, `subject`, `body`, `status` (sent/saved/failed), `resend_message_id`, `created_at`. RLS: owner CRUD only.
+- **Edge function** `wisehire-send-outreach` (#87): HR guard → rate limit (Starter 10/day, Pro 100/day) → **AI draft mode**: returns GPT-4o-mini draft using candidate name + role title (no email sent, no log row) → **Send mode**: validates candidate ownership → sends via Resend with company name in From label → persists email row with status (sent/saved/failed). Works gracefully without Resend configured (saves as status=saved).
+- **Hook** `useOutreach.ts`: `useOutreachHistory(candidateId)` — sorted outreach log; `useAIDraftOutreach()` — silent draft mutation; `useSendOutreach()` — send + invalidate cache.
+- **Component** `OutreachDialog.tsx`: modal with To, Subject, Body fields; "AI Draft" button generates body via edge fn; "Send" button; cancel; disabled state during inflight.
+- **Component** `OutreachHistory.tsx`: compact sent-log list inside `CandidateDetailPanel` — icon + subject + recipient + status chip (Sent/Saved/Failed) + relative timestamp.
+- **Integration** `CandidateDetailPanel.tsx`: Send icon button in header + "Outreach" section with history + "Send outreach email" button both open `OutreachDialog`.
+
+### WISEHIRE-PHASE19-US16 — Team Notes & Collaboration
+
+- **DB** (`wisehire_candidate_notes`): `owner_id`, `candidate_id → wisehire_candidates`, `author_id`, `body`, `tag` (general/highlight/concern), `pinned boolean`, `created_at`. RLS: owner CRUD. Pinned notes sort first.
+- **Hook** `useCandidateNotes.ts`: `useCandidateNotes(candidateId)` (sorted: pinned first, newest first); `useAddNote()` (sets owner_id = author_id = current user); `useDeleteNote()`; `useTogglePinNote()`.
+- **Component** `NoteTag.tsx`: pill badge for general (slate), highlight (emerald), concern (red) — clickable for tag selection in compose, read-only in list.
+- **Component** `CandidateNotes.tsx`: compose box (Textarea + tag picker + Cmd+Enter shortcut + "Add note" button); note list with body, tag badge, relative timestamp, pin button (amber when pinned), delete button.
+- **Integration** `CandidateDetailPanel.tsx`: "Team Notes" section added above legacy Hiring Notes; `MessageSquare` icon in section header.
+
+---
+
 ## 2026-04-15 (Phase 18 — Phase 3: Talent Pool + HR Analytics)
 
 ### WISEHIRE-PHASE18-US13 — Talent Pool Discovery
