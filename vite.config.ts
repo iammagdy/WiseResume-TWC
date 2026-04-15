@@ -3,6 +3,7 @@ import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { VitePWA } from "vite-plugin-pwa";
+import { sentryVitePlugin } from "@sentry/vite-plugin";
 
 const CSP_BASE = [
   "default-src 'self'",
@@ -76,7 +77,7 @@ export default defineConfig(() => ({
     headers: {},
   },
   build: {
-    sourcemap: false,
+    sourcemap: 'hidden',
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -110,6 +111,20 @@ export default defineConfig(() => ({
         dontCacheBustURLsMatching: /~oauth/,
       },
     }),
+    process.env.SENTRY_AUTH_TOKEN
+      ? sentryVitePlugin({
+          org: process.env.SENTRY_ORG,
+          project: process.env.SENTRY_PROJECT,
+          authToken: process.env.SENTRY_AUTH_TOKEN,
+          release: {
+            name: process.env.VITE_SENTRY_RELEASE ?? process.env.GITHUB_SHA ?? 'local',
+          },
+          sourcemaps: {
+            filesToDeleteAfterUpload: ['./dist/**/*.js.map'],
+          },
+          telemetry: false,
+        })
+      : null,
   ].filter(Boolean),
   optimizeDeps: {
     exclude: ['docx'],

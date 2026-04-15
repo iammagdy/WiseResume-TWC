@@ -204,10 +204,24 @@ All registered in `supabase/config.toml` with `verify_jwt = false`. Key function
 - `admin-env-check` — returns boolean presence of required env vars
 - All AI-facing functions use `callAI` from `_shared/aiClient.ts`
 
+## Sentry Source Map Upload (Production)
+Production builds generate **hidden** source maps (`sourcemap: 'hidden'` in `vite.config.ts`). The `.js.map` files are NOT served publicly — they are uploaded to Sentry during the CI/CD build and then deleted from `dist/`. This enables readable stack traces in the Sentry dashboard without exposing source maps to end users.
+
+The Sentry upload step is gated on `SENTRY_AUTH_TOKEN` being present in the build environment. If the secret is absent, the build succeeds normally without uploading.
+
+**Required GitHub Actions secrets (add via repo Settings → Secrets):**
+| Secret | Description |
+|---|---|
+| `SENTRY_AUTH_TOKEN` | Sentry auth token with `project:releases` and `org:read` scopes. Generate at https://sentry.io/settings/account/api/auth-tokens/ |
+| `SENTRY_ORG` | Your Sentry organization slug (e.g. `thewise-cloud`) |
+| `SENTRY_PROJECT` | Your Sentry project slug (e.g. `wiseresume`) |
+
+The release name is set from `VITE_SENTRY_RELEASE` env var → `GITHUB_SHA` → `'local'` (fallback).
+
 ## CI/CD Workflows (`.github/workflows/`)
 | Workflow | Purpose |
 |---|---|
-| `deploy.yml` | Deploy frontend to Hostinger |
+| `deploy.yml` | Deploy frontend to Hostinger (passes Sentry secrets for source map upload) |
 | `deploy-edge-functions.yml` | Deploy all Supabase edge functions |
 | `set-supabase-secrets.yml` | Push secrets to Supabase — GITHUB_PAT required (hard fails if missing) |
 | `refresh-devkit-github-token.yml` | Dedicated workflow to sync GITHUB_TOKEN to Supabase — PAT required, verifies post-push |
