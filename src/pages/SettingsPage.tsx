@@ -113,6 +113,7 @@ export default function SettingsPage() {
   const [aiSettingsOpen, setAISettingsOpen] = useState(false);
   const [helpSheetOpen, setHelpSheetOpen] = useState(false);
   const [changelogOpen, setChangelogOpen] = useState(false);
+  const [aboutDialogOpen, setAboutDialogOpen] = useState(false);
   const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
 
   // Dynamic changelog
@@ -357,6 +358,8 @@ export default function SettingsPage() {
             <div className="mx-4">
               <AboutSection
                 isSignedIn={!!user}
+                appVersion={appVersion}
+                onOpenAbout={() => setAboutDialogOpen(true)}
                 onTakeTour={async () => {
                   haptics.light();
                   if (user) {
@@ -520,6 +523,25 @@ export default function SettingsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* About Dialog */}
+      <Dialog open={aboutDialogOpen} onOpenChange={setAboutDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>About WiseResume</DialogTitle>
+            <DialogDescription>App information</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Version</span>
+              <span className="font-medium">{appVersion}</span>
+            </div>
+            <p className="text-muted-foreground text-xs leading-relaxed pt-2">
+              WiseResume helps you build, polish, and track your resume and job applications with the help of AI.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Changelog Dialog */}
       <Dialog open={changelogOpen} onOpenChange={setChangelogOpen}>
