@@ -25,7 +25,7 @@ interface Props {
 }
 
 export function ActivityInsightsCard({ stats }: Props) {
-  const { applications } = useJobApplications();
+  const { data: applications = [] } = useJobApplications();
   const shouldReduceMotion = useReducedMotion();
   const { user } = useAuth();
   const { data: streakData } = useActivityStreak();
