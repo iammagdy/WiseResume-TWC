@@ -265,6 +265,7 @@ function PublicPortfolioContent() {
   const sectionOrder = profile.sectionOrder || undefined;
   const scrollEffect = (profile.scrollEffect as 'fade' | 'parallax' | 'tilt-3d' | 'cinematic') || 'fade';
   const videoIntroUrl = profile.videoIntroUrl || null;
+  const primaryLang = profile.portfolioPrimaryLanguage || 'English';
   const secondaryLang = profile.portfolioSecondaryLanguage || '';
   const hasTranslation = secondaryLang && profile.portfolioTranslations && !!profile.portfolioTranslations[secondaryLang];
 
@@ -359,7 +360,9 @@ function PublicPortfolioContent() {
               }}
             >
               <Languages className="w-3.5 h-3.5" />
-              {activeLanguage ? `Viewing in ${secondaryLang} · Switch back` : `View in ${secondaryLang}`}
+              {activeLanguage
+                ? `${secondaryLang} · Switch to ${primaryLang}`
+                : `${primaryLang} · Switch to ${secondaryLang}`}
             </button>
           </motion.div>
         )}

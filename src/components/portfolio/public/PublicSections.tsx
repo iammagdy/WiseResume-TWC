@@ -213,7 +213,20 @@ export const PublicSections = ({
 
   const validExperience = resume.experience?.filter(e => e.position && e.company) || [];
   const validEducation = resume.education?.filter(e => e.institution && e.degree) || [];
-  const testimonials = profile.testimonials?.filter(t => t.quote && t.authorName) || [];
+
+  // Resolve active translation for all sections
+  const activeTrans = (activeLanguage && profile.portfolioTranslations?.[activeLanguage]) || null;
+  const testimonials = (profile.testimonials?.filter(t => t.quote && t.authorName) || []).map(t => {
+    const translatedQuote = activeTrans?.testimonials?.find((tr: { id: string; quote: string }) => tr.id === t.id)?.quote;
+    return translatedQuote ? { ...t, quote: translatedQuote } : t;
+  });
+  const activeServices = activeTrans?.services
+    ? profile.services?.map(s => {
+        const ts = activeTrans.services!.find((tr: { id: string; title: string; description?: string }) => tr.id === s.id);
+        return ts ? { ...s, title: ts.title || s.title, description: ts.description ?? s.description } : s;
+      }) ?? profile.services
+    : profile.services;
+  const activeHighlights = activeTrans?.highlights ?? highlights;
 
   const sections = profile.portfolioSections;
   const show = (key: string) => !sections || (sections as unknown as Record<string, boolean>)[key] !== false;
@@ -338,7 +351,8 @@ export const PublicSections = ({
         const githubUsername = profile.githubUrl
           ? profile.githubUrl.replace(/^https?:\/\/(www\.)?github\.com\//i, '').replace(/\/.*$/, '').replace(/[^a-zA-Z0-9-]/g, '')
           : null;
-        return hasGithubProjects ? (
+        const showGithubSection = show('githubProjects') && (hasGithubProjects || !!githubUsername);
+        return showGithubSection ? (
           <SectionWrapper key="githubProjects" id="section-github" scrollEffect={scrollEffect} pStyle={pStyle} index={nextIndex()}>
             <SectionHeader icon={<Github className="w-5 h-5" />} title="GitHub Projects" style={pStyle} />
             {githubUsername && (
@@ -353,7 +367,9 @@ export const PublicSections = ({
                 />
               </div>
             )}
-            <GitHubProjectsSection projects={profile.githubProjectsCache} accentColor={accentColor} style={pStyle} />
+            {hasGithubProjects && (
+              <GitHubProjectsSection projects={profile.githubProjectsCache} accentColor={accentColor} style={pStyle} />
+            )}
           </SectionWrapper>
         ) : null;
       }
@@ -363,7 +379,7 @@ export const PublicSections = ({
           <SectionWrapper key="services" id="section-services" scrollEffect={scrollEffect} pStyle={pStyle} index={nextIndex()}>
             <SectionHeader icon={<Wrench className="w-5 h-5" />} title="Services" style={pStyle} />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {profile.services.map((s) => (
+              {(activeServices || profile.services).map((s) => (
                 <ServiceCard key={s.id} service={s} style={pStyle} />
               ))}
             </div>
@@ -666,9 +682,9 @@ export const PublicSections = ({
             <h3 className="text-lg font-black mb-2" style={{ color: 'var(--pf-fg, #f5f5ff)', fontFamily: 'var(--pf-heading-font)' }}>
               {profile.pinnedProject.title}
             </h3>
-            {profile.pinnedProject.description && (
+            {(activeTrans?.pinnedProjectDescription || profile.pinnedProject.description) && (
               <p className="text-sm leading-relaxed mb-3" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
-                {profile.pinnedProject.description}
+                {activeTrans?.pinnedProjectDescription || profile.pinnedProject.description}
               </p>
             )}
             {profile.pinnedProject.url && (
@@ -688,8 +704,8 @@ export const PublicSections = ({
 
       <StatsStrip experience={resume.experience} skillCount={allSkills.length} accentColor={accentColor} />
 
-      {highlights.length > 0 && (
-        <HighlightsStrip highlights={highlights} accentColor={accentColor} />
+      {activeHighlights.length > 0 && (
+        <HighlightsStrip highlights={activeHighlights} accentColor={accentColor} />
       )}
 
       <SectionNav sections={navSections} accentColor={accentColor} pStyle={pStyle} />

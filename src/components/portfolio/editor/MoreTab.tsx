@@ -39,6 +39,8 @@ export interface MoreTabProps {
   openSections: Set<string>;
   toggleSection: (id: string) => void;
   // Multilingual
+  portfolioPrimaryLanguage: string;
+  onPortfolioPrimaryLanguageChange: (val: string) => void;
   portfolioSecondaryLanguage: string;
   onPortfolioSecondaryLanguageChange: (val: string) => void;
   onTranslate: () => void;
@@ -61,6 +63,7 @@ export function MoreTab(props: MoreTabProps) {
     contactEmail, onContactEmailChange,
     twitterUrl, onTwitterUrlChange, websiteUrl, onWebsiteUrlChange,
     openSections, toggleSection,
+    portfolioPrimaryLanguage, onPortfolioPrimaryLanguageChange,
     portfolioSecondaryLanguage, onPortfolioSecondaryLanguageChange,
     onTranslate, translating,
   } = props;
@@ -202,31 +205,58 @@ export function MoreTab(props: MoreTabProps) {
         openSections={openSections}
         toggleSection={toggleSection}
       >
-        <p className="text-[11px] text-muted-foreground mb-3">Add a secondary language — visitors can toggle between your default language and a translated version of your bio and summary.</p>
-        <div className="space-y-2">
-          <label className="text-xs font-medium text-foreground">Secondary Language</label>
-          <select
-            value={portfolioSecondaryLanguage}
-            onChange={e => onPortfolioSecondaryLanguageChange(e.target.value)}
-            className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            <option value="">None (monolingual)</option>
-            <option value="Arabic">Arabic (العربية)</option>
-            <option value="Chinese">Chinese (中文)</option>
-            <option value="Dutch">Dutch (Nederlands)</option>
-            <option value="French">French (Français)</option>
-            <option value="German">German (Deutsch)</option>
-            <option value="Hindi">Hindi (हिन्दी)</option>
-            <option value="Italian">Italian (Italiano)</option>
-            <option value="Japanese">Japanese (日本語)</option>
-            <option value="Korean">Korean (한국어)</option>
-            <option value="Polish">Polish (Polski)</option>
-            <option value="Portuguese">Portuguese (Português)</option>
-            <option value="Russian">Russian (Русский)</option>
-            <option value="Spanish">Spanish (Español)</option>
-            <option value="Turkish">Turkish (Türkçe)</option>
-            <option value="Ukrainian">Ukrainian (Українська)</option>
-          </select>
+        <p className="text-[11px] text-muted-foreground mb-3">Add a second language so visitors can toggle all your portfolio content into a translated version. AI automatically re-translates on every save.</p>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground">Primary Language</label>
+            <select
+              value={portfolioPrimaryLanguage}
+              onChange={e => onPortfolioPrimaryLanguageChange(e.target.value)}
+              className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="English">English</option>
+              <option value="Arabic">Arabic (العربية)</option>
+              <option value="Chinese">Chinese (中文)</option>
+              <option value="Dutch">Dutch (Nederlands)</option>
+              <option value="French">French (Français)</option>
+              <option value="German">German (Deutsch)</option>
+              <option value="Hindi">Hindi (हिन्दी)</option>
+              <option value="Italian">Italian (Italiano)</option>
+              <option value="Japanese">Japanese (日本語)</option>
+              <option value="Korean">Korean (한국어)</option>
+              <option value="Polish">Polish (Polski)</option>
+              <option value="Portuguese">Portuguese (Português)</option>
+              <option value="Russian">Russian (Русский)</option>
+              <option value="Spanish">Spanish (Español)</option>
+              <option value="Turkish">Turkish (Türkçe)</option>
+              <option value="Ukrainian">Ukrainian (Українська)</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground">Secondary Language</label>
+            <select
+              value={portfolioSecondaryLanguage}
+              onChange={e => onPortfolioSecondaryLanguageChange(e.target.value)}
+              className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="">None (monolingual)</option>
+              <option value="Arabic">Arabic (العربية)</option>
+              <option value="Chinese">Chinese (中文)</option>
+              <option value="Dutch">Dutch (Nederlands)</option>
+              <option value="French">French (Français)</option>
+              <option value="German">German (Deutsch)</option>
+              <option value="Hindi">Hindi (हिन्दी)</option>
+              <option value="Italian">Italian (Italiano)</option>
+              <option value="Japanese">Japanese (日本語)</option>
+              <option value="Korean">Korean (한국어)</option>
+              <option value="Polish">Polish (Polski)</option>
+              <option value="Portuguese">Portuguese (Português)</option>
+              <option value="Russian">Russian (Русский)</option>
+              <option value="Spanish">Spanish (Español)</option>
+              <option value="Turkish">Turkish (Türkçe)</option>
+              <option value="Ukrainian">Ukrainian (Українська)</option>
+            </select>
+          </div>
           {portfolioSecondaryLanguage && (
             <Button
               variant="outline"
@@ -236,10 +266,10 @@ export function MoreTab(props: MoreTabProps) {
               disabled={translating}
             >
               {translating ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1.5" />}
-              {translating ? 'Translating...' : `AI Translate to ${portfolioSecondaryLanguage}`}
+              {translating ? 'Translating...' : `Re-translate to ${portfolioSecondaryLanguage}`}
             </Button>
           )}
-          <p className="text-[11px] text-muted-foreground">Click translate to generate a {portfolioSecondaryLanguage || 'secondary language'} version of your bio and portfolio summary using AI. Save to publish.</p>
+          <p className="text-[11px] text-muted-foreground">Translations cover bio, summary, highlights, services, testimonials, and your featured project description. Re-translate anytime after editing content.</p>
         </div>
       </CollapsibleCard>
 

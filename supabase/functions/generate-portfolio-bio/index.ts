@@ -124,7 +124,15 @@ Example:
     // ── Action: translate ──────────────────────────────────────────────────
     // Handled before the resume-data gate — translation only needs bio/portfolioSummary.
     if (action === 'translate') {
-      const { targetLanguage, bio: bioText, portfolioSummary: summaryText } = body;
+      const {
+        targetLanguage,
+        bio: bioText,
+        portfolioSummary: summaryText,
+        highlights: rawHighlights,
+        services: rawServices,
+        testimonials: rawTestimonials,
+        pinnedProjectDescription: rawPinnedDesc,
+      } = body;
 
       if (!targetLanguage) {
         return new Response(
@@ -132,9 +140,11 @@ Example:
           { status: 400, headers: corsHeaders }
         );
       }
-      if (!bioText && !summaryText) {
+
+      const hasAnyContent = bioText || summaryText || rawHighlights?.length || rawServices?.length || rawTestimonials?.length || rawPinnedDesc;
+      if (!hasAnyContent) {
         return new Response(
-          JSON.stringify({ error: 'Provide a bio or portfolio summary to translate.' }),
+          JSON.stringify({ error: 'Provide at least one piece of portfolio content to translate.' }),
           { status: 400, headers: corsHeaders }
         );
       }
@@ -149,26 +159,59 @@ Example:
 
       const safeBio = sanitizeInputText(bioText || '', 1000);
       const safeSummary = sanitizeInputText(summaryText || '', 500);
+      const safePinnedDesc = sanitizeInputText(rawPinnedDesc || '', 500);
 
-      const prompt = `You are a professional translator. Translate the following portfolio content into ${targetLanguage}. Keep the professional tone, natural phrasing, and any formatting. Return a valid JSON object with keys "bio" and "portfolioSummary" for the respective translated sections. Only include keys where the original content was non-empty. Do not add commentary or explanation.
+      // Build a structured input for the AI
+      type HighlightItem = { id: string; value: string; label: string };
+      type ServiceItem = { id: string; title: string; description?: string };
+      type TestimonialItem = { id: string; quote: string };
 
-Original bio:
-${safeBio || '(not provided)'}
+      const inputObj: Record<string, unknown> = {};
+      if (safeBio) inputObj.bio = safeBio;
+      if (safeSummary) inputObj.portfolioSummary = safeSummary;
+      if (safePinnedDesc) inputObj.pinnedProjectDescription = safePinnedDesc;
+      if (Array.isArray(rawHighlights) && rawHighlights.length > 0) {
+        inputObj.highlights = rawHighlights.slice(0, 10).map((h: HighlightItem) => ({
+          id: h.id,
+          value: sanitizeInputText(h.value || '', 200),
+          label: sanitizeInputText(h.label || '', 100),
+        }));
+      }
+      if (Array.isArray(rawServices) && rawServices.length > 0) {
+        inputObj.services = rawServices.slice(0, 10).map((s: ServiceItem) => ({
+          id: s.id,
+          title: sanitizeInputText(s.title || '', 200),
+          description: sanitizeInputText(s.description || '', 500),
+        }));
+      }
+      if (Array.isArray(rawTestimonials) && rawTestimonials.length > 0) {
+        inputObj.testimonials = rawTestimonials.slice(0, 10).map((t: TestimonialItem) => ({
+          id: t.id,
+          quote: sanitizeInputText(t.quote || '', 500),
+        }));
+      }
 
-Original portfolio summary:
-${safeSummary || '(not provided)'}
+      const prompt = `You are a professional translator. Translate ALL text content in the following JSON into ${targetLanguage}. Rules:
+- Preserve the exact JSON structure and all keys (including "id" fields which must NOT be translated)
+- Keep professional tone and natural phrasing
+- Only translate values that are human-readable text (skip empty strings)
+- Do NOT add commentary, explanation, or wrapper objects
+- Return ONLY valid JSON matching the exact structure provided
 
-Return ONLY valid JSON, for example: {"bio":"...","portfolioSummary":"..."}`;
+Input JSON:
+${JSON.stringify(inputObj, null, 2)}
+
+Return ONLY the translated JSON object:`;
 
       const response = await callAI({
         model: 'google/gemini-2.5-flash',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
-        maxTokens: 2000,
+        maxTokens: 4000,
         userId,
       });
 
-      let translations: Record<string, string> = {};
+      let translations: Record<string, unknown> = {};
       try {
         const rawText = response.content?.trim() || '{}';
         const jsonMatch = rawText.match(/\{[\s\S]*\}/);

@@ -57,8 +57,16 @@ export interface PublicProfile {
   seoNoindex: boolean;
   videoIntroUrl: string | null;
   portfolioCertifications: Array<{ id: string; name: string; issuer: string; date: string; credentialUrl: string; badgeUrl: string }>;
+  portfolioPrimaryLanguage: string | null;
   portfolioSecondaryLanguage: string | null;
-  portfolioTranslations: Record<string, { bio?: string; portfolioSummary?: string }> | null;
+  portfolioTranslations: Record<string, {
+    bio?: string;
+    portfolioSummary?: string;
+    pinnedProjectDescription?: string;
+    highlights?: Array<{ id: string; value: string; label: string }>;
+    services?: Array<{ id: string; title: string; description?: string }>;
+    testimonials?: Array<{ id: string; quote: string }>;
+  }> | null;
 }
 
 export interface PublicResume {
@@ -142,8 +150,9 @@ async function fetchPublicPortfolio(username: string): Promise<PublicPortfolioDa
       seoNoindex: (profile.seoNoindex as boolean) || false,
       videoIntroUrl: (extras.videoIntroUrl as string) || null,
       portfolioCertifications: safeArray(extras.portfolioCertifications),
+      portfolioPrimaryLanguage: (extras.portfolioPrimaryLanguage as string) || 'English',
       portfolioSecondaryLanguage: (extras.portfolioSecondaryLanguage as string) || null,
-      portfolioTranslations: (extras.portfolioTranslations as Record<string, { bio?: string; portfolioSummary?: string }>) || null,
+      portfolioTranslations: (extras.portfolioTranslations as PublicProfile['portfolioTranslations']) || null,
     },
     resume: {
       id: (resume.id as string) || '',
