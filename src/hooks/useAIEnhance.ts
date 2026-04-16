@@ -94,7 +94,15 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
           });
 
         let token = await getSupabaseToken();
-        if (!token) throw new Error('401 Unauthorized – no session');
+        if (!token) {
+          // Surface as a structured AIError so useAIAction maps it to the
+          // canonical "Session expired" toast (same as a real 401 response).
+          throw new AIError({
+            code: 'unauthorized',
+            status: 401,
+            message: 'No active Supabase session',
+          });
+        }
 
         let res = await doFetch(token);
 

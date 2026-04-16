@@ -218,7 +218,7 @@ export function DevKitRunner() {
       }),
     },
     {
-      id: 'ai-engine-groq', label: 'Engine · Groq (Llama 3.3)', description: 'Directly test WiseResume managed Groq endpoint — admin only', section: 'ai',
+      id: 'ai-engine-groq', label: 'Engine · Groq (Qwen 3 32B)', description: 'Directly test WiseResume managed Groq endpoint (qwen/qwen3-32b) — admin only', section: 'ai',
       run: () => strictInvoke('ai-engine-groq', async () => {
         const res = await edgeFunctions.functions.invoke('ai-test', { body: { wiseresumeSubProvider: 'groq', adminPassword } });
         if (res.error) throw new Error((res.error as any).message || 'ai-test error');
