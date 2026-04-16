@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback } from 'react';
 import ReactCrop, { type Crop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
-import { Sparkles, Loader2, RefreshCw, Check, X } from 'lucide-react';
+import { Sparkles, RefreshCw, Check, X } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import {
   Sheet,
   SheetContent,
@@ -289,7 +290,7 @@ export function AvatarCropSheet({
               </>
             ) : (
               <div className="flex items-center justify-center h-40">
-                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                <MiniSpinner size={32} />
               </div>
             )}
           </div>

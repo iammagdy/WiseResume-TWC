@@ -1,5 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
 import { Sparkles, Clock, TrendingUp, ChevronDown, ChevronUp, Lightbulb, AlertCircle } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import ReactMarkdown from 'react-markdown';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -27,7 +28,7 @@ export default function InterviewReportPage() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+          <MiniSpinner size={32} />
           <p className="text-sm text-muted-foreground">Loading report…</p>
         </div>
       </div>

@@ -12,6 +12,7 @@ import {
   Layout,
   Download,
 } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import {
   Sheet,
   SheetContent,
@@ -250,7 +251,7 @@ export function OnePageWizardSheet({ open, onOpenChange, onExportOnePage }: OneP
                 <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
                   <Scissors className="w-10 h-10 text-primary" />
                 </div>
-                <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
+                <MiniSpinner size={32} className="mb-4" />
                 <h3 className="text-lg font-semibold mb-2">Analyzing your resume...</h3>
                 <p className="text-sm text-muted-foreground max-w-xs">
                   Finding the best ways to condense without losing impact

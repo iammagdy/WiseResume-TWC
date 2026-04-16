@@ -3,7 +3,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { BarChart3, ChevronRight, Loader2 } from 'lucide-react';
+import { BarChart3, ChevronRight } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { cn } from '@/lib/utils';
 import { SectionId } from '@/types/resume';
 import haptics from '@/lib/haptics';
@@ -55,7 +56,7 @@ export const ATSScanSheet = memo(function ATSScanSheet({
         <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-safe">
           {isLoading && !summary && (
             <div className="flex flex-col items-center justify-center py-12 space-y-3">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <MiniSpinner size={32} />
               <p className="text-sm text-muted-foreground">Scanning your resume...</p>
               <div className="w-full space-y-3 animate-pulse">
                 <div className="h-16 rounded-xl bg-muted" />

@@ -11,6 +11,7 @@ import {
   RotateCcw,
   Info,
 } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import {
   Sheet,
   SheetContent,
@@ -485,7 +486,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
                 <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
                   <Shield className="w-10 h-10 text-primary" />
                 </div>
-                <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
+                <MiniSpinner size={32} className="mb-4" />
                 <h3 className="text-lg font-semibold mb-2">Analyzing your text...</h3>
                 <p className="text-sm text-muted-foreground max-w-xs">
                   Checking for AI patterns and common detection triggers

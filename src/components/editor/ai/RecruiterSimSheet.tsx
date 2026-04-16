@@ -15,6 +15,7 @@ import {
   Wand2,
   RotateCcw,
 } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import {
   Sheet,
   SheetContent,
@@ -341,7 +342,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
                 <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center text-4xl mb-6">
                   {selectedPersona.emoji}
                 </div>
-                <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
+                <MiniSpinner size={32} className="mb-4" />
                 <h3 className="text-lg font-semibold mb-2">
                   {selectedPersona.name} is reviewing your resume...
                 </h3>

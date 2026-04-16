@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Sparkles, Loader2, Check, X, AlertTriangle, Briefcase } from 'lucide-react';
+import { Sparkles, Check, X, AlertTriangle, Briefcase } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { useAIEnhance } from '@/hooks/useAIEnhance';
@@ -120,7 +121,7 @@ export function BoostAllExperienceSheet({ open, onOpenChange }: BoostAllExperien
           {/* Loading */}
           {isEnhancing && (
             <div className="flex flex-col items-center justify-center py-12 gap-4">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <MiniSpinner size={32} />
               <p className="text-sm text-muted-foreground">Analyzing {experience.length} role{experience.length !== 1 ? 's' : ''}…</p>
             </div>
           )}

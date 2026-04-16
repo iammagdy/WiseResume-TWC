@@ -9,11 +9,11 @@ import {
   CheckCircle2,
   AlertTriangle,
   Clock,
-  Loader2,
   Briefcase,
   GraduationCap,
   BarChart3,
 } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import {
   Sheet,
   SheetContent,
@@ -298,7 +298,7 @@ export function CareerPathSheet({ open, onOpenChange }: CareerPathSheetProps) {
 
           {isLoading && (
             <div className="flex flex-col items-center justify-center py-16">
-              <Loader2 className="w-10 h-10 text-primary animate-spin mb-4" />
+              <MiniSpinner size={40} className="mb-4" />
               <p className="text-sm font-medium">Analyzing your career trajectory...</p>
               <p className="text-xs text-muted-foreground mt-1">This takes about 10 seconds</p>
             </div>

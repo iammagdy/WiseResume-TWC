@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Loader2, AlertCircle, CheckCircle2, Building2, Zap } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 
 const COMPANY_SIZES = [
   { value: '1-10', label: '1–10 employees' },
@@ -164,7 +165,7 @@ export default function WiseHireEarlyAccessPage() {
       return (
         <Shell>
           <div className="flex flex-col items-center gap-4 py-8">
-            <Loader2 className="h-10 w-10 text-blue-600 animate-spin" />
+            <MiniSpinner size={36} />
             <p className="text-sm text-slate-500">Setting up your WiseHire account…</p>
           </div>
         </Shell>
@@ -185,7 +186,7 @@ export default function WiseHireEarlyAccessPage() {
     return (
       <Shell>
         <div className="flex flex-col items-center gap-4 py-8">
-          <Loader2 className="h-10 w-10 text-blue-600 animate-spin" />
+          <MiniSpinner size={36} />
           <p className="text-sm text-slate-500">Verifying your early access code…</p>
         </div>
       </Shell>

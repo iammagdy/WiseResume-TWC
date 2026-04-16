@@ -281,11 +281,11 @@ function AppRoutes() {
 
   const isAdminRoute = location.pathname.startsWith('/devkit');
 
-  if (!settingsHydrated && !isPublicStandalone && !isAdminRoute) {
-    return <PageLoadingSpinner />;
-  }
   if (!hasSeenSplash && !isPublicStandalone && !isAdminRoute) {
     return <AnimatedSplash onComplete={() => setHasSeenSplash(true)} />;
+  }
+  if (!settingsHydrated && !isPublicStandalone && !isAdminRoute) {
+    return <PageLoadingSpinner />;
   }
 
   if (isSuspended && !isPublicStandalone) {
