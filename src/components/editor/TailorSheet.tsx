@@ -382,16 +382,21 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
       console.error('Tailor error:', error);
       const err = error as TailorError;
       const code = err.code || 'generic';
-      if (err.message?.includes('Unauthorized') || err.message?.includes('log in')) {
-        toast.error(err.message);
+      // Coerce to a safe string FIRST — some callers surface an error whose
+      // `.message` is a non-string (e.g. a parsed JSON object). Running
+      // `.includes()` on that would throw TypeError and mask the real issue
+      // behind an unhandled exception, which is how the `[object Object]`
+      // bug slipped through before.
+      const rawMsg = err?.message;
+      const safeMsg =
+        typeof rawMsg === 'string' && rawMsg.length > 0
+          ? rawMsg
+          : typeof err === 'string'
+            ? err
+            : 'Failed to tailor resume';
+      if (safeMsg.includes('Unauthorized') || safeMsg.includes('log in')) {
+        toast.error(safeMsg);
       } else {
-        const rawMsg = err?.message;
-        const safeMsg =
-          typeof rawMsg === 'string' && rawMsg.length > 0
-            ? rawMsg
-            : typeof err === 'string'
-              ? err
-              : 'Failed to tailor resume';
         setTailorError({ message: safeMsg, code });
       }
     } finally {
