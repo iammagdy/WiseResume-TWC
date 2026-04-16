@@ -447,6 +447,17 @@ let _openrouterModelCache: string[] | null = null;
 let _openrouterCacheKey: string | null = null;
 
 /**
+ * Invalidate the cached OpenRouter model list. Call when an attempt fails with
+ * 404 / "model not found" / "deprecated", because the cached slug list itself
+ * is the source of staleness — the next request will refetch from /models.
+ */
+export function invalidateOpenRouterModelCache(): void {
+  console.warn('[AI] invalidating OpenRouter model cache (stale slug detected)');
+  _openrouterModelCache = null;
+  _openrouterCacheKey = null;
+}
+
+/**
  * Fetches and ranks free models from OpenRouter.
  * Returns a list of model slugs ordered by context window (desc), then parameter count (desc).
  * Results are cached for the lifetime of the edge function cold-start.
@@ -527,6 +538,17 @@ async function getOpenRouterFreeModels(apiKey: string): Promise<string[]> {
  */
 let _groqModelCache: string[] | null = null;
 let _groqCacheKey: string | null = null;
+
+/**
+ * Invalidate the cached Groq model list. Same reasoning as
+ * `invalidateOpenRouterModelCache`: a 404 / decommissioned-model error means
+ * our cached snapshot of /models is stale and must be refetched.
+ */
+export function invalidateGroqModelCache(): void {
+  console.warn('[AI] invalidating Groq model cache (stale slug detected)');
+  _groqModelCache = null;
+  _groqCacheKey = null;
+}
 
 /**
  * Known-good Groq chat-completion models ranked by capability (largest/best first).
@@ -1330,6 +1352,20 @@ export async function callWiseresumeAI(
       else if (isAIError(err)) outcome = `${err.type}${err.status ? ' ' + err.status : ''}`;
       else if (err instanceof Error) outcome = err.message.slice(0, 80);
       attemptLog.push({ provider, model, outcome, ms: elapsed });
+
+      // Self-heal the managed model cache: a 404 or "model not found /
+      // decommissioned / deprecated" error means our cached snapshot of the
+      // provider's /models list is stale (e.g. OpenRouter pulled a free model
+      // overnight). Drop the cache so the next request refetches the live list
+      // instead of marching through the same dead slug for the rest of the
+      // process lifetime.
+      const isModelGone =
+        (isAIError(err) && err.status === 404) ||
+        /model.{0,20}(not found|decommissioned|deprecated|removed|unavailable)|no such model|invalid_model/i.test(reason);
+      if (isModelGone) {
+        if (provider === 'openrouter') invalidateOpenRouterModelCache();
+        else if (provider === 'groq') invalidateGroqModelCache();
+      }
 
       // If the outer signal was aborted (user-level cancel), propagate immediately.
       if (outerSignal?.aborted) {

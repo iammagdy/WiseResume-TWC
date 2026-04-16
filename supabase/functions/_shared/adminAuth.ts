@@ -1,22 +1,21 @@
 /**
  * Shared admin authentication middleware for edge functions.
  *
- * Auth is handled in two paths:
+ * Auth is exclusively via the DevKit session token issued by verify-dev-kit
+ * after successful password login. The token is HMAC-SHA-256 signed with
+ * DEV_KIT_PASSWORD and expires after 8h. The token encodes the admin's email,
+ * so the caller is identified WITHOUT calling supabase.auth.getUser(). This
+ * means the admin does NOT need to be signed in to the main Supabase app for
+ * the DevKit to function.
  *
- * PRIMARY (session token path — no Supabase session required):
- *   The DevKit session token is issued by verify-dev-kit after successful password
- *   login. It is HMAC-SHA-256 signed with DEV_KIT_PASSWORD and expires after 8h.
- *   The token encodes the admin's email, so the caller is identified WITHOUT calling
- *   supabase.auth.getUser(). This means the admin does NOT need to be signed in to
- *   the main Supabase app for the DevKit to function.
- *
- * FALLBACK (raw password / legacy):
- *   If no valid session token is provided, the function falls back to verifying a
- *   Supabase Bearer JWT (to identify the caller's email) and comparing the raw
- *   DEV_KIT_PASSWORD directly. This path requires an active Supabase session.
+ * The legacy "Bearer Supabase JWT + raw DEV_KIT_PASSWORD" fallback was removed
+ * (Task #10 hardening): it required an active Supabase session in addition to
+ * the DevKit password, opened a wider attack surface (any compromised Supabase
+ * JWT for an admin email + the password could call admin endpoints), and was
+ * a redundant code path now that DevKitSessionProvider always issues the
+ * session token before invoking admin functions.
  */
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders } from './cors.ts';
 
 async function verifySessionToken(token: string, secretKey: string): Promise<string | null> {
@@ -46,45 +45,14 @@ async function verifySessionToken(token: string, secretKey: string): Promise<str
 }
 
 /**
- * Compares two strings in constant time using HMAC-SHA-256 to prevent timing attacks.
- * Both strings are signed with the same random key; the resulting MACs are compared,
- * which leaks no information about where the values first differ.
- */
-async function constantTimeEqual(a: string, b: string): Promise<boolean> {
-  const enc = new TextEncoder();
-  const keyMaterial = crypto.getRandomValues(new Uint8Array(32));
-  const key = await crypto.subtle.importKey(
-    'raw', keyMaterial, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
-  );
-  const [macA, macB] = await Promise.all([
-    crypto.subtle.sign('HMAC', key, enc.encode(a)),
-    crypto.subtle.sign('HMAC', key, enc.encode(b)),
-  ]);
-  const viewA = new Uint8Array(macA);
-  const viewB = new Uint8Array(macB);
-  if (viewA.length !== viewB.length) return false;
-  let diff = 0;
-  for (let i = 0; i < viewA.length; i++) {
-    diff |= viewA[i] ^ viewB[i];
-  }
-  return diff === 0;
-}
-
-/**
  * Verifies admin identity for an incoming edge function request.
  *
- * PRIMARY PATH (session token):
- *   Verifies the HMAC-signed session token, extracts the embedded email, and checks
- *   it against ADMIN_EMAILS. No Supabase user lookup is needed — the token is the
- *   sole source of truth for identity and authentication.
- *
- * FALLBACK PATH (raw password):
- *   If the session token is absent or invalid, falls back to verifying the caller's
- *   Supabase JWT + comparing the raw DEV_KIT_PASSWORD. This requires an active
- *   Supabase session and is kept for backward compatibility only.
+ * Verifies the HMAC-signed session token, extracts the embedded email, and
+ * checks it against ADMIN_EMAILS. No Supabase user lookup is needed — the
+ * token is the sole source of truth for identity and authentication.
  *
  * @param req         The incoming edge function request.
- * @param password    Either a session token (primary) or the raw admin password (legacy).
+ * @param password    The DevKit session token issued by verify-dev-kit.
  * @param corsHeaders Optional pre-computed CORS headers to use in error responses.
  *                    When omitted, headers are derived from the request Origin.
  * @returns The verified caller email on success.
@@ -130,59 +98,22 @@ export async function requireAdminAuth(
     );
   }
 
-  // ── PRIMARY PATH: Session token (self-contained, no Supabase session required) ──
+  // Verify the HMAC-signed session token. This is the only accepted credential.
   const tokenEmail = await verifySessionToken(password, SECRET_PASSWORD);
-  if (tokenEmail !== null) {
-    const normalised = tokenEmail.toLowerCase();
-    if (!allowed.includes(normalised)) {
-      throw new Response(
-        JSON.stringify({ success: false, error: 'Forbidden: email not in admin allowlist' }),
-        { status: 403, headers: { ...headers, 'Content-Type': 'application/json' } }
-      );
-    }
-    return normalised;
-  }
-
-  // ── FALLBACK PATH: Raw password + Supabase Bearer JWT ──
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
+  if (tokenEmail === null) {
     throw new Response(
       JSON.stringify({ success: false, error: 'Unauthorized' }),
       { status: 401, headers: { ...headers, 'Content-Type': 'application/json' } }
     );
   }
 
-  const bearerToken = authHeader.replace('Bearer ', '');
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-    { global: { headers: { Authorization: `Bearer ${bearerToken}` } } }
-  );
-
-  const { data: { user } } = await supabase.auth.getUser();
-  const callerEmail = user?.email?.toLowerCase() ?? null;
-
-  if (!callerEmail) {
-    throw new Response(
-      JSON.stringify({ success: false, error: 'Unauthorized' }),
-      { status: 401, headers: { ...headers, 'Content-Type': 'application/json' } }
-    );
-  }
-
-  if (!allowed.includes(callerEmail)) {
+  const normalised = tokenEmail.toLowerCase();
+  if (!allowed.includes(normalised)) {
     throw new Response(
       JSON.stringify({ success: false, error: 'Forbidden: email not in admin allowlist' }),
       { status: 403, headers: { ...headers, 'Content-Type': 'application/json' } }
     );
   }
 
-  const passwordMatch = await constantTimeEqual(password, SECRET_PASSWORD);
-  if (!passwordMatch) {
-    throw new Response(
-      JSON.stringify({ success: false, error: 'Unauthorized' }),
-      { status: 401, headers: { ...headers, 'Content-Type': 'application/json' } }
-    );
-  }
-
-  return callerEmail;
+  return normalised;
 }

@@ -66,7 +66,7 @@ serve(async (req) => {
   } catch (err) {
     log.error('Unhandled error', err);
     return new Response(
-      JSON.stringify({ error: 'Something went wrong. Please try again.' }),
+      JSON.stringify({ error: 'internal', message: 'Something went wrong. Please try again.' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

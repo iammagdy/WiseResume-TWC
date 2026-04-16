@@ -243,7 +243,7 @@ export function AppSettingsPanel() {
           {([
             { value: 'auto', label: 'Auto (best available)', description: 'Tries OpenRouter first, falls back to Groq' },
             { value: 'openrouter', label: 'OpenRouter · Gemma 4', description: 'Google Gemma 4 via OpenRouter (free tier)' },
-            { value: 'groq', label: 'Groq · Llama 3.3', description: 'Meta Llama 3.3 70B via Groq (free tier)' },
+            { value: 'groq', label: 'Groq · Qwen 3 32B', description: 'Qwen 3 32B via Groq (free tier — primary Groq model in fallback chain)' },
           ] as const).map((opt) => {
             const current = (settings.wiseresume_ai_engine as string) ?? 'auto';
             const isSelected = current === opt.value;

@@ -8,6 +8,7 @@ import { sanitizeAIContent } from '@/lib/ai/sanitizeContent';
 import { checkAIFallback } from '@/lib/aiFallbackToast';
 import { redactResumeForAI } from '@/lib/piiRedact';
 import { useSettingsStore } from '@/store/settingsStore';
+import { parseAIErrorResponse, parseAIErrorBody, aiErrorToastMessage, AIError } from '@/lib/aiErrorParser';
 
 import { EDGE_FUNCTIONS_URL as CLOUD_URL, EDGE_FUNCTIONS_ANON_KEY as CLOUD_KEY } from '@/lib/supabaseConstants';
 
@@ -112,40 +113,14 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
 
         if (!res.ok) {
           useAIHealthStore.getState().recordFailure(0);
-          const status = res.status;
-          const errBody = await res.json().catch(() => ({} as Record<string, unknown>));
-          const errCode = typeof errBody.error === 'string' ? errBody.error : '';
-          const errMsg = typeof errBody.message === 'string' ? errBody.message : '';
-
-          if (status === 401 || status === 403) {
-            throw new Error('401 Unauthorized – no session');
-          } else if (status === 429 || errCode === 'rate_limit') {
-            throw new Error('rate_limit');
-          } else if (status === 402 || errCode === 'payment_required') {
-            throw new Error('payment_required');
-          } else if (errCode === 'invalid_key') {
-            throw new Error(errMsg || 'invalid_key');
-          } else if (errCode === 'quota_exceeded') {
-            throw new Error(errMsg || 'quota_exceeded');
-          } else if (errCode === 'enhancement_failed') {
-            throw new Error('enhancement_failed');
-          } else {
-            throw new Error(errMsg || 'server_error');
-          }
+          const info = await parseAIErrorResponse(res);
+          throw new AIError(info);
         }
 
         const respData = await res.json();
 
         if (respData.error) {
-          if (respData.error === 'rate_limit') {
-            throw new Error('rate_limit');
-          } else if (respData.error === 'payment_required') {
-            throw new Error('payment_required');
-          } else if (respData.error === 'invalid_key') {
-            throw new Error('invalid_key');
-          } else {
-            throw new Error(respData.message || respData.error || 'server_error');
-          }
+          throw new AIError(parseAIErrorBody(respData, 200));
         }
 
         useAIHealthStore.getState().recordSuccess(_latency);
@@ -173,30 +148,19 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
       toast.dismiss(loadingToastId);
       toast.dismiss('ai-slow-warning');
       console.error('AI enhancement error:', error);
-      const errMsg = error instanceof Error ? error.message : '';
-      const is401 = errMsg.includes('401') || errMsg.toLowerCase().includes('unauthorized') || errMsg.toLowerCase().includes('jwt expired');
       if (!navigator.onLine) {
-        toast.warning("You're offline — AI features need an internet connection. Your resume content is safe.");
-      } else if (is401) {
-        toast.error('Session expired — please sign in again to use AI features.');
+        toast.warning(aiErrorToastMessage({ code: 'offline', message: '', status: 0 }));
+      } else if (error instanceof AIError) {
+        const msg = aiErrorToastMessage({ code: error.code, message: error.message, status: error.status });
+        if (error.code === 'timeout' || error.code === 'offline') {
+          toast.warning(msg);
+        } else {
+          toast.error(msg);
+        }
       } else if (isTimeoutError(error)) {
-        toast.warning('The AI request timed out. Please try again.');
-      } else if (errMsg === 'rate_limit') {
-        toast.error('Too many requests — please wait a moment and try again.');
-      } else if (errMsg === 'payment_required') {
-        toast.error('AI credits exhausted. Please check your account.');
-      } else if (/not configured|please contact support/i.test(errMsg)) {
-        toast.error('WiseResume AI is not configured — go to Settings → AI Provider to add your API key.');
-      } else if (/quota.*exceed|daily.*quota/i.test(errMsg)) {
-        toast.error('AI daily quota exceeded. Try again tomorrow or add your own API key in Settings.');
-      } else if (/invalid.?key/i.test(errMsg) || errMsg === 'invalid_key') {
-        toast.error('Invalid API key — please check your AI settings.');
-      } else if (errMsg === 'enhancement_failed' || /enhancement.?failed|failed to enhance/i.test(errMsg)) {
-        toast.error('Failed to enhance content — please try again.');
-      } else if (/something went wrong/i.test(errMsg)) {
-        toast.error('AI request failed — check your AI settings or try again later.');
+        toast.warning(aiErrorToastMessage({ code: 'timeout', message: '', status: 0 }));
       } else {
-        toast.error('AI is temporarily unavailable — please try again in a moment.');
+        toast.error(aiErrorToastMessage({ code: 'internal', message: '', status: 0 }));
       }
       return null;
     } finally {

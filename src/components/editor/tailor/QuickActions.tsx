@@ -6,6 +6,7 @@ import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { useAIAction } from '@/hooks/useAIAction';
 import { showErrorToast } from '@/lib/errorToast';
 import { toast } from 'sonner';
+import { parseAIErrorResponse, parseAIErrorBody, aiErrorToastMessage, AIError } from '@/lib/aiErrorParser';
 import { ResumeData, SuperTailorResult } from '@/types/resume';
 
 import { EDGE_FUNCTIONS_URL as CLOUD_URL, EDGE_FUNCTIONS_ANON_KEY as CLOUD_KEY } from '@/lib/supabaseConstants';
@@ -85,33 +86,11 @@ Return JSON: { "recommendedOrder": ["section1", "section2", ...], "reasoning": "
         });
 
         if (!res.ok) {
-          const errBody = await res.json().catch(() => ({} as Record<string, unknown>));
-          const status = res.status;
-          const errDetail = (errBody?.message || errBody?.error || '') as string;
-          if (status === 401 || status === 403) {
-            throw new Error('Session expired — please sign in again to use AI features.');
-          } else if (status === 429) {
-            throw new Error('Too many requests — please wait a moment and try again.');
-          } else if (/invalid.?key|Invalid API key/i.test(errDetail)) {
-            throw new Error('Invalid API key — please check your AI settings.');
-          } else if (/not configured|please contact support/i.test(errDetail)) {
-            throw new Error('WiseResume AI is not configured — go to Settings → AI Provider to add your API key.');
-          } else if (/something went wrong/i.test(errDetail)) {
-            throw new Error('AI request failed — check your AI settings or try again later.');
-          } else {
-            throw new Error(errDetail || 'AI is temporarily unavailable — please try again in a moment.');
-          }
+          throw new AIError(await parseAIErrorResponse(res));
         }
         const data = await res.json();
         if (data?.error) {
-          if (data.error === 'rate_limit') throw new Error('Too many requests — please wait a moment and try again.');
-          if (data.error === 'payment_required') throw new Error('AI credits exhausted. Please check your account.');
-          if (data.error === 'invalid_key') throw new Error('Invalid API key — please check your AI settings.');
-          const detail = (data.message || data.error || '') as string;
-          if (/invalid.?key|Invalid API key/i.test(detail)) throw new Error('Invalid API key — please check your AI settings.');
-          if (/not configured|please contact support/i.test(detail)) throw new Error('WiseResume AI is not configured — go to Settings → AI Provider to add your API key.');
-          if (/something went wrong/i.test(detail)) throw new Error('AI request failed — check your AI settings or try again later.');
-          throw new Error(detail || 'AI is temporarily unavailable — please try again in a moment.');
+          throw new AIError(parseAIErrorBody(data, 200));
         }
         return data;
       });
@@ -141,8 +120,12 @@ Return JSON: { "recommendedOrder": ["section1", "section2", ...], "reasoning": "
       setCompleted(prev => [...prev, actionId]);
     } catch (err) {
       console.error('Quick action error:', err);
-      const msg = err instanceof Error ? err.message : 'Action failed. Please try again.';
-      showErrorToast(msg, err);
+      if (err instanceof AIError) {
+        toast.error(aiErrorToastMessage({ code: err.code, message: err.message, status: err.status }));
+      } else {
+        const msg = err instanceof Error ? err.message : 'Action failed. Please try again.';
+        showErrorToast(msg, err);
+      }
     } finally {
       setLoading(null);
     }

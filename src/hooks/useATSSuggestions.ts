@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { ResumeData, SectionId } from '@/types/resume';
 import { getSupabaseToken } from '@/lib/supabaseAuth';
 import { showErrorToast } from '@/lib/errorToast';
+import { parseAIErrorResponse, aiErrorToastMessage, AIError } from '@/lib/aiErrorParser';
 import { hasPassiveVerbs, hasMetrics, hasLongBullets, findPassiveStarter } from '@/lib/contentAnalysis';
 import { useAICreditsMutations } from './useAICredits';
 
@@ -296,32 +297,9 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
       }
 
       if (!res.ok) {
-        const errBody = await res.json().catch(() => ({} as Record<string, unknown>));
-        console.error(`[useATSSuggestions] Edge Function ${res.status} error:`, errBody);
-        const status = res.status;
-        const errCode = typeof errBody.error === 'string' ? errBody.error : '';
-        const errMsg = typeof errBody.message === 'string' ? errBody.message : '';
-        if (status === 401 || status === 403) {
-          throw new Error('Session expired — please sign in again to use AI features.');
-        } else if (status === 429 || errCode === 'rate_limit') {
-          throw new Error('Too many requests — please wait a moment and try again.');
-        } else if (status === 402 || errCode === 'payment_required') {
-          throw new Error('AI credits exhausted. Please check your account.');
-        } else if (errCode === 'invalid_key') {
-          throw new Error(errMsg || 'Invalid API key — please check your AI settings.');
-        } else if (errCode === 'quota_exceeded') {
-          throw new Error(errMsg || 'AI quota exceeded. Try again tomorrow or add your own API key in Settings.');
-        } else if (errCode === 'enhancement_failed') {
-          throw new Error('Failed to enhance content — please try again.');
-        } else if (/invalid.?key|Invalid API key/i.test(errMsg || errCode)) {
-          throw new Error(errMsg || 'Invalid API key — please check your AI settings.');
-        } else if (/not configured|please contact support/i.test(errMsg || errCode)) {
-          throw new Error(errMsg || 'WiseResume AI is not configured — go to Settings → AI Provider to add your API key.');
-        } else if (/something went wrong/i.test(errMsg || errCode)) {
-          throw new Error('AI request failed — check your AI settings or try again later.');
-        } else {
-          throw new Error(errMsg || errCode || 'AI is temporarily unavailable — please try again in a moment.');
-        }
+        const info = await parseAIErrorResponse(res);
+        console.error(`[useATSSuggestions] Edge Function ${res.status} error:`, info);
+        throw new AIError(info);
       }
       const data = await res.json();
       console.log(`[useATSSuggestions] Deep analysis for ${section} completed in ${Date.now() - startTime}ms`);
@@ -354,17 +332,18 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
       incrementUsage.mutate();
     } catch (err) {
       console.error('Deep ATS analysis failed:', err);
-      const msg = err instanceof Error ? err.message : 'Deep analysis failed';
-      const isNotConfigured = /not configured|please contact support|invalid api key|check your ai settings/i.test(msg);
-      if (isNotConfigured) {
-        toast.error(msg, {
-          duration: 8000,
-          action: {
-            label: 'Open Settings',
-            onClick: () => navigate('/settings'),
-          },
-        });
+      if (err instanceof AIError) {
+        const msg = aiErrorToastMessage({ code: err.code, message: err.message, status: err.status });
+        if (err.code === 'not_configured' || err.code === 'invalid_key') {
+          toast.error(msg, {
+            duration: 8000,
+            action: { label: 'Open Settings', onClick: () => navigate('/settings') },
+          });
+        } else {
+          toast.error(msg);
+        }
       } else {
+        const msg = err instanceof Error ? err.message : 'Deep analysis failed';
         showErrorToast(msg, err);
       }
     } finally {

@@ -42,6 +42,7 @@ export function DevKitSessionProvider({ children }: { children: React.ReactNode 
   const lockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lockAtRef = useRef<number | null>(null);
+  const deferredCleanupRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearTimers = useCallback(() => {
     if (lockTimeoutRef.current) {
@@ -114,11 +115,25 @@ export function DevKitSessionProvider({ children }: { children: React.ReactNode 
     };
   }, [isUnlocked, resetInactivityTimer]);
 
+  // Unmount cleanup: clear the DevKit token and timers — but defer briefly so
+  // that React strict-mode's synthetic mount→unmount→remount cycle does not
+  // nuke a freshly-issued token. On real teardown the deferred timer fires;
+  // on strict-mode remount the next effect run cancels it before it fires.
+  // This was the root cause of the DevKit token desync (Task #10): the prior
+  // synchronous `setDevKitToken(null)` cleanup wiped the token on first mount
+  // in dev while React state still reported `isUnlocked=true`.
   useEffect(() => {
+    if (deferredCleanupRef.current) {
+      clearTimeout(deferredCleanupRef.current);
+      deferredCleanupRef.current = null;
+    }
     return () => {
-      setDevKitToken(null);
-      notifyLockListeners();
-      clearTimers();
+      deferredCleanupRef.current = setTimeout(() => {
+        setDevKitToken(null);
+        notifyLockListeners();
+        clearTimers();
+        deferredCleanupRef.current = null;
+      }, 100);
     };
   }, [clearTimers]);
 

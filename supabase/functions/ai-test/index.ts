@@ -306,7 +306,8 @@ serve(async (req) => {
     const latencyMs = Date.now() - startTime;
     return new Response(JSON.stringify({
       success: false,
-      error: err instanceof Error ? err.message : 'Unknown error',
+      error: 'internal',
+      message: err instanceof Error ? err.message : 'Unknown error',
       latencyMs,
     }), {
       status: 500,

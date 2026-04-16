@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './useAuth';
 import { hasAcceptedAIPrivacy } from '@/components/ai/AIPrivacyDisclosure';
 import { useAIPrivacyDisclosure } from '@/components/ai/AIPrivacyDisclosureProvider';
+import { AIError, aiErrorToastMessage } from '@/lib/aiErrorParser';
 
 interface UseAIActionOptions {
   /** The operation type key from AI_COST_MAP (e.g. 'enhance', 'tailor') */
@@ -159,6 +160,27 @@ export function useAIAction({ operation }: UseAIActionOptions) {
       try {
         result = await action();
       } catch (err: unknown) {
+        // Prefer the structured AIError path (Task #10): when callers throw
+        // a typed AIError, drive the toast off the structured `code` rather
+        // than re-running the legacy regex sniffer. This guarantees a single,
+        // consistent mapping from edge-function error codes to user toasts.
+        if (err instanceof AIError) {
+          const structuredMsg = aiErrorToastMessage({
+            code: err.code,
+            message: err.message,
+            status: err.status,
+          });
+          if (err.code === 'not_configured' || err.code === 'invalid_key') {
+            toast.error(structuredMsg, {
+              duration: 8000,
+              action: { label: 'Open Settings', onClick: () => navigate('/settings') },
+            });
+          } else {
+            toast.error(structuredMsg);
+          }
+          return null;
+        }
+
         const msg = parseErrorMessage(err);
         const rawMsg = err instanceof Error ? err.message : String(err ?? '');
         const isNotConfigured = /not configured|please contact support/i.test(rawMsg);

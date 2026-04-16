@@ -31,6 +31,23 @@ export function trackGeminiUsage(): void {
 }
 
 /**
+ * Wraps an async AI call so the Gemini free-tier counter is incremented exactly
+ * once on success. Prefer this helper over calling `trackGeminiUsage()` manually
+ * — it eliminates the "forgot the increment after adding a new edge function"
+ * class of bugs and ensures we never double-count on retries inside `fn`.
+ *
+ * Usage:
+ *   const data = await withGeminiUsage(() => callMyEdgeFunction(...));
+ *
+ * The counter is only bumped when `fn` resolves; thrown errors do not count.
+ */
+export async function withGeminiUsage<T>(fn: () => Promise<T>): Promise<T> {
+  const result = await fn();
+  trackGeminiUsage();
+  return result;
+}
+
+/**
  * Gets provider info for display purposes
  */
 export function getAIProviderInfo(): {
