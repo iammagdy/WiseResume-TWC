@@ -4,7 +4,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 
 function getProviderDisplayName(provider: string): string {
   switch (provider) {
-    case 'wiseresume': return 'Wise AI (OpenRouter / Groq)';
+    case 'wiseresume': return 'Wise AI';
     case 'openai': return 'OpenAI';
     case 'anthropic': return 'Anthropic (Claude)';
     case 'gemini': return 'Google Gemini';
