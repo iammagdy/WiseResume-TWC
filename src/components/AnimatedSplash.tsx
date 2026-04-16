@@ -30,9 +30,24 @@ export function AnimatedSplash({ onComplete, ready = true }: AnimatedSplashProps
 
   const brandColor = brand.isWH ? '#1D4ED8' : 'hsl(357,71%,56%)';
 
+  // If the HTML pre-paint splash already showed the static frame,
+  // skip the icon scale-in + letter-stagger entry animation so the
+  // handoff feels continuous (one splash, not two).
+  const skipEntry = typeof document !== 'undefined' &&
+    document.documentElement.dataset.splashPainted === '1';
+
   const dismiss = useCallback(() => {
     setVisible(false);
     haptics.light();
+  }, []);
+
+  // Remove the HTML pre-paint splash once the React splash has mounted.
+  // Using useLayoutEffect so the removal happens before the browser paints
+  // the next frame — the React splash covers the same position with z-[9999],
+  // so the user never sees a gap.
+  useEffect(() => {
+    const el = document.getElementById('pre-react-splash');
+    if (el && el.parentNode) el.parentNode.removeChild(el);
   }, []);
 
   useEffect(() => {
@@ -110,8 +125,8 @@ export function AnimatedSplash({ onComplete, ready = true }: AnimatedSplashProps
           {/* Icon */}
           <motion.div
             className="relative"
-            initial={prefersReduced ? false : { scale: 0.5, opacity: 0 }}
-            animate={prefersReduced ? false : { scale: [0.5, 1.08, 1], opacity: 1 }}
+            initial={prefersReduced || skipEntry ? false : { scale: 0.5, opacity: 0 }}
+            animate={prefersReduced || skipEntry ? false : { scale: [0.5, 1.08, 1], opacity: 1 }}
             transition={{ duration: 0.6, times: [0, 0.7, 1], ease: 'easeOut', delay: 0.05 }}
             style={brand.isWH ? { filter: 'hue-rotate(220deg) saturate(2) brightness(0.85)' } : undefined}
           >
@@ -127,8 +142,8 @@ export function AnimatedSplash({ onComplete, ready = true }: AnimatedSplashProps
             {nameLetters.map((char, i) => (
               <motion.span
                 key={`${char}-${i}`}
-                initial={prefersReduced ? false : { opacity: 0, y: 12 }}
-                animate={prefersReduced ? false : { opacity: 1, y: 0 }}
+                initial={prefersReduced || skipEntry ? false : { opacity: 0, y: 12 }}
+                animate={prefersReduced || skipEntry ? false : { opacity: 1, y: 0 }}
                 transition={{ delay: 0.45 + i * 0.035, duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
                 aria-hidden="true"
               >
@@ -140,8 +155,8 @@ export function AnimatedSplash({ onComplete, ready = true }: AnimatedSplashProps
           {/* Tagline */}
           <motion.p
             className="mt-1.5 text-sm text-muted-foreground"
-            initial={prefersReduced ? false : { opacity: 0, y: 6 }}
-            animate={prefersReduced ? false : { opacity: 1, y: 0 }}
+            initial={prefersReduced || skipEntry ? false : { opacity: 0, y: 6 }}
+            animate={prefersReduced || skipEntry ? false : { opacity: 1, y: 0 }}
             transition={{ delay: 0.75, duration: 0.4, ease: 'easeOut' }}
           >
             {brand.tagline}

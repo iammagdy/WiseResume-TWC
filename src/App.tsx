@@ -58,7 +58,9 @@ import {
 import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
-import { AnimatedSplash } from "@/components/AnimatedSplash";
+const AnimatedSplash = lazyWithRetry(() =>
+  import("@/components/AnimatedSplash").then((m) => ({ default: m.AnimatedSplash }))
+);
 const DevToolsPage = lazyWithRetry(() => import("./pages/DevToolsPage"));
 
 const CommandPalette = lazyWithRetry(() => import("@/components/layout/CommandPalette"));
@@ -69,8 +71,9 @@ const AuroraBackground = lazy(() =>
 );
 import { getSafeMatchMedia, isBrowser } from "@/lib/envUtils";
 
-// Eagerly load Index for LCP
-import Index from "./pages/Index";
+// Landing page is lazy-loaded — the HTML pre-paint splash covers first paint
+// so there's no need for Index to be in the entry chunk.
+const Index = lazyWithRetry(() => import("./pages/Index"));
 
 // Kinde SPA configuration.
 // These MUST be set as shared Replit env vars (VITE_KINDE_CLIENT_ID and
@@ -315,12 +318,39 @@ function AppRoutes() {
 
   const isAdminRoute = location.pathname.startsWith('/devkit');
 
+  // Guaranteed cleanup for the pre-React HTML splash on code paths where
+  // AnimatedSplash never mounts (custom domain, public route, admin route,
+  // or past the splash gate). AnimatedSplash removes the node itself when
+  // it mounts; this effect covers everything else.
+  useEffect(() => {
+    const shouldRemove =
+      !!customDomainHostname || isPublicStandalone || isAdminRoute || hasSeenSplash;
+    if (!shouldRemove) return;
+    const el = document.getElementById('pre-react-splash');
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+  }, [customDomainHostname, isPublicStandalone, isAdminRoute, hasSeenSplash]);
+
+  // Fail-safe: if AnimatedSplash fails to load (e.g. chunk error) or some
+  // unexpected edge keeps the pre-paint splash around, remove it after 3s
+  // so it can never permanently block the UI.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const el = document.getElementById('pre-react-splash');
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+    }, 3000);
+    return () => clearTimeout(t);
+  }, []);
+
   if (customDomainHostname) {
     return <CustomDomainPortfolioWrapper hostname={customDomainHostname} />;
   }
 
   if (!hasSeenSplash && !isPublicStandalone && !isAdminRoute) {
-    return <AnimatedSplash onComplete={() => setHasSeenSplash(true)} ready={settingsHydrated} />;
+    return (
+      <Suspense fallback={null}>
+        <AnimatedSplash onComplete={() => setHasSeenSplash(true)} ready={settingsHydrated} />
+      </Suspense>
+    );
   }
 
   if (isSuspended && !isPublicStandalone) {
@@ -349,8 +379,8 @@ function AppRoutes() {
         )}
         <Routes>
           {/* Public routes */}
-          <Route path="/" element={<Index />} />
-          <Route path="/enterprises" element={<Index />} />
+          <Route path="/" element={<Suspense fallback={null}><Index /></Suspense>} />
+          <Route path="/enterprises" element={<Suspense fallback={null}><Index /></Suspense>} />
            <Route element={<AppShell />}>
                <Route path="/auth" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />
                <Route path="/sign-in" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />

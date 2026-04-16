@@ -98,6 +98,68 @@
     })();
   </script>
 
+  <!-- Pre-React splash style: painted on first frame, before the JS bundle parses. -->
+  <style>
+    #pre-react-splash {
+      position: fixed;
+      inset: 0;
+      z-index: 9998;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: var(--prs-bg, #ffffff);
+      color: var(--prs-fg, #0a0a0a);
+      font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    html[data-initial-theme="dark"] #pre-react-splash { --prs-bg: #111111; --prs-fg: #fafafa; }
+    #pre-react-splash .prs-glow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 320px;
+      height: 320px;
+      transform: translate(-50%, -50%);
+      border-radius: 9999px;
+      pointer-events: none;
+      background: radial-gradient(circle, var(--prs-brand, hsl(357,71%,56%)) 0%, transparent 70%);
+      opacity: 0.1;
+      animation: prs-breathe 2.4s ease-in-out infinite;
+    }
+    #pre-react-splash .prs-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 16px;
+      object-fit: contain;
+      position: relative;
+    }
+    #pre-react-splash[data-brand="wisehire"] .prs-icon {
+      filter: hue-rotate(220deg) saturate(2) brightness(0.85);
+    }
+    #pre-react-splash .prs-name {
+      margin: 20px 0 0 0;
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      line-height: 1;
+    }
+    #pre-react-splash[data-brand="wisehire"] .prs-name { color: #1D4ED8; }
+    #pre-react-splash .prs-tagline {
+      margin: 6px 0 0 0;
+      font-size: 0.875rem;
+      opacity: 0.65;
+    }
+    html[data-initial-theme="dark"] #pre-react-splash .prs-tagline { opacity: 0.7; }
+    @keyframes prs-breathe {
+      0%, 100% { opacity: 0.06; }
+      50% { opacity: 0.14; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #pre-react-splash .prs-glow { animation: none; opacity: 0.08; }
+    }
+  </style>
+
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
   <meta property="og:image" content="/favicon.png">
@@ -116,6 +178,38 @@
 
 <body style="margin:0;">
   <div id="root"></div>
+  <!-- Pre-React splash: visible on first paint, removed by React once the splash component mounts. -->
+  <div id="pre-react-splash" aria-hidden="true">
+    <div class="prs-glow"></div>
+    <img class="prs-icon" src="/favicon.png" alt="" />
+    <h1 class="prs-name"></h1>
+    <p class="prs-tagline"></p>
+  </div>
+  <script>
+    (function () {
+      try {
+        var path = window.location.pathname;
+        // Skip pre-React splash on routes where the React tree doesn't show the splash either.
+        var isPublic = path.indexOf('/p/') === 0 || path.indexOf('/share/') === 0 ||
+          path.indexOf('/l/') === 0 || path.indexOf('/auth/callback') === 0;
+        var isAdmin = path.indexOf('/devkit') === 0;
+        var el = document.getElementById('pre-react-splash');
+        if (!el) return;
+        if (isPublic || isAdmin) { el.parentNode.removeChild(el); return; }
+        var isWH = path === '/enterprises' ||
+          new URLSearchParams(window.location.search).get('for') === 'companies';
+        var brand = isWH
+          ? { name: 'WiseHire', tagline: 'Hire Smarter. Screen Faster.', color: '#1D4ED8' }
+          : { name: 'WiseResume', tagline: 'Your AI Career Partner', color: 'hsl(357,71%,56%)' };
+        el.setAttribute('data-brand', isWH ? 'wisehire' : 'wiseresume');
+        el.style.setProperty('--prs-brand', brand.color);
+        el.querySelector('.prs-name').textContent = brand.name;
+        el.querySelector('.prs-tagline').textContent = brand.tagline;
+        // Flag so the React splash can skip its entry animation and continue seamlessly.
+        document.documentElement.dataset.splashPainted = '1';
+      } catch (e) { }
+    })();
+  </script>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 
