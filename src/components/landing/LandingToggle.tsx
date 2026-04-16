@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 
 interface LandingToggleProps {
   mode: 'jobseeker' | 'wisehire';
-  onModeChange: (mode: 'jobseeker' | 'wisehire') => void;
+  onModeChange: (mode: 'jobseeker' | 'wisehire', origin: { x: number; y: number }) => void;
   prefersReducedMotion: boolean | null;
 }
 
@@ -24,18 +24,22 @@ export function LandingToggle({ mode, onModeChange, prefersReducedMotion }: Land
     setBurstKey((k) => k + 1);
   };
 
-  const handleJobSeeker = () => {
+  const handleJobSeeker = (e: React.MouseEvent<HTMLButtonElement>) => {
     if (mode !== 'jobseeker') fireBurst('jobseeker');
-    onModeChange('jobseeker');
+    const rect = e.currentTarget.getBoundingClientRect();
+    const origin = { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) };
+    onModeChange('jobseeker', origin);
     const url = new URL(window.location.href);
     url.searchParams.delete('for');
     window.history.pushState({}, '', url.toString());
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
-  const handleCompanies = () => {
+  const handleCompanies = (e: React.MouseEvent<HTMLButtonElement>) => {
     if (mode !== 'wisehire') fireBurst('wisehire');
-    onModeChange('wisehire');
+    const rect = e.currentTarget.getBoundingClientRect();
+    const origin = { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) };
+    onModeChange('wisehire', origin);
     const url = new URL(window.location.href);
     url.searchParams.set('for', 'companies');
     window.history.pushState({}, '', url.toString());
@@ -71,7 +75,7 @@ export function LandingToggle({ mode, onModeChange, prefersReducedMotion }: Land
           overflow: 'hidden',
         }}
       >
-        {/* Ignition burst — springs to clicked button then expands and fades */}
+        {/* Ignition burst — radiates from the clicked button on each mode switch */}
         {!prefersReducedMotion && burstKey > 0 && (
           <motion.div
             key={burstKey}

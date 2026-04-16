@@ -380,7 +380,7 @@ function LandingModeTransition({ waveKey, origin, waveColor }: LandingModeTransi
         }}
         initial={{ opacity: 0, scale: 0.82 }}
         animate={{ opacity: [0, 1, 0.65, 0], scale: [0.82, 1.04, 1.1, 1.15] }}
-        transition={{ duration: 0.75, times: [0, 0.18, 0.5, 1], ease: 'easeOut' }}
+        transition={{ duration: 0.9, times: [0, 0.33, 0.65, 1], ease: 'easeOut' }}
       />
     </AnimatePresence>
   );
@@ -415,9 +415,8 @@ const Index = () => {
   );
   const [waitlistOpen, setWaitlistOpen] = useState(false);
   const [waveKey, setWaveKey] = useState(0);
-  const [waveColor, setWaveColor] = useState('rgba(29,78,216,0.32)');
+  const [waveColor, setWaveColor] = useState('rgba(29,78,216,0.15)');
   const [waveOrigin, setWaveOrigin] = useState({ x: 640, y: 21 });
-  const toggleRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
     setLpProduct(mode);
@@ -846,28 +845,22 @@ const Index = () => {
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         {/* Product toggle strip — always visible, sits above the nav row */}
-        <div ref={toggleRef}>
-          <LandingToggle
-            mode={mode}
-            prefersReducedMotion={prefersReducedMotion}
-            onModeChange={(m) => {
-              if (m === mode) return;
-              triggerHaptic.light();
-              if (!prefersReducedMotion && toggleRef.current) {
-                const rect = toggleRef.current.getBoundingClientRect();
-                setWaveOrigin({
-                  x: Math.round(rect.left + rect.width / 2),
-                  y: Math.round(rect.top + rect.height / 2),
-                });
-                setWaveColor(m === 'wisehire' ? 'rgba(37,99,235,0.32)' : 'rgba(185,28,28,0.32)');
-                setWaveKey((k) => k + 1);
-                setTimeout(() => { flushSync(() => setMode(m)); }, 110);
-              } else {
-                setMode(m);
-              }
-            }}
-          />
-        </div>
+        <LandingToggle
+          mode={mode}
+          prefersReducedMotion={prefersReducedMotion}
+          onModeChange={(m, btnOrigin) => {
+            if (m === mode) return;
+            triggerHaptic.light();
+            if (!prefersReducedMotion) {
+              setWaveOrigin(btnOrigin);
+              setWaveColor(m === 'wisehire' ? 'rgba(37,99,235,0.15)' : 'rgba(185,28,28,0.15)');
+              setWaveKey((k) => k + 1);
+              setTimeout(() => { flushSync(() => setMode(m)); }, 300);
+            } else {
+              setMode(m);
+            }
+          }}
+        />
 
         <div className="flex items-center justify-between px-4 sm:px-6 h-14 max-w-6xl mx-auto">
           <button
