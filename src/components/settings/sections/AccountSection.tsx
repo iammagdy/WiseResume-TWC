@@ -41,7 +41,7 @@ export const AccountSection = memo(function AccountSection({
         : authProvider === 'github' ? 'GitHub'
         : authProvider === 'apple' ? 'Apple'
         : authProvider === 'email' ? 'email'
-        : 'identity provider';
+        : 'sign-in';
     const navigate = useNavigate();
     const { data: resumes = [] } = useResumes();
     const { data: coverLetters = [] } = useCoverLetters();
@@ -112,7 +112,7 @@ export const AccountSection = memo(function AccountSection({
                 />
                 <Separator className="ml-[52px] bg-border/30" />
                 <p className="px-4 py-2.5 text-xs text-muted-foreground">
-                    Sign-in & password are managed by your {providerLabel} account.
+                    Sign-in & password are managed by your {providerLabel} provider.
                 </p>
             </div>
         </div>
