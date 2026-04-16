@@ -91,7 +91,7 @@ export function LandingHeader({
           {/* Nav links */}
           {mode === 'wisehire' ? (
             <button
-              className="hidden sm:block text-sm font-medium px-3 py-1.5 rounded-lg transition-all duration-200"
+              className="hidden sm:flex items-center text-sm font-medium px-3 h-11 rounded-lg transition-all duration-200"
               style={{ color: 'var(--lp-text-muted)', background: 'transparent' }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--lp-text)'; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--lp-text-muted)'; }}
@@ -105,7 +105,7 @@ export function LandingHeader({
           ) : (
             <Link
               to="/pricing"
-              className="hidden sm:block text-sm font-medium px-3 py-1.5 rounded-lg transition-all duration-200"
+              className="hidden sm:flex items-center text-sm font-medium px-3 h-11 rounded-lg transition-all duration-200"
               style={{ color: 'var(--lp-text-muted)', background: 'transparent' }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text)'; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text-muted)'; }}
@@ -116,7 +116,7 @@ export function LandingHeader({
           {mode === 'jobseeker' && (
             <Link
               to="/whats-new"
-              className="hidden sm:block text-sm font-medium px-3 py-1.5 rounded-lg transition-all duration-200"
+              className="hidden sm:flex items-center text-sm font-medium px-3 h-11 rounded-lg transition-all duration-200"
               style={{ color: 'var(--lp-text-muted)', background: 'transparent' }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text)'; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text-muted)'; }}
@@ -212,7 +212,7 @@ export function LandingHeader({
                   toast.error('Unable to sign in. Please try again or contact support.');
                 });
               }}
-              className="text-sm font-medium px-4 py-1.5 rounded-lg transition-all duration-200 whitespace-nowrap shrink-0"
+              className="text-sm font-medium px-4 h-11 rounded-lg transition-all duration-200 whitespace-nowrap shrink-0"
               style={{
                 color: 'var(--lp-signin-color)',
                 background: 'var(--lp-signin-bg)',
@@ -224,7 +224,7 @@ export function LandingHeader({
           ) : (
             <button
               onClick={onOpenWaitlist}
-              className="text-sm font-semibold px-4 py-1.5 rounded-lg transition-all duration-200 whitespace-nowrap shrink-0"
+              className="text-sm font-semibold px-4 h-11 rounded-lg transition-all duration-200 whitespace-nowrap shrink-0"
               style={{
                 color: '#fff',
                 background: '#1D4ED8',
