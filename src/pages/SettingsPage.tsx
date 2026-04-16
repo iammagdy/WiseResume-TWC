@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react';
+import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { getAppUrl } from '@/lib/portfolioUrl';
 
 import { useNavigate } from 'react-router-dom';
@@ -153,6 +154,27 @@ export default function SettingsPage() {
 
   const appVersion = changelogData[0]?.version || 'v2.0.0';
 
+  const { getClaim } = useKindeAuth();
+  const [authProvider, setAuthProvider] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const claim = await getClaim?.('identity_provider');
+        const value = (claim?.value ?? '') as string;
+        if (cancelled || !value) return;
+        const v = value.toLowerCase();
+        if (v.includes('google')) setAuthProvider('google');
+        else if (v.includes('github')) setAuthProvider('github');
+        else if (v.includes('apple')) setAuthProvider('apple');
+        else if (v.includes('email') || v.includes('password')) setAuthProvider('email');
+      } catch {
+        // ignore — neutral copy will be shown
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [getClaim]);
+
   // --- Handlers ---
   const handleBiometricToggle = useCallback(async (enabled: boolean) => {
     if (enabled) {
@@ -279,7 +301,7 @@ export default function SettingsPage() {
             <div>
               <SectionLabel>Account</SectionLabel>
               <div className="mx-4 space-y-3">
-                <AccountSection authProvider="email" />
+                <AccountSection authProvider={authProvider} />
                 <UserIdCard userId={user.id} />
               </div>
             </div>
