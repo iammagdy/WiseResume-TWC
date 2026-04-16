@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { haptics } from '@/lib/haptics';
@@ -8,10 +8,9 @@ interface AnimatedSplashProps {
   ready?: boolean;
 }
 
-const MIN_DURATION = 600;
+const MIN_DURATION = 800;
 const EXIT_DURATION_MS = 300;
-// Hard cap on total visible time including the exit fade.
-const MAX_TOTAL_DURATION = 1500;
+const MAX_TOTAL_DURATION = 1200;
 const MAX_VISIBLE_BEFORE_EXIT = MAX_TOTAL_DURATION - EXIT_DURATION_MS;
 
 function getInitialBrand() {
@@ -29,14 +28,6 @@ export function AnimatedSplash({ onComplete, ready = true }: AnimatedSplashProps
   const prefersReduced = useReducedMotion();
   const brand = getInitialBrand();
 
-  // If the HTML splash already played its entry animation (1.15s),
-  // skip the React entry and just show the final state + fade out.
-  const skipEntry = useMemo(() => {
-    if (prefersReduced) return true;
-    if (typeof window === 'undefined' || typeof performance === 'undefined') return false;
-    return performance.now() > 1150;
-  }, [prefersReduced]);
-
   const brandColor = brand.isWH ? '#1D4ED8' : 'hsl(357,71%,56%)';
 
   const dismiss = useCallback(() => {
@@ -44,19 +35,16 @@ export function AnimatedSplash({ onComplete, ready = true }: AnimatedSplashProps
     haptics.light();
   }, []);
 
-  // Minimum display time
   useEffect(() => {
     const t = setTimeout(() => setMinTimePassed(true), MIN_DURATION);
     return () => clearTimeout(t);
   }, []);
 
-  // Hard cap — total visible time (including exit fade) must not exceed MAX_TOTAL_DURATION
   useEffect(() => {
     const t = setTimeout(() => setVisible(false), MAX_VISIBLE_BEFORE_EXIT);
     return () => clearTimeout(t);
   }, []);
 
-  // Normal dismissal: both minimum time elapsed AND app is ready
   useEffect(() => {
     if (minTimePassed && ready && visible) {
       dismiss();
@@ -85,7 +73,7 @@ export function AnimatedSplash({ onComplete, ready = true }: AnimatedSplashProps
           tabIndex={0}
           aria-label="Tap to skip"
         >
-          {/* Breathing glow — persistent */}
+          {/* Breathing glow */}
           <motion.div
             className="absolute top-1/2 left-1/2 rounded-full pointer-events-none"
             style={{
@@ -101,8 +89,8 @@ export function AnimatedSplash({ onComplete, ready = true }: AnimatedSplashProps
             aria-hidden="true"
           />
 
-          {/* Shockwave ring — only on entry */}
-          {!skipEntry && (
+          {/* Shockwave ring */}
+          {!prefersReduced && (
             <motion.div
               className="absolute top-1/2 left-1/2 rounded-full pointer-events-none border-2"
               style={{
@@ -122,15 +110,15 @@ export function AnimatedSplash({ onComplete, ready = true }: AnimatedSplashProps
           {/* Icon */}
           <motion.div
             className="relative"
-            initial={skipEntry ? false : { scale: 0.5, opacity: 0 }}
-            animate={skipEntry ? false : { scale: [0.5, 1.08, 1], opacity: 1 }}
+            initial={prefersReduced ? false : { scale: 0.5, opacity: 0 }}
+            animate={prefersReduced ? false : { scale: [0.5, 1.08, 1], opacity: 1 }}
             transition={{ duration: 0.6, times: [0, 0.7, 1], ease: 'easeOut', delay: 0.05 }}
             style={brand.isWH ? { filter: 'hue-rotate(220deg) saturate(2) brightness(0.85)' } : undefined}
           >
             <AppIcon size={72} />
           </motion.div>
 
-          {/* Brand name — per-letter stagger */}
+          {/* Brand name */}
           <h1
             className="mt-5 text-2xl font-bold tracking-tight flex"
             style={{ color: brand.isWH ? '#1D4ED8' : undefined }}
@@ -139,8 +127,8 @@ export function AnimatedSplash({ onComplete, ready = true }: AnimatedSplashProps
             {nameLetters.map((char, i) => (
               <motion.span
                 key={`${char}-${i}`}
-                initial={skipEntry ? false : { opacity: 0, y: 12 }}
-                animate={skipEntry ? false : { opacity: 1, y: 0 }}
+                initial={prefersReduced ? false : { opacity: 0, y: 12 }}
+                animate={prefersReduced ? false : { opacity: 1, y: 0 }}
                 transition={{ delay: 0.45 + i * 0.035, duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
                 aria-hidden="true"
               >
@@ -152,8 +140,8 @@ export function AnimatedSplash({ onComplete, ready = true }: AnimatedSplashProps
           {/* Tagline */}
           <motion.p
             className="mt-1.5 text-sm text-muted-foreground"
-            initial={skipEntry ? false : { opacity: 0, y: 6 }}
-            animate={skipEntry ? false : { opacity: 1, y: 0 }}
+            initial={prefersReduced ? false : { opacity: 0, y: 6 }}
+            animate={prefersReduced ? false : { opacity: 1, y: 0 }}
             transition={{ delay: 0.75, duration: 0.4, ease: 'easeOut' }}
           >
             {brand.tagline}
