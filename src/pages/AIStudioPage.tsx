@@ -48,7 +48,6 @@ import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
 import { CompanyBriefingSheet } from '@/components/interview/CompanyBriefingSheet';
 import { AICostBadge } from '@/components/ai/AICostBadge';
-import { AIHealthBadge } from '@/components/ai/AIHealthBadge';
 import { Badge } from '@/components/ui/badge';
 import { SalaryNegotiationSheet } from '@/components/ai-studio/SalaryNegotiationSheet';
 import { JobRejectionSheet } from '@/components/ai-studio/JobRejectionSheet';
@@ -386,9 +385,10 @@ export default function AIStudioPage() {
             <Sparkles className="w-5 h-5 text-primary" />
             <h1 className="text-page-title">AI Studio</h1>
           </div>
-          <div className="flex items-center gap-2">
-            <AIHealthBadge />
-          </div>
+          {/* Health badge intentionally omitted here — the global DesktopNav
+              already renders <AIHealthBadge />. Duplicating it caused two
+              independent ping states to drift, so one copy could show "AI
+              Slow" while the other showed "AI Online" on the same page. */}
         </div>
       </header>
 
