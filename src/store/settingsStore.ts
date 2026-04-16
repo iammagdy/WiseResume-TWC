@@ -366,6 +366,7 @@ export const useSettingsStore = create<SettingsState>()(
         // Exclude sensitive keys from localStorage persistence
         // Keys are now stored server-side via manage-api-keys edge function
         // lpProduct is ephemeral session state — never persisted
+        // hasSeenSplash is session-only — splash shows on every cold page load
         const {
           geminiApiKey, elevenlabsApiKey, ollamaApiKey, openrouterApiKey,
           openaiApiKey, anthropicApiKey, groqApiKey, mistralApiKey, xaiApiKey, cohereApiKey,
@@ -376,6 +377,14 @@ export const useSettingsStore = create<SettingsState>()(
           ...rest
         } = state;
         return rest;
+      },
+      // Strip legacy persisted hasSeenSplash so existing users who have
+      // hasSeenSplash: true in localStorage still see the splash on every
+      // fresh page load after this migration.
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.hasSeenSplash = false;
+        }
       },
     }
   )
