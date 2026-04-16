@@ -30,9 +30,7 @@ export function AnimatedSplash({ onComplete, ready = true }: AnimatedSplashProps
 
   const brandColor = brand.isWH ? '#1D4ED8' : 'hsl(357,71%,56%)';
 
-  // If the HTML pre-paint splash already showed the static frame,
-  // skip the icon scale-in + letter-stagger entry animation so the
-  // handoff feels continuous (one splash, not two).
+  // Skip entry animation when the HTML pre-paint splash already showed the static frame.
   const skipEntry = typeof document !== 'undefined' &&
     document.documentElement.getAttribute('data-splash-painted') === '1';
 
@@ -41,11 +39,7 @@ export function AnimatedSplash({ onComplete, ready = true }: AnimatedSplashProps
     haptics.light();
   }, []);
 
-  // Remove the HTML pre-paint splash once the React splash has mounted.
-  // useLayoutEffect runs synchronously after the React splash commits to the
-  // DOM but before the browser paints the next frame — the React splash
-  // covers the same position with z-[9999], so the handoff is truly
-  // same-frame and the user never sees a gap or a double-image.
+  // Remove the HTML pre-paint splash same-frame as the React splash mounts.
   useLayoutEffect(() => {
     const el = document.getElementById('pre-react-splash');
     if (el && el.parentNode) el.parentNode.removeChild(el);

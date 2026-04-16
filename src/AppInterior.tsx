@@ -1,9 +1,3 @@
-// AppInterior: everything below the pre-paint/splash gate. Rendered lazily
-// by App.tsx's SplashGate so that none of the heavy providers/hooks (Kinde,
-// Auth, AIPrivacy, BottomSheet) or side-effect hooks (useDeepLinking,
-// useAIKeyHydration, useSuspensionCheck, useAppSettings, useBiometricLock,
-// useShakeDetect, useAppLifecycle) parse or run until the splash gate
-// resolves. This keeps the entry chunk small and first paint fast.
 import { Suspense, lazy, useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { useDeepLinking } from "./hooks/useDeepLinking";
@@ -294,16 +288,6 @@ function AppRoutes() {
 
   const isAdminRoute = location.pathname.startsWith('/devkit');
 
-  // Belt-and-braces cleanup: if we reached AppInterior, the splash gate has
-  // already removed the HTML pre-paint splash (either AnimatedSplash removed
-  // it via useLayoutEffect, or SplashGate removed it because this route
-  // never shows a splash). This effect is purely defensive against the edge
-  // case where AppInterior mounts without ever having rendered a splash.
-  useEffect(() => {
-    const el = document.getElementById('pre-react-splash');
-    if (el && el.parentNode) el.parentNode.removeChild(el);
-  }, []);
-
   if (customDomainHostname) {
     return <CustomDomainPortfolioWrapper hostname={customDomainHostname} />;
   }
@@ -542,9 +526,6 @@ function AppInstallPrompt() {
   return <InstallPrompt />;
 }
 
-// AppInterior: provider stack + routes. Assumes QueryClientProvider,
-// TooltipProvider, ErrorBoundary, and BrowserRouter are already mounted
-// by App.tsx above the splash gate.
 const AppInterior = () => {
   return (
     <>

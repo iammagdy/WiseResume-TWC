@@ -72,12 +72,8 @@
       if (r) { sessionStorage.removeItem('spa-redirect'); history.replaceState(null, '', r); }
     })();
   </script>
-  <!-- Global Theme + Pre-React Splash Brand Script.
-       Runs in <head> before the body is parsed, so the HTML pre-paint splash
-       is correctly themed and branded on the very first frame. -->
   <script>
     (function () {
-      // --- Theme resolution ---
       var t = 'system';
       try {
         var raw = localStorage.getItem('wiseresume-settings');
@@ -89,18 +85,12 @@
         : t;
       document.documentElement.classList.add(resolved);
       document.documentElement.setAttribute('data-initial-theme', resolved);
-      // Set canvas color immediately so neither <html> nor <body> flash
-      // the wrong background before React renders the splash.
       var bg = resolved === 'dark' ? '#111111' : '#ffffff';
       document.documentElement.style.background = bg;
       var s = document.createElement('style');
       s.textContent = 'body{background:' + bg + '!important;}';
       document.head.appendChild(s);
 
-      // --- Pre-React splash brand decision ---
-      // Must run BEFORE paint so the splash markup in <body> picks the
-      // right brand/theme on the first frame. CSS in <head> below drives
-      // the splash visuals from `data-brand` on <html>.
       try {
         var path = window.location.pathname;
         var isPublic = path.indexOf('/p/') === 0 || path.indexOf('/share/') === 0 ||
@@ -116,11 +106,7 @@
     })();
   </script>
 
-  <!-- Pre-React splash style: painted on first frame, before the JS bundle parses.
-       The head script above sets `data-brand` and `data-splash-painted` on <html>,
-       so this CSS drives both brand and visibility without any JS touching <body>. -->
   <style>
-    /* Only show when the head script has flagged the route as a splash route. */
     html:not([data-splash-painted="1"]) #pre-react-splash { display: none; }
     #pre-react-splash {
       position: fixed;
@@ -169,7 +155,6 @@
       letter-spacing: -0.025em;
       line-height: 1;
     }
-    /* CSS-only brand text — driven entirely by <html>[data-brand], set in <head>. */
     html[data-brand="wiseresume"] #pre-react-splash .prs-name::before { content: "WiseResume"; }
     html[data-brand="wisehire"] #pre-react-splash .prs-name::before { content: "WiseHire"; color: #1D4ED8; }
     #pre-react-splash .prs-tagline {
@@ -207,11 +192,7 @@
 
 <body style="margin:0;">
   <div id="root"></div>
-  <!-- Pre-React splash: painted on first frame. Brand/theme/visibility are all
-       controlled by attributes on <html> set by the inline <head> script above,
-       so no JS touches <body> before paint. React removes this node when the
-       AnimatedSplash component mounts (same-frame via useLayoutEffect), or
-       when the route decision determines no splash will be shown. -->
+  <!-- Pre-React splash: brand/visibility driven by html[data-brand] / data-splash-painted set in <head>. -->
   <div id="pre-react-splash" aria-hidden="true">
     <div class="prs-glow"></div>
     <img class="prs-icon" src="/favicon.png" alt="" />
