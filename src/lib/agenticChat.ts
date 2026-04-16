@@ -8,6 +8,7 @@ export type ChatErrorKind =
   | 'rate_limit_server'
   | 'credits'
   | 'invalid_key'
+  | 'model_error'
   | 'timeout'
   | 'service_unavailable'
   | 'network'
@@ -51,6 +52,7 @@ export function classifyAndThrow(error: unknown, data: unknown): never {
     (error as { context?: { status?: number } } | null)?.context?.status ??
     (error as { status?: number } | null)?.status;
 
+  // 1. Rate limits — handled first since they're recoverable just by waiting
   if (errCode === 'rate_limit' || status === 429 || combined.includes('rate limit')) {
     const fromBody = typeof dataObj.retryAfterSeconds === 'number' ? dataObj.retryAfterSeconds : undefined;
     const m = !fromBody ? message.match(/(\d+)\s*s/) : null;
@@ -59,21 +61,59 @@ export function classifyAndThrow(error: unknown, data: unknown): never {
       status: 429,
     });
   }
-  if (errCode === 'service_unavailable' || status === 503) {
-    throw new ChatError('service_unavailable', message || 'AI service is temporarily unavailable.', { status: 503 });
-  }
-  if (status === 402 || combined.includes('insufficient ai credits') || combined.includes('payment')) {
-    throw new ChatError('credits', message || 'You\'ve used your free AI credits. Add your own key for unlimited chat.', { status: 402 });
-  }
-  if (combined.includes('api key') || combined.includes('invalid_key') || status === 401) {
+
+  // 2. Invalid key — must check BEFORE 402/credits because BYOK key failures
+  // surface as 402 from the edge function but with error: 'invalid_key' in body.
+  // Also catches OpenAI/Anthropic 401 / "Invalid API key" responses.
+  if (
+    errCode === 'invalid_key' ||
+    errCode === 'unauthorized' ||
+    status === 401 ||
+    combined.includes('invalid api key') ||
+    combined.includes('your ai key') ||
+    (combined.includes('api key') && (combined.includes('failed') || combined.includes('check') || combined.includes('invalid')))
+  ) {
     throw new ChatError('invalid_key', message || rawMsg || 'Your AI key isn\'t working. Please re-check it in AI Settings.', { status: status ?? 401 });
   }
-  if (combined.includes('timed out') || combined.includes('timeout') || status === 408) {
-    throw new ChatError('timeout', 'The AI took too long to respond. Try again or switch to a faster model.', { status: 408 });
+
+  // 3. Credits — only matches the explicit 'credits' code or unambiguous credit text
+  if (errCode === 'credits' || errCode === 'payment_required' || combined.includes('insufficient ai credits') || combined.includes('used your free ai credits') || combined.includes('credits exhausted')) {
+    throw new ChatError('credits', message || 'You\'ve used your free AI credits. Add your own key for unlimited chat.', { status: 402 });
   }
-  if (combined.includes('failed to fetch') || combined.includes('network')) {
+
+  // 4. Model selection / unsupported model errors
+  if (
+    errCode === 'model_error' ||
+    combined.includes('model not found') ||
+    combined.includes('no model selected') ||
+    combined.includes('unsupported model') ||
+    combined.includes('invalid model') ||
+    (status === 400 && combined.includes('model'))
+  ) {
+    throw new ChatError('model_error', message || rawMsg || 'The selected AI model isn\'t available. Pick a different model in AI Settings.', { status: status ?? 400 });
+  }
+
+  // 5. Service unavailable
+  if (errCode === 'service_unavailable' || errCode === 'provider_busy' || status === 503) {
+    throw new ChatError('service_unavailable', message || 'AI service is temporarily unavailable.', { status: 503 });
+  }
+
+  // 6. Timeout
+  if (combined.includes('timed out') || combined.includes('timeout') || status === 408) {
+    throw new ChatError('timeout', 'The AI took too long to respond. Try again or switch to a faster model in AI Settings.', { status: 408 });
+  }
+
+  // 7. Network
+  if (errCode === 'network' || combined.includes('failed to fetch') || combined.includes('network')) {
     throw new ChatError('network', 'Network error. Check your connection and try again.');
   }
+
+  // 8. Anything else — fall through to a leftover 402 (defensive in case
+  // a future edge response uses 402 without a typed code).
+  if (status === 402) {
+    throw new ChatError('credits', message || 'Payment required to continue using AI.', { status: 402 });
+  }
+
   throw new ChatError('unknown', message || rawMsg || 'Something went wrong. Please try again.', { status });
 }
 

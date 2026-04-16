@@ -431,7 +431,10 @@ Deno.serve(async (req: Request) => {
     const creditCheck = await checkAndDeductCredit(userId);
     if (!creditCheck.hasCredits) {
       return new Response(
-        JSON.stringify({ error: 'Insufficient AI credits. Add your own Gemini API key for unlimited access.' }),
+        JSON.stringify({
+          error: 'credits',
+          message: 'You\'ve used your free AI credits. Add your own Gemini API key in AI Settings for unlimited access.',
+        }),
         { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

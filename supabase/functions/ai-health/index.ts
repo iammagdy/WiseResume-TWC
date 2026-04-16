@@ -34,7 +34,18 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: corsHeaders });
     }
 
-    // Read user's configured AI provider so we test the right backend
+    // PROVIDER PARITY WITH agentic-chat:
+    // The probe must hit the SAME provider + model that an actual chat
+    // request would route to, otherwise the badge can show 'healthy' while
+    // chat fails (or vice versa). We mirror agentic-chat's resolution order:
+    //   1. user_preferences.ai_provider (BYOK Anthropic / OpenAI-compat)
+    //      → fetch the user's stored key + model from ai_keys and call that
+    //        provider's real endpoint with that exact model.
+    //   2. BYOK Gemini key → google generativelanguage with the same
+    //        gemini-2.5-flash-lite model the chat path uses.
+    //   3. Managed OpenRouter / Groq fallbacks → same managed endpoints.
+    // The model strings hard-coded below intentionally match the defaults
+    // used by callAI() in supabase/functions/_shared/aiClient.ts.
     const { data: prefsData } = await getServiceClient()
       .from('user_preferences')
       .select('ai_provider')

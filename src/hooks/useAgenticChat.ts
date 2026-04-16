@@ -61,6 +61,7 @@ function buildChatErrorInfo(error: unknown): ChatErrorInfo {
       service_unavailable: { title: 'AI temporarily unavailable', retryable: true, showSettings: true },
       credits: { title: 'Out of free credits', retryable: false, showSettings: true },
       invalid_key: { title: 'AI key issue', retryable: true, showSettings: true },
+      model_error: { title: 'Model unavailable', retryable: true, showSettings: true },
       timeout: { title: 'Took too long', retryable: true, showSettings: true },
       network: { title: 'Network problem', retryable: true, showSettings: false },
       unknown: { title: 'Something went wrong', retryable: true, showSettings: false },
