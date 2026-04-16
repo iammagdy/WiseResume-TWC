@@ -100,6 +100,11 @@ export function useEditorAutosave({
       } else if (resumeFromDbRef.current?.updated_at) {
         localLoadedAtRef.current = resumeFromDbRef.current.updated_at as string;
       }
+      // Auto-save success confirmation toast — gated by user preference
+      // (Notifications → Auto-save Toasts: 'always' shows; 'errors-only' suppresses).
+      if (shouldEmitAutoSaveToast('info')) {
+        toast.success('Saved', { duration: 1500 });
+      }
 
       // Throttled background ATS re-score (max once per 60s)
       if (currentResumeId && resume && Date.now() - lastScoreTimeRef.current > 60_000) {
