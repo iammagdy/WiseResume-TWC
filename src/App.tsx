@@ -320,10 +320,7 @@ function AppRoutes() {
   }
 
   if (!hasSeenSplash && !isPublicStandalone && !isAdminRoute) {
-    return <AnimatedSplash onComplete={() => setHasSeenSplash(true)} />;
-  }
-  if (!settingsHydrated && !isPublicStandalone && !isAdminRoute) {
-    return <PageLoadingSpinner />;
+    return <AnimatedSplash onComplete={() => setHasSeenSplash(true)} ready={settingsHydrated} />;
   }
 
   if (isSuspended && !isPublicStandalone) {

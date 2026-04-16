@@ -5,6 +5,7 @@ import { haptics } from '@/lib/haptics';
 
 interface AnimatedSplashProps {
   onComplete: () => void;
+  ready?: boolean;
 }
 
 function getInitialBrand() {
@@ -16,8 +17,9 @@ function getInitialBrand() {
     : { name: 'WiseResume', tagline: 'Your AI Career Partner', isWH: false };
 }
 
-export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
+export function AnimatedSplash({ onComplete, ready = true }: AnimatedSplashProps) {
   const [visible, setVisible] = useState(true);
+  const [minTimePassed, setMinTimePassed] = useState(false);
   const prefersReduced = useReducedMotion();
   const brand = getInitialBrand();
 
@@ -28,9 +30,15 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
   }, [visible]);
 
   useEffect(() => {
-    const timeout = setTimeout(dismiss, prefersReduced ? 500 : 600);
+    const timeout = setTimeout(() => setMinTimePassed(true), prefersReduced ? 500 : 600);
     return () => clearTimeout(timeout);
-  }, [dismiss, prefersReduced]);
+  }, [prefersReduced]);
+
+  useEffect(() => {
+    if (minTimePassed && ready) {
+      dismiss();
+    }
+  }, [minTimePassed, ready, dismiss]);
 
   useEffect(() => {
     if (window.location.pathname === '/editor') {
