@@ -23,6 +23,7 @@ function FeatureNumberedNav({ sectionIds, labels }: { sectionIds: string[]; labe
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   useEffect(() => {
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     const observers: IntersectionObserver[] = [];
     sectionIds.forEach((id, idx) => {
       const el = document.getElementById(`feature-${id}`);
@@ -30,7 +31,11 @@ function FeatureNumberedNav({ sectionIds, labels }: { sectionIds: string[]; labe
       const obs = new IntersectionObserver(
         ([entry]) => {
           if (entry.isIntersecting) {
-            startTransition(() => setActiveIdx(idx));
+            if (debounceTimer !== null) clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+              startTransition(() => setActiveIdx(idx));
+              debounceTimer = null;
+            }, 80);
           }
         },
         { threshold: 0.4 }
@@ -38,7 +43,10 @@ function FeatureNumberedNav({ sectionIds, labels }: { sectionIds: string[]; labe
       obs.observe(el);
       observers.push(obs);
     });
-    return () => observers.forEach((o) => o.disconnect());
+    return () => {
+      if (debounceTimer !== null) clearTimeout(debounceTimer);
+      observers.forEach((o) => o.disconnect());
+    };
   }, [sectionIds]);
 
   useEffect(() => {
