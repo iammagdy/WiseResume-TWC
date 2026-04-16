@@ -110,7 +110,6 @@ Return JSON with this exact structure: {"title":"exact job title","keySkills":["
 
       // Fix #9: Use low temperature for structured JSON output
       const aiResponse = await callAIWithRetry({
-        model: 'google/gemini-2.5-flash',
         messages: [{ role: 'user', content: analyzePrompt }],
         userId,
         maxTokens: 512,
@@ -118,7 +117,6 @@ Return JSON with this exact structure: {"title":"exact job title","keySkills":["
       });
 
       const roleAnalysis = await parseAIJSONWithRetry(aiResponse.content || '{}', {
-        model: 'google/gemini-2.5-flash',
         userId,
         temperature: 0.3,
       });
@@ -220,7 +218,6 @@ Do not include markdown blocks globally. Ensure the output is valid JSON.`;
     const temperature = effectiveEndInterview ? 0.5 : 0.7;
 
     const aiResponse = await callAIWithRetry({
-      model: 'google/gemini-2.5-flash',
       messages: [{ role: "system", content: systemPrompt }, ...messages],
       userId,
       maxTokens,
@@ -232,7 +229,6 @@ Do not include markdown blocks globally. Ensure the output is valid JSON.`;
     // We extract them here so the client receives clean text, not a raw JSON blob.
     const rawContent = aiResponse.content || '';
     const parsed = await parseAIJSONWithRetry<{ reply?: string; score?: { score?: number; tip?: string; improved_answer?: string } }>(rawContent, {
-      model: 'google/gemini-2.5-flash',
       userId,
     });
 

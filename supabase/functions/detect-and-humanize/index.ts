@@ -106,7 +106,6 @@ ${text}
       );
     }
       const detectResponse = await callAI({
-        model: 'google/gemini-2.5-flash',
         messages: [{ role: 'user', content: detectPrompt }],
         temperature: 0.3,
         userId: userId,
@@ -145,7 +144,6 @@ Return a JSON object:
 }`;
 
       const humanizeResponse = await callAI({
-        model: 'google/gemini-2.5-flash',
         messages: [{ role: 'user', content: humanizePrompt }],
         temperature: 0.7,
         userId: userId,

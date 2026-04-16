@@ -145,7 +145,6 @@ Return ONLY a JSON object with this EXACT structure (no markdown, no code fences
       );
     }
     const aiResponse = await callAI({
-      model: 'google/gemini-2.5-flash',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.5,
       userId,

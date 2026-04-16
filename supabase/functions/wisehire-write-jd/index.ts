@@ -14,7 +14,7 @@
 import { requireAuth, AuthError, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { getServiceClient } from '../_shared/dbClient.ts';
-import { callAI, getUserKeyFromDB } from '../_shared/aiClient.ts';
+import { callAI, getUserKeyFromDB, toUserError } from '../_shared/aiClient.ts';
 import { checkRateLimit } from '../_shared/rateLimiter.ts';
 
 const WISEHIRE_PAID_PLANS = ['wisehire_starter', 'wisehire_professional', 'wisehire_business', 'wisehire_enterprise'];
@@ -125,7 +125,6 @@ Return a JSON object with exactly these fields:
 }`;
 
     const aiResponse = await callAI({
-      model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -186,6 +185,7 @@ Return a JSON object with exactly these fields:
   } catch (err) {
     if (err instanceof AuthError) return authErrorResponse(err, origin);
     console.error('[wisehire-write-jd] Unhandled error:', err);
-    return json({ error: 'Internal server error' }, 500, getCorsHeaders(origin));
+    const { status, error: code, message } = toUserError(err);
+    return json({ error: code, message }, status, getCorsHeaders(origin));
   }
 });

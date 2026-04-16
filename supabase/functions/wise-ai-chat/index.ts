@@ -258,7 +258,6 @@ serve(async (req: Request) => {
     // and no platform key is consumed. Platform managed keys are used only for users
     // whose ai_provider is 'wiseresume' or unset.
     const aiResponse = await callAI({
-      model: "google/gemini-2.5-flash",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.7,
       maxTokens: 1500,

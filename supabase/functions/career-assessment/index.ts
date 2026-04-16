@@ -143,7 +143,6 @@ ${resume.certifications?.map((c: any) => `- ${c.name} from ${c.issuer}`).join("\
       );
     }
     const aiResponse = await callAIWithRetry({
-      model: 'google/gemini-2.5-flash',
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },

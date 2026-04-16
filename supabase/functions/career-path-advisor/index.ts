@@ -112,7 +112,6 @@ ${resume.education?.map((e: any) => `- ${e.degree} in ${e.field} from ${e.instit
       );
     }
     const aiResponse = await callAI({
-      model: 'google/gemini-2.5-flash',
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },

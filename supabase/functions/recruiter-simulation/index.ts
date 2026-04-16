@@ -196,7 +196,6 @@ Analyze this resume from your unique perspective as ${personaConfig.name}. Be sp
       );
     }
     const aiResponse = await callAI({
-      model: 'google/gemini-2.5-flash',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },

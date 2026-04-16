@@ -138,7 +138,6 @@ Generate a comprehensive LinkedIn optimization package.`;
       );
     }
     const aiResponse = await callAI({
-      model: 'google/gemini-2.5-flash',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,
       userId,

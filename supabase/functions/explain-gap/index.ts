@@ -105,7 +105,6 @@ serve(async (req) => {
       );
     }
     const aiResponse = await callAI({
-      model: 'google/gemini-2.5-flash',
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
