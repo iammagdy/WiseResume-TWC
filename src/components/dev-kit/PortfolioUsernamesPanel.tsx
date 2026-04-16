@@ -12,7 +12,9 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
+  ExternalLink,
 } from 'lucide-react';
+import { getPortfolioUrl } from '@/lib/portfolioUrl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -301,16 +303,17 @@ function DirectorySection() {
                 </th>
                 <th className="p-2 font-medium">Username</th>
                 <th className="p-2 font-medium">User</th>
+                <th className="p-2 font-medium">Claimed</th>
                 <th className="p-2 font-medium">Enabled</th>
-                <th className="p-2 font-medium w-32 text-right">Actions</th>
+                <th className="p-2 font-medium w-40 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading && rows.length === 0 && (
-                <tr><td colSpan={5} className="p-6 text-center text-muted-foreground text-sm">Loading…</td></tr>
+                <tr><td colSpan={6} className="p-6 text-center text-muted-foreground text-sm">Loading…</td></tr>
               )}
               {!loading && rows.length === 0 && (
-                <tr><td colSpan={5} className="p-6 text-center text-muted-foreground text-sm">No usernames found.</td></tr>
+                <tr><td colSpan={6} className="p-6 text-center text-muted-foreground text-sm">No usernames found.</td></tr>
               )}
               {rows.map((r) => (
                 <tr key={r.user_id} className="border-t border-border hover:bg-muted/30">
@@ -328,6 +331,9 @@ function DirectorySection() {
                       <div className="text-muted-foreground">{r.email || '—'}</div>
                     </div>
                   </td>
+                  <td className="p-2 text-xs text-muted-foreground whitespace-nowrap">
+                    {r.created_at ? new Date(r.created_at).toLocaleDateString() : '—'}
+                  </td>
                   <td className="p-2">
                     <Switch
                       checked={!!r.portfolio_enabled}
@@ -336,6 +342,20 @@ function DirectorySection() {
                   </td>
                   <td className="p-2">
                     <div className="flex justify-end gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() => {
+                          if (!r.username) return;
+                          window.open(getPortfolioUrl(r.username), '_blank', 'noopener,noreferrer');
+                        }}
+                        aria-label="Open portfolio"
+                        disabled={!r.username}
+                        title="Open portfolio"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </Button>
                       <Button
                         size="icon"
                         variant="ghost"

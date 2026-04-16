@@ -20,6 +20,7 @@ export interface SetupTabProps {
   usernameCheckStatus?: { status: string; reason?: string } | null;
   onRequestUsername?: () => void;
   checkingUsername: boolean;
+  usernameMaxLength?: number;
   resumes: Array<{ id: string; title: string; is_primary?: boolean }>;
   selectedResumeId: string;
   onSelectedResumeIdChange: (id: string) => void;
@@ -53,7 +54,7 @@ const AVAILABILITY_OPTIONS: { value: AvailabilityStatus; label: string; color: s
 
 export function SetupTab(props: SetupTabProps) {
   const {
-    username, onUsernameChange, usernameError, usernameAvailable, usernameCheckStatus, onRequestUsername, checkingUsername,
+    username, onUsernameChange, usernameError, usernameAvailable, usernameCheckStatus, onRequestUsername, checkingUsername, usernameMaxLength = 30,
     resumes, selectedResumeId, onSelectedResumeIdChange,
     bio, onBioChange, onGenerateBio, generatingBio,
     sections, onToggleSectionVisibility,
@@ -91,7 +92,7 @@ export function SetupTab(props: SetupTabProps) {
             className="pr-14"
           />
           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground tabular-nums">
-            {username.length}/30
+            {username.length}/{usernameMaxLength}
           </span>
         </div>
         {usernameError && <p className="text-xs text-destructive">{usernameError}</p>}
@@ -112,35 +113,43 @@ export function SetupTab(props: SetupTabProps) {
             {!checkingUsername && usernameAvailable === false && (() => {
               const status = usernameCheckStatus?.status ?? 'taken';
               const canRequest = status === 'reserved' || status === 'exclusive';
+              if (canRequest && onRequestUsername) {
+                return (
+                  <>
+                    <XCircle className="w-4 h-4 text-destructive" />
+                    <span className="text-xs font-medium text-destructive">
+                      This username is reserved —{' '}
+                      <button
+                        type="button"
+                        onClick={onRequestUsername}
+                        className="font-semibold text-primary underline underline-offset-2 hover:opacity-80"
+                      >
+                        Contact us
+                      </button>{' '}
+                      to request it
+                    </span>
+                  </>
+                );
+              }
               const label =
-                status === 'reserved'
-                  ? '✗ Reserved username'
-                  : status === 'exclusive'
-                    ? '✗ Reserved for another account'
-                    : status === 'invalid'
-                      ? '✗ Invalid username'
-                      : '✗ Username taken — choose another';
+                status === 'invalid'
+                  ? '✗ Invalid username'
+                  : '✗ Username taken — choose another';
               return (
                 <>
                   <XCircle className="w-4 h-4 text-destructive" />
                   <span className="text-xs font-medium text-destructive">{label}</span>
-                  {canRequest && onRequestUsername && (
-                    <button
-                      type="button"
-                      onClick={onRequestUsername}
-                      className="ml-1 text-xs font-medium text-primary underline underline-offset-2 hover:opacity-80"
-                    >
-                      Request this username
-                    </button>
-                  )}
                 </>
               );
             })()}
           </div>
         )}
-        {usernameCheckStatus?.reason && usernameAvailable === false && (
-          <p className="text-[11px] text-muted-foreground mt-0.5">{usernameCheckStatus.reason}</p>
-        )}
+        {usernameCheckStatus?.reason &&
+          usernameAvailable === false &&
+          usernameCheckStatus.status !== 'reserved' &&
+          usernameCheckStatus.status !== 'exclusive' && (
+            <p className="text-[11px] text-muted-foreground mt-0.5">{usernameCheckStatus.reason}</p>
+          )}
       </div>
 
       {/* Resume to display */}

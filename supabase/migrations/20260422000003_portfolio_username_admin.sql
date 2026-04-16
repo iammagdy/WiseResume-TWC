@@ -153,16 +153,23 @@ BEGIN
   v_max_len   := coalesce(v_max_len, 30);
   v_allow_hyp := coalesce(v_allow_hyp, true);
 
+  -- Apply per-user override only when an override row exists for this user.
+  -- SELECT ... INTO assigns NULL to all targets when no row matches, so we
+  -- fetch the row first and merge fields conditionally.
   IF p_user_id IS NOT NULL THEN
-    SELECT
-      coalesce(o.min_length,    v_min_len),
-      coalesce(o.max_length,    v_max_len),
-      coalesce(o.allow_hyphens, v_allow_hyp)
-    INTO v_min_len, v_max_len, v_allow_hyp
-    FROM public.portfolio_user_overrides o
-    WHERE o.user_id = p_user_id;
-    -- If no override row, values stay as the globals resolved above.
-    -- (SELECT with no row leaves variables unchanged.)
+    DECLARE
+      v_override public.portfolio_user_overrides%ROWTYPE;
+    BEGIN
+      SELECT *
+        INTO v_override
+        FROM public.portfolio_user_overrides
+        WHERE user_id = p_user_id;
+      IF FOUND THEN
+        v_min_len   := coalesce(v_override.min_length,    v_min_len);
+        v_max_len   := coalesce(v_override.max_length,    v_max_len);
+        v_allow_hyp := coalesce(v_override.allow_hyphens, v_allow_hyp);
+      END IF;
+    END;
   END IF;
 
   -- Validation

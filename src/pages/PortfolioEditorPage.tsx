@@ -18,6 +18,7 @@ import { useNavigate } from 'react-router-dom';
 import { QrCode, ExternalLink } from 'lucide-react';
 import { UnsavedChangesDialog } from '@/components/editor/UnsavedChangesDialog';
 import { UsernameRequestDialog } from '@/components/settings/UsernameRequestDialog';
+import { usePortfolioUsernameRules } from '@/hooks/usePortfolioUsernameRules';
 import { getPortfolioUrl, getPortfolioDisplayUrl } from '@/lib/portfolioUrl';
 import { openExternal } from '@/lib/openExternal';
 import { getSafeMatchMedia } from '@/lib/envUtils';
@@ -53,6 +54,7 @@ export default function PortfolioEditorPage() {
   const isPaidUser = isPro || isPremium;
   const { profile, loading, updateProfile } = useProfile(user?.id, user);
   const { data: resumes = [] } = useResumes();
+  const usernameRules = usePortfolioUsernameRules();
   const { saveSnapshot } = usePortfolioHistory(user?.id);
   const queryClient = useQueryClient();
 
@@ -328,15 +330,29 @@ export default function PortfolioEditorPage() {
 
   const validateUsername = (value: string) => {
     if (!value) {setUsernameError('');return;}
-    if (value.length < 3) {setUsernameError('At least 3 characters');return;}
-    if (value.length > 30) {setUsernameError('Max 30 characters');return;}
-    if (!/^[a-z0-9-]+$/.test(value)) {setUsernameError('Only lowercase letters, numbers, hyphens');return;}
-    if (value.startsWith('-') || value.endsWith('-')) {setUsernameError('Cannot start or end with hyphen');return;}
+    if (value.length < usernameRules.min_length) {setUsernameError(`At least ${usernameRules.min_length} characters`);return;}
+    if (value.length > usernameRules.max_length) {setUsernameError(`Max ${usernameRules.max_length} characters`);return;}
+    const charsOk = usernameRules.allow_hyphens
+      ? /^[a-z0-9-]+$/.test(value)
+      : /^[a-z0-9]+$/.test(value);
+    if (!charsOk) {
+      setUsernameError(
+        usernameRules.allow_hyphens
+          ? 'Only lowercase letters, numbers, hyphens'
+          : 'Only lowercase letters and numbers',
+      );
+      return;
+    }
+    if (usernameRules.allow_hyphens && (value.startsWith('-') || value.endsWith('-'))) {
+      setUsernameError('Cannot start or end with hyphen');
+      return;
+    }
     setUsernameError('');
   };
 
   const handleUsernameChange = (val: string) => {
-    const clean = val.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    const cleanRegex = usernameRules.allow_hyphens ? /[^a-z0-9-]/g : /[^a-z0-9]/g;
+    const clean = val.toLowerCase().replace(cleanRegex, '');
     setUsername(clean);
     validateUsername(clean);
   };
@@ -910,6 +926,7 @@ export default function PortfolioEditorPage() {
               usernameCheckStatus={usernameCheckStatus}
               onRequestUsername={() => setRequestDialogOpen(true)}
               checkingUsername={checkingUsername}
+              usernameMaxLength={usernameRules.max_length}
               resumes={resumes}
               selectedResumeId={selectedResumeId}
               onSelectedResumeIdChange={setSelectedResumeId}
