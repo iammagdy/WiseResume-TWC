@@ -3,7 +3,7 @@ import { getAppUrl } from '@/lib/portfolioUrl';
 
 import { useNavigate } from 'react-router-dom';
 import {
-  ChevronRight, ScrollText, X, Check } from
+  ChevronRight, X, Check } from
 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { openExternal } from '@/lib/openExternal';
@@ -416,15 +416,6 @@ export default function SettingsPage() {
                 <p className="text-sm text-muted-foreground text-center">
                   Made with <span className="text-red-500">❤️</span> in Egypt
                 </p>
-                <button
-                  type="button"
-                  onClick={() => setChangelogOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-muted/50 hover:bg-muted active:scale-95 transition text-sm text-muted-foreground font-medium touch-manipulation min-h-[44px]"
-                >
-                  <ScrollText className="w-4 h-4 text-purple-400" />
-                  <span>Changelog</span>
-                  <ChevronRight className="w-3 h-3 text-muted-foreground/60 ml-1" />
-                </button>
               </div>
             </div>
           </div>
