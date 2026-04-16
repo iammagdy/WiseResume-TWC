@@ -179,16 +179,20 @@ function PublicPortfolioContent() {
     }
   };
 
-  // A/B variant assignment — persisted per visitor in localStorage
+  // A/B variant assignment — only active when a challenger theme is configured.
+  // Gating on abChallengerTheme prevents experiment data from being recorded
+  // during periods when no test is running, keeping analytics results clean.
   const abVariant = useMemo<'a' | 'b' | null>(() => {
     if (!username) return null;
+    const challengerTheme = portfolio?.profile?.abChallengerTheme;
+    if (!challengerTheme) return null; // no active experiment — send null to tracking
     const key = `portfolio-ab-variant:${username}`;
     const stored = localStorage.getItem(key);
     if (stored === 'a' || stored === 'b') return stored;
     const assigned: 'a' | 'b' = Math.random() < 0.5 ? 'a' : 'b';
     localStorage.setItem(key, assigned);
     return assigned;
-  }, [username]);
+  }, [username, portfolio?.profile?.abChallengerTheme]);
 
   // Extracted hooks
   usePortfolioSEO(portfolio?.profile);
