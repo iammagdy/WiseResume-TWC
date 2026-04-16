@@ -1,12 +1,14 @@
 -- error_log table: captures runtime errors from edge functions and client diagnostics.
 -- Rows are insert-only from service-role context; RLS enforces admin-only reads.
+-- Schema matches admin-live-activity query: id, message, context, created_at, level.
 
 create table if not exists public.error_log (
   id          uuid primary key default gen_random_uuid(),
   created_at  timestamptz not null default now(),
-  source      text not null,
+  level       text not null default 'error' check (level in ('debug', 'info', 'warn', 'error', 'fatal')),
   message     text not null,
-  details     jsonb,
+  context     jsonb,
+  source      text,
   user_id     uuid references auth.users(id) on delete set null,
   resolved    boolean not null default false
 );

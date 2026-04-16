@@ -140,24 +140,11 @@ Deno.serve(async (req) => {
 
     // If we only have email (no user_id), try to resolve via listUsers.
     // The canonical audit subject is always the target user when they exist.
-    // audit_logs.user_id has a FK to auth.users(id) NOT NULL, so we need a valid UUID.
-    // If the target user cannot be found in auth.users, we fall back to the admin caller's
-    // own user ID purely to satisfy the FK constraint — this is clearly labelled in metadata
-    // via audit_user_id_source:'caller_fallback' and intended_target_not_found:true.
-    let callerUserId: string | null = null
+    // audit_logs.user_id is nullable — when the target is not found in auth.users we set
+    // user_id = null and store the intended recipient in metadata.target_email so the
+    // audit trail is accurate without misattributing the action to the admin caller.
     let targetFound = false
     if (!resolvedUserId) {
-      // Resolve the caller's own user ID from the bearer token using the service client
-      const bearerToken = req.headers.get('Authorization')?.replace('Bearer ', '') ?? ''
-      const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
-      const callerClient = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-        { global: { headers: { Authorization: `Bearer ${bearerToken}` } } },
-      )
-      const { data: callerData } = await callerClient.auth.getUser()
-      callerUserId = callerData?.user?.id ?? null
-
       // Try a targeted page of listUsers to find the target user by email
       // (Supabase admin SDK has no getUserByEmail; listUsers is the only option)
       const { data: listData } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 })
@@ -166,11 +153,13 @@ Deno.serve(async (req) => {
         resolvedUserId = found.id
         targetFound = true
       } else {
-        resolvedUserId = callerUserId
+        // Leave resolvedUserId as null — audit row will have null user_id with
+        // target_email in metadata. This avoids misattributing the action to the admin.
+        resolvedUserId = null
         targetFound = false
         console.warn(
           `[admin-email-actions] Target email "${resolvedEmail}" not found in auth.users — ` +
-          `audit row will use caller user_id as FK subject (labelled with intended_target_not_found:true)`,
+          `audit row will have null user_id with intended_target_email in metadata`,
         )
       }
     } else {
@@ -434,10 +423,11 @@ Deno.serve(async (req) => {
     }
 
     // Write audit log — non-fatal but failure is surfaced in server logs.
-    // user_id MUST be a valid FK uuid: use target user if resolved, else caller's own id.
-    if (resolvedUserId) {
+    // user_id is nullable: when target is not in auth.users we store null to avoid
+    // misattributing the action to another user (e.g. the admin).
+    {
       const { error: auditErr } = await supabase.from('audit_logs').insert({
-        user_id: resolvedUserId,
+        user_id: resolvedUserId ?? null,
         category: 'admin_email',
         action,
         metadata: {
@@ -445,7 +435,7 @@ Deno.serve(async (req) => {
           performed_by: callerEmail,
           admin_email: adminEmailFromBody ?? callerEmail,
           message_id: resultMessageId,
-          audit_user_id_source: targetFound ? 'target_user' : 'caller_fallback',
+          audit_user_id_source: targetFound ? 'target_user' : 'no_match',
           ...(targetFound ? {} : {
             intended_target_not_found: true,
             intended_target_email: resolvedEmail,
@@ -459,8 +449,6 @@ Deno.serve(async (req) => {
       if (auditErr) {
         console.error('[admin-email-actions] Audit log write failed:', auditErr.message)
       }
-    } else {
-      console.error('[admin-email-actions] Skipped audit log: could not resolve any valid user_id')
     }
 
     return new Response(
