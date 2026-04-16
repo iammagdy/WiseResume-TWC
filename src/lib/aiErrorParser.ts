@@ -63,7 +63,7 @@ export function isAIError(err: unknown): err is AIError {
  * code is missing or unknown, then to a regex sniff on the message text.
  */
 function classify(status: number, code: string, message: string): AIErrorCode {
-  // 1) Trust the structured code first when it is one of ours
+  // 1) Trust the structured code first when present
   switch (code) {
     case 'unauthorized':
       return 'unauthorized';
@@ -79,20 +79,26 @@ function classify(status: number, code: string, message: string): AIErrorCode {
       return 'enhancement_failed';
     case 'provider_busy':
       return 'provider_busy';
+    case 'not_configured':
+      return 'not_configured';
   }
 
-  // 2) Status-code based classification (legacy responses without code)
+  // 2) Message-text classification BEFORE status-based fallback. A 401 from a
+  // BYOK edge function with body "invalid_key"/"Invalid API key"/"not
+  // configured" must surface as the more-specific code, not a generic
+  // "Session expired" message. Order matters here.
+  const m = (message || code || '').toLowerCase();
+  if (/invalid.?key|invalid api key|no ai api key/.test(m)) return 'invalid_key';
+  if (/api key not configured|not configured|please contact support/.test(m)) return 'not_configured';
+  if (/quota.*exceed|daily.*quota/.test(m)) return 'quota_exceeded';
+
+  // 3) Status-code based fallback (legacy responses with no code or text)
   if (status === 401 || status === 403) return 'unauthorized';
   if (status === 429) return 'rate_limit';
   if (status === 402) return 'payment_required';
   if (status === 408 || status === 504) return 'timeout';
   if (status === 503) return 'provider_busy';
 
-  // 3) Last-resort regex sniff on the message text
-  const m = (message || code || '').toLowerCase();
-  if (/invalid.?key|invalid api key/.test(m)) return 'invalid_key';
-  if (/not configured|please contact support/.test(m)) return 'not_configured';
-  if (/quota.*exceed|daily.*quota/.test(m)) return 'quota_exceeded';
   if (/rate.?limit|too many/.test(m)) return 'rate_limit';
   if (/timed? ?out|timeout|abort/.test(m)) return 'timeout';
 

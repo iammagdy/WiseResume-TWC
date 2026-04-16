@@ -1,7 +1,7 @@
 import { ResumeData, TailorProgress, EnhancedTailorStep, EnhancedTailorProgress, SuperTailorResult } from '@/types/resume';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getSupabaseToken } from '@/lib/supabaseAuth';
-import { trackGeminiUsage } from './aiProvider';
+import { trackGeminiUsage, withGeminiUsage } from './aiProvider';
 import { extractErrorMessage } from './errorToast';
 import { checkAIFallback } from './aiFallbackToast';
 
@@ -228,36 +228,28 @@ export interface ParsedJobData {
 }
 
 export async function parseJobUrl(url: string): Promise<ParsedJobData> {
-  const { data, error } = await edgeFunctions.functions.invoke('parse-job-url', {
-    body: { url },
+  return withGeminiUsage(async () => {
+    const { data, error } = await edgeFunctions.functions.invoke('parse-job-url', {
+      body: { url },
+    });
+    if (error) throw new Error(extractErrorMessage(error, data, 'Failed to parse job URL'));
+    if (data?.error) throw new Error(data.error || 'Failed to parse job URL');
+    return data as ParsedJobData;
   });
-
-  if (error) {
-    throw new Error(extractErrorMessage(error, data, 'Failed to parse job URL'));
-  }
-  if (data?.error) {
-    throw new Error(data.error || 'Failed to parse job URL');
-  }
-
-  trackGeminiUsage();
-  return data as ParsedJobData;
 }
 
 export async function parseJobText(text: string): Promise<ParsedJobData> {
-  const { data, error } = await edgeFunctions.functions.invoke('parse-job-text', {
-    body: { text },
+  return withGeminiUsage(async () => {
+    const { data, error } = await edgeFunctions.functions.invoke('parse-job-text', {
+      body: { text },
+    });
+    if (error) {
+      console.error('Parse job text error:', error);
+      throw new Error(extractErrorMessage(error, data, 'Failed to analyze job description'));
+    }
+    if (data?.error) throw new Error(data.message || data.error);
+    return data as ParsedJobData;
   });
-
-  if (error) {
-    console.error('Parse job text error:', error);
-    throw new Error(extractErrorMessage(error, data, 'Failed to analyze job description'));
-  }
-  if (data?.error) {
-    throw new Error(data.message || data.error);
-  }
-
-  trackGeminiUsage();
-  return data as ParsedJobData;
 }
 
 export async function generateCoverLetter(
@@ -282,6 +274,11 @@ export async function generateCoverLetter(
   trackGeminiUsage();
   return data.coverLetter;
 }
+
+// Note: tailorResumeWithProgress still calls trackGeminiUsage() inline above
+// because withGeminiUsage's outer await wrapper would defer the user-visible
+// "complete" progress callback until after tracking — which happens last
+// inside the function. The inline call ordering matches the existing UX.
 
 export interface TailorSectionResult {
   rewrittenContent: string | string[];

@@ -63,16 +63,14 @@ serve(async (req) => {
       if (text) {
         const body = JSON.parse(text);
         checkOnly = body?.checkOnly === true;
-        // Gate wiseresumeSubProvider override on admin password so only Dev Kit callers
-        // can request raw engine diagnostics (bypasses cooldown).
-        // Accepts both:
-        //   - The HMAC-signed DevKit session token (primary — sent by DevKitRunner)
-        //   - The raw DEV_KIT_PASSWORD (legacy fallback)
+        // Gate wiseresumeSubProvider override on the DevKit HMAC session token
+        // so only Dev Kit callers can request raw engine diagnostics (bypasses
+        // cooldown). Raw-password acceptance was removed (Task #10): the only
+        // accepted credential is the signed session token issued by
+        // verify-dev-kit.
         const candidatePw: string = body?.adminPassword ?? '';
-        const hasValidAdminPassword = DEV_KIT_PASSWORD && (
-          candidatePw === DEV_KIT_PASSWORD ||
-          await verifyDevKitSessionToken(candidatePw, DEV_KIT_PASSWORD)
-        );
+        const hasValidAdminPassword = !!DEV_KIT_PASSWORD &&
+          await verifyDevKitSessionToken(candidatePw, DEV_KIT_PASSWORD);
         if (hasValidAdminPassword && (body?.wiseresumeSubProvider === 'openrouter' || body?.wiseresumeSubProvider === 'groq' || body?.wiseresumeSubProvider === 'auto')) {
           bodySubProvider = body.wiseresumeSubProvider;
           isAdminRequest = true;
