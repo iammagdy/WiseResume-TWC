@@ -153,8 +153,6 @@ export default function SettingsPage() {
 
   const appVersion = changelogData[0]?.version || 'v2.0.0';
 
-  const authProvider = 'kinde';
-
   // --- Handlers ---
   const handleBiometricToggle = useCallback(async (enabled: boolean) => {
     if (enabled) {
@@ -281,7 +279,7 @@ export default function SettingsPage() {
             <div>
               <SectionLabel>Account</SectionLabel>
               <div className="mx-4 space-y-3">
-                <AccountSection authProvider={authProvider} />
+                <AccountSection />
                 <UserIdCard userId={user.id} />
               </div>
             </div>

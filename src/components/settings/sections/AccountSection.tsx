@@ -14,8 +14,12 @@ import { openExternal } from '@/lib/openExternal';
 const AccountStatsCard = lazy(() => import('./AccountStatsCard'));
 
 interface AccountSectionProps {
-    /** Identifier for the auth provider used to sign the user in (e.g. 'google', 'github'). */
-    authProvider: string;
+    /**
+     * Optional identifier for the auth provider used to sign the user in
+     * (e.g. 'google', 'github', 'apple', 'email'). When omitted or unknown,
+     * neutral copy is shown instead.
+     */
+    authProvider?: string;
 }
 
 function PlanBadge({ plan }: { plan: string }) {
@@ -37,12 +41,15 @@ function PlanBadge({ plan }: { plan: string }) {
 export const AccountSection = memo(function AccountSection({
     authProvider,
 }: AccountSectionProps) {
-    const providerLabel =
+    const knownProviderLabel =
         authProvider === 'google' ? 'Google'
         : authProvider === 'github' ? 'GitHub'
         : authProvider === 'apple' ? 'Apple'
         : authProvider === 'email' ? 'email'
-        : 'sign-in';
+        : null;
+    const passwordRowDescription = knownProviderLabel
+        ? `Update your password through your ${knownProviderLabel} account`
+        : 'Update your password through your account portal';
     const navigate = useNavigate();
     const { data: resumes = [] } = useResumes();
     const { data: coverLetters = [] } = useCoverLetters();
@@ -115,7 +122,7 @@ export const AccountSection = memo(function AccountSection({
                 <SettingsRow
                     type="navigation"
                     label="Manage Sign-in & Password"
-                    description={`Update your password through your ${providerLabel} account portal`}
+                    description={passwordRowDescription}
                     icon={<KeyRound className="w-4 h-4" />}
                     onClick={() => {
                         haptics.light();
