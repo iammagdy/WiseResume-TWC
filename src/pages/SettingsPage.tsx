@@ -3,7 +3,7 @@ import { getAppUrl } from '@/lib/portfolioUrl';
 
 import { useNavigate } from 'react-router-dom';
 import {
-  ChevronRight, ScrollText, X, Check, Github, ExternalLink } from
+  ChevronRight, ScrollText, X, Check } from
 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { openExternal } from '@/lib/openExternal';
@@ -409,8 +409,6 @@ export default function SettingsPage() {
                 name="Magdy Saber"
                 title="Creator & Developer"
                 avatarUrl={developerPhoto}
-                handle="iammagdy"
-                status="Online"
                 contactText="Contact Me"
                 showUserInfo={true}
                 enableTilt={true}

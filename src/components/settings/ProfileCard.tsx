@@ -17,12 +17,8 @@ interface ProfileCardProps {
   miniAvatarUrl?: string;
   name?: string;
   title?: string;
-  handle?: string;
-  status?: string;
   contactText?: string;
   showUserInfo?: boolean;
-  portfolioUrl?: string;
-  githubUrl?: string;
   onContactClick?: () => void;
   onPortfolioClick?: () => void;
   onGithubClick?: () => void;
