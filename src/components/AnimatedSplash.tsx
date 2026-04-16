@@ -7,11 +7,19 @@ interface AnimatedSplashProps {
   onComplete: () => void;
 }
 
-const APP_NAME = 'WiseResume';
+function getInitialBrand() {
+  if (typeof window === 'undefined') return { name: 'WiseResume', tagline: 'Your AI Career Partner', isWH: false };
+  const isWH = window.location.pathname === '/enterprises' ||
+    new URLSearchParams(window.location.search).get('for') === 'companies';
+  return isWH
+    ? { name: 'WiseHire', tagline: 'Hire Smarter. Screen Faster.', isWH: true }
+    : { name: 'WiseResume', tagline: 'Your AI Career Partner', isWH: false };
+}
 
 export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
   const [visible, setVisible] = useState(true);
   const prefersReduced = useReducedMotion();
+  const brand = getInitialBrand();
 
   const dismiss = useCallback(() => {
     if (!visible) return;
@@ -48,7 +56,9 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
             <div
               className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full opacity-[0.08]"
               style={{
-                background: 'radial-gradient(circle, hsl(var(--primary)) 0%, transparent 70%)',
+                background: brand.isWH
+                  ? 'radial-gradient(circle, #1D4ED8 0%, transparent 70%)'
+                  : 'radial-gradient(circle, hsl(var(--primary)) 0%, transparent 70%)',
               }}
             />
           </div>
@@ -57,17 +67,19 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
             initial={prefersReduced ? false : { scale: 0.7, opacity: 0 }}
             animate={prefersReduced ? false : { scale: 1, opacity: 1 }}
             transition={{ duration: 0.5, ease: [0.34, 1.56, 0.64, 1], delay: 0.1 }}
+            style={brand.isWH ? { filter: 'hue-rotate(220deg) saturate(2) brightness(0.85)' } : undefined}
           >
             <AppIcon size={72} />
           </motion.div>
 
           <motion.h1
-            className="mt-5 text-2xl font-bold text-foreground tracking-tight"
+            className="mt-5 text-2xl font-bold tracking-tight"
+            style={{ color: brand.isWH ? '#1D4ED8' : undefined }}
             initial={prefersReduced ? false : { opacity: 0, y: 10 }}
             animate={prefersReduced ? false : { opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: 'easeOut', delay: 0.5 }}
           >
-            {APP_NAME}
+            {brand.name}
           </motion.h1>
 
           <motion.p
@@ -76,7 +88,7 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
             animate={prefersReduced ? false : { opacity: 1 }}
             transition={{ delay: 0.8, duration: 0.4, ease: 'easeOut' }}
           >
-            Your AI Career Partner
+            {brand.tagline}
           </motion.p>
         </motion.div>
       )}

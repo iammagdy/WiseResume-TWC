@@ -34,9 +34,7 @@ export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid = 
     const rect = e.currentTarget.getBoundingClientRect();
     const origin = { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) };
     onModeChange('jobseeker', origin);
-    const url = new URL(window.location.href);
-    url.searchParams.delete('for');
-    window.history.pushState({}, '', url.toString());
+    window.history.pushState({}, '', '/');
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 
@@ -45,9 +43,7 @@ export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid = 
     const rect = e.currentTarget.getBoundingClientRect();
     const origin = { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2) };
     onModeChange('wisehire', origin);
-    const url = new URL(window.location.href);
-    url.searchParams.set('for', 'companies');
-    window.history.pushState({}, '', url.toString());
+    window.history.pushState({}, '', '/enterprises');
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
 

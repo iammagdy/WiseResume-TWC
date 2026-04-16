@@ -56,16 +56,18 @@ const Index = () => {
   const heroRef = useRef<HTMLElement>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [tailorOpen, setTailorOpen] = useState(false);
-  const [mode, setMode] = useState<'jobseeker' | 'wisehire'>(() =>
-    typeof window !== 'undefined' &&
-    new URLSearchParams(window.location.search).get('for') === 'companies'
-      ? 'wisehire' : 'jobseeker'
-  );
-  const [displayProduct, setDisplayProduct] = useState<'jobseeker' | 'wisehire'>(() =>
-    typeof window !== 'undefined' &&
-    new URLSearchParams(window.location.search).get('for') === 'companies'
-      ? 'wisehire' : 'jobseeker'
-  );
+  const [mode, setMode] = useState<'jobseeker' | 'wisehire'>(() => {
+    if (typeof window === 'undefined') return 'jobseeker';
+    if (window.location.pathname === '/enterprises') return 'wisehire';
+    if (new URLSearchParams(window.location.search).get('for') === 'companies') return 'wisehire';
+    return 'jobseeker';
+  });
+  const [displayProduct, setDisplayProduct] = useState<'jobseeker' | 'wisehire'>(() => {
+    if (typeof window === 'undefined') return 'jobseeker';
+    if (window.location.pathname === '/enterprises') return 'wisehire';
+    if (new URLSearchParams(window.location.search).get('for') === 'companies') return 'wisehire';
+    return 'jobseeker';
+  });
   const pendingModeRef = useRef<'jobseeker' | 'wisehire' | null>(null);
   const [waitlistOpen, setWaitlistOpen] = useState(false);
   const [waveKey, setWaveKey] = useState(0);
@@ -93,7 +95,7 @@ const Index = () => {
     setMeta('og:description', isWH
       ? 'AI-powered hiring platform. Brief Generator, JD Writer, Pipeline Board and more. Now in early access.'
       : 'AI that builds, tailors, and lands your next job. ATS scoring, interview coaching, and more.');
-    setMeta('og:url', isWH ? `${window.location.origin}/?for=companies` : window.location.origin);
+    setMeta('og:url', isWH ? `${window.location.origin}/enterprises` : window.location.origin);
   }, [mode]);
 
   useEffect(() => {
