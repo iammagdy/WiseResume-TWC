@@ -667,26 +667,37 @@ export function useAgenticChat(contextFilter?: string) {
     [isThinking, messages, currentResume, executeFunctionCall, allResumes, contextFilter, checkCredits, incrementUsage, user, createSession, persistMessage]
   );
 
-  // Resend the last user message after an error. Removes the trailing error
-  // message + the user message so sendMessage adds them fresh.
+  // Resend the last user message after an error. Determines the target
+  // synchronously from current `messages` (NOT inside a setMessages updater,
+  // since updaters are queued and the captured variable wouldn't be
+  // observable until the next render). Only activates when the trailing
+  // assistant message carries an error — otherwise this would silently
+  // truncate a healthy conversation.
   const retryLastMessage = useCallback(() => {
-    let lastUserText: string | null = null;
-    setMessages((prev) => {
-      // Walk backward to find the last user message
-      for (let i = prev.length - 1; i >= 0; i--) {
-        if (prev[i].role === 'user') {
-          lastUserText = prev[i].content;
-          // Drop everything from that user message onward (including the error reply)
-          return prev.slice(0, i);
-        }
+    const current = messages;
+    if (current.length === 0) return;
+
+    const trailing = current[current.length - 1];
+    const trailingIsErrorReply =
+      trailing.role === 'assistant' && !!trailing.error;
+    if (!trailingIsErrorReply) return;
+
+    let userIdx = -1;
+    for (let i = current.length - 1; i >= 0; i--) {
+      if (current[i].role === 'user') {
+        userIdx = i;
+        break;
       }
-      return prev;
-    });
-    if (lastUserText) {
-      // Defer to next tick so state update applies first
-      setTimeout(() => { void sendMessage(lastUserText as string); }, 0);
     }
-  }, [sendMessage]);
+    if (userIdx === -1) return;
+
+    const lastUserText = current[userIdx].content;
+    if (!lastUserText) return;
+
+    // Drop the failed user message + the error reply, then resend.
+    setMessages(current.slice(0, userIdx));
+    void sendMessage(lastUserText);
+  }, [messages, sendMessage]);
 
   const startNewSession = useCallback(() => {
     setMessages([]);
