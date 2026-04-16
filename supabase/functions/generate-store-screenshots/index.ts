@@ -112,21 +112,33 @@ serve(async (req) => {
     for (const item of SCREENSHOT_PROMPTS) {
       console.log(`Generating: ${item.name}...`);
 
-      const aiResponse = await fetch(
-        `https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            contents: [{ role: "user", parts: [{ text: item.prompt }] }],
-            generationConfig: {
-              responseModalities: ["TEXT", "IMAGE"],
+      const screenshotController = new AbortController();
+      const screenshotTimeout = setTimeout(() => screenshotController.abort(), 30_000);
+      let aiResponse: Response;
+      try {
+        aiResponse = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
             },
-          }),
-        }
-      );
+            body: JSON.stringify({
+              contents: [{ role: "user", parts: [{ text: item.prompt }] }],
+              generationConfig: {
+                responseModalities: ["TEXT", "IMAGE"],
+              },
+            }),
+            signal: screenshotController.signal,
+          }
+        );
+      } catch (fetchErr) {
+        const isTimeout = fetchErr instanceof DOMException && fetchErr.name === 'AbortError';
+        console.error(`Fetch error for ${item.name}: ${isTimeout ? 'timed out after 30s' : fetchErr}`);
+        continue;
+      } finally {
+        clearTimeout(screenshotTimeout);
+      }
 
       if (!aiResponse.ok) {
         const errText = await aiResponse.text();

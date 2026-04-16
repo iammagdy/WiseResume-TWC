@@ -7,14 +7,21 @@ import { logger } from "../_shared/logger.ts";
 const log = logger('elevenlabs-scribe-token');
 
 
-// Mirrors the AES-GCM decrypt from manage-api-keys/index.ts
+// Mirrors the AES-GCM decrypt from manage-api-keys/index.ts and aiClient.ts
 const ENCRYPTION_SECRET = Deno.env.get('API_KEY_ENCRYPTION_SECRET');
 if (!ENCRYPTION_SECRET) throw new Error('API_KEY_ENCRYPTION_SECRET env var is required');
 
-async function getEncryptionKey(): Promise<CryptoKey> {
+/** Resolves the correct PBKDF2 salt based on key_version and userId — mirrors aiClient.ts resolveKeySalt. */
+function resolveKeySalt(keyVersion: number | null | undefined, userId: string): string {
+  if (keyVersion === 2) return `user-api-keys-salt-v2-${userId}`;
+  return 'user-api-keys-salt';
+}
+
+async function deriveDecryptionKey(salt: string): Promise<CryptoKey> {
+  const encoder = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
-    new TextEncoder().encode(ENCRYPTION_SECRET),
+    encoder.encode(ENCRYPTION_SECRET),
     { name: 'PBKDF2' },
     false,
     ['deriveKey']
@@ -22,22 +29,22 @@ async function getEncryptionKey(): Promise<CryptoKey> {
   return crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt: new TextEncoder().encode('wiseresume-salt'),
+      salt: encoder.encode(salt),
       iterations: 100000,
       hash: 'SHA-256',
     },
     keyMaterial,
     { name: 'AES-GCM', length: 256 },
     false,
-    ['encrypt', 'decrypt']
+    ['decrypt']
   );
 }
 
-async function decrypt(encoded: string): Promise<string> {
+async function decrypt(encoded: string, salt: string): Promise<string> {
   const combined = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
   const iv = combined.slice(0, 12);
   const data = combined.slice(12);
-  const key = await getEncryptionKey();
+  const key = await deriveDecryptionKey(salt);
   const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
   return new TextDecoder().decode(decrypted);
 }
@@ -79,7 +86,7 @@ serve(async (req) => {
 
     const { data: keyRow } = await client
       .from('user_api_keys')
-      .select('encrypted_key')
+      .select('encrypted_key, key_version')
       .eq('user_id', userId)
       .eq('provider', 'elevenlabs')
       .maybeSingle();
@@ -87,7 +94,8 @@ serve(async (req) => {
     if (keyRow?.encrypted_key) {
       hasByokKey = true;
       try {
-        apiKey = await decrypt(keyRow.encrypted_key);
+        const salt = resolveKeySalt(keyRow.key_version, userId);
+        apiKey = await decrypt(keyRow.encrypted_key, salt);
       } catch (decryptErr) {
         console.error('Failed to decrypt user ElevenLabs key:', decryptErr);
         // Strict BYOK mode: key exists but is unreadable — refuse rather than silently fall back

@@ -14,6 +14,7 @@ const REQUIRED_ENV_VARS: { key: string; label: string }[] = [
   { key: 'GITHUB_REPO', label: 'GitHub Repo' },
   { key: 'RESEND_API_KEY', label: 'Resend API Key' },
   { key: 'GEMINI_API_KEY', label: 'Gemini API Key (optional)' },
+  { key: 'ELEVENLABS_API_KEY', label: 'ElevenLabs API Key (optional)' },
 ];
 
 Deno.serve(async (req) => {

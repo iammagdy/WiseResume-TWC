@@ -10,7 +10,7 @@ import { useProfile } from '@/hooks/useProfile';
 import triggerHaptic from '@/lib/haptics';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { useReducedMotion, motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
-import { useEffect, useLayoutEffect, useState, useRef, useCallback, startTransition } from 'react';
+import { useEffect, useState, useRef, useCallback, startTransition } from 'react';
 import { flushSync } from 'react-dom';
 import { useSettingsStore } from '@/store/settingsStore';
 import { getSafeMatchMedia } from '@/lib/envUtils';
@@ -463,7 +463,7 @@ const Index = () => {
     if (modeTimerRef.current !== null) clearTimeout(modeTimerRef.current);
   }, []);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     setLpProduct(mode);
   }, [mode, setLpProduct]);
 

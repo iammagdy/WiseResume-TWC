@@ -3,7 +3,6 @@ import { callAI, getUserKeyAndUrlFromDB } from "../_shared/aiClient.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
-import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
@@ -28,14 +27,6 @@ serve(async (req) => {
     if (!allowed) {
       return new Response(
         JSON.stringify({ error: "Rate limit exceeded. Please wait before generating another headshot." }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const serverRateCheck = await checkUserRateLimit(userId, 'generate_headshot', 10, 60);
-    if (!serverRateCheck.allowed) {
-      return new Response(
-        JSON.stringify({ error: `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.` }),
         { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -114,7 +105,7 @@ serve(async (req) => {
     const fetchController = new AbortController();
     const fetchTimeout = setTimeout(() => fetchController.abort(), 30_000);
 
-    const response = await fetch(`https://aiplatform.googleapis.com/v1/publishers/google/models/${geminiModel}:generateContent?key=${geminiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
