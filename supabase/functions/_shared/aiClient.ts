@@ -1680,12 +1680,30 @@ export function toUserError(error: unknown): { status: number; error: string; me
     };
   }
 
-  // For non-AI errors, return a safe generic message (don't leak internals)
+  // For non-AI errors, log full detail and surface a short diagnostic string
+  // to the client so we can debug from the browser console without needing
+  // Supabase function logs. This is safe because no secrets are ever placed
+  // in error messages — only error class + truncated message.
   console.error('[toUserError] Internal error:', error);
+  let diag = 'unknown';
+  if (error instanceof Error) {
+    const cls = error.name || 'Error';
+    const msg = (error.message || '').slice(0, 200);
+    diag = msg ? `${cls}: ${msg}` : cls;
+  } else if (typeof error === 'string') {
+    diag = error.slice(0, 200);
+  } else if (error && typeof error === 'object') {
+    try {
+      const s = JSON.stringify(error);
+      diag = s.slice(0, 200);
+    } catch {
+      diag = Object.prototype.toString.call(error);
+    }
+  }
   return {
     status: 500,
     error: 'internal',
-    message: 'Something went wrong. Please try again.',
+    message: `Something went wrong: ${diag}`,
   };
 }
 

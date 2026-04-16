@@ -595,22 +595,9 @@ Deno.serve(async (req: Request) => {
     // chat error card can show "Tried OpenRouter (timeout) + Groq (429)"
     // instead of a generic "AI temporarily unavailable".
     const attempts = (error as { attempts?: unknown })?.attempts;
-    // Degrade the generic `internal 500` catch-all to `provider_busy 503`.
-    // The previous behavior surfaced a non-retryable "AI unavailable" toast
-    // to the user for what was almost always a transient upstream hiccup.
-    // Any real AIError already took the specific mapping path in toUserError.
-    const isGenericInternal = code === 'internal' && status === 500;
-    const responseBody = isGenericInternal
-      ? {
-          error: 'provider_busy',
-          message: 'AI is temporarily busy — please try again in a moment.',
-          ...(attempts ? { attempts } : {}),
-        }
-      : { error: code, message, ...(attempts ? { attempts } : {}) };
-    const responseStatus = isGenericInternal ? 503 : status;
     return new Response(
-      JSON.stringify(responseBody),
-      { status: responseStatus, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: code, message, ...(attempts ? { attempts } : {}) }),
+      { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
