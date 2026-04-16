@@ -353,10 +353,21 @@ export default function UploadPage() {
     setParseStep('reading');
 
     try {
-      // Step 1: fetch the HTML via our server proxy
+      // Step 1: fetch the HTML via our server proxy (requires auth to prevent
+      // the endpoint being used as an open proxy).
+      const { getSupabaseToken } = await import('@/lib/supabaseAuth');
+      const token = await getSupabaseToken();
+      if (!token) {
+        setUrlError('Please sign in to import from a URL.');
+        setIsProcessing(false);
+        return;
+      }
       const proxyRes = await fetch('/api/fetch-url', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ url }),
       });
       if (!proxyRes.ok) {

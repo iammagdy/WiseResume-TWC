@@ -11,8 +11,11 @@
  */
 
 import express from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { neon } from '@neondatabase/serverless';
+import { promises as dns } from 'node:dns';
+import net from 'node:net';
 
 const app = express();
 const PORT = parseInt(process.env.API_PORT || '5001', 10);
@@ -124,17 +127,135 @@ app.all('/api/fn/:fnName', async (req, res) => {
 });
 
 /**
+ * Return true if the given numeric IP address (v4 or v6) falls in a
+ * private/loopback/link-local/ULA/reserved range. Used to harden the
+ * URL-fetch proxy against SSRF after DNS resolution.
+ */
+function isPrivateIp(ip: string): boolean {
+  if (!ip) return true;
+  if (net.isIPv4(ip)) {
+    const parts = ip.split('.').map(n => parseInt(n, 10));
+    if (parts.length !== 4 || parts.some(n => Number.isNaN(n))) return true;
+    const [a, b] = parts;
+    if (a === 10) return true;                        // 10.0.0.0/8
+    if (a === 127) return true;                       // loopback
+    if (a === 0) return true;                         // 0.0.0.0/8
+    if (a === 169 && b === 254) return true;          // link-local
+    if (a === 172 && b >= 16 && b <= 31) return true; // 172.16/12
+    if (a === 192 && b === 168) return true;          // 192.168/16
+    if (a === 100 && b >= 64 && b <= 127) return true;// CGNAT
+    if (a >= 224) return true;                        // multicast + reserved
+    return false;
+  }
+  if (net.isIPv6(ip)) {
+    const v6 = ip.toLowerCase();
+    if (v6 === '::' || v6 === '::1') return true;
+    if (v6.startsWith('fe80:') || v6.startsWith('fe90:') ||
+        v6.startsWith('fea0:') || v6.startsWith('feb0:')) return true; // link-local
+    if (v6.startsWith('fc') || v6.startsWith('fd')) return true;        // ULA
+    if (v6.startsWith('ff')) return true;                                // multicast
+    // IPv4-mapped: ::ffff:a.b.c.d → validate embedded v4
+    const mapped = v6.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+    if (mapped) return isPrivateIp(mapped[1]);
+    return false;
+  }
+  // Unparseable → treat as unsafe
+  return true;
+}
+
+/**
+ * Resolve a hostname via DNS and confirm ALL resolved addresses are public.
+ * Blocks attacker-controlled domains that resolve to private/link-local IPs.
+ * Returns the list of resolved IPs on success, or throws an Error on block.
+ */
+async function assertPublicHost(hostname: string): Promise<string[]> {
+  // If the hostname is already a literal IP, check it directly.
+  if (net.isIP(hostname)) {
+    if (isPrivateIp(hostname)) throw new Error('blocked-private-ip');
+    return [hostname];
+  }
+  // Reject obvious suspicious names up front.
+  const lower = hostname.toLowerCase();
+  if (lower === 'localhost' || lower.endsWith('.local') || lower.endsWith('.internal')) {
+    throw new Error('blocked-name');
+  }
+  // Resolve all A/AAAA records. dns.lookup returns whatever the OS resolver
+  // gives us, including DNS-rebinding first-answers — we validate every one.
+  let records: { address: string; family: number }[];
+  try {
+    records = await dns.lookup(hostname, { all: true, verbatim: true });
+  } catch {
+    throw new Error('dns-failed');
+  }
+  if (!records || records.length === 0) throw new Error('dns-empty');
+  for (const r of records) {
+    if (isPrivateIp(r.address)) throw new Error('blocked-resolved-private');
+  }
+  return records.map(r => r.address);
+}
+
+/**
+ * Require that the caller is authenticated (i.e. sent a Bearer token).
+ * We do not re-validate the token here (Supabase does), but a presence check
+ * is enough to make the proxy non-anonymous and foreclose open-proxy abuse.
+ */
+function requireAuthHeader(req: Request, res: Response, next: NextFunction): void {
+  const auth = req.headers.authorization || '';
+  if (!/^Bearer\s+\S+/.test(auth)) {
+    res.status(401).json({ error: 'Authentication required' });
+    return;
+  }
+  next();
+}
+
+/**
+ * Simple in-memory token bucket keyed by user token + client IP. Prevents
+ * abuse of the URL-fetch proxy as a bandwidth/scanning tool.
+ */
+const URL_FETCH_RATE_LIMIT = { windowMs: 60_000, max: 10 };
+const urlFetchHits = new Map<string, { count: number; resetAt: number }>();
+function urlFetchRateLimiter(req: Request, res: Response, next: NextFunction): void {
+  const auth = req.headers.authorization || '';
+  const token = auth.replace(/^Bearer\s+/i, '').slice(0, 32);
+  const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+  const key = `${token}|${ip}`;
+  const now = Date.now();
+  const entry = urlFetchHits.get(key);
+  if (!entry || entry.resetAt < now) {
+    urlFetchHits.set(key, { count: 1, resetAt: now + URL_FETCH_RATE_LIMIT.windowMs });
+    next();
+    return;
+  }
+  if (entry.count >= URL_FETCH_RATE_LIMIT.max) {
+    const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
+    res.setHeader('Retry-After', String(retryAfter));
+    res.status(429).json({ error: 'Rate limit exceeded. Try again later.' });
+    return;
+  }
+  entry.count += 1;
+  next();
+}
+// Opportunistically sweep expired buckets so the map can't grow unbounded.
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of urlFetchHits) if (v.resetAt < now) urlFetchHits.delete(k);
+}, 5 * 60_000).unref?.();
+
+/**
  * POST /api/fetch-url — Fetch a public web page on the client's behalf so
  * browser CORS restrictions don't block the URL-based resume import path.
  *
  * Safety measures:
+ *   - Authenticated callers only (Bearer token required)
+ *   - Per-user/IP rate limit (10 req / min)
  *   - HTTP/HTTPS only
- *   - Block private / loopback / link-local hosts to prevent SSRF
+ *   - DNS resolution + IP-based block list on every hop (including redirects)
+ *   - Block private / loopback / link-local / ULA / CGNAT / multicast targets
  *   - 10-second timeout
  *   - 2 MB response size cap
- *   - Only returns the text body; no redirects chased beyond fetch defaults
+ *   - Only text/html, text/plain, application/xhtml+xml accepted
  */
-app.post('/api/fetch-url', async (req, res) => {
+app.post('/api/fetch-url', requireAuthHeader, urlFetchRateLimiter, async (req, res) => {
   const { url } = (req.body ?? {}) as { url?: string };
   if (!url || typeof url !== 'string') {
     return res.status(400).json({ error: 'Missing `url` in request body' });
@@ -151,37 +272,12 @@ app.post('/api/fetch-url', async (req, res) => {
     return res.status(400).json({ error: 'Only http and https URLs are allowed' });
   }
 
-  const isBlockedHost = (h: string): boolean => {
-    const host = h.toLowerCase();
-    return (
-      host === 'localhost' ||
-      host === '0.0.0.0' ||
-      host.endsWith('.local') ||
-      host.endsWith('.internal') ||
-      /^127\./.test(host) ||
-      /^10\./.test(host) ||
-      /^192\.168\./.test(host) ||
-      /^169\.254\./.test(host) ||
-      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host) ||
-      host === '::1' ||
-      host.startsWith('[::1]') ||
-      host.startsWith('[fc') ||
-      host.startsWith('[fd') ||
-      host.startsWith('fc') ||
-      host.startsWith('fd')
-    );
-  };
-
-  if (isBlockedHost(parsed.hostname)) {
-    return res.status(400).json({ error: 'Host is not publicly reachable' });
-  }
-
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10_000);
   try {
-    // Manually follow redirects so we can re-validate each hop against the
-    // blocked-host list — prevents redirect-based SSRF bypass (e.g. a public
-    // URL that 302s to http://169.254.169.254/).
+    // Manually follow redirects so we can re-validate each hop's DNS against
+    // the private-IP block list. Fixes redirect-based SSRF bypass AND
+    // DNS-based bypass (attacker domain → private IP).
     const MAX_REDIRECTS = 5;
     let currentUrl = parsed.toString();
     let upstream: Response | null = null;
@@ -190,8 +286,10 @@ app.post('/api/fetch-url', async (req, res) => {
       if (hopUrl.protocol !== 'http:' && hopUrl.protocol !== 'https:') {
         return res.status(400).json({ error: 'Redirect to unsupported scheme blocked' });
       }
-      if (isBlockedHost(hopUrl.hostname)) {
-        return res.status(400).json({ error: 'Redirect to private/loopback host blocked' });
+      try {
+        await assertPublicHost(hopUrl.hostname);
+      } catch {
+        return res.status(400).json({ error: 'Target host is not publicly reachable' });
       }
       const r = await fetch(hopUrl.toString(), {
         method: 'GET',

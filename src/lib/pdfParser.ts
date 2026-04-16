@@ -95,13 +95,28 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
 
     const data = await response.json();
     if (import.meta.env.DEV) console.log('AI parsing successful');
-    // Preserve server-side _meta (per-field confidence, completeness, textQuality).
-    // The edge function returns meta under `_meta`; some older deployments may return
-    // it as top-level fields. Accept both.
-    const meta: ParseMeta | undefined =
-      (data && typeof data === 'object' && (data._meta || extractLegacyMeta(data))) || undefined;
-    const cleaned = regenerateResumeIds(data);
-    if (meta) cleaned._meta = { ...(cleaned._meta || {}), ...meta };
+    // Preserve server-side _meta (section-level fieldConfidence, completeness,
+    // textQuality). Accept both the new nested `_meta` shape and the legacy
+    // top-level shape for forward/backward compat.
+    const nestedMeta = isRecord(data) ? readNestedMeta(data._meta) : undefined;
+    const legacyMeta = extractLegacyMeta(data);
+    const serverMeta: ParseMeta = { ...(legacyMeta || {}), ...(nestedMeta || {}) };
+
+    const cleaned = regenerateResumeIds(data as ResumeData);
+
+    // Compute per-field-instance confidence (every experience/education item
+    // etc.) and merge with the server's section-level scores so the UI can
+    // flag low-confidence fields at full granularity.
+    const itemConfidence = computeFieldLevelConfidence(cleaned);
+    const mergedConfidence: Record<string, number> = {
+      ...(serverMeta.fieldConfidence || {}),
+      ...itemConfidence,
+    };
+    cleaned._meta = {
+      ...(cleaned._meta || {}),
+      ...serverMeta,
+      fieldConfidence: mergedConfidence,
+    };
     return cleaned;
   } catch (error) {
     // Handle timeout specifically
@@ -154,30 +169,151 @@ export function regenerateResumeIds(data: ResumeData): ResumeData {
 }
 
 /**
- * Some deployments may emit meta fields at the top level instead of under `_meta`.
- * Pull them into a ParseMeta object so the UI receives them uniformly.
+ * Shape of an edge-function response that may carry parse metadata. Both the
+ * new (`_meta`) and legacy (top-level) layouts are accepted.
  */
-function extractLegacyMeta(raw: any): ParseMeta | undefined {
-  if (!raw || typeof raw !== 'object') return undefined;
+interface ParseResponseLike {
+  _meta?: unknown;
+  completeness?: unknown;
+  fieldConfidence?: unknown;
+  textQuality?: unknown;
+  aiCleaned?: unknown;
+  multiPass?: unknown;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+/**
+ * Some deployments may emit meta fields at the top level instead of under
+ * `_meta`. Pull them into a ParseMeta object so the UI receives them
+ * uniformly. Uses structural guards rather than `any` casts.
+ */
+function extractLegacyMeta(raw: unknown): ParseMeta | undefined {
+  if (!isRecord(raw)) return undefined;
+  const src = raw as ParseResponseLike;
   const meta: ParseMeta = {};
-  if (typeof raw.completeness === 'number') meta.completeness = raw.completeness;
-  if (raw.fieldConfidence && typeof raw.fieldConfidence === 'object') meta.fieldConfidence = raw.fieldConfidence;
-  if (typeof raw.textQuality === 'number') meta.textQuality = raw.textQuality;
-  if (typeof raw.aiCleaned === 'boolean') meta.aiCleaned = raw.aiCleaned;
-  if (typeof raw.multiPass === 'boolean') meta.multiPass = raw.multiPass;
+  if (typeof src.completeness === 'number') meta.completeness = src.completeness;
+  if (isRecord(src.fieldConfidence)) {
+    // Keep only numeric entries so we don't smuggle untyped data downstream.
+    const fc: Record<string, number> = {};
+    for (const [k, v] of Object.entries(src.fieldConfidence)) {
+      if (typeof v === 'number') fc[k] = v;
+    }
+    if (Object.keys(fc).length > 0) meta.fieldConfidence = fc;
+  }
+  if (typeof src.textQuality === 'number') meta.textQuality = src.textQuality;
+  if (typeof src.aiCleaned === 'boolean') meta.aiCleaned = src.aiCleaned;
+  if (typeof src.multiPass === 'boolean') meta.multiPass = src.multiPass;
   return Object.keys(meta).length > 0 ? meta : undefined;
 }
 
 /**
- * Derive low-confidence field labels from parse meta.
- * Fields with confidence below `threshold` (default 0.6) are returned for UI flagging.
+ * Normalise a possibly-nested `_meta` blob from the parse response into a
+ * strongly-typed ParseMeta.
+ */
+function readNestedMeta(raw: unknown): ParseMeta | undefined {
+  if (!isRecord(raw)) return undefined;
+  const result: ParseMeta = {};
+  if (typeof raw.completeness === 'number') result.completeness = raw.completeness;
+  if (isRecord(raw.fieldConfidence)) {
+    const fc: Record<string, number> = {};
+    for (const [k, v] of Object.entries(raw.fieldConfidence)) {
+      if (typeof v === 'number') fc[k] = v;
+    }
+    if (Object.keys(fc).length > 0) result.fieldConfidence = fc;
+  }
+  if (typeof raw.textQuality === 'number') result.textQuality = raw.textQuality;
+  if (typeof raw.aiCleaned === 'boolean') result.aiCleaned = raw.aiCleaned;
+  if (typeof raw.multiPass === 'boolean') result.multiPass = raw.multiPass;
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
+/**
+ * Compute per-item confidence scores for every individual field on the
+ * extracted resume — name, email, phone, summary and every experience,
+ * education, certification, award entry (company/position/date/degree/etc).
+ *
+ * Produces keys like:
+ *   contact.fullName, contact.email, contact.phone
+ *   experience[0].company, experience[0].position, experience[0].dates
+ *   education[2].institution, education[2].degree
+ *   certifications[0].name
+ *
+ * Heuristics: presence, regex confirmation (email/phone/year), token count,
+ * and date-range plausibility. Merged with any section-level confidence
+ * already provided by the server.
+ */
+function computeFieldLevelConfidence(data: ResumeData): Record<string, number> {
+  const scores: Record<string, number> = {};
+  const clamp = (n: number) => Math.max(0, Math.min(1, n));
+
+  // Contact fields
+  const c = data.contactInfo || ({} as ResumeData['contactInfo']);
+  const name = (c.fullName || '').trim();
+  scores['contact.fullName'] = name
+    ? clamp(0.4 + Math.min(name.split(/\s+/).length, 3) * 0.2 + (/^[A-Z]/.test(name) ? 0.1 : 0))
+    : 0;
+  const email = (c.email || '').trim();
+  scores['contact.email'] = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) ? 1 : email ? 0.3 : 0;
+  const phone = (c.phone || '').trim();
+  const digits = phone.replace(/\D/g, '');
+  scores['contact.phone'] = digits.length >= 7 && digits.length <= 15 ? 0.9 : phone ? 0.3 : 0;
+
+  // Summary
+  const summary = (data.summary || '').trim();
+  const summaryWords = summary ? summary.split(/\s+/).length : 0;
+  scores['summary'] = summary ? clamp(0.2 + Math.min(summaryWords, 60) / 60 * 0.7) : 0;
+
+  // Experience items
+  (data.experience || []).forEach((exp, i) => {
+    scores[`experience[${i}].company`] = exp.company?.trim() ? 0.9 : 0;
+    scores[`experience[${i}].position`] = exp.position?.trim() ? 0.9 : 0;
+    const hasStart = !!(exp.startDate && String(exp.startDate).trim());
+    const hasEnd = !!(exp.endDate && String(exp.endDate).trim()) || exp.current === true;
+    scores[`experience[${i}].dates`] = hasStart && hasEnd ? 0.9 : hasStart ? 0.5 : 0;
+    const bullets = (exp.responsibilities?.length || 0) + (exp.achievements?.length || 0);
+    scores[`experience[${i}].details`] = bullets > 0 ? clamp(0.3 + Math.min(bullets, 5) * 0.14) : 0.2;
+  });
+
+  // Education items
+  (data.education || []).forEach((edu, i) => {
+    scores[`education[${i}].institution`] = edu.institution?.trim() ? 0.9 : 0;
+    scores[`education[${i}].degree`] = edu.degree?.trim() ? 0.9 : 0;
+    const endYear = String(edu.endDate || '').match(/\b(19|20)\d{2}\b/);
+    scores[`education[${i}].endDate`] = endYear ? 0.95 : edu.endDate ? 0.5 : 0.3;
+  });
+
+  // Certifications
+  (data.certifications || []).forEach((cert, i) => {
+    scores[`certifications[${i}].name`] = cert.name?.trim() ? 0.9 : 0;
+    scores[`certifications[${i}].issuer`] = cert.issuer?.trim() ? 0.8 : 0.4;
+  });
+
+  // Awards
+  (data.awards || []).forEach((a, i) => {
+    scores[`awards[${i}].title`] = a.title?.trim() ? 0.9 : 0;
+  });
+
+  return scores;
+}
+
+/**
+ * Derive low-confidence field labels from parse meta. Handles both:
+ *   - Section-level keys from the edge function (name, email, experience, ...)
+ *   - Per-item keys from client-side heuristics
+ *     (contact.fullName, experience[3].company, education[0].degree, ...)
+ *
+ * Fields with confidence below `threshold` (default 0.6) are returned as
+ * human-readable labels for UI flagging.
  */
 export function getLowConfidenceFields(
   meta: ParseMeta | undefined,
   threshold = 0.6
 ): string[] {
   if (!meta?.fieldConfidence) return [];
-  const labels: Record<string, string> = {
+  const sectionLabels: Record<string, string> = {
     name: 'Full name',
     email: 'Email',
     phone: 'Phone',
@@ -188,14 +324,44 @@ export function getLowConfidenceFields(
     certifications: 'Certifications',
     awards: 'Awards',
     volunteering: 'Volunteering',
+    'contact.fullName': 'Full name',
+    'contact.email': 'Email',
+    'contact.phone': 'Phone',
   };
+  const subFieldLabels: Record<string, string> = {
+    company: 'company',
+    position: 'job title',
+    dates: 'dates',
+    details: 'description',
+    institution: 'school',
+    degree: 'degree',
+    graduationDate: 'graduation date',
+    name: 'name',
+    issuer: 'issuer',
+    title: 'title',
+  };
+
   const out: string[] = [];
   for (const [key, score] of Object.entries(meta.fieldConfidence)) {
-    if (typeof score === 'number' && score < threshold) {
-      out.push(labels[key] || key);
+    if (typeof score !== 'number' || score >= threshold) continue;
+
+    if (sectionLabels[key]) {
+      out.push(sectionLabels[key]);
+      continue;
     }
+    // Per-item keys: experience[0].company → "Experience #1 company"
+    const match = key.match(/^(\w+)\[(\d+)\]\.(\w+)$/);
+    if (match) {
+      const [, section, idx, sub] = match;
+      const sectionName = section.charAt(0).toUpperCase() + section.slice(1);
+      const subName = subFieldLabels[sub] || sub;
+      out.push(`${sectionName} #${parseInt(idx, 10) + 1} ${subName}`);
+      continue;
+    }
+    out.push(key);
   }
-  return out;
+  // Cap + dedupe to keep the banner readable.
+  return Array.from(new Set(out)).slice(0, 8);
 }
 
 /**
