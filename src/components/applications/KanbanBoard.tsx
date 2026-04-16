@@ -21,7 +21,6 @@ import { KanbanColumn, KanbanColumnDef } from './KanbanColumn';
 import { getAvatarColor } from './KanbanCard';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
-import { toast } from 'sonner';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { CheckCircle2 } from 'lucide-react';
 
@@ -296,11 +295,8 @@ export function KanbanBoard() {
       if (!card || card.status === newStatus) return;
 
       haptics.medium();
-      // The mutation handles optimistic update + rollback + error toast.
-      updateApplication.mutate(
-        { id: cardId, status: newStatus },
-        { onError: () => toast.error('Failed to move card — changes reverted') },
-      );
+      // Mutation handles optimistic update, rollback, and the error toast.
+      updateApplication.mutate({ id: cardId, status: newStatus });
     },
     [cards, updateApplication],
   );
@@ -314,10 +310,7 @@ export function KanbanBoard() {
     (card: JobApplication, newStatus: ApplicationStatus) => {
       if (card.status === newStatus) return;
       haptics.medium();
-      updateApplication.mutate(
-        { id: card.id, status: newStatus },
-        { onError: () => toast.error('Failed to move card — changes reverted') },
-      );
+      updateApplication.mutate({ id: card.id, status: newStatus });
     },
     [updateApplication],
   );
