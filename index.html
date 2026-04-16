@@ -135,19 +135,28 @@
         var label = document.getElementById('splash-label');
         var ring = document.getElementById('splash-ring');
         var theme = document.documentElement.getAttribute('data-initial-theme') || 'dark';
+        var isWH = window.location.pathname === '/enterprises';
 
         if (splash) {
           splash.style.background = theme === 'dark' ? '#111111' : '#ffffff';
         }
-        if (label && theme === 'light') {
-          label.style.color = 'rgba(0,0,0,0.3)';
+        if (label) {
+          label.style.color = theme === 'light' ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.35)';
         }
-        if (ring && theme === 'light') {
-          ring.style.borderColor = 'rgba(158,27,34,0.12)';
-          ring.style.borderTopColor = 'hsl(357,71%,46%)';
+        if (ring) {
+          if (isWH) {
+            ring.style.borderColor = theme === 'dark' ? 'rgba(29,78,216,0.18)' : 'rgba(29,78,216,0.12)';
+            ring.style.borderTopColor = theme === 'dark' ? 'hsl(221,83%,53%)' : 'hsl(221,83%,43%)';
+          } else if (theme === 'light') {
+            ring.style.borderColor = 'rgba(158,27,34,0.12)';
+            ring.style.borderTopColor = 'hsl(357,71%,46%)';
+          }
         }
         if (logo) {
           logo.src = theme === 'dark' ? '/logo-dark.png' : '/logo-light.png';
+          if (isWH) {
+            logo.style.filter = 'hue-rotate(220deg) saturate(2) brightness(0.85)';
+          }
         }
       })();
     </script>

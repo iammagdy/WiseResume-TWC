@@ -21,13 +21,26 @@ function AnimatedDots() {
   );
 }
 
+function getWHBrand() {
+  if (typeof window === 'undefined') return false;
+  return window.location.pathname === '/enterprises' ||
+    new URLSearchParams(window.location.search).get('for') === 'companies';
+}
+
 export function PageLoadingSpinner() {
   const prefersReduced = useReducedMotion();
+  const isWH = getWHBrand();
+
+  const ringColor = isWH ? '#1D4ED8' : 'hsl(var(--primary))';
+  const ringBorder = isWH ? 'rgba(29,78,216,0.18)' : undefined;
+  const label = isWH ? 'WISEHIRE' : 'WISERESUME';
 
   if (prefersReduced) {
     return (
       <div className="min-h-[100dvh] bg-background flex flex-col items-center justify-center gap-4">
-        <AppIcon size={44} />
+        <div style={isWH ? { filter: 'hue-rotate(220deg) saturate(2) brightness(0.85)' } : undefined}>
+          <AppIcon size={44} />
+        </div>
         <span className="text-sm text-muted-foreground">Loading…</span>
       </div>
     );
@@ -37,9 +50,10 @@ export function PageLoadingSpinner() {
     <div className="fixed inset-0 bg-background flex flex-col items-center justify-center gap-8">
       <div className="relative w-20 h-20 flex items-center justify-center">
         <motion.div
-          className="absolute inset-0 rounded-full border-2 border-muted"
+          className="absolute inset-0 rounded-full border-2"
           style={{
-            borderTopColor: 'hsl(var(--primary))',
+            borderColor: ringBorder ?? 'hsl(var(--muted))',
+            borderTopColor: ringColor,
           }}
           animate={{ rotate: 360 }}
           transition={{ duration: 0.9, repeat: Infinity, ease: 'linear' }}
@@ -47,6 +61,7 @@ export function PageLoadingSpinner() {
 
         <motion.div
           className="absolute"
+          style={isWH ? { filter: 'hue-rotate(220deg) saturate(2) brightness(0.85)' } : undefined}
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.4, ease: 'easeOut' }}
@@ -61,8 +76,11 @@ export function PageLoadingSpinner() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, delay: 0.2, ease: 'easeOut' }}
       >
-        <span className="text-sm font-semibold tracking-[0.2em] text-muted-foreground">
-          WISERESUME
+        <span
+          className="text-sm font-semibold tracking-[0.2em] text-muted-foreground"
+          style={isWH ? { color: 'rgba(29,78,216,0.6)' } : undefined}
+        >
+          {label}
         </span>
         <AnimatedDots />
       </motion.div>
