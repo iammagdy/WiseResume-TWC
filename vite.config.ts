@@ -2,6 +2,7 @@
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import { createHash } from "crypto";
 import { VitePWA } from "vite-plugin-pwa";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { visualizer } from "rollup-plugin-visualizer";
@@ -41,6 +42,14 @@ function cspPlugin(): Plugin {
 
 const PREFETCH_CHUNKS = ['DashboardPage', 'EditorPage', 'UploadPage', 'framer', 'AnimatedSplash'];
 
+// Defer route prefetch until the page is interactive. Previously, prefetch
+// links were emitted directly into <head>, which competes with critical
+// app JS for bandwidth on cold start (especially on mobile). Now we emit
+// a tiny external bootstrap as a build asset (CSP `script-src 'self'`
+// compliant — inline scripts would be blocked) that waits for window
+// `load`, then materializes <link rel="prefetch"> tags via
+// requestIdleCallback. Net: zero competing bytes during the splash
+// window, full prefetch benefit after the page is interactive.
 function prefetchPlugin(): Plugin {
   return {
     name: 'prefetch-key-routes',
@@ -48,15 +57,35 @@ function prefetchPlugin(): Plugin {
       order: 'post',
       handler(html, ctx) {
         if (!ctx.bundle) return html;
-        const links: string[] = [];
+        const urls: string[] = [];
         for (const [fileName, chunk] of Object.entries(ctx.bundle)) {
           if (chunk.type !== 'chunk') continue;
           if (PREFETCH_CHUNKS.some(name => chunk.name === name)) {
-            links.push(`  <link rel="prefetch" href="/${fileName}" as="script" crossorigin />`);
+            urls.push(`/${fileName}`);
           }
         }
-        if (links.length === 0) return html;
-        return html.replace('</head>', links.join('\n') + '\n</head>');
+        if (urls.length === 0) return html;
+        const code =
+          `(function(){var u=${JSON.stringify(urls)};` +
+          `function go(){u.forEach(function(href){var l=document.createElement('link');` +
+          `l.rel='prefetch';l.as='script';l.crossOrigin='';l.href=href;` +
+          `document.head.appendChild(l);});}` +
+          `function schedule(){if('requestIdleCallback' in window){requestIdleCallback(go,{timeout:3000});}` +
+          `else{setTimeout(go,1500);}}` +
+          `if(document.readyState==='complete'){schedule();}` +
+          `else{addEventListener('load',schedule,{once:true});}})();`;
+        const hash = createHash('sha256').update(code).digest('hex').slice(0, 8);
+        const assetFileName = `assets/prefetch-${hash}.js`;
+        // Emit as a real asset so it satisfies `script-src 'self'`.
+        (ctx.bundle as Record<string, unknown>)[assetFileName] = {
+          type: 'asset',
+          fileName: assetFileName,
+          name: 'prefetch',
+          source: code,
+          needsCodeReference: false,
+        };
+        const tag = `  <script src="/${assetFileName}" defer></script>\n`;
+        return html.replace('</head>', tag + '</head>');
       },
     },
   };
@@ -84,13 +113,26 @@ export default defineConfig(() => ({
         manualChunks(id) {
           if (id.includes('node_modules/framer-motion')) return 'framer';
           if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-')) return 'charts';
-          if (id.includes('node_modules/pdf-lib') || id.includes('node_modules/pdfjs-dist')) return 'pdf';
+
+          // Document-export bundle: pdf-lib, pdfjs, docx, qr, html2canvas,
+          // image-crop are all only loaded on user-initiated export/upload
+          // paths. Merging them into one logical bundle reduces the small
+          // chunk count on cold start (each chunk costs an HTTP RTT on
+          // mobile) without adding to the critical path.
+          if (
+            id.includes('node_modules/pdf-lib') ||
+            id.includes('node_modules/pdfjs-dist') ||
+            id.includes('node_modules/docx') ||
+            id.includes('node_modules/qr-code-styling') ||
+            id.includes('node_modules/html2canvas') ||
+            id.includes('node_modules/react-image-crop')
+          ) return 'doc-export';
+
+          // OCR is the single largest dep family — keep isolated so it
+          // never pulls into the doc-export path on first PDF render.
           if (id.includes('node_modules/tesseract') || id.includes('node_modules/mammoth')) return 'ocr';
-          if (id.includes('node_modules/docx')) return 'docx';
-          if (id.includes('node_modules/qr-code-styling')) return 'qr';
-          if (id.includes('node_modules/react-image-crop')) return 'image-crop';
+
           if (id.includes('node_modules/@radix-ui')) return 'radix';
-          if (id.includes('node_modules/html2canvas')) return 'html2canvas';
           if (id.includes('node_modules/ogl')) return 'ogl';
           if (id.includes('node_modules/@supabase')) return 'supabase';
           if (id.includes('node_modules/@kinde-oss')) return 'kinde-auth';
@@ -122,6 +164,18 @@ export default defineConfig(() => ({
       manifest: false, // Use existing public/manifest.json
       injectManifest: {
         globPatterns: ["**/*.{js,css,html,ico,svg,woff2}"],
+        // Heavy export/OCR bundles are only needed when the user actually
+        // triggers the corresponding feature. Excluding them from the
+        // first-install precache keeps the SW download small (saves
+        // multiple MB on cold install) — the SW will still serve them at
+        // runtime via the `dontCacheBustURLsMatching`/runtime-cache logic
+        // in `public/custom-sw.js` once they are first requested.
+        globIgnores: [
+          "**/assets/ocr-*.js",
+          "**/assets/doc-export-*.js",
+          "**/assets/charts-*.js",
+          "**/assets/ogl-*.js",
+        ],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         dontCacheBustURLsMatching: /~oauth/,
       },
