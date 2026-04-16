@@ -357,7 +357,6 @@ export default function SettingsPage() {
             <div className="mx-4">
               <AboutSection
                 isSignedIn={!!user}
-                appVersion={appVersion}
                 onTakeTour={async () => {
                   haptics.light();
                   if (user) {

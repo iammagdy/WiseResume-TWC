@@ -124,12 +124,15 @@ export const AccountSection = memo(function AccountSection({
                     label="Manage Sign-in & Password"
                     description={passwordRowDescription}
                     icon={<KeyRound className="w-4 h-4" />}
-                    onClick={() => {
+                    onClick={async () => {
                         haptics.light();
                         const kindeDomain = (import.meta.env.VITE_KINDE_DOMAIN as string | undefined)?.trim();
-                        const portalUrl = kindeDomain
-                            ? (kindeDomain.startsWith('http') ? kindeDomain : `https://${kindeDomain}`).replace(/\/$/, '') + '/account'
-                            : 'https://kinde.com';
+                        if (!kindeDomain) {
+                            const { toast } = await import('sonner');
+                            toast.error('Account portal is not configured. Contact support.');
+                            return;
+                        }
+                        const portalUrl = (kindeDomain.startsWith('http') ? kindeDomain : `https://${kindeDomain}`).replace(/\/$/, '') + '/account';
                         openExternal(portalUrl);
                     }}
                 />

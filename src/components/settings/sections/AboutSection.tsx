@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { RotateCcw, Sparkles, Star, Share2, BookOpen, Bug, Activity, ScrollText, Info } from 'lucide-react';
+import { RotateCcw, Sparkles, Star, Share2, BookOpen, Bug, Activity, ScrollText } from 'lucide-react';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { Separator } from '@/components/ui/separator';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -8,7 +8,6 @@ import { triggerBugReport } from '@/lib/bugReport';
 
 interface AboutSectionProps {
     isSignedIn: boolean;
-    appVersion: string;
     onTakeTour: () => void;
     onReplaySplash: () => void;
     onRateApp: () => void;
@@ -19,7 +18,6 @@ interface AboutSectionProps {
 
 export const AboutSection = memo(function AboutSection({
     isSignedIn,
-    appVersion,
     onTakeTour,
     onReplaySplash,
     onRateApp,
@@ -80,14 +78,6 @@ export const AboutSection = memo(function AboutSection({
                     description="View release notes and changelog"
                     icon={<ScrollText className="w-4 h-4" />}
                     onClick={onOpenChangelog}
-                />
-                <Separator className="ml-[52px] bg-border/30" />
-                <SettingsRow
-                    type="button"
-                    label="About WiseResume"
-                    description={`Version ${appVersion}`}
-                    icon={<Info className="w-4 h-4" />}
-                    onClick={() => { haptics.light(); onOpenChangelog(); }}
                 />
                 {isSignedIn && (
                     <>
