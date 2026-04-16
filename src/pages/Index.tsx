@@ -10,8 +10,7 @@ import { useProfile } from '@/hooks/useProfile';
 import triggerHaptic from '@/lib/haptics';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { useReducedMotion, motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
-import { useEffect, useLayoutEffect, useState, useRef } from 'react';
-import { flushSync } from 'react-dom';
+import { useEffect, useLayoutEffect, useState, useRef, startTransition } from 'react';
 import { useSettingsStore } from '@/store/settingsStore';
 import { getSafeMatchMedia } from '@/lib/envUtils';
 import { useSearchParams } from 'react-router-dom';
@@ -323,7 +322,7 @@ const SECTION_ENTRY_VECTORS: Array<{ x: number; y: number }> = [
 
 const SCATTER_WRAPPER_VARIANTS = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.08 } },
+  visible: { transition: { staggerChildren: 0.04 } },
   exit: { transition: { staggerChildren: 0.04, staggerDirection: -1 } },
 };
 
@@ -526,7 +525,7 @@ const Index = () => {
       setWaveKey((k) => k + 1);
       modeTimerRef.current = setTimeout(() => {
         modeTimerRef.current = null;
-        flushSync(() => setMode(m));
+        startTransition(() => setMode(m));
       }, 300);
     } else {
       setMode(m);
