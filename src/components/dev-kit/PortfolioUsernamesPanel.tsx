@@ -168,10 +168,12 @@ function DirectorySection() {
   const doRename = async () => {
     if (!renaming) return;
     const val = newUsername.trim().toLowerCase();
-    if (val.length < 3) {
-      toast.error('Username must be at least 3 characters');
+    if (!val) {
+      toast.error('Username cannot be empty');
       return;
     }
+    // Defer length/character validation to the server — it enforces the
+    // effective rules (global + per-user overrides) via check_username_available.
     const { error } = await invoke('directory_rename', {
       user_id: renaming.user_id,
       new_username: val,
