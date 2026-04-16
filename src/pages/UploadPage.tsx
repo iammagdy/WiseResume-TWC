@@ -1,7 +1,7 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, FileText, AlertTriangle } from 'lucide-react';
+import { Upload, FileText, AlertTriangle, Link as LinkIcon, Loader2 } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 // mammoth is dynamically imported when needed (see handleWordFile)
 import { useResumeStore } from '@/store/resumeStore';
@@ -14,6 +14,7 @@ import {
   parseTextWithAI,
   regenerateResumeIds,
   getExtractionSummary, 
+  getLowConfidenceFields,
   PDFParseError,
   estimateOCRTime,
   OCRProgressCallback,
@@ -81,6 +82,22 @@ export default function UploadPage() {
   // Parse recovery banner state
   const [showParseRecoveryBanner, setShowParseRecoveryBanner] = useState(false);
   const [parseRecoveryWarnings, setParseRecoveryWarnings] = useState<string[]>([]);
+
+  // Low-confidence field banner
+  const [lowConfidenceFields, setLowConfidenceFields] = useState<string[]>([]);
+
+  // URL import state
+  const [urlInput, setUrlInput] = useState('');
+  const [urlError, setUrlError] = useState<string | null>(null);
+
+  // Surface low-confidence fields whenever new parsed data arrives.
+  useEffect(() => {
+    if (pendingResumeData) {
+      setLowConfidenceFields(getLowConfidenceFields(pendingResumeData._meta, 0.6));
+    } else {
+      setLowConfidenceFields([]);
+    }
+  }, [pendingResumeData]);
 
   // Fire ATS scoring in the background after parse completes
   const triggerATSScoring = useCallback((resumeData: ResumeData) => {
@@ -305,6 +322,109 @@ export default function UploadPage() {
       setIsProcessing(false);
     }
   }, []);
+
+  // Handle URL import — fetches page HTML via the Express proxy (avoids CORS),
+  // strips markup, and pipes the cleaned text through the same AI parser used
+  // for PDFs/Word/HTML.
+  const handleUrlImport = useCallback(async (rawUrl: string) => {
+    const trimmed = rawUrl.trim();
+    if (!trimmed) {
+      setUrlError('Please paste a URL first.');
+      return;
+    }
+    // Accept URLs without a scheme by assuming https://
+    const url = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    try {
+      // Validate client-side before the round-trip
+      const parsed = new URL(url);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        setUrlError('Only http and https URLs are supported.');
+        return;
+      }
+    } catch {
+      setUrlError('That doesn\'t look like a valid URL.');
+      return;
+    }
+
+    setUrlError(null);
+    setFileName(url);
+    setIsProcessing(true);
+    setShowErrorRecovery(false);
+    setParseStep('reading');
+
+    try {
+      // Step 1: fetch the HTML via our server proxy
+      const proxyRes = await fetch('/api/fetch-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      if (!proxyRes.ok) {
+        const body = await proxyRes.json().catch(() => ({}));
+        const msg = body?.error || `Could not fetch the page (status ${proxyRes.status}).`;
+        setUrlError(msg);
+        toast.error(msg, { duration: 5000 });
+        setIsProcessing(false);
+        return;
+      }
+      const { html } = (await proxyRes.json()) as { html: string };
+
+      setParseStep('extracting');
+      const text = extractTextFromHTML(html);
+
+      if (!text.trim() || text.length < 50) {
+        setErrorType('NO_TEXT');
+        setShowErrorRecovery(true);
+        setIsProcessing(false);
+        return;
+      }
+
+      // Step 2: run through the same preprocessing + AI parsing pipeline as PDFs
+      let cleanedText: string;
+      try {
+        cleanedText = preprocessResumeText(text);
+      } catch {
+        cleanedText = text;
+      }
+      let textWithHints: string;
+      try {
+        const hints = extractContactHints(cleanedText);
+        textWithHints = hints ? cleanedText + hints : cleanedText;
+      } catch {
+        textWithHints = cleanedText;
+      }
+
+      setParseStep('analyzing');
+      const resumeData = await parseTextWithAI(textWithHints);
+      if (resumeData._meta) resumeData._meta.source = 'url';
+
+      const extraction = getExtractionSummary(resumeData);
+      if (extraction.isEmpty) {
+        setErrorType('NO_TEXT');
+        setShowErrorRecovery(true);
+        setIsProcessing(false);
+        return;
+      }
+
+      setParseStep('complete');
+      await new Promise(resolve => setTimeout(resolve, 400));
+
+      setPendingResumeData(resumeData);
+      setShowImportReview(true);
+      triggerATSScoring(resumeData);
+      setUrlInput('');
+    } catch (error) {
+      if (error instanceof Error && error.message === 'AI_UNREACHABLE') {
+        setErrorType('AI_UNREACHABLE');
+        setShowErrorRecovery(true);
+      } else {
+        const msg = error instanceof Error ? error.message : 'Failed to import from URL.';
+        toast.error(msg, { duration: 5000 });
+      }
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [triggerATSScoring]);
 
   // Handle HTML file
   const handleHTMLFile = useCallback(async (file: File) => {
@@ -760,6 +880,17 @@ export default function UploadPage() {
           <h1 className="text-page-title truncate">Upload Resume</h1>
         </div>
       </header>
+      {lowConfidenceFields.length > 0 && !isProcessing && (
+        <div className="mx-4 mt-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
+          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-foreground">
+              <span className="font-medium">Please double-check these fields:</span>{' '}
+              <span className="text-muted-foreground">{lowConfidenceFields.join(', ')}</span>
+            </p>
+          </div>
+        </div>
+      )}
       {showParseRecoveryBanner && (
         <div className="mx-4 mt-4 p-4 rounded-lg bg-destructive/10 border border-destructive/20 flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
@@ -865,6 +996,50 @@ export default function UploadPage() {
                   </div>
                 )}
               </UploadZone>
+
+              {/* URL import */}
+              {!isProcessing && (
+                <motion.form
+                  className="mt-5 p-4 rounded-xl bg-muted/30 border border-border"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 }}
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleUrlImport(urlInput);
+                  }}
+                >
+                  <label className="flex items-center gap-2 text-sm font-medium mb-2">
+                    <LinkIcon className="w-4 h-4 text-primary" />
+                    Or paste a resume URL
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      inputMode="url"
+                      value={urlInput}
+                      onChange={(e) => { setUrlInput(e.target.value); if (urlError) setUrlError(null); }}
+                      placeholder="https://example.com/my-resume"
+                      className="flex-1 min-w-0 px-3 py-2 text-sm rounded-md bg-background border border-border outline-none focus:ring-2 focus:ring-primary"
+                      aria-label="Resume URL"
+                      disabled={isProcessing}
+                    />
+                    <button
+                      type="submit"
+                      className="px-4 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-2"
+                      disabled={isProcessing || !urlInput.trim()}
+                    >
+                      {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Import'}
+                    </button>
+                  </div>
+                  {urlError && (
+                    <p className="mt-2 text-xs text-destructive">{urlError}</p>
+                  )}
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    We'll fetch the page text and run it through the same parser. Public pages only.
+                  </p>
+                </motion.form>
+              )}
 
               {/* Tips - More Compact */}
               {!isProcessing && (

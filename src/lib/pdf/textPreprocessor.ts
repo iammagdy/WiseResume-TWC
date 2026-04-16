@@ -132,15 +132,168 @@ export function removeHeadersFooters(pages: string[]): string[] {
 }
 
 /**
+ * Detect table-like structures in resume text and rewrite them as flat
+ * "Label: Value" key-value pairs so the AI parser receives structured data
+ * instead of a merged blob.
+ *
+ * Heuristics for a table row:
+ *   - Short line (<= 120 chars)
+ *   - Contains 2+ whitespace-separated "cells" split by 2+ spaces, OR
+ *     exactly one tab character, OR a pipe character
+ *   - Leftmost cell has at least one letter (avoids pure date/number pairs)
+ *
+ * A contiguous run of >= 2 such rows is treated as a table. Single rows are
+ * left alone to avoid false positives on date-right-aligned entries.
+ */
+export function detectAndFormatTables(text: string): string {
+  const lines = text.split('\n');
+  const out: string[] = [];
+  let i = 0;
+
+  const splitRow = (raw: string): string[] | null => {
+    const trimmed = raw.trim();
+    if (!trimmed || trimmed.length > 120) return null;
+    // Pipe-separated: "Python | 5 years"
+    if (trimmed.includes('|')) {
+      const cells = trimmed.split(/\s*\|\s*/).map(c => c.trim()).filter(Boolean);
+      return cells.length >= 2 ? cells : null;
+    }
+    // Tab-separated
+    if (trimmed.includes('\t')) {
+      const cells = trimmed.split(/\t+/).map(c => c.trim()).filter(Boolean);
+      return cells.length >= 2 ? cells : null;
+    }
+    // 2+ space gap separates columns: "JavaScript     Expert     5 yrs"
+    if (/\S {2,}\S/.test(trimmed)) {
+      const cells = trimmed.split(/ {2,}/).map(c => c.trim()).filter(Boolean);
+      return cells.length >= 2 ? cells : null;
+    }
+    return null;
+  };
+
+  const isTableRow = (cells: string[] | null): boolean => {
+    if (!cells || cells.length < 2) return false;
+    // Leftmost cell should contain a letter (skip "Jan 2020   Mar 2021" style)
+    if (!/[A-Za-z]/.test(cells[0])) return false;
+    // Skip lines that are clearly sentences (lots of words in one cell)
+    if (cells[0].split(/\s+/).length > 8) return false;
+    return true;
+  };
+
+  while (i < lines.length) {
+    const cells = splitRow(lines[i]);
+    if (isTableRow(cells)) {
+      // Look ahead for contiguous table rows
+      const group: string[][] = [cells!];
+      let j = i + 1;
+      while (j < lines.length) {
+        const next = splitRow(lines[j]);
+        if (!isTableRow(next)) break;
+        group.push(next!);
+        j++;
+      }
+      if (group.length >= 2) {
+        // Flatten each row as "Label: remaining cells joined by ' — '"
+        for (const row of group) {
+          const [label, ...rest] = row;
+          out.push(`${label}: ${rest.join(' — ')}`);
+        }
+        i = j;
+        continue;
+      }
+    }
+    out.push(lines[i]);
+    i++;
+  }
+
+  return out.join('\n');
+}
+
+/**
+ * Known resume section-header keywords used for multi-page stitching.
+ * Kept lowercase; match is case-insensitive and anchored to a short line.
+ */
+const SECTION_HEADER_RE = /^(experience|work experience|professional experience|employment|education|skills|technical skills|core competencies|summary|profile|objective|projects?|publications?|certifications?|certificates|awards?|achievements|honors?|volunteering|volunteer experience|references|languages|hobbies|interests)[:\s]*$/i;
+
+function looksLikeSectionHeader(line: string): boolean {
+  const t = line.trim();
+  if (!t || t.length > 60) return false;
+  return SECTION_HEADER_RE.test(t);
+}
+
+function endsMidSentence(line: string): boolean {
+  const t = line.trim();
+  if (!t) return false;
+  // Ends with a terminal punctuation → complete thought
+  if (/[.!?:;)]$/.test(t)) return false;
+  // Starts with a bullet → likely an in-progress list item
+  if (/^[-•*]/.test(t)) return true;
+  // Lowercase start or ends in a connective → mid-sentence
+  if (/[,\-]$/.test(t)) return true;
+  // All caps short line is usually a header, not mid-sentence
+  if (t.length < 40 && t === t.toUpperCase() && /[A-Z]/.test(t)) return false;
+  // Default: treat long lines without terminal punctuation as mid-sentence
+  return t.length > 25;
+}
+
+/**
+ * Stitch per-page texts into a single document, carrying section context
+ * across page boundaries. When a section header is the last non-empty line
+ * of a page, the header is repeated on the next page (as a comment marker)
+ * so the downstream parser attributes the content correctly. When a page
+ * ends mid-sentence or with a dangling bullet, pages are joined with a
+ * single newline instead of a blank line so records stay unbroken.
+ */
+export function stitchMultiPageSections(pageTexts: string[]): string {
+  if (!pageTexts || pageTexts.length === 0) return '';
+  if (pageTexts.length === 1) return pageTexts[0];
+
+  const parts: string[] = [pageTexts[0]];
+  let carriedHeader: string | null = null;
+
+  for (let p = 0; p < pageTexts.length - 1; p++) {
+    const current = pageTexts[p];
+    const next = pageTexts[p + 1];
+    const currentLines = current.split('\n').map(l => l.trimEnd()).filter(l => l.length > 0);
+    const lastLine = currentLines[currentLines.length - 1] || '';
+    const nextTrimmed = next.trimStart();
+    const nextFirstLine = nextTrimmed.split('\n')[0] || '';
+
+    // Case A: page ends with a section header → carry it forward as context
+    if (looksLikeSectionHeader(lastLine) && !looksLikeSectionHeader(nextFirstLine)) {
+      parts.push('\n\n' + next);
+      carriedHeader = lastLine;
+      continue;
+    }
+
+    // Case B: previous page ended mid-sentence/bullet → join tightly
+    if (endsMidSentence(lastLine) && !looksLikeSectionHeader(nextFirstLine)) {
+      // If we have a carried header from earlier, prepend a soft marker
+      const prefix = carriedHeader ? `\n(continued: ${carriedHeader})\n` : '\n';
+      parts.push(prefix + next);
+      carriedHeader = null;
+      continue;
+    }
+
+    // Default: blank-line separated page
+    parts.push('\n\n' + next);
+    carriedHeader = null;
+  }
+
+  // parts[0] is full page 1; parts[1..] already include leading separators
+  return parts[0] + parts.slice(1).join('');
+}
+
+/**
  * Main preprocessing pipeline.
  * Cleans extracted text before sending to AI for parsing.
  */
 export function preprocessResumeText(text: string, pageTexts?: string[]): string {
-  // Step 1: If we have per-page text, remove headers/footers first
+  // Step 1: If we have per-page text, remove headers/footers and stitch pages
   let processedText: string;
   if (pageTexts && pageTexts.length > 1) {
     const cleanedPages = removeHeadersFooters(pageTexts);
-    processedText = cleanedPages.join('\n\n');
+    processedText = stitchMultiPageSections(cleanedPages);
   } else {
     processedText = text;
   }
@@ -148,13 +301,21 @@ export function preprocessResumeText(text: string, pageTexts?: string[]): string
   // Step 2: Strip non-printable characters and encoding artifacts
   processedText = stripNonPrintable(processedText);
 
-  // Step 3: Fix concatenated words from PDF extraction
+  // Step 3: Detect and flatten table-like structures BEFORE word-splitting
+  //         so column gaps aren't destroyed by PascalCase splitting.
+  try {
+    processedText = detectAndFormatTables(processedText);
+  } catch {
+    // Table detection is best-effort; never fail the pipeline on its account.
+  }
+
+  // Step 4: Fix concatenated words from PDF extraction
   processedText = fixConcatenatedWords(processedText);
 
-  // Step 4: Normalize bullet characters
+  // Step 5: Normalize bullet characters
   processedText = normalizeBullets(processedText);
 
-  // Step 5: Clean up whitespace
+  // Step 6: Clean up whitespace
   processedText = normalizeWhitespace(processedText);
 
   return processedText;

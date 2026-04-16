@@ -123,6 +123,147 @@ app.all('/api/fn/:fnName', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/fetch-url — Fetch a public web page on the client's behalf so
+ * browser CORS restrictions don't block the URL-based resume import path.
+ *
+ * Safety measures:
+ *   - HTTP/HTTPS only
+ *   - Block private / loopback / link-local hosts to prevent SSRF
+ *   - 10-second timeout
+ *   - 2 MB response size cap
+ *   - Only returns the text body; no redirects chased beyond fetch defaults
+ */
+app.post('/api/fetch-url', async (req, res) => {
+  const { url } = (req.body ?? {}) as { url?: string };
+  if (!url || typeof url !== 'string') {
+    return res.status(400).json({ error: 'Missing `url` in request body' });
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return res.status(400).json({ error: 'Invalid URL' });
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return res.status(400).json({ error: 'Only http and https URLs are allowed' });
+  }
+
+  const isBlockedHost = (h: string): boolean => {
+    const host = h.toLowerCase();
+    return (
+      host === 'localhost' ||
+      host === '0.0.0.0' ||
+      host.endsWith('.local') ||
+      host.endsWith('.internal') ||
+      /^127\./.test(host) ||
+      /^10\./.test(host) ||
+      /^192\.168\./.test(host) ||
+      /^169\.254\./.test(host) ||
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host) ||
+      host === '::1' ||
+      host.startsWith('[::1]') ||
+      host.startsWith('[fc') ||
+      host.startsWith('[fd') ||
+      host.startsWith('fc') ||
+      host.startsWith('fd')
+    );
+  };
+
+  if (isBlockedHost(parsed.hostname)) {
+    return res.status(400).json({ error: 'Host is not publicly reachable' });
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10_000);
+  try {
+    // Manually follow redirects so we can re-validate each hop against the
+    // blocked-host list — prevents redirect-based SSRF bypass (e.g. a public
+    // URL that 302s to http://169.254.169.254/).
+    const MAX_REDIRECTS = 5;
+    let currentUrl = parsed.toString();
+    let upstream: Response | null = null;
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+      const hopUrl = new URL(currentUrl);
+      if (hopUrl.protocol !== 'http:' && hopUrl.protocol !== 'https:') {
+        return res.status(400).json({ error: 'Redirect to unsupported scheme blocked' });
+      }
+      if (isBlockedHost(hopUrl.hostname)) {
+        return res.status(400).json({ error: 'Redirect to private/loopback host blocked' });
+      }
+      const r = await fetch(hopUrl.toString(), {
+        method: 'GET',
+        redirect: 'manual',
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'WiseResume-Importer/1.0 (+https://resume.thewise.cloud)',
+          Accept: 'text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5',
+        },
+      });
+      if (r.status >= 300 && r.status < 400) {
+        const location = r.headers.get('location');
+        if (!location) {
+          upstream = r;
+          break;
+        }
+        if (hop === MAX_REDIRECTS) {
+          return res.status(502).json({ error: 'Too many redirects' });
+        }
+        currentUrl = new URL(location, hopUrl).toString();
+        continue;
+      }
+      upstream = r;
+      break;
+    }
+    if (!upstream) {
+      return res.status(502).json({ error: 'Failed to fetch URL' });
+    }
+
+    const contentType = upstream.headers.get('content-type') || '';
+    if (!upstream.ok) {
+      return res.status(502).json({ error: `Upstream responded with ${upstream.status}` });
+    }
+    if (!/text\/html|text\/plain|application\/xhtml/i.test(contentType)) {
+      return res.status(415).json({ error: `Unsupported content-type: ${contentType || 'unknown'}` });
+    }
+
+    const MAX_BYTES = 2 * 1024 * 1024; // 2 MB
+    const reader = upstream.body?.getReader();
+    if (!reader) {
+      const text = await upstream.text();
+      return res.json({ url: parsed.toString(), contentType, html: text.slice(0, MAX_BYTES) });
+    }
+
+    const chunks: Uint8Array[] = [];
+    let received = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        received += value.byteLength;
+        if (received > MAX_BYTES) {
+          try { await reader.cancel(); } catch { /* ignore */ }
+          return res.status(413).json({ error: 'Response exceeds 2 MB limit' });
+        }
+        chunks.push(value);
+      }
+    }
+    const buffer = Buffer.concat(chunks.map(c => Buffer.from(c)));
+    const html = buffer.toString('utf-8');
+    return res.json({ url: parsed.toString(), contentType, html });
+  } catch (err: unknown) {
+    const isAbort = err instanceof Error && err.name === 'AbortError';
+    return res.status(isAbort ? 504 : 502).json({
+      error: isAbort ? 'Upstream request timed out' : 'Failed to fetch URL',
+      detail: String(err),
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+});
+
 // ── Direct DB routes (server-side, no Supabase needed) ────────────────────────
 
 /**

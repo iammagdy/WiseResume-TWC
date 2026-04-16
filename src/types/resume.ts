@@ -121,6 +121,21 @@ export interface TemplateCustomization {
   pageFormat: 'a4' | 'letter';
 }
 
+export interface ParseMeta {
+  /** Overall completeness score (0-100) from the server-side parser. */
+  completeness?: number;
+  /** Per-field confidence (0-1). Keys: name, email, phone, summary, experience, education, skills, certifications, awards, volunteering */
+  fieldConfidence?: Record<string, number>;
+  /** Raw text quality score (0-1) produced during extraction. */
+  textQuality?: number;
+  /** True if server ran an AI text-cleaning pre-pass. */
+  aiCleaned?: boolean;
+  /** True if server needed a second extraction pass. */
+  multiPass?: boolean;
+  /** Source hint: pdf | url | word | image | json | html | ocr */
+  source?: 'pdf' | 'url' | 'word' | 'image' | 'json' | 'html' | 'ocr';
+}
+
 export interface ResumeData {
   id?: string;
   contactInfo: ContactInfo;
@@ -140,6 +155,8 @@ export interface ResumeData {
   customization?: TemplateCustomization;
   createdAt?: string;
   updatedAt?: string;
+  /** Non-persistent parse metadata — surfaced in UI, not saved to DB. */
+  _meta?: ParseMeta;
 }
 
 export interface JobMatchScore {

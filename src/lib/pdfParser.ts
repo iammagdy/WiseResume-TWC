@@ -7,7 +7,7 @@
  * Supports OCR fallback for scanned/image-based PDFs via parseResumePDFWithOCR.
  */
 
-import { ResumeData } from '@/types/resume';
+import { ResumeData, ParseMeta } from '@/types/resume';
 import { extractTextFromPDF, PDFParseError, ExtractionResult } from './pdf/textExtractor';
 import { extractTextWithOCR, OCRProgressCallback, estimateOCRTime } from './pdf/ocrExtractor';
 import { parseResumeText } from './pdf/sectionParsers';
@@ -95,7 +95,14 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
 
     const data = await response.json();
     if (import.meta.env.DEV) console.log('AI parsing successful');
-    return regenerateResumeIds(data);
+    // Preserve server-side _meta (per-field confidence, completeness, textQuality).
+    // The edge function returns meta under `_meta`; some older deployments may return
+    // it as top-level fields. Accept both.
+    const meta: ParseMeta | undefined =
+      (data && typeof data === 'object' && (data._meta || extractLegacyMeta(data))) || undefined;
+    const cleaned = regenerateResumeIds(data);
+    if (meta) cleaned._meta = { ...(cleaned._meta || {}), ...meta };
+    return cleaned;
   } catch (error) {
     // Handle timeout specifically
     if (error instanceof Error && error.name === 'AbortError') {
@@ -142,7 +149,53 @@ export function regenerateResumeIds(data: ResumeData): ResumeData {
     hobbies: data.hobbies?.map(h => ({ ...h, id: crypto.randomUUID() })) || [],
     references: data.references?.map(r => ({ ...r, id: crypto.randomUUID() })) || [],
     languages: data.languages?.map(l => ({ ...l, id: crypto.randomUUID() })) || [],
+    _meta: data._meta,
   };
+}
+
+/**
+ * Some deployments may emit meta fields at the top level instead of under `_meta`.
+ * Pull them into a ParseMeta object so the UI receives them uniformly.
+ */
+function extractLegacyMeta(raw: any): ParseMeta | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const meta: ParseMeta = {};
+  if (typeof raw.completeness === 'number') meta.completeness = raw.completeness;
+  if (raw.fieldConfidence && typeof raw.fieldConfidence === 'object') meta.fieldConfidence = raw.fieldConfidence;
+  if (typeof raw.textQuality === 'number') meta.textQuality = raw.textQuality;
+  if (typeof raw.aiCleaned === 'boolean') meta.aiCleaned = raw.aiCleaned;
+  if (typeof raw.multiPass === 'boolean') meta.multiPass = raw.multiPass;
+  return Object.keys(meta).length > 0 ? meta : undefined;
+}
+
+/**
+ * Derive low-confidence field labels from parse meta.
+ * Fields with confidence below `threshold` (default 0.6) are returned for UI flagging.
+ */
+export function getLowConfidenceFields(
+  meta: ParseMeta | undefined,
+  threshold = 0.6
+): string[] {
+  if (!meta?.fieldConfidence) return [];
+  const labels: Record<string, string> = {
+    name: 'Full name',
+    email: 'Email',
+    phone: 'Phone',
+    summary: 'Summary',
+    experience: 'Work experience',
+    education: 'Education',
+    skills: 'Skills',
+    certifications: 'Certifications',
+    awards: 'Awards',
+    volunteering: 'Volunteering',
+  };
+  const out: string[] = [];
+  for (const [key, score] of Object.entries(meta.fieldConfidence)) {
+    if (typeof score === 'number' && score < threshold) {
+      out.push(labels[key] || key);
+    }
+  }
+  return out;
 }
 
 /**
