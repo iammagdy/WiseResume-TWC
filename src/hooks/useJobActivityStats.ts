@@ -23,7 +23,6 @@ export interface JobActivityStats {
   interviewRate: number;
   offerRate: number;
   weeklyTrend: WeeklyTrendPoint[];
-  thisWeekApplications: number;
   isLoading: boolean;
 }
 
@@ -80,11 +79,6 @@ export function useJobActivityStats(): JobActivityStats {
         return { week: format(weekStart, 'yyyy-MM-dd'), label: format(weekStart, 'MMM d'), count };
       });
 
-      const thisWeekStart = startOfWeek(now, { weekStartsOn: 1 });
-      const thisWeekApplications = appsData.filter(
-        a => a.applied_at && new Date(a.applied_at) >= thisWeekStart
-      ).length;
-
       return {
         originals,
         tailored,
@@ -99,7 +93,6 @@ export function useJobActivityStats(): JobActivityStats {
         interviewRate,
         offerRate,
         weeklyTrend,
-        thisWeekApplications,
       };
     },
     enabled: !!user,
@@ -119,7 +112,6 @@ export function useJobActivityStats(): JobActivityStats {
     interviewRate: data?.interviewRate ?? 0,
     offerRate: data?.offerRate ?? 0,
     weeklyTrend: data?.weeklyTrend ?? [],
-    thisWeekApplications: data?.thisWeekApplications ?? 0,
     isLoading,
   };
 }
