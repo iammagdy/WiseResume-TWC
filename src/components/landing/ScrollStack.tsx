@@ -1,4 +1,4 @@
-import { useEffect, useRef, Children, ReactNode } from 'react';
+import { useEffect, useRef, Children, ReactNode, useState } from 'react';
 import Lenis from 'lenis';
 import './ScrollStack.css';
 
@@ -40,8 +40,14 @@ export function ScrollStack({
 
   const items = Children.toArray(children);
   const count = items.length;
-  const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
+  const [vh, setVh] = useState(() => (typeof window !== 'undefined' ? window.innerHeight : 800));
   const totalHeight = (count - 1) * scrollPerCard + vh;
+
+  useEffect(() => {
+    const onResize = () => setVh(window.innerHeight);
+    window.addEventListener('resize', onResize, { passive: true });
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   useEffect(() => {
     const container = containerRef.current;
