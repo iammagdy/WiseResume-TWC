@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { RotateCcw, Sparkles, Star, Share2, BookOpen, Bug, Activity } from 'lucide-react';
+import { RotateCcw, Sparkles, Star, Share2, BookOpen, Bug, Activity, ScrollText } from 'lucide-react';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { Separator } from '@/components/ui/separator';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -13,6 +13,7 @@ interface AboutSectionProps {
     onRateApp: () => void;
     onShareApp: () => void;
     onOpenHelp: () => void;
+    onOpenChangelog: () => void;
 }
 
 export const AboutSection = memo(function AboutSection({
@@ -22,6 +23,7 @@ export const AboutSection = memo(function AboutSection({
     onRateApp,
     onShareApp,
     onOpenHelp,
+    onOpenChangelog,
 }: AboutSectionProps) {
     const shakeToReportEnabled = useSettingsStore((s) => s.shakeToReportEnabled);
     const setShakeToReportEnabled = useSettingsStore((s) => s.setShakeToReportEnabled);
@@ -68,6 +70,14 @@ export const AboutSection = memo(function AboutSection({
                     description="Docs, email support, and community"
                     icon={<BookOpen className="w-4 h-4" />}
                     onClick={onOpenHelp}
+                />
+                <Separator className="ml-[52px] bg-border/30" />
+                <SettingsRow
+                    type="button"
+                    label="What's New"
+                    description="View release notes and changelog"
+                    icon={<ScrollText className="w-4 h-4" />}
+                    onClick={onOpenChangelog}
                 />
                 {isSignedIn && (
                     <>

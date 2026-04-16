@@ -364,6 +364,7 @@ export default function SettingsPage() {
                 onRateApp={handleRateApp}
                 onShareApp={handleShareApp}
                 onOpenHelp={() => setHelpSheetOpen(true)}
+                onOpenChangelog={() => setChangelogOpen(true)}
               />
             </div>
           </div>
