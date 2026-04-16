@@ -48,7 +48,14 @@ export function WiseResumeContent({ prefersReducedMotion, isDark, onCTA }: WiseR
           </h2>
         </motion.div>
         <SoftDivider />
-        <ScrollStack useWindowScroll stickyTop={80} scrollPerCard={480} cardGap={18} scaleStep={0.025}>
+        <ScrollStack
+          useWindowScroll
+          itemDistance={480}
+          itemScale={0.025}
+          itemStackDistance={20}
+          stackPosition="20%"
+          baseScale={0.88}
+        >
           {featureSections.map((section) => (
             <ScrollStackItem key={section.id}>
               <FeatureSection data={section} />

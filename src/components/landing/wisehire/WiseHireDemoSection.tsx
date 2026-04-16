@@ -74,7 +74,14 @@ export function WiseHireDemoSection() {
         </motion.div>
       </div>
 
-      <ScrollStack useWindowScroll stickyTop={80} scrollPerCard={520} cardGap={16} scaleStep={0.025}>
+      <ScrollStack
+        useWindowScroll
+        itemDistance={520}
+        itemScale={0.025}
+        itemStackDistance={20}
+        stackPosition="20%"
+        baseScale={0.88}
+      >
         {DEMOS.map(({ key, label, icon: Icon, desc, Demo }) => (
           <ScrollStackItem key={key}>
             <div
