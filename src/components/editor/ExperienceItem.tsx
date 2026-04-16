@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { Trash2, ChevronDown, ChevronUp, Building2, Briefcase, Calendar, ArrowUp, ArrowDown, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -100,9 +100,12 @@ export const ExperienceItem = memo(function ExperienceItem({
       (exp.achievements || []).some(a => BRACKET_RE.test(a));
   }, [exp.description, exp.achievements]);
 
+  const [hasTouched, setHasTouched] = useState(false);
+  const handleFieldBlur = useCallback(() => setHasTouched(true), []);
+
   const hasMissingRequiredFields = useMemo(() => {
-    return !exp.position?.trim() && !exp.startDate?.trim();
-  }, [exp.position, exp.startDate]);
+    return hasTouched && !exp.position?.trim() && !exp.startDate?.trim();
+  }, [hasTouched, exp.position, exp.startDate]);
 
   return (
     <div className="rounded-xl border border-border overflow-hidden transition-all duration-200">
@@ -186,6 +189,7 @@ export const ExperienceItem = memo(function ExperienceItem({
                 <Input
                   value={exp.position}
                   onChange={handlePositionChange}
+                  onBlur={handleFieldBlur}
                   placeholder="Job Title"
                   className="h-12"
                   autoComplete="organization-title"
