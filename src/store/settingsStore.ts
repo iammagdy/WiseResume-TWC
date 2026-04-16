@@ -22,10 +22,6 @@ interface SettingsState {
   autoSaveToastMode: AutoSaveToastMode;
   showAIEnhancementTips: boolean;
   aiTipFrequency: AITipFrequency;
-  quietHoursEnabled: boolean;
-  quietHoursStart: string; // HH:mm
-  quietHoursEnd: string;   // HH:mm
-  
   // Privacy
   shakeToReportEnabled: boolean;
   localOnlyMode: boolean;
@@ -114,9 +110,6 @@ interface SettingsState {
   setAutoSaveToastMode: (mode: AutoSaveToastMode) => void;
   setShowAIEnhancementTips: (value: boolean) => void;
   setAITipFrequency: (freq: AITipFrequency) => void;
-  setQuietHoursEnabled: (value: boolean) => void;
-  setQuietHoursStart: (time: string) => void;
-  setQuietHoursEnd: (time: string) => void;
   setShakeToReportEnabled: (value: boolean) => void;
   setLocalOnlyMode: (value: boolean) => void;
   setAnalyticsEnabled: (value: boolean) => void;
@@ -187,9 +180,6 @@ const defaultSettings = {
   autoSaveToastMode: 'always' as AutoSaveToastMode,
   showAIEnhancementTips: true,
   aiTipFrequency: 'daily' as AITipFrequency,
-  quietHoursEnabled: false,
-  quietHoursStart: '22:00',
-  quietHoursEnd: '08:00',
   shakeToReportEnabled: true,
   localOnlyMode: false,
   analyticsEnabled: true,
@@ -265,9 +255,6 @@ export const useSettingsStore = create<SettingsState>()(
       setAutoSaveToastMode: (mode) => set({ autoSaveToastMode: mode }),
       setShowAIEnhancementTips: (value) => set({ showAIEnhancementTips: value }),
       setAITipFrequency: (freq) => set({ aiTipFrequency: freq }),
-      setQuietHoursEnabled: (value) => set({ quietHoursEnabled: value }),
-      setQuietHoursStart: (time) => set({ quietHoursStart: time }),
-      setQuietHoursEnd: (time) => set({ quietHoursEnd: time }),
       setShakeToReportEnabled: (value) => set({ shakeToReportEnabled: value }),
       setLocalOnlyMode: (value) => set({ localOnlyMode: value }),
       setAnalyticsEnabled: (value) => set({ analyticsEnabled: value }),

@@ -1,6 +1,6 @@
 import { memo, Suspense, lazy } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { KeyRound, Crown, Gift } from 'lucide-react';
+import { Crown, Gift } from 'lucide-react';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { Separator } from '@/components/ui/separator';
 import { useResumes } from '@/hooks/useResumes';
@@ -13,8 +13,8 @@ import { cn } from '@/lib/utils';
 const AccountStatsCard = lazy(() => import('./AccountStatsCard'));
 
 interface AccountSectionProps {
+    /** Identifier for the auth provider used to sign the user in (e.g. 'google', 'github'). */
     authProvider: string;
-    onChangePassword: () => void;
 }
 
 function PlanBadge({ plan }: { plan: string }) {
@@ -35,8 +35,13 @@ function PlanBadge({ plan }: { plan: string }) {
 
 export const AccountSection = memo(function AccountSection({
     authProvider,
-    onChangePassword,
 }: AccountSectionProps) {
+    const providerLabel =
+        authProvider === 'google' ? 'Google'
+        : authProvider === 'github' ? 'GitHub'
+        : authProvider === 'apple' ? 'Apple'
+        : authProvider === 'email' ? 'email'
+        : 'identity provider';
     const navigate = useNavigate();
     const { data: resumes = [] } = useResumes();
     const { data: coverLetters = [] } = useCoverLetters();
@@ -105,26 +110,10 @@ export const AccountSection = memo(function AccountSection({
                     icon={<Gift className="w-4 h-4" />}
                     onClick={() => { haptics.light(); navigate('/referral'); }}
                 />
-                {/* Change Password - email users only */}
-                {authProvider === 'email' ? (
-                    <>
-                        <Separator className="ml-[52px] bg-border/30" />
-                        <SettingsRow
-                            type="navigation"
-                            label="Change Password"
-                            description="Send a password reset email"
-                            icon={<KeyRound className="w-4 h-4" />}
-                            onClick={onChangePassword}
-                        />
-                    </>
-                ) : (
-                    <>
-                        <Separator className="ml-[52px] bg-border/30" />
-                        <p className="px-4 py-2.5 text-xs text-muted-foreground">
-                            Password is managed by your {authProvider === 'google' ? 'Google' : authProvider === 'github' ? 'GitHub' : authProvider === 'apple' ? 'Apple' : 'social'} account.
-                        </p>
-                    </>
-                )}
+                <Separator className="ml-[52px] bg-border/30" />
+                <p className="px-4 py-2.5 text-xs text-muted-foreground">
+                    Sign-in & password are managed by your {providerLabel} account.
+                </p>
             </div>
         </div>
     );

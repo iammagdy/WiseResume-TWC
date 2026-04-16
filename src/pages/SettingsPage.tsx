@@ -176,11 +176,6 @@ export default function SettingsPage() {
     toast.success('Signed out successfully');
   }, [signOut, navigate]);
 
-  const handleChangePassword = useCallback(async () => {
-    // Password reset via Supabase Auth email flow
-    toast.info('Password changes are managed through your account settings.');
-  }, []);
-
   const handleDataDeleted = useCallback(async () => {
     try {
       await signOut();
@@ -286,10 +281,7 @@ export default function SettingsPage() {
             <div>
               <SectionLabel>Account</SectionLabel>
               <div className="mx-4 space-y-3">
-                <AccountSection
-                  authProvider={authProvider}
-                  onChangePassword={handleChangePassword}
-                />
+                <AccountSection authProvider={authProvider} />
                 <UserIdCard userId={user.id} />
               </div>
             </div>
