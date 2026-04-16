@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 
 interface LandingToggleProps {
@@ -6,7 +7,16 @@ interface LandingToggleProps {
 }
 
 export function LandingToggle({ mode, onModeChange }: LandingToggleProps) {
+  const [burstKey, setBurstKey] = useState(0);
+  const [burstLeft, setBurstLeft] = useState('25%');
+  const [burstColor, setBurstColor] = useState('rgba(158,27,34,0.7)');
+
   const handleJobSeeker = () => {
+    if (mode !== 'jobseeker') {
+      setBurstLeft('25%');
+      setBurstColor('rgba(158,27,34,0.7)');
+      setBurstKey((k) => k + 1);
+    }
     onModeChange('jobseeker');
     const url = new URL(window.location.href);
     url.searchParams.delete('for');
@@ -15,6 +25,11 @@ export function LandingToggle({ mode, onModeChange }: LandingToggleProps) {
   };
 
   const handleCompanies = () => {
+    if (mode !== 'wisehire') {
+      setBurstLeft('75%');
+      setBurstColor('rgba(29,78,216,0.7)');
+      setBurstKey((k) => k + 1);
+    }
     onModeChange('wisehire');
     const url = new URL(window.location.href);
     url.searchParams.set('for', 'companies');
@@ -48,8 +63,34 @@ export function LandingToggle({ mode, onModeChange }: LandingToggleProps) {
           gap: 2,
           boxShadow: '0 2px 14px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.06)',
           transition: 'border-color 0.35s ease, background 0.35s ease',
+          overflow: 'hidden',
         }}
       >
+        {/* Ignition burst — fires on each mode switch */}
+        {burstKey > 0 && (
+          <motion.div
+            key={burstKey}
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              left: burstLeft,
+              top: '50%',
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              background: `radial-gradient(circle, ${burstColor} 0%, transparent 70%)`,
+              pointerEvents: 'none',
+              zIndex: 20,
+              translateX: '-50%',
+              translateY: '-50%',
+            }}
+            initial={{ scale: 0.3, opacity: 0.8 }}
+            animate={{ scale: 4.5, opacity: 0 }}
+            transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+          />
+        )}
+
+        {/* Individuals button */}
         <button
           onClick={handleJobSeeker}
           aria-pressed={mode === 'jobseeker'}
@@ -64,7 +105,7 @@ export function LandingToggle({ mode, onModeChange }: LandingToggleProps) {
             whiteSpace: 'nowrap',
             background: 'transparent',
             color: mode === 'jobseeker' ? '#fff' : 'var(--lp-toggle-color)',
-            transition: 'color 0.25s ease',
+            transition: 'color 0.35s ease',
             zIndex: 1,
             display: 'flex',
             alignItems: 'center',
@@ -79,9 +120,9 @@ export function LandingToggle({ mode, onModeChange }: LandingToggleProps) {
                 inset: 0,
                 borderRadius: 99,
                 background: 'linear-gradient(135deg, #b91c1c 0%, #9E1B22 100%)',
-                boxShadow: '0 1px 8px rgba(158,27,34,0.45)',
+                boxShadow: '0 1px 8px rgba(158,27,34,0.55), 0 0 18px rgba(158,27,34,0.2)',
               }}
-              transition={{ type: 'spring', stiffness: 480, damping: 38 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 34 }}
             />
           )}
           <span
@@ -93,14 +134,15 @@ export function LandingToggle({ mode, onModeChange }: LandingToggleProps) {
               width: 5,
               height: 5,
               borderRadius: '50%',
-              background: mode === 'jobseeker' ? 'rgba(255,255,255,0.75)' : 'rgba(158,27,34,0.7)',
+              background: mode === 'jobseeker' ? 'rgba(255,255,255,0.85)' : 'rgba(158,27,34,0.7)',
               flexShrink: 0,
-              transition: 'background 0.25s ease',
+              transition: 'background 0.35s ease',
             }}
           />
           <span style={{ position: 'relative', zIndex: 1 }}>Individuals</span>
         </button>
 
+        {/* Enterprises button */}
         <button
           onClick={handleCompanies}
           aria-pressed={mode === 'wisehire'}
@@ -115,7 +157,7 @@ export function LandingToggle({ mode, onModeChange }: LandingToggleProps) {
             whiteSpace: 'nowrap',
             background: 'transparent',
             color: mode === 'wisehire' ? '#fff' : 'var(--lp-toggle-color)',
-            transition: 'color 0.25s ease',
+            transition: 'color 0.35s ease',
             zIndex: 1,
             display: 'flex',
             alignItems: 'center',
@@ -130,9 +172,9 @@ export function LandingToggle({ mode, onModeChange }: LandingToggleProps) {
                 inset: 0,
                 borderRadius: 99,
                 background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
-                boxShadow: '0 1px 8px rgba(29,78,216,0.45)',
+                boxShadow: '0 1px 8px rgba(29,78,216,0.55), 0 0 18px rgba(29,78,216,0.2)',
               }}
-              transition={{ type: 'spring', stiffness: 480, damping: 38 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 34 }}
             />
           )}
           <span
@@ -144,9 +186,9 @@ export function LandingToggle({ mode, onModeChange }: LandingToggleProps) {
               width: 5,
               height: 5,
               borderRadius: '50%',
-              background: mode === 'wisehire' ? 'rgba(255,255,255,0.75)' : 'rgba(29,78,216,0.7)',
+              background: mode === 'wisehire' ? 'rgba(255,255,255,0.85)' : 'rgba(29,78,216,0.7)',
               flexShrink: 0,
-              transition: 'background 0.25s ease',
+              transition: 'background 0.35s ease',
             }}
           />
           <span style={{ position: 'relative', zIndex: 1 }}>Enterprises</span>

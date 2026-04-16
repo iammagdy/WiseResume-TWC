@@ -303,45 +303,45 @@ const heroItemVariants = {
 };
 
 const SECTION_EXIT_VECTORS: Array<{ x: number; y: number; rotate: number }> = [
-  { x: -130, y: -90,  rotate: 5  },  // 0: top-left
-  { x: 0,    y: -160, rotate: -3 },  // 1: straight up
-  { x: 150,  y: -50,  rotate: -4 },  // 2: top-right
-  { x: -150, y: 80,   rotate: 3  },  // 3: bottom-left
-  { x: 120,  y: 100,  rotate: -5 },  // 4: bottom-right
-  { x: 0,    y: 140,  rotate: 4  },  // 5: straight down
+  { x: -280, y: -180, rotate: 9  },  // 0: top-left
+  { x: 0,    y: -300, rotate: -5 },  // 1: straight up
+  { x: 300,  y: -100, rotate: -8 },  // 2: top-right
+  { x: -300, y: 160,  rotate: 7  },  // 3: bottom-left
+  { x: 260,  y: 210,  rotate: -9 },  // 4: bottom-right
+  { x: 0,    y: 290,  rotate: 6  },  // 5: straight down
 ];
 
 const SECTION_ENTRY_VECTORS: Array<{ x: number; y: number }> = [
-  { x: 120,  y: 100 },   // 0: from bottom-right
-  { x: -110, y: 90  },   // 1: from bottom-left
-  { x: -130, y: -60 },   // 2: from top-left
-  { x: 140,  y: -70 },   // 3: from top-right
-  { x: 0,    y: -120 },  // 4: from top
-  { x: -100, y: 90  },   // 5: from bottom-left
+  { x: 260,  y: 210 },   // 0: from bottom-right
+  { x: -240, y: 190 },   // 1: from bottom-left
+  { x: -280, y: -120 },  // 2: from top-left
+  { x: 290,  y: -140 },  // 3: from top-right
+  { x: 0,    y: -250 },  // 4: from top
+  { x: -220, y: 190 },   // 5: from bottom-left
 ];
 
 const SCATTER_WRAPPER_VARIANTS = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.05 } },
-  exit: { transition: { staggerChildren: 0 } },
+  visible: { transition: { staggerChildren: 0.08 } },
+  exit: { transition: { staggerChildren: 0.04, staggerDirection: -1 } },
 };
 
-const SECTION_ENTRY_ROTATIONS = [2, -2, 3, -3, 2, -2];
+const SECTION_ENTRY_ROTATIONS = [3, -3, 4, -4, 3, -3];
 
 const SCATTER_SECTION_ITEM = {
   hidden: (i: number) => {
     const e = SECTION_ENTRY_VECTORS[i] ?? { x: 0, y: 100 };
-    return { opacity: 0, x: e.x, y: e.y, rotate: SECTION_ENTRY_ROTATIONS[i] ?? 2, filter: 'blur(0px)' };
+    return { opacity: 0, x: e.x, y: e.y, scale: 0.88, rotate: SECTION_ENTRY_ROTATIONS[i] ?? 3, filter: 'blur(10px)' };
   },
   visible: {
-    opacity: 1, x: 0, y: 0, rotate: 0, filter: 'blur(0px)',
-    transition: { type: 'spring' as const, stiffness: 300, damping: 20 },
+    opacity: 1, x: 0, y: 0, scale: 1, rotate: 0, filter: 'blur(0px)',
+    transition: { type: 'spring' as const, stiffness: 260, damping: 22 },
   },
   exit: (i: number) => {
     const e = SECTION_EXIT_VECTORS[i] ?? { x: 0, y: -100, rotate: 0 };
     return {
-      opacity: 0, x: e.x, y: e.y, rotate: e.rotate, filter: 'blur(4px)',
-      transition: { duration: 0.22, ease: [0.4, 0, 1, 1] as [number, number, number, number] },
+      opacity: 0, x: e.x, y: e.y, scale: 0.72, rotate: e.rotate, filter: 'blur(14px)',
+      transition: { duration: 0.30, ease: [0.4, 0, 1, 1] as [number, number, number, number] },
     };
   },
 };
@@ -386,8 +386,8 @@ const Index = () => {
       : 'jobseeker'
   );
   const [waitlistOpen, setWaitlistOpen] = useState(false);
-  const [flashActive, setFlashActive] = useState(false);
-  const [flashColor, setFlashColor] = useState('rgba(29,78,216,0.08)');
+  const [waveKey, setWaveKey] = useState(0);
+  const [waveColor, setWaveColor] = useState('rgba(29,78,216,0.28)');
 
   useLayoutEffect(() => {
     setLpProduct(mode);
@@ -488,6 +488,28 @@ const Index = () => {
       style={{ colorScheme: isDark ? 'dark' : 'light', overflowX: 'hidden' }}
     >
       <style>{`
+        /* ── CSS custom property animation support ───────────────── */
+        @property --lp-brand {
+          syntax: '<color>';
+          inherits: true;
+          initial-value: #9E1B22;
+        }
+        @property --lp-hero-glow {
+          syntax: '<color>';
+          inherits: true;
+          initial-value: rgba(158,27,34,0.18);
+        }
+        @property --lp-eyebrow {
+          syntax: '<color>';
+          inherits: true;
+          initial-value: #E53E3E;
+        }
+        @property --lp-trust-icon {
+          syntax: '<color>';
+          inherits: true;
+          initial-value: rgba(158,27,34,0.7);
+        }
+
         /* ── DARK THEME (default) ───────────────────────────────── */
         .lp-root {
           --lp-brand: #9E1B22;
@@ -521,7 +543,9 @@ const Index = () => {
           --lp-brand-pill-glow: rgba(158,27,34,0.13);
           background: var(--lp-bg);
           color: var(--lp-text);
-          transition: background 0.3s ease, color 0.3s ease;
+          transition: background 0.45s ease, color 0.35s ease,
+            --lp-brand 0.55s ease, --lp-hero-glow 0.55s ease,
+            --lp-eyebrow 0.5s ease, --lp-trust-icon 0.5s ease;
         }
 
         /* ── LIGHT THEME ─────────────────────────────────────────── */
@@ -718,7 +742,9 @@ const Index = () => {
           --lp-brand-pill-border: rgba(29,78,216,0.28);
           --lp-brand-pill-glow: rgba(29,78,216,0.15);
           --lp-section-alt2: #0b0f1c;
-          transition: all 0.35s ease;
+          transition: background 0.45s ease, color 0.35s ease,
+            --lp-brand 0.55s ease, --lp-hero-glow 0.55s ease,
+            --lp-eyebrow 0.5s ease, --lp-trust-icon 0.5s ease;
         }
         .lp-root[data-lp-product="wisehire"][data-lp-scheme="light"] {
           --lp-bg: rgba(240,245,255,0.62);
@@ -775,25 +801,23 @@ const Index = () => {
         <div ref={progressRef} className="h-full transition-[width] duration-75 ease-out" style={{ background: 'var(--lp-brand)' }} />
       </div>
 
-      {/* Brand transition flash overlay — fires between exit and enter */}
-      <AnimatePresence>
-        {flashActive && (
-          <motion.div
-            key="brand-flash"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1, transition: { duration: 0.08 } }}
-            exit={{ opacity: 0, transition: { duration: 0.12 } }}
-            aria-hidden="true"
-            style={{
-              position: 'fixed',
-              inset: 0,
-              zIndex: 200,
-              background: flashColor,
-              pointerEvents: 'none',
-            }}
-          />
-        )}
-      </AnimatePresence>
+      {/* Brand color wave — fires on each mode switch, blooms from toggle position */}
+      {!prefersReducedMotion && waveKey > 0 && (
+        <motion.div
+          key={waveKey}
+          aria-hidden="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 200,
+            pointerEvents: 'none',
+            background: `radial-gradient(ellipse 90% 50% at 50% 0%, ${waveColor} 0%, transparent 68%)`,
+          }}
+          initial={{ opacity: 0, scale: 0.85 }}
+          animate={{ opacity: [0, 1, 0.65, 0], scale: [0.85, 1.05, 1.1, 1.15] }}
+          transition={{ duration: 0.75, times: [0, 0.18, 0.5, 1], ease: 'easeOut' }}
+        />
+      )}
 
       {/* Sticky Header */}
       <header
@@ -802,8 +826,14 @@ const Index = () => {
       >
         {/* Product toggle strip — always visible, sits above the nav row */}
         <LandingToggle mode={mode} onModeChange={(m) => {
+          if (m === mode) return;
           triggerHaptic.light();
-          setMode(m);
+          const color = m === 'wisehire'
+            ? 'rgba(37,99,235,0.32)'
+            : 'rgba(185,28,28,0.32)';
+          setWaveColor(color);
+          setWaveKey((k) => k + 1);
+          setTimeout(() => { flushSync(() => setMode(m)); }, 110);
         }} />
 
         <div className="flex items-center justify-between px-4 sm:px-6 h-14 max-w-6xl mx-auto">
