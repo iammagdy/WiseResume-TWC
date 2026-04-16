@@ -139,11 +139,13 @@ Deno.serve(async (req) => {
     }
 
     // If we only have email (no user_id), try to resolve via listUsers.
-    // The target user is always captured in metadata.target_email for audit reliability.
+    // The canonical audit subject is always the target user when they exist.
     // audit_logs.user_id has a FK to auth.users(id) NOT NULL, so we need a valid UUID.
-    // If the target user cannot be found, we use the admin caller's own user ID as
-    // the audit subject (caller is always a valid auth user from requireAdminAuth).
+    // If the target user cannot be found in auth.users, we fall back to the admin caller's
+    // own user ID purely to satisfy the FK constraint — this is clearly labelled in metadata
+    // via audit_user_id_source:'caller_fallback' and intended_target_not_found:true.
     let callerUserId: string | null = null
+    let targetFound = false
     if (!resolvedUserId) {
       // Resolve the caller's own user ID from the bearer token using the service client
       const bearerToken = req.headers.get('Authorization')?.replace('Bearer ', '') ?? ''
@@ -160,7 +162,19 @@ Deno.serve(async (req) => {
       // (Supabase admin SDK has no getUserByEmail; listUsers is the only option)
       const { data: listData } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 })
       const found = (listData?.users ?? []).find((u) => u.email === resolvedEmail)
-      resolvedUserId = found?.id ?? callerUserId
+      if (found?.id) {
+        resolvedUserId = found.id
+        targetFound = true
+      } else {
+        resolvedUserId = callerUserId
+        targetFound = false
+        console.warn(
+          `[admin-email-actions] Target email "${resolvedEmail}" not found in auth.users — ` +
+          `audit row will use caller user_id as FK subject (labelled with intended_target_not_found:true)`,
+        )
+      }
+    } else {
+      targetFound = true
     }
 
     let resultMessageId: string | null = null
@@ -431,9 +445,11 @@ Deno.serve(async (req) => {
           performed_by: callerEmail,
           admin_email: adminEmailFromBody ?? callerEmail,
           message_id: resultMessageId,
-          audit_user_id_source: callerUserId && resolvedUserId === callerUserId
-            ? 'caller_fallback'
-            : 'target_user',
+          audit_user_id_source: targetFound ? 'target_user' : 'caller_fallback',
+          ...(targetFound ? {} : {
+            intended_target_not_found: true,
+            intended_target_email: resolvedEmail,
+          }),
           ...(action === 'send_custom'
             ? { custom_subject, custom_body_preview: custom_body?.slice(0, 200) }
             : {}),

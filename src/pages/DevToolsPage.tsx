@@ -106,8 +106,17 @@ function DevToolsInner() {
       if (!error) {
         setConnectionStatus('connected');
       } else {
-        const status = (error as { status?: number }).status;
-        if (typeof status === 'number' && status >= 400 && status < 500) {
+        const err = error as { status?: number; message?: string };
+        const msg = (err.message ?? '').toLowerCase();
+        const isNetworkError = !err.status && (
+          msg.includes('failed to fetch') ||
+          msg.includes('networkerror') ||
+          msg.includes('network request failed') ||
+          msg.includes('load failed')
+        );
+        if (isNetworkError) {
+          setConnectionStatus('disconnected');
+        } else if (typeof err.status === 'number' && err.status >= 400 && err.status < 500) {
           setConnectionStatus('connected');
         } else {
           setConnectionStatus('degraded');
