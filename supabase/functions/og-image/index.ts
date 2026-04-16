@@ -335,9 +335,10 @@ function buildSVG(data: {
   accent: string;
   style: string;
   openToWork: boolean;
+  availabilityStatus: string | null;
   username: string;
 }): string {
-  const { name, role, location, bio, skills, accent, style, openToWork, username } = data;
+  const { name, role, location, bio, skills, accent, style, openToWork, availabilityStatus, username } = data;
   const bg = styleToBg(style);
   const fg = styleToFg(style);
   const muted = styleToMuted(style);
@@ -386,11 +387,21 @@ function buildSVG(data: {
   <!-- Location -->
   ${location ? `<text x="232" y="234" font-family="system-ui,sans-serif" font-size="22" fill="${muted}">📍 ${escapeXml(truncate(location, 40))}</text>` : ''}
 
-  <!-- Open to Work badge -->
-  ${openToWork ? `
-  <rect x="232" y="${location ? 252 : 242}" width="172" height="30" rx="15" fill="${accent}22" stroke="${accent}" stroke-width="1.5"/>
-  <text x="318" y="${location ? 271 : 261}" font-family="system-ui,sans-serif" font-size="16" fill="${accent}" text-anchor="middle" font-weight="600">✦ Open to Work</text>
-  ` : ''}
+  <!-- Availability badge -->
+  ${(() => {
+    const isActivelyLooking = availabilityStatus === 'actively-looking' || (!availabilityStatus && openToWork);
+    const isOpenToOffers = availabilityStatus === 'open-to-offers';
+    if (isActivelyLooking) {
+      const badgeY = location ? 252 : 242;
+      return `<rect x="232" y="${badgeY}" width="196" height="30" rx="15" fill="${accent}22" stroke="${accent}" stroke-width="1.5"/>
+  <text x="330" y="${badgeY + 19}" font-family="system-ui,sans-serif" font-size="16" fill="${accent}" text-anchor="middle" font-weight="600">● Actively Looking</text>`;
+    } else if (isOpenToOffers) {
+      const badgeY = location ? 252 : 242;
+      return `<rect x="232" y="${badgeY}" width="196" height="30" rx="15" fill="#f59e0b22" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="330" y="${badgeY + 19}" font-family="system-ui,sans-serif" font-size="16" fill="#f59e0b" text-anchor="middle" font-weight="600">○ Open to Offers</text>`;
+    }
+    return '';
+  })()}
 
   <!-- Divider 1 -->
   <rect x="72" y="320" width="1056" height="1.5" fill="${dividerColor}"/>
@@ -505,8 +516,10 @@ Deno.serve(async (req: Request) => {
     const accent = (profile.portfolioAccentColor as string) || '#7c3aed';
     const style = (profile.portfolioStyle as string) || 'minimal';
     const openToWork = (profile.openToWork as boolean) || false;
+    const extras = (raw.extras as Record<string, unknown>) || (profile.portfolioExtras as Record<string, unknown>) || {};
+    const availabilityStatus = (extras.availabilityStatus as string) || null;
 
-    const svg = buildSVG({ name, role, location, bio, skills, accent, style, openToWork, username });
+    const svg = buildSVG({ name, role, location, bio, skills, accent, style, openToWork, availabilityStatus, username });
 
     return new Response(svg, {
       headers: {

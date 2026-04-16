@@ -56,6 +56,7 @@ export interface PublicProfile {
   scrollEffect: 'fade' | 'parallax' | 'tilt-3d' | 'cinematic' | null;
   seoNoindex: boolean;
   videoIntroUrl: string | null;
+  schedulingUrl: string | null;
   portfolioCertifications: Array<{ id: string; name: string; issuer: string; date: string; credentialUrl: string; badgeUrl: string }>;
   portfolioPrimaryLanguage: string | null;
   portfolioSecondaryLanguage: string | null;
@@ -151,6 +152,7 @@ async function fetchPublicPortfolio(username: string): Promise<PublicPortfolioDa
       scrollEffect: ((extras.scrollEffect as string) || null) as 'fade' | 'parallax' | 'tilt-3d' | 'cinematic' | null,
       seoNoindex: (profile.seoNoindex as boolean) || false,
       videoIntroUrl: (extras.videoIntroUrl as string) || null,
+      schedulingUrl: (extras.schedulingUrl as string) || null,
       portfolioCertifications: safeArray(extras.portfolioCertifications),
       portfolioPrimaryLanguage: (extras.portfolioPrimaryLanguage as string) || 'English',
       portfolioSecondaryLanguage: (extras.portfolioSecondaryLanguage as string) || null,

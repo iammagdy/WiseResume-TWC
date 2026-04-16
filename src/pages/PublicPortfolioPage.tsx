@@ -2,7 +2,7 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { usePublicPortfolio } from '@/hooks/usePublicPortfolio';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Download, ArrowLeft, SearchX, Languages } from 'lucide-react';
+import { Download, ArrowLeft, SearchX, Languages, Heart, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useEffect, useState, useMemo, Suspense } from 'react';
@@ -131,6 +131,38 @@ function PublicPortfolioContent() {
   const [scrollProgress, setScrollProgress] = useState(0);
   const [nearFooter, setNearFooter] = useState(false);
   const [activeLanguage, setActiveLanguage] = useState<string>('');
+  const [interestSent, setInterestSent] = useState(false);
+  const [sendingInterest, setSendingInterest] = useState(false);
+
+  // Check if interest was already sent for this portfolio (localStorage)
+  useEffect(() => {
+    if (username) {
+      const sent = localStorage.getItem(`portfolio-interest-sent:${username}`);
+      if (sent) setInterestSent(true);
+    }
+  }, [username]);
+
+  const handleInterest = async () => {
+    if (!username || interestSent || sendingInterest) return;
+    setSendingInterest(true);
+    try {
+      const { EDGE_FUNCTIONS_URL } = await import('@/lib/supabaseConstants');
+      const res = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/portfolio-interest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username }),
+      });
+      if (res.ok) {
+        setInterestSent(true);
+        localStorage.setItem(`portfolio-interest-sent:${username}`, '1');
+        toast.success('Your interest has been sent to the portfolio owner!');
+      }
+    } catch {
+      toast.error('Could not send interest. Please try again.');
+    } finally {
+      setSendingInterest(false);
+    }
+  };
 
   // Extracted hooks
   usePortfolioSEO(portfolio?.profile);
@@ -204,21 +236,43 @@ function PublicPortfolioContent() {
       });
 
       const pdfDoc = await PDFDocument.create();
-      const imgData = canvas.toDataURL('image/jpeg', 0.92);
-      const imgBytes = await fetch(imgData).then(r => r.arrayBuffer());
-      const img = await pdfDoc.embedJpg(imgBytes);
 
-      const pageWidth = 595;
-      const pageHeight = Math.round((canvas.height / canvas.width) * pageWidth);
-      const page = pdfDoc.addPage([pageWidth, pageHeight]);
-      page.drawImage(img, { x: 0, y: 0, width: pageWidth, height: pageHeight });
+      // A4 dimensions in PDF points (72 dpi) — 595 x 842
+      const A4_WIDTH = 595;
+      const A4_HEIGHT = 842;
+
+      // Scale factor: map canvas pixels to PDF points
+      const scale = A4_WIDTH / canvas.width;
+      const totalPdfHeight = Math.round(canvas.height * scale);
+      const pageCount = Math.max(1, Math.ceil(totalPdfHeight / A4_HEIGHT));
+
+      for (let i = 0; i < pageCount; i++) {
+        const srcY = Math.round(i * A4_HEIGHT / scale);
+        const srcH = Math.min(Math.round(A4_HEIGHT / scale), canvas.height - srcY);
+
+        // Slice just this page's strip from the canvas
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = srcH;
+        const ctx = sliceCanvas.getContext('2d');
+        if (!ctx) continue;
+        ctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
+
+        const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.92);
+        const sliceBytes = await fetch(sliceData).then(r => r.arrayBuffer());
+        const sliceImg = await pdfDoc.embedJpg(sliceBytes);
+
+        const slicePdfH = Math.round(srcH * scale);
+        const page = pdfDoc.addPage([A4_WIDTH, slicePdfH]);
+        page.drawImage(sliceImg, { x: 0, y: 0, width: A4_WIDTH, height: slicePdfH });
+      }
 
       const pdfBytes = await pdfDoc.save();
       const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
       const { downloadFile } = await import('@/lib/downloadUtils');
       const name = portfolio?.profile?.fullName?.replace(/\s+/g, '_') || 'Portfolio';
       await downloadFile({ blob, fileName: `${name}_Portfolio.pdf` });
-      toast.success('Portfolio saved as PDF!');
+      toast.success(`Portfolio saved as PDF (${pageCount} page${pageCount > 1 ? 's' : ''})!`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'PDF generation failed';
       toast.error(msg, { action: { label: 'Retry', onClick: () => handleDownload() } });
@@ -265,6 +319,7 @@ function PublicPortfolioContent() {
   const sectionOrder = profile.sectionOrder || undefined;
   const scrollEffect = (profile.scrollEffect as 'fade' | 'parallax' | 'tilt-3d' | 'cinematic') || 'fade';
   const videoIntroUrl = profile.videoIntroUrl || null;
+  const schedulingUrl = profile.schedulingUrl || null;
   const primaryLang = profile.portfolioPrimaryLanguage || 'English';
   const secondaryLang = profile.portfolioSecondaryLanguage || '';
   const hasTranslation = secondaryLang && profile.portfolioTranslations && !!profile.portfolioTranslations[secondaryLang];
@@ -341,6 +396,7 @@ function PublicPortfolioContent() {
           liveLastActiveAt={liveLastActiveAt}
           allSkills={allSkills}
           videoIntroUrl={videoIntroUrl}
+          schedulingUrl={schedulingUrl}
         />
 
         {hasTranslation && (
@@ -363,6 +419,39 @@ function PublicPortfolioContent() {
               {activeLanguage
                 ? `${secondaryLang} · Switch to ${primaryLang}`
                 : `${primaryLang} · Switch to ${secondaryLang}`}
+            </button>
+          </motion.div>
+        )}
+
+        {/* Recruiter interest CTA — hidden from portfolio owner */}
+        {!user && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="flex justify-center pt-2 pb-1"
+            data-pdf-exclude
+          >
+            <button
+              onClick={handleInterest}
+              disabled={interestSent || sendingInterest}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-all active:scale-95 disabled:opacity-70 disabled:cursor-default hover:scale-105"
+              style={{
+                background: interestSent
+                  ? 'color-mix(in srgb, var(--pf-success) 15%, transparent)'
+                  : `color-mix(in srgb, ${accentColor} 12%, transparent)`,
+                border: `1px solid ${interestSent ? 'color-mix(in srgb, var(--pf-success) 35%, transparent)' : `color-mix(in srgb, ${accentColor} 35%, transparent)`}`,
+                color: interestSent ? 'var(--pf-success)' : accentColor,
+              }}
+            >
+              {sendingInterest ? (
+                <MiniSpinner size={14} />
+              ) : interestSent ? (
+                <Check className="w-4 h-4" />
+              ) : (
+                <Heart className="w-4 h-4" />
+              )}
+              {interestSent ? 'Interest sent!' : "I'm Interested"}
             </button>
           </motion.div>
         )}

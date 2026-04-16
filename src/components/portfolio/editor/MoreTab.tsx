@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Sparkles, Search, Loader2, Link2, Linkedin, Github, History, AlertCircle, Twitter, ShieldCheck, Languages,
+  Sparkles, Search, Loader2, Link2, Linkedin, Github, History, AlertCircle, Twitter, ShieldCheck, Languages, CalendarDays,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -38,6 +38,9 @@ export interface MoreTabProps {
   // Collapsible sections
   openSections: Set<string>;
   toggleSection: (id: string) => void;
+  // Book a Call
+  schedulingUrl: string;
+  onSchedulingUrlChange: (val: string) => void;
   // Multilingual
   portfolioPrimaryLanguage: string;
   onPortfolioPrimaryLanguageChange: (val: string) => void;
@@ -63,6 +66,7 @@ export function MoreTab(props: MoreTabProps) {
     contactEmail, onContactEmailChange,
     twitterUrl, onTwitterUrlChange, websiteUrl, onWebsiteUrlChange,
     openSections, toggleSection,
+    schedulingUrl, onSchedulingUrlChange,
     portfolioPrimaryLanguage, onPortfolioPrimaryLanguageChange,
     portfolioSecondaryLanguage, onPortfolioSecondaryLanguageChange,
     onTranslate, translating,
@@ -192,6 +196,29 @@ export function MoreTab(props: MoreTabProps) {
                 <AlertCircle className="w-3 h-3 shrink-0" /> Missing https:// — will be added on save
               </p>
             )}
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+              <CalendarDays className="w-3.5 h-3.5" /> Scheduling / Book a Call Link
+            </label>
+            <Input
+              placeholder="https://calendly.com/yourusername"
+              value={schedulingUrl}
+              onChange={e => onSchedulingUrlChange(e.target.value)}
+              onBlur={() => { markTouched('scheduling'); onSchedulingUrlChange(normalizeUrl(schedulingUrl)); }}
+              type="url"
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              className={showWarning('scheduling', schedulingUrl) ? 'border-yellow-500' : ''}
+            />
+            {showWarning('scheduling', schedulingUrl) && (
+              <p className="text-[11px] text-yellow-500 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3 shrink-0" /> Missing https:// — will be added on save
+              </p>
+            )}
+            <p className="text-[11px] text-muted-foreground">Calendly, Cal.com, or any URL. Shows a "Book a Call" button on your portfolio.</p>
           </div>
         </div>
       </CollapsibleCard>

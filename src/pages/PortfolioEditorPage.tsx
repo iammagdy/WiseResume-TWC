@@ -98,6 +98,7 @@ export default function PortfolioEditorPage() {
   const [pinnedProject, setPinnedProject] = useState<{title: string; description: string; url: string} | null>(null);
   const [scrollEffect, setScrollEffect] = useState<ScrollEffect>('fade');
   const [videoIntroUrl, setVideoIntroUrl] = useState('');
+  const [schedulingUrl, setSchedulingUrl] = useState('');
   const [portfolioCertifications, setPortfolioCertifications] = useState<Array<{id: string; name: string; issuer: string; date: string; credentialUrl: string; badgeUrl: string}>>([]);
   const [portfolioPrimaryLanguage, setPortfolioPrimaryLanguage] = useState('English');
   const [portfolioSecondaryLanguage, setPortfolioSecondaryLanguage] = useState('');
@@ -128,7 +129,7 @@ export default function PortfolioEditorPage() {
       portfolioFont, availabilityStatus, availabilityHeadline, syncMode,
       caseStudies, services, testimonials, highlights, portfolioSummary,
       selectedResumeId, sectionOrder, pinnedProject, scrollEffect,
-      videoIntroUrl, portfolioCertifications, portfolioPrimaryLanguage, portfolioSecondaryLanguage,
+      videoIntroUrl, schedulingUrl, portfolioCertifications, portfolioPrimaryLanguage, portfolioSecondaryLanguage,
     });
   }, [
     username, bio, portfolioEnabled, githubUrl, websiteUrl, twitterUrl,
@@ -137,7 +138,7 @@ export default function PortfolioEditorPage() {
     portfolioFont, availabilityStatus, availabilityHeadline, syncMode,
     caseStudies, services, testimonials, highlights, portfolioSummary,
     selectedResumeId, sectionOrder, pinnedProject, scrollEffect,
-    videoIntroUrl, portfolioCertifications, portfolioPrimaryLanguage, portfolioSecondaryLanguage,
+    videoIntroUrl, schedulingUrl, portfolioCertifications, portfolioPrimaryLanguage, portfolioSecondaryLanguage,
   ]);
 
   const tabIndexMap = { setup: 0, content: 1, design: 2, more: 3, visitors: 4 } as const;
@@ -191,6 +192,7 @@ export default function PortfolioEditorPage() {
       setPinnedProject(extras.pinnedProject as {title: string; description: string; url: string} | null || null);
       setScrollEffect((extras.scrollEffect as ScrollEffect) || 'fade');
       setVideoIntroUrl(extras.videoIntroUrl as string || '');
+      setSchedulingUrl(extras.schedulingUrl as string || '');
       setPortfolioCertifications(extras.portfolioCertifications as Array<{id: string; name: string; issuer: string; date: string; credentialUrl: string; badgeUrl: string}> || []);
       setPortfolioPrimaryLanguage(extras.portfolioPrimaryLanguage as string || 'English');
       setPortfolioSecondaryLanguage(extras.portfolioSecondaryLanguage as string || '');
@@ -467,6 +469,7 @@ export default function PortfolioEditorPage() {
           availabilityStatus,
           scrollEffect,
           videoIntroUrl: videoIntroUrl || null,
+          schedulingUrl: schedulingUrl || null,
           portfolioCertifications,
           portfolioPrimaryLanguage: portfolioPrimaryLanguage || 'English',
           portfolioSecondaryLanguage: portfolioSecondaryLanguage || null,
@@ -845,6 +848,8 @@ export default function PortfolioEditorPage() {
               onPortfolioPrimaryLanguageChange={setPortfolioPrimaryLanguage}
               portfolioSecondaryLanguage={portfolioSecondaryLanguage}
               onPortfolioSecondaryLanguageChange={setPortfolioSecondaryLanguage}
+              schedulingUrl={schedulingUrl}
+              onSchedulingUrlChange={setSchedulingUrl}
               onTranslate={handleTranslate}
               translating={translating} />
 

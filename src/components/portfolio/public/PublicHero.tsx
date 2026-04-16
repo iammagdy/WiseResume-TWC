@@ -1,6 +1,6 @@
 import { forwardRef, useMemo, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { MapPin, Linkedin, Github, Globe, X, Mail, Sparkles, PlayCircle } from 'lucide-react';
+import { MapPin, Linkedin, Github, Globe, X, Mail, Sparkles, PlayCircle, CalendarDays } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { TypewriterText, buildTypewriterPhrases } from '@/components/portfolio/public/TypewriterText';
 import { isActiveWithin24h } from '@/hooks/useActiveStatus';
@@ -16,6 +16,7 @@ export interface PublicHeroProps {
   liveLastActiveAt: string | null;
   allSkills: string[];
   videoIntroUrl?: string | null;
+  schedulingUrl?: string | null;
 }
 
 const fadeUp = {
@@ -48,6 +49,7 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
   liveLastActiveAt,
   allSkills,
   videoIntroUrl,
+  schedulingUrl,
 }, ref) => {
   const [embedError, setEmbedError] = useState(false);
   const themeConfig = getThemeById(pStyle);
@@ -283,6 +285,22 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
                   </a>
                 );
               })()}
+              {schedulingUrl && (
+                <a
+                  href={schedulingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm transition-all hover:scale-105 active:scale-95 pf-cta-entrance"
+                  style={{
+                    background: 'var(--pf-card, rgba(255,255,255,0.06))',
+                    border: `1px solid color-mix(in srgb, ${accentColor} 40%, transparent)`,
+                    color: accentColor,
+                    animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms`,
+                  }}
+                >
+                  <CalendarDays className="w-4 h-4" /> Book a Call
+                </a>
+              )}
             </div>
           </>
         );
