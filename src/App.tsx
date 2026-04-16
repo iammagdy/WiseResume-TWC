@@ -33,6 +33,16 @@ function isPublicStandalonePath(pathname: string) {
   );
 }
 
+// Tiny wrapper that signals when AppInterior has actually mounted (i.e.
+// the lazy chunk has loaded AND the React tree has committed). Used to
+// gate HTML-splash removal so we never expose a blank frame.
+function InteriorMount({ onReady }: { onReady: () => void }) {
+  useLayoutEffect(() => {
+    onReady();
+  }, [onReady]);
+  return <AppInterior />;
+}
+
 function SplashGate() {
   const { hasSeenSplash, setHasSeenSplash } = useSettingsStore(
     useShallow((s) => ({
@@ -64,28 +74,34 @@ function SplashGate() {
     );
   }, []);
 
+  // AppInterior loads in parallel with (or instead of) the splash, so by
+  // the time the splash exits, the real UI is already painted underneath.
+  // For the no-splash path, we hold the HTML pre-paint splash until the
+  // interior has actually mounted to avoid any blank gap.
+  const [interiorReady, setInteriorReady] = useState(false);
+  const handleInteriorReady = useState(() => () => setInteriorReady(true))[0];
+
   useLayoutEffect(() => {
-    if (!shouldShowSplash) {
+    if (!shouldShowSplash && interiorReady) {
       const el = document.getElementById("pre-react-splash");
       if (el && el.parentNode) el.parentNode.removeChild(el);
     }
-  }, [shouldShowSplash]);
-
-  if (shouldShowSplash) {
-    return (
-      <Suspense fallback={null}>
-        <AnimatedSplash
-          onComplete={() => setHasSeenSplash(true)}
-          ready={settingsHydrated}
-        />
-      </Suspense>
-    );
-  }
+  }, [shouldShowSplash, interiorReady]);
 
   return (
-    <Suspense fallback={null}>
-      <AppInterior />
-    </Suspense>
+    <>
+      <Suspense fallback={null}>
+        <InteriorMount onReady={handleInteriorReady} />
+      </Suspense>
+      {shouldShowSplash && (
+        <Suspense fallback={null}>
+          <AnimatedSplash
+            onComplete={() => setHasSeenSplash(true)}
+            ready={settingsHydrated && interiorReady}
+          />
+        </Suspense>
+      )}
+    </>
   );
 }
 
