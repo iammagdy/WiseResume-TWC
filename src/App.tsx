@@ -453,7 +453,7 @@ function AppRoutes() {
 
 }
 
-const AURORA_PUBLIC_PATHS = ['/', '/pricing', '/whats-new', '/sign-in', '/devkit'];
+const AURORA_PUBLIC_PATHS = ['/', '/pricing', '/whats-new', '/sign-in'];
 
 function AuroraLayer() {
   const location = useLocation();
