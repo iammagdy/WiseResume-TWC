@@ -259,25 +259,29 @@ export function stitchMultiPageSections(pageTexts: string[]): string {
     const nextTrimmed = next.trimStart();
     const nextFirstLine = nextTrimmed.split('\n')[0] || '';
 
-    // Case A: page ends with a section header → carry it forward as context
+    // Case A: page ends with a section header and the next page starts with
+    // items rather than another header → inject the header at the top of the
+    // next page so the AI knows those items belong to this section. We join
+    // with a single newline so the header and its first item are contiguous.
     if (looksLikeSectionHeader(lastLine) && !looksLikeSectionHeader(nextFirstLine)) {
-      parts.push('\n\n' + next);
+      parts.push('\n' + `(continued: ${lastLine})\n` + nextTrimmed);
       carriedHeader = lastLine;
       continue;
     }
 
-    // Case B: previous page ended mid-sentence/bullet → join tightly
+    // Case B: previous page ended mid-sentence/bullet → join tightly. If a
+    // section header was carried from an earlier boundary, re-emit it.
     if (endsMidSentence(lastLine) && !looksLikeSectionHeader(nextFirstLine)) {
-      // If we have a carried header from earlier, prepend a soft marker
       const prefix = carriedHeader ? `\n(continued: ${carriedHeader})\n` : '\n';
-      parts.push(prefix + next);
-      carriedHeader = null;
+      parts.push(prefix + nextTrimmed);
+      // Keep carriedHeader so a 3+ page continuation keeps its attribution.
       continue;
     }
 
-    // Default: blank-line separated page
+    // Default: blank-line separated page. New section on the next page
+    // clears the carry.
     parts.push('\n\n' + next);
-    carriedHeader = null;
+    if (looksLikeSectionHeader(nextFirstLine)) carriedHeader = null;
   }
 
   // parts[0] is full page 1; parts[1..] already include leading separators

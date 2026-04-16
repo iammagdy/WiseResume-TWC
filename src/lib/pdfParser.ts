@@ -294,7 +294,86 @@ function computeFieldLevelConfidence(data: ResumeData): Record<string, number> {
   // Awards
   (data.awards || []).forEach((a, i) => {
     scores[`awards[${i}].title`] = a.title?.trim() ? 0.9 : 0;
+    scores[`awards[${i}].issuer`] = a.issuer?.trim() ? 0.8 : 0.4;
+    scores[`awards[${i}].date`] = /\b(19|20)\d{2}\b/.test(String(a.date || '')) ? 0.95 : a.date ? 0.5 : 0.3;
   });
+
+  // Skills — each skill string gets its own confidence based on length and
+  // plausibility (skills are usually 1–5 words; runaway strings suggest a
+  // parse failure that pulled in a sentence).
+  (data.skills || []).forEach((skill, i) => {
+    const s = (skill || '').trim();
+    if (!s) { scores[`skills[${i}]`] = 0; return; }
+    const wc = s.split(/\s+/).length;
+    scores[`skills[${i}]`] = wc <= 5 ? 0.9 : wc <= 10 ? 0.6 : 0.3;
+  });
+
+  // Projects
+  (data.projects || []).forEach((proj, i) => {
+    scores[`projects[${i}].name`] = proj.name?.trim() ? 0.9 : 0;
+    scores[`projects[${i}].role`] = proj.role?.trim() ? 0.7 : 0.4;
+    const hasStart = !!(proj.startDate && String(proj.startDate).trim());
+    const hasEnd = !!(proj.endDate && String(proj.endDate).trim());
+    scores[`projects[${i}].dates`] = hasStart && hasEnd ? 0.9 : hasStart ? 0.5 : 0.3;
+    scores[`projects[${i}].description`] = proj.description?.trim()
+      ? clamp(0.3 + Math.min(proj.description.split(/\s+/).length, 30) / 30 * 0.6)
+      : 0.2;
+    scores[`projects[${i}].technologies`] = (proj.technologies || []).length > 0 ? 0.8 : 0.4;
+  });
+
+  // Publications
+  (data.publications || []).forEach((pub, i) => {
+    scores[`publications[${i}].title`] = pub.title?.trim() ? 0.9 : 0;
+    scores[`publications[${i}].publisher`] = pub.publisher?.trim() ? 0.8 : 0.4;
+    scores[`publications[${i}].date`] =
+      /\b(19|20)\d{2}\b/.test(String(pub.date || '')) ? 0.95 : pub.date ? 0.5 : 0.3;
+  });
+
+  // Volunteering
+  (data.volunteering || []).forEach((v, i) => {
+    scores[`volunteering[${i}].organization`] = v.organization?.trim() ? 0.9 : 0;
+    scores[`volunteering[${i}].role`] = v.role?.trim() ? 0.8 : 0.4;
+    const hasStart = !!(v.startDate && String(v.startDate).trim());
+    const hasEnd = !!(v.endDate && String(v.endDate).trim());
+    scores[`volunteering[${i}].dates`] = hasStart && hasEnd ? 0.9 : hasStart ? 0.5 : 0.3;
+    scores[`volunteering[${i}].description`] = v.description?.trim() ? 0.7 : 0.3;
+  });
+
+  // Hobbies
+  (data.hobbies || []).forEach((h, i) => {
+    scores[`hobbies[${i}].name`] = h.name?.trim() ? 0.9 : 0;
+  });
+
+  // Languages
+  (data.languages || []).forEach((lang, i) => {
+    scores[`languages[${i}].name`] = lang.name?.trim() ? 0.9 : 0;
+    scores[`languages[${i}].proficiency`] = lang.proficiency ? 0.9 : 0.5;
+  });
+
+  // References
+  (data.references || []).forEach((ref, i) => {
+    scores[`references[${i}].name`] = ref.name?.trim() ? 0.9 : 0;
+    scores[`references[${i}].title`] = ref.title?.trim() ? 0.7 : 0.4;
+    scores[`references[${i}].company`] = ref.company?.trim() ? 0.8 : 0.4;
+    const refEmail = (ref.email || '').trim();
+    scores[`references[${i}].email`] =
+      /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(refEmail) ? 1 : refEmail ? 0.3 : 0.3;
+    const refPhoneDigits = (ref.phone || '').replace(/\D/g, '');
+    scores[`references[${i}].phone`] =
+      refPhoneDigits.length >= 7 && refPhoneDigits.length <= 15 ? 0.9 : ref.phone ? 0.3 : 0.3;
+  });
+
+  // Contact sub-fields beyond name/email/phone
+  scores['contact.location'] = c.location?.trim() ? 0.85 : 0.3;
+  if (c.linkedin !== undefined) {
+    scores['contact.linkedin'] = /linkedin\.com\//i.test(String(c.linkedin || '')) ? 0.95 : c.linkedin ? 0.4 : 0.5;
+  }
+  if (c.github !== undefined) {
+    scores['contact.github'] = /github\.com\//i.test(String(c.github || '')) ? 0.95 : c.github ? 0.4 : 0.5;
+  }
+  if (c.portfolio !== undefined) {
+    scores['contact.portfolio'] = /^https?:\/\//i.test(String(c.portfolio || '')) ? 0.9 : c.portfolio ? 0.4 : 0.5;
+  }
 
   return scores;
 }
@@ -353,10 +432,26 @@ export function getLowConfidenceFields(
     details: 'description',
     institution: 'school',
     degree: 'degree',
+    endDate: 'end date',
+    startDate: 'start date',
     graduationDate: 'graduation date',
     name: 'name',
     issuer: 'issuer',
     title: 'title',
+    date: 'date',
+    organization: 'organization',
+    role: 'role',
+    description: 'description',
+    technologies: 'technologies',
+    publisher: 'publisher',
+    proficiency: 'proficiency',
+    email: 'email',
+    phone: 'phone',
+    location: 'location',
+    linkedin: 'LinkedIn',
+    github: 'GitHub',
+    portfolio: 'portfolio',
+    fullName: 'full name',
   };
 
   const out: string[] = [];
