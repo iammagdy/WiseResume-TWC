@@ -13,13 +13,13 @@ const DEFAULT_RULES: PortfolioUsernameRules = {
   allow_hyphens: true,
 };
 
-let cached: PortfolioUsernameRules | null = null;
-let inflight: Promise<PortfolioUsernameRules> | null = null;
+let globalCache: PortfolioUsernameRules | null = null;
+let globalInflight: Promise<PortfolioUsernameRules> | null = null;
 
-async function fetchRules(): Promise<PortfolioUsernameRules> {
-  if (cached) return cached;
-  if (inflight) return inflight;
-  inflight = (async () => {
+async function fetchGlobalRules(): Promise<PortfolioUsernameRules> {
+  if (globalCache) return globalCache;
+  if (globalInflight) return globalInflight;
+  globalInflight = (async () => {
     try {
       const { data } = await supabase
         .from('portfolio_username_rules')
@@ -33,30 +33,59 @@ async function fetchRules(): Promise<PortfolioUsernameRules> {
             allow_hyphens: Boolean(data.allow_hyphens ?? DEFAULT_RULES.allow_hyphens),
           }
         : DEFAULT_RULES;
-      cached = rules;
+      globalCache = rules;
       return rules;
     } catch {
-      cached = DEFAULT_RULES;
+      globalCache = DEFAULT_RULES;
       return DEFAULT_RULES;
     } finally {
-      inflight = null;
+      globalInflight = null;
     }
   })();
-  return inflight;
+  return globalInflight;
+}
+
+async function fetchUserOverride(userId: string): Promise<Partial<PortfolioUsernameRules>> {
+  try {
+    const { data } = await supabase
+      .from('portfolio_user_overrides')
+      .select('min_length, max_length, allow_hyphens')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (!data) return {};
+    const out: Partial<PortfolioUsernameRules> = {};
+    if (data.min_length != null) out.min_length = Number(data.min_length);
+    if (data.max_length != null) out.max_length = Number(data.max_length);
+    if (data.allow_hyphens != null) out.allow_hyphens = Boolean(data.allow_hyphens);
+    return out;
+  } catch {
+    return {};
+  }
 }
 
 export function clearPortfolioUsernameRulesCache() {
-  cached = null;
+  globalCache = null;
 }
 
-export function usePortfolioUsernameRules(): PortfolioUsernameRules {
-  const [rules, setRules] = useState<PortfolioUsernameRules>(cached ?? DEFAULT_RULES);
+/**
+ * Returns the effective portfolio-username rules for the given user.
+ * Per-user overrides from `portfolio_user_overrides` are merged on top of the
+ * global rules so admin-granted exceptions (e.g. min_length=1) are honored
+ * throughout the editor UI.
+ */
+export function usePortfolioUsernameRules(userId?: string | null): PortfolioUsernameRules {
+  const [rules, setRules] = useState<PortfolioUsernameRules>(globalCache ?? DEFAULT_RULES);
   useEffect(() => {
     let mounted = true;
-    fetchRules().then((r) => {
-      if (mounted) setRules(r);
-    });
+    (async () => {
+      const [global, override] = await Promise.all([
+        fetchGlobalRules(),
+        userId ? fetchUserOverride(userId) : Promise.resolve({} as Partial<PortfolioUsernameRules>),
+      ]);
+      if (!mounted) return;
+      setRules({ ...global, ...override });
+    })();
     return () => { mounted = false; };
-  }, []);
+  }, [userId]);
   return rules;
 }

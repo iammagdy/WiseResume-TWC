@@ -20,6 +20,7 @@ export interface SetupTabProps {
   usernameCheckStatus?: { status: string; reason?: string } | null;
   onRequestUsername?: () => void;
   checkingUsername: boolean;
+  usernameMinLength?: number;
   usernameMaxLength?: number;
   resumes: Array<{ id: string; title: string; is_primary?: boolean }>;
   selectedResumeId: string;
@@ -54,7 +55,7 @@ const AVAILABILITY_OPTIONS: { value: AvailabilityStatus; label: string; color: s
 
 export function SetupTab(props: SetupTabProps) {
   const {
-    username, onUsernameChange, usernameError, usernameAvailable, usernameCheckStatus, onRequestUsername, checkingUsername, usernameMaxLength = 30,
+    username, onUsernameChange, usernameError, usernameAvailable, usernameCheckStatus, onRequestUsername, checkingUsername, usernameMinLength = 3, usernameMaxLength = 30,
     resumes, selectedResumeId, onSelectedResumeIdChange,
     bio, onBioChange, onGenerateBio, generatingBio,
     sections, onToggleSectionVisibility,
@@ -96,7 +97,7 @@ export function SetupTab(props: SetupTabProps) {
           </span>
         </div>
         {usernameError && <p className="text-xs text-destructive">{usernameError}</p>}
-        {!usernameError && username.length >= 3 && (
+        {!usernameError && username.length >= usernameMinLength && (
           <div className="flex items-center gap-1.5">
             {checkingUsername && (
               <>

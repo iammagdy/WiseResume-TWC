@@ -54,7 +54,7 @@ export default function PortfolioEditorPage() {
   const isPaidUser = isPro || isPremium;
   const { profile, loading, updateProfile } = useProfile(user?.id, user);
   const { data: resumes = [] } = useResumes();
-  const usernameRules = usePortfolioUsernameRules();
+  const usernameRules = usePortfolioUsernameRules(user?.id);
   const { saveSnapshot } = usePortfolioHistory(user?.id);
   const queryClient = useQueryClient();
 
@@ -287,7 +287,7 @@ export default function PortfolioEditorPage() {
   // Debounced username availability check
   useEffect(() => {
     if (usernameCheckRef.current) clearTimeout(usernameCheckRef.current);
-    if (!username || username.length < 3 || usernameError) {
+    if (!username || username.length < usernameRules.min_length || usernameError) {
       setUsernameAvailable(null);
       setCheckingUsername(false);
       return;
@@ -520,7 +520,7 @@ export default function PortfolioEditorPage() {
     setSavingPortfolio(true);
     haptics.light();
     try {
-      if (username && username.length >= 3 && profile?.username !== username) {
+      if (username && username.length >= usernameRules.min_length && profile?.username !== username) {
         const { data: available } = await supabase.rpc('check_username_available', {
           p_username: username,
           p_user_id: user!.id
@@ -712,7 +712,7 @@ export default function PortfolioEditorPage() {
   const strengthChecks = [
     { ok: !!profile?.avatarUrl, tip: 'Add a profile photo in Settings → Profile' },
     { ok: bio.length >= 50, tip: 'Write a bio (at least 50 characters)' },
-    { ok: username.length >= 3, tip: 'Set a portfolio username' },
+    { ok: username.length >= usernameRules.min_length, tip: 'Set a portfolio username' },
     { ok: !!(linkedinUrl || githubUrl || websiteUrl || twitterUrl || contactEmail), tip: 'Add at least one social link or contact email' },
     { ok: availabilityHeadline.length > 0, tip: 'Set an availability headline' },
     { ok: metaTitle.length > 0, tip: 'Add a custom page title for SEO' },
@@ -926,6 +926,7 @@ export default function PortfolioEditorPage() {
               usernameCheckStatus={usernameCheckStatus}
               onRequestUsername={() => setRequestDialogOpen(true)}
               checkingUsername={checkingUsername}
+              usernameMinLength={usernameRules.min_length}
               usernameMaxLength={usernameRules.max_length}
               resumes={resumes}
               selectedResumeId={selectedResumeId}
