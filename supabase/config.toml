@@ -15,6 +15,8 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.admin-manage-coupons]
     verify_jwt = false
+  [functions.admin-portfolio-usernames]
+    verify_jwt = false
   [functions.admin-revoke-trial]
     verify_jwt = false
   [functions.admin-save-note]

@@ -29,6 +29,12 @@ function buildSubject(type: string, email: string, metadata: Record<string, unkn
     }
     case "feature":
       return `[Feature Request] ${email}`;
+    case "username-request": {
+      const requested = typeof metadata.requested_username === "string" && metadata.requested_username
+        ? metadata.requested_username
+        : "unknown";
+      return `Username Requested: ${requested}`;
+    }
     default:
       return `[${type.toUpperCase()}] ${email}`;
   }
@@ -160,31 +166,65 @@ Deno.serve(async (req) => {
       "auto-crash-report": "🚨 Auto Crash Report",
       feature: "✨ Feature Request",
       contact: "✉️ Contact Inquiry",
+      "username-request": "🔖 Username Request",
     };
 
     const emailSubject = buildSubject(type, email, metadata);
 
-    const emailHtml = `
-      <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
-        <div style="text-align: center; margin-bottom: 20px;">
-          <img src="${LOGO_URL}" alt="WiseResume" width="50" style="border-radius: 10px;" />
-          <h2 style="color: #1a1a2e; margin-top: 10px;">${typeLabels[type] || "Contact Request"}</h2>
+    let emailHtml: string;
+    if (type === "username-request") {
+      const requested = String(metadata.requested_username ?? "");
+      const fullName = String(metadata.full_name ?? "");
+      const reason = String(metadata.reason ?? "");
+      emailHtml = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 24px; border-radius: 12px;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <img src="${LOGO_URL}" alt="WiseResume" width="50" style="border-radius: 10px;" />
+            <h2 style="color: #1a1a2e; margin-top: 12px;">🔖 Username Request</h2>
+            <p style="color: #666; margin: 4px 0 0; font-size: 13px;">A user is requesting a reserved username</p>
+          </div>
+          <div style="background: #f4f6fb; padding: 16px 18px; border-radius: 8px; margin-bottom: 16px;">
+            <p style="margin: 0 0 4px; font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.4px;">Requested username</p>
+            <p style="margin: 0; font-size: 20px; font-weight: 700; color: #1a1a2e; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;">${escapeHtml(requested)}</p>
+          </div>
+          <p><strong>Full name:</strong> ${escapeHtml(fullName || "—")}</p>
+          <p><strong>Email:</strong> ${escapeHtml(email)}</p>
+          <p style="margin-bottom: 6px;"><strong>Reason:</strong></p>
+          <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; white-space: pre-wrap; font-size: 13px; color: #333;">
+            ${escapeHtml(reason || message || "(no reason provided)")}
+          </div>
+          <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;" />
+          <div style="font-size: 11px; color: #888;">
+            <p><strong>IP:</strong> ${escapeHtml(clientIp)}</p>
+            <p><strong>User ID:</strong> ${userId || "Anonymous"}</p>
+            <p><strong>Time:</strong> ${new Date().toISOString()}</p>
+            ${recordId ? `<p><strong>Record ID:</strong> ${recordId}</p>` : ""}
+          </div>
         </div>
-        <p><strong>From:</strong> ${escapeHtml(email)}</p>
-        <p><strong>Subject:</strong> ${escapeHtml(subject || "No Subject")}</p>
-        <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; white-space: pre-wrap;">
-          ${escapeHtml(message)}
+      `;
+    } else {
+      emailHtml = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <img src="${LOGO_URL}" alt="WiseResume" width="50" style="border-radius: 10px;" />
+            <h2 style="color: #1a1a2e; margin-top: 10px;">${typeLabels[type] || "Contact Request"}</h2>
+          </div>
+          <p><strong>From:</strong> ${escapeHtml(email)}</p>
+          <p><strong>Subject:</strong> ${escapeHtml(subject || "No Subject")}</p>
+          <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; white-space: pre-wrap;">
+            ${escapeHtml(message)}
+          </div>
+          ${metadata.department ? `<p><strong>Department:</strong> ${escapeHtml(metadata.department)}</p>` : ""}
+          <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;" />
+          <div style="font-size: 12px; color: #666;">
+            <p><strong>IP:</strong> ${escapeHtml(clientIp)}</p>
+            <p><strong>User ID:</strong> ${userId || "Anonymous"}</p>
+            <p><strong>Time:</strong> ${new Date().toISOString()}</p>
+            ${recordId ? `<p><strong>Record ID:</strong> ${recordId}</p>` : ""}
+          </div>
         </div>
-        ${metadata.department ? `<p><strong>Department:</strong> ${escapeHtml(metadata.department)}</p>` : ""}
-        <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;" />
-        <div style="font-size: 12px; color: #666;">
-          <p><strong>IP:</strong> ${escapeHtml(clientIp)}</p>
-          <p><strong>User ID:</strong> ${userId || "Anonymous"}</p>
-          <p><strong>Time:</strong> ${new Date().toISOString()}</p>
-          ${recordId ? `<p><strong>Record ID:</strong> ${recordId}</p>` : ""}
-        </div>
-      </div>
-    `;
+      `;
+    }
 
     const resendRes = await fetch("https://api.resend.com/emails", {
       method: "POST",

@@ -104,9 +104,19 @@ Deno.serve(async (req) => {
         );
       }
 
-      if (!available) {
+      const availStatus = (available as { status?: string; reason?: string } | null)?.status ?? 'invalid';
+      if (availStatus !== 'available') {
+        const reason = (available as { reason?: string } | null)?.reason;
+        const errorMsg =
+          availStatus === 'reserved'
+            ? (reason || 'This username is reserved')
+            : availStatus === 'exclusive'
+              ? (reason || 'This username is exclusive to another account')
+              : availStatus === 'invalid'
+                ? (reason || 'Invalid username')
+                : 'Username is already taken';
         return new Response(
-          JSON.stringify({ success: false, error: 'Username is already taken' }),
+          JSON.stringify({ success: false, error: errorMsg, status: availStatus }),
           { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }

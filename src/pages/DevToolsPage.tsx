@@ -15,6 +15,7 @@ import {
   Rocket,
   Mail,
   Briefcase,
+  AtSign,
   ChevronRight,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -30,13 +31,14 @@ import { LiveActivityPanel } from '@/components/dev-kit/LiveActivityPanel';
 import { DeploymentPanel } from '@/components/dev-kit/DeploymentPanel';
 import { EmailManagementPanel } from '@/components/dev-kit/EmailManagementPanel';
 import { WiseHireWaitlistPanel } from '@/components/dev-kit/WiseHireWaitlistPanel';
+import { PortfolioUsernamesPanel } from '@/components/dev-kit/PortfolioUsernamesPanel';
 import { DEV_KIT_VERSION } from '@/components/dev-kit/config';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { DevKitSessionProvider, useDevKitSession } from '@/contexts/DevKitSessionContext';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-type Tab = 'overview' | 'analytics' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire';
+type Tab = 'overview' | 'analytics' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire' | 'portfolio';
 
 interface NavItem {
   id: Tab;
@@ -65,6 +67,7 @@ const NAV_SECTIONS: NavSection[] = [
       { id: 'email', label: 'Email', icon: Mail },
       { id: 'coupons', label: 'Coupons', icon: Tag },
       { id: 'wisehire', label: 'WiseHire', icon: Briefcase },
+      { id: 'portfolio', label: 'Portfolio', icon: AtSign },
     ],
   },
   {
@@ -88,6 +91,7 @@ const TAB_LABELS: Record<Tab, string> = {
   activity: 'Audit Log',
   email: 'Email',
   wisehire: 'WiseHire',
+  portfolio: 'Portfolio',
 };
 
 type ConnectionStatus = 'checking' | 'connected' | 'degraded' | 'disconnected';
@@ -575,6 +579,18 @@ function DevToolsInner() {
                   </p>
                 </div>
                 <WiseHireWaitlistPanel />
+              </div>
+            )}
+
+            {activeTab === 'portfolio' && (
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">Portfolio Usernames</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Manage the public portfolio username namespace: directory of active usernames, global rules, reserved words, and exclusive assignments.
+                  </p>
+                </div>
+                <PortfolioUsernamesPanel />
               </div>
             )}
 

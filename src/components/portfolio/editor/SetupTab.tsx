@@ -17,6 +17,8 @@ export interface SetupTabProps {
   onUsernameChange: (val: string) => void;
   usernameError: string;
   usernameAvailable: boolean | null;
+  usernameCheckStatus?: { status: string; reason?: string } | null;
+  onRequestUsername?: () => void;
   checkingUsername: boolean;
   resumes: Array<{ id: string; title: string; is_primary?: boolean }>;
   selectedResumeId: string;
@@ -51,7 +53,7 @@ const AVAILABILITY_OPTIONS: { value: AvailabilityStatus; label: string; color: s
 
 export function SetupTab(props: SetupTabProps) {
   const {
-    username, onUsernameChange, usernameError, usernameAvailable, checkingUsername,
+    username, onUsernameChange, usernameError, usernameAvailable, usernameCheckStatus, onRequestUsername, checkingUsername,
     resumes, selectedResumeId, onSelectedResumeIdChange,
     bio, onBioChange, onGenerateBio, generatingBio,
     sections, onToggleSectionVisibility,
@@ -107,13 +109,37 @@ export function SetupTab(props: SetupTabProps) {
                 <span className="text-xs font-medium text-green-500">✓ Available</span>
               </>
             )}
-            {!checkingUsername && usernameAvailable === false && (
-              <>
-                <XCircle className="w-4 h-4 text-destructive" />
-                <span className="text-xs font-medium text-destructive">✗ Username taken — choose another</span>
-              </>
-            )}
+            {!checkingUsername && usernameAvailable === false && (() => {
+              const status = usernameCheckStatus?.status ?? 'taken';
+              const canRequest = status === 'reserved' || status === 'exclusive';
+              const label =
+                status === 'reserved'
+                  ? '✗ Reserved username'
+                  : status === 'exclusive'
+                    ? '✗ Reserved for another account'
+                    : status === 'invalid'
+                      ? '✗ Invalid username'
+                      : '✗ Username taken — choose another';
+              return (
+                <>
+                  <XCircle className="w-4 h-4 text-destructive" />
+                  <span className="text-xs font-medium text-destructive">{label}</span>
+                  {canRequest && onRequestUsername && (
+                    <button
+                      type="button"
+                      onClick={onRequestUsername}
+                      className="ml-1 text-xs font-medium text-primary underline underline-offset-2 hover:opacity-80"
+                    >
+                      Request this username
+                    </button>
+                  )}
+                </>
+              );
+            })()}
           </div>
+        )}
+        {usernameCheckStatus?.reason && usernameAvailable === false && (
+          <p className="text-[11px] text-muted-foreground mt-0.5">{usernameCheckStatus.reason}</p>
         )}
       </div>
 

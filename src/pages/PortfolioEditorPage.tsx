@@ -17,6 +17,7 @@ import { PortfolioEditorSkeleton } from '@/components/layout/PageSkeletons';
 import { useNavigate } from 'react-router-dom';
 import { QrCode, ExternalLink } from 'lucide-react';
 import { UnsavedChangesDialog } from '@/components/editor/UnsavedChangesDialog';
+import { UsernameRequestDialog } from '@/components/settings/UsernameRequestDialog';
 import { getPortfolioUrl, getPortfolioDisplayUrl } from '@/lib/portfolioUrl';
 import { openExternal } from '@/lib/openExternal';
 import { getSafeMatchMedia } from '@/lib/envUtils';
@@ -71,7 +72,9 @@ export default function PortfolioEditorPage() {
   const [username, setUsername] = useState('');
   const [usernameError, setUsernameError] = useState('');
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [usernameCheckStatus, setUsernameCheckStatus] = useState<{ status: string; reason?: string } | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
   const [bio, setBio] = useState('');
   const [portfolioEnabled, setPortfolioEnabled] = useState(false);
   const [githubUrl, setGithubUrl] = useState('');
@@ -301,7 +304,12 @@ export default function PortfolioEditorPage() {
           p_user_id: user!.id
         });
         if (error) throw error;
-        setUsernameAvailable(data === true);
+        const status = (data as { status?: string } | null)?.status ?? 'invalid';
+        setUsernameAvailable(status === 'available');
+        setUsernameCheckStatus({
+          status,
+          reason: (data as { reason?: string } | null)?.reason,
+        });
       } catch {
         setUsernameAvailable(null);
         toast.error('Failed to check username availability. Please try again.');
@@ -501,8 +509,13 @@ export default function PortfolioEditorPage() {
           p_username: username,
           p_user_id: user!.id
         });
-        if (!available) {
+        const availStatus = (available as { status?: string } | null)?.status ?? 'invalid';
+        if (availStatus !== 'available') {
           setUsernameAvailable(false);
+          setUsernameCheckStatus({
+            status: availStatus,
+            reason: (available as { reason?: string } | null)?.reason,
+          });
           toast.error('Username was just taken. Please choose another.');
           setSavingPortfolio(false);
           return;
@@ -894,6 +907,8 @@ export default function PortfolioEditorPage() {
               onUsernameChange={handleUsernameChange}
               usernameError={usernameError}
               usernameAvailable={usernameAvailable}
+              usernameCheckStatus={usernameCheckStatus}
+              onRequestUsername={() => setRequestDialogOpen(true)}
               checkingUsername={checkingUsername}
               resumes={resumes}
               selectedResumeId={selectedResumeId}
@@ -1075,6 +1090,13 @@ export default function PortfolioEditorPage() {
         error={critiqueError}
       />
       
+      <UsernameRequestDialog
+        open={requestDialogOpen}
+        onOpenChange={setRequestDialogOpen}
+        requestedUsername={username}
+        checkReason={usernameCheckStatus?.reason}
+      />
+
       <UnsavedChangesDialog
         open={pendingNavPath !== null}
         isSaving={isSavingBeforeLeave}

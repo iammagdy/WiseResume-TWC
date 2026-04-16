@@ -366,7 +366,8 @@ export function UserDetailDrawer({ user: userProp, open, onClose, onUserUpdated,
           p_user_id: user.user_id,
         });
         if (error) throw error;
-        setUsernameAvailable(data === true);
+        const status = (data as { status?: string } | null)?.status ?? 'invalid';
+        setUsernameAvailable(status === 'available');
       } catch {
         setUsernameAvailable(null);
       } finally {
