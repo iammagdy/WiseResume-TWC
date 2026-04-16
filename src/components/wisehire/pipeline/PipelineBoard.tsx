@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { PipelineColumn } from './PipelineColumn';
 import { CandidateDetailPanel } from './CandidateDetailPanel';
 import { AddCandidateSheet } from './AddCandidateSheet';
@@ -47,7 +47,7 @@ function exportPipelineCSV(candidates: PipelineCandidate[]) {
 }
 
 export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: PipelineBoardProps) {
-  const { data: candidates = [], isLoading, updatePipelineStage, updateNotes, addCandidate } = usePipeline(roleId, clientId);
+  const { data: candidates = [], isLoading, updatePipelineStage, bulkUpdatePipelineStage, updateNotes, addCandidate } = usePipeline(roleId, clientId);
   const [selectedCandidate, setSelectedCandidate] = useState<PipelineCandidate | null>(null);
   const [showAddSheet, setShowAddSheet] = useState(false);
   const dragState = useRef<DragState>({ candidateId: null, fromStage: null });
@@ -56,11 +56,19 @@ export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: Pip
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkTargetStage, setBulkTargetStage] = useState<string>('');
 
-  const stageMap = Object.fromEntries(PIPELINE_STAGES.map((s) => [s.id, [] as PipelineCandidate[]]));
-  for (const c of candidates) {
-    const stage = c.pipeline_stage in stageMap ? c.pipeline_stage : 'shortlisted';
-    stageMap[stage].push(c);
-  }
+  // Memoize the stage->candidates bucketing so it doesn't rebuild on every
+  // unrelated re-render (card click, hover, selection toggle). Only recompute
+  // when the candidates list itself changes.
+  const stageMap = useMemo(() => {
+    const map: Record<string, PipelineCandidate[]> = Object.fromEntries(
+      PIPELINE_STAGES.map((s) => [s.id, [] as PipelineCandidate[]]),
+    );
+    for (const c of candidates) {
+      const stage = c.pipeline_stage in map ? c.pipeline_stage : 'shortlisted';
+      map[stage].push(c);
+    }
+    return map;
+  }, [candidates]);
 
   const dragHandlers = createDragHandlers(dragState, (candidateId, toStage) => {
     if (selectionMode) return;
@@ -109,42 +117,44 @@ export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: Pip
   function handleBulkMove() {
     if (!bulkTargetStage || selectedIds.size === 0) return;
     const stageLabel = PIPELINE_STAGES.find((s) => s.id === bulkTargetStage)?.label ?? bulkTargetStage;
-    let moved = 0;
-    for (const id of selectedIds) {
+    const movableIds = Array.from(selectedIds).filter((id) => {
       const candidate = candidates.find((c) => c.id === id);
-      if (!candidate || candidate.pipeline_stage === bulkTargetStage) continue;
-      updatePipelineStage.mutate({
-        candidateId: id,
-        toStage: bulkTargetStage as PipelineStage,
-        fromStage: candidate.pipeline_stage,
-      });
-      moved++;
-    }
-    if (moved === 0) {
+      return candidate && candidate.pipeline_stage !== bulkTargetStage;
+    });
+    if (movableIds.length === 0) {
       toast.info(`All selected candidates are already in ${stageLabel}`);
-    } else {
-      toast.success(`Moved ${moved} candidate${moved === 1 ? '' : 's'} to ${stageLabel}`);
+      exitSelectionMode();
+      return;
     }
+    bulkUpdatePipelineStage.mutate(
+      { candidateIds: movableIds, toStage: bulkTargetStage as PipelineStage },
+      {
+        onSuccess: () => {
+          toast.success(`Moved ${movableIds.length} candidate${movableIds.length === 1 ? '' : 's'} to ${stageLabel}`);
+        },
+      },
+    );
     exitSelectionMode();
   }
 
   function handleBulkReject() {
-    let rejected = 0;
-    for (const id of selectedIds) {
+    const rejectableIds = Array.from(selectedIds).filter((id) => {
       const candidate = candidates.find((c) => c.id === id);
-      if (!candidate || candidate.pipeline_stage === 'rejected') continue;
-      updatePipelineStage.mutate({
-        candidateId: id,
-        toStage: 'rejected',
-        fromStage: candidate.pipeline_stage,
-      });
-      rejected++;
-    }
-    if (rejected === 0) {
+      return candidate && candidate.pipeline_stage !== 'rejected';
+    });
+    if (rejectableIds.length === 0) {
       toast.info('All selected candidates are already rejected');
-    } else {
-      toast.success(`Rejected ${rejected} candidate${rejected === 1 ? '' : 's'}`);
+      exitSelectionMode();
+      return;
     }
+    bulkUpdatePipelineStage.mutate(
+      { candidateIds: rejectableIds, toStage: 'rejected' },
+      {
+        onSuccess: () => {
+          toast.success(`Rejected ${rejectableIds.length} candidate${rejectableIds.length === 1 ? '' : 's'}`);
+        },
+      },
+    );
     exitSelectionMode();
   }
 
@@ -182,7 +192,7 @@ export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: Pip
               <Button
                 size="sm"
                 className="h-8 text-xs bg-blue-700 hover:bg-blue-800 text-white"
-                disabled={!bulkTargetStage || selectedIds.size === 0 || updatePipelineStage.isPending}
+                disabled={!bulkTargetStage || selectedIds.size === 0 || updatePipelineStage.isPending || bulkUpdatePipelineStage.isPending}
                 onClick={handleBulkMove}
               >
                 Move
@@ -191,7 +201,7 @@ export function PipelineBoard({ roleId, clientId, roles, biasMode = false }: Pip
                 size="sm"
                 variant="outline"
                 className="h-8 text-xs border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                disabled={selectedIds.size === 0 || updatePipelineStage.isPending}
+                disabled={selectedIds.size === 0 || updatePipelineStage.isPending || bulkUpdatePipelineStage.isPending}
                 onClick={handleBulkReject}
               >
                 Reject

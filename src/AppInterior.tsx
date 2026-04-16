@@ -9,7 +9,6 @@ import { useAppLifecycle } from "@/hooks/useAppLifecycle";
 import { BiometricLockScreen } from "@/components/BiometricLockScreen";
 import { useBiometricLock } from "@/hooks/useBiometricLock";
 import { useSettingsStore } from "@/store/settingsStore";
-import { useShallow } from 'zustand/react/shallow';
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
@@ -223,17 +222,12 @@ function AppRoutes() {
     document.body.style.overflow = '';
   }, []);
 
-  const {
-    shakeToReportEnabled,
-    biometricLockEnabled,
-    biometricLockTimeout,
-  } = useSettingsStore(
-    useShallow((s) => ({
-      shakeToReportEnabled:  s.shakeToReportEnabled,
-      biometricLockEnabled:  s.biometricLockEnabled,
-      biometricLockTimeout:  s.biometricLockTimeout,
-    }))
-  );
+  // Atomic selectors instead of a single useShallow object — avoids
+  // recomputing & re-rendering the whole route tree when an unrelated
+  // settings field changes (e.g. AI provider, theme, hint flags).
+  const shakeToReportEnabled = useSettingsStore((s) => s.shakeToReportEnabled);
+  const biometricLockEnabled = useSettingsStore((s) => s.biometricLockEnabled);
+  const biometricLockTimeout = useSettingsStore((s) => s.biometricLockTimeout);
   useShakeDetect(shakeToReportEnabled);
 
   useAppLifecycle({

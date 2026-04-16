@@ -408,19 +408,11 @@ export function useSetMasterCV() {
   return useMutation({
     mutationFn: async (resumeId: string) => {
       if (!user) throw new Error('Not authenticated');
-
-      // Clear all others
-      await supabase
-        .from('resumes')
-        .update({ is_primary: false })
-        .eq('user_id', user.id);
-
-      // Set the target
-      const { error } = await supabase
-        .from('resumes')
-        .update({ is_primary: true })
-        .eq('id', resumeId);
-
+      // Single transactional RPC: clears every is_primary row for the caller
+      // and sets the target row to is_primary=true atomically. Replaces the
+      // previous two-call clear-then-set pattern that could leave the user
+      // with zero primary rows if the second call failed.
+      const { error } = await supabase.rpc('set_master_cv', { p_resume_id: resumeId });
       if (error) throw error;
     },
     onSuccess: () => {

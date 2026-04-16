@@ -143,10 +143,31 @@ export function useJobApplicationMutations() {
       if (error) throw error;
       return data as unknown as JobApplication;
     },
-    onSuccess: () => {
+    // Optimistic update — write the change to every cached
+    // ['job-applications', ...] list immediately so KanbanBoard renders the
+    // new state without waiting for the round-trip. Snapshot every list and
+    // restore on error.
+    onMutate: async ({ id, ...updates }) => {
+      await queryClient.cancelQueries({ queryKey: ['job-applications'] });
+      const snapshots = queryClient.getQueriesData<JobApplication[]>({ queryKey: ['job-applications'] });
+      for (const [key, prev] of snapshots) {
+        if (!prev) continue;
+        queryClient.setQueryData<JobApplication[]>(
+          key,
+          prev.map((a) => (a.id === id ? { ...a, ...(updates as Partial<JobApplication>) } : a)),
+        );
+      }
+      return { snapshots };
+    },
+    onError: (_err, _vars, context) => {
+      for (const [key, prev] of context?.snapshots ?? []) {
+        queryClient.setQueryData(key, prev);
+      }
+      toast.error('Failed to update application');
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['job-applications'] });
     },
-    onError: () => toast.error('Failed to update application'),
   });
 
   const deleteApplication = useMutation({
@@ -158,11 +179,27 @@ export function useJobApplicationMutations() {
         .eq('id', id);
       if (error) throw error;
     },
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['job-applications'] });
+      const snapshots = queryClient.getQueriesData<JobApplication[]>({ queryKey: ['job-applications'] });
+      for (const [key, prev] of snapshots) {
+        if (!prev) continue;
+        queryClient.setQueryData<JobApplication[]>(key, prev.filter((a) => a.id !== id));
+      }
+      return { snapshots };
+    },
+    onError: (_err, _vars, context) => {
+      for (const [key, prev] of context?.snapshots ?? []) {
+        queryClient.setQueryData(key, prev);
+      }
+      toast.error('Failed to delete application');
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['job-applications'] });
       toast.success('Application removed');
     },
-    onError: () => toast.error('Failed to delete application'),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['job-applications'] });
+    },
   });
 
   return { createApplication, updateApplication, deleteApplication };

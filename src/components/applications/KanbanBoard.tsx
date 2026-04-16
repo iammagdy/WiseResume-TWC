@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   DndContext,
   DragEndEvent,
@@ -126,6 +127,65 @@ function MobileCardItem({ card, onDelete, onMoveRequest }: MobileCardItemProps) 
   );
 }
 
+// Mobile-only virtualized card list. Falls back to plain map for short
+// lists where virtualization overhead exceeds the savings.
+const MOBILE_VIRTUALIZE_THRESHOLD = 25;
+
+function MobileVirtualList({
+  cards,
+  onDelete,
+  onMoveRequest,
+}: {
+  cards: JobApplication[];
+  onDelete: (id: string) => void;
+  onMoveRequest: (card: JobApplication) => void;
+}) {
+  const parentRef = useRef<HTMLDivElement | null>(null);
+  const enabled = cards.length > MOBILE_VIRTUALIZE_THRESHOLD;
+
+  const virtualizer = useVirtualizer({
+    count: enabled ? cards.length : 0,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 68,
+    overscan: 6,
+    getItemKey: (i) => cards[i]?.id ?? i,
+  });
+
+  if (!enabled) {
+    return (
+      <>
+        {cards.map((card) => (
+          <MobileCardItem key={card.id} card={card} onDelete={onDelete} onMoveRequest={onMoveRequest} />
+        ))}
+      </>
+    );
+  }
+
+  return (
+    <div ref={parentRef} className="overflow-y-auto" style={{ maxHeight: 'calc(100dvh - 220px)' }}>
+      <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative', width: '100%' }}>
+        {virtualizer.getVirtualItems().map((vi) => {
+          const card = cards[vi.index];
+          if (!card) return null;
+          return (
+            <div
+              key={card.id}
+              ref={virtualizer.measureElement}
+              data-index={vi.index}
+              style={{
+                position: 'absolute', top: 0, left: 0, right: 0,
+                transform: `translateY(${vi.start}px)`, paddingBottom: 8,
+              }}
+            >
+              <MobileCardItem card={card} onDelete={onDelete} onMoveRequest={onMoveRequest} />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 interface MoveStatusSheetProps {
   card: JobApplication | null;
   onClose: () => void;
@@ -180,109 +240,86 @@ function MoveStatusSheet({ card, onClose, onMove }: MoveStatusSheetProps) {
   );
 }
 
-export interface KanbanBoardProps {
-  applications?: JobApplication[];
-  onApplicationsChange?: (apps: JobApplication[]) => void;
-}
-
-export function KanbanBoard({ applications: applicationsProp, onApplicationsChange }: KanbanBoardProps = {}) {
-  const { data: internalApps = [], isLoading } = useJobApplications();
-  const serverApplications = applicationsProp ?? internalApps;
+export function KanbanBoard() {
+  // Cards are now driven directly off the React Query cache. Optimistic
+  // updates live inside useJobApplicationMutations (onMutate snapshots the
+  // cache, applies the change, and rolls back on error), so we no longer
+  // need a localCards mirror state or a serverApplications→local sync
+  // effect that would re-render the entire board on every refetch.
+  const { data: cards = [], isLoading } = useJobApplications();
   const { updateApplication, deleteApplication } = useJobApplicationMutations();
-  const [localCards, setLocalCards] = useState<JobApplication[]>([]);
   const [activeCard, setActiveCard] = useState<JobApplication | null>(null);
   const [mobileActiveStatus, setMobileActiveStatus] = useState<ApplicationStatus>('applied');
   const [moveTarget, setMoveTarget] = useState<JobApplication | null>(null);
   const mobileTabRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    setLocalCards(serverApplications);
-  }, [serverApplications]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    onApplicationsChange?.(localCards);
-  }, [localCards]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 8 },
     }),
-    useSensor(TouchSensor, {
+    useSensor(TouchSensor,  {
       activationConstraint: { delay: 200, tolerance: 8 },
     }),
   );
 
+  // Bucket cards by status once per cards-array change so each column
+  // doesn't run its own .filter on every render.
+  const cardsByStatus = useMemo(() => {
+    const map: Record<ApplicationStatus, JobApplication[]> = {
+      saved: [], applied: [], screening: [], interviewing: [], offer: [], rejected: [],
+    };
+    for (const c of cards) {
+      const s = (map[c.status] ?? map.saved);
+      s.push(c);
+    }
+    return map;
+  }, [cards]);
+
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
-      const card = localCards.find((c) => c.id === event.active.id);
+      const card = cards.find((c) => c.id === event.active.id);
       if (card) setActiveCard(card);
       haptics.selection();
     },
-    [localCards],
+    [cards],
   );
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event;
       setActiveCard(null);
-
       if (!over) return;
 
       const cardId = active.id as string;
       const newStatus = over.id as ApplicationStatus;
-      const card = localCards.find((c) => c.id === cardId);
+      const card = cards.find((c) => c.id === cardId);
       if (!card || card.status === newStatus) return;
 
-      const snapshot = [...localCards];
-
-      setLocalCards((prev) =>
-        prev.map((c) => (c.id === cardId ? { ...c, status: newStatus } : c)),
-      );
       haptics.medium();
-
+      // The mutation handles optimistic update + rollback + error toast.
       updateApplication.mutate(
         { id: cardId, status: newStatus },
-        {
-          onError: () => {
-            setLocalCards(snapshot);
-            toast.error('Failed to move card — changes reverted');
-          },
-        },
+        { onError: () => toast.error('Failed to move card — changes reverted') },
       );
     },
-    [localCards, updateApplication],
+    [cards, updateApplication],
   );
 
   const handleDelete = useCallback(
-    (id: string) => {
-      const snapshot = [...localCards];
-      setLocalCards((prev) => prev.filter((c) => c.id !== id));
-      deleteApplication.mutate(id, {
-        onError: () => setLocalCards(snapshot),
-      });
-    },
-    [deleteApplication, localCards],
+    (id: string) => { deleteApplication.mutate(id); },
+    [deleteApplication],
   );
 
   const handleMobileMove = useCallback(
     (card: JobApplication, newStatus: ApplicationStatus) => {
       if (card.status === newStatus) return;
-      const snapshot = [...localCards];
-      setLocalCards((prev) =>
-        prev.map((c) => (c.id === card.id ? { ...c, status: newStatus } : c)),
-      );
       haptics.medium();
       updateApplication.mutate(
         { id: card.id, status: newStatus },
-        {
-          onError: () => {
-            setLocalCards(snapshot);
-            toast.error('Failed to move card — changes reverted');
-          },
-        },
+        { onError: () => toast.error('Failed to move card — changes reverted') },
       );
     },
-    [localCards, updateApplication],
+    [updateApplication],
   );
 
   const handleMobileTabChange = useCallback((status: ApplicationStatus) => {
@@ -303,18 +340,18 @@ export function KanbanBoard({ applications: applicationsProp, onApplicationsChan
   }
 
   const activeColumnDef = COLUMNS.find((c) => c.status === mobileActiveStatus) ?? COLUMNS[0];
-  const mobileCards = localCards.filter((c) => c.status === mobileActiveStatus);
+  const mobileCards = cardsByStatus[mobileActiveStatus] ?? [];
 
   return (
     <>
       {/* Summary bar */}
       <div className="flex items-center gap-3 mb-3 px-1 flex-wrap">
         <span className="text-xs text-muted-foreground">
-          {localCards.length} application{localCards.length !== 1 ? 's' : ''}
+          {cards.length} application{cards.length !== 1 ? 's' : ''}
         </span>
         <div className="flex items-center gap-2 flex-wrap">
           {COLUMNS.filter((c) => c.status !== 'rejected' && c.status !== 'saved').map((col) => {
-            const count = localCards.filter((c) => c.status === col.status).length;
+            const count = (cardsByStatus[col.status] ?? []).length;
             if (!count) return null;
             return (
               <span
@@ -336,7 +373,7 @@ export function KanbanBoard({ applications: applicationsProp, onApplicationsChan
           className="flex gap-1 overflow-x-auto scrollbar-none pb-1 -mx-1 px-1 snap-x snap-mandatory mb-3"
         >
           {COLUMNS.map((col) => {
-            const count = localCards.filter((c) => c.status === col.status).length;
+            const count = (cardsByStatus[col.status] ?? []).length;
             const isActive = mobileActiveStatus === col.status;
             return (
               <button
@@ -365,17 +402,14 @@ export function KanbanBoard({ applications: applicationsProp, onApplicationsChan
           })}
         </div>
 
-        {/* Active column card list */}
+        {/* Active column card list — virtualized when long */}
         <div className="flex flex-col gap-2">
           {mobileCards.length > 0 ? (
-            mobileCards.map((card) => (
-              <MobileCardItem
-                key={card.id}
-                card={card}
-                onDelete={handleDelete}
-                onMoveRequest={setMoveTarget}
-              />
-            ))
+            <MobileVirtualList
+              cards={mobileCards}
+              onDelete={handleDelete}
+              onMoveRequest={setMoveTarget}
+            />
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <div className={cn('w-10 h-10 rounded-full flex items-center justify-center mb-3', activeColumnDef.badgeColorClass)}>
@@ -403,7 +437,7 @@ export function KanbanBoard({ applications: applicationsProp, onApplicationsChan
               <KanbanColumn
                 key={col.status}
                 column={col}
-                cards={localCards.filter((c) => c.status === col.status)}
+                cards={cardsByStatus[col.status] ?? []}
                 onDelete={handleDelete}
               />
             ))}

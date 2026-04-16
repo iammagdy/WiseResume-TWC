@@ -124,6 +124,39 @@ export function usePipeline(roleId?: string, clientId?: string) {
     },
   });
 
+  const bulkUpdatePipelineStage = useMutation({
+    mutationFn: async ({ candidateIds, toStage }: { candidateIds: string[]; toStage: PipelineStage }) => {
+      if (!userId) throw new Error('Not authenticated');
+      if (candidateIds.length === 0) return 0;
+      const { data, error } = await supabase.rpc('bulk_update_pipeline_stage', {
+        p_candidate_ids: candidateIds,
+        p_to_stage: toStage,
+      });
+      if (error) throw new Error(error.message);
+      return (data as number | null) ?? 0;
+    },
+    onMutate: async ({ candidateIds, toStage }) => {
+      await queryClient.cancelQueries({ queryKey: ['wisehire-pipeline', userId, roleId, clientId] });
+      const prev = queryClient.getQueryData<PipelineCandidate[]>(['wisehire-pipeline', userId, roleId, clientId]);
+      const idSet = new Set(candidateIds);
+      queryClient.setQueryData<PipelineCandidate[]>(
+        ['wisehire-pipeline', userId, roleId, clientId],
+        (old) => (old ?? []).map((c) => (idSet.has(c.id) ? { ...c, pipeline_stage: toStage } : c)),
+      );
+      return { prev };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.prev) {
+        queryClient.setQueryData(['wisehire-pipeline', userId, roleId, clientId], context.prev);
+      }
+      toast.error('Failed to move candidates. Please try again.');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['wisehire-pipeline', userId] });
+      queryClient.invalidateQueries({ queryKey: ['wisehire-dashboard-stats', userId] });
+    },
+  });
+
   const updateNotes = useMutation({
     mutationFn: async ({ candidateId, notes }: { candidateId: string; notes: string }) => {
       const { error } = await supabase
@@ -174,7 +207,7 @@ export function usePipeline(roleId?: string, clientId?: string) {
     },
   });
 
-  return { ...query, updatePipelineStage, updateNotes, addCandidate };
+  return { ...query, updatePipelineStage, bulkUpdatePipelineStage, updateNotes, addCandidate };
 }
 
 export function useCandidateHistory(candidateId: string | null) {
