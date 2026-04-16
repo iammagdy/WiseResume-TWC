@@ -16,7 +16,7 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAI, isAIError, sanitizeInputText } from "../_shared/aiClient.ts";
+import { callAI, isAIError, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
 import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -299,9 +299,10 @@ serve(async (req: Request) => {
       );
     }
 
+    const { status, error: code, message } = toUserError(error);
     return new Response(
-      JSON.stringify({ error: "ai_chat_failed", message: "Failed to generate content. Please try again." }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: code, message }),
+      { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
