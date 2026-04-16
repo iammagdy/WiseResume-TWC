@@ -87,17 +87,34 @@ function last7DaysData(visits: Array<{ visited_at: string }>): Array<{ day: stri
   return days;
 }
 
-function topSections(visits: Array<{ sections_viewed: string[] }>): Array<{ section: string; count: number }> {
+/** Returns top sections sorted by avg dwell time (seconds) when timing data exists,
+ *  falling back to raw visit-count when no timing data is available yet. */
+function topSections(visits: Array<{ sections_viewed: string[]; sections_timing?: Record<string, number> }>): Array<{ section: string; value: number; unit: 'sec' | 'count' }> {
+  const dwellTotal: Record<string, number> = {};
+  const dwellCount: Record<string, number> = {};
+  visits.forEach(v => {
+    const timing = v.sections_timing ?? {};
+    Object.entries(timing).forEach(([s, secs]) => {
+      dwellTotal[s] = (dwellTotal[s] || 0) + (secs as number);
+      dwellCount[s] = (dwellCount[s] || 0) + 1;
+    });
+  });
+  const hasDwellData = Object.keys(dwellTotal).length > 0;
+  if (hasDwellData) {
+    return Object.entries(dwellTotal)
+      .map(([s, total]) => ({ section: s, value: Math.round(total / dwellCount[s]), unit: 'sec' as const }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 6);
+  }
+  // Fallback: frequency count
   const tally: Record<string, number> = {};
   visits.forEach(v => {
-    (v.sections_viewed || []).forEach(s => {
-      tally[s] = (tally[s] || 0) + 1;
-    });
+    (v.sections_viewed || []).forEach(s => { tally[s] = (tally[s] || 0) + 1; });
   });
   return Object.entries(tally)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6)
-    .map(([section, count]) => ({ section, count }));
+    .map(([section, count]) => ({ section, value: count, unit: 'count' as const }));
 }
 
 function last7DayCount(visits: Array<{ visited_at: string }>): number {
@@ -203,23 +220,30 @@ export function VisitorsTab({ username, portfolioCanonicalUrl, onShare, portfoli
         </ResponsiveContainer>
       </div>
 
-      {/* Top sections */}
+      {/* Section Heatmap — dwell time per section */}
       {topSectionsData.length > 0 && (
         <div className="rounded-xl bg-card border border-border p-3 space-y-2">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Top Sections</p>
-          {topSectionsData.map(({ section, count }) => (
+          <div className="flex items-center gap-1.5 mb-1">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Section Heatmap</p>
+            <span className="text-[10px] text-muted-foreground">
+              ({topSectionsData[0]?.unit === 'sec' ? 'avg time on section' : 'visits'})
+            </span>
+          </div>
+          {topSectionsData.map(({ section, value, unit }) => (
             <div key={section} className="flex items-center gap-2">
               <span className="text-xs capitalize min-w-[90px] text-foreground font-medium">{section.replace(/-/g, ' ')}</span>
               <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all"
                   style={{
-                    width: `${Math.round((count / (topSectionsData[0]?.count || 1)) * 100)}%`,
+                    width: `${Math.round((value / (topSectionsData[0]?.value || 1)) * 100)}%`,
                     background: 'var(--primary, #e84545)',
                   }}
                 />
               </div>
-              <span className="text-[10px] text-muted-foreground min-w-[24px] text-right">{count}</span>
+              <span className="text-[10px] text-muted-foreground min-w-[28px] text-right">
+                {unit === 'sec' ? `${value}s` : value}
+              </span>
             </div>
           ))}
         </div>

@@ -51,7 +51,10 @@ export default function ShortLinkPage() {
 
         // Security: only navigate to relative paths to prevent open redirects.
         if (result?.target_url && typeof result.target_url === 'string' && result.target_url.startsWith('/')) {
-          navigate(result.target_url, { replace: true });
+          // Always append ?ref=<linkId> so portfolio tracking can attribute the visit
+          // to this short link (short_link_id is read from the query param on the portfolio page)
+          const sep = result.target_url.includes('?') ? '&' : '?';
+          navigate(`${result.target_url}${sep}ref=${encodeURIComponent(linkId)}`, { replace: true });
         } else if (result?.username) {
           // Legacy portfolio link fallback
           navigate(`/p/${result.username}?ref=${linkId}`, { replace: true });
