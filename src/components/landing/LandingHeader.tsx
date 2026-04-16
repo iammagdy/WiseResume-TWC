@@ -52,7 +52,7 @@ export function LandingHeader({
       style={{ transition: 'background 0.3s ease, backdrop-filter 0.3s ease, border-color 0.3s ease', paddingTop: 'env(safe-area-inset-top)', willChange: 'transform' }}
     >
       {scrolled && <GlassSurface className="absolute -top-px bottom-0 left-0 right-0" />}
-      <div className="relative z-[1]">
+      <div className="relative z-[1] pt-2 sm:pt-3">
       <div className="grid grid-cols-3 items-center px-4 sm:px-6 h-14 max-w-6xl mx-auto">
         {/* Left: logo */}
         <button
@@ -118,15 +118,17 @@ export function LandingHeader({
               Pricing
             </Link>
           )}
-          <Link
-            to="/whats-new"
-            className="hidden sm:flex items-center text-sm font-medium px-3 h-11 rounded-lg transition-all duration-200"
-            style={{ color: 'var(--lp-text-muted)', background: 'transparent' }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text)'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text-muted)'; }}
-          >
-            What's New
-          </Link>
+          {mode === 'jobseeker' && (
+            <Link
+              to="/whats-new"
+              className="hidden sm:flex items-center text-sm font-medium px-3 h-11 rounded-lg transition-all duration-200"
+              style={{ color: 'var(--lp-text-muted)', background: 'transparent' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text)'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text-muted)'; }}
+            >
+              What's New
+            </Link>
+          )}
 
           {/* Mobile hamburger */}
           <DropdownMenu>
@@ -152,10 +154,12 @@ export function LandingHeader({
                   Pricing
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem onClick={() => navigate('/whats-new')}>
-                <Zap className="w-4 h-4 mr-2" />
-                What's New
-              </DropdownMenuItem>
+              {mode === 'jobseeker' && (
+                <DropdownMenuItem onClick={() => navigate('/whats-new')}>
+                  <Zap className="w-4 h-4 mr-2" />
+                  What's New
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
 
