@@ -338,12 +338,13 @@ export function useProfile(userId: string | undefined, user?: KindeAppUser | nul
       return updates;
     },
     onSuccess: (updates) => {
-      // Broad-update every cached ['profile', *] entry so any orphan keys
-      // (e.g. one created with a Kinde id before the bridge settled) reflect
-      // the new values immediately. Then invalidate to refetch authoritatively
-      // from the DB.
+      // Merge updates into every cached ['profile', *] entry that already
+      // holds a complete Profile — covers any orphan keys created with a
+      // Kinde id before the bridge settled. Skip empty cache slots so we
+      // never seed a partial Profile (invalidation below will refetch them
+      // authoritatively from the DB).
       queryClient.setQueriesData<Profile | null>({ queryKey: ['profile'] }, (old) =>
-        old ? { ...old, ...updates } : (updates as Profile)
+        old ? { ...old, ...updates } : old
       );
       queryClient.invalidateQueries({ queryKey: ['profile'] });
     },
