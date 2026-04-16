@@ -500,7 +500,7 @@ function DashboardPageContent() {
           <Button
             variant="ghost"
             size="icon"
-            className="w-9 h-9 rounded-xl touch-manipulation active:scale-95"
+            className="min-w-[44px] min-h-[44px] rounded-xl touch-manipulation active:scale-95"
             onClick={() => { haptics.light(); setShowFeatureMap(true); }}
             aria-label="What can I do?"
           >
@@ -517,7 +517,7 @@ function DashboardPageContent() {
           </div>
           <button
             onClick={() => { haptics.selection(); toggleTheme(); }}
-            className="flex items-center justify-center w-9 h-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors active:scale-95 touch-manipulation"
+            className="flex items-center justify-center min-w-[44px] min-h-[44px] rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors active:scale-95 touch-manipulation"
             aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}

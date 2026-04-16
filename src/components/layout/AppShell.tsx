@@ -127,7 +127,7 @@ export function AppShell() {
           <div className="ml-auto">
             <button
               onClick={toggleTheme}
-              className="relative flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors active:scale-95 touch-manipulation"
+              className="relative flex items-center justify-center min-w-[44px] min-h-[44px] rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors active:scale-95 touch-manipulation"
               aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               <Sun

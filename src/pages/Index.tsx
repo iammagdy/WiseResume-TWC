@@ -1,6 +1,6 @@
 import './index-landing.css';
 import { useNavigate, Link } from 'react-router-dom';
-import { Sparkles, Target, Wand2, Mic, LayoutDashboard, Settings, LogOut, Globe, ArrowRight, BarChart3, PenTool, CheckCircle2, User, Sun, Moon, Zap } from 'lucide-react';
+import { Sparkles, Target, Wand2, Mic, LayoutDashboard, Settings, LogOut, Globe, ArrowRight, BarChart3, PenTool, CheckCircle2, User, Sun, Moon, Zap, Menu, Tag } from 'lucide-react';
 import { toast } from 'sonner';
 import { Footer } from '@/components/landing/Footer';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -640,6 +640,42 @@ const Index = () => {
                 What's New
               </Link>
             )}
+            {/* Mobile hamburger — provides access to Pricing & What's New on small screens */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="sm:hidden lp-theme-toggle"
+                  aria-label="Navigation menu"
+                >
+                  <Menu className="w-4 h-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                {mode === 'wisehire' ? (
+                  <DropdownMenuItem
+                    onClick={() => {
+                      const el = document.getElementById('wisehire-pricing');
+                      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }}
+                  >
+                    <Tag className="w-4 h-4 mr-2" />
+                    Pricing
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onClick={() => navigate('/pricing')}>
+                    <Tag className="w-4 h-4 mr-2" />
+                    Pricing
+                  </DropdownMenuItem>
+                )}
+                {mode === 'jobseeker' && (
+                  <DropdownMenuItem onClick={() => navigate('/whats-new')}>
+                    <Zap className="w-4 h-4 mr-2" />
+                    What's New
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             {/* Theme toggle */}
             <button
               className="lp-theme-toggle"
