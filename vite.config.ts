@@ -167,9 +167,13 @@ export default defineConfig(() => ({
         // Heavy export/OCR bundles are only needed when the user actually
         // triggers the corresponding feature. Excluding them from the
         // first-install precache keeps the SW download small (saves
-        // multiple MB on cold install) — the SW will still serve them at
-        // runtime via the `dontCacheBustURLsMatching`/runtime-cache logic
-        // in `public/custom-sw.js` once they are first requested.
+        // multiple MB on cold install). These chunks are NOT covered by
+        // any runtime cache route in `public/custom-sw.js` today, so
+        // they are fetched from the network on first use and rely on
+        // standard HTTP cache headers for subsequent requests. If
+        // offline availability of these features becomes a requirement,
+        // add a CacheFirst/StaleWhileRevalidate route for `/assets/`
+        // JS in custom-sw.js.
         globIgnores: [
           "**/assets/ocr-*.js",
           "**/assets/doc-export-*.js",
