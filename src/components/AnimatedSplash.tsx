@@ -9,7 +9,10 @@ interface AnimatedSplashProps {
 }
 
 const MIN_DURATION = 600;
-const MAX_DURATION = 1500;
+const EXIT_DURATION_MS = 300;
+// Hard cap on total visible time including the exit fade.
+const MAX_TOTAL_DURATION = 1500;
+const MAX_VISIBLE_BEFORE_EXIT = MAX_TOTAL_DURATION - EXIT_DURATION_MS;
 
 function getInitialBrand() {
   if (typeof window === 'undefined') return { name: 'WiseResume', tagline: 'Your AI Career Partner', isWH: false };
@@ -43,13 +46,13 @@ export function AnimatedSplash({ onComplete, ready = true }: AnimatedSplashProps
 
   // Minimum display time
   useEffect(() => {
-    const t = setTimeout(() => setMinTimePassed(true), prefersReduced ? 400 : MIN_DURATION);
+    const t = setTimeout(() => setMinTimePassed(true), MIN_DURATION);
     return () => clearTimeout(t);
-  }, [prefersReduced]);
+  }, []);
 
-  // Hard cap — never wait longer than MAX_DURATION even if `ready` never becomes true
+  // Hard cap — total visible time (including exit fade) must not exceed MAX_TOTAL_DURATION
   useEffect(() => {
-    const t = setTimeout(() => setVisible(false), MAX_DURATION);
+    const t = setTimeout(() => setVisible(false), MAX_VISIBLE_BEFORE_EXIT);
     return () => clearTimeout(t);
   }, []);
 
