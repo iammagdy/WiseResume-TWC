@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
+import { escapeHtml } from "../_shared/htmlEscape.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -95,7 +96,7 @@ Deno.serve(async (req) => {
     } else if ((recentCount ?? 0) >= RATE_LIMIT_REQUESTS_PER_HOUR) {
       return new Response(
         JSON.stringify({ error: `Too many requests. Limit is ${RATE_LIMIT_REQUESTS_PER_HOUR} per hour per IP. Please try again later.` }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": "3600" } }
       );
     }
 
@@ -114,7 +115,7 @@ Deno.serve(async (req) => {
     if (!rlAllowed) {
       return new Response(
         JSON.stringify({ error: "Too many requests. Please wait 5 minutes before sending another message." }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": "300" } }
       );
     }
     await recordUsage(rateLimitKey, 'contact_email');
@@ -169,15 +170,15 @@ Deno.serve(async (req) => {
           <img src="${LOGO_URL}" alt="WiseResume" width="50" style="border-radius: 10px;" />
           <h2 style="color: #1a1a2e; margin-top: 10px;">${typeLabels[type] || "Contact Request"}</h2>
         </div>
-        <p><strong>From:</strong> ${email}</p>
-        <p><strong>Subject:</strong> ${subject || "No Subject"}</p>
+        <p><strong>From:</strong> ${escapeHtml(email)}</p>
+        <p><strong>Subject:</strong> ${escapeHtml(subject || "No Subject")}</p>
         <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; white-space: pre-wrap;">
-          ${message}
+          ${escapeHtml(message)}
         </div>
-        ${metadata.department ? `<p><strong>Department:</strong> ${metadata.department}</p>` : ""}
+        ${metadata.department ? `<p><strong>Department:</strong> ${escapeHtml(String(metadata.department))}</p>` : ""}
         <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;" />
         <div style="font-size: 12px; color: #666;">
-          <p><strong>IP:</strong> ${clientIp}</p>
+          <p><strong>IP:</strong> ${escapeHtml(clientIp)}</p>
           <p><strong>User ID:</strong> ${userId || "Anonymous"}</p>
           <p><strong>Time:</strong> ${new Date().toISOString()}</p>
           ${recordId ? `<p><strong>Record ID:</strong> ${recordId}</p>` : ""}

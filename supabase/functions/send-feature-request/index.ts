@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
+import { escapeHtml } from "../_shared/htmlEscape.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -69,7 +70,7 @@ Deno.serve(async (req) => {
     if (!allowed) {
       return new Response(
         JSON.stringify({ error: "Too many requests. Please wait 5 minutes before sending another feature request." }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": "300" } }
       );
     }
     await recordUsage(rateLimitKey, 'feature_request');
@@ -116,7 +117,7 @@ Deno.serve(async (req) => {
 <tr><td style="background-color:#1a1a2e;padding:32px 40px;border-radius:12px 12px 0 0" align="center">
   <img src="${LOGO_URL}" alt="WiseResume" width="48" height="48" style="display:block;margin:0 auto 12px;border-radius:12px">
   <h1 style="margin:0;font-size:20px;font-weight:700;color:#ffffff">💡 Feature Request</h1>
-  <p style="margin:8px 0 0;font-size:14px;color:rgba(255,255,255,0.7)">from <strong style="color:#ffffff">${resolvedEmail}</strong></p>
+  <p style="margin:8px 0 0;font-size:14px;color:rgba(255,255,255,0.7)">from <strong style="color:#ffffff">${escapeHtml(resolvedEmail)}</strong></p>
 </td></tr>
 
 <!-- Accent -->
@@ -126,7 +127,7 @@ Deno.serve(async (req) => {
 <tr><td style="padding:24px 40px 0;background-color:#ffffff">
   <p style="margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;font-weight:600">Feature Title</p>
   <div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:14px 16px">
-    <p style="margin:0;font-size:15px;color:#1a1a2e;font-weight:600;line-height:1.5">${feature_title.slice(0, 200)}</p>
+    <p style="margin:0;font-size:15px;color:#1a1a2e;font-weight:600;line-height:1.5">${escapeHtml(feature_title.slice(0, 200))}</p>
   </div>
 </td></tr>
 
@@ -134,7 +135,7 @@ Deno.serve(async (req) => {
 <tr><td style="padding:20px 40px;background-color:#ffffff">
   <p style="margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;font-weight:600">Description</p>
   <div style="background:#f8f9fa;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px">
-    <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;white-space:pre-wrap">${feature_description.slice(0, 2000)}</p>
+    <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;white-space:pre-wrap">${escapeHtml(feature_description.slice(0, 2000))}</p>
   </div>
 </td></tr>
 
@@ -143,11 +144,11 @@ Deno.serve(async (req) => {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9fa;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;font-size:13px">
     <tr style="border-bottom:1px solid #e5e7eb">
       <td style="padding:10px 14px;color:#6b7280;font-weight:600;width:100px">Route</td>
-      <td style="padding:10px 14px;color:#1a1a2e">${route || "N/A"}</td>
+      <td style="padding:10px 14px;color:#1a1a2e">${escapeHtml(route || "N/A")}</td>
     </tr>
     <tr style="border-bottom:1px solid #e5e7eb">
       <td style="padding:10px 14px;color:#6b7280;font-weight:600">Version</td>
-      <td style="padding:10px 14px;color:#1a1a2e">${app_version || "unknown"}</td>
+      <td style="padding:10px 14px;color:#1a1a2e">${escapeHtml(app_version || "unknown")}</td>
     </tr>
     <tr style="border-bottom:1px solid #e5e7eb">
       <td style="padding:10px 14px;color:#6b7280;font-weight:600">Platform</td>

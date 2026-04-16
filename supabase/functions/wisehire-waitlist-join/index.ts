@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { isMaliciousBot, botBlockedResponse } from "../_shared/botGuard.ts";
+import { escapeHtml } from "../_shared/htmlEscape.ts";
 
 const ADMIN_EMAIL = "contact@thewise.cloud";
 const WISEHIRE_BLUE = "#1D4ED8";
@@ -23,7 +24,7 @@ function buildConfirmationEmail(name: string): string {
         <tr>
           <td style="padding:40px 40px 32px;">
             <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#0f172a;">
-              You're on the list, ${name}! 🎉
+              You're on the list, ${escapeHtml(name)}! 🎉
             </h1>
             <p style="margin:0 0 20px;font-size:15px;color:#475569;line-height:1.6;">
               Thanks for joining the WiseHire early access waitlist. We're building an AI hiring platform
@@ -86,19 +87,19 @@ function buildNotificationEmail(
             <table width="100%" cellpadding="0" cellspacing="0">
               <tr><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;">
                 <span style="font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;">Name</span><br>
-                <span style="font-size:15px;color:#0f172a;font-weight:600;">${name}</span>
+                <span style="font-size:15px;color:#0f172a;font-weight:600;">${escapeHtml(name)}</span>
               </td></tr>
               <tr><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;">
                 <span style="font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;">Email</span><br>
-                <a href="mailto:${email}" style="font-size:15px;color:${WISEHIRE_BLUE};font-weight:600;text-decoration:none;">${email}</a>
+                <a href="mailto:${escapeHtml(email)}" style="font-size:15px;color:${WISEHIRE_BLUE};font-weight:600;text-decoration:none;">${escapeHtml(email)}</a>
               </td></tr>
               <tr><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;">
                 <span style="font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;">Company</span><br>
-                <span style="font-size:15px;color:#0f172a;font-weight:600;">${company}</span>
+                <span style="font-size:15px;color:#0f172a;font-weight:600;">${escapeHtml(company)}</span>
               </td></tr>
               <tr><td style="padding:8px 0;border-bottom:1px solid #f1f5f9;">
                 <span style="font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;">Company Size</span><br>
-                <span style="font-size:15px;color:#0f172a;">${size}</span>
+                <span style="font-size:15px;color:#0f172a;">${escapeHtml(size)}</span>
               </td></tr>
               <tr><td style="padding:8px 0;">
                 <span style="font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;">Submitted</span><br>

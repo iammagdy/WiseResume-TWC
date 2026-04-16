@@ -175,7 +175,7 @@ const queryClient = new QueryClient({
       staleTime: 5 * 60 * 1000,
       gcTime: 10 * 60 * 1000,
       refetchOnWindowFocus: false,
-      retry: 1
+      retry: 2
     }
   }
 });
@@ -218,7 +218,7 @@ function AppRoutes() {
     document.body.style.overflow = '';
   }, []);
 
-  const { shakeToReportEnabled } = useSettingsStore();
+  const shakeToReportEnabled = useSettingsStore((s) => s.shakeToReportEnabled);
   useShakeDetect(shakeToReportEnabled);
 
   useAppLifecycle({
@@ -249,7 +249,10 @@ function AppRoutes() {
     apply(theme);
   }, [theme]);
 
-  const { biometricLockEnabled, biometricLockTimeout, hasSeenSplash, setHasSeenSplash } = useSettingsStore();
+  const biometricLockEnabled = useSettingsStore((s) => s.biometricLockEnabled);
+  const biometricLockTimeout = useSettingsStore((s) => s.biometricLockTimeout);
+  const hasSeenSplash = useSettingsStore((s) => s.hasSeenSplash);
+  const setHasSeenSplash = useSettingsStore((s) => s.setHasSeenSplash);
   const { isLocked, isAvailable, biometryType, isAuthenticating, authenticate } = useBiometricLock(biometricLockEnabled, biometricLockTimeout);
   const { signOut } = useAuth();
   const location = useLocation();

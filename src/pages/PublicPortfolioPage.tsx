@@ -196,7 +196,7 @@ function PublicPortfolioContent() {
           
           if (printSafeCss) {
             const style = doc.createElement('style');
-            style.innerHTML = printSafeCss;
+            style.textContent = printSafeCss;
             doc.head.appendChild(style);
           }
         }

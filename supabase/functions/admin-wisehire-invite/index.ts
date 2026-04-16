@@ -1,6 +1,7 @@
 import { getServiceClient } from '../_shared/dbClient.ts';
 import { requireAdminAuth } from '../_shared/adminAuth.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
+import { escapeHtml } from '../_shared/htmlEscape.ts';
 
 function json(data: unknown, status = 200, corsHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(data), {
@@ -54,7 +55,7 @@ function buildInviteEmail(recipientEmail: string, inviteUrl: string, expiresAt: 
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px;text-align:center;">
         <p style="font-size:12px;color:#64748b;margin:0;">
           This invite expires on <strong>${expiryDate}</strong>.<br/>
-          Only <strong>${recipientEmail}</strong> can use this link.
+          Only <strong>${escapeHtml(recipientEmail)}</strong> can use this link.
         </p>
       </div>
     </div>

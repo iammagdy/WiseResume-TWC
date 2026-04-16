@@ -133,7 +133,7 @@ serve(async (req) => {
     const serviceClient = getServiceClient();
 
     const extUrl = Deno.env.get('EXT_SUPABASE_URL') || Deno.env.get('SUPABASE_URL') || '(none)';
-    console.log(`[token-exchange] Creating shadow user — id=${supabaseUserId}, email=${email || '(empty)'}, target=${extUrl}`);
+    console.log(`[token-exchange] Creating shadow user — id=${supabaseUserId}, target=${extUrl}`);
 
     // Create shadow user in auth.users so FK constraints are satisfied
     let targetEmail = email || `${kindeSub}@kinde.placeholder`;
