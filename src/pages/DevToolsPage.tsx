@@ -15,6 +15,7 @@ import {
   Rocket,
   Mail,
   Briefcase,
+  ChevronRight,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -37,20 +38,92 @@ import { cn } from '@/lib/utils';
 
 type Tab = 'overview' | 'analytics' | 'live' | 'deployment' | 'users' | 'coupons' | 'settings' | 'activity' | 'email' | 'wisehire';
 
-const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
-  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-  { id: 'analytics', label: 'Analytics', icon: BarChart2 },
-  { id: 'live', label: 'Live Activity', icon: Activity },
-  { id: 'deployment', label: 'Deployment', icon: Rocket },
-  { id: 'users', label: 'Users', icon: Users },
-  { id: 'email', label: 'Email', icon: Mail },
-  { id: 'wisehire', label: 'WiseHire', icon: Briefcase },
-  { id: 'coupons', label: 'Coupons', icon: Tag },
-  { id: 'settings', label: 'Settings', icon: Settings },
-  { id: 'activity', label: 'Audit Log', icon: Clock },
+interface NavItem {
+  id: Tab;
+  label: string;
+  icon: React.ElementType;
+}
+
+interface NavSection {
+  title: string;
+  items: NavItem[];
+}
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    title: 'Monitor',
+    items: [
+      { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+      { id: 'analytics', label: 'Analytics', icon: BarChart2 },
+      { id: 'live', label: 'Live Activity', icon: Activity },
+    ],
+  },
+  {
+    title: 'Manage',
+    items: [
+      { id: 'users', label: 'Users', icon: Users },
+      { id: 'email', label: 'Email', icon: Mail },
+      { id: 'coupons', label: 'Coupons', icon: Tag },
+      { id: 'wisehire', label: 'WiseHire', icon: Briefcase },
+    ],
+  },
+  {
+    title: 'System',
+    items: [
+      { id: 'deployment', label: 'Deployment', icon: Rocket },
+      { id: 'settings', label: 'Settings', icon: Settings },
+      { id: 'activity', label: 'Audit Log', icon: Clock },
+    ],
+  },
 ];
 
+const TAB_LABELS: Record<Tab, string> = {
+  overview: 'Overview',
+  analytics: 'Analytics',
+  live: 'Live Activity',
+  deployment: 'Deployment',
+  users: 'Users',
+  coupons: 'Coupons',
+  settings: 'Settings',
+  activity: 'Audit Log',
+  email: 'Email',
+  wisehire: 'WiseHire',
+};
+
 type ConnectionStatus = 'checking' | 'connected' | 'degraded' | 'disconnected';
+
+function ConnectionPill({ status }: { status: ConnectionStatus }) {
+  if (status === 'checking') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-muted text-muted-foreground border border-border">
+        <Loader2 className="w-3 h-3 animate-spin" />
+        Checking
+      </span>
+    );
+  }
+  if (status === 'connected') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20">
+        <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block" />
+        Online
+      </span>
+    );
+  }
+  if (status === 'degraded') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+        Degraded
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-destructive/10 text-destructive border border-destructive/20">
+      <span className="w-1.5 h-1.5 rounded-full bg-destructive inline-block" />
+      Offline
+    </span>
+  );
+}
 
 function DevToolsInner() {
   const { isUnlocked, unlock, lock } = useDevKitSession();
@@ -63,7 +136,6 @@ function DevToolsInner() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
 
-  // Lockout state
   const [lockoutSecondsLeft, setLockoutSecondsLeft] = useState<number | null>(null);
   const lockoutIntervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -194,27 +266,26 @@ function DevToolsInner() {
 
   if (!unlocked) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4 relative z-10">
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4 relative z-10">
         <div className="w-full max-w-sm space-y-6">
-          <div className="text-center space-y-3">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 shadow-lg shadow-primary/10 mx-auto">
-              <Lock className="w-7 h-7 text-primary" />
+          <div className="text-center space-y-4">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/5 border border-white/10 shadow-2xl mx-auto">
+              <Lock className="w-7 h-7 text-white/70" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-foreground tracking-tight">WiseResume</h1>
-              <p className="text-sm text-muted-foreground">Developer Admin Panel</p>
+              <h1 className="text-2xl font-bold text-white tracking-tight">WiseResume</h1>
+              <p className="text-sm text-white/40 mt-1">Developer Admin Panel</p>
             </div>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted border border-border text-[11px] text-muted-foreground font-mono">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary/60" />
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] text-white/40 font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400/60" />
               {DEV_KIT_VERSION}
             </div>
           </div>
 
-          <div className="bg-card border border-border rounded-2xl p-6 shadow-xl shadow-black/5 space-y-4">
-            {/* Lockout banner */}
+          <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-6 shadow-2xl space-y-4 backdrop-blur-sm">
             {isLockedOut && lockoutSecondsLeft !== null && (
-              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive text-center space-y-1">
-                <p className="font-semibold text-xs">Too many attempts — account temporarily locked</p>
+              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-400 text-center space-y-1">
+                <p className="font-semibold text-xs">Too many attempts — temporarily locked</p>
                 <p className="font-mono text-lg font-bold tabular-nums">{formatLockoutTime(lockoutSecondsLeft)}</p>
                 <p className="text-[10px] opacity-70">Try again when the timer expires</p>
               </div>
@@ -222,7 +293,7 @@ function DevToolsInner() {
 
             <form onSubmit={handleUnlock} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Admin email</label>
+                <label className="text-xs font-medium text-white/40">Admin email</label>
                 <Input
                   type="email"
                   placeholder="admin@example.com"
@@ -232,13 +303,13 @@ function DevToolsInner() {
                   autoFocus
                   autoComplete="username"
                   className={cn(
-                    'h-11 bg-background/70',
-                    loginError && 'border-destructive ring-1 ring-destructive/30'
+                    'h-11 bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-white/30 focus:ring-white/10',
+                    loginError && 'border-red-500/50 ring-1 ring-red-500/20'
                   )}
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Admin password</label>
+                <label className="text-xs font-medium text-white/40">Admin password</label>
                 <div className="relative">
                   <Input
                     type={showPw ? 'text' : 'password'}
@@ -248,13 +319,13 @@ function DevToolsInner() {
                     disabled={isVerifying || isLockedOut}
                     autoComplete="current-password"
                     className={cn(
-                      'h-11 pr-10 bg-background/70',
-                      loginError && 'border-destructive ring-1 ring-destructive/30'
+                      'h-11 pr-10 bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-white/30 focus:ring-white/10',
+                      loginError && 'border-red-500/50 ring-1 ring-red-500/20'
                     )}
                   />
                   <button
                     type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
                     onClick={() => setShowPw(!showPw)}
                     tabIndex={-1}
                   >
@@ -262,7 +333,7 @@ function DevToolsInner() {
                   </button>
                 </div>
                 {loginError && (
-                  <p className="text-xs text-destructive font-medium pl-0.5">
+                  <p className="text-xs text-red-400 font-medium pl-0.5">
                     {loginError}
                   </p>
                 )}
@@ -270,7 +341,7 @@ function DevToolsInner() {
               <Button
                 type="submit"
                 disabled={isVerifying || isLockedOut || !email.trim() || !pw.trim()}
-                className="w-full h-11 font-semibold"
+                className="w-full h-11 font-semibold bg-white text-zinc-950 hover:bg-white/90"
               >
                 {isVerifying ? (
                   <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Verifying…</>
@@ -281,7 +352,7 @@ function DevToolsInner() {
                 )}
               </Button>
             </form>
-            <p className="text-center text-[10px] text-muted-foreground/50">
+            <p className="text-center text-[10px] text-white/20">
               Admin access only · Powered by Supabase Edge Functions
             </p>
           </div>
@@ -289,7 +360,7 @@ function DevToolsInner() {
           <div className="text-center">
             <button
               onClick={() => navigate(-1)}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1 mx-auto"
+              className="text-xs text-white/30 hover:text-white/60 transition-colors inline-flex items-center gap-1 mx-auto"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               Back to app
@@ -301,47 +372,102 @@ function DevToolsInner() {
   }
 
   return (
-    <div id="dev-tools-root" className="min-h-screen bg-background/40 backdrop-blur-sm relative z-10">
-      <div className="max-w-5xl mx-auto px-4 py-6 pb-32 space-y-5">
-
-        {/* Header */}
-        <header className="flex items-center justify-between sticky top-0 py-3 bg-background/95 backdrop-blur-md z-40 px-3 rounded-xl border border-border shadow-sm">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate(-1)}
-              className="h-9 w-9 rounded-full hover:bg-muted"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
+    <div id="dev-tools-root" className="flex h-screen overflow-hidden bg-background">
+      {/* Sidebar */}
+      <aside className="w-[220px] shrink-0 flex flex-col bg-zinc-950 border-r border-white/[0.06] h-full overflow-y-auto">
+        {/* Logo / product name */}
+        <div className="px-4 py-5 border-b border-white/[0.06]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+              <LayoutDashboard className="w-4 h-4 text-white/70" />
+            </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-foreground">Developer Admin</h1>
-                <span className="text-[10px] font-mono text-muted-foreground px-1.5 py-0.5 rounded bg-muted border border-border">
-                  {DEV_KIT_VERSION}
-                </span>
-              </div>
-              <p className="text-[11px] text-muted-foreground mt-0.5">WiseResume internal dashboard</p>
+              <p className="text-[13px] font-semibold text-white leading-none">DevKit</p>
+              <p className="text-[10px] text-white/30 mt-0.5">WiseResume Admin</p>
             </div>
           </div>
+        </div>
 
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
-              {connectionStatus === 'checking' && (
-                <><Loader2 className="w-3.5 h-3.5 animate-spin" />Checking…</>
-              )}
-              {connectionStatus === 'connected' && (
-                <><span className="w-2 h-2 rounded-full bg-green-500 animate-pulse inline-block" />Online</>
-              )}
-              {connectionStatus === 'degraded' && (
-                <><span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />Degraded</>
-              )}
-              {connectionStatus === 'disconnected' && (
-                <><span className="w-2 h-2 rounded-full bg-destructive inline-block" />Offline</>
-              )}
+        {/* Navigation sections */}
+        <nav className="flex-1 px-2 py-4 space-y-5">
+          {NAV_SECTIONS.map((section) => (
+            <div key={section.title}>
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-white/25 px-2 mb-1.5">
+                {section.title}
+              </p>
+              <div className="space-y-0.5">
+                {section.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.id;
+                  let badge: number | null = null;
+                  if (item.id === 'users' && userCount !== null) badge = userCount;
+                  if (item.id === 'coupons' && couponCount !== null) badge = couponCount;
+
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setActiveTab(item.id)}
+                      className={cn(
+                        'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium transition-all',
+                        isActive
+                          ? 'bg-white/10 text-white'
+                          : 'text-white/40 hover:text-white/70 hover:bg-white/5'
+                      )}
+                    >
+                      <Icon className={cn('w-3.5 h-3.5 shrink-0', isActive ? 'text-white' : 'text-white/40')} />
+                      <span className="flex-1 text-left">{item.label}</span>
+                      {badge !== null && (
+                        <span className={cn(
+                          'text-[10px] font-semibold px-1.5 py-0.5 rounded-full tabular-nums',
+                          isActive ? 'bg-white/20 text-white' : 'bg-white/10 text-white/40'
+                        )}>
+                          {badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+          ))}
+        </nav>
 
+        {/* Bottom: version + lock + back */}
+        <div className="px-2 py-4 border-t border-white/[0.06] space-y-1">
+          <div className="px-2.5 pb-2">
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-mono text-white/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-white/20" />
+              {DEV_KIT_VERSION}
+            </span>
+          </div>
+          <button
+            onClick={handleLock}
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium text-white/40 hover:text-white/70 hover:bg-white/5 transition-all"
+          >
+            <Lock className="w-3.5 h-3.5 shrink-0" />
+            Lock session
+          </button>
+          <button
+            onClick={() => navigate(-1)}
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium text-white/40 hover:text-white/70 hover:bg-white/5 transition-all"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 shrink-0" />
+            Back to app
+          </button>
+        </div>
+      </aside>
+
+      {/* Main content area */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Top header */}
+        <header className="h-14 shrink-0 flex items-center justify-between px-6 border-b border-border bg-background/95 backdrop-blur-sm">
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">DevKit</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+            <span>{TAB_LABELS[activeTab]}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <ConnectionPill status={connectionStatus} />
             <Button
               variant="outline"
               size="sm"
@@ -354,46 +480,9 @@ function DevToolsInner() {
           </div>
         </header>
 
-        {/* Tab navigation */}
-        <div className="overflow-x-auto -mx-1 px-1">
-          <div className="flex gap-1 p-1 bg-muted/50 rounded-xl border border-border w-fit min-w-full sm:min-w-0">
-            {TABS.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              let badge: number | null = null;
-              if (tab.id === 'users' && userCount !== null) badge = userCount;
-              if (tab.id === 'coupons' && couponCount !== null) badge = couponCount;
-
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={cn(
-                    'flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap',
-                    isActive
-                      ? 'bg-background shadow-sm text-foreground'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
-                  )}
-                >
-                  <Icon className={cn('w-4 h-4 shrink-0', isActive && 'text-primary')} />
-                  <span>{tab.label}</span>
-                  {badge !== null && (
-                    <span className={cn(
-                      'text-[10px] font-semibold px-1.5 py-0.5 rounded-full tabular-nums',
-                      isActive ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'
-                    )}>
-                      {badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Tab content */}
-        <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-          <div className="p-6">
+        {/* Scrollable content */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="p-6 max-w-5xl">
 
             {activeTab === 'overview' && (
               <OverviewPanel />
@@ -505,16 +594,7 @@ function DevToolsInner() {
             )}
 
           </div>
-        </div>
-
-        <footer className="py-6 border-t border-border text-center">
-          <p className="text-[11px] text-muted-foreground/50 font-mono">
-            {DEV_KIT_VERSION} · Build {new Date().toISOString().split('T')[0].replace(/-/g, '')}
-          </p>
-          <p className="text-[10px] text-muted-foreground/30 mt-0.5">
-            Secrets (DEV_KIT_PASSWORD, GITHUB_TOKEN, etc.) must be set in Supabase → Edge Functions → Secrets
-          </p>
-        </footer>
+        </main>
       </div>
     </div>
   );
