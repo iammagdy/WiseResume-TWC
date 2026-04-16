@@ -250,13 +250,13 @@
 
 .pc-photo {
   position: absolute;
-  bottom: 0;
+  bottom: 50px;
   left: 50%;
   transform: translateX(-50%);
   width: 100%;
   display: block;
   pointer-events: none;
-  z-index: 6;
+  z-index: 1;
 }
 
 .pc-user-info {
