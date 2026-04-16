@@ -11,6 +11,7 @@ import triggerHaptic from '@/lib/haptics';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { useReducedMotion, motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import { useEffect, useLayoutEffect, useState, useRef, useCallback, startTransition } from 'react';
+import { flushSync } from 'react-dom';
 import { useSettingsStore } from '@/store/settingsStore';
 import { getSafeMatchMedia } from '@/lib/envUtils';
 import { useSearchParams } from 'react-router-dom';
