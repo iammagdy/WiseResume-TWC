@@ -49,7 +49,8 @@ import {
   OnboardingSkeleton,
   GuidesExamplesSkeleton,
   AnalyticsSkeleton,
-  AchievementsSkeleton } from
+  AchievementsSkeleton,
+  LandingSkeleton } from
 "@/components/layout/PageSkeletons";
 import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
@@ -312,15 +313,8 @@ function AppRoutes() {
         )}
         <Routes>
           {/* Public routes */}
-          {/* Suspense fallback is an invisible, full-bleed backstop matching
-              the page background — never a spinner or skeleton — so that
-              if the splash ever dismisses before the Index chunk has
-              finished loading, the user sees a clean blank page instead
-              of a flashing spinner. The splash gate in App.tsx already
-              waits for the Index chunk before dismissing, so this is only
-              a safety net. */}
-          <Route path="/" element={<Suspense fallback={<div className="min-h-screen bg-background" aria-hidden />}><Index /></Suspense>} />
-          <Route path="/enterprises" element={<Suspense fallback={<div className="min-h-screen bg-background" aria-hidden />}><Index /></Suspense>} />
+          <Route path="/" element={<Suspense fallback={<LandingSkeleton />}><Index /></Suspense>} />
+          <Route path="/enterprises" element={<Suspense fallback={<LandingSkeleton />}><Index /></Suspense>} />
            <Route element={<AppShell />}>
                <Route path="/auth" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />
                <Route path="/sign-in" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />
