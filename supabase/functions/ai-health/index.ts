@@ -98,7 +98,7 @@ serve(async (req) => {
             clearTimeout(timeoutId);
             latencyMs = Date.now() - startTime;
             if (response.ok) {
-              status = latencyMs < 8000 ? 'healthy' : 'degraded';
+              status = latencyMs < 15000 ? 'healthy' : 'degraded';
             } else {
               errorCode = response.status;
               status = (response.status === 429 || response.status === 402) ? 'degraded' : 'down';
@@ -136,7 +136,7 @@ serve(async (req) => {
             clearTimeout(timeoutId);
             latencyMs = Date.now() - startTime;
             if (response.ok) {
-              status = latencyMs < 8000 ? 'healthy' : 'degraded';
+              status = latencyMs < 15000 ? 'healthy' : 'degraded';
             } else {
               errorCode = response.status;
               status = (response.status === 429 || response.status === 402) ? 'degraded' : 'down';
@@ -239,7 +239,7 @@ serve(async (req) => {
         clearTimeout(timeoutId);
         latencyMs = Date.now() - startTime;
         if (response.ok) {
-          status = latencyMs < 8000 ? 'healthy' : 'degraded';
+          status = latencyMs < 15000 ? 'healthy' : 'degraded';
         } else {
           errorCode = response.status;
           status = (response.status === 429) ? 'degraded' : 'down';
@@ -263,7 +263,7 @@ serve(async (req) => {
             clearTimeout(groqTimeout);
             latencyMs = Date.now() - groqStart;
             if (groqResp.ok) {
-              status = latencyMs < 8000 ? 'healthy' : 'degraded';
+              status = latencyMs < 15000 ? 'healthy' : 'degraded';
             } else {
               errorCode = groqResp.status;
               status = (groqResp.status === 429) ? 'degraded' : 'down';
@@ -300,7 +300,7 @@ serve(async (req) => {
         clearTimeout(timeoutId);
         latencyMs = Date.now() - startTime;
         if (response.ok) {
-          status = latencyMs < 8000 ? 'healthy' : 'degraded';
+          status = latencyMs < 15000 ? 'healthy' : 'degraded';
         } else {
           errorCode = response.status;
           status = (response.status === 429) ? 'degraded' : 'down';
