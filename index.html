@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" style="background-color: #111111">
+<html lang="en">
 
 <head>
   <meta charset="UTF-8" />
@@ -86,15 +86,15 @@
         : t;
       document.documentElement.classList.add(resolved);
       document.documentElement.setAttribute('data-initial-theme', resolved);
-      // Inject a <style> block so body background matches the resolved theme
-      // before React paints, preventing a visible color flash. body.style
-      // is unavailable here (head runs before body is parsed), but we can
-      // write into the head. Dark is already covered by the body attribute.
-      if (resolved === 'light') {
-        var s = document.createElement('style');
-        s.textContent = 'body{background:#ffffff!important;}';
-        document.head.appendChild(s);
-      }
+      // Set canvas color immediately so neither <html> nor <body> flash
+      // the wrong background before React renders the splash.
+      // documentElement is always available in head scripts; body is not
+      // yet parsed, so we cover body via an injected <style> rule.
+      var bg = resolved === 'dark' ? '#111111' : '#ffffff';
+      document.documentElement.style.background = bg;
+      var s = document.createElement('style');
+      s.textContent = 'body{background:' + bg + '!important;}';
+      document.head.appendChild(s);
     })();
   </script>
 
@@ -114,7 +114,7 @@
     content="AI-powered resume editor with job match scoring, gap analysis, and ATS-friendly templates. Optimize your resume for any job.">
 </head>
 
-<body style="margin:0;background:#111111;">
+<body style="margin:0;">
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
 </body>
