@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/safeClient';
 import type { Experience, Education, Project, Certification, Award, Publication, Volunteering, Hobby } from '@/types/resume';
 import type { CaseStudy, PortfolioService } from '@/hooks/useProfile';
@@ -189,6 +189,48 @@ export function usePublicPortfolio(username: string | undefined) {
     queryKey: ['public-portfolio', username],
     queryFn: () => fetchPublicPortfolio(username!),
     enabled: !!username,
+    staleTime: 0,
+    gcTime: 5 * 60 * 1000,
+  });
+}
+
+const KNOWN_APP_SUFFIXES = [
+  '.replit.dev',
+  '.replit.app',
+  '.thewise.cloud',
+  '.kirk.replit.dev',
+  '.picard.replit.dev',
+];
+
+export function isAppHostname(hostname: string): boolean {
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
+  return KNOWN_APP_SUFFIXES.some((suffix) => hostname.endsWith(suffix));
+}
+
+async function fetchPublicPortfolioByDomain(domain: string): Promise<PublicPortfolioData | null> {
+  const { data: row, error } = await (supabase as any)
+    .from('profiles')
+    .select('username')
+    .eq('portfolio_enabled', true)
+    .filter('portfolio_extras->>customDomain', 'eq', domain)
+    .maybeSingle();
+
+  if (error || !row?.username) return null;
+  return fetchPublicPortfolio(row.username as string);
+}
+
+export function usePublicPortfolioByDomain(domain: string | null) {
+  const queryClient = useQueryClient();
+  return useQuery({
+    queryKey: ['public-portfolio-by-domain', domain],
+    queryFn: async () => {
+      const data = await fetchPublicPortfolioByDomain(domain!);
+      if (data?.profile?.username) {
+        queryClient.setQueryData(['public-portfolio', data.profile.username], data);
+      }
+      return data;
+    },
+    enabled: !!domain,
     staleTime: 0,
     gcTime: 5 * 60 * 1000,
   });

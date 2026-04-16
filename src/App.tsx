@@ -27,6 +27,7 @@ import { MaintenanceScreen } from "@/components/layout/MaintenanceScreen";
 import { AnnouncementBanner } from "@/components/layout/AnnouncementBanner";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { useAuth } from "@/hooks/useAuth";
+import { isAppHostname, usePublicPortfolioByDomain } from "@/hooks/usePublicPortfolio";
 import { AIPrivacyDisclosureProvider } from "@/components/ai/AIPrivacyDisclosureProvider";
 import { BottomSheetProvider } from "@/context/BottomSheetContext";
 
@@ -181,6 +182,23 @@ const queryClient = new QueryClient({
   }
 });
 
+function CustomDomainPortfolioWrapper({ hostname }: { hostname: string }) {
+  const { data, isLoading } = usePublicPortfolioByDomain(hostname);
+  if (isLoading) return <DetailSkeleton />;
+  if (!data?.profile?.username) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-muted-foreground text-sm p-8 text-center">
+        Portfolio not found for this domain.
+      </div>
+    );
+  }
+  return (
+    <Suspense fallback={<DetailSkeleton />}>
+      <PublicPortfolioPage usernameOverride={data.profile.username} />
+    </Suspense>
+  );
+}
+
 function useIsPublicRoute() {
   const location = useLocation();
   return (
@@ -282,6 +300,8 @@ function AppRoutes() {
   const { isSuspended, suspensionReason } = useSuspensionCheck();
   const appSettings = useAppSettings();
 
+  const customDomainHostname = !isAppHostname(window.location.hostname) ? window.location.hostname : null;
+
   useEffect(() => {
     const handleRejection = (event: PromiseRejectionEvent) => {
       console.error("Unhandled rejection:", event.reason);
@@ -294,6 +314,10 @@ function AppRoutes() {
   }, []);
 
   const isAdminRoute = location.pathname.startsWith('/devkit');
+
+  if (customDomainHostname) {
+    return <CustomDomainPortfolioWrapper hostname={customDomainHostname} />;
+  }
 
   if (!hasSeenSplash && !isPublicStandalone && !isAdminRoute) {
     return <AnimatedSplash onComplete={() => setHasSeenSplash(true)} />;

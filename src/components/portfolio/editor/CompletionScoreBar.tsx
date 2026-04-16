@@ -99,16 +99,14 @@ export function CompletionScoreBar({ score, items }: CompletionScoreBarProps) {
 export function buildCompletionItems(opts: {
   bio: string;
   avatarUrl: string | null | undefined;
-  username: string;
   hasExperience: boolean;
   hasSkills: boolean;
   hasSocialLink: boolean;
-  hasCaseStudies: boolean;
+  hasProjects: boolean;
   hasTestimonials: boolean;
   metaTitle: string;
   availabilityStatus: string;
-  accentColor: string;
-  hasLinkedIn: boolean;
+  accentColor: string | null | undefined;
 }): CompletionItem[] {
   return [
     {
@@ -136,10 +134,10 @@ export function buildCompletionItems(opts: {
       why: 'Skills are used for keyword matching by ATS tools.',
     },
     {
-      label: 'Username',
+      label: 'Custom theme',
       weight: 10,
-      ok: opts.username.length >= 3,
-      why: 'Required to publish and share your portfolio.',
+      ok: !!opts.accentColor,
+      why: 'A branded accent color makes your portfolio stand out.',
     },
     {
       label: 'Social / contact link',
@@ -148,16 +146,10 @@ export function buildCompletionItems(opts: {
       why: 'Recruiters need a way to reach you — add email or LinkedIn.',
     },
     {
-      label: 'Projects or case studies',
+      label: 'Projects & showcase',
       weight: 10,
-      ok: opts.hasCaseStudies,
-      why: 'Portfolio projects increase callbacks by 2×.',
-    },
-    {
-      label: 'LinkedIn profile',
-      weight: 5,
-      ok: opts.hasLinkedIn,
-      why: 'Linking LinkedIn signals professionalism and verifiability.',
+      ok: opts.hasProjects,
+      why: 'Portfolio projects increase recruiter callbacks by 2×.',
     },
     {
       label: 'Testimonials',
@@ -167,13 +159,13 @@ export function buildCompletionItems(opts: {
     },
     {
       label: 'SEO page title',
-      weight: 4,
+      weight: 7,
       ok: opts.metaTitle.length > 0,
       why: 'Helps your portfolio rank when recruiters search your name.',
     },
     {
       label: 'Availability status',
-      weight: 3,
+      weight: 5,
       ok: opts.availabilityStatus !== 'not-looking',
       why: 'Active job seekers get surfaced more in talent searches.',
     },

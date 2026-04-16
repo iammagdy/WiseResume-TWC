@@ -191,8 +191,9 @@ function PasswordGate({ expectedHash, accentColor, onUnlock }: { expectedHash: s
 }
 
 // ─── Main Content ─────────────────────────────────────────────────────────────
-function PublicPortfolioContent() {
-  const { username } = useParams<{ username: string }>();
+function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: string }) {
+  const { username: usernameParam } = useParams<{ username: string }>();
+  const username = usernameOverride || usernameParam;
   const [searchParams] = useSearchParams();
   const refParam = searchParams.get('ref') || undefined;
   const navigate = useNavigate();
@@ -571,10 +572,10 @@ function PublicPortfolioContent() {
   );
 }
 
-export default function PublicPortfolioPage() {
+export default function PublicPortfolioPage({ usernameOverride }: { usernameOverride?: string } = {}) {
   return (
     <ErrorBoundary>
-      <PublicPortfolioContent />
+      <PublicPortfolioContent usernameOverride={usernameOverride} />
     </ErrorBoundary>
   );
 }

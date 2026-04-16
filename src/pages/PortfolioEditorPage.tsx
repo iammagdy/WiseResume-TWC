@@ -695,16 +695,14 @@ export default function PortfolioEditorPage() {
   const completionItems = buildCompletionItems({
     bio,
     avatarUrl: profile?.avatarUrl,
-    username,
     hasExperience: Array.isArray(selectedResume?.experience) && (selectedResume?.experience as unknown[]).length >= 1,
     hasSkills: Array.isArray(selectedResume?.skills) && (selectedResume?.skills as unknown[]).length >= 3,
     hasSocialLink: !!(linkedinUrl || githubUrl || websiteUrl || twitterUrl || contactEmail),
-    hasCaseStudies: caseStudies.length > 0,
+    hasProjects: caseStudies.length > 0 || services.length > 0,
     hasTestimonials: testimonials.length > 0,
     metaTitle,
     availabilityStatus,
-    accentColor: portfolioAccentColor,
-    hasLinkedIn: !!linkedinUrl,
+    accentColor: portfolioAccentColor || null,
   });
   const weightedScore = completionItems.reduce((sum, item) => sum + (item.ok ? item.weight : 0), 0);
 
