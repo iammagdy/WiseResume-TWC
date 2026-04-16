@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from './useAuth';
-import { startOfWeek, endOfWeek, subWeeks, format } from 'date-fns';
+import { startOfWeek, endOfWeek, subWeeks, startOfDay, subDays, format } from 'date-fns';
 
 export interface WeeklyTrendPoint {
   week: string;
@@ -24,6 +24,7 @@ export interface JobActivityStats {
   offerRate: number;
   weeklyTrend: WeeklyTrendPoint[];
   thisWeekApplications: number;
+  streak: number;
   isLoading: boolean;
 }
 
@@ -85,6 +86,25 @@ export function useJobActivityStats(): JobActivityStats {
         a => a.applied_at && new Date(a.applied_at) >= thisWeekStart
       ).length;
 
+      // Application-based streak: consecutive days (backward from today) with at least one application
+      const appDaySet = new Set(
+        appsData
+          .filter(a => a.applied_at)
+          .map(a => format(startOfDay(new Date(a.applied_at!)), 'yyyy-MM-dd'))
+      );
+      const todayStart = startOfDay(now);
+      const todayStr = format(todayStart, 'yyyy-MM-dd');
+      // If today has no activity, allow one-day grace (streak still alive if yesterday had activity)
+      const startOffset = appDaySet.has(todayStr) ? 0 : 1;
+      let streak = 0;
+      for (let i = startOffset; i <= 365; i++) {
+        if (appDaySet.has(format(subDays(todayStart, i), 'yyyy-MM-dd'))) {
+          streak++;
+        } else {
+          break;
+        }
+      }
+
       return {
         originals,
         tailored,
@@ -100,6 +120,7 @@ export function useJobActivityStats(): JobActivityStats {
         offerRate,
         weeklyTrend,
         thisWeekApplications,
+        streak,
       };
     },
     enabled: !!user,
@@ -120,6 +141,7 @@ export function useJobActivityStats(): JobActivityStats {
     offerRate: data?.offerRate ?? 0,
     weeklyTrend: data?.weeklyTrend ?? [],
     thisWeekApplications: data?.thisWeekApplications ?? 0,
+    streak: data?.streak ?? 0,
     isLoading,
   };
 }

@@ -75,11 +75,13 @@ export function ActivityInsightsCard({ applications, stats }: Props) {
       }
     }
 
-    // Rule 4: Streak encouragement when user has recent activity
-    if (stats.thisWeekApplications > 0) {
+    // Rule 4: Streak encouragement when user has an active application streak
+    if (stats.streak > 0) {
       result.push({
         icon: Zap,
-        message: `${stats.thisWeekApplications} application${stats.thisWeekApplications > 1 ? 's' : ''} submitted this week — you're building momentum. Keep it up!`,
+        message: stats.streak === 1
+          ? `You applied yesterday — keep the streak alive today!`
+          : `${stats.streak}-day application streak active — great consistency, keep it going!`,
         type: 'success',
       });
     }
