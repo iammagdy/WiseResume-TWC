@@ -26,7 +26,7 @@ export const DangerZoneSection = memo(function DangerZoneSection({
       <Separator className="ml-[52px] bg-destructive/20" />
       <SettingsRow
         type="button"
-        label="Delete Account"
+        label="Delete Data"
         description="Permanently delete your account and all data"
         icon={<Trash2 className="w-4 h-4" />}
         onClick={() => { haptics.warning(); onDeleteData(); }}

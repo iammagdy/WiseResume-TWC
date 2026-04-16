@@ -279,7 +279,7 @@ export default function SettingsPage() {
             <div>
               <SectionLabel>Account</SectionLabel>
               <div className="mx-4 space-y-3">
-                <AccountSection />
+                <AccountSection authProvider="email" />
                 <UserIdCard userId={user.id} />
               </div>
             </div>
