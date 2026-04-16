@@ -187,7 +187,7 @@ Deno.serve(async (req) => {
             isValid: true,
             tier: 'free',
             engine: testEngine,
-            message: `WiseResume AI (${testEngine === 'groq' ? 'Groq — Llama 3.3' : 'OpenRouter — Gemma 4'}) is working.`,
+            message: `WiseResume AI (${testEngine === 'groq' ? 'Groq — Qwen 3 32B' : 'OpenRouter — Gemma 4'}) is working.`,
           }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
 

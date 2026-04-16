@@ -164,7 +164,7 @@ serve(async (req) => {
     }
 
     // Set the expected model based on provider/sub-provider so admin diagnostics show accurate info.
-    // For WiseResume managed: OpenRouter uses Gemma 4, Groq uses Llama 3.3.
+    // For WiseResume managed: OpenRouter uses Gemma 4, Groq uses Qwen 3 32B.
     // For BYOK providers: read the stored model from DB; fall back to a safe per-provider default.
     const BYOK_PROVIDERS_LIST = ['openai', 'anthropic', 'groq', 'mistral', 'xai', 'cohere', 'gemini', 'openrouter', 'ollama'];
     const BYOK_DEFAULT_MODELS: Record<string, string> = {
