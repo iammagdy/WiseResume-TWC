@@ -1,4 +1,3 @@
-import { ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { FeatureSection } from '@/components/landing/FeatureSection';
 import { TrustSection } from '@/components/landing/TrustSection';
@@ -7,11 +6,9 @@ import { Footer } from '@/components/landing/Footer';
 import { InstallButton } from '@/components/pwa/InstallButton';
 import {
   SCATTER_SECTION_ITEM, REDUCED_SECTION_ITEM,
-  lpContainerVariants, lpItemVariants,
+  lpItemVariants,
 } from '@/components/landing/landingAnimations';
-import {
-  features, featureSections,
-} from '@/components/landing/wiseResumeFeatureData';
+import { featureSections } from '@/components/landing/wiseResumeFeatureData';
 import { ScrollStack, ScrollStackItem } from '@/components/landing/ScrollStack';
 
 interface WiseResumeContentProps {
@@ -20,7 +17,7 @@ interface WiseResumeContentProps {
   onCTA: () => void;
 }
 
-export function WiseResumeContent({ prefersReducedMotion, isDark, onCTA }: WiseResumeContentProps) {
+export function WiseResumeContent({ prefersReducedMotion }: WiseResumeContentProps) {
   const sectionItem = prefersReducedMotion ? REDUCED_SECTION_ITEM : SCATTER_SECTION_ITEM;
 
   return (
@@ -65,63 +62,14 @@ export function WiseResumeContent({ prefersReducedMotion, isDark, onCTA }: WiseR
         <SoftDivider />
       </motion.div>
 
-      {/* ─── SECTION 2: EVERYTHING YOU NEED GRID ─── */}
+      {/* ─── SECTION 2: TRUST SECTION ─── */}
       <motion.div variants={sectionItem} custom={2}>
-        <section className="px-4 sm:px-6 py-20" style={{ background: 'var(--lp-bg)' }}>
-          <div className="max-w-6xl mx-auto">
-            <motion.div
-              className="text-center mb-12"
-              variants={lpItemVariants}
-              initial={prefersReducedMotion ? 'visible' : 'hidden'}
-              whileInView="visible"
-              viewport={{ once: false, amount: 0.2 }}
-            >
-              <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--lp-eyebrow)', fontWeight: 600, marginBottom: '0.75rem' }}>
-                Full toolkit
-              </p>
-              <h2 className="font-bold" style={{ fontSize: 'clamp(1.75rem, 3vw, 2.5rem)', color: 'var(--lp-text)', letterSpacing: '-0.02em', marginBottom: '0.5rem' }}>
-                Everything you need
-              </h2>
-              <p style={{ color: 'var(--lp-text-muted)' }} className="max-w-md mx-auto">
-                One platform for your entire job search
-              </p>
-            </motion.div>
-            <motion.div
-              className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-3xl mx-auto"
-              variants={lpContainerVariants}
-              initial={prefersReducedMotion ? 'visible' : 'hidden'}
-              whileInView="visible"
-              viewport={{ once: false, amount: 0.1 }}
-            >
-              {features.map((f) => (
-                <motion.div
-                  key={f.title}
-                  variants={lpItemVariants}
-                  className="flex items-start gap-4 p-5 lp-feature-card"
-                  style={{ borderRadius: 16, background: 'var(--lp-card)', border: '1px solid var(--lp-border-card)' }}
-                >
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isDark ? f.bgDark : f.bgLight}`}>
-                    <f.icon className={`w-5 h-5 ${isDark ? f.colorDark : f.colorLight}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-sm mb-1" style={{ color: 'var(--lp-text)' }}>{f.title}</h3>
-                    <p className="text-xs leading-relaxed" style={{ color: 'var(--lp-text-muted)' }}>{f.desc}</p>
-                  </div>
-                </motion.div>
-              ))}
-            </motion.div>
-          </div>
-        </section>
-      </motion.div>
-
-      {/* ─── SECTION 3: TRUST SECTION ─── */}
-      <motion.div variants={sectionItem} custom={3}>
         <SoftDivider />
         <TrustSection />
       </motion.div>
 
-      {/* ─── SECTION 4: PWA STRIP ─── */}
-      <motion.div variants={sectionItem} custom={4}>
+      {/* ─── SECTION 3: PWA STRIP ─── */}
+      <motion.div variants={sectionItem} custom={3}>
         <section className="px-4 sm:px-6 py-10" style={{ background: 'var(--lp-section-alt)', borderTop: '1px solid var(--lp-border)' }}>
           <motion.div
             className="max-w-xl mx-auto text-center"
@@ -137,44 +85,8 @@ export function WiseResumeContent({ prefersReducedMotion, isDark, onCTA }: WiseR
         </section>
       </motion.div>
 
-      {/* ─── SECTION 5: CLOSING CTA + FOOTER ─── */}
-      <motion.div variants={sectionItem} custom={5}>
-        <section
-          className="text-center"
-          style={{
-            background: 'var(--lp-section-alt)',
-            borderTop: '1px solid var(--lp-border)',
-            padding: 'clamp(52px, 6vw, 84px) clamp(20px, 4vw, 40px)',
-            transition: 'background 0.35s ease',
-          }}
-        >
-          <div className="max-w-2xl mx-auto">
-            <p style={{ fontSize: '0.75rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--lp-eyebrow)', fontWeight: 600, marginBottom: '0.75rem', transition: 'color 0.35s ease' }}>
-              Start today
-            </p>
-            <h2
-              className="font-bold leading-tight"
-              style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.75rem)', color: 'var(--lp-text)', letterSpacing: '-0.025em', marginBottom: '0.75rem', transition: 'color 0.35s ease' }}
-            >
-              Your career edge<br />starts here.
-            </h2>
-            <p className="max-w-md mx-auto text-sm mb-8" style={{ color: 'var(--lp-text-muted)', lineHeight: 1.65, transition: 'color 0.35s ease' }}>
-              Free to start. No credit card. AI-powered results from day one.
-            </p>
-            <motion.button
-              type="button"
-              onClick={onCTA}
-              className="inline-flex items-center gap-2 h-12 px-10 text-base font-semibold rounded-xl"
-              style={{ background: '#9E1B22', color: '#fff' }}
-              whileHover={prefersReducedMotion ? {} : { scale: 1.04 }}
-              whileTap={prefersReducedMotion ? {} : { scale: 0.97 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-            >
-              Get Started Free
-              <ArrowRight className="w-4 h-4" />
-            </motion.button>
-          </div>
-        </section>
+      {/* ─── SECTION 4: FOOTER ─── */}
+      <motion.div variants={sectionItem} custom={4}>
         <Footer lpMode />
       </motion.div>
     </>
