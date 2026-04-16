@@ -91,30 +91,6 @@ export function WiseResumeHero({
             />
           </div>
 
-          {/* Brand pill */}
-          <motion.div
-            variants={heroItemVariants}
-            className="flex items-center gap-2 px-4 py-1.5 rounded-full mb-6"
-            style={{
-              background: 'var(--lp-brand-pill-bg)',
-              border: '1px solid var(--lp-brand-pill-border)',
-              boxShadow: '0 0 18px 0 var(--lp-brand-pill-glow)',
-            }}
-          >
-            <img
-              alt=""
-              aria-hidden="true"
-              src={themeLogo}
-              className="w-5 h-5 object-contain rounded-md"
-            />
-            <span
-              className="font-display font-semibold tracking-tight"
-              style={{ fontSize: '0.85rem', color: 'var(--lp-eyebrow)' }}
-            >
-              WiseResume
-            </span>
-          </motion.div>
-
           {/* Eyebrow */}
           <motion.p
             variants={heroItemVariants}
@@ -148,8 +124,8 @@ export function WiseResumeHero({
             <span className="sm:whitespace-nowrap" style={{ display: 'block' }}>
               Stand out as a
             </span>
-            <span className="sm:whitespace-nowrap" style={{ display: 'block', overflow: 'visible', minHeight: '1.15em' }}>
-              <span className="lp-gradient-text" style={{ display: 'inline-block', minWidth: '16ch' }}>
+            <span style={{ display: 'block', minHeight: '1.15em' }}>
+              <span className="lp-gradient-text" style={{ display: 'inline-block' }}>
                 {typewriterWord || '\u00A0'}
                 <span className="lp-cursor" aria-hidden="true" />
               </span>

@@ -43,8 +43,8 @@
   --lp-signin-color: rgba(255,255,255,0.72);
   --lp-signin-bg: rgba(255,255,255,0.07);
   --lp-signin-border: rgba(255,255,255,0.1);
-  --lp-trust-color: rgba(240,240,245,0.35);
-  --lp-trust-icon: rgba(158,27,34,0.7);
+  --lp-trust-color: rgba(240,240,245,0.65);
+  --lp-trust-icon: rgba(158,27,34,0.85);
   --lp-toggle-bg: rgba(255,255,255,0.07);
   --lp-toggle-border: rgba(255,255,255,0.1);
   --lp-toggle-color: rgba(255,255,255,0.55);
@@ -80,8 +80,8 @@
   --lp-signin-color: rgba(15,15,26,0.7);
   --lp-signin-bg: rgba(0,0,0,0.05);
   --lp-signin-border: rgba(0,0,0,0.1);
-  --lp-trust-color: rgba(15,15,26,0.4);
-  --lp-trust-icon: rgba(158,27,34,0.75);
+  --lp-trust-color: rgba(15,15,26,0.6);
+  --lp-trust-icon: rgba(158,27,34,0.85);
   --lp-toggle-bg: rgba(0,0,0,0.05);
   --lp-toggle-border: rgba(0,0,0,0.1);
   --lp-toggle-color: rgba(15,15,26,0.55);
@@ -271,8 +271,8 @@
   --lp-nav-bg: rgba(240,245,255,0.96);
   --lp-nav-border: rgba(29,78,216,0.1);
   --lp-hero-glow: rgba(29,78,216,0.10);
-  --lp-trust-color: rgba(15,15,26,0.4);
-  --lp-trust-icon: rgba(29,78,216,0.80);
+  --lp-trust-color: rgba(15,15,26,0.6);
+  --lp-trust-icon: rgba(29,78,216,0.90);
   --lp-brand-pill-bg: rgba(29,78,216,0.07);
   --lp-brand-pill-border: rgba(29,78,216,0.22);
 }

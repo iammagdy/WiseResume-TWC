@@ -53,20 +53,11 @@ export function LandingHeader({
     >
       {scrolled && <GlassSurface className="absolute -top-px bottom-0 left-0 right-0" />}
       <div className="relative z-[1]">
-      {/* Product toggle strip — hidden on mobile, sits above the nav row on sm+ */}
-      <div className="hidden sm:block">
-        <LandingToggle
-          uid="hdr"
-          mode={mode}
-          prefersReducedMotion={prefersReducedMotion}
-          onModeChange={onModeChange}
-        />
-      </div>
-
-      <div className="flex items-center justify-between px-4 sm:px-6 h-14 max-w-6xl mx-auto">
+      <div className="grid grid-cols-3 items-center px-4 sm:px-6 h-14 max-w-6xl mx-auto">
+        {/* Left: logo */}
         <button
           onClick={() => { triggerHaptic.light(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-          className="flex items-center gap-2.5 touch-manipulation min-w-0"
+          className="flex items-center gap-2.5 touch-manipulation min-w-0 justify-self-start"
           aria-label={mode === 'wisehire' ? 'WiseHire – scroll to top' : 'WiseResume – scroll to top'}
         >
           <img
@@ -87,7 +78,21 @@ export function LandingHeader({
           </span>
         </button>
 
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Center: product toggle (desktop only) */}
+        <div className="hidden sm:flex justify-center">
+          <LandingToggle
+            uid="hdr"
+            compact
+            mode={mode}
+            prefersReducedMotion={prefersReducedMotion}
+            onModeChange={onModeChange}
+          />
+        </div>
+        {/* Mobile: empty center spacer */}
+        <div className="sm:hidden" />
+
+        {/* Right: nav links + CTA */}
+        <div className="flex items-center gap-2 shrink-0 justify-self-end">
           {/* Nav links */}
           {mode === 'wisehire' ? (
             <button
@@ -113,17 +118,15 @@ export function LandingHeader({
               Pricing
             </Link>
           )}
-          {mode === 'jobseeker' && (
-            <Link
-              to="/whats-new"
-              className="hidden sm:flex items-center text-sm font-medium px-3 h-11 rounded-lg transition-all duration-200"
-              style={{ color: 'var(--lp-text-muted)', background: 'transparent' }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text)'; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text-muted)'; }}
-            >
-              What's New
-            </Link>
-          )}
+          <Link
+            to="/whats-new"
+            className="hidden sm:flex items-center text-sm font-medium px-3 h-11 rounded-lg transition-all duration-200"
+            style={{ color: 'var(--lp-text-muted)', background: 'transparent' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text-muted)'; }}
+          >
+            What's New
+          </Link>
 
           {/* Mobile hamburger */}
           <DropdownMenu>
@@ -149,12 +152,10 @@ export function LandingHeader({
                   Pricing
                 </DropdownMenuItem>
               )}
-              {mode === 'jobseeker' && (
-                <DropdownMenuItem onClick={() => navigate('/whats-new')}>
-                  <Zap className="w-4 h-4 mr-2" />
-                  What's New
-                </DropdownMenuItem>
-              )}
+              <DropdownMenuItem onClick={() => navigate('/whats-new')}>
+                <Zap className="w-4 h-4 mr-2" />
+                What's New
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -212,11 +213,11 @@ export function LandingHeader({
                   toast.error('Unable to sign in. Please try again or contact support.');
                 });
               }}
-              className="text-sm font-medium px-4 h-11 rounded-lg transition-all duration-200 whitespace-nowrap shrink-0"
+              className="text-sm font-semibold px-4 h-11 rounded-lg transition-all duration-200 whitespace-nowrap shrink-0"
               style={{
-                color: 'var(--lp-signin-color)',
-                background: 'var(--lp-signin-bg)',
-                border: '1px solid var(--lp-signin-border)',
+                color: '#fff',
+                background: '#9E1B22',
+                border: '1px solid #9E1B22',
               }}
             >
               Sign In

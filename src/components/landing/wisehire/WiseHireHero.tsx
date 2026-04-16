@@ -187,7 +187,7 @@ export function WiseHireHero({ onOpenWaitlist, mobileToggle }: WiseHireHeroProps
         }}
       >
         Built for the{' '}
-        <span className="wh-gradient-text" style={{ display: 'inline-block', minWidth: '14ch', fontWeight: 700 }}>
+        <span className="wh-gradient-text" style={{ display: 'inline-block', fontWeight: 700 }}>
           {typewriterWord || '\u00A0'}
           {!prefersReducedMotion && <span className="wh-cursor" aria-hidden="true" />}
         </span>
