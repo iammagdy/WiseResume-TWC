@@ -4,19 +4,28 @@ import { motion } from 'framer-motion';
 interface LandingToggleProps {
   mode: 'jobseeker' | 'wisehire';
   onModeChange: (mode: 'jobseeker' | 'wisehire') => void;
+  prefersReducedMotion: boolean | null;
 }
 
-export function LandingToggle({ mode, onModeChange }: LandingToggleProps) {
+const RED_BG = 'linear-gradient(135deg, #b91c1c 0%, #9E1B22 100%)';
+const BLUE_BG = 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)';
+const RED_SHADOW = '0 1px 8px rgba(158,27,34,0.55), 0 0 18px rgba(158,27,34,0.2)';
+const BLUE_SHADOW = '0 1px 8px rgba(29,78,216,0.55), 0 0 18px rgba(29,78,216,0.2)';
+
+export function LandingToggle({ mode, onModeChange, prefersReducedMotion }: LandingToggleProps) {
   const [burstKey, setBurstKey] = useState(0);
   const [burstLeft, setBurstLeft] = useState('25%');
-  const [burstColor, setBurstColor] = useState('rgba(158,27,34,0.7)');
+  const [burstColor, setBurstColor] = useState('rgba(158,27,34,0.65)');
+
+  const fireBurst = (targetMode: 'jobseeker' | 'wisehire') => {
+    if (prefersReducedMotion) return;
+    setBurstLeft(targetMode === 'jobseeker' ? '25%' : '75%');
+    setBurstColor(targetMode === 'jobseeker' ? 'rgba(158,27,34,0.65)' : 'rgba(29,78,216,0.65)');
+    setBurstKey((k) => k + 1);
+  };
 
   const handleJobSeeker = () => {
-    if (mode !== 'jobseeker') {
-      setBurstLeft('25%');
-      setBurstColor('rgba(158,27,34,0.7)');
-      setBurstKey((k) => k + 1);
-    }
+    if (mode !== 'jobseeker') fireBurst('jobseeker');
     onModeChange('jobseeker');
     const url = new URL(window.location.href);
     url.searchParams.delete('for');
@@ -25,11 +34,7 @@ export function LandingToggle({ mode, onModeChange }: LandingToggleProps) {
   };
 
   const handleCompanies = () => {
-    if (mode !== 'wisehire') {
-      setBurstLeft('75%');
-      setBurstColor('rgba(29,78,216,0.7)');
-      setBurstKey((k) => k + 1);
-    }
+    if (mode !== 'wisehire') fireBurst('wisehire');
     onModeChange('wisehire');
     const url = new URL(window.location.href);
     url.searchParams.set('for', 'companies');
@@ -66,17 +71,18 @@ export function LandingToggle({ mode, onModeChange }: LandingToggleProps) {
           overflow: 'hidden',
         }}
       >
-        {/* Ignition burst — fires on each mode switch */}
-        {burstKey > 0 && (
+        {/* Ignition burst — springs to clicked button then expands and fades */}
+        {!prefersReducedMotion && burstKey > 0 && (
           <motion.div
             key={burstKey}
+            layoutId="lp-toggle-burst"
             aria-hidden="true"
             style={{
               position: 'absolute',
               left: burstLeft,
               top: '50%',
-              width: 40,
-              height: 40,
+              width: 36,
+              height: 36,
               borderRadius: '50%',
               background: `radial-gradient(circle, ${burstColor} 0%, transparent 70%)`,
               pointerEvents: 'none',
@@ -84,9 +90,9 @@ export function LandingToggle({ mode, onModeChange }: LandingToggleProps) {
               translateX: '-50%',
               translateY: '-50%',
             }}
-            initial={{ scale: 0.3, opacity: 0.8 }}
-            animate={{ scale: 4.5, opacity: 0 }}
-            transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+            initial={{ scale: 1, opacity: 0 }}
+            animate={{ scale: 2.5, opacity: [0, 0.4, 0] }}
+            transition={{ duration: 0.5, times: [0, 0.25, 1], ease: [0.16, 1, 0.3, 1] }}
           />
         )}
 
@@ -115,12 +121,11 @@ export function LandingToggle({ mode, onModeChange }: LandingToggleProps) {
           {mode === 'jobseeker' && (
             <motion.div
               layoutId="landing-toggle-indicator"
+              animate={{ background: RED_BG, boxShadow: RED_SHADOW }}
               style={{
                 position: 'absolute',
                 inset: 0,
                 borderRadius: 99,
-                background: 'linear-gradient(135deg, #b91c1c 0%, #9E1B22 100%)',
-                boxShadow: '0 1px 8px rgba(158,27,34,0.55), 0 0 18px rgba(158,27,34,0.2)',
               }}
               transition={{ type: 'spring', stiffness: 420, damping: 34 }}
             />
@@ -167,12 +172,11 @@ export function LandingToggle({ mode, onModeChange }: LandingToggleProps) {
           {mode === 'wisehire' && (
             <motion.div
               layoutId="landing-toggle-indicator"
+              animate={{ background: BLUE_BG, boxShadow: BLUE_SHADOW }}
               style={{
                 position: 'absolute',
                 inset: 0,
                 borderRadius: 99,
-                background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
-                boxShadow: '0 1px 8px rgba(29,78,216,0.55), 0 0 18px rgba(29,78,216,0.2)',
               }}
               transition={{ type: 'spring', stiffness: 420, damping: 34 }}
             />

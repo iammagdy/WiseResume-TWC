@@ -340,7 +340,7 @@ const SCATTER_SECTION_ITEM = {
   exit: (i: number) => {
     const e = SECTION_EXIT_VECTORS[i] ?? { x: 0, y: -100, rotate: 0 };
     return {
-      opacity: 0, x: e.x, y: e.y, scale: 0.72, rotate: e.rotate, filter: 'blur(14px)',
+      opacity: 0, x: e.x, y: e.y, scale: 0.72, rotate: e.rotate, filter: 'blur(12px)',
       transition: { duration: 0.30, ease: [0.4, 0, 1, 1] as [number, number, number, number] },
     };
   },
@@ -348,15 +348,43 @@ const SCATTER_SECTION_ITEM = {
 
 const REDUCED_MOTION_WRAPPER = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: 0.25 } },
-  exit: { opacity: 0, transition: { duration: 0.25 } },
+  visible: { opacity: 1, transition: { duration: 0.2 } },
+  exit: { opacity: 0, transition: { duration: 0.2 } },
 };
 
 const REDUCED_SECTION_ITEM = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { duration: 0.25 } },
-  exit: { opacity: 0, transition: { duration: 0.25 } },
+  visible: { opacity: 1, transition: { duration: 0.2 } },
+  exit: { opacity: 0, transition: { duration: 0.2 } },
 };
+
+interface LandingModeTransitionProps {
+  waveKey: number;
+  waveColor: string;
+  origin: { x: number; y: number };
+}
+
+function LandingModeTransition({ waveKey, origin, waveColor }: LandingModeTransitionProps) {
+  if (waveKey === 0) return null;
+  return (
+    <AnimatePresence>
+      <motion.div
+        key={waveKey}
+        aria-hidden="true"
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 200,
+          pointerEvents: 'none',
+          background: `radial-gradient(ellipse 90% 55% at ${origin.x}px ${origin.y}px, ${waveColor} 0%, transparent 68%)`,
+        }}
+        initial={{ opacity: 0, scale: 0.82 }}
+        animate={{ opacity: [0, 1, 0.65, 0], scale: [0.82, 1.04, 1.1, 1.15] }}
+        transition={{ duration: 0.75, times: [0, 0.18, 0.5, 1], ease: 'easeOut' }}
+      />
+    </AnimatePresence>
+  );
+}
 
 const Index = () => {
   const navigate = useNavigate();
@@ -387,7 +415,9 @@ const Index = () => {
   );
   const [waitlistOpen, setWaitlistOpen] = useState(false);
   const [waveKey, setWaveKey] = useState(0);
-  const [waveColor, setWaveColor] = useState('rgba(29,78,216,0.28)');
+  const [waveColor, setWaveColor] = useState('rgba(29,78,216,0.32)');
+  const [waveOrigin, setWaveOrigin] = useState({ x: 640, y: 21 });
+  const toggleRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
     setLpProduct(mode);
@@ -801,21 +831,12 @@ const Index = () => {
         <div ref={progressRef} className="h-full transition-[width] duration-75 ease-out" style={{ background: 'var(--lp-brand)' }} />
       </div>
 
-      {/* Brand color wave — fires on each mode switch, blooms from toggle position */}
-      {!prefersReducedMotion && waveKey > 0 && (
-        <motion.div
-          key={waveKey}
-          aria-hidden="true"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 200,
-            pointerEvents: 'none',
-            background: `radial-gradient(ellipse 90% 50% at 50% 0%, ${waveColor} 0%, transparent 68%)`,
-          }}
-          initial={{ opacity: 0, scale: 0.85 }}
-          animate={{ opacity: [0, 1, 0.65, 0], scale: [0.85, 1.05, 1.1, 1.15] }}
-          transition={{ duration: 0.75, times: [0, 0.18, 0.5, 1], ease: 'easeOut' }}
+      {/* Brand color wave — fires on each mode switch, blooms from toggle center */}
+      {!prefersReducedMotion && (
+        <LandingModeTransition
+          waveKey={waveKey}
+          waveColor={waveColor}
+          origin={waveOrigin}
         />
       )}
 
@@ -825,16 +846,28 @@ const Index = () => {
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         {/* Product toggle strip — always visible, sits above the nav row */}
-        <LandingToggle mode={mode} onModeChange={(m) => {
-          if (m === mode) return;
-          triggerHaptic.light();
-          const color = m === 'wisehire'
-            ? 'rgba(37,99,235,0.32)'
-            : 'rgba(185,28,28,0.32)';
-          setWaveColor(color);
-          setWaveKey((k) => k + 1);
-          setTimeout(() => { flushSync(() => setMode(m)); }, 110);
-        }} />
+        <div ref={toggleRef}>
+          <LandingToggle
+            mode={mode}
+            prefersReducedMotion={prefersReducedMotion}
+            onModeChange={(m) => {
+              if (m === mode) return;
+              triggerHaptic.light();
+              if (!prefersReducedMotion && toggleRef.current) {
+                const rect = toggleRef.current.getBoundingClientRect();
+                setWaveOrigin({
+                  x: Math.round(rect.left + rect.width / 2),
+                  y: Math.round(rect.top + rect.height / 2),
+                });
+                setWaveColor(m === 'wisehire' ? 'rgba(37,99,235,0.32)' : 'rgba(185,28,28,0.32)');
+                setWaveKey((k) => k + 1);
+                setTimeout(() => { flushSync(() => setMode(m)); }, 110);
+              } else {
+                setMode(m);
+              }
+            }}
+          />
+        </div>
 
         <div className="flex items-center justify-between px-4 sm:px-6 h-14 max-w-6xl mx-auto">
           <button
