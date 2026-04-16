@@ -32,6 +32,15 @@ export interface ResumeHealthScore {
 // In-memory cache keyed by resume updated_at to auto-invalidate on edits
 const scoreCache = new Map<string, ResumeHealthScore>();
 
+// Track consecutive background-score failures so we can surface a
+// user-visible toast after repeated silent failures (instead of just
+// burying them in console warnings forever). Reset on the first
+// successful score.
+let backgroundFailureStreak = 0;
+let lastBackgroundFailureToastAt = 0;
+const BACKGROUND_FAILURE_TOAST_THRESHOLD = 3; // first toast after 3 in a row
+const BACKGROUND_FAILURE_TOAST_COOLDOWN_MS = 10 * 60 * 1000; // re-toast at most every 10min
+
 function cacheKey(resumeId: string, updatedAt: string) {
   return `${resumeId}:${updatedAt}`;
 }
@@ -110,12 +119,29 @@ export async function backgroundScore(resumeId: string, resume: ResumeData, upda
     const score: ResumeHealthScore = { ...data, scoredAt: new Date().toISOString() };
     scoreCache.set(key, score);
     useATSScoreHistoryStore.getState().addScore(resumeId, score);
+    // Reset the failure streak so a transient blip doesn't accumulate
+    // toward an unrelated future toast.
+    backgroundFailureStreak = 0;
   } catch (err: unknown) {
     // score-resume is fully deterministic (no callAI). Failures here must
     // NOT poison the AI health badge — they're scoring issues, not AI
-    // outages. We surface a console warning so background failures remain
-    // observable without misleading the user about AI availability.
-    console.warn('[backgroundScore] silenced (deterministic scoring):', err instanceof Error ? err.message : err);
+    // outages. We still log to the console for observability and, after
+    // repeated consecutive failures, surface a single non-spammy toast
+    // so the user knows their score may be stale.
+    backgroundFailureStreak += 1;
+    console.warn(
+      `[backgroundScore] silenced (deterministic scoring) — streak=${backgroundFailureStreak}:`,
+      err instanceof Error ? err.message : err,
+    );
+    const now = Date.now();
+    const due = now - lastBackgroundFailureToastAt > BACKGROUND_FAILURE_TOAST_COOLDOWN_MS;
+    if (backgroundFailureStreak >= BACKGROUND_FAILURE_TOAST_THRESHOLD && due) {
+      lastBackgroundFailureToastAt = now;
+      toast.error('Resume score may be out of date — auto-scoring is failing in the background. Tap Re-score to retry.', {
+        id: 'background-scoring-degraded',
+        duration: 8000,
+      });
+    }
   }
 }
 

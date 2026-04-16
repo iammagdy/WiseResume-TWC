@@ -283,6 +283,13 @@ serve(async (req: Request) => {
       );
     }
 
+    // Forward the per-attempt telemetry that callWiseresumeAI attaches
+    // to provider_busy errors. Exposing it here gives the AI Studio
+    // tools the same diagnostic detail the chat surface gets, instead
+    // of a bare "AI temporarily busy" message.
+    const attempts = (error as { attempts?: unknown })?.attempts;
+    const attemptsField = attempts ? { attempts } : {};
+
     if (isAIError(error)) {
       const errorMap: Record<string, { error: string; message: string; status: number }> = {
         rate_limit:       { error: "rate_limit",       message: "Too many requests — please wait a moment and try again.", status: 429 },
@@ -294,14 +301,14 @@ serve(async (req: Request) => {
       };
       const mapped = errorMap[error.type] ?? { error: error.type, message: error.message, status: error.status ?? 500 };
       return new Response(
-        JSON.stringify({ error: mapped.error, message: mapped.message }),
+        JSON.stringify({ error: mapped.error, message: mapped.message, ...attemptsField }),
         { status: mapped.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const { status, error: code, message } = toUserError(error);
     return new Response(
-      JSON.stringify({ error: code, message }),
+      JSON.stringify({ error: code, message, ...attemptsField }),
       { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

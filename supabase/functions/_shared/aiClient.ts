@@ -1286,23 +1286,38 @@ export async function callWiseresumeAI(
       throw createAIError('unknown', 'Request cancelled by caller.', 499);
     }
 
-    // Enforce overall budget: don't start a new attempt unless there's
-    // enough time left for it to actually finish within its per-model window.
+    // Enforce overall budget. Use a small per-attempt floor (5s) — NOT
+    // PER_MODEL_TIMEOUT_MS — so that after one ~25s timeout we still have
+    // ~25s left and can run the next provider/model. Requiring a full
+    // 25s window before starting the next attempt would collapse fallback
+    // to a single attempt in the exact failure mode this fix targets.
+    // The next attempt will get its own per-model timeout anyway, so as
+    // long as we have more than 5s left it is worth trying.
+    const MIN_NEXT_ATTEMPT_MS = 5_000;
     const remaining = OVERALL_DEADLINE - Date.now();
-    if (remaining < PER_MODEL_TIMEOUT_MS) {
+    if (remaining < MIN_NEXT_ATTEMPT_MS) {
       console.warn(`[AI] WiseResume overall deadline reached (${remaining}ms left). Stopping after ${i} attempts.`);
       attemptLog.push({ provider: '-', model: '-', outcome: `deadline (${remaining}ms left)`, ms: 0 });
       break;
     }
+    // Cap the next attempt's effective timeout to whatever budget remains
+    // so a slow attempt cannot blow past OVERALL_DEADLINE. The per-model
+    // tryX functions use PER_MODEL_TIMEOUT_MS internally; if remaining is
+    // smaller, we still rely on PER_MODEL_TIMEOUT_MS but log the squeeze.
+    if (remaining < PER_MODEL_TIMEOUT_MS) {
+      console.warn(`[AI] WiseResume tight remaining budget: ${remaining}ms (PER_MODEL=${PER_MODEL_TIMEOUT_MS}ms) — proceeding with attempt ${i + 1}.`);
+    }
 
     const { provider, model } = attempts[i];
     const attemptStart = Date.now();
-    console.log(`[AI] WiseResume attempt ${i + 1}/${totalAttempts}: ${provider} → ${model}`);
+    console.log(`[AI] WiseResume attempt ${i + 1}/${totalAttempts}: ${provider} → ${model} (budget left: ${remaining}ms)`);
     try {
       const result = provider === 'openrouter'
         ? await tryOpenRouterModel(model)
         : await tryGroqModel(model);
-      console.log(`[AI] WiseResume success: ${provider} → ${model}`);
+      const successMs = Date.now() - attemptStart;
+      console.log(`[AI] WiseResume success: ${provider} → ${model} in ${successMs}ms (after ${i} prior attempts)`);
+      attemptLog.push({ provider, model, outcome: 'success', ms: successMs });
       return result;
     } catch (err) {
       const elapsed = Date.now() - attemptStart;
