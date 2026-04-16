@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Sparkles, Search, Loader2, Link2, Linkedin, Github, History, AlertCircle, Twitter, ShieldCheck
+  Sparkles, Search, Loader2, Link2, Linkedin, Github, History, AlertCircle, Twitter, ShieldCheck, Languages,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -38,6 +38,11 @@ export interface MoreTabProps {
   // Collapsible sections
   openSections: Set<string>;
   toggleSection: (id: string) => void;
+  // Multilingual
+  portfolioSecondaryLanguage: string;
+  onPortfolioSecondaryLanguageChange: (val: string) => void;
+  onTranslate: () => void;
+  translating: boolean;
 }
 
 function needsHttpsWarning(url: string): boolean {
@@ -56,6 +61,8 @@ export function MoreTab(props: MoreTabProps) {
     contactEmail, onContactEmailChange,
     twitterUrl, onTwitterUrlChange, websiteUrl, onWebsiteUrlChange,
     openSections, toggleSection,
+    portfolioSecondaryLanguage, onPortfolioSecondaryLanguageChange,
+    onTranslate, translating,
   } = props;
 
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -183,6 +190,56 @@ export function MoreTab(props: MoreTabProps) {
               </p>
             )}
           </div>
+        </div>
+      </CollapsibleCard>
+
+      {/* Multilingual */}
+      <CollapsibleCard
+        id="multilingual"
+        icon={<Languages className="w-4 h-4" />}
+        title="Multilingual"
+        hint={portfolioSecondaryLanguage ? <span className="text-[11px]">{portfolioSecondaryLanguage}</span> : undefined}
+        openSections={openSections}
+        toggleSection={toggleSection}
+      >
+        <p className="text-[11px] text-muted-foreground mb-3">Add a secondary language — visitors can toggle between your default language and a translated version of your bio and summary.</p>
+        <div className="space-y-2">
+          <label className="text-xs font-medium text-foreground">Secondary Language</label>
+          <select
+            value={portfolioSecondaryLanguage}
+            onChange={e => onPortfolioSecondaryLanguageChange(e.target.value)}
+            className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            <option value="">None (monolingual)</option>
+            <option value="Arabic">Arabic (العربية)</option>
+            <option value="Chinese">Chinese (中文)</option>
+            <option value="Dutch">Dutch (Nederlands)</option>
+            <option value="French">French (Français)</option>
+            <option value="German">German (Deutsch)</option>
+            <option value="Hindi">Hindi (हिन्दी)</option>
+            <option value="Italian">Italian (Italiano)</option>
+            <option value="Japanese">Japanese (日本語)</option>
+            <option value="Korean">Korean (한국어)</option>
+            <option value="Polish">Polish (Polski)</option>
+            <option value="Portuguese">Portuguese (Português)</option>
+            <option value="Russian">Russian (Русский)</option>
+            <option value="Spanish">Spanish (Español)</option>
+            <option value="Turkish">Turkish (Türkçe)</option>
+            <option value="Ukrainian">Ukrainian (Українська)</option>
+          </select>
+          {portfolioSecondaryLanguage && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full h-9 rounded-xl text-xs active:scale-95 touch-manipulation"
+              onClick={onTranslate}
+              disabled={translating}
+            >
+              {translating ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1.5" />}
+              {translating ? 'Translating...' : `AI Translate to ${portfolioSecondaryLanguage}`}
+            </Button>
+          )}
+          <p className="text-[11px] text-muted-foreground">Click translate to generate a {portfolioSecondaryLanguage || 'secondary language'} version of your bio and portfolio summary using AI. Save to publish.</p>
         </div>
       </CollapsibleCard>
 

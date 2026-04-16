@@ -55,6 +55,10 @@ export interface PublicProfile {
   pinnedProject: { title: string; description: string; url: string } | null;
   scrollEffect: 'fade' | 'parallax' | 'tilt-3d' | 'cinematic' | null;
   seoNoindex: boolean;
+  videoIntroUrl: string | null;
+  portfolioCertifications: Array<{ id: string; name: string; issuer: string; date: string; credentialUrl: string; badgeUrl: string }>;
+  portfolioSecondaryLanguage: string | null;
+  portfolioTranslations: Record<string, { bio?: string; portfolioSummary?: string }> | null;
 }
 
 export interface PublicResume {
@@ -136,6 +140,10 @@ async function fetchPublicPortfolio(username: string): Promise<PublicPortfolioDa
       pinnedProject: (extras.pinnedProject as { title: string; description: string; url: string }) || null,
       scrollEffect: ((extras.scrollEffect as string) || null) as 'fade' | 'parallax' | 'tilt-3d' | 'cinematic' | null,
       seoNoindex: (profile.seoNoindex as boolean) || false,
+      videoIntroUrl: (extras.videoIntroUrl as string) || null,
+      portfolioCertifications: safeArray(extras.portfolioCertifications),
+      portfolioSecondaryLanguage: (extras.portfolioSecondaryLanguage as string) || null,
+      portfolioTranslations: (extras.portfolioTranslations as Record<string, { bio?: string; portfolioSummary?: string }>) || null,
     },
     resume: {
       id: (resume.id as string) || '',

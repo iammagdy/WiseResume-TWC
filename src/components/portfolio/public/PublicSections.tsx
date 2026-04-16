@@ -189,6 +189,8 @@ export interface PublicSectionsProps {
   portfolioSummary?: string | null;
   sectionOrder?: string[];
   scrollEffect?: ScrollEffect;
+  videoIntroUrl?: string | null;
+  activeLanguage?: string;
 }
 
 export const PublicSections = ({
@@ -203,6 +205,8 @@ export const PublicSections = ({
   portfolioSummary,
   sectionOrder,
   scrollEffect,
+  videoIntroUrl,
+  activeLanguage,
 }: PublicSectionsProps) => {
   const [showMoreSkills, setShowMoreSkills] = useState(false);
   const hasMoreSkills = allSkills.length > SKILL_CLOUD_LIMIT;
@@ -246,8 +250,11 @@ export const PublicSections = ({
 
   const renderSection = (key: string) => {
     switch (key) {
-      case 'about':
-        return hasAbout ? (
+      case 'about': {
+        const translatedBio = activeLanguage && profile.portfolioTranslations?.[activeLanguage]?.bio
+          ? profile.portfolioTranslations[activeLanguage].bio!
+          : profile.portfolioBio;
+        return (hasAbout || (activeLanguage && translatedBio)) && translatedBio ? (
           <SectionWrapper key="about" id="section-about" scrollEffect={scrollEffect} pStyle={pStyle} index={nextIndex()}>
             <SectionHeader icon={<Briefcase className="w-5 h-5" />} title="About" style={pStyle} />
             {(() => {
@@ -257,13 +264,14 @@ export const PublicSections = ({
                 <div className={`${cardProps.className} ${!cardProps.className.includes('p-') && !isTerminal ? 'p-5 rounded-2xl' : ''}`} style={cardProps.style}>
                   {isTerminal && <div className="pf-terminal-dots"><span /><span /><span /></div>}
                   <div className={isTerminal ? 'pf-terminal-card-body' : ''}>
-                    <BioReveal bio={profile.portfolioBio!} />
+                    <BioReveal bio={translatedBio} />
                   </div>
                 </div>
               );
             })()}
           </SectionWrapper>
         ) : null;
+      }
 
       case 'experience':
         return hasExperience ? (
@@ -326,13 +334,29 @@ export const PublicSections = ({
           </SectionWrapper>
         ) : null;
 
-      case 'githubProjects':
+      case 'githubProjects': {
+        const githubUsername = profile.githubUrl
+          ? profile.githubUrl.replace(/^https?:\/\/(www\.)?github\.com\//i, '').replace(/\/.*$/, '').replace(/[^a-zA-Z0-9-]/g, '')
+          : null;
         return hasGithubProjects ? (
           <SectionWrapper key="githubProjects" id="section-github" scrollEffect={scrollEffect} pStyle={pStyle} index={nextIndex()}>
             <SectionHeader icon={<Github className="w-5 h-5" />} title="GitHub Projects" style={pStyle} />
+            {githubUsername && (
+              <div className="mb-5 overflow-x-auto rounded-xl" style={{ background: 'var(--pf-card, rgba(255,255,255,0.03))', border: '1px solid var(--pf-border, rgba(255,255,255,0.08))', padding: '12px 16px' }}>
+                <img
+                  src={`https://ghchart.rshah.org/${githubUsername}`}
+                  alt={`${githubUsername}'s GitHub contribution graph`}
+                  className="w-full h-auto min-w-[400px]"
+                  loading="lazy"
+                  style={{ filter: 'opacity(0.9)' }}
+                  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              </div>
+            )}
             <GitHubProjectsSection projects={profile.githubProjectsCache} accentColor={accentColor} style={pStyle} />
           </SectionWrapper>
         ) : null;
+      }
 
       case 'services':
         return hasServices ? (
@@ -350,11 +374,24 @@ export const PublicSections = ({
         return hasTestimonials ? (
           <SectionWrapper key="testimonials" id="section-testimonials" scrollEffect={scrollEffect} pStyle={pStyle} index={nextIndex()}>
             <SectionHeader icon={<Sparkles className="w-5 h-5" />} title="Testimonials" style={pStyle} />
-            <div className="space-y-4">
-              {testimonials.map((t) => (
-                <TestimonialCard key={t.id} testimonial={t} style={pStyle} />
-              ))}
-            </div>
+            {testimonials.length >= 3 ? (
+              <div
+                className="flex gap-4 overflow-x-auto pb-3 scrollbar-none snap-x snap-mandatory -mx-1 px-1"
+                style={{ scrollSnapType: 'x mandatory' }}
+              >
+                {testimonials.map((t) => (
+                  <div key={t.id} className="snap-start shrink-0 w-[min(320px,85vw)]">
+                    <TestimonialCard testimonial={t} style={pStyle} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {testimonials.map((t) => (
+                  <TestimonialCard key={t.id} testimonial={t} style={pStyle} />
+                ))}
+              </div>
+            )}
           </SectionWrapper>
         ) : null;
 
@@ -410,27 +447,76 @@ export const PublicSections = ({
           </SectionWrapper>
         ) : null;
 
-      case 'certifications':
-        return hasCerts ? (
+      case 'certifications': {
+        const portfolioCerts = profile.portfolioCertifications?.filter(c => c.name) || [];
+        const hasPortfolioCerts = portfolioCerts.length > 0;
+        const showCertsSection = hasCerts || hasPortfolioCerts;
+        return showCertsSection ? (
           <SectionWrapper key="certifications" id="section-certifications" scrollEffect={scrollEffect} pStyle={pStyle} index={nextIndex()}>
             <SectionHeader icon={<Award className="w-5 h-5" />} title="Certifications" style={pStyle} />
-            <div className="space-y-3">
-              {resume.certifications.map((cert, i) => {
-                const cardProps = getGenericCardProps(pStyle);
-                const isTerminal = pStyle === 'developer-terminal';
-                return (
-                  <motion.div key={cert.id || i} variants={getThemeItemVariant(pStyle)} className={cardProps.className} style={cardProps.style}>
-                    {isTerminal && <div className="pf-terminal-dots"><span /><span /><span /></div>}
-                    <div className={isTerminal ? 'pf-terminal-card-body' : ''}>
-                      <h4 className="font-semibold text-sm" style={{ color: 'var(--pf-fg, inherit)' }}>{cert.name}</h4>
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{cert.issuer} · {cert.date}</p>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
+            {hasPortfolioCerts && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                {portfolioCerts.map((cert) => {
+                  const cardProps = getGenericCardProps(pStyle);
+                  const isTerminal = pStyle === 'developer-terminal';
+                  return (
+                    <motion.div key={cert.id} variants={getThemeItemVariant(pStyle)} className={cardProps.className} style={cardProps.style}>
+                      {isTerminal && <div className="pf-terminal-dots"><span /><span /><span /></div>}
+                      <div className={`flex items-start gap-3 ${isTerminal ? 'pf-terminal-card-body' : ''}`}>
+                        {cert.badgeUrl && (
+                          <img
+                            src={cert.badgeUrl}
+                            alt={`${cert.name} badge`}
+                            className="w-12 h-12 rounded-lg object-contain shrink-0"
+                            loading="lazy"
+                            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          {cert.credentialUrl ? (
+                            <a
+                              href={cert.credentialUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-semibold text-sm inline-flex items-center gap-1 hover:opacity-80 transition-opacity"
+                              style={{ color: 'var(--pf-fg, inherit)' }}
+                            >
+                              {cert.name}
+                              <ExternalLink className="w-3 h-3" style={{ color: 'var(--pf-accent)' }} />
+                            </a>
+                          ) : (
+                            <h4 className="font-semibold text-sm" style={{ color: 'var(--pf-fg, inherit)' }}>{cert.name}</h4>
+                          )}
+                          <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
+                            {cert.issuer}{cert.date ? ` · ${cert.date}` : ''}
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+            {hasCerts && (
+              <div className="space-y-3">
+                {resume.certifications.map((cert, i) => {
+                  const cardProps = getGenericCardProps(pStyle);
+                  const isTerminal = pStyle === 'developer-terminal';
+                  return (
+                    <motion.div key={cert.id || i} variants={getThemeItemVariant(pStyle)} className={cardProps.className} style={cardProps.style}>
+                      {isTerminal && <div className="pf-terminal-dots"><span /><span /><span /></div>}
+                      <div className={isTerminal ? 'pf-terminal-card-body' : ''}>
+                        <h4 className="font-semibold text-sm" style={{ color: 'var(--pf-fg, inherit)' }}>{cert.name}</h4>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{cert.issuer} · {cert.date}</p>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
           </SectionWrapper>
         ) : null;
+      }
 
       case 'awards':
         return hasAwards ? (
@@ -536,8 +622,42 @@ export const PublicSections = ({
   const primaryKeys = ['about', 'experience', 'caseStudies', 'projects', 'githubProjects', 'services', 'testimonials'];
   const secondaryKeys = ['skills', 'education', 'certifications', 'awards', 'publications', 'volunteering'];
 
+  const getVideoEmbedUrl = (url: string): string | null => {
+    const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}?rel=0&modestbranding=1`;
+    const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+    if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}?dnt=1`;
+    return null;
+  };
+
   return (
     <>
+      {videoIntroUrl && getVideoEmbedUrl(videoIntroUrl) && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="mx-4 mt-4"
+        >
+          <div
+            className="rounded-2xl overflow-hidden"
+            style={{
+              background: 'var(--pf-card, rgba(255,255,255,0.03))',
+              border: '1px solid var(--pf-border, rgba(255,255,255,0.08))',
+              aspectRatio: '16/9',
+            }}
+          >
+            <iframe
+              src={getVideoEmbedUrl(videoIntroUrl)!}
+              title="Video Introduction"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="w-full h-full border-0"
+            />
+          </div>
+        </motion.div>
+      )}
+
       {portfolioSummary && (
         <motion.div 
           initial={{ opacity: 0, y: 10 }}

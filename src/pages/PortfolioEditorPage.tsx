@@ -97,6 +97,11 @@ export default function PortfolioEditorPage() {
   const [sectionOrder, setSectionOrder] = useState<string[]>(['about', 'experience', 'caseStudies', 'projects', 'githubProjects', 'services', 'testimonials', 'skills', 'education', 'certifications', 'awards', 'publications', 'volunteering']);
   const [pinnedProject, setPinnedProject] = useState<{title: string; description: string; url: string} | null>(null);
   const [scrollEffect, setScrollEffect] = useState<ScrollEffect>('fade');
+  const [videoIntroUrl, setVideoIntroUrl] = useState('');
+  const [portfolioCertifications, setPortfolioCertifications] = useState<Array<{id: string; name: string; issuer: string; date: string; credentialUrl: string; badgeUrl: string}>>([]);
+  const [portfolioSecondaryLanguage, setPortfolioSecondaryLanguage] = useState('');
+  const [portfolioTranslations, setPortfolioTranslations] = useState<Record<string, { bio?: string; portfolioSummary?: string }>>({});
+  const [translating, setTranslating] = useState(false);
   const [activeTab, setActiveTab] = useState<'setup' | 'content' | 'design' | 'more' | 'visitors'>('setup');
 
   // ── Unsaved changes tracking ──
@@ -113,6 +118,7 @@ export default function PortfolioEditorPage() {
       portfolioFont, availabilityStatus, availabilityHeadline, syncMode,
       caseStudies, services, testimonials, highlights, portfolioSummary,
       selectedResumeId, sectionOrder, pinnedProject, scrollEffect,
+      videoIntroUrl, portfolioCertifications, portfolioSecondaryLanguage,
     });
   }, [
     username, bio, portfolioEnabled, githubUrl, websiteUrl, twitterUrl,
@@ -121,6 +127,7 @@ export default function PortfolioEditorPage() {
     portfolioFont, availabilityStatus, availabilityHeadline, syncMode,
     caseStudies, services, testimonials, highlights, portfolioSummary,
     selectedResumeId, sectionOrder, pinnedProject, scrollEffect,
+    videoIntroUrl, portfolioCertifications, portfolioSecondaryLanguage,
   ]);
 
   const tabIndexMap = { setup: 0, content: 1, design: 2, more: 3, visitors: 4 } as const;
@@ -173,6 +180,10 @@ export default function PortfolioEditorPage() {
       setSectionOrder(extras.sectionOrder as string[] || ['about', 'experience', 'caseStudies', 'projects', 'githubProjects', 'services', 'testimonials', 'skills', 'education', 'certifications', 'awards', 'publications', 'volunteering']);
       setPinnedProject(extras.pinnedProject as {title: string; description: string; url: string} | null || null);
       setScrollEffect((extras.scrollEffect as ScrollEffect) || 'fade');
+      setVideoIntroUrl(extras.videoIntroUrl as string || '');
+      setPortfolioCertifications(extras.portfolioCertifications as Array<{id: string; name: string; issuer: string; date: string; credentialUrl: string; badgeUrl: string}> || []);
+      setPortfolioSecondaryLanguage(extras.portfolioSecondaryLanguage as string || '');
+      setPortfolioTranslations(extras.portfolioTranslations as Record<string, { bio?: string; portfolioSummary?: string }> || {});
     }
   }, [profile]);
 
@@ -339,6 +350,38 @@ export default function PortfolioEditorPage() {
     }
   };
 
+  const handleTranslate = async () => {
+    if (!portfolioSecondaryLanguage) return;
+    setTranslating(true);
+    haptics.light();
+    try {
+      const { data, error } = await edgeFunctions.functions.invoke('generate-portfolio-bio', {
+        body: {
+          action: 'translate',
+          targetLanguage: portfolioSecondaryLanguage,
+          bio,
+          portfolioSummary,
+          fullName: profile?.fullName || '',
+          jobTitle: profile?.jobTitle || '',
+        },
+      });
+      if (error) throw new Error(error.message || 'Translation failed');
+      if (data?.error) throw new Error(data.error || 'Translation failed');
+      const translations = data?.translations as { bio?: string; portfolioSummary?: string } | undefined;
+      if (translations) {
+        setPortfolioTranslations(prev => ({
+          ...prev,
+          [portfolioSecondaryLanguage]: translations,
+        }));
+        toast.success(`Translated to ${portfolioSecondaryLanguage}! Save to publish.`);
+      }
+    } catch {
+      toast.error('Translation failed. Please try again.');
+    } finally {
+      setTranslating(false);
+    }
+  };
+
   const handleGenerateAvailability = async () => {
     setGeneratingAvailability(true);
     haptics.light();
@@ -404,6 +447,10 @@ export default function PortfolioEditorPage() {
           pinnedProject: pinnedProject || null,
           availabilityStatus,
           scrollEffect,
+          videoIntroUrl: videoIntroUrl || null,
+          portfolioCertifications,
+          portfolioSecondaryLanguage: portfolioSecondaryLanguage || null,
+          portfolioTranslations: Object.keys(portfolioTranslations).length > 0 ? portfolioTranslations : null,
           lastSyncedFromResumeAt: syncMode === 'auto' ? new Date().toISOString() : (
             profile?.portfolioExtras?.lastSyncedFromResumeAt ?? null
           ),
@@ -668,7 +715,9 @@ export default function PortfolioEditorPage() {
               availabilityHeadline={availabilityHeadline}
               onAvailabilityHeadlineChange={setAvailabilityHeadline}
               onGenerateAvailability={handleGenerateAvailability}
-              generatingAvailability={generatingAvailability} />
+              generatingAvailability={generatingAvailability}
+              videoIntroUrl={videoIntroUrl}
+              onVideoIntroUrlChange={setVideoIntroUrl} />
 
             }
 
@@ -694,7 +743,9 @@ export default function PortfolioEditorPage() {
               sectionOrder={sectionOrder}
               onSectionOrderChange={setSectionOrder}
               pinnedProject={pinnedProject}
-              onPinnedProjectChange={setPinnedProject} />
+              onPinnedProjectChange={setPinnedProject}
+              portfolioCertifications={portfolioCertifications}
+              onPortfolioCertificationsChange={setPortfolioCertifications} />
 
             }
 
@@ -749,7 +800,11 @@ export default function PortfolioEditorPage() {
               websiteUrl={websiteUrl}
               onWebsiteUrlChange={setWebsiteUrl}
               openSections={openSections}
-              toggleSection={toggleSection} />
+              toggleSection={toggleSection}
+              portfolioSecondaryLanguage={portfolioSecondaryLanguage}
+              onPortfolioSecondaryLanguageChange={setPortfolioSecondaryLanguage}
+              onTranslate={handleTranslate}
+              translating={translating} />
 
             }
           </motion.div>

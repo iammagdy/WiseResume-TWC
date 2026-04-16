@@ -1,5 +1,5 @@
 import {
-  Sparkles, Loader2, CheckCircle2, XCircle, Eye, Zap,
+  Sparkles, Loader2, CheckCircle2, XCircle, Eye, Zap, Video,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -37,6 +37,8 @@ export interface SetupTabProps {
   onAvailabilityHeadlineChange: (val: string) => void;
   onGenerateAvailability: () => void;
   generatingAvailability: boolean;
+  videoIntroUrl: string;
+  onVideoIntroUrlChange: (val: string) => void;
 }
 
 const AVAILABILITY_OPTIONS: { value: AvailabilityStatus; label: string; color: string; badge: string }[] = [
@@ -55,6 +57,7 @@ export function SetupTab(props: SetupTabProps) {
     availabilityStatus, onAvailabilityStatusChange,
     availabilityHeadline, onAvailabilityHeadlineChange,
     onGenerateAvailability, generatingAvailability,
+    videoIntroUrl, onVideoIntroUrlChange,
   } = props;
 
   const visibleCount = Object.values(sections).filter(Boolean).length;
@@ -153,6 +156,31 @@ export function SetupTab(props: SetupTabProps) {
         />
         <p className="text-[11px] text-muted-foreground text-right">{bio.length}/500</p>
       </div>
+
+      {/* Video Intro */}
+      <CollapsibleCard
+        id="videointro"
+        icon={<Video className="w-4 h-4" />}
+        title="Video Introduction"
+        hint={videoIntroUrl ? <span className="text-[11px]">configured</span> : undefined}
+        openSections={openSections}
+        toggleSection={toggleSection}
+      >
+        <p className="text-[11px] text-muted-foreground mb-3">Add a YouTube or Vimeo video — shown on your portfolio as a personal intro.</p>
+        <Input
+          type="url"
+          placeholder="https://youtube.com/watch?v=..."
+          value={videoIntroUrl}
+          onChange={e => onVideoIntroUrlChange(e.target.value)}
+          inputMode="url"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+        />
+        {videoIntroUrl && !videoIntroUrl.match(/youtube\.com|youtu\.be|vimeo\.com/i) && (
+          <p className="text-[11px] text-amber-500 mt-1">Only YouTube and Vimeo links are supported.</p>
+        )}
+      </CollapsibleCard>
 
       {/* Content Visibility */}
       <CollapsibleCard

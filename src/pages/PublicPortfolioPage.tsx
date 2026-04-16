@@ -2,7 +2,7 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { usePublicPortfolio } from '@/hooks/usePublicPortfolio';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Download, ArrowLeft, SearchX } from 'lucide-react';
+import { Download, ArrowLeft, SearchX, Languages } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useEffect, useState, useMemo, Suspense } from 'react';
@@ -130,6 +130,7 @@ function PublicPortfolioContent() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [nearFooter, setNearFooter] = useState(false);
+  const [activeLanguage, setActiveLanguage] = useState<string>('');
 
   // Extracted hooks
   usePortfolioSEO(portfolio?.profile);
@@ -263,6 +264,9 @@ function PublicPortfolioContent() {
   const portfolioSummary = profile.portfolioSummary;
   const sectionOrder = profile.sectionOrder || undefined;
   const scrollEffect = (profile.scrollEffect as 'fade' | 'parallax' | 'tilt-3d' | 'cinematic') || 'fade';
+  const videoIntroUrl = profile.videoIntroUrl || null;
+  const secondaryLang = profile.portfolioSecondaryLanguage || '';
+  const hasTranslation = secondaryLang && profile.portfolioTranslations && !!profile.portfolioTranslations[secondaryLang];
 
   // Navigation Highlights
   const highlights = profile.highlights || [];
@@ -337,6 +341,28 @@ function PublicPortfolioContent() {
           allSkills={allSkills}
         />
 
+        {hasTranslation && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex justify-center pt-4 pb-1"
+            data-pdf-exclude
+          >
+            <button
+              onClick={() => setActiveLanguage(lang => lang ? '' : secondaryLang)}
+              className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium border transition-all active:scale-95"
+              style={{
+                borderColor: activeLanguage ? accentColor : 'var(--pf-border, rgba(255,255,255,0.15))',
+                background: activeLanguage ? `color-mix(in srgb, ${accentColor} 12%, transparent)` : 'transparent',
+                color: activeLanguage ? accentColor : 'var(--pf-muted, #9ca3af)',
+              }}
+            >
+              <Languages className="w-3.5 h-3.5" />
+              {activeLanguage ? `Viewing in ${secondaryLang} · Switch back` : `View in ${secondaryLang}`}
+            </button>
+          </motion.div>
+        )}
+
         <Suspense fallback={<SectionsSkeleton />}>
           <PublicSections 
             profile={profile}
@@ -347,9 +373,13 @@ function PublicPortfolioContent() {
             navSections={navSections}
             highlights={highlights}
             allSkills={allSkills}
-            portfolioSummary={portfolioSummary}
+            portfolioSummary={activeLanguage && profile.portfolioTranslations?.[activeLanguage]?.portfolioSummary
+              ? profile.portfolioTranslations[activeLanguage].portfolioSummary
+              : portfolioSummary}
             sectionOrder={sectionOrder}
             scrollEffect={scrollEffect}
+            videoIntroUrl={videoIntroUrl}
+            activeLanguage={activeLanguage || undefined}
           />
         </Suspense>
 

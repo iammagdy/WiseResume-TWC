@@ -1,7 +1,7 @@
 import {
   Briefcase, Star, Plus, X, FileText,
   MessageSquareQuote, TrendingUp, RefreshCw, Lock, AlertTriangle,
-  ChevronUp, ChevronDown, Pin, Link,
+  ChevronUp, ChevronDown, Pin, Link, Award,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -57,6 +57,9 @@ export interface ContentTabProps {
   // Featured/pinned project
   pinnedProject: { title: string; description: string; url: string } | null;
   onPinnedProjectChange: (val: { title: string; description: string; url: string } | null) => void;
+  // Portfolio certifications
+  portfolioCertifications: Array<{ id: string; name: string; issuer: string; date: string; credentialUrl: string; badgeUrl: string }>;
+  onPortfolioCertificationsChange: (val: Array<{ id: string; name: string; issuer: string; date: string; credentialUrl: string; badgeUrl: string }>) => void;
 }
 
 export function ContentTab(props: ContentTabProps) {
@@ -72,6 +75,7 @@ export function ContentTab(props: ContentTabProps) {
     highlights, onHighlightsChange,
     sectionOrder, onSectionOrderChange,
     pinnedProject, onPinnedProjectChange,
+    portfolioCertifications, onPortfolioCertificationsChange,
   } = props;
 
   const isStale = syncMode === 'locked'
@@ -355,7 +359,7 @@ export function ContentTab(props: ContentTabProps) {
             openSections={openSections}
             toggleSection={toggleSection}
           >
-            <p className="text-[11px] text-muted-foreground mb-3">Add quotes from colleagues or clients (max 3).</p>
+            <p className="text-[11px] text-muted-foreground mb-3">Add quotes from colleagues or clients. Displayed as a scrollable carousel on your portfolio.</p>
             <div className="space-y-3">
               {testimonials.map((t, i) => (
                 <div key={t.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
@@ -368,11 +372,39 @@ export function ContentTab(props: ContentTabProps) {
                   <Input placeholder="Author title" value={t.authorTitle} onChange={e => onTestimonialsChange(testimonials.map(x => x.id === t.id ? { ...x, authorTitle: e.target.value } : x))} />
                 </div>
               ))}
-              {testimonials.length < 3 && (
-                <Button variant="outline" size="sm" onClick={() => onTestimonialsChange([...testimonials, { id: crypto.randomUUID(), quote: '', authorName: '', authorTitle: '' }])} className="w-full h-10 rounded-xl active:scale-95 touch-manipulation">
-                  <Plus className="w-4 h-4 mr-2" /> Add Testimonial
-                </Button>
-              )}
+              <Button variant="outline" size="sm" onClick={() => onTestimonialsChange([...testimonials, { id: crypto.randomUUID(), quote: '', authorName: '', authorTitle: '' }])} className="w-full h-10 rounded-xl active:scale-95 touch-manipulation">
+                <Plus className="w-4 h-4 mr-2" /> Add Testimonial
+              </Button>
+            </div>
+          </CollapsibleCard>
+
+          {/* Portfolio Certifications & Badges */}
+          <CollapsibleCard
+            id="portfolioCerts"
+            icon={<Award className="w-4 h-4" />}
+            title="Certifications & Badges"
+            hint={portfolioCertifications.length > 0 ? <span className="text-[11px]">{portfolioCertifications.length} added</span> : undefined}
+            openSections={openSections}
+            toggleSection={toggleSection}
+          >
+            <p className="text-[11px] text-muted-foreground mb-3">Highlight certifications, badges, or awards with links. Shown as a card grid on your portfolio.</p>
+            <div className="space-y-3">
+              {portfolioCertifications.map((cert, i) => (
+                <div key={cert.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Badge {i + 1}</span>
+                    <button onClick={() => onPortfolioCertificationsChange(portfolioCertifications.filter(x => x.id !== cert.id))} className="text-muted-foreground hover:text-destructive transition-colors"><X className="w-4 h-4" /></button>
+                  </div>
+                  <Input placeholder="Name (e.g. AWS Solutions Architect)" value={cert.name} onChange={e => onPortfolioCertificationsChange(portfolioCertifications.map(x => x.id === cert.id ? { ...x, name: e.target.value } : x))} maxLength={80} />
+                  <Input placeholder="Issuer (e.g. Amazon)" value={cert.issuer} onChange={e => onPortfolioCertificationsChange(portfolioCertifications.map(x => x.id === cert.id ? { ...x, issuer: e.target.value } : x))} maxLength={60} />
+                  <Input placeholder="Date (e.g. Jan 2024)" value={cert.date} onChange={e => onPortfolioCertificationsChange(portfolioCertifications.map(x => x.id === cert.id ? { ...x, date: e.target.value } : x))} maxLength={30} />
+                  <Input placeholder="Credential URL (optional)" value={cert.credentialUrl} onChange={e => onPortfolioCertificationsChange(portfolioCertifications.map(x => x.id === cert.id ? { ...x, credentialUrl: e.target.value } : x))} type="url" inputMode="url" autoCapitalize="none" />
+                  <Input placeholder="Badge image URL (optional)" value={cert.badgeUrl} onChange={e => onPortfolioCertificationsChange(portfolioCertifications.map(x => x.id === cert.id ? { ...x, badgeUrl: e.target.value } : x))} type="url" inputMode="url" autoCapitalize="none" />
+                </div>
+              ))}
+              <Button variant="outline" size="sm" onClick={() => onPortfolioCertificationsChange([...portfolioCertifications, { id: crypto.randomUUID(), name: '', issuer: '', date: '', credentialUrl: '', badgeUrl: '' }])} className="w-full h-10 rounded-xl active:scale-95 touch-manipulation">
+                <Plus className="w-4 h-4 mr-2" /> Add Certification
+              </Button>
             </div>
           </CollapsibleCard>
 
