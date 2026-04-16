@@ -227,6 +227,18 @@ export const PublicSections = ({
       }) ?? profile.services
     : profile.services;
   const activeHighlights = activeTrans?.highlights ?? highlights;
+  const activeCaseStudies = activeTrans?.caseStudies
+    ? profile.caseStudies?.map(cs => {
+        const tcs = activeTrans.caseStudies!.find((t: { id: string; title: string; challenge: string; outcome: string }) => t.id === cs.id);
+        return tcs ? { ...cs, title: tcs.title || cs.title, challenge: tcs.challenge || cs.challenge, outcome: tcs.outcome || cs.outcome } : cs;
+      }) ?? profile.caseStudies
+    : profile.caseStudies;
+  const activePortfolioCerts = activeTrans?.portfolioCertifications
+    ? profile.portfolioCertifications?.map(c => {
+        const tc = activeTrans.portfolioCertifications!.find((t: { id: string; name: string; issuer: string }) => t.id === c.id);
+        return tc ? { ...c, name: tc.name || c.name, issuer: tc.issuer || c.issuer } : c;
+      }) ?? profile.portfolioCertifications
+    : profile.portfolioCertifications;
 
   const sections = profile.portfolioSections;
   const show = (key: string) => !sections || (sections as unknown as Record<string, boolean>)[key] !== false;
@@ -328,7 +340,7 @@ export const PublicSections = ({
           <SectionWrapper key="caseStudies" id="section-case-studies" scrollEffect={scrollEffect} pStyle={pStyle} index={nextIndex()}>
             <SectionHeader icon={<Layers className="w-5 h-5" />} title="Case Studies" style={pStyle} />
             <div className="space-y-5">
-              {profile.caseStudies.map((cs) => (
+              {(activeCaseStudies || profile.caseStudies).map((cs) => (
                 <CaseStudyCard key={cs.id} cs={cs} style={pStyle} />
               ))}
             </div>
@@ -464,7 +476,7 @@ export const PublicSections = ({
         ) : null;
 
       case 'certifications': {
-        const portfolioCerts = profile.portfolioCertifications?.filter(c => c.name) || [];
+        const portfolioCerts = (activePortfolioCerts || profile.portfolioCertifications)?.filter(c => c.name) || [];
         const hasPortfolioCerts = portfolioCerts.length > 0;
         const showCertsSection = hasCerts || hasPortfolioCerts;
         return showCertsSection ? (

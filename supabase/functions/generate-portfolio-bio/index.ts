@@ -132,6 +132,8 @@ Example:
         services: rawServices,
         testimonials: rawTestimonials,
         pinnedProjectDescription: rawPinnedDesc,
+        caseStudies: rawCaseStudies,
+        portfolioCertifications: rawPortfolioCerts,
       } = body;
 
       if (!targetLanguage) {
@@ -165,6 +167,8 @@ Example:
       type HighlightItem = { id: string; value: string; label: string };
       type ServiceItem = { id: string; title: string; description?: string };
       type TestimonialItem = { id: string; quote: string };
+      type CaseStudyItem = { id: string; title: string; challenge: string; outcome: string };
+      type CertItem = { id: string; name: string; issuer: string };
 
       const inputObj: Record<string, unknown> = {};
       if (safeBio) inputObj.bio = safeBio;
@@ -188,6 +192,21 @@ Example:
         inputObj.testimonials = rawTestimonials.slice(0, 10).map((t: TestimonialItem) => ({
           id: t.id,
           quote: sanitizeInputText(t.quote || '', 500),
+        }));
+      }
+      if (Array.isArray(rawCaseStudies) && rawCaseStudies.length > 0) {
+        inputObj.caseStudies = rawCaseStudies.slice(0, 8).map((cs: CaseStudyItem) => ({
+          id: cs.id,
+          title: sanitizeInputText(cs.title || '', 200),
+          challenge: sanitizeInputText(cs.challenge || '', 500),
+          outcome: sanitizeInputText(cs.outcome || '', 500),
+        }));
+      }
+      if (Array.isArray(rawPortfolioCerts) && rawPortfolioCerts.length > 0) {
+        inputObj.portfolioCertifications = rawPortfolioCerts.slice(0, 20).map((c: CertItem) => ({
+          id: c.id,
+          name: sanitizeInputText(c.name || '', 200),
+          issuer: sanitizeInputText(c.issuer || '', 200),
         }));
       }
 

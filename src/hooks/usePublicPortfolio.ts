@@ -66,6 +66,8 @@ export interface PublicProfile {
     highlights?: Array<{ id: string; value: string; label: string }>;
     services?: Array<{ id: string; title: string; description?: string }>;
     testimonials?: Array<{ id: string; quote: string }>;
+    caseStudies?: Array<{ id: string; title: string; challenge: string; outcome: string }>;
+    portfolioCertifications?: Array<{ id: string; name: string; issuer: string }>;
   }> | null;
 }
 

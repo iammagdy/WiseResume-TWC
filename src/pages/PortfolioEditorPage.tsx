@@ -108,6 +108,8 @@ export default function PortfolioEditorPage() {
     highlights?: Array<{ id: string; value: string; label: string }>;
     services?: Array<{ id: string; title: string; description?: string }>;
     testimonials?: Array<{ id: string; quote: string }>;
+    caseStudies?: Array<{ id: string; title: string; challenge: string; outcome: string }>;
+    portfolioCertifications?: Array<{ id: string; name: string; issuer: string }>;
   }>>({});
   const [translating, setTranslating] = useState(false);
   const [activeTab, setActiveTab] = useState<'setup' | 'content' | 'design' | 'more' | 'visitors'>('setup');
@@ -373,6 +375,8 @@ export default function PortfolioEditorPage() {
           services: services.length > 0 ? services.map((s: { id: string; title: string; description?: string }) => ({ id: s.id, title: s.title, description: s.description })) : undefined,
           testimonials: testimonials.length > 0 ? testimonials.map((t: { id: string; quote: string }) => ({ id: t.id, quote: t.quote })) : undefined,
           pinnedProjectDescription: pinnedProject?.description || undefined,
+          caseStudies: caseStudies.length > 0 ? caseStudies.map((cs: { id: string; title: string; challenge: string; outcome: string }) => ({ id: cs.id, title: cs.title, challenge: cs.challenge, outcome: cs.outcome })) : undefined,
+          portfolioCertifications: portfolioCertifications.length > 0 ? portfolioCertifications.map((c: { id: string; name: string; issuer: string }) => ({ id: c.id, name: c.name, issuer: c.issuer })) : undefined,
         },
       });
       if (error) throw new Error(error.message || 'Translation failed');

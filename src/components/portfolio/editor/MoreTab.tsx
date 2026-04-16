@@ -269,7 +269,7 @@ export function MoreTab(props: MoreTabProps) {
               {translating ? 'Translating...' : `Re-translate to ${portfolioSecondaryLanguage}`}
             </Button>
           )}
-          <p className="text-[11px] text-muted-foreground">Translations cover bio, summary, highlights, services, testimonials, and your featured project description. Re-translate anytime after editing content.</p>
+          <p className="text-[11px] text-muted-foreground">Translations cover bio, summary, highlights, services, testimonials, case studies, certifications, and your featured project description. Re-translate anytime after editing content.</p>
         </div>
       </CollapsibleCard>
 
