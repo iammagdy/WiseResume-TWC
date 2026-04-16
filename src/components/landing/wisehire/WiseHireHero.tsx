@@ -8,10 +8,17 @@ function useCountUp(target: number, prefersReduced: boolean | null, duration = 1
   const countRef = useRef<HTMLSpanElement>(null);
   const inView = useInView(containerRef, { once: true, amount: 0.5 });
 
+  // For reduced-motion: set the final value immediately on mount (no inView gate needed)
+  useEffect(() => {
+    if (prefersReduced && countRef.current) {
+      countRef.current.textContent = String(target);
+    }
+  }, [prefersReduced, target]);
+
+  // For normal motion: animate via RAF when element comes into view
   useEffect(() => {
     const el = countRef.current;
-    if (!inView || !el) return;
-    if (prefersReduced) { el.textContent = String(target); return; }
+    if (!inView || !el || prefersReduced) return;
     el.textContent = '0';
     const start = performance.now();
     let rafId: number;
@@ -26,7 +33,8 @@ function useCountUp(target: number, prefersReduced: boolean | null, duration = 1
     return () => cancelAnimationFrame(rafId);
   }, [inView, target, duration, prefersReduced]);
 
-  return { containerRef, countRef };
+  const initialText = prefersReduced ? String(target) : '0';
+  return { containerRef, countRef, initialText };
 }
 
 const WH_TYPEWRITER_WORDS = [
@@ -239,7 +247,7 @@ export function WiseHireHero({ onOpenWaitlist, mobileToggle }: WiseHireHeroProps
       >
         <span ref={waitlistCount.containerRef} className="flex items-center gap-1.5" style={{ color: 'var(--lp-trust-color)', transition: 'color 0.3s ease' }}>
           <Users className="w-3.5 h-3.5" style={{ color: 'var(--lp-trust-icon)', transition: 'color 0.3s ease' }} />
-          <span ref={waitlistCount.countRef}>0</span>+ on the waitlist
+          <span ref={waitlistCount.countRef}>{waitlistCount.initialText}</span>+ on the waitlist
         </span>
         {['Invite-only access', '7-day free trial', 'No credit card'].map((item) => (
           <span key={item} className="flex items-center gap-1.5" style={{ color: 'var(--lp-trust-color)', transition: 'color 0.3s ease' }}>
