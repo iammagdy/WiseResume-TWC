@@ -356,14 +356,18 @@ Deno.serve(async (req: Request) => {
   try {
     const { userId, client } = await requireAuth(req);
 
-    const serverRateCheck = await checkUserRateLimit(userId, 'chat', 30, 60);
+    const serverRateCheck = await checkUserRateLimit(userId, 'chat', 60, 60);
     if (!serverRateCheck.allowed) {
       const status = serverRateCheck.dbError ? 503 : 429;
       const msg = serverRateCheck.dbError
         ? 'Service temporarily unavailable. Please try again in a moment.'
-        : `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.`;
+        : `Server rate limit hit. Wait ${serverRateCheck.retryAfterSeconds}s, or switch to your own AI key in AI Settings for higher limits.`;
       return new Response(
-        JSON.stringify({ error: serverRateCheck.dbError ? 'service_unavailable' : 'rate_limit', message: msg }),
+        JSON.stringify({
+          error: serverRateCheck.dbError ? 'service_unavailable' : 'rate_limit',
+          message: msg,
+          retryAfterSeconds: serverRateCheck.retryAfterSeconds,
+        }),
         { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

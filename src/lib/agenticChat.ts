@@ -52,9 +52,10 @@ export function classifyAndThrow(error: unknown, data: unknown): never {
     (error as { status?: number } | null)?.status;
 
   if (errCode === 'rate_limit' || status === 429 || combined.includes('rate limit')) {
-    const m = message.match(/(\d+)\s*s/);
-    throw new ChatError('rate_limit_server', message || 'Server is busy. Please wait a moment.', {
-      retryAfterSeconds: m ? Number(m[1]) : undefined,
+    const fromBody = typeof dataObj.retryAfterSeconds === 'number' ? dataObj.retryAfterSeconds : undefined;
+    const m = !fromBody ? message.match(/(\d+)\s*s/) : null;
+    throw new ChatError('rate_limit_server', message || 'Server is busy. Wait a moment, or switch to your own AI key in AI Settings for higher limits.', {
+      retryAfterSeconds: fromBody ?? (m ? Number(m[1]) : undefined),
       status: 429,
     });
   }
@@ -142,7 +143,7 @@ export async function sendChatMessage(
   if (!rateCheck.allowed) {
     throw new ChatError(
       'rate_limit_client',
-      `You're sending messages a bit too quickly. Try again in ${rateCheck.waitSeconds || 30}s.`,
+      `You're sending messages a bit too quickly. Wait ${rateCheck.waitSeconds || 30}s, or add your own AI key in AI Settings for higher limits.`,
       { retryAfterSeconds: rateCheck.waitSeconds || 30 }
     );
   }

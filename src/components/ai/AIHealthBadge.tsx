@@ -80,9 +80,12 @@ function providerLabel(provider: string): string {
 export function AIHealthBadge() {
   const { status: storeStatus, provider } = useAIHealth();
   const { recordSuccess, recordFailure, recordProvider } = useAIHealthStore();
+  const storeResults = useAIHealthStore((s) => s.results);
+  const lastStoreEventAt = storeResults.length > 0 ? storeResults[storeResults.length - 1].timestamp : 0;
   const [showSettings, setShowSettings] = useState(false);
   const [pingState, setPingState] = useState<PingState>('idle');
   const [pingResult, setPingResult] = useState<PingResult | null>(null);
+  const [pingResultAt, setPingResultAt] = useState<number>(0);
 
   const runPing = useCallback(async () => {
     setPingState('pinging');
@@ -100,6 +103,7 @@ export function AIHealthBadge() {
         const code = res.status;
         recordFailure(code);
         setPingResult({ latencyMs: null, status: 'down', errorCode: code });
+        setPingResultAt(Date.now());
         setPingState('done');
         return;
       }
@@ -118,10 +122,12 @@ export function AIHealthBadge() {
       }
 
       setPingResult({ latencyMs: latency > 0 ? latency : null, status: pingStatus, errorCode: pingErrorCode });
+      setPingResultAt(Date.now());
       setPingState('done');
     } catch {
       recordFailure(0);
       setPingResult({ latencyMs: null, status: 'down', errorCode: 0 });
+      setPingResultAt(Date.now());
       setPingState('done');
     }
   }, [recordSuccess, recordFailure, recordProvider]);
@@ -156,9 +162,13 @@ export function AIHealthBadge() {
     };
   }, []);
 
-  // Displayed status comes from ping result once available, otherwise from store
+  // Status precedence: whichever signal (real chat outcome via store, or
+  // explicit ping) is more recent wins. Ensures recent chat failures
+  // immediately flip the badge instead of being masked by a stale "healthy"
+  // ping snapshot.
+  const useStoreStatus = lastStoreEventAt > 0 && lastStoreEventAt > pingResultAt;
   const displayStatus: AIHealthStatus =
-    pingResult ? pingResult.status : storeStatus;
+    useStoreStatus ? storeStatus : (pingResult ? pingResult.status : storeStatus);
   const config = STATUS_CONFIG[displayStatus];
   const Icon = config.icon;
 
