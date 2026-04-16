@@ -3,7 +3,8 @@ import { differenceInDays, startOfWeek } from 'date-fns';
 import { motion, useReducedMotion } from 'framer-motion';
 import { AlertCircle, TrendingUp, Target, Zap, Lightbulb } from 'lucide-react';
 import { JobActivityStats } from '@/hooks/useJobActivityStats';
-import { useActivityStreak } from '@/hooks/useActivityStreak';
+import { useActivityStreak, weeklyGoalKey } from '@/hooks/useActivityStreak';
+import { useAuth } from '@/hooks/useAuth';
 import { JobApplication } from '@/hooks/useJobApplications';
 
 interface Nudge {
@@ -26,11 +27,13 @@ interface Props {
 
 export function ActivityInsightsCard({ applications, stats }: Props) {
   const shouldReduceMotion = useReducedMotion();
+  const { user } = useAuth();
   const { data: streakData } = useActivityStreak();
   const streak = streakData?.streak ?? 0;
+  const goalKey = user?.id ? weeklyGoalKey(user.id) : 'activity-weekly-goal';
 
   const [weeklyGoal, setWeeklyGoal] = useState<number>(() =>
-    parseInt(localStorage.getItem('activity-weekly-goal') || '5', 10)
+    parseInt(localStorage.getItem(goalKey) || '5', 10)
   );
   useEffect(() => {
     const handler = (e: Event) => {

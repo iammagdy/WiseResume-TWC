@@ -10,17 +10,25 @@ export interface ActivityStreakData {
   personalBest: number;
 }
 
-function getPersonalBest(): number {
-  return parseInt(localStorage.getItem('activity-streak-best') || '0', 10);
+function streakBestKey(userId: string) {
+  return `activity-streak-best-${userId}`;
 }
 
-function updatePersonalBest(streak: number): number {
-  const current = getPersonalBest();
+function getPersonalBest(userId: string): number {
+  return parseInt(localStorage.getItem(streakBestKey(userId)) || '0', 10);
+}
+
+function updatePersonalBest(userId: string, streak: number): number {
+  const current = getPersonalBest(userId);
   if (streak > current) {
-    localStorage.setItem('activity-streak-best', String(streak));
+    localStorage.setItem(streakBestKey(userId), String(streak));
     return streak;
   }
   return current;
+}
+
+export function weeklyGoalKey(userId: string) {
+  return `activity-weekly-goal-${userId}`;
 }
 
 export function useActivityStreak() {
@@ -79,7 +87,7 @@ export function useActivityStreak() {
         a => a.applied_at && new Date(a.applied_at) >= thisWeekStart,
       ).length;
 
-      const personalBest = updatePersonalBest(streak);
+      const personalBest = updatePersonalBest(user!.id, streak);
 
       return { streak, last7, thisWeekApplications, personalBest };
     },

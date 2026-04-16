@@ -1,23 +1,26 @@
 import { memo, useState, useCallback } from 'react';
-import { useActivityStreak } from '@/hooks/useActivityStreak';
+import { useActivityStreak, weeklyGoalKey } from '@/hooks/useActivityStreak';
+import { useAuth } from '@/hooks/useAuth';
 import { Flame, Trophy, Minus, Plus } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 
 export const ActivityStreak = memo(function ActivityStreak() {
+  const { user } = useAuth();
+  const goalKey = user?.id ? weeklyGoalKey(user.id) : 'activity-weekly-goal';
   const shouldReduceMotion = useReducedMotion();
 
   const [weeklyGoal, setWeeklyGoalState] = useState<number>(() =>
-    parseInt(localStorage.getItem('activity-weekly-goal') || '5', 10)
+    parseInt(localStorage.getItem(goalKey) || '5', 10)
   );
 
   const handleGoalChange = useCallback((delta: number) => {
     setWeeklyGoalState(prev => {
       const next = Math.max(1, Math.min(20, prev + delta));
-      localStorage.setItem('activity-weekly-goal', String(next));
+      localStorage.setItem(goalKey, String(next));
       window.dispatchEvent(new CustomEvent('activity-weekly-goal-change', { detail: { goal: next } }));
       return next;
     });
-  }, []);
+  }, [goalKey]);
 
   const { data } = useActivityStreak();
 
