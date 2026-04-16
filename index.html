@@ -93,10 +93,14 @@
 
       try {
         var path = window.location.pathname;
+        var host = window.location.hostname;
+        var APP_HOSTS = ['.replit.dev', '.replit.app', '.thewise.cloud', '.kirk.replit.dev', '.picard.replit.dev'];
+        var isAppHost = host === 'localhost' || host === '127.0.0.1' ||
+          APP_HOSTS.some(function (s) { return host.indexOf(s, host.length - s.length) !== -1; });
         var isPublic = path.indexOf('/p/') === 0 || path.indexOf('/share/') === 0 ||
           path.indexOf('/l/') === 0 || path.indexOf('/auth/callback') === 0;
         var isAdmin = path.indexOf('/devkit') === 0;
-        if (!isPublic && !isAdmin) {
+        if (isAppHost && !isPublic && !isAdmin) {
           var isWH = path === '/enterprises' ||
             new URLSearchParams(window.location.search).get('for') === 'companies';
           document.documentElement.setAttribute('data-brand', isWH ? 'wisehire' : 'wiseresume');
