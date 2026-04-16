@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
 import { getDevKitToken } from '@/contexts/DevKitSessionContext';
+import { toast } from 'sonner';
 
 interface AuditLog {
   id: string;
@@ -56,6 +57,7 @@ function formatDate(iso: string) {
 function summarizeMetadata(action: string, meta: Record<string, unknown>): string {
   if (action === 'plan_change' && meta.new_plan) return `→ ${meta.new_plan}`;
   if (action === 'trial_grant') return `${meta.trial_plan} for ${meta.days}d`;
+  if (action === 'trial_revoke') return 'Trial revoked';
   if (action === 'credits_override') {
     const parts: string[] = [];
     if (meta.daily_limit !== null && meta.daily_limit !== undefined) parts.push(`limit→${meta.daily_limit}`);
@@ -65,6 +67,18 @@ function summarizeMetadata(action: string, meta: Record<string, unknown>): strin
   if (action === 'redeem' && meta.code) return `code: ${meta.code}`;
   if (action === 'note_added' && meta.note_preview) return String(meta.note_preview).slice(0, 60);
   if (action === 'account_deleted' && meta.deleted_email) return `email: ${meta.deleted_email}`;
+  if (action === 'profile_update') {
+    const changed = meta.changed_fields as Record<string, { old: unknown; new: unknown }> | undefined;
+    if (!changed) return 'Profile updated';
+    const parts: string[] = [];
+    if (changed.full_name) parts.push(`name: "${changed.full_name.old}" → "${changed.full_name.new}"`);
+    if (changed.username) parts.push(`username: "${changed.username.old}" → "${changed.username.new}"`);
+    return parts.join(', ') || 'Profile updated';
+  }
+  if (action === 'identity_merged') {
+    const orphanId = meta.orphan_user_id as string | undefined;
+    return `Identity merged${orphanId ? ` (orphan: ${String(orphanId).slice(0, 8)}…)` : ''}`;
+  }
   if (meta.reason) return String(meta.reason);
   return '';
 }
@@ -165,6 +179,12 @@ export function AuditLogPanel() {
       if (!allLogs.length) {
         setExportingCSV(false);
         return;
+      }
+      if (allLogs.length >= 10_000) {
+        toast.warning('Export may be truncated', {
+          description: 'The export returned 10,000 rows — there may be more. Add a date range filter to export a smaller window.',
+          duration: 8000,
+        });
       }
 
       const headers = ['ID', 'User ID', 'User Email', 'Category', 'Action', 'Details', 'When'];

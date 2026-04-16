@@ -551,12 +551,10 @@ export function LiveActivityPanel() {
             >
               <StatusDot status={fn.status} />
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-foreground font-mono flex items-center gap-1.5">
-                  {fn.label}
-                  {isAi && fn.status === 'unknown' && (
-                    <span className="text-[9px] font-normal uppercase tracking-wide text-muted-foreground border border-border rounded px-1 py-0.5">manual</span>
-                  )}
-                </p>
+                <p className="text-xs font-medium text-foreground font-mono">{fn.label}</p>
+                {isAi && fn.status === 'unknown' && (
+                  <p className="text-[10px] text-muted-foreground">Tap "Run health check" to test</p>
+                )}
                 {fn.status === 'error' && fn.errorMsg && (
                   <p className="text-[10px] text-destructive truncate">{fn.errorMsg}</p>
                 )}

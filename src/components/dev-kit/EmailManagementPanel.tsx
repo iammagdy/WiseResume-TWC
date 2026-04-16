@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   Mail,
   RefreshCw,
@@ -297,6 +297,7 @@ function ComposeEmailForm({
   const [customSubject, setCustomSubject] = useState(defaultSubject);
   const [customBody, setCustomBody] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (prefillUser) {
@@ -307,35 +308,39 @@ function ComposeEmailForm({
     }
   }, [prefillUser]);
 
-  const handleSearch = useCallback(async (q: string) => {
+  const handleSearch = useCallback((q: string) => {
     setEmailSearch(q);
     setSelectedUser(null);
     if (!q.trim() || q.trim().length < 2) {
       setSearchResults([]);
       setShowDropdown(false);
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
       return;
     }
-    setSearching(true);
-    try {
-      const password = getDevKitToken();
-      const { data, error: err } = await edgeFunctions.functions.invoke('admin-list-users', {
-        body: {
-          password,
-          page: 1,
-          per_page: 10,
-          search: q.trim(),
-          sort: 'newest',
-        },
-      });
-      if (err) throw new Error(err.message);
-      const result = data as { users?: AdminUser[] };
-      setSearchResults(result?.users ?? []);
-      setShowDropdown(true);
-    } catch {
-      setSearchResults([]);
-    } finally {
-      setSearching(false);
-    }
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const password = getDevKitToken();
+        const { data, error: err } = await edgeFunctions.functions.invoke('admin-list-users', {
+          body: {
+            password,
+            page: 1,
+            per_page: 10,
+            search: q.trim(),
+            sort: 'newest',
+          },
+        });
+        if (err) throw new Error(err.message);
+        const result = data as { users?: AdminUser[] };
+        setSearchResults(result?.users ?? []);
+        setShowDropdown(true);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 350);
   }, []);
 
   const handleSelectUser = (user: AdminUser) => {

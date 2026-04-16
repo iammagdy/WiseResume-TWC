@@ -15,7 +15,6 @@ type EmailAction =
   | 'send_otp'
   | 'send_password_reset'
   | 'send_custom'
-  | 'wisehire_invite'
 
 async function sendResendEmail(options: {
   to: string
@@ -410,93 +409,6 @@ Deno.serve(async (req) => {
           apiKey: RESEND_API_KEY,
         })
         resultMessageId = sent.id
-        break
-      }
-
-      case 'wisehire_invite': {
-        // Delegates to admin-wisehire-invite for token generation + email delivery.
-        // Records the invite in the audit log under admin_email category.
-        if (!RESEND_API_KEY) {
-          return new Response(
-            JSON.stringify({ success: false, error: 'RESEND_API_KEY not configured' }),
-            { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-          )
-        }
-
-        const WISEHIRE_INVITE_SECRET = Deno.env.get('WISEHIRE_INVITE_SECRET') ?? Deno.env.get('DEV_KIT_PASSWORD') ?? ''
-        const APP_URL = Deno.env.get('WISEHIRE_APP_URL') ?? 'https://resume.thewise.cloud'
-
-        const generateUUID = (): string => {
-          const bytes = new Uint8Array(16)
-          crypto.getRandomValues(bytes)
-          bytes[6] = (bytes[6] & 0x0f) | 0x40
-          bytes[8] = (bytes[8] & 0x3f) | 0x80
-          const hex = [...bytes].map(b => b.toString(16).padStart(2, '0')).join('')
-          return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`
-        }
-
-        const hmacSign = async (message: string, secret: string): Promise<string> => {
-          const keyData = new TextEncoder().encode(secret)
-          const msgData = new TextEncoder().encode(message)
-          const key = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
-          const sig = await crypto.subtle.sign('HMAC', key, msgData)
-          return [...new Uint8Array(sig)].map(b => b.toString(16).padStart(2, '0')).join('')
-        }
-
-        const token = generateUUID()
-        const signature = await hmacSign(token, WISEHIRE_INVITE_SECRET)
-        const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString()
-        const inviteUrl = `${APP_URL}/wisehire/signup?invite=${token}`
-
-        const { error: insertErr } = await supabase.from('wisehire_invites').insert({
-          token,
-          token_signature: signature,
-          recipient_email: resolvedEmail,
-          expires_at: expiresAt,
-          is_revoked: false,
-        })
-        if (insertErr) throw new Error(`Failed to store invite: ${insertErr.message}`)
-
-        await supabase
-          .from('wisehire_waitlist')
-          .update({ invited_at: new Date().toISOString() })
-          .eq('email', resolvedEmail)
-
-        const expiryStr = new Date(expiresAt).toLocaleString('en-US', {
-          month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
-        })
-        const inviteHtml = `<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"/></head>
-<body style="margin:0;padding:0;background:#f0f5ff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <div style="max-width:520px;margin:0 auto;padding:32px 16px;">
-    <div style="background:#1D4ED8;padding:28px 32px;text-align:center;border-radius:16px 16px 0 0;">
-      <span style="color:#fff;font-size:20px;font-weight:800;">WiseHire</span>
-    </div>
-    <div style="background:#fff;padding:40px 32px 36px;border:1px solid #e2e8f0;border-top:0;">
-      <h1 style="font-size:24px;font-weight:800;color:#0f172a;margin:0 0 12px;text-align:center;">You're invited to WiseHire</h1>
-      <p style="font-size:15px;color:#475569;line-height:1.65;text-align:center;margin:0 0 28px;">You've been selected for early access. Click below to set up your account.</p>
-      <div style="text-align:center;margin-bottom:28px;">
-        <a href="${inviteUrl}" style="display:inline-block;background:#1D4ED8;color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:700;font-size:15px;">Accept Invite &amp; Set Up Your Account</a>
-      </div>
-      <p style="font-size:12px;color:#64748b;text-align:center;">Expires: ${expiryStr}</p>
-    </div>
-    <div style="background:#1e293b;padding:20px 32px;text-align:center;border-radius:0 0 16px 16px;">
-      <p style="font-size:11px;color:#64748b;margin:0;">If you didn't expect this, ignore this email.</p>
-    </div>
-  </div>
-</body>
-</html>`
-
-        const emailSent = await sendResendEmail({
-          to: resolvedEmail,
-          from: 'WiseHire <notifications@thewise.cloud>',
-          subject: "You're invited to WiseHire — early access",
-          html: inviteHtml,
-          text: `You're invited to WiseHire!\n\nAccept invite:\n${inviteUrl}\n\nExpires: ${expiryStr}\n\n—\nthewise.cloud`,
-          apiKey: RESEND_API_KEY,
-        })
-        resultMessageId = emailSent.id
         break
       }
 

@@ -131,32 +131,34 @@ Deno.serve(async (req) => {
     const fromLabel = company?.name ? `${company.name} via WiseHire` : 'WiseHire';
 
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+    if (!RESEND_API_KEY) {
+      return json({ error: 'Email delivery is not configured. RESEND_API_KEY is not set — contact your administrator.' }, 503, cors);
+    }
+
     let resendMessageId: string | null = null;
     let emailStatus = 'saved';
 
-    if (RESEND_API_KEY) {
-      const resendRes = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${RESEND_API_KEY}`,
-        },
-        body: JSON.stringify({
-          from: `${fromLabel} <noreply@thewise.cloud>`,
-          to: [to_email],
-          subject,
-          text: body,
-        }),
-      });
+    const resendRes = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: `${fromLabel} <noreply@thewise.cloud>`,
+        to: [to_email],
+        subject,
+        text: body,
+      }),
+    });
 
-      const resendData = await resendRes.json();
-      if (resendRes.ok) {
-        resendMessageId = resendData.id;
-        emailStatus = 'sent';
-      } else {
-        console.error('[wisehire-send-outreach] Resend error:', JSON.stringify(resendData));
-        emailStatus = 'failed';
-      }
+    const resendData = await resendRes.json();
+    if (resendRes.ok) {
+      resendMessageId = resendData.id;
+      emailStatus = 'sent';
+    } else {
+      console.error('[wisehire-send-outreach] Resend error:', JSON.stringify(resendData));
+      emailStatus = 'failed';
     }
 
     // Persist email record regardless of send status

@@ -50,7 +50,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'activity', label: 'Audit Log', icon: Clock },
 ];
 
-type ConnectionStatus = 'checking' | 'connected' | 'disconnected';
+type ConnectionStatus = 'checking' | 'connected' | 'degraded' | 'disconnected';
 
 function DevToolsInner() {
   const { isUnlocked, unlock, lock } = useDevKitSession();
@@ -103,7 +103,16 @@ function DevToolsInner() {
   const checkConnection = useCallback(async () => {
     try {
       const { error } = await edgeFunctions.functions.invoke('me', { body: {} });
-      setConnectionStatus(error ? 'disconnected' : 'connected');
+      if (!error) {
+        setConnectionStatus('connected');
+      } else {
+        const status = (error as { status?: number }).status;
+        if (typeof status === 'number' && status >= 400 && status < 500) {
+          setConnectionStatus('connected');
+        } else {
+          setConnectionStatus('degraded');
+        }
+      }
     } catch {
       setConnectionStatus('disconnected');
     }
@@ -176,7 +185,7 @@ function DevToolsInner() {
 
   if (!unlocked) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 relative z-10">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4 relative z-10">
         <div className="w-full max-w-sm space-y-6">
           <div className="text-center space-y-3">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 shadow-lg shadow-primary/10 mx-auto">
@@ -315,6 +324,9 @@ function DevToolsInner() {
               )}
               {connectionStatus === 'connected' && (
                 <><span className="w-2 h-2 rounded-full bg-green-500 animate-pulse inline-block" />Connected</>
+              )}
+              {connectionStatus === 'degraded' && (
+                <><span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />Degraded</>
               )}
               {connectionStatus === 'disconnected' && (
                 <><span className="w-2 h-2 rounded-full bg-destructive inline-block" />Offline</>

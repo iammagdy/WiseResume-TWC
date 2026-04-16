@@ -96,6 +96,10 @@ export function useSendOutreach() {
     onError: (err: Error & { status?: number }) => {
       if (err.message?.includes('limit')) {
         toast.error('Daily outreach limit reached. Upgrade to Pro for more.');
+      } else if (err.message?.includes('RESEND_API_KEY') || err.message?.includes('not configured')) {
+        toast.error('Email delivery not configured', {
+          description: 'The RESEND_API_KEY secret is missing. Contact your administrator to enable email sending.',
+        });
       } else {
         toast.error('Failed to send email. Please try again.');
       }
