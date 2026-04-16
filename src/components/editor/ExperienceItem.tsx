@@ -100,6 +100,10 @@ export const ExperienceItem = memo(function ExperienceItem({
       (exp.achievements || []).some(a => BRACKET_RE.test(a));
   }, [exp.description, exp.achievements]);
 
+  const hasMissingRequiredFields = useMemo(() => {
+    return !exp.position?.trim() && !exp.startDate?.trim();
+  }, [exp.position, exp.startDate]);
+
   return (
     <div className="rounded-xl border border-border overflow-hidden transition-all duration-200">
       {/* Header - Always visible */}
@@ -165,6 +169,14 @@ export const ExperienceItem = memo(function ExperienceItem({
       {isExpanded && (
         <div className="animate-in fade-in-0 duration-200">
           <div className="p-4 pt-0 space-y-4 border-t border-border">
+            {hasMissingRequiredFields && (
+              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-warning/10 border border-warning/30 text-warning-foreground mt-3">
+                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-warning" />
+                <p className="text-xs leading-snug">
+                  <span className="font-medium">Missing key details:</span> Adding a position title and start date helps AI features work better and prevents empty entries in your PDF export.
+                </p>
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label className="text-sm flex items-center gap-1.5 mb-2">

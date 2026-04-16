@@ -122,7 +122,7 @@ export const AccountSection = memo(function AccountSection({
                 />
                 <Separator className="ml-[52px] bg-border/30" />
                 {/* Change Password - email users only */}
-                {authProvider === 'email' && (
+                {authProvider === 'email' ? (
                     <>
                         <SettingsRow
                             type="navigation"
@@ -131,6 +131,13 @@ export const AccountSection = memo(function AccountSection({
                             icon={<KeyRound className="w-4 h-4" />}
                             onClick={onChangePassword}
                         />
+                        <Separator className="ml-[52px] bg-border/30" />
+                    </>
+                ) : (
+                    <>
+                        <p className="px-4 py-2.5 text-xs text-muted-foreground">
+                            Password is managed by your {authProvider === 'google' ? 'Google' : authProvider === 'github' ? 'GitHub' : authProvider === 'apple' ? 'Apple' : 'social'} account.
+                        </p>
                         <Separator className="ml-[52px] bg-border/30" />
                     </>
                 )}
