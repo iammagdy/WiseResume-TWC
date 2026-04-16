@@ -238,7 +238,7 @@ const defaultSettings = {
   anthropicModel: 'claude-3-5-haiku-20241022',
   anthropicKeyValidated: false,
   groqApiKey: '',
-  groqModel: 'llama-3.3-70b-versatile',
+  groqModel: 'qwen/qwen3-32b',
   groqKeyValidated: false,
   mistralApiKey: '',
   mistralModel: 'mistral-small-latest',

@@ -170,7 +170,7 @@ serve(async (req) => {
     const BYOK_DEFAULT_MODELS: Record<string, string> = {
       openai: 'gpt-4o-mini',
       anthropic: 'claude-3-5-haiku-20241022',
-      groq: 'llama-3.3-70b-versatile',
+      groq: 'qwen/qwen3-32b',
       mistral: 'mistral-small-latest',
       xai: 'grok-2-mini',
       cohere: 'command-r',
@@ -201,7 +201,7 @@ serve(async (req) => {
       testModel = storedByokModel || defaultModel;
     } else if (preferredProvider === 'wiseresume') {
       if (wiseresumeSubProvider === 'groq') {
-        testModel = 'llama-3.3-70b-versatile';
+        testModel = 'qwen/qwen3-32b';
       } else {
         testModel = 'google/gemma-4-26b-a4b-it:free';
       }
@@ -253,7 +253,7 @@ serve(async (req) => {
     // For WiseResume managed AI on 'auto', update testModel based on the backend that actually responded,
     // so admin diagnostics always reflect the real model (e.g. Groq fallback shows Llama, not Gemma).
     if (preferredProvider === 'wiseresume' && wiseresumeSubProvider === 'auto') {
-      if (providerUsed.includes('groq')) testModel = 'llama-3.3-70b-versatile';
+      if (providerUsed.includes('groq')) testModel = 'qwen/qwen3-32b';
       else testModel = 'google/gemma-4-26b-a4b-it:free';
     }
 

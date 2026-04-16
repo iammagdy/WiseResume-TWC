@@ -470,9 +470,13 @@ async function getOpenRouterFreeModels(apiKey: string): Promise<string[]> {
       return _openrouterModelCache;
     }
 
-    const json = await response.json() as { data?: Array<{ id: string; context_length?: number; pricing?: { prompt?: string; completion?: string } }> };
+    const json = await response.json() as { data?: Array<{ id: string; context_length?: number; pricing?: { prompt?: string | number; completion?: string | number } }> };
     const models = (json.data || [])
-      .filter(m => m.pricing?.prompt === '0' && m.pricing?.completion === '0')
+      .filter(m => {
+        const promptCost = parseFloat(String(m.pricing?.prompt ?? ''));
+        const completionCost = parseFloat(String(m.pricing?.completion ?? ''));
+        return promptCost === 0 && completionCost === 0;
+      })
       .map(m => ({
         id: m.id,
         contextLength: m.context_length || 0,
@@ -487,6 +491,14 @@ async function getOpenRouterFreeModels(apiKey: string): Promise<string[]> {
     if (models.length === 0) {
       console.warn('[AI] OpenRouter returned no free models; using fallback constant');
       models.push(FALLBACK_MODEL);
+    }
+
+    const pinnedIdx = models.indexOf(FALLBACK_MODEL);
+    if (pinnedIdx > 0) {
+      models.splice(pinnedIdx, 1);
+      models.unshift(FALLBACK_MODEL);
+    } else if (pinnedIdx === -1) {
+      models.unshift(FALLBACK_MODEL);
     }
 
     console.log(`[AI] OpenRouter free models discovered (${models.length}):`, models.slice(0, 5).join(', '));
@@ -515,6 +527,7 @@ let _groqCacheKey: string | null = null;
  * non-chat-capable model IDs from being tried.
  */
 const GROQ_KNOWN_CHAT_MODELS: Array<{ id: string; paramCount: number; contextWindow: number }> = [
+  { id: 'qwen/qwen3-32b', paramCount: 32, contextWindow: 131072 },
   { id: 'llama-3.3-70b-versatile', paramCount: 70, contextWindow: 128000 },
   { id: 'llama3-70b-8192', paramCount: 70, contextWindow: 8192 },
   { id: 'llama-3.1-70b-versatile', paramCount: 70, contextWindow: 128000 },
@@ -553,7 +566,7 @@ async function getGroqModels(apiKey: string): Promise<string[]> {
 
     if (!response.ok) {
       console.warn('[AI] Groq model list fetch failed:', response.status);
-      _groqModelCache = ['llama-3.3-70b-versatile'];
+      _groqModelCache = ['qwen/qwen3-32b'];
       _groqCacheKey = apiKey;
       return _groqModelCache;
     }
@@ -572,7 +585,7 @@ async function getGroqModels(apiKey: string): Promise<string[]> {
 
     if (models.length === 0) {
       console.warn('[AI] Groq returned no known-good chat models; using default');
-      models.push('llama-3.3-70b-versatile');
+      models.push('qwen/qwen3-32b');
     }
 
     console.log(`[AI] Groq chat models discovered (${models.length}):`, models.slice(0, 5).join(', '));
@@ -581,7 +594,7 @@ async function getGroqModels(apiKey: string): Promise<string[]> {
     return models;
   } catch (err) {
     console.warn('[AI] Failed to fetch Groq model list:', err instanceof Error ? err.message : err);
-    _groqModelCache = ['llama-3.3-70b-versatile'];
+    _groqModelCache = ['qwen/qwen3-32b'];
     _groqCacheKey = apiKey;
     return _groqModelCache;
   }
@@ -1014,7 +1027,7 @@ async function callAnthropicDirect(
 
 /**
  * Calls Groq API (OpenAI-compatible endpoint) using the managed GROQ_API_KEY.
- * @param model Groq model slug to use (defaults to llama-3.3-70b-versatile)
+ * @param model Groq model slug to use (defaults to qwen/qwen3-32b)
  */
 async function callGroqDirect(
   apiKey: string,
@@ -1024,7 +1037,7 @@ async function callGroqDirect(
   tools?: AITool[],
   toolChoice?: { type: 'function'; function: { name: string } } | 'auto',
   signal?: AbortSignal,
-  model = 'llama-3.3-70b-versatile'
+  model = 'qwen/qwen3-32b'
 ): Promise<AIResponse> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',

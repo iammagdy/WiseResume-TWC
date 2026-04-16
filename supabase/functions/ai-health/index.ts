@@ -207,7 +207,7 @@ serve(async (req) => {
             const groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
-              body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: 'Hi' }], max_tokens: 1 }),
+              body: JSON.stringify({ model: 'qwen/qwen3-32b', messages: [{ role: 'user', content: 'Hi' }], max_tokens: 1 }),
               signal: groqController.signal,
             });
             clearTimeout(groqTimeout);
@@ -241,7 +241,7 @@ serve(async (req) => {
             'Authorization': `Bearer ${groqKey}`,
           },
           body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
+            model: 'qwen/qwen3-32b',
             messages: [{ role: 'user', content: 'Hi' }],
             max_tokens: 1,
           }),

@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
           resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
-            body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: 'Hi' }], max_tokens: 1 }),
+            body: JSON.stringify({ model: 'qwen/qwen3-32b', messages: [{ role: 'user', content: 'Hi' }], max_tokens: 1 }),
           });
         } else if (openrouterKey) {
           resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -216,7 +216,7 @@ Deno.serve(async (req) => {
     // Curated model lists for modelsOnly responses
     const OPENAI_MODELS = ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo', 'o1', 'o1-mini', 'o3-mini'];
     const ANTHROPIC_MODELS = ['claude-opus-4-5', 'claude-sonnet-4-5', 'claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022', 'claude-3-opus-20240229'];
-    const GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'llama-3.2-11b-vision-preview', 'mixtral-8x7b-32768', 'gemma2-9b-it'];
+    const GROQ_MODELS = ['qwen/qwen3-32b', 'llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'llama-3.2-11b-vision-preview', 'mixtral-8x7b-32768', 'gemma2-9b-it'];
     const MISTRAL_MODELS = ['mistral-large-latest', 'mistral-medium-latest', 'mistral-small-latest', 'codestral-latest', 'open-mistral-nemo'];
     const XAI_MODELS = ['grok-3', 'grok-3-mini', 'grok-2-latest', 'grok-2-mini'];
     const COHERE_MODELS = ['command-r-plus', 'command-r', 'command-nightly'];
@@ -313,7 +313,7 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      const testModel = model || 'llama-3.3-70b-versatile';
+      const testModel = model || 'qwen/qwen3-32b';
       const result = await validateOpenAICompat(
         keyTrimmed,
         'https://api.groq.com/openai/v1/chat/completions',
