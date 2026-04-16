@@ -1,4 +1,4 @@
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback } from 'react';
 import type { KindeAppUser } from '@/contexts/AuthContext';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/safeClient';
@@ -142,54 +142,20 @@ export function getNextMissingField(profile: Partial<Profile> | null): { field: 
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-async function fetchProfile(userId: string, user?: KindeAppUser | null): Promise<Profile> {
-  // Resolve the effective Supabase UUID: prefer the bridged ID from the token exchange,
-  // fall back to userId only when it's already a valid UUID (e.g. on first render after
-  // bridge settles and AuthContext has updated user.id to the UUID).
-  const effectiveId: string | null = getUserId() || (UUID_REGEX.test(userId) ? userId : null);
+/**
+ * Resolve the effective Supabase UUID for a user. Prefers the bridged ID from
+ * the token exchange, falls back to the raw userId only if it's already a
+ * valid UUID. Returns null when the bridge has not settled yet — callers MUST
+ * gate their queries on this so we never fetch (or persist) with no identity.
+ */
+function resolveEffectiveId(userId: string | undefined): string | null {
+  const bridgedId = getUserId();
+  if (bridgedId) return bridgedId;
+  if (userId && UUID_REGEX.test(userId)) return userId;
+  return null;
+}
 
-  // If we don't have a valid UUID yet (bridge hasn't settled), return the in-memory
-  // default profile without hitting Supabase — the query will retry once the key changes.
-  if (!effectiveId) {
-    return {
-      fullName: user?.name || null,
-      avatarUrl: null,
-      jobTitle: null,
-      industry: null,
-      careerLevel: null,
-      location: null,
-      linkedinUrl: null,
-      profileCompleted: false,
-      username: null,
-      portfolioBio: null,
-      portfolioEnabled: false,
-      portfolioResumeId: null,
-      githubUrl: null,
-      websiteUrl: null,
-      twitterUrl: null,
-      contactEmail: null,
-      theme: null,
-      phoneNumber: null,
-      portfolioSections: null,
-      portfolioMetaTitle: null,
-      portfolioMetaDescription: null,
-      views: 0,
-      portfolioStyle: null,
-      portfolioLayout: null,
-      portfolioAccentColor: null,
-      portfolioFont: null,
-      openToWork: false,
-      availabilityHeadline: null,
-      portfolioExtras: {},
-      portfolioSyncMode: 'auto',
-      loginStreak: 1,
-      lastLoginDate: null,
-      digestEnabled: true,
-      hiredAt: null,
-      updatedAt: null,
-    };
-  }
-
+async function fetchProfile(effectiveId: string, user?: KindeAppUser | null): Promise<Profile> {
   const { data, error } = await supabase
     .from('profiles')
     .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed, username, portfolio_bio, portfolio_enabled, portfolio_resume_id, github_url, website_url, twitter_url, contact_email, portfolio_theme, phone_number, portfolio_sections, portfolio_meta_title, portfolio_meta_description, views, portfolio_style, portfolio_layout, portfolio_accent_color, portfolio_font, open_to_work, availability_headline, portfolio_extras, portfolio_sync_mode, login_streak, last_login_date, digest_enabled, hired_at, updated_at')
@@ -300,32 +266,35 @@ async function fetchProfile(userId: string, user?: KindeAppUser | null): Promise
 
 export function useProfile(userId: string | undefined, user?: KindeAppUser | null) {
   const queryClient = useQueryClient();
-  const userIdRef = useRef(userId);
 
-  useEffect(() => {
-    userIdRef.current = userId;
-  }, [userId]);
+  // Stable cache key: always derived from the bridged Supabase UUID so every
+  // consumer of useProfile (DesktopNav, SettingsPage, DashboardPage, …) reads
+  // and writes the SAME cache entry, regardless of whether `user.id` happens
+  // to be the Kinde id or the UUID at any given render.
+  const effectiveId = resolveEffectiveId(userId);
 
   const { data: profile = null, isLoading: loading } = useQuery({
-    queryKey: ['profile', userId],
-    queryFn: () => fetchProfile(userId!, user),
-    enabled: !!userId,
-    staleTime: 5 * 60 * 1000,
+    queryKey: ['profile', effectiveId],
+    queryFn: () => fetchProfile(effectiveId!, user),
+    enabled: !!effectiveId,
+    // Short staleTime so other tabs/sheets pick up edits quickly. The mutation
+    // also broad-invalidates on success, so this is mostly a safety net.
+    staleTime: 30 * 1000,
     gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: true,
     retry: 2,
     retryDelay: (attemptIndex: number) => Math.min(1000 * 2 ** attemptIndex, 5000),
   });
 
   const updateMutation = useMutation({
     mutationFn: async (updates: Partial<Profile>) => {
-      // Prefer the bridged Supabase UUID; fall back to userId only if it's already a valid UUID
-      const bridgedId = getUserId();
-      const effectiveId: string | null = bridgedId || (userId && UUID_REGEX.test(userId) ? userId : null);
-      if (!effectiveId) throw new Error('Profile save unavailable — app is still initializing');
+      // Re-resolve at mutation time in case the bridge settled after the hook ran.
+      const id = resolveEffectiveId(userId);
+      if (!id) throw new Error('Profile save unavailable — app is still initializing');
 
       // Only send the fields that are explicitly in `updates` — prevents data races
       // on concurrent saves and avoids overwriting stale fallback values.
-      const dbUpdates: Record<string, unknown> = { user_id: effectiveId };
+      const dbUpdates: Record<string, unknown> = { user_id: id };
 
       if (updates.fullName !== undefined) dbUpdates.full_name = updates.fullName;
       if (updates.avatarUrl !== undefined) dbUpdates.avatar_url = updates.avatarUrl;
@@ -369,14 +338,14 @@ export function useProfile(userId: string | undefined, user?: KindeAppUser | nul
       return updates;
     },
     onSuccess: (updates) => {
-      const currentUserId = userIdRef.current;
-      if (!currentUserId) return;
-      // Optimistically update the cache
-      queryClient.setQueryData(['profile', currentUserId], (old: Profile | null) =>
-        old ? { ...old, ...updates } : updates as Profile
+      // Broad-update every cached ['profile', *] entry so any orphan keys
+      // (e.g. one created with a Kinde id before the bridge settled) reflect
+      // the new values immediately. Then invalidate to refetch authoritatively
+      // from the DB.
+      queryClient.setQueriesData<Profile | null>({ queryKey: ['profile'] }, (old) =>
+        old ? { ...old, ...updates } : (updates as Profile)
       );
-      // Force a fresh fetch from DB so the profile page always reflects latest data
-      queryClient.invalidateQueries({ queryKey: ['profile', currentUserId] });
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
     },
     onError: () => {
       // Let callers handle error display
