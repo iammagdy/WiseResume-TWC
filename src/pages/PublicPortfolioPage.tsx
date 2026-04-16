@@ -144,20 +144,36 @@ function PublicPortfolioContent() {
   const handleInterest = async () => {
     if (!username || interestSent || sendingInterest) return;
     setSendingInterest(true);
+
+    // Retrieve or generate a stable UUID token for this browser+portfolio pair.
+    // The token is stored in localStorage so repeat submissions are deduplicated
+    // both client-side (interestSent state) and server-side (unique DB constraint).
+    const tokenKey = `portfolio-interest-token:${username}`;
+    let token = localStorage.getItem(tokenKey);
+    if (!token) {
+      token = crypto.randomUUID();
+      localStorage.setItem(tokenKey, token);
+    }
+
     try {
       const { EDGE_FUNCTIONS_URL } = await import('@/lib/supabaseConstants');
       const res = await fetch(`${EDGE_FUNCTIONS_URL}/functions/v1/portfolio-interest`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username }),
+        body: JSON.stringify({ username, token }),
       });
+
       if (res.ok) {
         setInterestSent(true);
         localStorage.setItem(`portfolio-interest-sent:${username}`, '1');
         toast.success('Your interest has been sent to the portfolio owner!');
+      } else {
+        const errBody = await res.json().catch(() => ({}));
+        const msg = (errBody as { error?: string }).error || `Request failed (${res.status})`;
+        toast.error(msg === 'Portfolio not found' ? 'Portfolio not found.' : 'Could not send interest — please try again.');
       }
     } catch {
-      toast.error('Could not send interest. Please try again.');
+      toast.error('Network error — please check your connection and try again.');
     } finally {
       setSendingInterest(false);
     }

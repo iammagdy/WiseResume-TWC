@@ -26,6 +26,19 @@ function dateRange(start: string | null | undefined, end: string | null | undefi
   return `${s} – ${e}`;
 }
 
+/**
+ * Accepts only valid CSS hex colors (#RGB, #RRGGBB, #RRGGBBAA) and named safe
+ * colors. Rejects anything that could break out of a style context.
+ */
+function safeCssColor(value: string | null | undefined, fallback = '#e84545'): string {
+  if (!value) return fallback;
+  const trimmed = value.trim();
+  if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(trimmed)) {
+    return trimmed;
+  }
+  return fallback;
+}
+
 export function generatePortfolioPrintHTML(
   profile: PublicProfile,
   resume: PublicResume,
@@ -38,7 +51,7 @@ export function generatePortfolioPrintHTML(
   const github = esc(profile.githubUrl || '');
   const website = esc(profile.websiteUrl || '');
   const bio = esc(profile.portfolioBio || profile.portfolioSummary || '');
-  const accent = profile.portfolioAccentColor || '#e84545';
+  const accent = safeCssColor(profile.portfolioAccentColor, '#e84545');
 
   const experience = (resume.experience || []).filter(
     e => e.position?.trim() || e.company?.trim(),

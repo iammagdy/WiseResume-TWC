@@ -32,7 +32,7 @@ Deno.serve(async (req: Request) => {
     req.headers.get('x-real-ip') ||
     null;
 
-  let body: { username?: string } = {};
+  let body: { username?: string; token?: string } = {};
   try {
     body = await req.json();
   } catch {
@@ -42,7 +42,7 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  const { username } = body;
+  const { username, token } = body;
   if (!username || typeof username !== 'string') {
     return new Response(JSON.stringify({ error: 'Missing username' }), {
       status: 400,
@@ -50,7 +50,13 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  // Rate limit: 1 interest per IP per portfolio per hour to prevent spam
+  // Validate token — must be a UUID v4 pattern (client-generated)
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const safeToken = typeof token === 'string' && UUID_RE.test(token)
+    ? token
+    : crypto.randomUUID();
+
+  // IP rate limit: 1 interest per IP per portfolio per hour (secondary guard)
   if (clientIp) {
     const key = `portfolio-interest:${username.toLowerCase()}`;
     const ipLimit = await checkIpRateLimit(clientIp, key, 1, 3600);
@@ -82,17 +88,48 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const referrerHeader = referer || null;
+    // Extract referrer hostname for display
+    let referrerHostname: string | null = null;
     let referrerText = '';
-    if (referrerHeader) {
+    if (referer) {
       try {
-        const refUrl = new URL(referrerHeader);
-        referrerText = ` via ${refUrl.hostname}`;
+        const refUrl = new URL(referer);
+        referrerHostname = refUrl.hostname;
+        referrerText = ` via ${referrerHostname}`;
       } catch {
-        // ignore
+        // ignore malformed referer
       }
     }
 
+    // Persist a tokenized interaction record — ON CONFLICT (token) means duplicate
+    // submissions from the same client are silently deduplicated at the DB level.
+    const { error: insertError } = await supabase
+      .from('portfolio_interactions')
+      .insert({
+        token: safeToken,
+        portfolio_username: username.toLowerCase(),
+        interaction_type: 'interested',
+        referrer_hostname: referrerHostname,
+      });
+
+    // If we hit the unique constraint on `token`, this interest was already recorded.
+    const isDuplicate = insertError?.code === '23505';
+    if (insertError && !isDuplicate) {
+      console.error('portfolio_interactions insert error:', insertError);
+      return new Response(JSON.stringify({ error: 'Internal error' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (isDuplicate) {
+      return new Response(JSON.stringify({ ok: true, alreadySent: true }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Fresh interaction — notify the portfolio owner
     const now = new Date();
     const timeStr = now.toLocaleString('en-US', {
       month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true,
