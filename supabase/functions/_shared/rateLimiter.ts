@@ -34,8 +34,10 @@ const DEFAULT_CONFIG: RateLimitConfig = {
  *  - Pro users: proMaxRequests (defaults to 5x maxRequests)
  *  - Free users: maxRequests
  *
- * Fail-closed: if the DB query errors, the request is denied to prevent cost
- * abuse. Callers should return 503 (not 429) when dbError is true.
+ * Fail-OPEN on infra errors: see userRateLimiter.ts for rationale. A shared
+ * rate-limit table being a single point of failure for every AI feature is
+ * worse than a brief rate-limit bypass. Credits and provider-side limits
+ * still bound abuse.
  */
 export async function checkRateLimit(
   userId: string,
@@ -69,11 +71,14 @@ export async function checkRateLimit(
     .gte('created_at', windowStart);
 
   if (error) {
-    // Fail-closed: a DB read failure means we cannot confirm the user is under
-    // the rate limit. Deny with a 503-style "db error" flag so callers can
-    // return an appropriate error rather than silently allowing cost abuse.
-    console.error('Rate limit check failed (fail-closed):', error);
-    return { allowed: false, remaining: 0, retryAfterSeconds: 10, dbError: true };
+    // Fail-OPEN: see module header. Blocking every AI feature because a shared
+    // rate-limit table query failed is a worse outcome than a brief bypass.
+    console.error(
+      '[rateLimiter] check failed — FAILING OPEN to keep AI online. ' +
+        'Fix the underlying DB/schema issue to restore rate limiting. Error:',
+      error,
+    );
+    return { allowed: true, remaining: maxRequests };
   }
 
   const used = count ?? 0;

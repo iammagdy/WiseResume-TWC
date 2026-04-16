@@ -5,10 +5,17 @@
  * client-side rate limiter by refreshing the page, opening new tabs, or
  * calling edge functions directly.
  *
- * FAIL-CLOSED: any DB error during the count or insert is treated as a
- * transient infrastructure fault and returns a 503-style "not allowed" result
- * with retryAfterSeconds=10 so callers can return a safe error rather than
- * silently permitting an over-limit request.
+ * FAIL-OPEN on infrastructure errors: a DB read failure on this shared
+ * rate-limit table is a single point of failure for every AI feature in the
+ * app. Rather than returning 503 and taking down chat / scoring / tailoring
+ * for everyone on a schema drift or DB blip, we log loudly and allow the
+ * request through. Abuse is still bounded by:
+ *   - per-request credit checks (checkAndDeductCredit)
+ *   - provider-side rate limits (OpenRouter / Groq)
+ *   - client-side rate limiters for UX
+ * The previous fail-closed behaviour caused an incident where a missing
+ * user_id column / migration lag returned 503 "Service temporarily
+ * unavailable" for every AI call in the product.
  *
  * Usage:
  *   const result = await checkUserRateLimit(userId, 'tailor', 10, 60);
@@ -49,10 +56,16 @@ export async function checkUserRateLimit(
     .gte('created_at', windowStart);
 
   if (error) {
-    // Fail-closed: a DB read failure means we cannot confirm the user is under
-    // limit, so we deny the request to protect against cost abuse.
-    console.error('[userRateLimiter] count query failed (fail-closed):', error);
-    return { allowed: false, retryAfterSeconds: 10, dbError: true };
+    // Fail-OPEN on infra errors (see module header). Credits + provider-side
+    // limits still bound abuse; blocking every AI call on a DB hiccup is a
+    // worse outcome than a single user briefly exceeding their per-feature
+    // sliding-window cap.
+    console.error(
+      '[userRateLimiter] count query failed — FAILING OPEN to keep AI online. ' +
+        'Fix the underlying DB/schema issue to restore rate limiting. Error:',
+      error,
+    );
+    return { allowed: true, retryAfterSeconds: 0 };
   }
 
   const used = count ?? 0;
