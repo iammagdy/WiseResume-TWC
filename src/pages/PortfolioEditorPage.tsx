@@ -35,7 +35,15 @@ import { usePortfolioHistory } from '@/hooks/usePortfolioHistory';
 import { VisitorsTab } from '@/components/portfolio/editor/VisitorsTab';
 import type { ScrollEffect } from '@/components/portfolio/editor/ScrollEffectPicker';
 import { AICritiqueSheet, type CritiqueItem } from '@/components/portfolio/editor/AICritiqueSheet';
+import { CompletionScoreBar, buildCompletionItems } from '@/components/portfolio/editor/CompletionScoreBar';
+import { Monitor, Smartphone } from 'lucide-react';
 
+
+async function sha256hex(message: string): Promise<string> {
+  const msgBuf = new TextEncoder().encode(message);
+  const hashBuf = await crypto.subtle.digest('SHA-256', msgBuf);
+  return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 export default function PortfolioEditorPage() {
   const { user } = useAuth();
@@ -122,6 +130,17 @@ export default function PortfolioEditorPage() {
   const [critiqueHasRun, setCritiqueHasRun] = useState(false);
   const [critiqueError, setCritiqueError] = useState(false);
 
+  // Password protection
+  const [passwordEnabled, setPasswordEnabled] = useState(false);
+  const [portfolioPassword, setPortfolioPassword] = useState('');
+  const [passwordHash, setPasswordHash] = useState('');
+
+  // Custom domain
+  const [customDomain, setCustomDomain] = useState('');
+
+  // Mobile preview toggle (local UI state only — not persisted)
+  const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop');
+
   // ── Unsaved changes tracking ──
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState<string>('');
   const [pendingNavPath, setPendingNavPath] = useState<string | null>(null);
@@ -205,6 +224,9 @@ export default function PortfolioEditorPage() {
       setPortfolioPrimaryLanguage(extras.portfolioPrimaryLanguage as string || 'English');
       setPortfolioSecondaryLanguage(extras.portfolioSecondaryLanguage as string || '');
       setPortfolioTranslations(extras.portfolioTranslations as Record<string, { bio?: string; portfolioSummary?: string; pinnedProjectDescription?: string; highlights?: Array<{ id: string; value: string; label: string }>; services?: Array<{ id: string; title: string; description?: string }>; testimonials?: Array<{ id: string; quote: string }> }> || {});
+      setPasswordEnabled((extras.passwordEnabled as boolean) || false);
+      setPasswordHash((extras.passwordHash as string) || '');
+      setCustomDomain((extras.customDomain as string) || '');
     }
   }, [profile]);
 
@@ -502,23 +524,34 @@ export default function PortfolioEditorPage() {
         openToWork: availabilityStatus !== 'not-looking',
         availabilityHeadline: availabilityHeadline || null,
         portfolioSyncMode: syncMode,
-        portfolioExtras: {
-          caseStudies, services, testimonials, highlights, portfolioSummary,
-          sectionOrder,
-          pinnedProject: pinnedProject || null,
-          availabilityStatus,
-          scrollEffect,
-          videoIntroUrl: videoIntroUrl || null,
-          schedulingUrl: normalizeUrl(schedulingUrl) || null,
-          abChallengerTheme: overrides?.abChallengerThemeOverride !== undefined ? (overrides.abChallengerThemeOverride || null) : (abChallengerTheme || null),
-          portfolioCertifications,
-          portfolioPrimaryLanguage: portfolioPrimaryLanguage || 'English',
-          portfolioSecondaryLanguage: portfolioSecondaryLanguage || null,
-          portfolioTranslations: Object.keys(portfolioTranslations).length > 0 ? portfolioTranslations : null,
-          lastSyncedFromResumeAt: syncMode === 'auto' ? new Date().toISOString() : (
-            profile?.portfolioExtras?.lastSyncedFromResumeAt ?? null
-          ),
-        }
+        portfolioExtras: await (async () => {
+          let finalPasswordHash = passwordHash;
+          if (passwordEnabled && portfolioPassword) {
+            finalPasswordHash = await sha256hex(portfolioPassword);
+            setPasswordHash(finalPasswordHash);
+            setPortfolioPassword('');
+          }
+          return {
+            caseStudies, services, testimonials, highlights, portfolioSummary,
+            sectionOrder,
+            pinnedProject: pinnedProject || null,
+            availabilityStatus,
+            scrollEffect,
+            videoIntroUrl: videoIntroUrl || null,
+            schedulingUrl: normalizeUrl(schedulingUrl) || null,
+            abChallengerTheme: overrides?.abChallengerThemeOverride !== undefined ? (overrides.abChallengerThemeOverride || null) : (abChallengerTheme || null),
+            portfolioCertifications,
+            portfolioPrimaryLanguage: portfolioPrimaryLanguage || 'English',
+            portfolioSecondaryLanguage: portfolioSecondaryLanguage || null,
+            portfolioTranslations: Object.keys(portfolioTranslations).length > 0 ? portfolioTranslations : null,
+            lastSyncedFromResumeAt: syncMode === 'auto' ? new Date().toISOString() : (
+              profile?.portfolioExtras?.lastSyncedFromResumeAt ?? null
+            ),
+            passwordEnabled,
+            passwordHash: passwordEnabled ? (finalPasswordHash || null) : null,
+            customDomain: customDomain.trim() || null,
+          };
+        })()
       };
 
       await updateProfile(updates as Parameters<typeof updateProfile>[0]);
@@ -709,19 +742,68 @@ export default function PortfolioEditorPage() {
           strengthMissing={strengthMissing} />
         
 
-        {/* Live Preview Card */}
-        <LivePreviewCard
-          avatarUrl={profile?.avatarUrl}
-          fullName={profile?.fullName}
-          jobTitle={profile?.jobTitle}
-          portfolioStyle={portfolioStyle}
-          accentColor={portfolioAccentColor}
-          portfolioFont={portfolioFont}
-          bio={bio}
-          openToWork={availabilityStatus !== 'not-looking'}
-          availabilityStatus={availabilityStatus}
-          views={profile?.views || 0}
-          scrollEffect={scrollEffect} />
+        {/* Live Preview Card + mobile toggle */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground flex-1">Preview</span>
+            <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-muted border border-border">
+              <button
+                onClick={() => setPreviewMode('desktop')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${previewMode === 'desktop' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                aria-label="Desktop preview"
+              >
+                <Monitor className="w-3.5 h-3.5" />
+                Desktop
+              </button>
+              <button
+                onClick={() => setPreviewMode('mobile')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${previewMode === 'mobile' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                aria-label="Mobile preview"
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                Mobile
+              </button>
+            </div>
+          </div>
+
+          {previewMode === 'mobile' ? (
+            <div className="flex justify-center">
+              <div className="relative" style={{ width: 220 }}>
+                <div className="absolute inset-0 rounded-[2.5rem] border-[8px] border-foreground/15 pointer-events-none z-10" style={{ boxShadow: '0 0 0 1px rgba(0,0,0,0.08) inset' }} />
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-1.5 rounded-full bg-foreground/15 z-20" />
+                <div className="rounded-[2rem] overflow-hidden" style={{ paddingTop: 20, paddingBottom: 8 }}>
+                  <LivePreviewCard
+                    avatarUrl={profile?.avatarUrl}
+                    fullName={profile?.fullName}
+                    jobTitle={profile?.jobTitle}
+                    portfolioStyle={portfolioStyle}
+                    accentColor={portfolioAccentColor}
+                    portfolioFont={portfolioFont}
+                    bio={bio}
+                    openToWork={availabilityStatus !== 'not-looking'}
+                    availabilityStatus={availabilityStatus}
+                    views={profile?.views || 0}
+                    scrollEffect={scrollEffect}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <LivePreviewCard
+              avatarUrl={profile?.avatarUrl}
+              fullName={profile?.fullName}
+              jobTitle={profile?.jobTitle}
+              portfolioStyle={portfolioStyle}
+              accentColor={portfolioAccentColor}
+              portfolioFont={portfolioFont}
+              bio={bio}
+              openToWork={availabilityStatus !== 'not-looking'}
+              availabilityStatus={availabilityStatus}
+              views={profile?.views || 0}
+              scrollEffect={scrollEffect}
+            />
+          )}
+        </div>
         
 
         {/* Share your profile — QR code entry point */}
@@ -766,6 +848,25 @@ export default function PortfolioEditorPage() {
             </button>
           )}
         </div>
+
+        {/* Completion Score Bar */}
+        <CompletionScoreBar
+          score={strengthScore}
+          items={buildCompletionItems({
+            bio,
+            avatarUrl: profile?.avatarUrl,
+            username,
+            hasExperience: Array.isArray(selectedResume?.experience) && (selectedResume?.experience as unknown[]).length >= 1,
+            hasSkills: Array.isArray(selectedResume?.skills) && (selectedResume?.skills as unknown[]).length >= 3,
+            hasSocialLink: !!(linkedinUrl || githubUrl || websiteUrl || twitterUrl || contactEmail),
+            hasCaseStudies: caseStudies.length > 0,
+            hasTestimonials: testimonials.length > 0,
+            metaTitle,
+            availabilityStatus,
+            accentColor: portfolioAccentColor,
+            hasLinkedIn: !!linkedinUrl,
+          })}
+        />
 
         {/* Tab Content */}
         <AnimatePresence mode="wait" initial={false}>
@@ -906,7 +1007,13 @@ export default function PortfolioEditorPage() {
               schedulingUrl={schedulingUrl}
               onSchedulingUrlChange={setSchedulingUrl}
               onTranslate={handleTranslate}
-              translating={translating} />
+              translating={translating}
+              passwordEnabled={passwordEnabled}
+              onPasswordEnabledChange={setPasswordEnabled}
+              portfolioPasswordSet={!!passwordHash}
+              onPortfolioPasswordChange={setPortfolioPassword}
+              customDomain={customDomain}
+              onCustomDomainChange={setCustomDomain} />
 
             }
           </motion.div>

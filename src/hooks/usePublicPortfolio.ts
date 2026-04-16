@@ -71,6 +71,9 @@ export interface PublicProfile {
     caseStudies?: Array<{ id: string; title: string; challenge: string; outcome: string }>;
     portfolioCertifications?: Array<{ id: string; name: string; issuer: string }>;
   }> | null;
+  passwordEnabled: boolean;
+  passwordHash: string | null;
+  customDomain: string | null;
 }
 
 export interface PublicResume {
@@ -159,6 +162,9 @@ async function fetchPublicPortfolio(username: string): Promise<PublicPortfolioDa
       portfolioPrimaryLanguage: (extras.portfolioPrimaryLanguage as string) || 'English',
       portfolioSecondaryLanguage: (extras.portfolioSecondaryLanguage as string) || null,
       portfolioTranslations: (extras.portfolioTranslations as PublicProfile['portfolioTranslations']) || null,
+      passwordEnabled: (extras.passwordEnabled as boolean) || false,
+      passwordHash: (extras.passwordHash as string) || null,
+      customDomain: (extras.customDomain as string) || null,
     },
     resume: {
       id: (resume.id as string) || '',

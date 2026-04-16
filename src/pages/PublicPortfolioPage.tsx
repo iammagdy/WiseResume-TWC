@@ -2,10 +2,10 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { usePublicPortfolio } from '@/hooks/usePublicPortfolio';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, SearchX, Languages, Heart, Check, Printer } from 'lucide-react';
+import { ArrowLeft, SearchX, Languages, Heart, Check, Printer, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
-import { useEffect, useState, useMemo, Suspense } from 'react';
+import { useEffect, useState, useMemo, useCallback, Suspense } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
@@ -118,6 +118,78 @@ function NotFound() {
   );
 }
 
+// ─── Utility: SHA-256 hex hash ────────────────────────────────────────────────
+async function sha256hex(message: string): Promise<string> {
+  const msgBuf = new TextEncoder().encode(message);
+  const hashBuf = await crypto.subtle.digest('SHA-256', msgBuf);
+  return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ─── Password Gate ────────────────────────────────────────────────────────────
+function PasswordGate({ expectedHash, accentColor, onUnlock }: { expectedHash: string; accentColor: string; onUnlock: () => void }) {
+  const [value, setValue] = useState('');
+  const [error, setError] = useState(false);
+  const [checking, setChecking] = useState(false);
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!value.trim()) return;
+    setChecking(true);
+    setError(false);
+    try {
+      const hash = await sha256hex(value.trim());
+      if (hash === expectedHash) {
+        onUnlock();
+      } else {
+        setError(true);
+      }
+    } finally {
+      setChecking(false);
+    }
+  }, [value, expectedHash, onUnlock]);
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-6">
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-sm space-y-6 text-center"
+      >
+        <div
+          className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto"
+          style={{ background: `color-mix(in srgb, ${accentColor} 15%, transparent)`, border: `1px solid color-mix(in srgb, ${accentColor} 30%, transparent)` }}
+        >
+          <Lock className="w-7 h-7" style={{ color: accentColor }} />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold text-white">Protected Portfolio</h1>
+          <p className="text-sm text-white/60">This portfolio is password-protected. Enter the password to view it.</p>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <input
+            type="password"
+            value={value}
+            onChange={(e) => { setValue(e.target.value); setError(false); }}
+            placeholder="Enter password"
+            className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/15 text-white placeholder-white/30 text-sm outline-none focus:border-white/30 transition-colors"
+            autoFocus
+            autoComplete="current-password"
+          />
+          {error && <p className="text-sm text-red-400">Incorrect password. Please try again.</p>}
+          <button
+            type="submit"
+            disabled={checking || !value.trim()}
+            className="w-full py-3 rounded-xl text-sm font-semibold text-white transition-all active:scale-95 disabled:opacity-50"
+            style={{ background: accentColor }}
+          >
+            {checking ? 'Checking...' : 'Unlock Portfolio'}
+          </button>
+        </form>
+      </motion.div>
+    </div>
+  );
+}
+
 // ─── Main Content ─────────────────────────────────────────────────────────────
 function PublicPortfolioContent() {
   const { username } = useParams<{ username: string }>();
@@ -132,6 +204,7 @@ function PublicPortfolioContent() {
   const [activeLanguage, setActiveLanguage] = useState<string>('');
   const [interestSent, setInterestSent] = useState(false);
   const [sendingInterest, setSendingInterest] = useState(false);
+  const [passwordUnlocked, setPasswordUnlocked] = useState(false);
 
   // Check if interest was already sent for this portfolio (localStorage)
   useEffect(() => {
@@ -253,6 +326,17 @@ function PublicPortfolioContent() {
   if (error || !portfolio) return <NotFound />;
 
   const { profile, resume } = portfolio;
+
+  const accentColorForGate = profile.portfolioAccentColor || '#e84545';
+  if (profile.passwordEnabled && profile.passwordHash && !passwordUnlocked) {
+    return (
+      <PasswordGate
+        expectedHash={profile.passwordHash}
+        accentColor={accentColorForGate}
+        onUnlock={() => setPasswordUnlocked(true)}
+      />
+    );
+  }
   // If the owner configured a challenger theme AND this visitor is variant B,
   // swap in the challenger theme so we can measure which performs better.
   const effectiveStyle = (abVariant === 'b' && profile.abChallengerTheme)

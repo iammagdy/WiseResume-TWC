@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import {
-  Sparkles, Search, Loader2, Link2, Linkedin, Github, History, AlertCircle, Twitter, ShieldCheck, Languages, CalendarDays,
+  Sparkles, Search, Loader2, Link2, Linkedin, Github, History, AlertCircle, Twitter, ShieldCheck, Languages, CalendarDays, Lock, Globe,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { CollapsibleCard } from './shared';
 import { haptics } from '@/lib/haptics';
 import { normalizeUrl } from '@/lib/urlUtils';
@@ -48,6 +49,14 @@ export interface MoreTabProps {
   onPortfolioSecondaryLanguageChange: (val: string) => void;
   onTranslate: () => void;
   translating: boolean;
+  // Password protection
+  passwordEnabled: boolean;
+  onPasswordEnabledChange: (val: boolean) => void;
+  portfolioPasswordSet: boolean;
+  onPortfolioPasswordChange: (val: string) => void;
+  // Custom domain
+  customDomain: string;
+  onCustomDomainChange: (val: string) => void;
 }
 
 function needsHttpsWarning(url: string): boolean {
@@ -70,7 +79,12 @@ export function MoreTab(props: MoreTabProps) {
     portfolioPrimaryLanguage, onPortfolioPrimaryLanguageChange,
     portfolioSecondaryLanguage, onPortfolioSecondaryLanguageChange,
     onTranslate, translating,
+    passwordEnabled, onPasswordEnabledChange, portfolioPasswordSet, onPortfolioPasswordChange,
+    customDomain, onCustomDomainChange,
   } = props;
+
+  const [showPasswordInput, setShowPasswordInput] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
 
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
@@ -298,6 +312,111 @@ export function MoreTab(props: MoreTabProps) {
           )}
           <p className="text-[11px] text-muted-foreground">Translations cover bio, summary, highlights, services, testimonials, case studies, certifications, and your featured project description. Re-translate anytime after editing content.</p>
         </div>
+      </CollapsibleCard>
+
+      {/* Password Protection */}
+      <CollapsibleCard
+        id="password"
+        icon={<Lock className="w-4 h-4" />}
+        title="Password Protection"
+        hint={passwordEnabled ? <span className="text-[11px] text-amber-500">Protected</span> : undefined}
+        openSections={openSections}
+        toggleSection={toggleSection}
+      >
+        <p className="text-[11px] text-muted-foreground mb-3">
+          Require visitors to enter a password before viewing your portfolio. Useful for sharing with specific recruiters only.
+        </p>
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-sm font-medium text-foreground">Enable password gate</span>
+          <Switch
+            checked={passwordEnabled}
+            onCheckedChange={(checked) => {
+              haptics.light();
+              onPasswordEnabledChange(checked);
+              if (checked) setShowPasswordInput(true);
+            }}
+          />
+        </div>
+        {passwordEnabled && (
+          <div className="space-y-2">
+            {portfolioPasswordSet && !showPasswordInput && (
+              <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50 border border-border">
+                <span className="text-xs text-muted-foreground">Password is set</span>
+                <button
+                  className="text-xs text-primary underline"
+                  onClick={() => setShowPasswordInput(true)}
+                >
+                  Change
+                </button>
+              </div>
+            )}
+            {(!portfolioPasswordSet || showPasswordInput) && (
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-foreground">
+                  {portfolioPasswordSet ? 'New password' : 'Set a password'}
+                </label>
+                <Input
+                  type="password"
+                  placeholder="Enter password..."
+                  value={newPassword}
+                  onChange={(e) => {
+                    setNewPassword(e.target.value);
+                    onPortfolioPasswordChange(e.target.value);
+                  }}
+                  autoComplete="new-password"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Save your portfolio to activate the password gate.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </CollapsibleCard>
+
+      {/* Custom Domain */}
+      <CollapsibleCard
+        id="customdomain"
+        icon={<Globe className="w-4 h-4" />}
+        title="Custom Domain"
+        hint={customDomain ? <span className="text-[11px] truncate max-w-[120px]">{customDomain}</span> : undefined}
+        openSections={openSections}
+        toggleSection={toggleSection}
+      >
+        <p className="text-[11px] text-muted-foreground mb-3">
+          Use your own domain (e.g. <span className="font-mono">portfolio.yourdomain.com</span>) instead of the default URL.
+        </p>
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-foreground">Custom domain</label>
+          <Input
+            placeholder="portfolio.yourdomain.com"
+            value={customDomain}
+            onChange={(e) => onCustomDomainChange(e.target.value.toLowerCase().trim())}
+            type="text"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            inputMode="url"
+          />
+        </div>
+        {customDomain && (
+          <div className="mt-3 p-3 rounded-lg bg-muted/40 border border-border space-y-1.5">
+            <p className="text-xs font-semibold text-foreground">CNAME Setup Instructions</p>
+            <p className="text-[11px] text-muted-foreground">
+              1. Log in to your DNS provider (Cloudflare, Namecheap, GoDaddy, etc.)
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              2. Add a <span className="font-mono font-medium text-foreground">CNAME</span> record:
+            </p>
+            <div className="font-mono text-[11px] bg-background rounded-md px-2 py-1.5 border border-border space-y-0.5">
+              <p><span className="text-muted-foreground">Name:</span> <span className="text-foreground">{customDomain.split('.').slice(0, -2).join('.') || '@'}</span></p>
+              <p><span className="text-muted-foreground">Value:</span> <span className="text-foreground">resume.thewise.cloud</span></p>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              3. Save the portfolio — DNS changes may take up to 48 hours to propagate.
+            </p>
+          </div>
+        )}
       </CollapsibleCard>
 
       {/* SEO & Sharing */}
