@@ -109,25 +109,57 @@
 
 <body>
   <div id="root">
+    <style>
+      @keyframes splashShockwave {
+        0%   { transform: translate(-50%, -50%) scale(0.3); opacity: 0.45; }
+        100% { transform: translate(-50%, -50%) scale(2.6); opacity: 0; }
+      }
+      @keyframes splashGlowBreath {
+        0%, 100% { opacity: 0.06; }
+        50%      { opacity: 0.14; }
+      }
+      @keyframes splashIconPop {
+        0%   { transform: scale(0.5); opacity: 0; }
+        70%  { transform: scale(1.08); opacity: 1; }
+        100% { transform: scale(1);    opacity: 1; }
+      }
+      @keyframes splashRise {
+        from { transform: translateY(12px); opacity: 0; }
+        to   { transform: translateY(0);    opacity: 1; }
+      }
+      @keyframes splashTaglineFade {
+        from { transform: translateY(6px); opacity: 0; }
+        to   { transform: translateY(0);   opacity: 1; }
+      }
+      #splash-name { display: flex; }
+      #splash-name span {
+        display: inline-block;
+        opacity: 0;
+        animation: splashRise 0.32s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      }
+    </style>
     <div id="splash-screen"
       style="position:fixed;inset:0;background:#111111;display:flex;align-items:center;justify-content:center;overflow:hidden;z-index:9999;">
-      <!-- Soft glow behind icon — matches React AnimatedSplash -->
+      <!-- Breathing glow behind icon -->
       <div id="splash-glow"
-        style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:300px;height:300px;border-radius:50%;opacity:0.08;background:radial-gradient(circle,hsl(357,71%,56%) 0%,transparent 70%);pointer-events:none;">
+        style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:320px;height:320px;border-radius:50%;opacity:0.08;background:radial-gradient(circle,hsl(357,71%,56%) 0%,transparent 70%);pointer-events:none;animation:splashGlowBreath 2.4s ease-in-out infinite;">
+      </div>
+      <!-- Shockwave ring expanding outward -->
+      <div id="splash-shockwave"
+        style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.3);width:140px;height:140px;border-radius:50%;border:2px solid hsl(357,71%,56%);opacity:0;pointer-events:none;animation:splashShockwave 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;">
       </div>
       <div style="display:flex;flex-direction:column;align-items:center;gap:0;position:relative;">
-        <!-- Icon — same size as React splash (72px) -->
+        <!-- Icon — pops in with bounce -->
         <img id="splash-logo" src="/logo-dark.png" alt="" width="72" height="72"
-          style="opacity:0;transition:opacity 0.15s ease-in;border-radius:16px;"
-          onload="this.style.opacity='1'" />
-        <!-- Brand name -->
+          style="opacity:0;border-radius:16px;animation:splashIconPop 0.6s ease-out 0.05s forwards;" />
+        <!-- Brand name (letters get spans injected by inline JS for stagger) -->
         <h1 id="splash-name"
           style="font-family:'Inter',system-ui,sans-serif;font-size:24px;font-weight:700;letter-spacing:-0.02em;margin:20px 0 0;color:#ffffff;">
           WiseResume
         </h1>
         <!-- Tagline -->
         <p id="splash-tagline"
-          style="font-family:'Inter',system-ui,sans-serif;font-size:14px;font-weight:400;margin:6px 0 0;color:rgba(255,255,255,0.5);">
+          style="font-family:'Inter',system-ui,sans-serif;font-size:14px;font-weight:400;margin:6px 0 0;color:rgba(255,255,255,0.5);opacity:0;animation:splashTaglineFade 0.4s ease-out 0.75s forwards;">
           Your AI Career Partner
         </p>
       </div>
@@ -136,12 +168,15 @@
       (function () {
         var splash = document.getElementById('splash-screen');
         var logo = document.getElementById('splash-logo');
-        var name = document.getElementById('splash-name');
+        var nameEl = document.getElementById('splash-name');
         var tagline = document.getElementById('splash-tagline');
         var glow = document.getElementById('splash-glow');
+        var shock = document.getElementById('splash-shockwave');
         var theme = document.documentElement.getAttribute('data-initial-theme') || 'dark';
-        var isWH = window.location.pathname === '/enterprises';
+        var isWH = window.location.pathname === '/enterprises' ||
+          new URLSearchParams(window.location.search).get('for') === 'companies';
         var isDark = theme === 'dark';
+        var brandColor = isWH ? '#1D4ED8' : 'hsl(357,71%,56%)';
 
         if (splash) {
           splash.style.background = isDark ? '#111111' : '#ffffff';
@@ -152,22 +187,28 @@
             logo.style.filter = 'hue-rotate(220deg) saturate(2) brightness(0.85)';
           }
         }
-        if (name) {
-          name.textContent = isWH ? 'WiseHire' : 'WiseResume';
-          if (isWH) {
-            name.style.color = '#1D4ED8';
-          } else {
-            name.style.color = isDark ? '#ffffff' : '#0f0f1a';
+        if (glow) {
+          glow.style.background = 'radial-gradient(circle,' + brandColor + ' 0%,transparent 70%)';
+        }
+        if (shock) {
+          shock.style.borderColor = brandColor;
+        }
+        if (nameEl) {
+          var brandName = isWH ? 'WiseHire' : 'WiseResume';
+          var nameColor = isWH ? '#1D4ED8' : (isDark ? '#ffffff' : '#0f0f1a');
+          nameEl.style.color = nameColor;
+          // Replace text with per-letter spans for stagger animation
+          nameEl.textContent = '';
+          for (var i = 0; i < brandName.length; i++) {
+            var s = document.createElement('span');
+            s.textContent = brandName.charAt(i);
+            s.style.animationDelay = (0.45 + i * 0.035) + 's';
+            nameEl.appendChild(s);
           }
         }
         if (tagline) {
           tagline.textContent = isWH ? 'Hire Smarter. Screen Faster.' : 'Your AI Career Partner';
           tagline.style.color = isDark ? 'rgba(255,255,255,0.5)' : 'rgba(15,15,26,0.5)';
-        }
-        if (glow) {
-          glow.style.background = isWH
-            ? 'radial-gradient(circle,#1D4ED8 0%,transparent 70%)'
-            : 'radial-gradient(circle,hsl(357,71%,56%) 0%,transparent 70%)';
         }
       })();
     </script>
