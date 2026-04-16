@@ -67,8 +67,25 @@ function SplashGate() {
       ? window.location.hostname
       : null;
 
+  // Splash is a mobile-app pattern, not a web pattern. We only show it when
+  // the app is launched as an installed PWA (standalone / fullscreen display
+  // mode, or iOS Safari's `navigator.standalone`). In a regular browser tab
+  // the LandingSkeleton (and other route skeletons) handle the load gap, so
+  // visitors get content immediately with no extra brand splash in the way.
+  const isStandalonePWA =
+    typeof window !== "undefined" &&
+    (window.matchMedia?.("(display-mode: standalone)").matches ||
+      window.matchMedia?.("(display-mode: fullscreen)").matches ||
+      window.matchMedia?.("(display-mode: minimal-ui)").matches ||
+      // iOS Safari
+      (window.navigator as { standalone?: boolean }).standalone === true);
+
   const shouldShowSplash =
-    !hasSeenSplash && !isPublic && !isAdminRoute && !customDomainHostname;
+    isStandalonePWA &&
+    !hasSeenSplash &&
+    !isPublic &&
+    !isAdminRoute &&
+    !customDomainHostname;
 
   const [settingsHydrated, setSettingsHydrated] = useState(() =>
     useSettingsStore.persist.hasHydrated()

@@ -100,7 +100,21 @@
         var isPublic = path.indexOf('/p/') === 0 || path.indexOf('/share/') === 0 ||
           path.indexOf('/l/') === 0 || path.indexOf('/auth/callback') === 0;
         var isAdmin = path.indexOf('/devkit') === 0;
-        if (isAppHost && !isPublic && !isAdmin) {
+        // Splash only appears when launched as an installed PWA (standalone /
+        // fullscreen display mode, or iOS Safari home-screen launch). In a
+        // regular browser tab we skip it entirely so visitors get content
+        // immediately — route-level skeletons handle any chunk-load gap.
+        var isStandalone = false;
+        try {
+          isStandalone =
+            (window.matchMedia && (
+              window.matchMedia('(display-mode: standalone)').matches ||
+              window.matchMedia('(display-mode: fullscreen)').matches ||
+              window.matchMedia('(display-mode: minimal-ui)').matches
+            )) ||
+            window.navigator.standalone === true;
+        } catch (e) { }
+        if (isAppHost && !isPublic && !isAdmin && isStandalone) {
           var isWH = path === '/enterprises' ||
             new URLSearchParams(window.location.search).get('for') === 'companies';
           document.documentElement.setAttribute('data-brand', isWH ? 'wisehire' : 'wiseresume');
