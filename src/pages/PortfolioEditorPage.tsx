@@ -159,6 +159,7 @@ export default function PortfolioEditorPage() {
       caseStudies, services, testimonials, highlights, portfolioSummary,
       selectedResumeId, sectionOrder, pinnedProject, scrollEffect,
       videoIntroUrl, schedulingUrl, abChallengerTheme, portfolioCertifications, portfolioPrimaryLanguage, portfolioSecondaryLanguage,
+      passwordEnabled, passwordHash, customDomain,
     });
   }, [
     username, bio, portfolioEnabled, githubUrl, websiteUrl, twitterUrl,
@@ -168,6 +169,7 @@ export default function PortfolioEditorPage() {
     caseStudies, services, testimonials, highlights, portfolioSummary,
     selectedResumeId, sectionOrder, pinnedProject, scrollEffect,
     videoIntroUrl, schedulingUrl, abChallengerTheme, portfolioCertifications, portfolioPrimaryLanguage, portfolioSecondaryLanguage,
+    passwordEnabled, passwordHash, customDomain,
   ]);
 
   const tabIndexMap = { setup: 0, content: 1, design: 2, more: 3, visitors: 4 } as const;
@@ -791,7 +793,7 @@ export default function PortfolioEditorPage() {
                 style={{ width: 220, height: 396 }}>
                 {/* Notch */}
                 <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1.5 rounded-full bg-foreground/20 z-20 pointer-events-none" />
-                {portfolioCanonicalUrl ? (
+                {portfolioEnabled && portfolioCanonicalUrl ? (
                   <iframe
                     src={portfolioCanonicalUrl}
                     title="Mobile portfolio preview"
