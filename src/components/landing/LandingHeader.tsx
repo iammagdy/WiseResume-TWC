@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { GlassSurface } from '@/components/ui/GlassSurface';
 import {
   LayoutDashboard, Settings, LogOut, Sun, Moon, Menu, Tag, Zap, User,
@@ -93,47 +93,10 @@ export function LandingHeader({
 
         {/* Right: nav links + CTA */}
         <div className="flex items-center gap-2 shrink-0 justify-self-end">
-          {/* Nav links */}
-          {mode === 'wisehire' ? (
-            <button
-              className="hidden sm:flex items-center text-sm font-medium px-3 h-11 rounded-lg transition-all duration-200"
-              style={{ color: 'var(--lp-text-muted)', background: 'transparent' }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--lp-text)'; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--lp-text-muted)'; }}
-              onClick={() => {
-                const el = document.getElementById('wisehire-pricing');
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }}
-            >
-              Pricing
-            </button>
-          ) : (
-            <Link
-              to="/pricing"
-              className="hidden sm:flex items-center text-sm font-medium px-3 h-11 rounded-lg transition-all duration-200"
-              style={{ color: 'var(--lp-text-muted)', background: 'transparent' }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text)'; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text-muted)'; }}
-            >
-              Pricing
-            </Link>
-          )}
-          {mode === 'jobseeker' && (
-            <Link
-              to="/whats-new"
-              className="hidden sm:flex items-center text-sm font-medium px-3 h-11 rounded-lg transition-all duration-200"
-              style={{ color: 'var(--lp-text-muted)', background: 'transparent' }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text)'; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text-muted)'; }}
-            >
-              What's New
-            </Link>
-          )}
-
-          {/* Mobile hamburger */}
+          {/* Nav menu (hamburger is the sole entry point for Pricing / What's New) */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="sm:hidden lp-theme-toggle" aria-label="Navigation menu">
+              <button className="lp-theme-toggle" aria-label="Navigation menu">
                 <Menu className="w-4 h-4" />
               </button>
             </DropdownMenuTrigger>
