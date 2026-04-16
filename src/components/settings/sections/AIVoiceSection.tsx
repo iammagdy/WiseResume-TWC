@@ -1,10 +1,9 @@
 import { memo, Suspense, lazy } from 'react';
-import { Brain, ScanFace, Mic, ShieldCheck } from 'lucide-react';
+import { Brain, Mic, ShieldCheck } from 'lucide-react';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { useSettingsStore } from '@/store/settingsStore';
-import { toast } from 'sonner';
 
 const AICreditsRow = lazy(() => import('./AICreditsRow'));
 
@@ -44,15 +43,6 @@ export const AIVoiceSection = memo(function AIVoiceSection({
                 checked={redactPiiBeforeAI}
                 icon={<ShieldCheck className="w-4 h-4" />}
                 onCheckedChange={setRedactPiiBeforeAI}
-            />
-            <Separator className="ml-[52px] bg-border/30" />
-            <SettingsRow
-                type="navigation"
-                label="AI Professional Headshot"
-                description="Generate a professional photo from your selfies"
-                value="Coming Soon"
-                icon={<ScanFace className="w-4 h-4" />}
-                onClick={() => toast('AI Headshots are coming in the next update!', { icon: '📸' })}
             />
             <Separator className="ml-[52px] bg-border/30" />
 

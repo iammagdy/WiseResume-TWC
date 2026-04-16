@@ -23,6 +23,8 @@ export const AboutSection = memo(function AboutSection({
     onShareApp,
     onOpenHelp,
 }: AboutSectionProps) {
+    const shakeToReportEnabled = useSettingsStore((s) => s.shakeToReportEnabled);
+    const setShakeToReportEnabled = useSettingsStore((s) => s.setShakeToReportEnabled);
     return (
         <>
             <div className="rounded-2xl bg-card border border-border shadow-soft overflow-hidden">
@@ -89,10 +91,10 @@ export const AboutSection = memo(function AboutSection({
                             label="Shake to Report Bug"
                             description="Shake your device to quickly open the bug report"
                             icon={<Activity className="w-4 h-4" />}
-                            checked={useSettingsStore.getState().shakeToReportEnabled}
+                            checked={shakeToReportEnabled}
                             onCheckedChange={(val) => {
                                 haptics.light();
-                                useSettingsStore.getState().setShakeToReportEnabled(val);
+                                setShakeToReportEnabled(val);
                             }}
                         />
                     </>
