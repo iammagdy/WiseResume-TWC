@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from 'recharts';
 import { motion, useReducedMotion } from 'framer-motion';
-import { useJobActivityStats, JobActivityStats } from '@/hooks/useJobActivityStats';
+import { JobActivityStats } from '@/hooks/useJobActivityStats';
 import { TrendingUp } from 'lucide-react';
 
 function RatePill({ label, value, color }: { label: string; value: number; color: string }) {
@@ -16,12 +16,10 @@ function RatePill({ label, value, color }: { label: string; value: number; color
 }
 
 interface Props {
-  stats?: JobActivityStats;
+  stats: JobActivityStats;
 }
 
-export const ActivityAnalyticsDashboard = memo(function ActivityAnalyticsDashboard({ stats: statsProp }: Props) {
-  const statsFromHook = useJobActivityStats();
-  const stats = statsProp ?? statsFromHook;
+export const ActivityAnalyticsDashboard = memo(function ActivityAnalyticsDashboard({ stats }: Props) {
   const shouldReduceMotion = useReducedMotion();
 
   if (stats.isLoading) {
@@ -33,8 +31,12 @@ export const ActivityAnalyticsDashboard = memo(function ActivityAnalyticsDashboa
     );
   }
 
-  const totalTracked = stats.applicationsSubmitted + stats.interviewsScheduled + stats.offersReceived;
-  if (totalTracked === 0) return null;
+  const hasAnyHistory =
+    stats.applicationsSubmitted > 0 ||
+    stats.interviewsScheduled > 0 ||
+    stats.offersReceived > 0 ||
+    stats.weeklyTrend.some(w => w.count > 0);
+  if (!hasAnyHistory) return null;
 
   const funnelData = [
     { name: 'Applied', count: stats.appliedCount, fill: 'hsl(var(--primary))' },
