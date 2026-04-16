@@ -4,7 +4,7 @@ import { callAI, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient
 import { recordUsage, getUserPlan } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
-import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
+import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
@@ -451,18 +451,26 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const aiResponse = await callAI({
-      model: 'meta-llama/llama-3.3-70b-instruct:free',
-      messages,
-      tools: TOOLS as any[],
-      temperature: 0.7,
-      maxTokens: 2000,
-      userId,
-      // Must exceed callWiseresumeAI's OVERALL_BUDGET_MS (50s) so the
-      // outer timeout never preempts the managed chain's own deadline.
-      // 55s leaves ~5s of headroom under Supabase's 60s edge limit.
-      timeout: 55_000,
-    });
+    let aiResponse;
+    try {
+      aiResponse = await callAI({
+        model: 'meta-llama/llama-3.3-70b-instruct:free',
+        messages,
+        tools: TOOLS as any[],
+        temperature: 0.7,
+        maxTokens: 2000,
+        userId,
+        // Must exceed callWiseresumeAI's OVERALL_BUDGET_MS (50s) so the
+        // outer timeout never preempts the managed chain's own deadline.
+        // 55s leaves ~5s of headroom under Supabase's 60s edge limit.
+        timeout: 55_000,
+      });
+    } catch (aiErr) {
+      // Refund the credit that was deducted before this call so users
+      // are not billed for provider outages. Original error is re-thrown.
+      await refundCredit(userId, creditCheck, 1);
+      throw aiErr;
+    }
 
     const toolCall = aiResponse.toolCalls?.[0];
     const content = aiResponse.content;

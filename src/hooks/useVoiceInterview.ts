@@ -561,9 +561,12 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
           },
         });
 
-        // 60-second safety timeout (edge function has its own retry logic)
+        // 75-second safety timeout. Must exceed the edge function's own
+        // 55s callAI budget + a few seconds of network round-trip, otherwise
+        // this client-side race preempts a response that the server is
+        // still successfully producing (classic "ghost timeout" failure).
         const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('AI response timed out. Please try again.')), 60000)
+          setTimeout(() => reject(new Error('AI response timed out. Please try again.')), 75000)
         );
 
         const { data, error: fnError } = await Promise.race([aiPromise, timeoutPromise]);

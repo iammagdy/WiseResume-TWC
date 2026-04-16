@@ -3,7 +3,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAIWithRetry, isAIError, parseAIJSONWithRetry, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage, getUserPlan } from "../_shared/rateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
-import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
+import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
 import { logger } from "../_shared/logger.ts";
@@ -109,12 +109,18 @@ ${resumeContext}${jobContext}
 Return JSON with this exact structure: {"title":"exact job title","keySkills":["skill1","skill2","skill3","skill4","skill5"],"questionCategories":["category1","category2","category3"],"industryInsights":"2-3 sentences about what interviewers in this field specifically look for and common pitfalls to avoid"}`;
 
       // Fix #9: Use low temperature for structured JSON output
-      const aiResponse = await callAIWithRetry({
-        messages: [{ role: 'user', content: analyzePrompt }],
-        userId,
-        maxTokens: 512,
-        temperature: 0.3,
-      });
+      let aiResponse;
+      try {
+        aiResponse = await callAIWithRetry({
+          messages: [{ role: 'user', content: analyzePrompt }],
+          userId,
+          maxTokens: 512,
+          temperature: 0.3,
+        });
+      } catch (aiErr) {
+        await refundCredit(userId, creditCheck, 1);
+        throw aiErr;
+      }
 
       const roleAnalysis = await parseAIJSONWithRetry(aiResponse.content || '{}', {
         userId,
@@ -217,12 +223,18 @@ Do not include markdown blocks globally. Ensure the output is valid JSON.`;
     // Fix #9: Use appropriate temperature per mode
     const temperature = effectiveEndInterview ? 0.5 : 0.7;
 
-    const aiResponse = await callAIWithRetry({
-      messages: [{ role: "system", content: systemPrompt }, ...messages],
-      userId,
-      maxTokens,
-      temperature,
-    });
+    let aiResponse;
+    try {
+      aiResponse = await callAIWithRetry({
+        messages: [{ role: "system", content: systemPrompt }, ...messages],
+        userId,
+        maxTokens,
+        temperature,
+      });
+    } catch (aiErr) {
+      await refundCredit(userId, creditCheck, 1);
+      throw aiErr;
+    }
 
     // FR-016: Parse the structured JSON response from the AI.
     // The system prompt instructs the model to return { reply, score }.

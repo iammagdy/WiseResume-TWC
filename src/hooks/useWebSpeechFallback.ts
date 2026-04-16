@@ -146,12 +146,25 @@ export function useWebSpeechFallback(options: WebSpeechFallbackOptions = {}) {
     setAudioLevel(0);
   }, [clearNoSpeechTimer, stopAudioAnalysis]);
 
+  const connectingRef = useRef(false);
+
   const connect = useCallback(async () => {
+    // Guard against concurrent connect() calls. Without this, a re-render
+    // (or parent component calling connect twice) races through cleanup()
+    // and two recognition instances collide with "recognition has already
+    // started" errors, leaving the UI wedged in a zombie listening state.
+    if (connectingRef.current) {
+      console.log('[WebSpeech] connect() called while already connecting — ignoring');
+      return;
+    }
+    connectingRef.current = true;
+
     cleanup();
 
     if (!SpeechRecognitionAPI) {
       console.error('[WebSpeech] SpeechRecognition API not supported');
       optionsRef.current.onError?.('Speech recognition is not supported in this browser. Please use text input.');
+      connectingRef.current = false;
       return;
     }
 
@@ -254,6 +267,8 @@ export function useWebSpeechFallback(options: WebSpeechFallbackOptions = {}) {
       console.error('[WebSpeech] Start error:', msg);
       optionsRef.current.onError?.(msg);
       cleanup();
+    } finally {
+      connectingRef.current = false;
     }
   }, [cleanup, clearNoSpeechTimer, startNoSpeechTimer, startAudioAnalysis]);
 

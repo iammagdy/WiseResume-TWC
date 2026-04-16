@@ -17,7 +17,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
-import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
+import { checkAndDeductCredit, refundCredit } from "../_shared/creditUtils.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
@@ -257,15 +257,24 @@ serve(async (req: Request) => {
     // If the user has a BYOK provider configured, their own key is used exclusively
     // and no platform key is consumed. Platform managed keys are used only for users
     // whose ai_provider is 'wiseresume' or unset.
-    const aiResponse = await callAI({
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
-      maxTokens: 1500,
-      userId,
-      // Must exceed callWiseresumeAI's OVERALL_BUDGET_MS (50s) so the
-      // outer timeout never preempts the managed chain's own deadline.
-      timeout: 55_000,
-    });
+    let aiResponse;
+    try {
+      aiResponse = await callAI({
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.7,
+        maxTokens: 1500,
+        userId,
+        // Must exceed callWiseresumeAI's OVERALL_BUDGET_MS (50s) so the
+        // outer timeout never preempts the managed chain's own deadline.
+        timeout: 55_000,
+      });
+    } catch (aiErr) {
+      // The credit was already deducted before this call. Refund it so
+      // platform infrastructure failures don't burn the user's daily quota.
+      // Refund runs silently — the original AI error is re-thrown below.
+      await refundCredit(userId, creditCheck, 1);
+      throw aiErr;
+    }
 
     return new Response(
       JSON.stringify({
