@@ -313,8 +313,14 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
           throw new Error(errMsg || 'AI quota exceeded. Try again tomorrow or add your own API key in Settings.');
         } else if (errCode === 'enhancement_failed') {
           throw new Error('Failed to enhance content — please try again.');
+        } else if (/invalid.?key|Invalid API key/i.test(errMsg || errCode)) {
+          throw new Error(errMsg || 'Invalid API key — please check your AI settings.');
+        } else if (/not configured|please contact support/i.test(errMsg || errCode)) {
+          throw new Error(errMsg || 'WiseResume AI is not configured — go to Settings → AI Provider to add your API key.');
+        } else if (/something went wrong/i.test(errMsg || errCode)) {
+          throw new Error('AI request failed — check your AI settings or try again later.');
         } else {
-          throw new Error('AI is temporarily unavailable — please try again in a moment.');
+          throw new Error(errMsg || errCode || 'AI is temporarily unavailable — please try again in a moment.');
         }
       }
       const data = await res.json();

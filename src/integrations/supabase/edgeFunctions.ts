@@ -106,6 +106,10 @@ export const edgeFunctions = {
                 errorMessage = 'Invalid API key — please check your AI settings.';
               } else if (detail.includes('rate_limit') || detail.includes('rate limit')) {
                 errorMessage = 'Too many requests — please wait a moment and try again.';
+              } else if (/not configured|please contact support/i.test(detail)) {
+                errorMessage = 'WiseResume AI is not configured — go to Settings → AI Provider to add your API key.';
+              } else if (/something went wrong/i.test(detail)) {
+                errorMessage = 'AI request failed — check your AI settings or try again later.';
               } else if (detail.length < 120 && !detail.match(/^\d+$/) && !detail.toLowerCase().includes('error code') && !detail.toLowerCase().includes('function')) {
                 // Only use the detail if it looks like a user-readable message
                 errorMessage = detail;

@@ -28,6 +28,25 @@ WiseResume is an AI-powered career management PWA. Production URL: https://resum
 - `project-governance/` — Architecture documentation
 - `wise-templates/` — Resume templates
 
+## AI Error Handling Architecture
+The AI error chain flows: Supabase Edge Function → `callAI()` → throws `AIError` → edge function catch → JSON response → frontend parsing → user-visible toast.
+
+**Frontend error parsing layers** (each has its own classification logic):
+- `src/integrations/supabase/edgeFunctions.ts` — JSON edge function client, first to parse the response
+- `src/hooks/useAIAction.ts` (`parseErrorMessage`) — universal AI action wrapper
+- `src/hooks/useAIEnhance.ts` — enhance section hook (bypasses edgeFunctions.ts, calls fetch directly)
+- `src/hooks/useATSSuggestions.ts` — ATS deep analysis hook (also calls fetch directly)
+- `src/components/editor/tailor/QuickActions.tsx` — quick tailor actions (also calls fetch directly)
+
+**Backend error utilities** (`supabase/functions/_shared/aiClient.ts`):
+- `createAIError(type, message, status)` — creates typed AI errors
+- `isAIError(error)` — type guard for AI errors
+- `toUserError(error)` — maps AIError to `{ status, error: code, message: readable }` for HTTP responses
+
+**Known issue**: Some deployed edge functions return `{ error: 'Something went wrong.' }` instead of using `toUserError()`. Frontend now catches this pattern and shows "AI request failed — check your AI settings or try again later." instead of the generic "AI is temporarily unavailable."
+
+**To redeploy edge functions with fixes**: Run `bash scripts/deploy-functions.sh` (requires `SUPABASE_ACCESS_TOKEN` secret).
+
 ## Fresh Import Setup (New Replit from GitHub)
 
 When you import this repo into a fresh Replit, the app will start and run correctly **with zero additional configuration** — all four frontend env vars (`VITE_KINDE_CLIENT_ID`, `VITE_KINDE_DOMAIN`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`) are already embedded in `.replit [userenv.shared]`.

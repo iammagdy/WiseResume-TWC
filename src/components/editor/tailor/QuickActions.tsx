@@ -85,13 +85,21 @@ Return JSON: { "recommendedOrder": ["section1", "section2", ...], "reasoning": "
         });
 
         if (!res.ok) {
+          const errBody = await res.json().catch(() => ({} as Record<string, unknown>));
           const status = res.status;
+          const errDetail = (errBody?.message || errBody?.error || '') as string;
           if (status === 401 || status === 403) {
             throw new Error('Session expired — please sign in again to use AI features.');
           } else if (status === 429) {
             throw new Error('Too many requests — please wait a moment and try again.');
+          } else if (/invalid.?key|Invalid API key/i.test(errDetail)) {
+            throw new Error('Invalid API key — please check your AI settings.');
+          } else if (/not configured|please contact support/i.test(errDetail)) {
+            throw new Error('WiseResume AI is not configured — go to Settings → AI Provider to add your API key.');
+          } else if (/something went wrong/i.test(errDetail)) {
+            throw new Error('AI request failed — check your AI settings or try again later.');
           } else {
-            throw new Error('AI is temporarily unavailable — please try again in a moment.');
+            throw new Error(errDetail || 'AI is temporarily unavailable — please try again in a moment.');
           }
         }
         const data = await res.json();
@@ -99,7 +107,11 @@ Return JSON: { "recommendedOrder": ["section1", "section2", ...], "reasoning": "
           if (data.error === 'rate_limit') throw new Error('Too many requests — please wait a moment and try again.');
           if (data.error === 'payment_required') throw new Error('AI credits exhausted. Please check your account.');
           if (data.error === 'invalid_key') throw new Error('Invalid API key — please check your AI settings.');
-          throw new Error('AI is temporarily unavailable — please try again in a moment.');
+          const detail = (data.message || data.error || '') as string;
+          if (/invalid.?key|Invalid API key/i.test(detail)) throw new Error('Invalid API key — please check your AI settings.');
+          if (/not configured|please contact support/i.test(detail)) throw new Error('WiseResume AI is not configured — go to Settings → AI Provider to add your API key.');
+          if (/something went wrong/i.test(detail)) throw new Error('AI request failed — check your AI settings or try again later.');
+          throw new Error(detail || 'AI is temporarily unavailable — please try again in a moment.');
         }
         return data;
       });

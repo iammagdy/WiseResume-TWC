@@ -144,7 +144,7 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
           } else if (respData.error === 'invalid_key') {
             throw new Error('invalid_key');
           } else {
-            throw new Error('server_error');
+            throw new Error(respData.message || respData.error || 'server_error');
           }
         }
 
@@ -193,6 +193,8 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
         toast.error('Invalid API key — please check your AI settings.');
       } else if (errMsg === 'enhancement_failed' || /enhancement.?failed|failed to enhance/i.test(errMsg)) {
         toast.error('Failed to enhance content — please try again.');
+      } else if (/something went wrong/i.test(errMsg)) {
+        toast.error('AI request failed — check your AI settings or try again later.');
       } else {
         toast.error('AI is temporarily unavailable — please try again in a moment.');
       }

@@ -123,6 +123,9 @@ function parseErrorMessage(err: unknown): string {
   if (raw === 'enhancement_failed' || /enhancement.?failed|failed to enhance/i.test(raw)) {
     return 'Failed to enhance content — please try again.';
   }
+  if (/something went wrong/i.test(raw)) {
+    return 'AI request failed — check your AI settings or try again later.';
+  }
 
   return 'AI is temporarily unavailable — please try again in a moment.';
 }
