@@ -245,8 +245,23 @@ Do not include markdown blocks globally. Ensure the output is valid JSON.`;
     });
 
     // If model returned valid structured JSON, use the reply field; fall back to raw content.
-    const replyText = parsed?.reply || rawContent || "I couldn't generate a response. Let's try again.";
+    let replyText = parsed?.reply || rawContent || "I couldn't generate a response. Let's try again.";
     const scoreData = parsed?.score || null;
+
+    // Defensive content-leak guard. Some providers occasionally echo
+    // TTS/scribe artefacts into interviewer dialogue: alignment timestamps
+    // like "[0.0:2.6]" at line starts, or a trailing "Caption: ..." audio
+    // scene description. Strip both so they never reach the candidate UI.
+    // If the entire reply was audio-metadata we fall back to a neutral
+    // interviewer-friendly message rather than shipping an empty bubble.
+    replyText = replyText
+      .replace(/^\s*\[\d+(?:\.\d+)?:\d+(?:\.\d+)?\]\s*/gm, '') // leading timestamp markers
+      .replace(/^\s*Caption:\s.*$/gim, '')                    // "Caption: ..." lines
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    if (!replyText) {
+      replyText = "Let's continue — tell me more about your answer.";
+    }
 
     await recordUsage(userId, 'interview', { provider: aiResponse.providerUsed || 'unknown' });
 
