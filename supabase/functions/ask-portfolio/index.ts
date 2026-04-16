@@ -106,7 +106,15 @@ serve(async (req) => {
       byokProvider = anyKey?.provider ?? null;
     }
 
-    if (!byokProvider) {
+    // Allowlist of providers that callAI can actually route to via BYOK.
+    // Any other value (including unknown strings from user_api_keys) is treated
+    // as "no valid BYOK configured" and returns a 503.
+    const SUPPORTED_BYOK_PROVIDERS = new Set([
+      'gemini', 'ollama', 'openrouter', 'anthropic',
+      'openai', 'groq', 'mistral', 'xai', 'cohere',
+    ]);
+
+    if (!byokProvider || !SUPPORTED_BYOK_PROVIDERS.has(byokProvider)) {
       return new Response(JSON.stringify({
         error: "The AI assistant for this portfolio requires the owner to configure their API key.",
         isFallback: true,
