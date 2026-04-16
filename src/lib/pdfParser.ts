@@ -462,13 +462,29 @@ export function getLowConfidenceFields(
       out.push(sectionLabels[key]);
       continue;
     }
-    // Per-item keys: experience[0].company → "Experience #1 company"
-    const match = key.match(/^(\w+)\[(\d+)\]\.(\w+)$/);
-    if (match) {
-      const [, section, idx, sub] = match;
+    // Array-with-subfield keys: experience[0].company → "Experience #1 company"
+    const subMatch = key.match(/^(\w+)\[(\d+)\]\.(\w+)$/);
+    if (subMatch) {
+      const [, section, idx, sub] = subMatch;
       const sectionName = section.charAt(0).toUpperCase() + section.slice(1);
       const subName = subFieldLabels[sub] || sub;
       out.push(`${sectionName} #${parseInt(idx, 10) + 1} ${subName}`);
+      continue;
+    }
+    // Array-only keys: skills[0] → "Skills #1"
+    const arrMatch = key.match(/^(\w+)\[(\d+)\]$/);
+    if (arrMatch) {
+      const [, section, idx] = arrMatch;
+      const sectionName = section.charAt(0).toUpperCase() + section.slice(1);
+      out.push(`${sectionName} #${parseInt(idx, 10) + 1}`);
+      continue;
+    }
+    // Dotted keys without index: contact.location → "Location"
+    const dotMatch = key.match(/^(\w+)\.(\w+)$/);
+    if (dotMatch) {
+      const [, , sub] = dotMatch;
+      const subName = subFieldLabels[sub] || sub;
+      out.push(subName.charAt(0).toUpperCase() + subName.slice(1));
       continue;
     }
     out.push(key);
