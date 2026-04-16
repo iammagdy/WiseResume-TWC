@@ -419,26 +419,10 @@ export default function SettingsPage() {
                 behindGlowColor="rgba(125, 190, 255, 0.67)"
                 innerGradient="linear-gradient(145deg,#60496e8c 0%,#71C4FF44 100%)"
                 onContactClick={() => openExternal('mailto:contact@magdysaber.com')}
+                onPortfolioClick={() => openExternal('https://magdysaber.com')}
+                onGithubClick={() => openExternal('https://github.com/iammagdy')}
               />
             </Suspense>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => { openExternal('https://github.com/iammagdy'); }}
-                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-lg border border-border/50 hover:border-border"
-                aria-label="GitHub profile"
-              >
-                <Github className="w-4 h-4" />
-                <span>GitHub</span>
-              </button>
-              <button
-                onClick={() => { openExternal('https://magdysaber.com'); }}
-                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-lg border border-border/50 hover:border-border"
-                aria-label="Visit website"
-              >
-                <ExternalLink className="w-4 h-4" />
-                <span>magdysaber.com</span>
-              </button>
-            </div>
           </div>
 
           {/* App Footer */}

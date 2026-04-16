@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useCallback, useMemo } from 'react';
+import { ExternalLink, Mail, Github } from 'lucide-react';
 import './ProfileCard.css';
 
 interface ProfileCardProps {
@@ -20,7 +21,11 @@ interface ProfileCardProps {
   status?: string;
   contactText?: string;
   showUserInfo?: boolean;
+  portfolioUrl?: string;
+  githubUrl?: string;
   onContactClick?: () => void;
+  onPortfolioClick?: () => void;
+  onGithubClick?: () => void;
 }
 
 const DEFAULT_INNER_GRADIENT = 'linear-gradient(145deg,#60496e8c 0%,#71C4FF44 100%)';
@@ -50,14 +55,13 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
   enableTilt = true,
   enableMobileTilt = false,
   mobileTiltSensitivity = 5,
-  miniAvatarUrl,
   name = 'Javi A. Torres',
   title = 'Software Engineer',
-  handle = 'javicodes',
-  status = 'Online',
-  contactText = 'Contact',
+  contactText = 'Contact Me',
   showUserInfo = true,
-  onContactClick
+  onContactClick,
+  onPortfolioClick,
+  onGithubClick
 }) => {
   const wrapRef = useRef<HTMLDivElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
@@ -327,6 +331,14 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
     onContactClick?.();
   }, [onContactClick]);
 
+  const handlePortfolioClick = useCallback(() => {
+    onPortfolioClick?.();
+  }, [onPortfolioClick]);
+
+  const handleGithubClick = useCallback(() => {
+    onGithubClick?.();
+  }, [onGithubClick]);
+
   return (
     <div ref={wrapRef} className={`pc-card-wrapper ${className}`.trim()} style={cardStyle}>
       {behindGlowEnabled && <div className="pc-behind" />}
@@ -348,33 +360,38 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
               />
               {showUserInfo && (
                 <div className="pc-user-info">
-                  <div className="pc-user-details">
-                    <div className="pc-mini-avatar">
-                      <img
-                        src={miniAvatarUrl || avatarUrl}
-                        alt={`${name || 'User'} mini avatar`}
-                        loading="lazy"
-                        onError={e => {
-                          const t = e.target as HTMLImageElement;
-                          t.style.opacity = '0.5';
-                          t.src = avatarUrl;
-                        }}
-                      />
-                    </div>
-                    <div className="pc-user-text">
-                      <div className="pc-handle">@{handle}</div>
-                      <div className="pc-status">{status}</div>
-                    </div>
+                  <div className="pc-action-bar">
+                    <button
+                      className="pc-action-btn"
+                      onClick={handlePortfolioClick}
+                      style={{ pointerEvents: 'auto' }}
+                      type="button"
+                      aria-label="Portfolio"
+                    >
+                      <ExternalLink size={14} />
+                      <span>Portfolio</span>
+                    </button>
+                    <button
+                      className="pc-action-btn pc-action-btn--primary"
+                      onClick={handleContactClick}
+                      style={{ pointerEvents: 'auto' }}
+                      type="button"
+                      aria-label="Contact"
+                    >
+                      <Mail size={14} />
+                      <span>{contactText}</span>
+                    </button>
+                    <button
+                      className="pc-action-btn"
+                      onClick={handleGithubClick}
+                      style={{ pointerEvents: 'auto' }}
+                      type="button"
+                      aria-label="GitHub"
+                    >
+                      <Github size={14} />
+                      <span>GitHub</span>
+                    </button>
                   </div>
-                  <button
-                    className="pc-contact-btn"
-                    onClick={handleContactClick}
-                    style={{ pointerEvents: 'auto' }}
-                    type="button"
-                    aria-label={`Contact ${name || 'user'}`}
-                  >
-                    {contactText}
-                  </button>
                 </div>
               )}
             </div>
