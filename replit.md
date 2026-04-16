@@ -65,6 +65,7 @@ All Supabase edge function secrets (`ADMIN_EMAILS`, `DEV_KIT_PASSWORD`, AI keys,
 - Supabase project ref: `jnsfmkzgxsviuthaqlyy`
 - GitHub repo: `iammagdy/wiseresume-74945019`
 - `SUPABASE_ACCESS_TOKEN` is set in Replit — enables direct management API calls (secrets, SQL, etc.) without GitHub Actions
+- `GITHUB_ACCESS_TOKEN` is stored as a Replit Secret (not in `.replit` plaintext) — used by `scripts/refresh-devkit-secrets.sh`
 - Edge function secrets are in Supabase (not Vault): `OPENROUTER_API_KEY`, `GROQ_API_KEY`, `GEMINI_API_KEY`, `RESEND_API_KEY`, `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO`, `DEV_KIT_PASSWORD`, `KINDE_DOMAIN`, + others (15 total)
 - `SUPABASE_DB_PASSWORD` is in GitHub Actions — but `db-migration.yml` is **KNOWN BROKEN** due to migration history conflicts (migrations were applied manually and aren't tracked by the Supabase CLI). Use `apply-rpc-migration.yml` instead for SQL changes.
 - Deployment trigger: POST to `https://api.github.com/repos/iammagdy/wiseresume-74945019/actions/workflows/deploy-edge-functions.yml/dispatches` with `{"ref":"main"}` using the repo PAT
