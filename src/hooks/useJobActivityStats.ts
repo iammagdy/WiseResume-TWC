@@ -72,7 +72,7 @@ export function useJobActivityStats(): JobActivityStats {
         const weekStart = startOfWeek(subWeeks(now, 7 - i), { weekStartsOn: 1 });
         const weekEnd = endOfWeek(subWeeks(now, 7 - i), { weekStartsOn: 1 });
         const count = appsData.filter(a => {
-          if (!a.applied_at) return false;
+          if (!a.applied_at || a.status === 'saved') return false;
           const d = new Date(a.applied_at);
           return d >= weekStart && d <= weekEnd;
         }).length;
