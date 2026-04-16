@@ -5,7 +5,7 @@ import { AlertCircle, TrendingUp, Target, Zap, Lightbulb } from 'lucide-react';
 import { JobActivityStats } from '@/hooks/useJobActivityStats';
 import { useActivityStreak, weeklyGoalKey } from '@/hooks/useActivityStreak';
 import { useAuth } from '@/hooks/useAuth';
-import { JobApplication } from '@/hooks/useJobApplications';
+import { useJobApplications } from '@/hooks/useJobApplications';
 
 interface Nudge {
   icon: React.ElementType;
@@ -21,11 +21,11 @@ const typeStyles: Record<Nudge['type'], { card: string; icon: string }> = {
 };
 
 interface Props {
-  applications: JobApplication[];
   stats: JobActivityStats;
 }
 
-export function ActivityInsightsCard({ applications, stats }: Props) {
+export function ActivityInsightsCard({ stats }: Props) {
+  const { applications } = useJobApplications();
   const shouldReduceMotion = useReducedMotion();
   const { user } = useAuth();
   const { data: streakData } = useActivityStreak();

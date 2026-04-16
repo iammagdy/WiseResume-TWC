@@ -373,7 +373,7 @@ export default function ApplicationsPage() {
               ) : (
               <>
               {/* AI Insights */}
-              <ActivityInsightsCard applications={applications} stats={stats} />
+              <ActivityInsightsCard stats={stats} />
 
               {/* Analytics Dashboard */}
               <ActivityAnalyticsDashboard stats={stats} />
