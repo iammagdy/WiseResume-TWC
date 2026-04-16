@@ -152,6 +152,33 @@ serve(async (req) => {
     const groqKey = Deno.env.get('GROQ_API_KEY');
     const legacyGeminiKey = Deno.env.get('VERTEX_API_KEY') || Deno.env.get('WISE_AI_API_KEY') || Deno.env.get('GEMINI_API_KEY');
 
+    // PARITY: honor the global app_settings.wiseresume_ai_engine selection
+    // so the badge probe targets the SAME managed engine that callAI() would
+    // route a real chat through, instead of guessing from env-key presence
+    // order. This mirrors getGlobalAIEngine() in _shared/aiClient.ts.
+    let managedEngine: 'openrouter' | 'groq' | 'auto' = 'auto';
+    try {
+      const { data: engineRow } = await getServiceClient()
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'wiseresume_ai_engine')
+        .maybeSingle();
+      const v = engineRow?.value as string | undefined;
+      if (v === 'openrouter' || v === 'groq' || v === 'auto') managedEngine = v;
+    } catch {
+      // fall through to 'auto'
+    }
+    // Resolve which managed key the probe should actually use:
+    //  - explicit 'openrouter' → only OpenRouter (do not silently fall to Groq)
+    //  - explicit 'groq'       → only Groq
+    //  - 'auto'                → OpenRouter if present, else Groq
+    const effectiveOpenrouterKey =
+      managedEngine === 'groq' ? undefined :
+      openrouterKey;
+    const effectiveGroqKey =
+      managedEngine === 'openrouter' ? undefined :
+      groqKey;
+
     if (geminiKey) {
       // User BYOK Gemini: test directly
       provider = 'gemini';
@@ -178,7 +205,7 @@ serve(async (req) => {
         errorCode = response.status;
         status = (response.status === 429 || response.status === 402) ? 'degraded' : 'down';
       }
-    } else if (openrouterKey) {
+    } else if (effectiveOpenrouterKey) {
       // Managed OpenRouter: quick health check
       provider = 'wiseresume';
       const controller = new AbortController();
@@ -188,7 +215,7 @@ serve(async (req) => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${openrouterKey}`,
+            'Authorization': `Bearer ${effectiveOpenrouterKey}`,
             'HTTP-Referer': 'https://resume.thewise.cloud',
             'X-Title': 'WiseResume',
           },
@@ -209,15 +236,17 @@ serve(async (req) => {
         }
       } catch {
         clearTimeout(timeoutId);
-        // OpenRouter unreachable — try Groq before reporting degraded
-        if (groqKey) {
+        // OpenRouter unreachable — only try Groq fallback if the global engine
+        // setting allows it (i.e. 'auto'). Don't fall back when the admin has
+        // pinned to OpenRouter.
+        if (effectiveGroqKey && managedEngine !== 'openrouter') {
           const groqStart = Date.now();
           const groqController = new AbortController();
           const groqTimeout = setTimeout(() => groqController.abort(), 8_000);
           try {
             const groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${effectiveGroqKey}` },
               body: JSON.stringify({ model: 'qwen/qwen3-32b', messages: [{ role: 'user', content: 'Hi' }], max_tokens: 1 }),
               signal: groqController.signal,
             });
@@ -239,7 +268,7 @@ serve(async (req) => {
           status = 'down';
         }
       }
-    } else if (groqKey) {
+    } else if (effectiveGroqKey) {
       // Managed Groq: quick health check
       provider = 'wiseresume';
       const controller = new AbortController();
@@ -249,7 +278,7 @@ serve(async (req) => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${groqKey}`,
+            'Authorization': `Bearer ${effectiveGroqKey}`,
           },
           body: JSON.stringify({
             model: 'qwen/qwen3-32b',

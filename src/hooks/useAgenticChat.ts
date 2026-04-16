@@ -525,7 +525,7 @@ export function useAgenticChat(contextFilter?: string) {
   );
 
   const sendMessage = useCallback(
-    async (text: string) => {
+    async (text: string, historyOverride?: ChatMessage[]) => {
       if (!text.trim() || isThinking) return;
 
       const hasCredits = await checkCredits();
@@ -561,7 +561,8 @@ export function useAgenticChat(contextFilter?: string) {
       try {
         const resumeList = allResumes.map(r => ({ id: r.id, title: r.title }));
         // Guest users (unauthenticated) keep pre-existing 10-message history limit
-        const historyToSend = user ? messages : messages.slice(-10);
+        const baseHistory = historyOverride ?? messages;
+        const historyToSend = user ? baseHistory : baseHistory.slice(-10);
         const response = await sendChatMessage(text.trim(), historyToSend, currentResume, { resumeList, contextFilter });
 
         useAIHealthStore.getState().recordSuccess(Date.now() - reqStartedAt);
@@ -694,9 +695,12 @@ export function useAgenticChat(contextFilter?: string) {
     const lastUserText = current[userIdx].content;
     if (!lastUserText) return;
 
-    // Drop the failed user message + the error reply, then resend.
-    setMessages(current.slice(0, userIdx));
-    void sendMessage(lastUserText);
+    // Drop the failed user message + the error reply, then resend with the
+    // truncated history passed explicitly so sendMessage doesn't re-include
+    // the failed turn from its closure-captured `messages`.
+    const truncated = current.slice(0, userIdx);
+    setMessages(truncated);
+    void sendMessage(lastUserText, truncated);
   }, [messages, sendMessage]);
 
   const startNewSession = useCallback(() => {

@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient.ts";
-import { recordUsage } from "../_shared/rateLimiter.ts";
+import { recordUsage, getUserPlan } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
@@ -356,7 +356,19 @@ Deno.serve(async (req: Request) => {
   try {
     const { userId, client } = await requireAuth(req);
 
-    const serverRateCheck = await checkUserRateLimit(userId, 'chat', 60, 60);
+    // Plan-aware server-side chat rate limits.
+    // Free users get the baseline budget; Pro/Premium get larger windows
+    // before they hit the 429. BYOK users always get higher (the 60-call
+    // window covers everyone, but tiering applies before BYOK upgrade
+    // since this guard runs before provider routing).
+    const userPlan = await getUserPlan(userId);
+    const planLimits: Record<string, number> = {
+      free: 30,
+      pro: 90,
+      premium: 180,
+    };
+    const planChatLimit = planLimits[userPlan] ?? planLimits.free;
+    const serverRateCheck = await checkUserRateLimit(userId, 'chat', planChatLimit, 60);
     if (!serverRateCheck.allowed) {
       const status = serverRateCheck.dbError ? 503 : 429;
       const msg = serverRateCheck.dbError
