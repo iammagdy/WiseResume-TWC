@@ -582,7 +582,7 @@ const Index = () => {
         <div className="flex items-center justify-between px-4 sm:px-6 h-14 max-w-6xl mx-auto">
           <button
             onClick={() => { triggerHaptic.light(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-            className="flex items-center gap-2.5 touch-manipulation"
+            className="flex items-center gap-2.5 touch-manipulation min-w-0"
             aria-label={mode === 'wisehire' ? 'WiseHire – scroll to top' : 'WiseResume – scroll to top'}
           >
             <img
@@ -596,14 +596,14 @@ const Index = () => {
               }}
             />
             <span
-              className="font-display font-extrabold text-base tracking-tight"
+              className="font-display font-extrabold text-base tracking-tight truncate"
               style={{ color: 'var(--lp-logo-text)', transition: 'color 0.35s ease' }}
             >
               {mode === 'wisehire' ? 'WiseHire' : 'WiseResume'}
             </span>
           </button>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {/* Nav links */}
             {mode === 'wisehire' ? (
               <button
@@ -746,7 +746,7 @@ const Index = () => {
                     toast.error('Unable to sign in. Please try again or contact support.');
                   });
                 }}
-                className="text-sm font-medium px-4 py-1.5 rounded-lg transition-all duration-200"
+                className="text-sm font-medium px-4 py-1.5 rounded-lg transition-all duration-200 whitespace-nowrap shrink-0"
                 style={{
                   color: 'var(--lp-signin-color)',
                   background: 'var(--lp-signin-bg)',
@@ -758,7 +758,7 @@ const Index = () => {
             ) : (
               <button
                 onClick={() => setWaitlistOpen(true)}
-                className="text-sm font-semibold px-4 py-1.5 rounded-lg transition-all duration-200"
+                className="text-sm font-semibold px-4 py-1.5 rounded-lg transition-all duration-200 whitespace-nowrap shrink-0"
                 style={{
                   color: '#fff',
                   background: '#1D4ED8',
