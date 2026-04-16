@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { motion, useInView, useReducedMotion } from 'framer-motion';
 import { ArrowRight, CheckCircle2, ChevronDown, Users } from 'lucide-react';
-import { AppIcon } from '@/components/brand/AppIcon';
 
 function useCountUp(target: number, prefersReduced: boolean | null, duration = 1400) {
   const containerRef = useRef<HTMLSpanElement>(null);
@@ -129,20 +128,11 @@ export function WiseHireHero({ onOpenWaitlist, mobileToggle }: WiseHireHeroProps
           transition: 'background 0.35s ease, border-color 0.35s ease',
         }}
       >
-        <div
-          style={{
-            filter: 'hue-rotate(220deg) saturate(2) brightness(0.85)',
-            lineHeight: 0,
-            flexShrink: 0,
-          }}
-        >
-          <AppIcon size={18} showSparkle={false} className="rounded-md" />
-        </div>
         <span
           className="font-display font-semibold tracking-tight"
           style={{ fontSize: '0.85rem', color: 'var(--lp-eyebrow)', transition: 'color 0.35s ease' }}
         >
-          WiseHire — Now in early access
+          Now in early access
         </span>
       </div>
 
