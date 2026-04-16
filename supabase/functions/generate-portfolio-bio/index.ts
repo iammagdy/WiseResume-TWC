@@ -1,4 +1,4 @@
-import { callAI, sanitizeInputText } from '../_shared/aiClient.ts';
+import { callAI, sanitizeInputText, toUserError } from '../_shared/aiClient.ts';
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { requireAuth, authErrorResponse } from '../_shared/authMiddleware.ts';
 import { checkRateLimit, recordUsage } from '../_shared/rateLimiter.ts';
@@ -92,7 +92,7 @@ Example:
 {"challenge":"The team needed a way to reduce onboarding time for new enterprise customers, who were spending up to 3 days getting set up before they could use the product.","outcome":"A streamlined onboarding wizard reduced setup time by 70%, cutting the average from 3 days to under 8 hours, and improved first-week activation rates by 45%."}`;
 
       const response = await callAI({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemma-4-26b-a4b-it:free',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.7,
         maxTokens: 400,
@@ -224,7 +224,7 @@ ${JSON.stringify(inputObj, null, 2)}
 Return ONLY the translated JSON object:`;
 
       const response = await callAI({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemma-4-26b-a4b-it:free',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
         maxTokens: 4000,
@@ -318,7 +318,7 @@ Example:
 [{"category":"About","priority":"high","finding":"Bio is not set, leaving recruiters with no first impression.","suggestion":"Add a 2-3 sentence first-person bio that highlights your specialty and what makes you stand out."}]`;
 
       const response = await callAI({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemma-4-26b-a4b-it:free',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.4,
         maxTokens: 1500,
@@ -378,7 +378,7 @@ Requirements:
 - Return ONLY the message text, no labels, quotes, or explanation`;
 
       const response = await callAI({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemma-4-26b-a4b-it:free',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.75,
         maxTokens: 350,
@@ -436,7 +436,7 @@ Requirements:
 - Return ONLY the bio text, no quotes or labels`;
 
       const response = await callAI({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemma-4-26b-a4b-it:free',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.8,
         maxTokens: 1200,
@@ -469,7 +469,7 @@ Example output:
 {"metaTitle":"Jane Smith — Full-Stack Developer & UX Designer","metaDescription":"Full-stack developer with 5+ years building React and Node.js apps. Open to remote roles. View my portfolio and latest projects."}`;
 
       const response = await callAI({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemma-4-26b-a4b-it:free',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.5,
         maxTokens: 400,
@@ -515,7 +515,7 @@ Requirements:
 - Return ONLY the headline text`;
 
       const response = await callAI({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemma-4-26b-a4b-it:free',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.7,
         maxTokens: 120,
@@ -532,9 +532,10 @@ Requirements:
     return new Response(JSON.stringify({ error: 'Unknown action' }), { status: 400, headers: corsHeaders });
   } catch (error) {
     log.error('Unhandled error', error);
+    const { status, error: errorCode, message } = toUserError(error);
     return new Response(
-      JSON.stringify({ error: 'Something went wrong. Please try again.' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: errorCode, message }),
+      { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

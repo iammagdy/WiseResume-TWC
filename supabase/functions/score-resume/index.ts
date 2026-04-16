@@ -3,6 +3,7 @@ import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { requireAuth } from "../_shared/authMiddleware.ts";
+import { toUserError } from "../_shared/aiClient.ts";
 import {
   scoreContactCompleteness,
   scoreSectionStructure,
@@ -124,9 +125,10 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("score-resume error:", error);
+    const { status, error: errorCode, message } = toUserError(error);
     return new Response(
-      JSON.stringify({ error: 'Something went wrong. Please try again.' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: errorCode, message }),
+      { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

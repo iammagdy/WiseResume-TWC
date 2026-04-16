@@ -83,7 +83,12 @@ export const edgeFunctions = {
           let errorMessage = 'AI is temporarily unavailable — please try again in a moment.';
           try {
             const parsed = JSON.parse(result.text);
-            const detail = parsed?.error || parsed?.message || parsed?.detail;
+            // Prefer `message` over `error` when `error` is a short code (e.g. "invalid_key")
+            // and a human-readable `message` is also present.
+            const rawError = parsed?.error;
+            const detail = (typeof rawError === 'string' && typeof parsed?.message === 'string' && rawError.length <= 40)
+              ? parsed.message
+              : (rawError || parsed?.message || parsed?.detail);
             const status = result.response.status;
             // For 401: only show "Session expired" when the response does not
             // indicate a non-auth reason (e.g. invalid AI key). This mirrors the
