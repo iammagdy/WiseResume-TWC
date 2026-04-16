@@ -246,17 +246,15 @@
   z-index: 4;
 }
 
-.pc-avatar-layer {
+.pc-avatar-content {
   overflow: visible;
-  transform: translate3d(0, 0, 1.2px);
+  transform: translate3d(0, 0, 5px);
   z-index: 6;
-  mix-blend-mode: normal;
   backface-visibility: hidden;
-  pointer-events: none;
   isolation: isolate;
 }
 
-.pc-avatar-layer .avatar {
+.pc-avatar-content .avatar {
   width: 100%;
   position: absolute;
   left: 50%;
@@ -267,14 +265,6 @@
   backface-visibility: hidden;
   will-change: transform;
   transition: transform 120ms ease-out;
-  display: block;
-}
-
-.pc-avatar-content {
-  overflow: visible;
-  transform: translate3d(0, 0, 1.5px);
-  z-index: 7;
-  backface-visibility: hidden;
 }
 
 .pc-avatar-content::before {
