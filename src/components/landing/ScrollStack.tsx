@@ -1,4 +1,5 @@
 import { useEffect, useRef, Children, ReactNode } from 'react';
+import Lenis from 'lenis';
 import './ScrollStack.css';
 
 interface ScrollStackProps {
@@ -34,6 +35,8 @@ export function ScrollStack({
 }: ScrollStackProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const lenisRef = useRef<Lenis | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   const items = Children.toArray(children);
   const count = items.length;
@@ -44,24 +47,19 @@ export function ScrollStack({
     const container = containerRef.current;
     if (!container) return;
 
-    const onScroll = () => {
-      const containerTop = container.getBoundingClientRect().top + window.scrollY;
+    const applyScroll = (scrollY: number) => {
+      const containerTop = container.getBoundingClientRect().top + scrollY;
 
       cardRefs.current.forEach((card, i) => {
         if (!card) return;
 
         const cardScrollStart = containerTop + i * scrollPerCard;
-        const cardScrollEnd = cardScrollStart + scrollPerCard;
-
-        const scrollY = window.scrollY;
-
-        const entered = Math.max(0, Math.min(1, (scrollY - (cardScrollStart - vh)) / vh));
         const exiting = i < count - 1
           ? Math.max(0, Math.min(1, (scrollY - cardScrollStart) / scrollPerCard))
           : 0;
 
         const scale = 1 - exiting * scaleStep;
-        const translateY = exiting > 0 ? -exiting * cardGap * 0.5 : 0;
+        const translateY = -exiting * cardGap * 0.5;
         const opacity = 1 - exiting * 0.08;
 
         card.style.transform = `translateY(${translateY}px) scale(${scale})`;
@@ -70,10 +68,51 @@ export function ScrollStack({
       });
     };
 
-    window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener('scroll', onScroll);
-  }, [count, scrollPerCard, cardGap, scaleStep, vh]);
+    if (useWindowScroll) {
+      lenisRef.current = new Lenis({ autoRaf: false });
+
+      const onLenisScroll = (l: Lenis) => {
+        applyScroll(l.scroll);
+      };
+
+      lenisRef.current.on('scroll', onLenisScroll);
+
+      const raf = (time: number) => {
+        lenisRef.current?.raf(time);
+        rafRef.current = requestAnimationFrame(raf);
+      };
+      rafRef.current = requestAnimationFrame(raf);
+
+      applyScroll(window.scrollY);
+    } else {
+      lenisRef.current = new Lenis({
+        wrapper: container,
+        content: container.firstElementChild as HTMLElement,
+        autoRaf: false,
+      });
+
+      const onLenisScroll = (l: Lenis) => {
+        applyScroll(l.scroll);
+      };
+
+      lenisRef.current.on('scroll', onLenisScroll);
+
+      const raf = (time: number) => {
+        lenisRef.current?.raf(time);
+        rafRef.current = requestAnimationFrame(raf);
+      };
+      rafRef.current = requestAnimationFrame(raf);
+    }
+
+    return () => {
+      lenisRef.current?.destroy();
+      lenisRef.current = null;
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
+  }, [useWindowScroll, count, scrollPerCard, cardGap, scaleStep]);
 
   return (
     <div
@@ -89,7 +128,6 @@ export function ScrollStack({
             position: 'sticky',
             top: stickyTop + i * cardGap,
             zIndex: i + 1,
-            willChange: 'transform',
           }}
         >
           <div
