@@ -312,12 +312,12 @@ const SECTION_EXIT_VECTORS: Array<{ x: number; y: number; rotate: number }> = [
 ];
 
 const SECTION_ENTRY_VECTORS: Array<{ x: number; y: number }> = [
-  { x: 260,  y: 210 },   // 0: from bottom-right
-  { x: -240, y: 190 },   // 1: from bottom-left
+  { x: 260,  y: 210  },  // 0: from bottom-right
+  { x: -240, y: 190  },  // 1: from bottom-left
   { x: -280, y: -120 },  // 2: from top-left
   { x: 290,  y: -140 },  // 3: from top-right
-  { x: 0,    y: -250 },  // 4: from top
-  { x: -220, y: 190 },   // 5: from bottom-left
+  { x: 0,    y: -250 },  // 4: from top (straight up)
+  { x: 0,    y: 260  },  // 5: from bottom (straight down)
 ];
 
 const SCATTER_WRAPPER_VARIANTS = {
@@ -417,6 +417,7 @@ const Index = () => {
   const [waveKey, setWaveKey] = useState(0);
   const [waveColor, setWaveColor] = useState('rgba(29,78,216,0.15)');
   const [waveOrigin, setWaveOrigin] = useState({ x: 640, y: 21 });
+  const modeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useLayoutEffect(() => {
     setLpProduct(mode);
@@ -852,10 +853,17 @@ const Index = () => {
             if (m === mode) return;
             triggerHaptic.light();
             if (!prefersReducedMotion) {
+              if (modeTimerRef.current !== null) {
+                clearTimeout(modeTimerRef.current);
+                modeTimerRef.current = null;
+              }
               setWaveOrigin(btnOrigin);
               setWaveColor(m === 'wisehire' ? 'rgba(37,99,235,0.15)' : 'rgba(185,28,28,0.15)');
               setWaveKey((k) => k + 1);
-              setTimeout(() => { flushSync(() => setMode(m)); }, 300);
+              modeTimerRef.current = setTimeout(() => {
+                modeTimerRef.current = null;
+                flushSync(() => setMode(m));
+              }, 300);
             } else {
               setMode(m);
             }
