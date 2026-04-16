@@ -1,141 +1,413 @@
-/* ═══════════════════════════════════════════════════════════════════
-   LANDING PAGE DESIGN TOKENS
-   Scoped to [data-lp-scheme="light"] and [data-lp-scheme="dark"].
-   The root div in Index.tsx sets these attributes, keeping landing
-   styles completely isolated from the rest of the app's CSS.
-   ═══════════════════════════════════════════════════════════════════ */
-
-/* ── Light scheme ──────────────────────────────────────────────────── */
-[data-lp-scheme="light"] {
-  color-scheme: light;
-  background-color: #ffffff;
-
-  --lp-bg:              #ffffff;
-  --lp-section-alt:     #f7f8fa;
-  --lp-section-alt2:    #eef0f4;
-
-  --lp-text:            #111827;
-  --lp-text-muted:      #6b7280;
-  --lp-text-subtle:     #9ca3af;
-  --lp-muted:           #6b7280;
-
-  --lp-border:          rgba(0, 0, 0, 0.08);
-  --lp-border-card:     rgba(0, 0, 0, 0.07);
-
-  --lp-card:            #ffffff;
-  --lp-card-bg:         rgba(255, 255, 255, 0.75);
-  --lp-card-glass:      rgba(255, 255, 255, 0.65);
-
-  --lp-header-bg:       rgba(255, 255, 255, 0.88);
-
-  /* WiseResume brand — crimson */
-  --lp-brand:           #b91c1c;
-  --lp-eyebrow:         #b91c1c;
-  --lp-hero-glow:       rgba(185, 28, 28, 0.10);
-  --lp-brand-pill-bg:   rgba(185, 28, 28, 0.08);
-  --lp-brand-pill-border: rgba(185, 28, 28, 0.18);
-  --lp-brand-pill-glow: rgba(185, 28, 28, 0.10);
-
-  --lp-toggle-bg:       rgba(0, 0, 0, 0.05);
-  --lp-toggle-border:   rgba(0, 0, 0, 0.10);
-  --lp-toggle-color:    #374151;
-
-  --lp-trust-color:     #374151;
-  --lp-trust-icon:      #b91c1c;
+/* ── CSS custom property animation support ───────────────── */
+@property --lp-brand {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #9E1B22;
+}
+@property --lp-hero-glow {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: rgba(158,27,34,0.18);
+}
+@property --lp-eyebrow {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #E53E3E;
+}
+@property --lp-trust-icon {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: rgba(158,27,34,0.7);
 }
 
-/* ── Dark scheme ───────────────────────────────────────────────────── */
-[data-lp-scheme="dark"] {
-  color-scheme: dark;
-  background-color: #0f0f10;
-
-  --lp-bg:              #0f0f10;
-  --lp-section-alt:     #161618;
-  --lp-section-alt2:    #1c1c1f;
-
-  --lp-text:            #f5f5f7;
-  --lp-text-muted:      #9ca3af;
-  --lp-text-subtle:     #6b7280;
-  --lp-muted:           #9ca3af;
-
-  --lp-border:          rgba(255, 255, 255, 0.07);
-  --lp-border-card:     rgba(255, 255, 255, 0.08);
-
-  --lp-card:            #1e1e22;
-  --lp-card-bg:         rgba(30, 30, 34, 0.80);
-  --lp-card-glass:      rgba(30, 30, 34, 0.60);
-
-  --lp-header-bg:       rgba(15, 15, 16, 0.88);
-
-  /* WiseResume brand — lighter red for dark bg */
-  --lp-brand:           #f87171;
-  --lp-eyebrow:         #f87171;
-  --lp-hero-glow:       rgba(185, 28, 28, 0.18);
-  --lp-brand-pill-bg:   rgba(248, 113, 113, 0.10);
-  --lp-brand-pill-border: rgba(248, 113, 113, 0.20);
-  --lp-brand-pill-glow: rgba(248, 113, 113, 0.14);
-
-  --lp-toggle-bg:       rgba(255, 255, 255, 0.07);
-  --lp-toggle-border:   rgba(255, 255, 255, 0.12);
-  --lp-toggle-color:    #d1d5db;
-
-  --lp-trust-color:     #e5e7eb;
-  --lp-trust-icon:      #f87171;
-}
-
-/* ── WiseHire brand overrides (both schemes) ───────────────────────── */
-[data-lp-scheme="light"][data-lp-product="wisehire"] {
-  --lp-brand:           #2563EB;
-  --lp-eyebrow:         #2563EB;
-  --lp-hero-glow:       rgba(37, 99, 235, 0.12);
-  --lp-brand-pill-bg:   rgba(37, 99, 235, 0.08);
-  --lp-brand-pill-border: rgba(37, 99, 235, 0.18);
-  --lp-brand-pill-glow: rgba(37, 99, 235, 0.12);
-  --lp-trust-icon:      #2563EB;
-}
-
-[data-lp-scheme="dark"][data-lp-product="wisehire"] {
-  --lp-brand:           #60a5fa;
-  --lp-eyebrow:         #60a5fa;
-  --lp-hero-glow:       rgba(37, 99, 235, 0.22);
-  --lp-brand-pill-bg:   rgba(96, 165, 250, 0.10);
-  --lp-brand-pill-border: rgba(96, 165, 250, 0.20);
-  --lp-brand-pill-glow: rgba(96, 165, 250, 0.15);
-  --lp-trust-icon:      #60a5fa;
-}
-
-/* ── Landing root base styles ──────────────────────────────────────── */
+/* ── DARK THEME (default) ───────────────────────────────── */
 .lp-root {
-  min-height: 100vh;
-  overflow-x: hidden;
-  background-color: var(--lp-bg);
+  --lp-brand: #9E1B22;
+  --lp-bg: transparent;
+  --lp-card: #111118;
+  --lp-card-glass: rgba(255,255,255,0.04);
+  --lp-border: rgba(255,255,255,0.07);
+  --lp-border-card: rgba(255,255,255,0.08);
+  --lp-text: #f0f0f5;
+  --lp-text-muted: rgba(240,240,245,0.52);
+  --lp-text-subtle: rgba(240,240,245,0.32);
+  --lp-header-scrolled-bg: rgba(10,10,15,0.9);
+  --lp-header-scrolled-border: rgba(255,255,255,0.07);
+  --lp-nav-bg: rgba(10,10,15,0.92);
+  --lp-nav-border: rgba(255,255,255,0.07);
+  --lp-hero-glow: rgba(158,27,34,0.18);
+  --lp-section-alt: #0d0d14;
+  --lp-section-alt2: #0f0f18;
+  --lp-eyebrow: #E53E3E;
+  --lp-logo-text: rgba(255,255,255,0.88);
+  --lp-signin-color: rgba(255,255,255,0.72);
+  --lp-signin-bg: rgba(255,255,255,0.07);
+  --lp-signin-border: rgba(255,255,255,0.1);
+  --lp-trust-color: rgba(240,240,245,0.35);
+  --lp-trust-icon: rgba(158,27,34,0.7);
+  --lp-toggle-bg: rgba(255,255,255,0.07);
+  --lp-toggle-border: rgba(255,255,255,0.1);
+  --lp-toggle-color: rgba(255,255,255,0.55);
+  --lp-brand-pill-bg: rgba(158,27,34,0.1);
+  --lp-brand-pill-border: rgba(158,27,34,0.28);
+  --lp-brand-pill-glow: rgba(158,27,34,0.13);
+  background: var(--lp-bg);
   color: var(--lp-text);
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background 0.45s ease, color 0.35s ease,
+    --lp-brand 0.55s ease, --lp-hero-glow 0.55s ease,
+    --lp-eyebrow 0.5s ease, --lp-trust-icon 0.5s ease;
 }
 
-/* ── Aurora wallpaper — transparent override ───────────────────────── */
-html.aurora-active .lp-root {
-  background-color: transparent !important;
+/* ── LIGHT THEME ─────────────────────────────────────────── */
+.lp-root[data-lp-scheme="light"] {
+  --lp-bg: rgba(255, 245, 245, 0.62);
+  --lp-card: #ffffff;
+  --lp-card-glass: rgba(0,0,0,0.03);
+  --lp-border: rgba(0,0,0,0.06);
+  --lp-border-card: rgba(0,0,0,0.08);
+  --lp-text: #0f0f1a;
+  --lp-text-muted: rgba(15,15,26,0.55);
+  --lp-text-subtle: rgba(15,15,26,0.35);
+  --lp-header-scrolled-bg: rgba(255, 245, 245, 0.94);
+  --lp-header-scrolled-border: rgba(0,0,0,0.08);
+  --lp-nav-bg: rgba(255, 245, 245, 0.96);
+  --lp-nav-border: rgba(0,0,0,0.08);
+  --lp-hero-glow: rgba(158,27,34,0.09);
+  --lp-section-alt: #f5eded;
+  --lp-section-alt2: #f2e8e8;
+  --lp-eyebrow: #9E1B22;
+  --lp-logo-text: #0f0f1a;
+  --lp-signin-color: rgba(15,15,26,0.7);
+  --lp-signin-bg: rgba(0,0,0,0.05);
+  --lp-signin-border: rgba(0,0,0,0.1);
+  --lp-trust-color: rgba(15,15,26,0.4);
+  --lp-trust-icon: rgba(158,27,34,0.75);
+  --lp-toggle-bg: rgba(0,0,0,0.05);
+  --lp-toggle-border: rgba(0,0,0,0.1);
+  --lp-toggle-color: rgba(15,15,26,0.55);
+  --lp-brand-pill-bg: rgba(158,27,34,0.07);
+  --lp-brand-pill-border: rgba(158,27,34,0.2);
+  --lp-brand-pill-glow: rgba(158,27,34,0.1);
 }
 
-/* ── Marquee animation for FeatureTicker ───────────────────────────── */
-@keyframes lp-marquee {
-  0%   { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
+.lp-root * { font-style: normal !important; }
+
+/* CTA pulse */
+@keyframes lp-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(158,27,34,0); }
+  50% { box-shadow: 0 0 0 8px rgba(158,27,34,0.12); }
 }
-.animate-marquee {
-  animation: lp-marquee 28s linear infinite;
+.lp-cta-pulse { animation: lp-pulse 2.8s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-gradient-text { animation: none !important; background-size: 100% 100% !important; }
+  .lp-cta-pulse { animation: none !important; }
+  .wh-cta-pulse { animation: none !important; }
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
 }
 
-/* ── View-transition ripple (theme toggle) ─────────────────────────── */
-@keyframes lp-ripple-out {
-  from { clip-path: circle(0% at var(--lp-ripple-x, 50%) var(--lp-ripple-y, 50%)); }
-  to   { clip-path: circle(150% at var(--lp-ripple-x, 50%) var(--lp-ripple-y, 50%)); }
+/* Header scrolled */
+.lp-header-scrolled {
+  background: var(--lp-header-scrolled-bg) !important;
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--lp-header-scrolled-border);
 }
-::view-transition-new(root) {
-  animation: lp-ripple-out 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+/* Typewriter cursor */
+.lp-cursor {
+  display: inline-block;
+  width: 3px;
+  height: 0.85em;
+  background: #E53E3E;
+  margin-left: 2px;
+  vertical-align: middle;
+  border-radius: 1px;
+  animation: lp-blink 1s step-end infinite;
 }
+@keyframes lp-blink { 0%,100%{opacity:1} 50%{opacity:0} }
+@media (prefers-reduced-motion: reduce) {
+  .lp-cursor { animation: none !important; opacity: 1 !important; }
+}
+
+/* Feature card hover */
+.lp-feature-card {
+  transition: border-color 0.22s ease, background 0.22s ease, transform 0.22s ease;
+  cursor: default;
+}
+.lp-root[data-lp-scheme="dark"] .lp-feature-card:hover {
+  border-color: rgba(158,27,34,0.22) !important;
+  background: rgba(255,255,255,0.05) !important;
+  transform: translateY(-3px);
+}
+.lp-root[data-lp-scheme="light"] .lp-feature-card:hover {
+  border-color: rgba(158,27,34,0.2) !important;
+  background: rgba(158,27,34,0.04) !important;
+  transform: translateY(-3px);
+}
+
+/* Testimonial card */
+.lp-testimonial-card {
+  transition: border-color 0.22s ease, transform 0.22s ease;
+}
+.lp-testimonial-card:hover {
+  border-color: rgba(158,27,34,0.2) !important;
+  transform: translateY(-2px);
+}
+
+/* Separator */
+.lp-separator {
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(158,27,34,0.3) 30%, rgba(158,27,34,0.5) 50%, rgba(158,27,34,0.3) 70%, transparent 100%);
+}
+
+/* Gradient text — dark with shimmer */
+@keyframes lp-shimmer {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.lp-gradient-text {
+  background: linear-gradient(135deg, #E53E3E 0%, #FF6B6B 25%, #C41E3A 50%, #FF8080 75%, #9E1B22 100%);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: lp-shimmer 4s ease infinite;
+}
+
+/* Gradient text — light (deeper crimson so it reads on light bg) */
+.lp-root[data-lp-scheme="light"] .lp-gradient-text {
+  background: linear-gradient(135deg, #9E1B22 0%, #E11D48 25%, #B31B1B 50%, #C53030 75%, #9E1B22 100%);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: lp-shimmer 4s ease infinite;
+}
+
+/* Soft section divider gradient */
+.lp-section-divider {
+  height: 60px;
+  width: 100%;
+  pointer-events: none;
+}
+.lp-section-divider-top {
+  background: linear-gradient(to bottom, var(--lp-section-alt), transparent);
+}
+.lp-section-divider-bottom {
+  background: linear-gradient(to top, var(--lp-section-alt), transparent);
+}
+
+/* Hero section responsive top padding — mobile: single-row header only; sm+: header + toggle strip */
+.lp-hero-top {
+  padding-top: calc(3.5rem + env(safe-area-inset-top));
+}
+@media (min-width: 640px) {
+  .lp-hero-top {
+    padding-top: calc(7.75rem + env(safe-area-inset-top));
+  }
+}
+
+/* Theme toggle button — 44×44 minimum tap target */
+.lp-theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+  background: var(--lp-toggle-bg);
+  border: 1px solid var(--lp-toggle-border);
+  color: var(--lp-toggle-color);
+  flex-shrink: 0;
+}
+.lp-theme-toggle:hover {
+  transform: scale(1.08);
+  background: rgba(158,27,34,0.12);
+  border-color: rgba(158,27,34,0.25);
+  color: var(--lp-brand);
+}
+.lp-theme-toggle:active { transform: scale(0.96); }
+
+/* Radial ripple reveal — View Transitions API */
 ::view-transition-old(root) {
   animation: none;
   mix-blend-mode: normal;
+}
+::view-transition-new(root) {
+  animation: lp-ripple-reveal 1.0s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  mix-blend-mode: normal;
+  will-change: clip-path;
+}
+@keyframes lp-ripple-reveal {
+  from { clip-path: circle(0% at var(--lp-ripple-x, 50%) var(--lp-ripple-y, 50%)); }
+  to   { clip-path: circle(150% at var(--lp-ripple-x, 50%) var(--lp-ripple-y, 50%)); }
+}
+
+/* ── WISEHIRE PRODUCT OVERRIDES ─────────────────────────── */
+.lp-root[data-lp-product="wisehire"] {
+  --lp-brand: #1D4ED8;
+  --lp-hero-glow: rgba(29,78,216,0.20);
+  --lp-eyebrow: #3B82F6;
+  --lp-trust-icon: rgba(29,78,216,0.75);
+  --lp-brand-pill-bg: rgba(29,78,216,0.10);
+  --lp-brand-pill-border: rgba(29,78,216,0.28);
+  --lp-brand-pill-glow: rgba(29,78,216,0.15);
+  --lp-section-alt2: #0b0f1c;
+  transition: background 0.45s ease, color 0.35s ease,
+    --lp-brand 0.55s ease, --lp-hero-glow 0.55s ease,
+    --lp-eyebrow 0.5s ease, --lp-trust-icon 0.5s ease;
+}
+.lp-root[data-lp-product="wisehire"][data-lp-scheme="light"] {
+  --lp-bg: rgba(240,245,255,0.62);
+  --lp-section-alt: #eef2fb;
+  --lp-section-alt2: #e8eef8;
+  --lp-header-scrolled-bg: rgba(240,245,255,0.94);
+  --lp-header-scrolled-border: rgba(29,78,216,0.12);
+  --lp-nav-bg: rgba(240,245,255,0.96);
+  --lp-nav-border: rgba(29,78,216,0.1);
+  --lp-hero-glow: rgba(29,78,216,0.10);
+  --lp-trust-color: rgba(15,15,26,0.4);
+  --lp-trust-icon: rgba(29,78,216,0.80);
+  --lp-brand-pill-bg: rgba(29,78,216,0.07);
+  --lp-brand-pill-border: rgba(29,78,216,0.22);
+}
+.lp-root[data-lp-product="wisehire"] .lp-separator {
+  background: linear-gradient(90deg, transparent 0%, rgba(29,78,216,0.3) 30%, rgba(29,78,216,0.5) 50%, rgba(29,78,216,0.3) 70%, transparent 100%);
+}
+.lp-root[data-lp-product="wisehire"][data-lp-scheme="dark"] .lp-feature-card:hover {
+  border-color: rgba(29,78,216,0.28) !important;
+  background: rgba(29,78,216,0.06) !important;
+  transform: translateY(-3px);
+}
+.lp-root[data-lp-product="wisehire"][data-lp-scheme="light"] .lp-feature-card:hover {
+  border-color: rgba(29,78,216,0.25) !important;
+  background: rgba(29,78,216,0.05) !important;
+  transform: translateY(-3px);
+}
+.lp-root[data-lp-product="wisehire"] .lp-testimonial-card:hover {
+  border-color: rgba(29,78,216,0.22) !important;
+  transform: translateY(-2px);
+}
+.lp-root[data-lp-product="wisehire"] .lp-theme-toggle:hover {
+  background: rgba(29,78,216,0.12);
+  border-color: rgba(29,78,216,0.28);
+  color: var(--lp-brand);
+}
+
+/* ── WISEHIRE HERO — shimmer gradient & cursor ──────────── */
+@keyframes wh-shimmer {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.wh-gradient-text {
+  background: linear-gradient(135deg, #60A5FA 0%, #93C5FD 25%, #3B82F6 50%, #60A5FA 75%, #1D4ED8 100%);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: wh-shimmer 4s ease infinite;
+}
+.lp-root[data-lp-scheme="light"] .wh-gradient-text {
+  background: linear-gradient(135deg, #1D4ED8 0%, #3B82F6 25%, #2563EB 50%, #1D4ED8 75%, #3B82F6 100%);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: wh-shimmer 4s ease infinite;
+}
+.wh-cursor {
+  display: inline-block;
+  width: 3px;
+  height: 0.85em;
+  background: #3B82F6;
+  margin-left: 2px;
+  vertical-align: middle;
+  border-radius: 1px;
+  animation: lp-blink 1s step-end infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wh-cursor { animation: none !important; opacity: 1 !important; }
+  .wh-gradient-text { animation: none !important; background-size: 100% 100% !important; }
+}
+
+/* ── FEATURE NUMBERED NAV — scroll fade hint ─────────────── */
+.lp-feature-nav-wrapper {
+  position: relative;
+}
+.lp-feature-nav-wrapper::before,
+.lp-feature-nav-wrapper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 48px;
+  pointer-events: none;
+  z-index: 2;
+  transition: opacity 0.2s ease;
+}
+.lp-feature-nav-wrapper::before {
+  left: 0;
+  background: linear-gradient(to right, var(--lp-nav-bg), transparent);
+  opacity: 0;
+}
+.lp-feature-nav-wrapper::after {
+  right: 0;
+  background: linear-gradient(to left, var(--lp-nav-bg), transparent);
+  opacity: 1;
+}
+.lp-feature-nav-wrapper[data-scroll-start="true"]::before {
+  opacity: 0;
+}
+.lp-feature-nav-wrapper[data-scroll-end="true"]::after {
+  opacity: 0;
+}
+.lp-feature-nav-wrapper[data-scroll-mid="true"]::before {
+  opacity: 1;
+}
+
+/* ── WISEHIRE PRICING — mobile horizontal scroll ─────────── */
+.wh-pricing-mobile-scroll {
+  display: flex !important;
+  flex-direction: row;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  scrollbar-width: none;
+}
+.wh-pricing-mobile-scroll::-webkit-scrollbar {
+  display: none;
+}
+.wh-pricing-mobile-card {
+  flex: 0 0 80vw;
+  scroll-snap-align: start;
+  max-width: 320px;
+  min-width: 260px;
+}
+@media (min-width: 640px) {
+  .wh-pricing-mobile-scroll {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr);
+    overflow-x: unset;
+    scroll-snap-type: unset;
+    padding-bottom: 0;
+  }
+  .wh-pricing-mobile-card {
+    flex: unset;
+    max-width: unset;
+    min-width: unset;
+    scroll-snap-align: unset;
+  }
+}
+@media (min-width: 1024px) {
+  .wh-pricing-mobile-scroll {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
