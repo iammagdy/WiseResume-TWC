@@ -64,6 +64,7 @@ BEGIN
     RETURN NULL;
   END IF;
 
+  -- Limit rows BEFORE aggregation to prevent unbounded jsonb_agg on large tables
   SELECT coalesce(jsonb_agg(
     jsonb_build_object(
       'id',                 pv.id,
@@ -81,9 +82,12 @@ BEGIN
     ) ORDER BY pv.visited_at DESC
   ), '[]'::jsonb)
   INTO v_visits
-  FROM public.portfolio_visits pv
-  WHERE pv.username = lower(p_username)
-  LIMIT 100;
+  FROM (
+    SELECT * FROM public.portfolio_visits
+    WHERE username = lower(p_username)
+    ORDER BY visited_at DESC
+    LIMIT 100
+  ) pv;
 
   SELECT jsonb_build_object(
     'total_visits',      count(*),
