@@ -13,19 +13,29 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
 
   // Track visited sections (presence set)
   const sectionsViewedRef = useRef<Set<string>>(new Set());
-  // Per-section dwell time tracking: Map<sectionId, {accumulatedMs, enterTime | null}>
+  // Per-section dwell time: Map<sectionId, {accumulatedMs, enterTime | null}>
   const sectionTimingRef = useRef<Map<string, { accMs: number; enterTime: number | null }>>(new Map());
   const mountTimeRef = useRef<number>(Date.now());
   const trackSentRef = useRef(false);
 
+  // Keep mutable refs for values that change after mount so sendTrackingBeacon
+  // stays stable (never triggers effect cleanup / re-run on data load).
+  const usernameRef = useRef(username);
+  const refParamRef = useRef(refParam);
+  const abVariantRef = useRef(abVariant);
+  useEffect(() => { usernameRef.current = username; }, [username]);
+  useEffect(() => { refParamRef.current = refParam; }, [refParam]);
+  useEffect(() => { abVariantRef.current = abVariant; }, [abVariant]);
+
+  // Stable beacon function — reads from refs, never re-creates
   const sendTrackingBeacon = useCallback(() => {
     if (trackSentRef.current) return;
-    if (!username) return;
+    if (!usernameRef.current) return;
     trackSentRef.current = true;
 
-    // Flush any sections still visible (observer hasn't fired "exit" yet)
+    // Flush any sections still in view (observer hasn't fired "exit" yet)
     const now = Date.now();
-    sectionTimingRef.current.forEach((entry, id) => {
+    sectionTimingRef.current.forEach((entry) => {
       if (entry.enterTime !== null) {
         entry.accMs += now - entry.enterTime;
         entry.enterTime = null;
@@ -44,24 +54,26 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
     const device = /Mobi|Android|iPhone|iPad|iPod/i.test(ua)
       ? (/iPad/i.test(ua) ? 'tablet' : 'mobile')
       : 'desktop';
+
     const body = JSON.stringify({
-      username,
-      ref: refParam,
+      username: usernameRef.current,
+      ref: refParamRef.current,
       sectionsViewed: [...sectionsViewedRef.current],
       sectionsTiming,
       timeSpentSeconds,
       device,
-      abVariant: abVariant ?? undefined,
+      abVariant: abVariantRef.current ?? undefined,
     });
+
     const url = `${EDGE_FUNCTIONS_URL}/functions/v1/track-portfolio-view`;
     if (navigator.sendBeacon) {
       navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
     } else {
       fetch(url, { method: 'POST', body, keepalive: true, headers: { 'Content-Type': 'application/json' } }).catch(() => {});
     }
-  }, [username, refParam, abVariant]);
+  }, []); // ← intentionally empty: all state read from refs at call-time
 
-  // Send beacon on page hide / visibility change
+  // Send beacon on page hide / visibility change — effect never re-runs
   useEffect(() => {
     const onHide = () => sendTrackingBeacon();
     document.addEventListener('visibilitychange', onHide);
@@ -71,7 +83,7 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
       window.removeEventListener('pagehide', onHide);
       sendTrackingBeacon(); // send on unmount
     };
-  }, [sendTrackingBeacon]);
+  }, [sendTrackingBeacon]); // stable ref — fires once
 
   // Section scroll tracking: IntersectionObserver with dwell-time accumulation
   useEffect(() => {
@@ -86,13 +98,9 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
           }
           const timing = sectionTimingRef.current.get(name)!;
           if (entry.isIntersecting) {
-            // Section entered view
             sectionsViewedRef.current.add(name);
-            if (timing.enterTime === null) {
-              timing.enterTime = now;
-            }
+            if (timing.enterTime === null) timing.enterTime = now;
           } else {
-            // Section left view — accumulate time
             if (timing.enterTime !== null) {
               timing.accMs += now - timing.enterTime;
               timing.enterTime = null;
@@ -107,7 +115,7 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
       if (el) observer.observe(el);
     });
     return () => observer.disconnect();
-  }, [username]);
+  }, [username]); // re-attach only on username change (page switch)
 
   // Sticky header observer
   useEffect(() => {
@@ -120,9 +128,5 @@ export function usePortfolioTracking({ username, refParam, abVariant }: UsePortf
     return () => observer.disconnect();
   }, []);
 
-  return {
-    stickyVisible,
-    heroRef,
-    sendTrackingBeacon
-  };
+  return { stickyVisible, heroRef, sendTrackingBeacon };
 }
