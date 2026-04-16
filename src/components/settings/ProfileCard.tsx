@@ -343,7 +343,7 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
           <div className="pc-inside">
             <div className="pc-shine" />
             <div className="pc-glare" />
-            <div className="pc-content pc-avatar-content">
+            <div className="pc-avatar-layer">
               <img
                 className="avatar"
                 src={avatarUrl}
@@ -354,6 +354,8 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
                   t.style.display = 'none';
                 }}
               />
+            </div>
+            <div className="pc-content pc-avatar-content">
               {showUserInfo && (
                 <div className="pc-user-info">
                   <div className="pc-action-bar">
