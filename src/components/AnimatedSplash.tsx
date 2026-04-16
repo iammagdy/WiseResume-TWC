@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { haptics } from '@/lib/haptics';
@@ -34,7 +34,7 @@ export function AnimatedSplash({ onComplete, ready = true }: AnimatedSplashProps
   // skip the icon scale-in + letter-stagger entry animation so the
   // handoff feels continuous (one splash, not two).
   const skipEntry = typeof document !== 'undefined' &&
-    document.documentElement.dataset.splashPainted === '1';
+    document.documentElement.getAttribute('data-splash-painted') === '1';
 
   const dismiss = useCallback(() => {
     setVisible(false);
@@ -42,10 +42,11 @@ export function AnimatedSplash({ onComplete, ready = true }: AnimatedSplashProps
   }, []);
 
   // Remove the HTML pre-paint splash once the React splash has mounted.
-  // Using useLayoutEffect so the removal happens before the browser paints
-  // the next frame — the React splash covers the same position with z-[9999],
-  // so the user never sees a gap.
-  useEffect(() => {
+  // useLayoutEffect runs synchronously after the React splash commits to the
+  // DOM but before the browser paints the next frame — the React splash
+  // covers the same position with z-[9999], so the handoff is truly
+  // same-frame and the user never sees a gap or a double-image.
+  useLayoutEffect(() => {
     const el = document.getElementById('pre-react-splash');
     if (el && el.parentNode) el.parentNode.removeChild(el);
   }, []);
