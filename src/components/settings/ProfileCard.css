@@ -247,11 +247,11 @@
 }
 
 .pc-avatar-content {
+  position: absolute;
+  inset: 0;
   overflow: visible;
-  transform: translate3d(0, 0, 5px);
   z-index: 6;
-  backface-visibility: hidden;
-  isolation: isolate;
+  pointer-events: none;
 }
 
 .pc-avatar-content .avatar {
@@ -265,15 +265,6 @@
   backface-visibility: hidden;
   will-change: transform;
   transition: transform 120ms ease-out;
-}
-
-.pc-avatar-content::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  backdrop-filter: none;
-  pointer-events: none;
 }
 
 .pc-user-info {
@@ -292,7 +283,7 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: calc(max(0px, var(--card-radius) - var(--ui-inset) + var(--ui-radius-bias)));
   padding: 10px 12px;
-  pointer-events: auto;
+  pointer-events: none;
 }
 
 .pc-action-bar {
@@ -311,7 +302,7 @@
   justify-content: center;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 12px 10px;
   min-height: 44px;
   font-size: 11px;
   font-weight: 600;
@@ -419,7 +410,7 @@
   .pc-details h3 { font-size: min(4svh, 2.5em); }
   .pc-details p { font-size: 14px; }
   .pc-user-info { --ui-inset: 15px; padding: 6px 10px; }
-  .pc-action-btn { padding: 6px 8px; font-size: 10px; min-height: 44px; }
+  .pc-action-btn { padding: 10px 8px; font-size: 10px; min-height: 44px; }
 }
 
 @media (max-width: 480px) {
@@ -432,7 +423,7 @@
   .pc-details p { font-size: 12px; top: -8px; }
   .pc-user-info { --ui-inset: 12px; padding: 4px 8px; }
   .pc-action-bar { gap: 4px; }
-  .pc-action-btn { padding: 4px 6px; font-size: 9px; border-radius: 6px; min-height: 44px; }
+  .pc-action-btn { padding: 10px 6px; font-size: 9px; border-radius: 6px; min-height: 44px; }
 }
 
 @media (max-width: 320px) {
@@ -443,5 +434,5 @@
   .pc-details h3 { font-size: min(3svh, 1.5em); }
   .pc-details p { font-size: 11px; }
   .pc-user-info { padding: 4px 6px; }
-  .pc-action-btn { padding: 4px 4px; font-size: 8px; min-height: 44px; }
+  .pc-action-btn { padding: 10px 4px; font-size: 8px; min-height: 44px; }
 }
