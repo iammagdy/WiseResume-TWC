@@ -55,8 +55,6 @@ project_id = "jnsfmkzgxsviuthaqlyy"
     verify_jwt = false
   [functions.explain-gap]
     verify_jwt = false
-  [functions.fetch-github-projects]
-    verify_jwt = false
   [functions.fill-gap]
     verify_jwt = false
   [functions.generate-cover-letter]
@@ -130,4 +128,58 @@ project_id = "jnsfmkzgxsviuthaqlyy"
   [functions.weekly-digest]
     verify_jwt = false
   [functions.wise-ai-chat]
+    verify_jwt = false
+  [functions.admin-analytics]
+    verify_jwt = false
+  [functions.admin-check-access]
+    verify_jwt = false
+  [functions.admin-delete-user]
+    verify_jwt = false
+  [functions.admin-email-actions]
+    verify_jwt = false
+  [functions.admin-get-identity]
+    verify_jwt = false
+  [functions.admin-list-user-content]
+    verify_jwt = false
+  [functions.admin-live-activity]
+    verify_jwt = false
+  [functions.admin-merge-identity]
+    verify_jwt = false
+  [functions.admin-revoke-sessions]
+    verify_jwt = false
+  [functions.admin-wisehire-invite]
+    verify_jwt = false
+  [functions.admin-wisehire-waitlist]
+    verify_jwt = false
+  [functions.create-portfolio-session]
+    verify_jwt = false
+  [functions.portfolio-interest]
+    verify_jwt = false
+  [functions.submit-contact-request]
+    verify_jwt = false
+  [functions.tailor-section]
+    verify_jwt = false
+  [functions.wisehire-apply]
+    verify_jwt = false
+  [functions.wisehire-bulk-screen]
+    verify_jwt = false
+  [functions.wisehire-complete-signup]
+    verify_jwt = false
+  [functions.wisehire-generate-brief]
+    verify_jwt = false
+  [functions.wisehire-mask-cvs]
+    verify_jwt = false
+  [functions.wisehire-send-outreach]
+    verify_jwt = false
+  [functions.wisehire-talent-search]
+    verify_jwt = false
+  [functions.wisehire-talent-view]
+    verify_jwt = false
+  [functions.wisehire-validate-early-access]
+    verify_jwt = false
+  [functions.wisehire-validate-invite]
+    verify_jwt = false
+  [functions.wisehire-waitlist-join]
+    verify_jwt = false
+  [functions.wisehire-write-jd]
     verify_jwt = false
