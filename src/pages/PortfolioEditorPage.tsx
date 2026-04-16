@@ -99,6 +99,7 @@ export default function PortfolioEditorPage() {
   const [scrollEffect, setScrollEffect] = useState<ScrollEffect>('fade');
   const [videoIntroUrl, setVideoIntroUrl] = useState('');
   const [schedulingUrl, setSchedulingUrl] = useState('');
+  const [abChallengerTheme, setAbChallengerTheme] = useState<string>('');
   const [portfolioCertifications, setPortfolioCertifications] = useState<Array<{id: string; name: string; issuer: string; date: string; credentialUrl: string; badgeUrl: string}>>([]);
   const [portfolioPrimaryLanguage, setPortfolioPrimaryLanguage] = useState('English');
   const [portfolioSecondaryLanguage, setPortfolioSecondaryLanguage] = useState('');
@@ -129,7 +130,7 @@ export default function PortfolioEditorPage() {
       portfolioFont, availabilityStatus, availabilityHeadline, syncMode,
       caseStudies, services, testimonials, highlights, portfolioSummary,
       selectedResumeId, sectionOrder, pinnedProject, scrollEffect,
-      videoIntroUrl, schedulingUrl, portfolioCertifications, portfolioPrimaryLanguage, portfolioSecondaryLanguage,
+      videoIntroUrl, schedulingUrl, abChallengerTheme, portfolioCertifications, portfolioPrimaryLanguage, portfolioSecondaryLanguage,
     });
   }, [
     username, bio, portfolioEnabled, githubUrl, websiteUrl, twitterUrl,
@@ -138,7 +139,7 @@ export default function PortfolioEditorPage() {
     portfolioFont, availabilityStatus, availabilityHeadline, syncMode,
     caseStudies, services, testimonials, highlights, portfolioSummary,
     selectedResumeId, sectionOrder, pinnedProject, scrollEffect,
-    videoIntroUrl, schedulingUrl, portfolioCertifications, portfolioPrimaryLanguage, portfolioSecondaryLanguage,
+    videoIntroUrl, schedulingUrl, abChallengerTheme, portfolioCertifications, portfolioPrimaryLanguage, portfolioSecondaryLanguage,
   ]);
 
   const tabIndexMap = { setup: 0, content: 1, design: 2, more: 3, visitors: 4 } as const;
@@ -193,6 +194,7 @@ export default function PortfolioEditorPage() {
       setScrollEffect((extras.scrollEffect as ScrollEffect) || 'fade');
       setVideoIntroUrl(extras.videoIntroUrl as string || '');
       setSchedulingUrl(extras.schedulingUrl as string || '');
+      setAbChallengerTheme(extras.abChallengerTheme as string || '');
       setPortfolioCertifications(extras.portfolioCertifications as Array<{id: string; name: string; issuer: string; date: string; credentialUrl: string; badgeUrl: string}> || []);
       setPortfolioPrimaryLanguage(extras.portfolioPrimaryLanguage as string || 'English');
       setPortfolioSecondaryLanguage(extras.portfolioSecondaryLanguage as string || '');
@@ -470,6 +472,7 @@ export default function PortfolioEditorPage() {
           scrollEffect,
           videoIntroUrl: videoIntroUrl || null,
           schedulingUrl: normalizeUrl(schedulingUrl) || null,
+          abChallengerTheme: abChallengerTheme || null,
           portfolioCertifications,
           portfolioPrimaryLanguage: portfolioPrimaryLanguage || 'English',
           portfolioSecondaryLanguage: portfolioSecondaryLanguage || null,
@@ -806,6 +809,8 @@ export default function PortfolioEditorPage() {
               onSelectedThemeChange={setSelectedTheme}
               scrollEffect={scrollEffect}
               onScrollEffectChange={setScrollEffect}
+              abChallengerTheme={abChallengerTheme}
+              onAbChallengerThemeChange={setAbChallengerTheme}
               userName={profile?.fullName || undefined}
               userAvatarUrl={profile?.avatarUrl || undefined} />
 
@@ -815,7 +820,14 @@ export default function PortfolioEditorPage() {
             <VisitorsTab
               username={username || null}
               portfolioCanonicalUrl={portfolioCanonicalUrl}
-              onShare={handleShareQR} />
+              onShare={handleShareQR}
+              portfolioStyle={portfolioStyle}
+              abChallengerTheme={abChallengerTheme || undefined}
+              onPickWinner={(winnerId) => {
+                setPortfolioStyle(winnerId as import('@/components/portfolio/editor/AppearanceSection').PortfolioStyle);
+                setAbChallengerTheme('');
+              }}
+            />
 
             }
 

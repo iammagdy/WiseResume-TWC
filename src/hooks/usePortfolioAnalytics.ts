@@ -14,12 +14,18 @@ export interface PortfolioVisit {
   short_link_id: string | null;
   visited_at: string;
   device: 'mobile' | 'desktop' | 'tablet' | null;
+  company_name: string | null;
+  ab_variant: 'a' | 'b' | null;
 }
 
 export interface VisitSummary {
   total_visits: number;
   unique_countries: number;
   avg_time_seconds: number | null;
+  avg_time_variant_a: number | null;
+  avg_time_variant_b: number | null;
+  visits_variant_a: number;
+  visits_variant_b: number;
 }
 
 export interface PortfolioAnalytics {
@@ -67,7 +73,11 @@ export function usePortfolioAnalytics(username: string | undefined) {
       const d = data as unknown as { visits: PortfolioVisit[]; summary: VisitSummary };
       return {
         visits: d.visits ?? [],
-        summary: d.summary ?? { total_visits: 0, unique_countries: 0, avg_time_seconds: null },
+        summary: d.summary ?? {
+          total_visits: 0, unique_countries: 0, avg_time_seconds: null,
+          avg_time_variant_a: null, avg_time_variant_b: null,
+          visits_variant_a: 0, visits_variant_b: 0,
+        },
       };
     },
     enabled: !!username,

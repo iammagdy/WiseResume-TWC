@@ -5,7 +5,7 @@ import {
   Eye, Link2, Plus, Copy, Trash2, Globe2, Clock, Layers,
   TrendingUp, Check, Loader2, ChevronRight, BarChart2,
   ChevronDown, ChevronUp, ExternalLink, Search, MapPin,
-  Activity,
+  Activity, Building2, FlaskConical, Trophy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +22,7 @@ import {
 import { haptics } from '@/lib/haptics';
 import { formatDistanceToNow, format } from 'date-fns';
 import { toast } from 'sonner';
+import { PORTFOLIO_THEMES } from '@/lib/portfolioThemes';
 
 // ── Country → flag emoji ──────────────────────────────────────────────────────
 function countryToFlag(country: string | null): string {
@@ -194,6 +195,13 @@ function VisitCard({
           </div>
         )}
 
+        {/* Company detection (collapsed) */}
+        {visit.company_name && (
+          <div className="mt-1 flex items-center gap-1.5">
+            <Building2 className="w-2.5 h-2.5 text-primary shrink-0" />
+            <span className="text-[10px] text-primary font-medium">{visit.company_name}</span>
+          </div>
+        )}
         {/* Referrer pill (collapsed) */}
         <div className="mt-1 flex items-center gap-1.5">
           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${ref.dotColor}`} />
@@ -224,6 +232,14 @@ function VisitCard({
                   <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                   <span className="text-xs text-foreground">{exactTime}</span>
                 </div>
+
+                {/* Company name (if detected) */}
+                {visit.company_name && (
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-3.5 h-3.5 text-primary shrink-0" />
+                    <span className="text-xs text-primary font-medium">Visitor from {visit.company_name}</span>
+                  </div>
+                )}
 
                 {/* Referrer */}
                 <div className="flex items-center gap-2">
@@ -414,9 +430,12 @@ interface VisitorsPanelProps {
   username: string | undefined;
   userId: string | undefined;
   portfolioEnabled: boolean;
+  portfolioStyle?: string;
+  abChallengerTheme?: string;
+  onPickWinner?: (winnerId: string) => void;
 }
 
-export function VisitorsPanel({ username, userId, portfolioEnabled }: VisitorsPanelProps) {
+export function VisitorsPanel({ username, userId, portfolioEnabled, portfolioStyle, abChallengerTheme, onPickWinner }: VisitorsPanelProps) {
   const queryClient = useQueryClient();
   const [newLinkLabel, setNewLinkLabel] = useState('');
   const [showCreateLink, setShowCreateLink] = useState(false);
@@ -590,6 +609,104 @@ export function VisitorsPanel({ username, userId, portfolioEnabled }: VisitorsPa
           </div>
         )}
       </div>
+
+      {/* ── Section Scroll Heatmap ── */}
+      {visits.length > 0 && (() => {
+        const tally: Record<string, number> = {};
+        visits.forEach(v => {
+          (v.sections_viewed || []).forEach(s => { tally[s] = (tally[s] || 0) + 1; });
+        });
+        const sorted = Object.entries(tally).sort(([, a], [, b]) => b - a).slice(0, 8);
+        const maxCount = sorted[0]?.[1] ?? 1;
+        if (sorted.length === 0) return null;
+        return (
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Layers className="w-4 h-4 text-primary" />
+              <h4 className="text-sm font-semibold text-foreground">Section Heatmap</h4>
+            </div>
+            <div className="bg-card border border-border shadow-soft rounded-xl p-3 space-y-2">
+              {sorted.map(([section, count]) => (
+                <div key={section} className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground capitalize min-w-[80px]">
+                    {sectionLabel(`section-${section}`)}
+                  </span>
+                  <div className="flex-1 h-2.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${Math.round((count / maxCount) * 100)}%`,
+                        background: `color-mix(in srgb, var(--primary, #e84545) ${Math.max(30, Math.round((count / maxCount) * 100))}%, #374151)`,
+                      }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-muted-foreground min-w-[28px] text-right">{count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── A/B Theme Test Results ── */}
+      {abChallengerTheme && visits.length > 0 && (() => {
+        const summary = analytics?.summary;
+        const aName = PORTFOLIO_THEMES.find(t => t.id === portfolioStyle)?.name ?? (portfolioStyle || 'Current');
+        const bName = PORTFOLIO_THEMES.find(t => t.id === abChallengerTheme)?.name ?? abChallengerTheme;
+        const aTime = summary?.avg_time_variant_a ?? null;
+        const bTime = summary?.avg_time_variant_b ?? null;
+        const aVisits = summary?.visits_variant_a ?? 0;
+        const bVisits = summary?.visits_variant_b ?? 0;
+        const hasData = aVisits > 0 || bVisits > 0;
+        const aWins = aTime !== null && bTime !== null && aTime >= bTime;
+        const bWins = aTime !== null && bTime !== null && bTime > aTime;
+        return (
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <FlaskConical className="w-4 h-4 text-primary" />
+              <h4 className="text-sm font-semibold text-foreground">A/B Theme Test</h4>
+            </div>
+            <div className="bg-card border border-border shadow-soft rounded-xl p-3 space-y-2.5">
+              {hasData ? (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { variant: 'A (Current)', theme: aName, time: aTime, visits: aVisits, wins: aWins },
+                      { variant: 'B (Challenger)', theme: bName, time: bTime, visits: bVisits, wins: bWins },
+                    ].map(v => (
+                      <div key={v.variant} className={`rounded-lg p-2.5 border text-center ${v.wins ? 'border-emerald-400/40 bg-emerald-400/5' : 'border-border bg-muted/30'}`}>
+                        <p className="text-[10px] text-muted-foreground">{v.variant}</p>
+                        <p className="text-[11px] font-semibold text-foreground truncate">{v.theme}</p>
+                        <p className="text-base font-black">{formatDuration(v.time)}</p>
+                        <p className="text-[10px] text-muted-foreground">{v.visits} visit{v.visits !== 1 ? 's' : ''}</p>
+                        {v.wins && <p className="text-[10px] text-emerald-400 font-semibold">▲ Winning</p>}
+                      </div>
+                    ))}
+                  </div>
+                  {(aWins || bWins) && onPickWinner && (
+                    <Button
+                      onClick={() => {
+                        haptics.medium();
+                        const winnerId = aWins ? (portfolioStyle ?? '') : abChallengerTheme;
+                        onPickWinner(winnerId);
+                        toast.success(`"${aWins ? aName : bName}" set as your main theme!`);
+                      }}
+                      className="w-full text-xs gap-1.5 h-9"
+                    >
+                      <Trophy className="w-3.5 h-3.5" />
+                      Pick {aWins ? 'A' : 'B'} as Winner
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <p className="text-[11px] text-muted-foreground">
+                  No A/B data yet — visitors are being split 50/50. Results appear after the first visits.
+                </p>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Short Links ── */}
       <div>

@@ -1,4 +1,4 @@
-import { Palette, Type, Layout, Eye, Sparkles } from 'lucide-react';
+import { Palette, Type, Layout, Eye, Sparkles, FlaskConical, X } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ThemeStorePicker } from './ThemeStorePicker';
 import { PORTFOLIO_THEMES } from '@/lib/portfolioThemes';
@@ -21,6 +21,8 @@ export interface DesignTabProps {
   onSelectedThemeChange: (val: string) => void;
   scrollEffect: ScrollEffect;
   onScrollEffectChange: (val: ScrollEffect) => void;
+  abChallengerTheme: string;
+  onAbChallengerThemeChange: (val: string) => void;
   userName?: string;
   userAvatarUrl?: string;
 }
@@ -33,8 +35,11 @@ export function DesignTab(props: DesignTabProps) {
     portfolioLayout, onPortfolioLayoutChange,
     selectedTheme, onSelectedThemeChange,
     scrollEffect, onScrollEffectChange,
+    abChallengerTheme, onAbChallengerThemeChange,
     userName, userAvatarUrl,
   } = props;
+
+  const challengerThemeObj = PORTFOLIO_THEMES.find(t => t.id === abChallengerTheme);
 
   const currentTheme = PORTFOLIO_THEMES.find(t => t.id === portfolioStyle);
 
@@ -171,6 +176,46 @@ export function DesignTab(props: DesignTabProps) {
         </div>
         <p className="text-[11px] text-muted-foreground">Choose how sections animate as visitors scroll.</p>
         <ScrollEffectPicker value={scrollEffect} onChange={onScrollEffectChange} />
+      </div>
+
+      {/* A/B Challenger Theme */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between border-t border-border pt-3">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            <FlaskConical className="w-3.5 h-3.5" />
+            A/B Challenger Theme
+          </div>
+          {abChallengerTheme && (
+            <button
+              onClick={() => { haptics.light(); onAbChallengerThemeChange(''); }}
+              className="text-[10px] text-destructive flex items-center gap-0.5 hover:opacity-80"
+              title="Remove challenger theme"
+            >
+              <X className="w-3 h-3" /> Remove
+            </button>
+          )}
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Pick a "challenger" theme — half your visitors will see it instead of your main theme. Check the Visitors tab to compare engagement.
+        </p>
+        {abChallengerTheme ? (
+          <div className="flex items-center gap-2 p-2 rounded-lg bg-primary/5 border border-primary/20">
+            <span className="text-xs text-primary font-medium">{challengerThemeObj?.name ?? abChallengerTheme}</span>
+            <span className="text-[10px] text-muted-foreground">vs</span>
+            <span className="text-xs text-foreground font-medium">{currentTheme?.name ?? portfolioStyle}</span>
+            <span className="text-[10px] text-muted-foreground ml-auto">A/B active</span>
+          </div>
+        ) : null}
+        <ThemeStorePicker
+          selectedThemeId={abChallengerTheme || portfolioStyle}
+          onSelectTheme={(id) => {
+            haptics.light();
+            onAbChallengerThemeChange(id === portfolioStyle ? '' : id);
+          }}
+          userAccent={portfolioAccentColor}
+          userName={userName}
+          userAvatarUrl={userAvatarUrl}
+        />
       </div>
     </div>
   );

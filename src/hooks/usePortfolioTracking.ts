@@ -4,9 +4,10 @@ import { EDGE_FUNCTIONS_URL } from '@/lib/supabaseConstants';
 interface UsePortfolioTrackingProps {
   username?: string | null;
   refParam?: string | undefined;
+  abVariant?: 'a' | 'b' | null;
 }
 
-export function usePortfolioTracking({ username, refParam }: UsePortfolioTrackingProps) {
+export function usePortfolioTracking({ username, refParam, abVariant }: UsePortfolioTrackingProps) {
   const [stickyVisible, setStickyVisible] = useState(false);
   const heroRef = useRef<HTMLDivElement>(null);
 
@@ -30,6 +31,7 @@ export function usePortfolioTracking({ username, refParam }: UsePortfolioTrackin
       sectionsViewed: [...sectionsViewedRef.current],
       timeSpentSeconds,
       device,
+      abVariant: abVariant ?? undefined,
     });
     const url = `${EDGE_FUNCTIONS_URL}/functions/v1/track-portfolio-view`;
     if (navigator.sendBeacon) {
@@ -37,7 +39,7 @@ export function usePortfolioTracking({ username, refParam }: UsePortfolioTrackin
     } else {
       fetch(url, { method: 'POST', body, keepalive: true, headers: { 'Content-Type': 'application/json' } }).catch(() => {});
     }
-  }, [username, refParam]);
+  }, [username, refParam, abVariant]);
 
   // Send beacon on page hide / visibility change
   useEffect(() => {

@@ -57,6 +57,7 @@ export interface PublicProfile {
   seoNoindex: boolean;
   videoIntroUrl: string | null;
   schedulingUrl: string | null;
+  abChallengerTheme: string | null;
   portfolioCertifications: Array<{ id: string; name: string; issuer: string; date: string; credentialUrl: string; badgeUrl: string }>;
   portfolioPrimaryLanguage: string | null;
   portfolioSecondaryLanguage: string | null;
@@ -153,6 +154,7 @@ async function fetchPublicPortfolio(username: string): Promise<PublicPortfolioDa
       seoNoindex: (profile.seoNoindex as boolean) || false,
       videoIntroUrl: (extras.videoIntroUrl as string) || null,
       schedulingUrl: (extras.schedulingUrl as string) || null,
+      abChallengerTheme: (extras.abChallengerTheme as string) || null,
       portfolioCertifications: safeArray(extras.portfolioCertifications),
       portfolioPrimaryLanguage: (extras.portfolioPrimaryLanguage as string) || 'English',
       portfolioSecondaryLanguage: (extras.portfolioSecondaryLanguage as string) || null,

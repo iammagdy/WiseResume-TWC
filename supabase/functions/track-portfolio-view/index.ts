@@ -52,12 +52,13 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { username, ref, sectionsViewed, timeSpentSeconds, device } = body as {
+    const { username, ref, sectionsViewed, timeSpentSeconds, device, abVariant } = body as {
       username: string;
       ref?: string;
       sectionsViewed?: string[];
       timeSpentSeconds?: number;
       device?: 'mobile' | 'desktop' | 'tablet';
+      abVariant?: 'a' | 'b';
     };
 
     if (!username || typeof username !== "string") {
@@ -81,9 +82,10 @@ serve(async (req) => {
       console.error("Error incrementing view count:", rpcError);
     }
 
-    // ── 2. Geolocate the visitor via IP ────────────────────────────────────
+    // ── 2. Geolocate the visitor via IP + reverse-DNS company detection ────
     let country: string | null = null;
     let city: string | null = null;
+    let companyName: string | null = null;
 
     try {
       // Cloudflare injects CF-IPCountry; fallback to x-forwarded-for lookup
@@ -92,14 +94,15 @@ serve(async (req) => {
         country = cfCountry;
       }
 
-      // Get IP for city lookup
+      // Get IP for city + company lookup
       const forwarded = req.headers.get("x-forwarded-for");
       const ip = forwarded ? forwarded.split(",")[0].trim() : null;
 
       if (ip && ip !== "127.0.0.1" && ip !== "::1") {
+        // Include 'org' field — ip-api returns the ISP/ASN org name, e.g. "AS15169 Google LLC"
         const geoRes = await Promise.race([
-          fetch(`http://ip-api.com/json/${ip}?fields=country,city,status`),
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), 1200)),
+          fetch(`http://ip-api.com/json/${ip}?fields=country,city,org,status`),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
         ]);
 
         if (geoRes && geoRes instanceof Response && geoRes.ok) {
@@ -107,6 +110,16 @@ serve(async (req) => {
           if (geo.status === "success") {
             if (!country) country = geo.country || null;
             city = geo.city || null;
+
+            // Strip ASN prefix from org field (e.g. "AS15169 Google LLC" → "Google LLC")
+            if (geo.org && typeof geo.org === "string") {
+              const cleaned = geo.org.replace(/^AS\d+\s+/i, "").trim();
+              // Filter out generic ISPs that provide no useful company signal
+              const GENERIC_ISP_RE = /\b(telecom|mobile|wireless|broadband|cable|internet|isp|fiber|fios|comcast|verizon|at&t|spectrum|xfinity|tmobile|t-mobile|residential|networks|hosting|cloud|amazonaws|azure|google cloud|digitalocean|linode|vultr|hetzner|ovh)\b/i;
+              if (cleaned && !GENERIC_ISP_RE.test(cleaned)) {
+                companyName = cleaned;
+              }
+            }
           }
         }
       }
@@ -126,6 +139,8 @@ serve(async (req) => {
       p_sections_viewed: sectionsViewed ?? [],
       p_time_spent_seconds: timeSpentSeconds ?? null,
       p_device: device ?? null,
+      p_company_name: companyName,
+      p_ab_variant: (abVariant === 'a' || abVariant === 'b') ? abVariant : null,
     });
 
     if (visitError) {

@@ -1,12 +1,17 @@
 import { useMemo } from 'react';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Globe, Users, TrendingUp, Share2, Eye, Monitor, Smartphone, Tablet } from 'lucide-react';
+import { Globe, Users, TrendingUp, Share2, Eye, Monitor, Smartphone, Tablet, Building2, FlaskConical, Trophy } from 'lucide-react';
 import { usePortfolioAnalytics } from '@/hooks/usePortfolioAnalytics';
+import { PORTFOLIO_THEMES } from '@/lib/portfolioThemes';
+import { toast } from 'sonner';
 
 interface VisitorsTabProps {
   username: string | null;
   portfolioCanonicalUrl: string;
   onShare: () => void;
+  portfolioStyle?: string;
+  abChallengerTheme?: string;
+  onPickWinner?: (winnerId: string) => void;
 }
 
 function timeAgo(dateStr: string): string {
@@ -100,7 +105,7 @@ function last7DayCount(visits: Array<{ visited_at: string }>): number {
   return visits.filter(v => new Date(v.visited_at).getTime() >= cutoff).length;
 }
 
-export function VisitorsTab({ username, portfolioCanonicalUrl, onShare }: VisitorsTabProps) {
+export function VisitorsTab({ username, portfolioCanonicalUrl, onShare, portfolioStyle, abChallengerTheme, onPickWinner }: VisitorsTabProps) {
   const { data: analytics, isLoading } = usePortfolioAnalytics(username ?? undefined);
 
   const chartData = useMemo(() => last7DaysData(analytics?.visits ?? []), [analytics?.visits]);
@@ -220,6 +225,64 @@ export function VisitorsTab({ username, portfolioCanonicalUrl, onShare }: Visito
         </div>
       )}
 
+      {/* A/B Theme Test Results — only shown if challenger theme is configured */}
+      {abChallengerTheme && (() => {
+        const summary = analytics?.summary;
+        const aName = PORTFOLIO_THEMES.find(t => t.id === portfolioStyle)?.name ?? (portfolioStyle || 'Current');
+        const bName = PORTFOLIO_THEMES.find(t => t.id === abChallengerTheme)?.name ?? abChallengerTheme;
+        const aTime = summary?.avg_time_variant_a ?? null;
+        const bTime = summary?.avg_time_variant_b ?? null;
+        const aVisits = summary?.visits_variant_a ?? 0;
+        const bVisits = summary?.visits_variant_b ?? 0;
+        const hasData = aVisits > 0 || bVisits > 0;
+        const aWins = aTime !== null && bTime !== null && aTime >= bTime;
+        const bWins = aTime !== null && bTime !== null && bTime > aTime;
+
+        return (
+          <div className="rounded-xl bg-card border border-border p-3 space-y-2.5">
+            <div className="flex items-center gap-1.5">
+              <FlaskConical className="w-3.5 h-3.5 text-primary" />
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">A/B Theme Test</p>
+            </div>
+            {hasData ? (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { variant: 'A (Current)', theme: aName, time: aTime, visits: aVisits, wins: aWins, id: portfolioStyle },
+                    { variant: 'B (Challenger)', theme: bName, time: bTime, visits: bVisits, wins: bWins, id: abChallengerTheme },
+                  ].map(v => (
+                    <div key={v.variant} className={`rounded-lg p-2.5 border text-center ${v.wins ? 'border-emerald-400/40 bg-emerald-400/5' : 'border-border bg-muted/30'}`}>
+                      <p className="text-[10px] text-muted-foreground mb-0.5">{v.variant}</p>
+                      <p className="text-[11px] font-semibold text-foreground truncate">{v.theme}</p>
+                      <p className="text-base font-black mt-0.5">{formatDuration(v.time)}</p>
+                      <p className="text-[10px] text-muted-foreground">{v.visits} visit{v.visits !== 1 ? 's' : ''}</p>
+                      {v.wins && <p className="text-[10px] text-emerald-400 font-semibold mt-0.5">▲ Winning</p>}
+                    </div>
+                  ))}
+                </div>
+                {(aWins || bWins) && onPickWinner && (
+                  <button
+                    onClick={() => {
+                      const winnerId = aWins ? portfolioStyle! : abChallengerTheme;
+                      onPickWinner(winnerId);
+                      toast.success(`"${aWins ? aName : bName}" set as your main theme!`);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 active:scale-95 transition-all"
+                  >
+                    <Trophy className="w-3.5 h-3.5" />
+                    Pick {aWins ? 'A' : 'B'} as Winner
+                  </button>
+                )}
+              </>
+            ) : (
+              <p className="text-[11px] text-muted-foreground">
+                No A/B data yet — visitors are being split 50/50. Results will appear after the first few visits.
+              </p>
+            )}
+          </div>
+        );
+      })()}
+
       {/* Recent visits */}
       <div className="rounded-xl bg-card border border-border overflow-hidden">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-3 pt-3 pb-2">Recent Visits</p>
@@ -228,6 +291,12 @@ export function VisitorsTab({ username, portfolioCanonicalUrl, onShare }: Visito
             <div key={visit.id} className="flex items-center gap-2 px-3 py-2.5">
               <span className="text-base leading-none" title={visit.country || 'Unknown'}>{countryFlag(visit.country)}</span>
               <div className="flex-1 min-w-0">
+                {visit.company_name && (
+                  <p className="text-[10px] text-primary font-medium flex items-center gap-0.5 mb-0.5">
+                    <Building2 className="w-2.5 h-2.5 shrink-0" />
+                    {visit.company_name}
+                  </p>
+                )}
                 <div className="flex items-center gap-1.5 flex-wrap">
                   {(visit.sections_viewed || []).slice(0, 3).map(s => (
                     <span

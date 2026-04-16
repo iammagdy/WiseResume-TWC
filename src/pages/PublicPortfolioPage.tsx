@@ -179,9 +179,20 @@ function PublicPortfolioContent() {
     }
   };
 
+  // A/B variant assignment — persisted per visitor in localStorage
+  const abVariant = useMemo<'a' | 'b' | null>(() => {
+    if (!username) return null;
+    const key = `portfolio-ab-variant:${username}`;
+    const stored = localStorage.getItem(key);
+    if (stored === 'a' || stored === 'b') return stored;
+    const assigned: 'a' | 'b' = Math.random() < 0.5 ? 'a' : 'b';
+    localStorage.setItem(key, assigned);
+    return assigned;
+  }, [username]);
+
   // Extracted hooks
   usePortfolioSEO(portfolio?.profile);
-  const { stickyVisible, heroRef } = usePortfolioTracking({ username, refParam });
+  const { stickyVisible, heroRef } = usePortfolioTracking({ username, refParam, abVariant });
 
   const contactHref = useMemo(() => {
     if (portfolio?.profile?.contactEmail) return `mailto:${portfolio.profile.contactEmail}`;
@@ -238,7 +249,12 @@ function PublicPortfolioContent() {
   if (error || !portfolio) return <NotFound />;
 
   const { profile, resume } = portfolio;
-  const pStyle = profile.portfolioStyle || 'minimal';
+  // If the owner configured a challenger theme AND this visitor is variant B,
+  // swap in the challenger theme so we can measure which performs better.
+  const effectiveStyle = (abVariant === 'b' && profile.abChallengerTheme)
+    ? profile.abChallengerTheme
+    : (profile.portfolioStyle || 'minimal');
+  const pStyle = effectiveStyle;
   const pLayout = profile.portfolioLayout || 'single';
   const accentColor = profile.portfolioAccentColor || '#e84545';
   const pFont = profile.portfolioFont || 'inter';
