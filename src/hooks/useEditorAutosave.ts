@@ -58,12 +58,13 @@ export function useEditorAutosave({
   // Read latest auto-save toast preferences at emit-time via the store snapshot.
   // Preference shape: showAutoSaveToasts (master switch) + autoSaveToastMode
   // ('always' shows all autosave toasts; 'errors-only' suppresses non-error
-  // confirmations). All toasts emitted from this hook are warnings/errors,
-  // so the master switch is the gating condition.
+  // confirmations). Error/auth warnings are *always* shown regardless of the
+  // master switch — they convey data-loss risk that the user must see.
   const shouldEmitAutoSaveToast = useCallback((kind: 'error' | 'info') => {
+    if (kind === 'error') return true;
     const { showAutoSaveToasts, autoSaveToastMode } = useSettingsStore.getState();
     if (!showAutoSaveToasts) return false;
-    if (kind === 'info' && autoSaveToastMode === 'errors-only') return false;
+    if (autoSaveToastMode === 'errors-only') return false;
     return true;
   }, []);
   // Keep a stable ref to resumeFromDb so the saveToCloud callback never stales
