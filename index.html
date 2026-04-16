@@ -110,54 +110,41 @@
 <body>
   <div id="root">
     <div id="splash-screen"
-      style="position:fixed;inset:0;background:#111111;display:flex;align-items:center;justify-content:center;overflow:hidden;z-index:9999;transition: background-color 0.3s ease;">
-      <div style="display:flex;flex-direction:column;align-items:center;gap:24px;">
-        <!-- Spinner container 144px -->
-        <div style="position:relative;width:144px;height:144px;display:flex;align-items:center;justify-content:center;">
-          <!-- Outer glow -->
-          <div
-            style="position:absolute;inset:-8px;border-radius:50%;background:rgba(158,27,34,0.15);animation:glowPulse 2.5s ease-in-out infinite;">
+      style="position:fixed;inset:0;background:#111111;display:flex;align-items:center;justify-content:center;overflow:hidden;z-index:9999;transition:background-color 0.3s ease;">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:20px;">
+        <!-- Single-ring spinner — matches React PageLoadingSpinner -->
+        <div style="position:relative;width:88px;height:88px;display:flex;align-items:center;justify-content:center;">
+          <!-- Thin rotating border-ring -->
+          <div id="splash-ring"
+            style="position:absolute;inset:0;border-radius:50%;border:2px solid rgba(158,27,34,0.18);border-top-color:hsl(357,71%,56%);animation:splashSpin 0.9s linear infinite;">
           </div>
-          <!-- Ring 1 outer -->
-          <div
-            style="position:absolute;inset:0;border-radius:50%;border:3px solid rgba(158,27,34,0.4);border-top-color:hsl(357,71%,56%);border-right-color:rgba(158,27,34,0.6);animation:sp1 1.8s linear infinite;">
-          </div>
-          <!-- Ring 2 middle -->
-          <div
-            style="position:absolute;inset:16px;border-radius:50%;border:3px solid rgba(158,27,34,0.3);border-top-color:hsl(357,71%,56%);border-left-color:rgba(158,27,34,0.6);animation:sp2 2.4s linear infinite;">
-          </div>
-          <!-- Ring 3 inner -->
-          <div
-            style="position:absolute;inset:32px;border-radius:50%;border:3px solid rgba(158,27,34,0.3);border-bottom-color:rgba(158,27,34,0.6);border-right-color:rgba(158,27,34,0.5);animation:sp1 3s linear infinite;">
-          </div>
-          <!-- Logo -->
-          <div
-            style="position:relative;display:flex;align-items:center;justify-content:center;animation:glow 1.6s ease-in-out infinite;">
-            <div style="position:absolute;width:64px;height:64px;border-radius:50%;background:rgba(158,27,34,0.15);">
-            </div>
-            <img id="splash-logo" src="/favicon.png" alt="" width="56" height="56"
-              style="position:relative;opacity:0;transition:opacity 0.2s ease-in;filter:drop-shadow(0 0 24px rgba(158,27,34,0.4));border-radius:14px;"
-              onload="this.style.opacity='1'" />
-          </div>
+          <!-- Logo centred inside the ring -->
+          <img id="splash-logo" src="/favicon.png" alt="" width="44" height="44"
+            style="position:relative;opacity:0;transition:opacity 0.2s ease-in;border-radius:10px;"
+            onload="this.style.opacity='1'" />
         </div>
-        <!-- Shimmer text -->
-        <span
-          style="font-family:'Inter',system-ui,sans-serif;font-size:14px;font-weight:500;color:rgba(255,255,255,0.5);animation:shimmer 1.8s ease-in-out infinite;">Loading...</span>
+        <!-- Faint loading label -->
+        <span id="splash-label"
+          style="font-family:'Inter',system-ui,sans-serif;font-size:12px;font-weight:500;letter-spacing:0.08em;color:rgba(255,255,255,0.35);">LOADING</span>
       </div>
     </div>
     <script>
       (function () {
-        var screen = document.getElementById('splash-screen');
+        var splash = document.getElementById('splash-screen');
         var logo = document.getElementById('splash-logo');
+        var label = document.getElementById('splash-label');
+        var ring = document.getElementById('splash-ring');
         var theme = document.documentElement.getAttribute('data-initial-theme') || 'dark';
 
-        if (screen) {
-          screen.style.background = theme === 'dark' ? '#111111' : '#ffffff';
-          // Update loading text color for light mode
-          var text = screen.querySelector('span');
-          if (text && theme === 'light') {
-            text.style.color = 'rgba(0,0,0,0.4)';
-          }
+        if (splash) {
+          splash.style.background = theme === 'dark' ? '#111111' : '#ffffff';
+        }
+        if (label && theme === 'light') {
+          label.style.color = 'rgba(0,0,0,0.3)';
+        }
+        if (ring && theme === 'light') {
+          ring.style.borderColor = 'rgba(158,27,34,0.12)';
+          ring.style.borderTopColor = 'hsl(357,71%,46%)';
         }
         if (logo) {
           logo.src = theme === 'dark' ? '/logo-dark.png' : '/logo-light.png';
@@ -165,54 +152,8 @@
       })();
     </script>
     <style>
-      @keyframes sp1 {
-        to {
-          transform: rotate(360deg)
-        }
-      }
-
-      @keyframes sp2 {
-        to {
-          transform: rotate(-360deg)
-        }
-      }
-
-      @keyframes glow {
-
-        0%,
-        100% {
-          transform: scale(1)
-        }
-
-        50% {
-          transform: scale(1.12)
-        }
-      }
-
-      @keyframes glowPulse {
-
-        0%,
-        100% {
-          transform: scale(1);
-          opacity: .3
-        }
-
-        50% {
-          transform: scale(1.25);
-          opacity: .7
-        }
-      }
-
-      @keyframes shimmer {
-
-        0%,
-        100% {
-          opacity: .4
-        }
-
-        50% {
-          opacity: 1
-        }
+      @keyframes splashSpin {
+        to { transform: rotate(360deg); }
       }
     </style>
   </div>

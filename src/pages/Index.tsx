@@ -734,7 +734,6 @@ const Index = () => {
       <main id="landing-main" className="w-full" style={{ position: 'relative' }}>
         <AnimatePresence
           mode="popLayout"
-          initial={false}
         >
         {mode === 'wisehire' ? (
           /* ═══════════════════════════════════════════════════════

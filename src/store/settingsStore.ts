@@ -352,7 +352,7 @@ export const useSettingsStore = create<SettingsState>()(
         ...defaultSettings,
         // Preserve one-time flags that are device/user experience state,
         // not account-specific data. These should never reset on sign-out.
-        hasSeenSplash: state.hasSeenSplash,
+        // Note: hasSeenSplash is intentionally NOT preserved — splash shows on every fresh load.
         hasSeenAIIntro: state.hasSeenAIIntro,
         hasSeenPreviewHint: state.hasSeenPreviewHint,
         hasSeenTailorHint: state.hasSeenTailorHint,
@@ -371,6 +371,8 @@ export const useSettingsStore = create<SettingsState>()(
           openaiApiKey, anthropicApiKey, groqApiKey, mistralApiKey, xaiApiKey, cohereApiKey,
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           lpProduct: _lpProduct,
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          hasSeenSplash: _hasSeenSplash,
           ...rest
         } = state;
         return rest;
