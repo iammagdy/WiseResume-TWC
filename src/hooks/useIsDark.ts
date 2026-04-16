@@ -15,13 +15,6 @@ function ensureObserver(): void {
   sharedObserver.observe(document.documentElement, { attributeFilter: ['class'] });
 }
 
-function releaseObserver(): void {
-  if (listeners.size === 0 && sharedObserver) {
-    sharedObserver.disconnect();
-    sharedObserver = null;
-  }
-}
-
 export function useIsDark(): boolean {
   const [isDark, setIsDark] = useState(getIsDark);
 
@@ -29,10 +22,7 @@ export function useIsDark(): boolean {
     ensureObserver();
     const update = () => setIsDark(getIsDark());
     listeners.add(update);
-    return () => {
-      listeners.delete(update);
-      releaseObserver();
-    };
+    return () => { listeners.delete(update); };
   }, []);
 
   return isDark;

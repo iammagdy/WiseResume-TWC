@@ -235,23 +235,18 @@ function AppRoutes() {
   useEffect(() => {
     if (!isBrowser) return;
     const root = document.documentElement;
-    let rafId = 0;
     const apply = (resolved: 'light' | 'dark') => {
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
-        root.classList.remove('light', 'dark');
-        root.classList.add(resolved);
-      });
+      root.classList.remove('light', 'dark');
+      root.classList.add(resolved);
     };
     if (theme === 'system') {
       const mq = getSafeMatchMedia('(prefers-color-scheme: dark)');
       apply(mq.matches ? 'dark' : 'light');
       const handler = (e: MediaQueryListEvent) => apply(e.matches ? 'dark' : 'light');
       mq.addEventListener('change', handler);
-      return () => { mq.removeEventListener('change', handler); cancelAnimationFrame(rafId); };
+      return () => mq.removeEventListener('change', handler);
     }
     apply(theme);
-    return () => cancelAnimationFrame(rafId);
   }, [theme]);
 
   const { biometricLockEnabled, biometricLockTimeout, hasSeenSplash, setHasSeenSplash } = useSettingsStore();
