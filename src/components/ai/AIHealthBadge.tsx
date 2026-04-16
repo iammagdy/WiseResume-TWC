@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Zap, AlertTriangle, WifiOff, Settings, RefreshCw } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { useAIHealth, AIHealthStatus } from '@/hooks/useAIHealth';
@@ -132,6 +132,29 @@ export function AIHealthBadge() {
       runPing();
     }
   }, [pingState, runPing]);
+
+  // Auto-probe on mount, then every 90 seconds, and when the window regains
+  // focus. This keeps the badge in sync with reality even if the user hasn't
+  // sent a chat message recently.
+  const runPingRef = useRef(runPing);
+  const lastPingAtRef = useRef(0);
+  useEffect(() => { runPingRef.current = runPing; }, [runPing]);
+  useEffect(() => {
+    const ping = () => {
+      const now = Date.now();
+      // Debounce: never ping more than once per 30s regardless of trigger
+      if (now - lastPingAtRef.current < 30_000) return;
+      lastPingAtRef.current = now;
+      runPingRef.current();
+    };
+    ping();
+    const intervalId = window.setInterval(ping, 90_000);
+    window.addEventListener('focus', ping);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', ping);
+    };
+  }, []);
 
   // Displayed status comes from ping result once available, otherwise from store
   const displayStatus: AIHealthStatus =

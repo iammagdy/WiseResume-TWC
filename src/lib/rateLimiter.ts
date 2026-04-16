@@ -63,7 +63,7 @@ const DEFAULT_RATE_LIMITS = {
   onePage: { maxRequests: 5, windowMs: 60000, rpd: Infinity },
   enhance: { maxRequests: 10, windowMs: 60000, rpd: Infinity },
   careerPath: { maxRequests: 5, windowMs: 60000, rpd: Infinity },
-  chat: { maxRequests: 20, windowMs: 60000, rpd: Infinity },
+  chat: { maxRequests: 40, windowMs: 60000, rpd: Infinity },
   gapExplainer: { maxRequests: 5, windowMs: 60000, rpd: Infinity },
   interview: { maxRequests: 30, windowMs: 60000, rpd: Infinity },
 } as const;

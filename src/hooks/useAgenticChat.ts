@@ -3,7 +3,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { useNavigate } from 'react-router-dom';
 import { useResumeStore } from '@/store/resumeStore';
 import { useResumes } from '@/hooks/useResumes';
-import { sendChatMessage, sendFunctionFeedback, ChatMessage, SuggestionProposal, FunctionResult } from '@/lib/agenticChat';
+import { sendChatMessage, sendFunctionFeedback, ChatMessage, SuggestionProposal, FunctionResult, ChatError, ChatErrorInfo } from '@/lib/agenticChat';
+import { useAIHealthStore } from '@/store/aiHealthStore';
 import { haptics } from '@/lib/haptics';
 import { useAICreditsMutations } from './useAICredits';
 import { useAuth } from './useAuth';
@@ -50,6 +51,37 @@ function sectionSnapshot(resume: ResumeData | null, sectionKey: SectionKey): str
   if (!resume) return '';
   const val = resume[sectionKey];
   return JSON.stringify(val ?? '');
+}
+
+function buildChatErrorInfo(error: unknown): ChatErrorInfo {
+  if (error instanceof ChatError) {
+    const baseMap: Record<typeof error.kind, { title: string; retryable: boolean; showSettings: boolean }> = {
+      rate_limit_client: { title: 'Slow down a moment', retryable: true, showSettings: false },
+      rate_limit_server: { title: 'Server is busy', retryable: true, showSettings: true },
+      service_unavailable: { title: 'AI temporarily unavailable', retryable: true, showSettings: true },
+      credits: { title: 'Out of free credits', retryable: false, showSettings: true },
+      invalid_key: { title: 'AI key issue', retryable: true, showSettings: true },
+      timeout: { title: 'Took too long', retryable: true, showSettings: true },
+      network: { title: 'Network problem', retryable: true, showSettings: false },
+      unknown: { title: 'Something went wrong', retryable: true, showSettings: false },
+    };
+    const meta = baseMap[error.kind];
+    return {
+      kind: error.kind,
+      title: meta.title,
+      message: error.message,
+      retryAfterSeconds: error.retryAfterSeconds,
+      retryable: meta.retryable,
+      showSettings: meta.showSettings,
+    };
+  }
+  return {
+    kind: 'unknown',
+    title: 'Something went wrong',
+    message: error instanceof Error ? error.message : 'Please try again.',
+    retryable: true,
+    showSettings: false,
+  };
 }
 
 function deriveTitleFromMessage(text: string): string {
@@ -524,12 +556,14 @@ export function useAgenticChat(contextFilter?: string) {
         persistMessage(activeSessionId, 'user', text.trim());
       }
 
+      const reqStartedAt = Date.now();
       try {
         const resumeList = allResumes.map(r => ({ id: r.id, title: r.title }));
         // Guest users (unauthenticated) keep pre-existing 10-message history limit
         const historyToSend = user ? messages : messages.slice(-10);
         const response = await sendChatMessage(text.trim(), historyToSend, currentResume, { resumeList, contextFilter });
 
+        useAIHealthStore.getState().recordSuccess(Date.now() - reqStartedAt);
         incrementUsage.mutate();
         toast.success('1 credit used', { description: 'AI chat', duration: 2500, icon: '⚡' });
 
@@ -603,13 +637,24 @@ export function useAgenticChat(contextFilter?: string) {
           }
         }
       } catch (error) {
+        const info = buildChatErrorInfo(error);
+
+        // Record health: client-side rate limit isn't a backend failure
+        if (info.kind !== 'rate_limit_client') {
+          const status =
+            info.kind === 'credits' ? 402 :
+            info.kind === 'timeout' ? 408 :
+            info.kind === 'rate_limit_server' ? 429 :
+            info.kind === 'service_unavailable' ? 503 :
+            info.kind === 'invalid_key' ? 401 : 0;
+          useAIHealthStore.getState().recordFailure(status);
+        }
+
         const errMsg: ChatMessage = {
           id: uuidv4(),
           role: 'assistant',
-          content:
-            error instanceof Error
-              ? error.message
-              : 'Something went wrong. Please try again.',
+          content: info.message,
+          error: info,
           timestamp: Date.now(),
         };
         setMessages((prev) => [...prev, errMsg]);
@@ -620,6 +665,27 @@ export function useAgenticChat(contextFilter?: string) {
     },
     [isThinking, messages, currentResume, executeFunctionCall, allResumes, contextFilter, checkCredits, incrementUsage, user, createSession, persistMessage]
   );
+
+  // Resend the last user message after an error. Removes the trailing error
+  // message + the user message so sendMessage adds them fresh.
+  const retryLastMessage = useCallback(() => {
+    let lastUserText: string | null = null;
+    setMessages((prev) => {
+      // Walk backward to find the last user message
+      for (let i = prev.length - 1; i >= 0; i--) {
+        if (prev[i].role === 'user') {
+          lastUserText = prev[i].content;
+          // Drop everything from that user message onward (including the error reply)
+          return prev.slice(0, i);
+        }
+      }
+      return prev;
+    });
+    if (lastUserText) {
+      // Defer to next tick so state update applies first
+      setTimeout(() => { void sendMessage(lastUserText as string); }, 0);
+    }
+  }, [sendMessage]);
 
   const startNewSession = useCallback(() => {
     setMessages([]);
@@ -636,6 +702,7 @@ export function useAgenticChat(contextFilter?: string) {
     pendingAction,
     clearPendingAction,
     sendMessage,
+    retryLastMessage,
     startNewSession,
     loadSession,
     updateSuggestionStatus,
