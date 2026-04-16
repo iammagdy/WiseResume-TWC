@@ -1,5 +1,5 @@
 import {
-  Sparkles, Loader2, CheckCircle2, XCircle, Eye, Zap, Video,
+  Sparkles, Loader2, CheckCircle2, XCircle, Eye, Zap, Video, ScanSearch,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -39,6 +39,8 @@ export interface SetupTabProps {
   generatingAvailability: boolean;
   videoIntroUrl: string;
   onVideoIntroUrlChange: (val: string) => void;
+  onGetCritique?: () => void;
+  generatingCritique?: boolean;
 }
 
 const AVAILABILITY_OPTIONS: { value: AvailabilityStatus; label: string; color: string; badge: string }[] = [
@@ -58,6 +60,7 @@ export function SetupTab(props: SetupTabProps) {
     availabilityHeadline, onAvailabilityHeadlineChange,
     onGenerateAvailability, generatingAvailability,
     videoIntroUrl, onVideoIntroUrlChange,
+    onGetCritique, generatingCritique,
   } = props;
 
   const visibleCount = Object.values(sections).filter(Boolean).length;
@@ -254,6 +257,31 @@ export function SetupTab(props: SetupTabProps) {
           </div>
         )}
       </CollapsibleCard>
+
+      {/* AI Critique */}
+      {onGetCritique && (
+        <div className="rounded-xl border border-border bg-card p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <ScanSearch className="w-4 h-4 text-primary shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground">AI Portfolio Critique</p>
+              <p className="text-[11px] text-muted-foreground">Get recruiter-level feedback on gaps and improvements.</p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onGetCritique}
+            disabled={generatingCritique}
+            className="w-full h-10 rounded-xl active:scale-95 touch-manipulation"
+          >
+            {generatingCritique
+              ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Analyzing…</>
+              : <><Sparkles className="w-4 h-4 mr-2" />Get AI Critique</>
+            }
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

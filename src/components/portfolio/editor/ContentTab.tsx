@@ -1,12 +1,14 @@
+import { useState } from 'react';
 import {
   Briefcase, Star, Plus, X, FileText,
   MessageSquareQuote, TrendingUp, RefreshCw, Lock, AlertTriangle,
-  ChevronUp, ChevronDown, Pin, Link, Award,
+  ChevronUp, ChevronDown, Pin, Link, Award, Sparkles, Loader2, Copy, Check,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { CollapsibleCard } from './shared';
+import { toast } from 'sonner';
 
 const SECTION_LABEL_MAP: Record<string, string> = {
   about: 'About',
@@ -48,6 +50,7 @@ export interface ContentTabProps {
   // Testimonials
   testimonials: Array<{ id: string; quote: string; authorName: string; authorTitle: string }>;
   onTestimonialsChange: (val: Array<{ id: string; quote: string; authorName: string; authorTitle: string }>) => void;
+  onGenerateTestimonialPrompt?: (testimonialId: string, colleagueName: string) => Promise<string>;
   // Highlights
   highlights: Array<{ id: string; value: string; label: string }>;
   onHighlightsChange: (val: Array<{ id: string; value: string; label: string }>) => void;
@@ -72,11 +75,38 @@ export function ContentTab(props: ContentTabProps) {
     caseStudies, onCaseStudiesChange,
     services, onServicesChange,
     testimonials, onTestimonialsChange,
+    onGenerateTestimonialPrompt,
     highlights, onHighlightsChange,
     sectionOrder, onSectionOrderChange,
     pinnedProject, onPinnedProjectChange,
     portfolioCertifications, onPortfolioCertificationsChange,
   } = props;
+
+  const [testimonialPrompts, setTestimonialPrompts] = useState<Record<string, string>>({});
+  const [generatingPromptFor, setGeneratingPromptFor] = useState<string | null>(null);
+  const [copiedPromptFor, setCopiedPromptFor] = useState<string | null>(null);
+
+  const handleGeneratePrompt = async (testimonialId: string, authorName: string) => {
+    if (!onGenerateTestimonialPrompt) return;
+    setGeneratingPromptFor(testimonialId);
+    try {
+      const result = await onGenerateTestimonialPrompt(testimonialId, authorName);
+      setTestimonialPrompts(prev => ({ ...prev, [testimonialId]: result }));
+    } catch {
+      toast.error('Failed to generate prompt. Please try again.');
+    } finally {
+      setGeneratingPromptFor(null);
+    }
+  };
+
+  const handleCopyPrompt = async (testimonialId: string) => {
+    const text = testimonialPrompts[testimonialId];
+    if (!text) return;
+    await navigator.clipboard.writeText(text);
+    setCopiedPromptFor(testimonialId);
+    toast.success('Copied to clipboard!');
+    setTimeout(() => setCopiedPromptFor(null), 2000);
+  };
 
   const isStale = syncMode === 'locked'
     && !!resumeUpdatedAt
@@ -370,6 +400,39 @@ export function ContentTab(props: ContentTabProps) {
                   <Textarea placeholder="What they said..." value={t.quote} onChange={e => onTestimonialsChange(testimonials.map(x => x.id === t.id ? { ...x, quote: e.target.value } : x))} className="min-h-[60px] text-sm" maxLength={300} />
                   <Input placeholder="Author name" value={t.authorName} onChange={e => onTestimonialsChange(testimonials.map(x => x.id === t.id ? { ...x, authorName: e.target.value } : x))} />
                   <Input placeholder="Author title" value={t.authorTitle} onChange={e => onTestimonialsChange(testimonials.map(x => x.id === t.id ? { ...x, authorTitle: e.target.value } : x))} />
+                  {onGenerateTestimonialPrompt && (
+                    <div className="pt-1 space-y-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleGeneratePrompt(t.id, t.authorName)}
+                        disabled={generatingPromptFor === t.id}
+                        className="w-full h-8 text-xs rounded-lg"
+                      >
+                        {generatingPromptFor === t.id
+                          ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Generating…</>
+                          : <><Sparkles className="w-3.5 h-3.5 mr-1.5" />Generate Request Message</>
+                        }
+                      </Button>
+                      {testimonialPrompts[t.id] && (
+                        <div className="rounded-lg border border-border bg-muted/40 p-2.5 space-y-2">
+                          <p className="text-[11px] text-muted-foreground font-medium">Draft outreach message — copy and send to your colleague:</p>
+                          <p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">{testimonialPrompts[t.id]}</p>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleCopyPrompt(t.id)}
+                            className="h-7 text-xs px-2 w-full"
+                          >
+                            {copiedPromptFor === t.id
+                              ? <><Check className="w-3.5 h-3.5 mr-1.5 text-green-500" />Copied!</>
+                              : <><Copy className="w-3.5 h-3.5 mr-1.5" />Copy message</>
+                            }
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
               <Button variant="outline" size="sm" onClick={() => onTestimonialsChange([...testimonials, { id: crypto.randomUUID(), quote: '', authorName: '', authorTitle: '' }])} className="w-full h-10 rounded-xl active:scale-95 touch-manipulation">

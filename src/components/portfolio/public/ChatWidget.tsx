@@ -7,16 +7,51 @@ import type { PublicProfile, PublicResume } from '@/hooks/usePublicPortfolio';
 
 interface ChatMessage { role: 'user' | 'assistant'; content: string; }
 
+const SESSION_STORAGE_KEY = (username: string) => `portfolio_chat_${username}`;
+
+interface PersistedChatState {
+  messages: ChatMessage[];
+  questionCount: number;
+  isFallback: boolean;
+}
+
+function loadChatState(username: string): PersistedChatState | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_STORAGE_KEY(username));
+    if (!raw) return null;
+    return JSON.parse(raw) as PersistedChatState;
+  } catch {
+    return null;
+  }
+}
+
+function saveChatState(username: string, state: PersistedChatState) {
+  try {
+    sessionStorage.setItem(SESSION_STORAGE_KEY(username), JSON.stringify(state));
+  } catch {
+    // sessionStorage may be unavailable in some contexts — non-fatal
+  }
+}
+
 export function ChatWidget({ profile, resume, accentColor, pStyle }: {
   profile: PublicProfile; resume: PublicResume; accentColor: string; pStyle: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    if (!profile.username) return [];
+    return loadChatState(profile.username)?.messages ?? [];
+  });
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isFallback, setIsFallback] = useState(false);
+  const [isFallback, setIsFallback] = useState(() => {
+    if (!profile.username) return false;
+    return loadChatState(profile.username)?.isFallback ?? false;
+  });
   const [chatDisabled, setChatDisabled] = useState(false);
-  const [questionCount, setQuestionCount] = useState(0);
+  const [questionCount, setQuestionCount] = useState(() => {
+    if (!profile.username) return 0;
+    return loadChatState(profile.username)?.questionCount ?? 0;
+  });
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [sessionLoading, setSessionLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -50,6 +85,13 @@ export function ChatWidget({ profile, resume, accentColor, pStyle }: {
   const fgColor = isLight ? '#111827' : '#f0f0ff';
   const mutedColor = isLight ? '#6b7280' : '#9ca3af';
   const borderColor = isLight ? '#e5e7eb' : 'rgba(255,255,255,0.10)';
+
+  // Persist conversation state to sessionStorage so history survives page refreshes
+  // within the same browser tab session (single-visit memory).
+  useEffect(() => {
+    if (!profile.username || messages.length === 0) return;
+    saveChatState(profile.username, { messages, questionCount, isFallback });
+  }, [messages, questionCount, isFallback, profile.username]);
 
   useEffect(() => {
     if (open && scrollRef.current) {

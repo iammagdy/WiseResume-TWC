@@ -246,6 +246,139 @@ Return ONLY the translated JSON object:`;
       });
     }
 
+    // ── Action: critique ──────────────────────────────────────────────────
+    if (action === 'critique') {
+      const { caseStudies: cs, services: sv, testimonials: tes, highlights: hi, pinnedProject: pp, portfolioSummary: ps } = body;
+
+      if (!fullName && !jobTitle) {
+        return new Response(
+          JSON.stringify({ error: 'Please add your name and job title before running a critique.' }),
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      const creditCheck = await checkAndDeductCredit(userId);
+      if (!creditCheck.hasCredits) {
+        return new Response(
+          JSON.stringify({ error: 'Daily AI credit limit reached. Upgrade your plan or add your own API key.' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const expContext = Array.isArray(experience) && experience.length > 0
+        ? experience.slice(0, 3).map((e: any) => `${e.position || ''} at ${e.company || ''}`).join(', ')
+        : '';
+      const skillList = Array.isArray(skills) ? skills.slice(0, 8).join(', ') : '';
+      const bioText = sanitizeInputText(ps || summary || '', 600);
+
+      const context = [
+        `Name: ${fullName || 'N/A'}`,
+        `Job Title: ${jobTitle || 'Not set'}`,
+        `Bio: ${bioText || 'Not set'}`,
+        `Recent Experience: ${expContext || 'Not listed'}`,
+        `Top Skills: ${skillList || 'Not listed'}`,
+        `Case Studies / Projects: ${Array.isArray(cs) ? cs.length : 0}`,
+        `Services: ${Array.isArray(sv) ? sv.length : 0}`,
+        `Testimonials: ${Array.isArray(tes) ? tes.length : 0}`,
+        `Highlight Metrics: ${Array.isArray(hi) ? hi.length : 0}`,
+        `Pinned Project: ${pp?.title ? pp.title : 'Not set'}`,
+      ].join('\n');
+
+      const prompt = `You are a senior recruiter and portfolio coach. Analyze this professional portfolio and provide specific, actionable critique items a recruiter would notice.
+
+PORTFOLIO DATA:
+${context}
+
+Return a JSON array of 5-8 critique items. Each item MUST have:
+- "category": One of "About", "Experience", "Skills", "Social Proof", "Projects", "SEO", "Availability", "Structure"
+- "priority": "high", "medium", or "low"
+- "finding": What is missing or weak (1 concise sentence)
+- "suggestion": A specific, actionable fix (1-2 sentences)
+
+Rules:
+- Prioritize "high" only for things that are completely absent or critically harmful
+- Be specific to the data provided, not generic advice
+- Include at least 2 high-priority items if warranted
+- Return ONLY a valid JSON array, no markdown or explanation
+
+Example:
+[{"category":"About","priority":"high","finding":"Bio is not set, leaving recruiters with no first impression.","suggestion":"Add a 2-3 sentence first-person bio that highlights your specialty and what makes you stand out."}]`;
+
+      const response = await callAI({
+        model: 'google/gemini-2.5-flash',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.4,
+        maxTokens: 1500,
+        userId,
+      });
+
+      let suggestions: Array<{ category: string; priority: string; finding: string; suggestion: string }> = [];
+      try {
+        const raw = response.content?.trim() || '[]';
+        const jsonMatch = raw.match(/\[[\s\S]*\]/);
+        suggestions = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
+      } catch {
+        suggestions = [];
+      }
+
+      await recordUsage(userId, 'portfolio_critique');
+      return new Response(JSON.stringify({ suggestions }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ── Action: testimonial-prompt ─────────────────────────────────────────
+    if (action === 'testimonial-prompt') {
+      const { colleagueName = '', colleagueContext = '' } = body;
+      const expContext = Array.isArray(experience) && experience.length > 0
+        ? experience.slice(0, 2).map((e: any) => `${e.position || ''} at ${e.company || ''}`).join('; ')
+        : '';
+
+      if (!fullName && !jobTitle) {
+        return new Response(
+          JSON.stringify({ error: 'Please add your name and job title first.' }),
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      const creditCheck = await checkAndDeductCredit(userId);
+      if (!creditCheck.hasCredits) {
+        return new Response(
+          JSON.stringify({ error: 'Daily AI credit limit reached. Upgrade your plan or add your own API key.' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const prompt = `You are a professional copywriter. Write a short, warm, personalized message someone can send to a former colleague or client asking for a brief portfolio testimonial.
+
+About the person requesting:
+Name: ${fullName || 'the professional'}
+Job Title: ${jobTitle || 'a professional'}${expContext ? `\nRecent roles: ${expContext}` : ''}${colleagueName ? `\nRecipient name: ${colleagueName}` : ''}${colleagueContext ? `\nContext about recipient / shared work: ${colleagueContext}` : ''}
+
+Requirements:
+- 3-5 sentences only
+- Warm but professional tone
+- Reference shared work context if provided
+- End with a clear, low-friction ask (e.g., "2-3 sentences about our time working together would mean a lot")
+- Do NOT include a subject line — just the message body
+- Write in first person as ${fullName || 'the sender'}
+- Return ONLY the message text, no labels, quotes, or explanation`;
+
+      const response = await callAI({
+        model: 'google/gemini-2.5-flash',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.75,
+        maxTokens: 350,
+        userId,
+      });
+
+      const promptText = response.content?.trim() || '';
+      await recordUsage(userId, 'portfolio_testimonial_prompt');
+      return new Response(JSON.stringify({ prompt: promptText }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // All other actions require resume data
     const hasSummary = summary && summary.trim().length > 0;
     const hasJobTitle = jobTitle && jobTitle.trim().length > 0;

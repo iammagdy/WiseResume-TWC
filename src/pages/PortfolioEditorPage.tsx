@@ -34,6 +34,7 @@ import { PortfolioHistorySheet } from '@/components/portfolio/PortfolioHistorySh
 import { usePortfolioHistory } from '@/hooks/usePortfolioHistory';
 import { VisitorsTab } from '@/components/portfolio/editor/VisitorsTab';
 import type { ScrollEffect } from '@/components/portfolio/editor/ScrollEffectPicker';
+import { AICritiqueSheet, type CritiqueItem } from '@/components/portfolio/editor/AICritiqueSheet';
 
 
 export default function PortfolioEditorPage() {
@@ -115,6 +116,10 @@ export default function PortfolioEditorPage() {
   }>>({});
   const [translating, setTranslating] = useState(false);
   const [activeTab, setActiveTab] = useState<'setup' | 'content' | 'design' | 'more' | 'visitors'>('setup');
+  const [showCritique, setShowCritique] = useState(false);
+  const [generatingCritique, setGeneratingCritique] = useState(false);
+  const [critiqueItems, setCritiqueItems] = useState<CritiqueItem[]>([]);
+  const [critiqueHasRun, setCritiqueHasRun] = useState(false);
 
   // ── Unsaved changes tracking ──
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState<string>('');
@@ -417,6 +422,36 @@ export default function PortfolioEditorPage() {
     } finally {
       setGeneratingAvailability(false);
     }
+  };
+
+  const handleGetCritique = async () => {
+    setGeneratingCritique(true);
+    setShowCritique(true);
+    haptics.light();
+    try {
+      const { suggestions } = await callPortfolioAI('critique', undefined, {
+        portfolioSummary,
+        caseStudies,
+        services,
+        testimonials,
+        highlights,
+        pinnedProject,
+      });
+      setCritiqueItems(Array.isArray(suggestions) ? suggestions : []);
+      setCritiqueHasRun(true);
+    } catch {
+      toast.error('Failed to run critique. Please try again.');
+      setCritiqueHasRun(true);
+    } finally {
+      setGeneratingCritique(false);
+    }
+  };
+
+  const handleGenerateTestimonialPrompt = async (_testimonialId: string, colleagueName: string): Promise<string> => {
+    const { prompt: promptText } = await callPortfolioAI('testimonial-prompt', undefined, {
+      colleagueName: colleagueName || '',
+    });
+    return promptText || '';
   };
 
   const handleSave = async (overrides?: {portfolioEnabled?: boolean; portfolioStyleOverride?: string; abChallengerThemeOverride?: string}) => {
@@ -763,7 +798,9 @@ export default function PortfolioEditorPage() {
               onGenerateAvailability={handleGenerateAvailability}
               generatingAvailability={generatingAvailability}
               videoIntroUrl={videoIntroUrl}
-              onVideoIntroUrlChange={setVideoIntroUrl} />
+              onVideoIntroUrlChange={setVideoIntroUrl}
+              onGetCritique={handleGetCritique}
+              generatingCritique={generatingCritique} />
 
             }
 
@@ -784,6 +821,7 @@ export default function PortfolioEditorPage() {
               onServicesChange={setServices}
               testimonials={testimonials}
               onTestimonialsChange={setTestimonials}
+              onGenerateTestimonialPrompt={handleGenerateTestimonialPrompt}
               highlights={highlights}
               onHighlightsChange={setHighlights}
               sectionOrder={sectionOrder}
@@ -903,6 +941,15 @@ export default function PortfolioEditorPage() {
         userId={user?.id}
         onRestore={handleRestoreHistory}
         isRestoring={isRestoringHistory}
+      />
+
+      <AICritiqueSheet
+        open={showCritique}
+        onOpenChange={setShowCritique}
+        items={critiqueItems}
+        loading={generatingCritique}
+        onRunCritique={handleGetCritique}
+        hasRun={critiqueHasRun}
       />
       
       <UnsavedChangesDialog
