@@ -213,11 +213,6 @@ export default function SettingsPage() {
     openExternal(getAppUrl());
   }, []);
 
-  const handleLanguage = useCallback(() => {
-    haptics.light();
-    toast('More languages coming soon!', { icon: '🌍' });
-  }, []);
-
   const getInitials = () => {
     if (profile?.fullName) {
       return profile.fullName.
@@ -292,22 +287,24 @@ export default function SettingsPage() {
               <SectionLabel>Account</SectionLabel>
               <div className="mx-4 space-y-3">
                 <AccountSection
-                  user={user}
                   authProvider={authProvider}
                   onChangePassword={handleChangePassword}
-                  onSignOut={() => setSignOutConfirmOpen(true)}
-                  onDeleteData={() => setDeleteDialogOpen(true)}
                 />
                 <UserIdCard userId={user.id} />
               </div>
             </div>
           )}
 
-          {/* Appearance */}
+          {/* Preferences (Appearance + Editor & Export merged) */}
           <div>
-            <SectionLabel>Appearance</SectionLabel>
-            <div className="mx-4">
-              <AppearanceSection onLanguage={handleLanguage} />
+            <SectionLabel>Preferences</SectionLabel>
+            <div className="mx-4 space-y-3">
+              <AppearanceSection />
+              <EditorExportSection
+                isSignedIn={!!user}
+                onManageExports={() => setDataExportSheetOpen(true)}
+                onNavigateAuth={() => navigate('/auth?mode=login')}
+              />
             </div>
           </div>
 
@@ -322,18 +319,6 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Editor & Export */}
-          <div>
-            <SectionLabel>Editor & Export</SectionLabel>
-            <div className="mx-4">
-              <EditorExportSection
-                isSignedIn={!!user}
-                onManageExports={() => setDataExportSheetOpen(true)}
-                onNavigateAuth={() => navigate('/auth?mode=login')}
-              />
-            </div>
-          </div>
-
           {/* Notifications */}
           <div>
             <SectionLabel>Notifications</SectionLabel>
@@ -342,30 +327,21 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Career Visibility */}
-          {user && (
-            <div>
-              <SectionLabel>Career Visibility</SectionLabel>
-              <div className="mx-4">
-                <TalentPoolDiscoverableCard />
-              </div>
-            </div>
-          )}
-
-          {/* Privacy & Security */}
+          {/* Privacy & Security (with Career Visibility merged in) */}
           <div>
             <SectionLabel>Privacy & Security</SectionLabel>
-            <div className="mx-4">
+            <div className="mx-4 space-y-3">
               <PrivacySection
                 onOpenBiometricTimeout={() => setBiometricTimeoutOpen(true)}
                 onBiometricToggle={handleBiometricToggle}
               />
+              {user && <TalentPoolDiscoverableCard />}
             </div>
           </div>
 
-          {/* About & Help */}
+          {/* Support (renamed from About & Help) */}
           <div>
-            <SectionLabel>About & Help</SectionLabel>
+            <SectionLabel>Support</SectionLabel>
             <div className="mx-4">
               <AboutSection
                 isSignedIn={!!user}
@@ -392,62 +368,63 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Danger Zone */}
+          {/* Danger Zone (Sign Out + Delete Account) */}
           {user && (
             <div>
               <SectionLabel>Danger Zone</SectionLabel>
               <div className="mx-4">
-                <DangerZoneSection onDeleteData={() => setDeleteDialogOpen(true)} />
+                <DangerZoneSection
+                  onSignOut={() => setSignOutConfirmOpen(true)}
+                  onDeleteData={() => setDeleteDialogOpen(true)}
+                />
               </div>
             </div>
           )}
 
-          {/* Developer Credit */}
-          <div className="px-4 flex flex-col items-center gap-3">
-            <Suspense fallback={null}>
-              <ProfileCard
-                name="Magdy Saber"
-                title="Creator & Developer"
-                avatarUrl={developerPhoto}
-                contactText="Contact Me"
-                showUserInfo={true}
-                enableTilt={true}
-                enableMobileTilt={false}
-                behindGlowEnabled
-                behindGlowColor="rgba(125, 190, 255, 0.67)"
-                innerGradient="linear-gradient(145deg,#60496e8c 0%,#71C4FF44 100%)"
-                onContactClick={() => openExternal('mailto:contact@magdysaber.com')}
-                onPortfolioClick={() => openExternal('https://magdysaber.com')}
-                onGithubClick={() => openExternal('https://github.com/iammagdy')}
-              />
-            </Suspense>
-          </div>
-
-          {/* App Footer */}
+          {/* Footer: Developer Credit + App version (consolidated at the bottom) */}
           <div className="pt-2 pb-10">
-            <div className="flex flex-col items-center gap-3 px-6 py-6">
-              <div className="w-12 h-12 rounded-xl overflow-hidden shadow-soft">
-                <AppIcon size={48} showSparkle={false} className="w-full h-full" />
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                <h2 className="text-sm font-semibold text-foreground">WiseResume</h2>
-                <span className="text-xs text-muted-foreground font-mono">
-                  {appVersion}
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground text-center">
-                Made with <span className="text-red-500">❤️</span> in Egypt
-              </p>
-              <button
-                type="button"
-                onClick={() => setChangelogOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-muted/50 hover:bg-muted active:scale-95 transition text-sm text-muted-foreground font-medium touch-manipulation min-h-[44px]"
+            <div className="px-4 flex flex-col items-center gap-5">
+              <Suspense fallback={null}>
+                <ProfileCard
+                  name="Magdy Saber"
+                  title="Creator & Developer"
+                  avatarUrl={developerPhoto}
+                  contactText="Contact Me"
+                  showUserInfo={true}
+                  enableTilt={true}
+                  enableMobileTilt={false}
+                  behindGlowEnabled
+                  behindGlowColor="rgba(125, 190, 255, 0.67)"
+                  innerGradient="linear-gradient(145deg,#60496e8c 0%,#71C4FF44 100%)"
+                  onContactClick={() => openExternal('mailto:contact@magdysaber.com')}
+                  onPortfolioClick={() => openExternal('https://magdysaber.com')}
+                  onGithubClick={() => openExternal('https://github.com/iammagdy')}
+                />
+              </Suspense>
+
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-12 h-12 rounded-xl overflow-hidden shadow-soft">
+                  <AppIcon size={48} showSparkle={false} className="w-full h-full" />
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <h2 className="text-sm font-semibold text-foreground">WiseResume</h2>
+                  <span className="text-xs text-muted-foreground font-mono">
+                    {appVersion}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground text-center">
+                  Made with <span className="text-red-500">❤️</span> in Egypt
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setChangelogOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-muted/50 hover:bg-muted active:scale-95 transition text-sm text-muted-foreground font-medium touch-manipulation min-h-[44px]"
                 >
-                
-                <ScrollText className="w-4 h-4 text-purple-400" />
-                <span>Changelog</span>
-                <ChevronRight className="w-3 h-3 text-muted-foreground/60 ml-1" />
-              </button>
+                  <ScrollText className="w-4 h-4 text-purple-400" />
+                  <span>Changelog</span>
+                  <ChevronRight className="w-3 h-3 text-muted-foreground/60 ml-1" />
+                </button>
+              </div>
             </div>
           </div>
         </div>

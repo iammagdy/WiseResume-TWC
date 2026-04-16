@@ -1,6 +1,6 @@
 import { memo, Suspense, lazy } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, KeyRound, HelpCircle, Crown, Gift } from 'lucide-react';
+import { KeyRound, Crown, Gift } from 'lucide-react';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { Separator } from '@/components/ui/separator';
 import { useResumes } from '@/hooks/useResumes';
@@ -9,16 +9,12 @@ import { useJobApplications } from '@/hooks/useJobApplications';
 import { haptics } from '@/lib/haptics';
 import { useMe } from '@/hooks/useMe';
 import { cn } from '@/lib/utils';
-import type { KindeAppUser } from '@/contexts/AuthContext';
 
 const AccountStatsCard = lazy(() => import('./AccountStatsCard'));
 
 interface AccountSectionProps {
-    user: KindeAppUser;
     authProvider: string;
     onChangePassword: () => void;
-    onSignOut: () => void;
-    onDeleteData?: () => void;
 }
 
 function PlanBadge({ plan }: { plan: string }) {
@@ -38,10 +34,8 @@ function PlanBadge({ plan }: { plan: string }) {
 }
 
 export const AccountSection = memo(function AccountSection({
-    user,
     authProvider,
     onChangePassword,
-    onSignOut,
 }: AccountSectionProps) {
     const navigate = useNavigate();
     const { data: resumes = [] } = useResumes();
@@ -94,15 +88,6 @@ export const AccountSection = memo(function AccountSection({
             </div>
 
             <div className="rounded-2xl bg-card border border-border shadow-soft overflow-hidden">
-                {/* Help */}
-                <SettingsRow
-                    type="navigation"
-                    label="Help & FAQ"
-                    description="Get answers and contact support"
-                    icon={<HelpCircle className="w-4 h-4" />}
-                    onClick={() => { haptics.light(); navigate('/help'); }}
-                />
-                <Separator className="ml-[52px] bg-border/30" />
                 {/* Subscription */}
                 <SettingsRow
                     type="navigation"
@@ -120,10 +105,10 @@ export const AccountSection = memo(function AccountSection({
                     icon={<Gift className="w-4 h-4" />}
                     onClick={() => { haptics.light(); navigate('/referral'); }}
                 />
-                <Separator className="ml-[52px] bg-border/30" />
                 {/* Change Password - email users only */}
                 {authProvider === 'email' ? (
                     <>
+                        <Separator className="ml-[52px] bg-border/30" />
                         <SettingsRow
                             type="navigation"
                             label="Change Password"
@@ -131,22 +116,15 @@ export const AccountSection = memo(function AccountSection({
                             icon={<KeyRound className="w-4 h-4" />}
                             onClick={onChangePassword}
                         />
-                        <Separator className="ml-[52px] bg-border/30" />
                     </>
                 ) : (
                     <>
+                        <Separator className="ml-[52px] bg-border/30" />
                         <p className="px-4 py-2.5 text-xs text-muted-foreground">
                             Password is managed by your {authProvider === 'google' ? 'Google' : authProvider === 'github' ? 'GitHub' : authProvider === 'apple' ? 'Apple' : 'social'} account.
                         </p>
-                        <Separator className="ml-[52px] bg-border/30" />
                     </>
                 )}
-                <SettingsRow
-                    type="button"
-                    label="Sign Out"
-                    icon={<LogOut className="w-4 h-4" />}
-                    onClick={() => { haptics.medium(); onSignOut(); }}
-                />
             </div>
         </div>
     );
