@@ -1,6 +1,6 @@
 import { memo, Suspense, lazy } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Crown, Gift } from 'lucide-react';
+import { Crown, Gift, KeyRound } from 'lucide-react';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { Separator } from '@/components/ui/separator';
 import { useResumes } from '@/hooks/useResumes';
@@ -9,6 +9,7 @@ import { useJobApplications } from '@/hooks/useJobApplications';
 import { haptics } from '@/lib/haptics';
 import { useMe } from '@/hooks/useMe';
 import { cn } from '@/lib/utils';
+import { openExternal } from '@/lib/openExternal';
 
 const AccountStatsCard = lazy(() => import('./AccountStatsCard'));
 
@@ -111,9 +112,20 @@ export const AccountSection = memo(function AccountSection({
                     onClick={() => { haptics.light(); navigate('/referral'); }}
                 />
                 <Separator className="ml-[52px] bg-border/30" />
-                <p className="px-4 py-2.5 text-xs text-muted-foreground">
-                    Sign-in & password are managed by your {providerLabel} provider.
-                </p>
+                <SettingsRow
+                    type="navigation"
+                    label="Manage Sign-in & Password"
+                    description={`Update your password through your ${providerLabel} account portal`}
+                    icon={<KeyRound className="w-4 h-4" />}
+                    onClick={() => {
+                        haptics.light();
+                        const kindeDomain = (import.meta.env.VITE_KINDE_DOMAIN as string | undefined)?.trim();
+                        const portalUrl = kindeDomain
+                            ? (kindeDomain.startsWith('http') ? kindeDomain : `https://${kindeDomain}`).replace(/\/$/, '') + '/account'
+                            : 'https://kinde.com';
+                        openExternal(portalUrl);
+                    }}
+                />
             </div>
         </div>
     );
