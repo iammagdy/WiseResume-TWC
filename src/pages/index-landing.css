@@ -198,13 +198,25 @@
   background: linear-gradient(to top, var(--lp-section-alt), transparent);
 }
 
-/* Theme toggle button */
+/* Hero section responsive top padding — mobile: single-row header only; sm+: header + toggle strip */
+.lp-hero-top {
+  padding-top: calc(3.5rem + env(safe-area-inset-top));
+}
+@media (min-width: 640px) {
+  .lp-hero-top {
+    padding-top: calc(7.75rem + env(safe-area-inset-top));
+  }
+}
+
+/* Theme toggle button — 44×44 minimum tap target */
 .lp-theme-toggle {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
   border-radius: 10px;
   cursor: pointer;
   transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;

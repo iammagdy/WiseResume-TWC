@@ -513,6 +513,26 @@ const Index = () => {
     }
   };
 
+  const handleLandingModeChange = (m: 'jobseeker' | 'wisehire', btnOrigin: { x: number; y: number }) => {
+    if (m === mode) return;
+    triggerHaptic.light();
+    if (!prefersReducedMotion) {
+      if (modeTimerRef.current !== null) {
+        clearTimeout(modeTimerRef.current);
+        modeTimerRef.current = null;
+      }
+      setWaveOrigin(btnOrigin);
+      setWaveColor(m === 'wisehire' ? 'rgba(37,99,235,0.15)' : 'rgba(185,28,28,0.15)');
+      setWaveKey((k) => k + 1);
+      modeTimerRef.current = setTimeout(() => {
+        modeTimerRef.current = null;
+        flushSync(() => setMode(m));
+      }, 300);
+    } else {
+      setMode(m);
+    }
+  };
+
   return (
     <div
       className="lp-root min-h-screen"
@@ -549,30 +569,15 @@ const Index = () => {
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'lp-header-scrolled' : 'bg-transparent'}`}
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
-        {/* Product toggle strip — always visible, sits above the nav row */}
-        <LandingToggle
-          mode={mode}
-          prefersReducedMotion={prefersReducedMotion}
-          onModeChange={(m, btnOrigin) => {
-            if (m === mode) return;
-            triggerHaptic.light();
-            if (!prefersReducedMotion) {
-              if (modeTimerRef.current !== null) {
-                clearTimeout(modeTimerRef.current);
-                modeTimerRef.current = null;
-              }
-              setWaveOrigin(btnOrigin);
-              setWaveColor(m === 'wisehire' ? 'rgba(37,99,235,0.15)' : 'rgba(185,28,28,0.15)');
-              setWaveKey((k) => k + 1);
-              modeTimerRef.current = setTimeout(() => {
-                modeTimerRef.current = null;
-                flushSync(() => setMode(m));
-              }, 300);
-            } else {
-              setMode(m);
-            }
-          }}
-        />
+        {/* Product toggle strip — hidden on mobile, sits above the nav row on sm+ */}
+        <div className="hidden sm:block">
+          <LandingToggle
+            uid="hdr"
+            mode={mode}
+            prefersReducedMotion={prefersReducedMotion}
+            onModeChange={handleLandingModeChange}
+          />
+        </div>
 
         <div className="flex items-center justify-between px-4 sm:px-6 h-14 max-w-6xl mx-auto">
           <button
@@ -602,7 +607,7 @@ const Index = () => {
             {/* Nav links */}
             {mode === 'wisehire' ? (
               <button
-                className="text-sm font-medium px-3 py-1.5 rounded-lg transition-all duration-200"
+                className="hidden sm:block text-sm font-medium px-3 py-1.5 rounded-lg transition-all duration-200"
                 style={{ color: 'var(--lp-text-muted)', background: 'transparent' }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--lp-text)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--lp-text-muted)'; }}
@@ -616,7 +621,7 @@ const Index = () => {
             ) : (
               <Link
                 to="/pricing"
-                className="text-sm font-medium px-3 py-1.5 rounded-lg transition-all duration-200"
+                className="hidden sm:block text-sm font-medium px-3 py-1.5 rounded-lg transition-all duration-200"
                 style={{ color: 'var(--lp-text-muted)', background: 'transparent' }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text-muted)'; }}
@@ -627,7 +632,7 @@ const Index = () => {
             {mode === 'jobseeker' && (
               <Link
                 to="/whats-new"
-                className="hidden xs:block text-sm font-medium px-3 py-1.5 rounded-lg transition-all duration-200"
+                className="hidden sm:block text-sm font-medium px-3 py-1.5 rounded-lg transition-all duration-200"
                 style={{ color: 'var(--lp-text-muted)', background: 'transparent' }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--lp-text-muted)'; }}
@@ -747,7 +752,20 @@ const Index = () => {
             exit="exit"
           >
             <motion.div variants={prefersReducedMotion ? REDUCED_SECTION_ITEM : SCATTER_SECTION_ITEM} custom={0}>
-              <WiseHireHero onOpenWaitlist={() => setWaitlistOpen(true)} />
+              <WiseHireHero
+                onOpenWaitlist={() => setWaitlistOpen(true)}
+                mobileToggle={
+                  <div className="sm:hidden relative z-10 flex justify-center mb-4">
+                    <LandingToggle
+                      uid="mob"
+                      compact
+                      mode={mode}
+                      prefersReducedMotion={prefersReducedMotion}
+                      onModeChange={handleLandingModeChange}
+                    />
+                  </div>
+                }
+              />
               <SoftDivider product="wisehire" />
               <WiseHireFeatureTicker />
             </motion.div>
@@ -848,10 +866,9 @@ const Index = () => {
         <motion.div variants={prefersReducedMotion ? REDUCED_SECTION_ITEM : SCATTER_SECTION_ITEM} custom={0}>
         <section
           ref={heroRef}
-          className="relative flex flex-col items-center text-center px-4 sm:px-6 overflow-hidden"
+          className="lp-hero-top relative flex flex-col items-center text-center px-4 sm:px-6 overflow-hidden"
           style={{
             background: 'var(--lp-bg)',
-            paddingTop: 'calc(7.75rem + env(safe-area-inset-top))',
             paddingBottom: '4rem',
           }}
         >
@@ -874,6 +891,17 @@ const Index = () => {
             initial={prefersReducedMotion ? 'visible' : 'hidden'}
             animate="visible"
           >
+            {/* Mobile product toggle — visible on mobile only, placed in hero content flow */}
+            <div className="sm:hidden mb-4">
+              <LandingToggle
+                uid="mob"
+                compact
+                mode={mode}
+                prefersReducedMotion={prefersReducedMotion}
+                onModeChange={handleLandingModeChange}
+              />
+            </div>
+
             {/* Brand pill */}
             <motion.div
               variants={heroItemVariants}

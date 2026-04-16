@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { motion, useInView, useReducedMotion } from 'framer-motion';
 import { ArrowRight, CheckCircle2, ChevronDown, Users } from 'lucide-react';
 import { AppIcon } from '@/components/brand/AppIcon';
@@ -77,19 +77,19 @@ function useWHTypewriter(words: string[], prefersReduced: boolean | null) {
 
 interface WiseHireHeroProps {
   onOpenWaitlist: () => void;
+  mobileToggle?: ReactNode;
 }
 
-export function WiseHireHero({ onOpenWaitlist }: WiseHireHeroProps) {
+export function WiseHireHero({ onOpenWaitlist, mobileToggle }: WiseHireHeroProps) {
   const prefersReducedMotion = useReducedMotion();
   const typewriterWord = useWHTypewriter(WH_TYPEWRITER_WORDS, prefersReducedMotion);
   const waitlistCount = useCountUp(500, prefersReducedMotion);
 
   return (
     <section
-      className="relative flex flex-col items-center text-center px-4 sm:px-6 overflow-hidden"
+      className="lp-hero-top relative flex flex-col items-center text-center px-4 sm:px-6 overflow-hidden"
       style={{
         background: 'var(--lp-bg)',
-        paddingTop: 'calc(7.75rem + env(safe-area-inset-top))',
         paddingBottom: '4.5rem',
         transition: 'background 0.35s ease',
       }}
@@ -142,6 +142,9 @@ export function WiseHireHero({ onOpenWaitlist }: WiseHireHeroProps) {
           transition: 'background 0.35s ease',
         }}
       />
+
+      {/* Mobile product toggle slot — rendered here so it sits inside the hero padding area */}
+      {mobileToggle}
 
       {/* WiseHire brand pill */}
       <div
