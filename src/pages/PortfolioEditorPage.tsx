@@ -823,6 +823,7 @@ export default function PortfolioEditorPage() {
               onShare={handleShareQR}
               portfolioStyle={portfolioStyle}
               abChallengerTheme={abChallengerTheme || undefined}
+              userId={user?.id}
               onPickWinner={(winnerId) => {
                 setPortfolioStyle(winnerId as import('@/components/portfolio/editor/AppearanceSection').PortfolioStyle);
                 setAbChallengerTheme('');

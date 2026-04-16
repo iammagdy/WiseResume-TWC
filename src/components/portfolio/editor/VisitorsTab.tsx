@@ -1,9 +1,15 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useQueryClient } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Globe, Users, TrendingUp, Share2, Eye, Monitor, Smartphone, Tablet, Building2, FlaskConical, Trophy } from 'lucide-react';
-import { usePortfolioAnalytics } from '@/hooks/usePortfolioAnalytics';
+import { Globe, Users, TrendingUp, Share2, Eye, Monitor, Smartphone, Tablet, Building2, FlaskConical, Trophy, Link2, Plus, Loader2, Copy, Trash2, Check, ChevronRight } from 'lucide-react';
+import { usePortfolioAnalytics, useShortLinks, useCreateShortLink, useDeleteShortLink, type ShortLink } from '@/hooks/usePortfolioAnalytics';
 import { PORTFOLIO_THEMES } from '@/lib/portfolioThemes';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { haptics } from '@/lib/haptics';
 
 interface VisitorsTabProps {
   username: string | null;
@@ -12,6 +18,7 @@ interface VisitorsTabProps {
   portfolioStyle?: string;
   abChallengerTheme?: string;
   onPickWinner?: (winnerId: string) => void;
+  userId?: string;
 }
 
 function timeAgo(dateStr: string): string {
@@ -51,22 +58,8 @@ function countryFlag(country: string | null): string {
     'SG': '🇸🇬', 'Singapore': '🇸🇬',
     'BR': '🇧🇷', 'Brazil': '🇧🇷',
     'JP': '🇯🇵', 'Japan': '🇯🇵',
-    'KR': '🇰🇷', 'South Korea': '🇰🇷',
-    'CN': '🇨🇳', 'China': '🇨🇳',
-    'MX': '🇲🇽', 'Mexico': '🇲🇽',
-    'ES': '🇪🇸', 'Spain': '🇪🇸',
-    'IT': '🇮🇹', 'Italy': '🇮🇹',
-    'PL': '🇵🇱', 'Poland': '🇵🇱',
-    'UA': '🇺🇦', 'Ukraine': '🇺🇦',
-    'ZA': '🇿🇦', 'South Africa': '🇿🇦',
-    'NG': '🇳🇬', 'Nigeria': '🇳🇬',
-    'EG': '🇪🇬', 'Egypt': '🇪🇬',
-    'PK': '🇵🇰', 'Pakistan': '🇵🇰',
-    'BD': '🇧🇩', 'Bangladesh': '🇧🇩',
-    'PH': '🇵🇭', 'Philippines': '🇵🇭',
-    'ID': '🇮🇩', 'Indonesia': '🇮🇩',
   };
-  return flagMap[country] || '🌍';
+  return flagMap[country] ?? '🌍';
 }
 
 function last7DaysData(visits: Array<{ visited_at: string }>): Array<{ day: string; count: number; date: string }> {
@@ -106,7 +99,6 @@ function topSections(visits: Array<{ sections_viewed: string[]; sections_timing?
       .sort((a, b) => b.value - a.value)
       .slice(0, 6);
   }
-  // Fallback: frequency count
   const tally: Record<string, number> = {};
   visits.forEach(v => {
     (v.sections_viewed || []).forEach(s => { tally[s] = (tally[s] || 0) + 1; });
@@ -122,18 +114,96 @@ function last7DayCount(visits: Array<{ visited_at: string }>): number {
   return visits.filter(v => new Date(v.visited_at).getTime() >= cutoff).length;
 }
 
-export function VisitorsTab({ username, portfolioCanonicalUrl, onShare, portfolioStyle, abChallengerTheme, onPickWinner }: VisitorsTabProps) {
+// ── ShortLinkRow ──────────────────────────────────────────────────────────────
+function ShortLinkRow({ link, userId, visitCount, canonicalBase, onDelete }: {
+  link: ShortLink;
+  userId: string;
+  visitCount: number;
+  canonicalBase: string;
+  onDelete: (id: string) => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const { mutate: deleteLink, isPending: deleting } = useDeleteShortLink();
+  const fullUrl = `${canonicalBase}/l/${link.id}`;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(fullUrl).then(() => {
+      haptics.light();
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const handleDelete = () => {
+    haptics.medium();
+    deleteLink({ id: link.id, userId }, { onSuccess: () => onDelete(link.id) });
+  };
+
+  return (
+    <div className="flex items-center gap-2 py-2.5 border-b border-border last:border-0">
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-semibold text-foreground truncate">{link.label}</p>
+        <p className="text-[10px] text-muted-foreground font-mono truncate">/l/{link.id}</p>
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <span className="text-[10px] text-muted-foreground">{visitCount} visit{visitCount !== 1 ? 's' : ''}</span>
+        <button onClick={handleCopy} className="p-1 rounded-md hover:bg-muted transition-colors" title="Copy link">
+          {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-muted-foreground" />}
+        </button>
+        <button onClick={handleDelete} disabled={deleting} className="p-1 rounded-md hover:bg-muted transition-colors" title="Delete link">
+          <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Main VisitorsTab ──────────────────────────────────────────────────────────
+export function VisitorsTab({ username, portfolioCanonicalUrl, onShare, portfolioStyle, abChallengerTheme, onPickWinner, userId }: VisitorsTabProps) {
   const { data: analytics, isLoading } = usePortfolioAnalytics(username ?? undefined);
+  const { data: shortLinks = [], isLoading: linksLoading } = useShortLinks(userId, username ?? undefined);
+  const { mutate: createLink, isPending: creating } = useCreateShortLink();
+  const queryClient = useQueryClient();
+
+  const [newLinkLabel, setNewLinkLabel] = useState('');
+  const [showCreateLink, setShowCreateLink] = useState(false);
 
   const chartData = useMemo(() => last7DaysData(analytics?.visits ?? []), [analytics?.visits]);
   const topSectionsData = useMemo(() => topSections(analytics?.visits ?? []), [analytics?.visits]);
   const week7Count = useMemo(() => last7DayCount(analytics?.visits ?? []), [analytics?.visits]);
+
+  // Source attribution: count visits per short_link_id
+  const sourceCounts = useMemo(() => {
+    const counts: Record<string, number> = { direct: 0 };
+    (analytics?.visits ?? []).forEach(v => {
+      if (v.short_link_id) {
+        counts[v.short_link_id] = (counts[v.short_link_id] || 0) + 1;
+      } else {
+        counts.direct++;
+      }
+    });
+    return counts;
+  }, [analytics?.visits]);
 
   const totalViews = analytics?.summary.total_visits ?? 0;
   const avgTime = analytics?.summary.avg_time_seconds ?? null;
   const recentVisits = (analytics?.visits ?? []).slice(0, 10);
 
   const isEmpty = !isLoading && totalViews === 0;
+
+  const handleCreate = () => {
+    if (!newLinkLabel.trim() || !userId || !username) return;
+    haptics.light();
+    createLink(
+      { userId, portfolioUsername: username, label: newLinkLabel.trim() },
+      {
+        onSuccess: () => {
+          setNewLinkLabel('');
+          setShowCreateLink(false);
+        },
+      }
+    );
+  };
 
   if (!username) {
     return (
@@ -156,28 +226,98 @@ export function VisitorsTab({ username, portfolioCanonicalUrl, onShare, portfoli
 
   if (isEmpty) {
     return (
-      <div className="flex flex-col items-center justify-center py-10 text-center gap-4">
-        <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-          <Users className="w-7 h-7 text-primary" />
+      <div className="space-y-4">
+        <div className="flex flex-col items-center justify-center py-10 text-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+            <Users className="w-7 h-7 text-primary" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-sm font-semibold">No visitors yet</p>
+            <p className="text-xs text-muted-foreground max-w-[220px]">Share your portfolio link to start seeing who visits.</p>
+          </div>
+          <button
+            onClick={onShare}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold active:scale-95 transition-all touch-manipulation"
+          >
+            <Share2 className="w-4 h-4" />
+            Share your portfolio
+          </button>
+          {portfolioCanonicalUrl && (
+            <p className="text-[11px] text-muted-foreground font-mono break-all max-w-[260px]">{portfolioCanonicalUrl}</p>
+          )}
         </div>
-        <div className="space-y-1">
-          <p className="text-sm font-semibold">No visitors yet</p>
-          <p className="text-xs text-muted-foreground max-w-[220px]">Share your portfolio link to start seeing who visits.</p>
-        </div>
-        <button
-          onClick={onShare}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold active:scale-95 transition-all touch-manipulation"
-        >
-          <Share2 className="w-4 h-4" />
-          Share your portfolio
-        </button>
-        {portfolioCanonicalUrl && (
-          <p className="text-[11px] text-muted-foreground font-mono break-all max-w-[260px]">{portfolioCanonicalUrl}</p>
+
+        {/* Short Links — available even before first visit */}
+        {userId && (
+          <div className="rounded-xl bg-card border border-border p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Link2 className="w-3.5 h-3.5 text-primary" />
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Trackable Links</p>
+              </div>
+              <button
+                className="text-[11px] text-primary font-medium flex items-center gap-0.5"
+                onClick={() => { haptics.light(); setShowCreateLink(v => !v); }}
+              >
+                <Plus className="w-3 h-3" />New
+              </button>
+            </div>
+            <AnimatePresence>
+              {showCreateLink && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="space-y-2 pt-1">
+                    <p className="text-[11px] text-muted-foreground">Label this link (e.g. "LinkedIn Bio")</p>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="e.g. LinkedIn Bio"
+                        value={newLinkLabel}
+                        onChange={e => setNewLinkLabel(e.target.value)}
+                        className="h-8 text-xs"
+                        onKeyDown={e => { if (e.key === 'Enter') handleCreate(); }}
+                        maxLength={50}
+                      />
+                      <Button onClick={handleCreate} disabled={creating || !newLinkLabel.trim()} className="h-8 px-3 text-xs rounded-lg shrink-0">
+                        {creating ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Create'}
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                      <ChevronRight className="w-3 h-3" />
+                      Creates a trackable short link for this channel
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            {linksLoading ? (
+              <Skeleton className="h-10 rounded-lg" />
+            ) : shortLinks.length === 0 && !showCreateLink ? (
+              <p className="text-[11px] text-muted-foreground text-center py-2">
+                Create trackable links for different channels (LinkedIn, email, etc.)
+              </p>
+            ) : (
+              shortLinks.map(link => (
+                <ShortLinkRow
+                  key={link.id}
+                  link={link}
+                  userId={userId}
+                  visitCount={sourceCounts[link.id] ?? 0}
+                  canonicalBase="https://resume.thewise.cloud"
+                  onDelete={(id) => {
+                    queryClient.setQueryData<ShortLink[]>(['short-links', userId], old => old?.filter(l => l.id !== id) ?? []);
+                  }}
+                />
+              ))
+            )}
+          </div>
         )}
       </div>
     );
   }
-
 
   return (
     <div className="space-y-4">
@@ -219,6 +359,111 @@ export function VisitorsTab({ username, portfolioCanonicalUrl, onShare, portfoli
           </BarChart>
         </ResponsiveContainer>
       </div>
+
+      {/* Trackable Links + Source Breakdown */}
+      {userId && (
+        <div className="rounded-xl bg-card border border-border p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <Link2 className="w-3.5 h-3.5 text-primary" />
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Trackable Links</p>
+            </div>
+            <button
+              className="text-[11px] text-primary font-medium flex items-center gap-0.5"
+              onClick={() => { haptics.light(); setShowCreateLink(v => !v); }}
+            >
+              <Plus className="w-3 h-3" />New
+            </button>
+          </div>
+
+          <AnimatePresence>
+            {showCreateLink && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="space-y-2 pt-1">
+                  <p className="text-[11px] text-muted-foreground">Label this link (e.g. "LinkedIn Bio", "Email Signature")</p>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="e.g. LinkedIn Bio"
+                      value={newLinkLabel}
+                      onChange={e => setNewLinkLabel(e.target.value)}
+                      className="h-8 text-xs"
+                      onKeyDown={e => { if (e.key === 'Enter') handleCreate(); }}
+                      maxLength={50}
+                    />
+                    <Button onClick={handleCreate} disabled={creating || !newLinkLabel.trim()} className="h-8 px-3 text-xs rounded-lg shrink-0">
+                      {creating ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Create'}
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                    <ChevronRight className="w-3 h-3" />
+                    Share this link on each channel to see which one sends you the most views
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Source breakdown: direct + named links */}
+          {(shortLinks.length > 0 || sourceCounts.direct > 0) && (
+            <div className="space-y-1.5 pt-1">
+              {/* Direct visits */}
+              {sourceCounts.direct > 0 && (
+                <div className="flex items-center gap-2">
+                  <Globe className="w-3 h-3 text-muted-foreground shrink-0" />
+                  <span className="text-[11px] text-muted-foreground flex-1">Direct / Other</span>
+                  <span className="text-[11px] text-muted-foreground">{sourceCounts.direct}</span>
+                  <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full rounded-full bg-muted-foreground/40" style={{ width: `${Math.round((sourceCounts.direct / totalViews) * 100)}%` }} />
+                  </div>
+                </div>
+              )}
+              {/* Named link visits */}
+              {shortLinks.map(link => {
+                const count = sourceCounts[link.id] ?? 0;
+                return (
+                  <div key={link.id} className="flex items-center gap-2">
+                    <Link2 className="w-3 h-3 text-primary shrink-0" />
+                    <span className="text-[11px] text-foreground font-medium flex-1 truncate">{link.label}</span>
+                    <span className="text-[11px] text-muted-foreground">{count}</span>
+                    <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div className="h-full rounded-full bg-primary" style={{ width: totalViews > 0 ? `${Math.round((count / totalViews) * 100)}%` : '0%' }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Short link management rows */}
+          {linksLoading ? (
+            <Skeleton className="h-10 rounded-lg mt-2" />
+          ) : shortLinks.length === 0 ? (
+            <p className="text-[11px] text-muted-foreground text-center py-2">
+              No trackable links yet — create one to see which channel sends you the most visitors.
+            </p>
+          ) : (
+            <div className="border-t border-border mt-1 pt-1">
+              {shortLinks.map(link => (
+                <ShortLinkRow
+                  key={link.id}
+                  link={link}
+                  userId={userId}
+                  visitCount={sourceCounts[link.id] ?? 0}
+                  canonicalBase="https://resume.thewise.cloud"
+                  onDelete={(id) => {
+                    queryClient.setQueryData<ShortLink[]>(['short-links', userId], old => old?.filter(l => l.id !== id) ?? []);
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Section Heatmap — dwell time per section */}
       {topSectionsData.length > 0 && (
@@ -319,6 +564,12 @@ export function VisitorsTab({ username, portfolioCanonicalUrl, onShare, portfoli
                   <p className="text-[10px] text-primary font-medium flex items-center gap-0.5 mb-0.5">
                     <Building2 className="w-2.5 h-2.5 shrink-0" />
                     {visit.company_name}
+                  </p>
+                )}
+                {visit.short_link_id && shortLinks.find(l => l.id === visit.short_link_id) && (
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-0.5 mb-0.5">
+                    <Link2 className="w-2.5 h-2.5 shrink-0" />
+                    via {shortLinks.find(l => l.id === visit.short_link_id)!.label}
                   </p>
                 )}
                 <div className="flex items-center gap-1.5 flex-wrap">
