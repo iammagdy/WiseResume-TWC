@@ -3,7 +3,7 @@ import { getAppUrl } from '@/lib/portfolioUrl';
 
 import { useNavigate } from 'react-router-dom';
 import {
-  ChevronRight, ScrollText, X, Check } from
+  ChevronRight, ScrollText, X, Check, Github, ExternalLink } from
 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { openExternal } from '@/lib/openExternal';
@@ -39,7 +39,7 @@ const BiometricTimeoutSheet = lazy(() => import('@/components/settings/Biometric
 const ElevenLabsKeySheet = lazy(() => import('@/components/settings/ElevenLabsKeySheet').then((m) => ({ default: m.ElevenLabsKeySheet })));
 const AISettingsSheet = lazy(() => import('@/components/settings/AISettingsSheet').then((m) => ({ default: m.AISettingsSheet })));
 const HelpSheet = lazy(() => import('@/components/settings/HelpSheet').then((m) => ({ default: m.HelpSheet })));
-const DeveloperCreditCard = lazy(() => import('@/components/settings/DeveloperCreditCard').then((m) => ({ default: m.DeveloperCreditCard })));
+const ProfileCard = lazy(() => import('@/components/settings/ProfileCard'));
 
 // Extracted section components
 import { TalentPoolDiscoverableCard } from '@/components/settings/TalentPoolDiscoverableCard';
@@ -403,17 +403,42 @@ export default function SettingsPage() {
           )}
 
           {/* Developer Credit */}
-          <div className="px-4">
+          <div className="px-4 flex flex-col items-center gap-3">
             <Suspense fallback={null}>
-              <DeveloperCreditCard
+              <ProfileCard
                 name="Magdy Saber"
                 title="Creator & Developer"
                 avatarUrl={developerPhoto}
-                websiteUrl="https://magdysaber.com"
-                githubUrl="https://github.com/iammagdy"
+                handle="iammagdy"
+                status="Online"
+                contactText="Contact Me"
+                showUserInfo={true}
+                enableTilt={true}
+                enableMobileTilt={false}
+                behindGlowEnabled
+                behindGlowColor="rgba(125, 190, 255, 0.67)"
+                innerGradient="linear-gradient(145deg,#60496e8c 0%,#71C4FF44 100%)"
                 onContactClick={() => openExternal('mailto:contact@magdysaber.com')}
               />
             </Suspense>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => { openExternal('https://github.com/iammagdy'); }}
+                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-lg border border-border/50 hover:border-border"
+                aria-label="GitHub profile"
+              >
+                <Github className="w-4 h-4" />
+                <span>GitHub</span>
+              </button>
+              <button
+                onClick={() => { openExternal('https://magdysaber.com'); }}
+                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-lg border border-border/50 hover:border-border"
+                aria-label="Visit website"
+              >
+                <ExternalLink className="w-4 h-4" />
+                <span>magdysaber.com</span>
+              </button>
+            </div>
           </div>
 
           {/* App Footer */}
