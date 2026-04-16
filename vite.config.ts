@@ -105,6 +105,14 @@ export default defineConfig(() => ({
     // Vite's own dev-server scripts (HMR, module preload) use inline scripts
     // and event handlers that would require 'unsafe-inline' to pass.
     headers: {},
+    proxy: {
+      // Proxy server-side API calls through the Express server (port 5001)
+      // This keeps server-only secrets (DB, service keys) off the client
+      '/api': {
+        target: 'http://localhost:5001',
+        changeOrigin: true,
+      },
+    },
   },
   build: {
     sourcemap: 'hidden',

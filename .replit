@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "web", "postgresql-16"]
+modules = ["nodejs-20", "web"]
 [agent]
 expertMode = true
 integrations = ["javascript_database:1.0.0"]
@@ -27,7 +27,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "PUPPETEER_SKIP_DOWNLOAD=true npm install --legacy-peer-deps && node_modules/.bin/vite --host 0.0.0.0 --port 5000"
+args = "PUPPETEER_SKIP_DOWNLOAD=true npm install --legacy-peer-deps && node_modules/.bin/tsx server/index.ts & node_modules/.bin/vite --host 0.0.0.0 --port 5000"
 waitForPort = 5000
 
 [[ports]]
