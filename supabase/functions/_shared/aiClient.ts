@@ -63,7 +63,7 @@ export interface AIResponse {
 }
 
 export interface AIError {
-  type: 'rate_limit' | 'payment_required' | 'invalid_key' | 'quota_exceeded' | 'network' | 'unknown';
+  type: 'rate_limit' | 'provider_busy' | 'payment_required' | 'invalid_key' | 'quota_exceeded' | 'network' | 'unknown';
   message: string;
   status: number;
 }
@@ -1296,9 +1296,7 @@ export async function callWiseresumeAI(
   }
 
   console.error('[AI] WiseResume: all models exhausted. Last error:', lastError instanceof Error ? lastError.message : lastError);
-  // All models exhausted — always surface as rate_limit/429 so clients show a friendly message
-  // regardless of what the last individual model returned.
-  throw createAIError('rate_limit', 'All WiseResume AI models are busy. Please try again in a moment.', 429);
+  throw createAIError('provider_busy', 'AI is temporarily busy — please try again in a moment.', 503);
 }
 
 /**
@@ -1533,6 +1531,7 @@ export function toUserError(error: unknown): { status: number; error: string; me
   if (isAIError(error)) {
     const map: Record<string, string> = {
       rate_limit: 'Rate limit reached. Please try again in a moment.',
+      provider_busy: 'AI is temporarily busy — please try again in a moment.',
       payment_required: 'AI credits exhausted. Please try again later or use your own API key.',
       invalid_key: 'Invalid API key. Please check your settings.',
       quota_exceeded: 'Daily quota exceeded. Try again tomorrow or use a different API key.',

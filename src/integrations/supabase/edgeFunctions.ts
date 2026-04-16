@@ -97,6 +97,11 @@ export const edgeFunctions = {
               errorMessage = 'Session expired — please sign in again.';
             } else if (status === 429) {
               errorMessage = 'Too many requests — please wait a moment and try again.';
+            } else if (status === 503) {
+              const errorCode = rawError;
+              errorMessage = errorCode === 'service_unavailable'
+                ? 'Service temporarily unavailable. Please try again in a moment.'
+                : 'AI is temporarily busy — please try again in a moment.';
             } else if (status === 402) {
               errorMessage = 'AI credits exhausted. Please check your account.';
             } else if (detail && typeof detail === 'string') {
@@ -104,6 +109,8 @@ export const edgeFunctions = {
                 errorMessage = 'WiseResume AI is not configured. Please contact support or add your own API key in Settings.';
               } else if (detail.includes('invalid_key') || detail.includes('Invalid API key')) {
                 errorMessage = 'Invalid API key — please check your AI settings.';
+              } else if (detail.includes('provider_busy')) {
+                errorMessage = 'AI is temporarily busy — please try again in a moment.';
               } else if (detail.includes('rate_limit') || detail.includes('rate limit')) {
                 errorMessage = 'Too many requests — please wait a moment and try again.';
               } else if (/not configured|please contact support/i.test(detail)) {
@@ -122,6 +129,8 @@ export const edgeFunctions = {
               errorMessage = 'Session expired — please sign in again.';
             } else if (status === 429) {
               errorMessage = 'Too many requests — please wait a moment and try again.';
+            } else if (status === 503) {
+              errorMessage = 'Service temporarily unavailable. Please try again in a moment.';
             } else if (status === 402) {
               errorMessage = 'AI credits exhausted. Please check your account.';
             }

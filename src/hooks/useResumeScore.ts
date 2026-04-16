@@ -54,7 +54,7 @@ function normalizeForScoring(resume: ResumeData): { content: Partial<ResumeData>
 /** Helper: wait ms */
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function invokeScoreResume(resume: ResumeData): Promise<{ data: any; latencyMs: number }> {
+async function invokeScoreResume(resume: ResumeData, isBackground = false): Promise<{ data: any; latencyMs: number }> {
   const { content: normalized, templateId } = normalizeForScoring(resume);
   const _start = Date.now();
   const token = await getSupabaseToken();
@@ -73,7 +73,7 @@ async function invokeScoreResume(resume: ResumeData): Promise<{ data: any; laten
       'Authorization': `Bearer ${token}`,
       'apikey': anonKey,
     },
-    body: JSON.stringify({ resume: normalized, templateId }),
+    body: JSON.stringify({ resume: normalized, templateId, ...(isBackground ? { source: 'background' } : {}) }),
   });
 
   if (!res.ok) {
@@ -105,7 +105,7 @@ export async function backgroundScore(resumeId: string, resume: ResumeData, upda
   const key = cacheKey(resumeId, updatedAt);
   if (scoreCache.has(key)) return;
   try {
-    const { data, latencyMs } = await invokeScoreResume(resume);
+    const { data, latencyMs } = await invokeScoreResume(resume, true);
     useAIHealthStore.getState().recordSuccess(latencyMs);
     const score: ResumeHealthScore = { ...data, scoredAt: new Date().toISOString() };
     scoreCache.set(key, score);

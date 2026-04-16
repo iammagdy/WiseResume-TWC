@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient.ts";
-import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
+import { recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
@@ -356,19 +356,15 @@ Deno.serve(async (req: Request) => {
   try {
     const { userId, client } = await requireAuth(req);
 
-    const rateCheck = await checkRateLimit(userId, { maxRequests: 30, windowSeconds: 60, actionType: 'chat' });
-    if (!rateCheck.allowed) {
-      return new Response(
-        JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     const serverRateCheck = await checkUserRateLimit(userId, 'chat', 30, 60);
     if (!serverRateCheck.allowed) {
+      const status = serverRateCheck.dbError ? 503 : 429;
+      const msg = serverRateCheck.dbError
+        ? 'Service temporarily unavailable. Please try again in a moment.'
+        : `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.`;
       return new Response(
-        JSON.stringify({ error: `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.` }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: serverRateCheck.dbError ? 'service_unavailable' : 'rate_limit', message: msg }),
+        { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

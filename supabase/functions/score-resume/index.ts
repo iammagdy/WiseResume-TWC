@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
+import { recordUsage } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { requireAuth } from "../_shared/authMiddleware.ts";
@@ -29,23 +29,22 @@ serve(async (req) => {
   try {
     const { userId } = await requireAuth(req);
 
-    const rateCheck = await checkRateLimit(userId, { maxRequests: 60, windowSeconds: 60, actionType: 'score' });
-    if (!rateCheck.allowed) {
-      return new Response(
-        JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const body = await req.json();
+    const { resume, templateId, source } = body;
+    const isBackground = source === 'background';
+    const featureKey = isBackground ? 'background_score' : 'score';
 
-    const serverRateCheck = await checkUserRateLimit(userId, 'score', 60, 60);
+    const serverRateCheck = await checkUserRateLimit(userId, featureKey, 60, 60);
     if (!serverRateCheck.allowed) {
+      const status = serverRateCheck.dbError ? 503 : 429;
+      const msg = serverRateCheck.dbError
+        ? 'Service temporarily unavailable. Please try again in a moment.'
+        : `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.`;
       return new Response(
-        JSON.stringify({ error: `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.` }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: serverRateCheck.dbError ? 'service_unavailable' : 'rate_limit', message: msg }),
+        { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const { resume, templateId } = await req.json();
 
     if (!resume || typeof resume !== 'object') {
       return new Response(
@@ -112,7 +111,7 @@ serve(async (req) => {
     // Only record usage for local users (cross-project users don't exist in auth.users)
     if (!userId.startsWith('ext:')) {
       try {
-        await recordUsage(userId, 'score', { provider: 'deterministic' });
+        await recordUsage(userId, featureKey, { provider: 'deterministic' });
       } catch (usageErr) {
         console.warn('recordUsage skipped (cross-project user):', usageErr);
       }

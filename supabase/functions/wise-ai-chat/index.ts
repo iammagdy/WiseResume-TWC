@@ -18,7 +18,6 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, sanitizeInputText } from "../_shared/aiClient.ts";
 import { checkAndDeductCredit } from "../_shared/creditUtils.ts";
-import { checkRateLimit } from "../_shared/rateLimiter.ts";
 import { checkUserRateLimit } from "../_shared/userRateLimiter.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
@@ -229,23 +228,15 @@ serve(async (req: Request) => {
       );
     }
 
-    const rateCheck = await checkRateLimit(userId, {
-      maxRequests: 20,
-      windowSeconds: 60,
-      actionType: "wise_ai_chat",
-    });
-    if (!rateCheck.allowed) {
-      return new Response(
-        JSON.stringify({ error: "rate_limit", message: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     const serverRateCheck = await checkUserRateLimit(userId, "wise_ai_chat", 20, 60);
     if (!serverRateCheck.allowed) {
+      const status = serverRateCheck.dbError ? 503 : 429;
+      const msg = serverRateCheck.dbError
+        ? 'Service temporarily unavailable. Please try again in a moment.'
+        : `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.`;
       return new Response(
-        JSON.stringify({ error: "rate_limit", message: `Rate limit exceeded. Try again in ${serverRateCheck.retryAfterSeconds}s.` }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: serverRateCheck.dbError ? 'service_unavailable' : 'rate_limit', message: msg }),
+        { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -286,22 +277,21 @@ serve(async (req: Request) => {
   } catch (error) {
     console.error("[wise-ai-chat] error:", error);
 
-    // DOMException AbortError → outer timer fired (all models exhausted / timed out)
     if (error instanceof DOMException && error.name === "AbortError") {
       return new Response(
-        JSON.stringify({ error: "rate_limit", message: "AI is busy right now. Please try again in a moment." }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "provider_busy", message: "AI is temporarily busy — please try again in a moment." }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (isAIError(error)) {
       const errorMap: Record<string, { error: string; message: string; status: number }> = {
-        rate_limit:       { error: "rate_limit",       message: "AI is busy right now. Please try again in a moment.", status: 429 },
+        rate_limit:       { error: "rate_limit",       message: "Too many requests — please wait a moment and try again.", status: 429 },
+        provider_busy:    { error: "provider_busy",    message: "AI is temporarily busy — please try again in a moment.", status: 503 },
         payment_required: { error: "payment_required", message: "AI credits exhausted. Please check your account.",    status: 402 },
         quota_exceeded:   { error: "quota_exceeded",   message: "Daily quota exceeded. Try again tomorrow.",            status: 429 },
         invalid_key:      { error: "invalid_key",      message: "AI service configuration error. Please contact support.", status: 500 },
-        // "unknown" is emitted when the outer signal fires before the first loop iteration
-        unknown:          { error: "rate_limit",       message: "AI is busy right now. Please try again in a moment.", status: 429 },
+        unknown:          { error: "provider_busy",    message: "AI is temporarily busy — please try again in a moment.", status: 503 },
       };
       const mapped = errorMap[error.type] ?? { error: error.type, message: error.message, status: error.status ?? 500 };
       return new Response(
