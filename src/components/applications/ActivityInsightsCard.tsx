@@ -75,7 +75,16 @@ export function ActivityInsightsCard({ applications, stats }: Props) {
       }
     }
 
-    // Rule 4: Close to weekly goal nudge
+    // Rule 4: Streak encouragement when user has recent activity
+    if (stats.thisWeekApplications > 0) {
+      result.push({
+        icon: Zap,
+        message: `${stats.thisWeekApplications} application${stats.thisWeekApplications > 1 ? 's' : ''} submitted this week — you're building momentum. Keep it up!`,
+        type: 'success',
+      });
+    }
+
+    // Rule 5: Close to weekly goal nudge
     const weeklyGoal = parseInt(localStorage.getItem('activity-weekly-goal') || '5', 10);
     const remaining = weeklyGoal - thisWeekApps.length;
     if (thisWeekApps.length > 0 && remaining > 0 && remaining <= 2) {

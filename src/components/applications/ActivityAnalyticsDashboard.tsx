@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from 'recharts';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useJobActivityStats } from '@/hooks/useJobActivityStats';
@@ -31,13 +31,13 @@ export const ActivityAnalyticsDashboard = memo(function ActivityAnalyticsDashboa
   const totalTracked = stats.applicationsSubmitted + stats.interviewsScheduled + stats.offersReceived;
   if (totalTracked === 0) return null;
 
-  const funnelSteps = [
-    { label: 'Applied', count: stats.appliedCount, colorClass: 'bg-primary' },
-    { label: 'Screening', count: stats.screeningCount, colorClass: 'bg-blue-500' },
-    { label: 'Interviewing', count: stats.interviewsScheduled, colorClass: 'bg-warning' },
-    { label: 'Offer', count: stats.offersReceived, colorClass: 'bg-success' },
+  const funnelData = [
+    { name: 'Applied', count: stats.appliedCount, fill: 'hsl(var(--primary))' },
+    { name: 'Screening', count: stats.screeningCount, fill: 'hsl(217, 91%, 60%)' },
+    { name: 'Interviewing', count: stats.interviewsScheduled, fill: 'hsl(var(--warning))' },
+    { name: 'Offer', count: stats.offersReceived, fill: 'hsl(var(--success))' },
   ];
-  const maxCount = Math.max(...funnelSteps.map(s => s.count), 1);
+  const funnelMax = Math.max(...funnelData.map(s => s.count), 1);
 
   const hasWeeklyData = stats.weeklyTrend.some(w => w.count > 0);
 
@@ -48,41 +48,52 @@ export const ActivityAnalyticsDashboard = memo(function ActivityAnalyticsDashboa
       transition={{ duration: 0.35, delay: 0.1 }}
       className="space-y-3"
     >
-      {/* Conversion Funnel */}
+      {/* Conversion Funnel — Recharts horizontal BarChart */}
       <div className="bg-card border border-border shadow-soft rounded-2xl p-4">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
           Application Pipeline
         </p>
-        <div className="space-y-2.5">
-          {funnelSteps.map((step, i) => {
-            const pct = Math.round((step.count / maxCount) * 100);
-            const dropOff = i > 0 && funnelSteps[i - 1].count > 0
-              ? Math.round(((funnelSteps[i - 1].count - step.count) / funnelSteps[i - 1].count) * 100)
-              : null;
-            return (
-              <div key={step.label} className="flex items-center gap-2.5">
-                <span className="text-[11px] text-muted-foreground w-[74px] shrink-0">{step.label}</span>
-                <div className="flex-1 h-6 bg-muted/50 rounded-full overflow-hidden">
-                  <motion.div
-                    className={`h-full rounded-full ${step.colorClass}`}
-                    initial={shouldReduceMotion ? false : { width: 0 }}
-                    animate={{ width: `${pct}%` }}
-                    transition={{ duration: 0.6, delay: i * 0.1 + 0.2, ease: 'easeOut' }}
-                  />
-                </div>
-                <span className="text-xs font-semibold w-5 text-right shrink-0">{step.count}</span>
-                {dropOff !== null && dropOff > 0 && (
-                  <span className="text-[10px] text-muted-foreground w-[34px] shrink-0 text-right">
-                    -{dropOff}%
-                  </span>
-                )}
-              </div>
-            );
+
+        {/* Drop-off annotations above chart */}
+        <div className="flex gap-2 text-[10px] text-muted-foreground mb-1 pl-[88px]">
+          {funnelData.slice(1).map((step, i) => {
+            const prev = funnelData[i];
+            const dropOff = prev.count > 0
+              ? Math.round(((prev.count - step.count) / prev.count) * 100)
+              : 0;
+            return dropOff > 0 ? (
+              <span key={step.name} className="flex-1 text-center">-{dropOff}%</span>
+            ) : <span key={step.name} className="flex-1" />;
           })}
         </div>
 
+        <ResponsiveContainer width="100%" height={120}>
+          <BarChart layout="vertical" data={funnelData} margin={{ top: 0, right: 40, left: 0, bottom: 0 }}>
+            <XAxis type="number" hide domain={[0, funnelMax]} />
+            <YAxis
+              type="category"
+              dataKey="name"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 11 }}
+              width={88}
+            />
+            <Tooltip
+              formatter={(v: number) => [v, 'Applications']}
+              contentStyle={{ fontSize: 12, borderRadius: 8 }}
+              cursor={{ fill: 'hsl(var(--muted))' }}
+            />
+            <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={22}>
+              {funnelData.map((step, i) => (
+                <Cell key={i} fill={step.fill} />
+              ))}
+              <LabelList dataKey="count" position="right" style={{ fontSize: 11, fontWeight: 600 }} />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+
         {/* Rate pills */}
-        <div className="flex gap-2 mt-4">
+        <div className="flex gap-2 mt-3">
           <RatePill label="Response Rate" value={stats.responseRate} color="text-primary" />
           <RatePill label="Interview Rate" value={stats.interviewRate} color="text-warning" />
           <RatePill label="Offer Rate" value={stats.offerRate} color="text-success" />

@@ -55,7 +55,9 @@ export const ActivityStreak = memo(function ActivityStreak() {
       };
       addDates(resumes.data, 'created_at');
       addDates(tailors.data, 'created_at');
-      addDates(apps.data as any, 'applied_at');
+      (apps.data || []).forEach(r => {
+        if (r.applied_at) activeDays.add(format(startOfDay(new Date(r.applied_at)), 'yyyy-MM-dd'));
+      });
       addDates(covers.data, 'created_at');
 
       // Calculate streak
