@@ -332,7 +332,7 @@ function DevToolsInner() {
                 <><Loader2 className="w-3.5 h-3.5 animate-spin" />Checking…</>
               )}
               {connectionStatus === 'connected' && (
-                <><span className="w-2 h-2 rounded-full bg-green-500 animate-pulse inline-block" />Connected</>
+                <><span className="w-2 h-2 rounded-full bg-green-500 animate-pulse inline-block" />Online</>
               )}
               {connectionStatus === 'degraded' && (
                 <><span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />Degraded</>
