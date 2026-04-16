@@ -48,10 +48,10 @@ export function LandingHeader({
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 relative ${scrolled ? 'lp-header-scrolled' : 'bg-transparent'}`}
+      className={`fixed top-0 left-0 right-0 z-50 ${scrolled ? 'lp-header-scrolled' : 'bg-transparent'}`}
       style={{ transition: 'background 0.3s ease, backdrop-filter 0.3s ease, border-color 0.3s ease', paddingTop: 'env(safe-area-inset-top)', willChange: 'transform' }}
     >
-      {scrolled && <GlassSurface className="absolute inset-0" />}
+      {scrolled && <GlassSurface className="absolute -top-px bottom-0 left-0 right-0" />}
       <div className="relative z-[1]">
       {/* Product toggle strip — hidden on mobile, sits above the nav row on sm+ */}
       <div className="hidden sm:block">
