@@ -8,13 +8,13 @@ interface AnimatedSplashProps {
   ready?: boolean;
 }
 
-const MIN_DURATION = 800;
+const MIN_DURATION = 500;
 // Hard safety ceiling — only applies if the app fails to signal `ready`
 // for an unusually long time (broken chunk, network stall). Under normal
 // conditions the splash dismisses as soon as MIN_DURATION elapses AND
-// the app reports it's ready to paint, so there's no visual gap or
-// spinner exposed between splash exit and first content paint.
-const HARD_MAX_DURATION = 5000;
+// the app reports it's ready to paint, falling onto the home route's
+// LandingSkeleton if the Index chunk hasn't fully loaded yet.
+const HARD_MAX_DURATION = 1500;
 
 function getInitialBrand() {
   if (typeof window === 'undefined') return { name: 'WiseResume', tagline: 'Your AI Career Partner', isWH: false };
