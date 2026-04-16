@@ -143,7 +143,8 @@ Example:
         );
       }
 
-      const hasAnyContent = bioText || summaryText || rawHighlights?.length || rawServices?.length || rawTestimonials?.length || rawPinnedDesc;
+      const hasAnyContent = bioText || summaryText || rawHighlights?.length || rawServices?.length
+        || rawTestimonials?.length || rawPinnedDesc || rawCaseStudies?.length || rawPortfolioCerts?.length;
       if (!hasAnyContent) {
         return new Response(
           JSON.stringify({ error: 'Provide at least one piece of portfolio content to translate.' }),
