@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from 'recharts';
 import { motion, useReducedMotion } from 'framer-motion';
-import { useJobActivityStats } from '@/hooks/useJobActivityStats';
+import { useJobActivityStats, JobActivityStats } from '@/hooks/useJobActivityStats';
 import { TrendingUp } from 'lucide-react';
 
 function RatePill({ label, value, color }: { label: string; value: number; color: string }) {
@@ -15,8 +15,13 @@ function RatePill({ label, value, color }: { label: string; value: number; color
   );
 }
 
-export const ActivityAnalyticsDashboard = memo(function ActivityAnalyticsDashboard() {
-  const stats = useJobActivityStats();
+interface Props {
+  stats?: JobActivityStats;
+}
+
+export const ActivityAnalyticsDashboard = memo(function ActivityAnalyticsDashboard({ stats: statsProp }: Props) {
+  const statsFromHook = useJobActivityStats();
+  const stats = statsProp ?? statsFromHook;
   const shouldReduceMotion = useReducedMotion();
 
   if (stats.isLoading) {

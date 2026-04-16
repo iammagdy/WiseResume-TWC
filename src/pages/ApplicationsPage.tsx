@@ -376,7 +376,7 @@ export default function ApplicationsPage() {
               <ActivityInsightsCard applications={applications} stats={stats} />
 
               {/* Analytics Dashboard */}
-              <ActivityAnalyticsDashboard />
+              <ActivityAnalyticsDashboard stats={stats} />
 
               {/* Streak + Weekly Goal */}
               <ActivityStreak />

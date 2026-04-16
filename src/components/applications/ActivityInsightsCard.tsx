@@ -3,6 +3,7 @@ import { differenceInDays, startOfWeek } from 'date-fns';
 import { motion, useReducedMotion } from 'framer-motion';
 import { AlertCircle, TrendingUp, Target, Zap, Lightbulb } from 'lucide-react';
 import { JobActivityStats } from '@/hooks/useJobActivityStats';
+import { useActivityStreak } from '@/hooks/useActivityStreak';
 import { JobApplication } from '@/hooks/useJobApplications';
 
 interface Nudge {
@@ -25,6 +26,8 @@ interface Props {
 
 export function ActivityInsightsCard({ applications, stats }: Props) {
   const shouldReduceMotion = useReducedMotion();
+  const { data: streakData } = useActivityStreak();
+  const streak = streakData?.streak ?? 0;
 
   const nudges = useMemo<Nudge[]>(() => {
     if (stats.isLoading) return [];
@@ -75,13 +78,13 @@ export function ActivityInsightsCard({ applications, stats }: Props) {
       }
     }
 
-    // Rule 4: Streak encouragement when user has an active application streak
-    if (stats.streak > 0) {
+    // Rule 4: Streak encouragement — uses broader activity streak (same source as streak card)
+    if (streak > 0) {
       result.push({
         icon: Zap,
-        message: stats.streak === 1
-          ? `You applied yesterday — keep the streak alive today!`
-          : `${stats.streak}-day application streak active — great consistency, keep it going!`,
+        message: streak === 1
+          ? `You were active yesterday — keep the streak alive today!`
+          : `${streak}-day activity streak — great consistency, keep it going!`,
         type: 'success',
       });
     }
@@ -97,8 +100,17 @@ export function ActivityInsightsCard({ applications, stats }: Props) {
       });
     }
 
+    // Fallback: zero-history motivational nudge
+    if (result.length === 0) {
+      result.push({
+        icon: Lightbulb,
+        message: 'Start logging your job applications to unlock personalised insights and track your progress over time.',
+        type: 'info',
+      });
+    }
+
     return result.slice(0, 3);
-  }, [applications, stats]);
+  }, [applications, stats, streak]);
 
   if (nudges.length === 0 || stats.isLoading) return null;
 
