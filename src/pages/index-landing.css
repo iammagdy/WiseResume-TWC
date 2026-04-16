@@ -198,25 +198,35 @@
   background: linear-gradient(to top, var(--lp-section-alt), transparent);
 }
 
-/* Hero section responsive top padding — mobile: single-row header only; sm+: header + toggle strip */
-.lp-hero-top {
-  padding-top: calc(3.5rem + env(safe-area-inset-top));
+/* Header height — single source of truth, consumed by .lp-hero-top */
+.lp-root {
+  --lp-header-h: calc(3.5rem + env(safe-area-inset-top));
 }
 @media (min-width: 640px) {
-  .lp-hero-top {
-    padding-top: calc(7.75rem + env(safe-area-inset-top));
+  .lp-root {
+    --lp-header-h: calc(7.25rem + env(safe-area-inset-top));
   }
 }
 
-/* Theme toggle button — 44×44 minimum tap target */
+/* Hero section top padding — derived from --lp-header-h plus breathing room
+   so the mobile product toggle sits clearly inside the hero, not flush to the header. */
+.lp-hero-top {
+  padding-top: calc(var(--lp-header-h) + 1.5rem);
+}
+@media (min-width: 640px) {
+  .lp-hero-top {
+    padding-top: calc(var(--lp-header-h) + 0.5rem);
+  }
+}
+
+/* Theme toggle button — 40×40 on mobile (still 44×44 tap area via extra margin),
+   44×44 on sm+. Min tap size preserved via padding on the inner button. */
 .lp-theme-toggle {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 44px;
-  min-height: 44px;
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   border-radius: 10px;
   cursor: pointer;
   transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
@@ -224,6 +234,17 @@
   border: 1px solid var(--lp-toggle-border);
   color: var(--lp-toggle-color);
   flex-shrink: 0;
+  /* Expand hit area to 44×44 without changing visual size */
+  position: relative;
+}
+.lp-theme-toggle::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+}
+@media (min-width: 640px) {
+  .lp-theme-toggle { width: 44px; height: 44px; }
+  .lp-theme-toggle::before { inset: 0; }
 }
 .lp-theme-toggle:hover {
   transform: scale(1.08);
@@ -246,6 +267,97 @@
 @keyframes lp-ripple-reveal {
   from { clip-path: circle(0% at var(--lp-ripple-x, 50%) var(--lp-ripple-y, 50%)); }
   to   { clip-path: circle(150% at var(--lp-ripple-x, 50%) var(--lp-ripple-y, 50%)); }
+}
+
+/* Typewriter line — reserve enough vertical space for the longest word so
+   the headline never shifts when words cycle. 2 lines on narrow mobile (some
+   words wrap), 1.15em on sm+ where everything stays on one line. */
+.lp-typewriter-line {
+  min-height: 2.15em;
+}
+@media (min-width: 640px) {
+  .lp-typewriter-line { min-height: 1.15em; }
+}
+.wh-typewriter-line {
+  min-height: 1.4em;
+}
+@media (min-width: 640px) {
+  .wh-typewriter-line { min-height: 2em; }
+}
+
+/* Trust-badge row — mobile: horizontal scroll strip (predictable, no orphan
+   wrap); sm+: existing flex-wrap layout. */
+.lp-trust-badges {
+  display: flex;
+  gap: 1.25rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  width: 100%;
+  padding: 0 0.25rem;
+  justify-content: flex-start;
+}
+.lp-trust-badges::-webkit-scrollbar { display: none; }
+.lp-trust-badges > * {
+  flex-shrink: 0;
+  scroll-snap-align: center;
+  white-space: nowrap;
+}
+@media (min-width: 640px) {
+  .lp-trust-badges {
+    overflow: visible;
+    flex-wrap: wrap;
+    gap: 1.75rem;
+    justify-content: center;
+    padding: 0;
+  }
+  .lp-trust-badges > * { white-space: normal; }
+}
+
+/* Un-scrolled header scrim — subtle dark/light gradient behind the header so
+   the logo and CTA stay legible over the hero glow. Only applied while the
+   header is transparent (i.e. before the scroll threshold). */
+.lp-header-scrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.28) 0%,
+    rgba(0, 0, 0, 0.12) 60%,
+    transparent 100%
+  );
+}
+.lp-root[data-lp-scheme="light"] .lp-header-scrim {
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 245, 245, 0.55) 0%,
+    rgba(255, 245, 245, 0.2) 60%,
+    transparent 100%
+  );
+}
+
+/* Hero parallax glow — smaller + less blur on mobile to avoid full-layer
+   repaints on mid-range devices. Desktop keeps the original look. */
+.lp-hero-parallax-glow {
+  position: absolute;
+  top: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60vw;
+  height: 30vh;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, var(--lp-hero-glow) 0%, transparent 70%);
+  filter: blur(24px);
+  opacity: 0.7;
+}
+@media (min-width: 640px) {
+  .lp-hero-parallax-glow {
+    width: 70vw;
+    height: 40vh;
+    filter: blur(40px);
+  }
 }
 
 /* ── WISEHIRE PRODUCT OVERRIDES ─────────────────────────── */

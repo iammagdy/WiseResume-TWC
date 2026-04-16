@@ -1,8 +1,9 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, CheckCircle2 } from 'lucide-react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import triggerHaptic from '@/lib/haptics';
+import { getSafeMatchMedia } from '@/lib/envUtils';
 import { LandingToggle } from '@/components/landing/LandingToggle';
 import { FeatureTicker } from '@/components/landing/FeatureTicker';
 import { heroContainerVariants, heroItemVariants } from '@/components/landing/landingAnimations';
@@ -10,30 +11,36 @@ import { useTypewriterWord, TYPEWRITER_WORDS } from '@/hooks/useTypewriter';
 
 function HeroParallaxGlow({ prefersReducedMotion }: { prefersReducedMotion: boolean | null }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [isDesktop, setIsDesktop] = useState(() => getSafeMatchMedia('(min-width: 640px)').matches);
+
+  useEffect(() => {
+    const mql = getSafeMatchMedia('(min-width: 640px)');
+    const onChange = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    try {
+      mql.addEventListener?.('change', onChange);
+      return () => mql.removeEventListener?.('change', onChange);
+    } catch {
+      return;
+    }
+  }, []);
+
   const { scrollY } = useScroll();
-  const y = useTransform(scrollY, [0, 600], [0, prefersReducedMotion ? 0 : -80]);
+  // Only drive the parallax on desktop; on mobile the glow stays static to avoid
+  // full-layer repaints every scroll frame on mid-range devices.
+  const parallaxRange = isDesktop && !prefersReducedMotion ? -80 : 0;
+  const y = useTransform(scrollY, [0, 600], [0, parallaxRange]);
 
   return (
     <motion.div
       ref={ref}
       aria-hidden="true"
       className="pointer-events-none absolute inset-0 overflow-hidden"
-      style={{ y }}
+      style={{
+        y,
+        willChange: isDesktop && !prefersReducedMotion ? 'transform' : 'auto',
+      }}
     >
-      <div
-        style={{
-          position: 'absolute',
-          top: '10%',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: '70vw',
-          height: '40vh',
-          borderRadius: '50%',
-          background: 'radial-gradient(ellipse at center, var(--lp-hero-glow) 0%, transparent 70%)',
-          filter: 'blur(40px)',
-          opacity: 0.7,
-        }}
-      />
+      <div className="lp-hero-parallax-glow" />
     </motion.div>
   );
 }
@@ -80,8 +87,9 @@ export function WiseResumeHero({
           initial={prefersReducedMotion ? 'visible' : 'hidden'}
           animate="visible"
         >
-          {/* Mobile product toggle */}
-          <div className="sm:hidden mb-4">
+          {/* Mobile product toggle — sits clearly inside the hero (header breathing
+              room is handled by .lp-hero-top) with extra bottom spacing before the eyebrow. */}
+          <div className="sm:hidden mt-1 mb-6">
             <LandingToggle
               uid="mob"
               compact
@@ -94,7 +102,7 @@ export function WiseResumeHero({
           {/* Eyebrow */}
           <motion.p
             variants={heroItemVariants}
-            className="mb-7"
+            className="mb-4 sm:mb-7"
             style={{
               fontSize: '0.8rem',
               letterSpacing: '0.12em',
@@ -124,7 +132,7 @@ export function WiseResumeHero({
             <span className="sm:whitespace-nowrap" style={{ display: 'block' }}>
               Stand out as a
             </span>
-            <span style={{ display: 'block', minHeight: '1.15em' }}>
+            <span className="lp-typewriter-line" style={{ display: 'block' }}>
               <span className="lp-gradient-text" style={{ display: 'inline-block' }}>
                 {typewriterWord || '\u00A0'}
                 <span className="lp-cursor" aria-hidden="true" />
@@ -135,7 +143,7 @@ export function WiseResumeHero({
           {/* Subheading */}
           <motion.p
             variants={heroItemVariants}
-            className="mt-6 mb-10"
+            className="mt-4 mb-7 sm:mt-6 sm:mb-10"
             style={{
               fontSize: 'clamp(1rem, 2.2vw, 1.2rem)',
               lineHeight: 1.6,
@@ -175,10 +183,10 @@ export function WiseResumeHero({
             )}
           </motion.div>
 
-          {/* Trust badges */}
+          {/* Trust badges — horizontal scroll strip on mobile, wrap on sm+ */}
           <motion.div
             variants={heroItemVariants}
-            className="mt-8 flex items-center gap-5 sm:gap-7 text-xs flex-wrap justify-center"
+            className="mt-6 sm:mt-8 text-xs lp-trust-badges"
           >
             {['Free to start', 'No credit card', 'AI-powered'].map((item) => (
               <span key={item} className="flex items-center gap-1.5" style={{ color: 'var(--lp-trust-color)', transition: 'color 0.3s ease' }}>

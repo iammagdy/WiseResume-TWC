@@ -120,7 +120,7 @@ export function WiseHireHero({ onOpenWaitlist, mobileToggle }: WiseHireHeroProps
 
       {/* WiseHire brand pill */}
       <div
-        className="relative z-10 flex items-center gap-2 px-4 py-1.5 rounded-full mb-6"
+        className="relative z-10 flex items-center gap-2 px-4 py-1.5 rounded-full mb-4 sm:mb-6"
         style={{
           background: 'var(--lp-brand-pill-bg)',
           border: '1px solid var(--lp-brand-pill-border)',
@@ -138,7 +138,7 @@ export function WiseHireHero({ onOpenWaitlist, mobileToggle }: WiseHireHeroProps
 
       {/* Eyebrow */}
       <p
-        className="relative z-10 mb-7"
+        className="relative z-10 mb-4 sm:mb-7"
         style={{
           fontSize: '0.8rem',
           letterSpacing: '0.12em',
@@ -167,13 +167,12 @@ export function WiseHireHero({ onOpenWaitlist, mobileToggle }: WiseHireHeroProps
 
       {/* Typewriter subtitle */}
       <p
-        className="relative z-10 mt-5"
+        className="relative z-10 mt-4 sm:mt-5 wh-typewriter-line"
         style={{
           fontSize: 'clamp(1rem, 2.4vw, 1.35rem)',
           color: 'var(--lp-text-muted)',
           letterSpacing: '-0.01em',
           transition: 'color 0.35s ease',
-          minHeight: '2em',
         }}
       >
         Built for the{' '}
@@ -185,7 +184,7 @@ export function WiseHireHero({ onOpenWaitlist, mobileToggle }: WiseHireHeroProps
 
       {/* Subheading */}
       <p
-        className="relative z-10 mt-4 mb-10"
+        className="relative z-10 mt-3 mb-7 sm:mt-4 sm:mb-10"
         style={{
           fontSize: 'clamp(0.95rem, 2vw, 1.1rem)',
           lineHeight: 1.65,
@@ -227,9 +226,9 @@ export function WiseHireHero({ onOpenWaitlist, mobileToggle }: WiseHireHeroProps
         </motion.button>
       </div>
 
-      {/* Trust badges */}
+      {/* Trust badges — horizontal scroll strip on mobile, wrap on sm+ */}
       <motion.div
-        className="relative z-10 mt-8 flex items-center gap-5 sm:gap-7 text-xs flex-wrap justify-center"
+        className="relative z-10 mt-6 sm:mt-8 text-xs lp-trust-badges"
         initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }}
         whileInView={prefersReducedMotion ? false : { opacity: 1, y: 0 }}
         viewport={{ once: false, amount: 0.5 }}

@@ -52,18 +52,19 @@ export function LandingHeader({
       style={{ transition: 'background 0.3s ease, backdrop-filter 0.3s ease, border-color 0.3s ease', paddingTop: 'env(safe-area-inset-top)', willChange: 'transform' }}
     >
       {scrolled && <GlassSurface className="absolute -top-px bottom-0 left-0 right-0" />}
+      {!scrolled && <div aria-hidden="true" className="lp-header-scrim sm:hidden" />}
       <div className="relative z-[1] pt-2 sm:pt-3">
-      <div className="grid grid-cols-3 items-center px-4 sm:px-6 h-14 max-w-6xl mx-auto">
-        {/* Left: logo */}
+      <div className="flex items-center justify-between gap-3 sm:grid sm:grid-cols-3 px-4 sm:px-6 h-14 max-w-6xl mx-auto">
+        {/* Left: logo — on mobile, flex lets it claim remaining space; on sm+, grid cell */}
         <button
           onClick={() => { triggerHaptic.light(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-          className="flex items-center gap-2.5 touch-manipulation min-w-0 justify-self-start"
+          className="flex items-center gap-2.5 touch-manipulation min-w-0 flex-1 sm:flex-initial sm:justify-self-start"
           aria-label={mode === 'wisehire' ? 'WiseHire – scroll to top' : 'WiseResume – scroll to top'}
         >
           <img
             alt={mode === 'wisehire' ? 'WiseHire' : 'WiseResume'}
             loading="lazy"
-            className="w-10 h-10 object-contain rounded-xl"
+            className="w-9 h-9 sm:w-10 sm:h-10 object-contain rounded-xl flex-shrink-0"
             src={themeLogo}
             style={{
               filter: mode === 'wisehire' ? 'hue-rotate(220deg) saturate(2) brightness(0.85)' : undefined,
@@ -88,11 +89,9 @@ export function LandingHeader({
             onModeChange={onModeChange}
           />
         </div>
-        {/* Mobile: empty center spacer */}
-        <div className="sm:hidden" />
 
         {/* Right: nav links + CTA */}
-        <div className="flex items-center gap-2 shrink-0 justify-self-end">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 sm:justify-self-end">
           {/* Nav menu (hamburger is the sole entry point for Pricing / What's New) */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -180,7 +179,7 @@ export function LandingHeader({
                   toast.error('Unable to sign in. Please try again or contact support.');
                 });
               }}
-              className="text-sm font-semibold px-4 h-11 rounded-lg transition-all duration-200 whitespace-nowrap shrink-0"
+              className="text-sm font-semibold px-3 sm:px-4 h-10 sm:h-11 rounded-lg transition-all duration-200 whitespace-nowrap shrink-0"
               style={{
                 color: '#fff',
                 background: '#9E1B22',
@@ -192,7 +191,7 @@ export function LandingHeader({
           ) : (
             <button
               onClick={onOpenWaitlist}
-              className="text-sm font-semibold px-4 h-11 rounded-lg transition-all duration-200 whitespace-nowrap shrink-0"
+              className="text-sm font-semibold px-3 sm:px-4 h-10 sm:h-11 rounded-lg transition-all duration-200 whitespace-nowrap shrink-0"
               style={{
                 color: '#fff',
                 background: '#1D4ED8',
