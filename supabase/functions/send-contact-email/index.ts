@@ -175,7 +175,7 @@ Deno.serve(async (req) => {
         <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; white-space: pre-wrap;">
           ${escapeHtml(message)}
         </div>
-        ${metadata.department ? `<p><strong>Department:</strong> ${escapeHtml(String(metadata.department))}</p>` : ""}
+        ${metadata.department ? `<p><strong>Department:</strong> ${escapeHtml(metadata.department)}</p>` : ""}
         <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;" />
         <div style="font-size: 12px; color: #666;">
           <p><strong>IP:</strong> ${escapeHtml(clientIp)}</p>
