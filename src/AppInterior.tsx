@@ -312,8 +312,8 @@ function AppRoutes() {
         )}
         <Routes>
           {/* Public routes */}
-          <Route path="/" element={<Suspense fallback={null}><Index /></Suspense>} />
-          <Route path="/enterprises" element={<Suspense fallback={null}><Index /></Suspense>} />
+          <Route path="/" element={<Suspense fallback={<PageLoadingSpinner />}><Index /></Suspense>} />
+          <Route path="/enterprises" element={<Suspense fallback={<PageLoadingSpinner />}><Index /></Suspense>} />
            <Route element={<AppShell />}>
                <Route path="/auth" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />
                <Route path="/sign-in" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />

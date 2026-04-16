@@ -13,6 +13,15 @@ const AnimatedSplash = lazyWithRetry(() =>
 );
 const AppInterior = lazyWithRetry(() => import("./AppInterior"));
 
+// Kick off the Index (home/landing) chunk import as soon as App's module
+// evaluates — in parallel with AppInterior — so by the time the splash is
+// ready to dismiss, the home page chunk is already in memory and there's
+// no black gap between splash exit and first content paint.
+const indexChunkPromise: Promise<unknown> =
+  typeof window !== "undefined"
+    ? import("./pages/Index").catch(() => undefined)
+    : Promise.resolve();
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -81,12 +90,31 @@ function SplashGate() {
   const [interiorReady, setInteriorReady] = useState(false);
   const handleInteriorReady = useState(() => () => setInteriorReady(true))[0];
 
+  // The "/" route renders <Index /> which is lazy-loaded with a null
+  // Suspense fallback. If the splash dismisses before that chunk has
+  // finished downloading, the user sees a black flash until Index paints.
+  // We track Index chunk readiness and only treat the app as "ready to
+  // reveal" once it's loaded on the home route.
+  const isHomeRoute =
+    location.pathname === "/" || location.pathname === "/enterprises";
+  const [indexChunkReady, setIndexChunkReady] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    indexChunkPromise.finally(() => {
+      if (!cancelled) setIndexChunkReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const contentReady = interiorReady && (!isHomeRoute || indexChunkReady);
+
   useLayoutEffect(() => {
-    if (!shouldShowSplash && interiorReady) {
+    if (!shouldShowSplash && contentReady) {
       const el = document.getElementById("pre-react-splash");
       if (el && el.parentNode) el.parentNode.removeChild(el);
     }
-  }, [shouldShowSplash, interiorReady]);
+  }, [shouldShowSplash, contentReady]);
 
   return (
     <>
@@ -97,7 +125,7 @@ function SplashGate() {
         <Suspense fallback={null}>
           <AnimatedSplash
             onComplete={() => setHasSeenSplash(true)}
-            ready={settingsHydrated && interiorReady}
+            ready={settingsHydrated && contentReady}
           />
         </Suspense>
       )}
