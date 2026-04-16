@@ -185,24 +185,30 @@ serve(async (req) => {
 
     const logs = logsData ?? [];
 
-    // Enrich logs with user email from profiles
+    // Enrich logs with user email from profiles.
+    // user_id may be null for admin_email actions targeting non-existent recipients —
+    // filter nulls before the .in() call (null in .in() does not match IS NULL in SQL).
     if (logs.length > 0) {
-      const userIds = [...new Set(logs.map((l: { user_id: string }) => l.user_id))];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, email')
-        .in('user_id', userIds);
-
+      const nonNullUserIds = [...new Set(
+        (logs as { user_id: string | null }[]).map(l => l.user_id).filter((id): id is string => id != null)
+      )];
       const emailMap: Record<string, string> = {};
-      if (profiles) {
-        for (const p of profiles as { user_id: string; email: string }[]) {
-          emailMap[p.user_id] = p.email;
+      if (nonNullUserIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id, email')
+          .in('user_id', nonNullUserIds);
+        if (profiles) {
+          for (const p of profiles as { user_id: string; email: string }[]) {
+            emailMap[p.user_id] = p.email;
+          }
         }
       }
 
-      const enrichedLogs = logs.map((l: { user_id: string; [key: string]: unknown }) => ({
+      const enrichedLogs = logs.map((l: { user_id: string | null; metadata?: Record<string, unknown>; [key: string]: unknown }) => ({
         ...l,
-        user_email: emailMap[l.user_id] ?? null,
+        // For null-user-id rows (unknown recipients), fall back to metadata.target_email
+        user_email: l.user_id ? (emailMap[l.user_id] ?? null) : ((l.metadata?.target_email as string | undefined) ?? null),
       }));
 
       return new Response(

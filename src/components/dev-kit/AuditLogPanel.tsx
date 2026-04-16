@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 
 interface AuditLog {
   id: string;
-  user_id: string;
+  user_id: string | null;
   user_email: string | null;
   category: string;
   action: string;
@@ -190,7 +190,7 @@ export function AuditLogPanel() {
       const headers = ['ID', 'User ID', 'User Email', 'Category', 'Action', 'Details', 'When'];
       const rows = allLogs.map(l => [
         l.id,
-        l.user_id,
+        l.user_id ?? '',
         l.user_email ?? '',
         l.category,
         l.action,
@@ -324,7 +324,9 @@ export function AuditLogPanel() {
                     <td className="px-4 py-3 text-xs text-muted-foreground max-w-[160px]">
                       {log.user_email
                         ? <span className="truncate block" title={log.user_email}>{log.user_email}</span>
-                        : <span className="font-mono text-[10px]">{log.user_id.slice(0, 8)}…</span>
+                        : log.user_id
+                          ? <span className="font-mono text-[10px]">{log.user_id.slice(0, 8)}…</span>
+                          : <span className="text-[10px] italic text-muted-foreground">unknown recipient</span>
                       }
                     </td>
                     <td className="px-4 py-3">
