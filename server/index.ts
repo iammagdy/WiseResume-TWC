@@ -195,30 +195,89 @@ async function assertPublicHost(hostname: string): Promise<string[]> {
 }
 
 /**
- * Require that the caller is authenticated (i.e. sent a Bearer token).
- * We do not re-validate the token here (Supabase does), but a presence check
- * is enough to make the proxy non-anonymous and foreclose open-proxy abuse.
+ * Validate a Supabase JWT by calling Supabase's /auth/v1/user endpoint.
+ * Returns the verified user id on success, or null on failure. Successful
+ * lookups are cached briefly so we don't hammer Supabase on repeat calls.
  */
-function requireAuthHeader(req: Request, res: Response, next: NextFunction): void {
+interface AuthCacheEntry { userId: string; expiresAt: number }
+const authCache = new Map<string, AuthCacheEntry>();
+const AUTH_CACHE_TTL_MS = 60_000; // 1 minute
+
+async function validateSupabaseToken(token: string): Promise<string | null> {
+  if (!token || !SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
+  const now = Date.now();
+  const cached = authCache.get(token);
+  if (cached && cached.expiresAt > now) return cached.userId;
+
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), 5000);
+  try {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${token}`,
+      },
+      signal: controller.signal,
+    });
+    if (!r.ok) return null;
+    const body = (await r.json()) as { id?: unknown };
+    const userId = typeof body.id === 'string' && body.id.length > 0 ? body.id : null;
+    if (userId) {
+      authCache.set(token, { userId, expiresAt: now + AUTH_CACHE_TTL_MS });
+      // Keep cache bounded.
+      if (authCache.size > 2000) {
+        for (const [k, v] of authCache) if (v.expiresAt <= now) authCache.delete(k);
+      }
+    }
+    return userId;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+/**
+ * Require a valid Supabase session token. We actually introspect the token
+ * against Supabase (/auth/v1/user) rather than just checking for presence —
+ * this prevents attackers sending `Bearer anything` from using the proxy.
+ * On success we stash the verified user id on the request for downstream
+ * rate-limit keying.
+ */
+interface AuthedRequest extends Request { verifiedUserId?: string }
+async function requireAuthHeader(
+  req: AuthedRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   const auth = req.headers.authorization || '';
-  if (!/^Bearer\s+\S+/.test(auth)) {
+  const match = auth.match(/^Bearer\s+(\S+)$/);
+  if (!match) {
     res.status(401).json({ error: 'Authentication required' });
     return;
   }
+  const userId = await validateSupabaseToken(match[1]);
+  if (!userId) {
+    res.status(401).json({ error: 'Invalid or expired session' });
+    return;
+  }
+  req.verifiedUserId = userId;
   next();
 }
 
 /**
- * Simple in-memory token bucket keyed by user token + client IP. Prevents
- * abuse of the URL-fetch proxy as a bandwidth/scanning tool.
+ * In-memory token bucket keyed by VERIFIED user id + client IP. Keying on
+ * the user id (not raw token) prevents token-rotation bypass — an attacker
+ * cannot sidestep limits by replaying different tokens for the same user,
+ * and cannot forge a different identity without a valid session.
  */
 const URL_FETCH_RATE_LIMIT = { windowMs: 60_000, max: 10 };
 const urlFetchHits = new Map<string, { count: number; resetAt: number }>();
-function urlFetchRateLimiter(req: Request, res: Response, next: NextFunction): void {
-  const auth = req.headers.authorization || '';
-  const token = auth.replace(/^Bearer\s+/i, '').slice(0, 32);
-  const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
-  const key = `${token}|${ip}`;
+function urlFetchRateLimiter(req: AuthedRequest, res: Response, next: NextFunction): void {
+  const userId = req.verifiedUserId || 'anon';
+  const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown')
+    .split(',')[0].trim();
+  const key = `${userId}|${ip}`;
   const now = Date.now();
   const entry = urlFetchHits.get(key);
   if (!entry || entry.resetAt < now) {

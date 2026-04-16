@@ -122,7 +122,7 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
     // Handle timeout specifically
     if (error instanceof Error && error.name === 'AbortError') {
       console.warn('AI parsing timed out after 20s, falling back to local parser');
-      return parseResumeText(text);
+      return attachFieldConfidence(parseResumeText(text));
     }
     
     // Re-throw rate limit and payment errors
@@ -140,7 +140,7 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
     
     // Fall back to local regex parsing for all non-billing failures
     if (import.meta.env.DEV) console.log('Using fallback local parser...');
-    return parseResumeText(text);
+    return attachFieldConfidence(parseResumeText(text));
   } finally {
     clearTimeout(timeoutId);
   }
@@ -300,6 +300,24 @@ function computeFieldLevelConfidence(data: ResumeData): Record<string, number> {
 }
 
 /**
+ * Attach per-field-instance confidence scores to a ResumeData object in-place
+ * and return it. Ensures every parse outcome — AI success, AI fallback, OCR
+ * low-quality, local regex parser — exposes `_meta.fieldConfidence` so the UI
+ * can flag low-confidence fields consistently.
+ */
+export function attachFieldConfidence(data: ResumeData): ResumeData {
+  const itemConfidence = computeFieldLevelConfidence(data);
+  data._meta = {
+    ...(data._meta || {}),
+    fieldConfidence: {
+      ...(data._meta?.fieldConfidence || {}),
+      ...itemConfidence,
+    },
+  };
+  return data;
+}
+
+/**
  * Derive low-confidence field labels from parse meta. Handles both:
  *   - Section-level keys from the edge function (name, email, experience, ...)
  *   - Per-item keys from client-side heuristics
@@ -407,7 +425,7 @@ export async function parseResumePDF(file: File): Promise<ParseResult> {
     data = await parseTextWithAI(textWithHints);
   } catch {
     console.warn('AI parsing failed in parseResumePDF — falling back to local parser');
-    data = parseResumeText(textWithHints);
+    data = attachFieldConfidence(parseResumeText(textWithHints));
   }
 
   // Determine parse quality
@@ -446,7 +464,7 @@ export async function parseResumePDFWithOCR(
   const { confidence } = computeTextConfidence(text);
 
   if (confidence < 0.25) {
-    const emptyResume = parseResumeText(''); // returns an empty ResumeData skeleton
+    const emptyResume = attachFieldConfidence(parseResumeText('')); // empty skeleton with confidence map
     return {
       data: emptyResume,
       parseStatus: 'failed',
@@ -463,7 +481,7 @@ export async function parseResumePDFWithOCR(
     data = await parseTextWithAI(text);
   } catch {
     console.warn('AI parsing failed in parseResumePDFWithOCR — falling back to local parser');
-    data = parseResumeText(text);
+    data = attachFieldConfidence(parseResumeText(text));
   }
   const summary = getExtractionSummary(data);
   const parseStatus: 'success' | 'partial' | 'failed' =
