@@ -419,7 +419,7 @@ export default function PortfolioEditorPage() {
     }
   };
 
-  const handleSave = async (overrides?: {portfolioEnabled?: boolean;}) => {
+  const handleSave = async (overrides?: {portfolioEnabled?: boolean; portfolioStyleOverride?: string; abChallengerThemeOverride?: string}) => {
     const isEnabling = overrides?.portfolioEnabled === true ||
     overrides?.portfolioEnabled === undefined && portfolioEnabled;
     if (isEnabling && !username) {
@@ -457,7 +457,7 @@ export default function PortfolioEditorPage() {
         portfolioSections: sections,
         portfolioMetaTitle: metaTitle || null,
         portfolioMetaDescription: metaDescription || null,
-        portfolioStyle,
+        portfolioStyle: overrides?.portfolioStyleOverride !== undefined ? overrides.portfolioStyleOverride : portfolioStyle,
         portfolioLayout,
         portfolioAccentColor: portfolioAccentColor || null,
         portfolioFont,
@@ -472,7 +472,7 @@ export default function PortfolioEditorPage() {
           scrollEffect,
           videoIntroUrl: videoIntroUrl || null,
           schedulingUrl: normalizeUrl(schedulingUrl) || null,
-          abChallengerTheme: abChallengerTheme || null,
+          abChallengerTheme: overrides?.abChallengerThemeOverride !== undefined ? (overrides.abChallengerThemeOverride || null) : (abChallengerTheme || null),
           portfolioCertifications,
           portfolioPrimaryLanguage: portfolioPrimaryLanguage || 'English',
           portfolioSecondaryLanguage: portfolioSecondaryLanguage || null,
@@ -826,6 +826,7 @@ export default function PortfolioEditorPage() {
               onPickWinner={(winnerId) => {
                 setPortfolioStyle(winnerId as import('@/components/portfolio/editor/AppearanceSection').PortfolioStyle);
                 setAbChallengerTheme('');
+                handleSave({ portfolioStyleOverride: winnerId, abChallengerThemeOverride: '' });
               }}
             />
 

@@ -10,6 +10,7 @@ export interface PortfolioVisit {
   city: string | null;
   time_spent_seconds: number | null;
   sections_viewed: string[];
+  sections_timing: Record<string, number>;
   referrer: string | null;
   short_link_id: string | null;
   visited_at: string;
@@ -71,8 +72,12 @@ export function usePortfolioAnalytics(username: string | undefined) {
       }
       if (!data) return null;
       const d = data as unknown as { visits: PortfolioVisit[]; summary: VisitSummary };
+      const visits = (d.visits ?? []).map(v => ({
+        ...v,
+        sections_timing: (v.sections_timing as unknown) ?? {},
+      }));
       return {
-        visits: d.visits ?? [],
+        visits,
         summary: d.summary ?? {
           total_visits: 0, unique_countries: 0, avg_time_seconds: null,
           avg_time_variant_a: null, avg_time_variant_b: null,

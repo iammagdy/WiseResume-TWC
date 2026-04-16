@@ -610,23 +610,50 @@ export function VisitorsPanel({ username, userId, portfolioEnabled, portfolioSty
         )}
       </div>
 
-      {/* ── Section Scroll Heatmap ── */}
+      {/* ── Section Scroll Heatmap (dwell time) ── */}
       {visits.length > 0 && (() => {
-        const tally: Record<string, number> = {};
+        // Aggregate per-section dwell time and visit count
+        const dwellTotal: Record<string, number> = {};
+        const dwellCount: Record<string, number> = {};
         visits.forEach(v => {
-          (v.sections_viewed || []).forEach(s => { tally[s] = (tally[s] || 0) + 1; });
+          const timing = v.sections_timing ?? {};
+          Object.entries(timing).forEach(([s, secs]) => {
+            dwellTotal[s] = (dwellTotal[s] || 0) + (secs as number);
+            dwellCount[s] = (dwellCount[s] || 0) + 1;
+          });
         });
-        const sorted = Object.entries(tally).sort(([, a], [, b]) => b - a).slice(0, 8);
-        const maxCount = sorted[0]?.[1] ?? 1;
+        // If we have no timing data fall back to raw section view counts
+        const hasDwellData = Object.keys(dwellTotal).length > 0;
+        let sorted: [string, number][];
+        let unit: 'avg_sec' | 'count';
+        if (hasDwellData) {
+          // sort by avg dwell time descending
+          sorted = Object.entries(dwellTotal)
+            .map(([s, total]) => [s, Math.round(total / dwellCount[s])] as [string, number])
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 8);
+          unit = 'avg_sec';
+        } else {
+          const tally: Record<string, number> = {};
+          visits.forEach(v => {
+            (v.sections_viewed || []).forEach(s => { tally[s] = (tally[s] || 0) + 1; });
+          });
+          sorted = Object.entries(tally).sort(([, a], [, b]) => b - a).slice(0, 8);
+          unit = 'count';
+        }
+        const maxVal = sorted[0]?.[1] ?? 1;
         if (sorted.length === 0) return null;
         return (
           <div>
             <div className="flex items-center gap-2 mb-3">
               <Layers className="w-4 h-4 text-primary" />
               <h4 className="text-sm font-semibold text-foreground">Section Heatmap</h4>
+              <span className="text-[10px] text-muted-foreground">
+                ({unit === 'avg_sec' ? 'avg time on section' : 'views'})
+              </span>
             </div>
             <div className="bg-card border border-border shadow-soft rounded-xl p-3 space-y-2">
-              {sorted.map(([section, count]) => (
+              {sorted.map(([section, val]) => (
                 <div key={section} className="flex items-center gap-2">
                   <span className="text-[10px] text-muted-foreground capitalize min-w-[80px]">
                     {sectionLabel(`section-${section}`)}
@@ -635,12 +662,14 @@ export function VisitorsPanel({ username, userId, portfolioEnabled, portfolioSty
                     <div
                       className="h-full rounded-full transition-all"
                       style={{
-                        width: `${Math.round((count / maxCount) * 100)}%`,
-                        background: `color-mix(in srgb, var(--primary, #e84545) ${Math.max(30, Math.round((count / maxCount) * 100))}%, #374151)`,
+                        width: `${Math.round((val / maxVal) * 100)}%`,
+                        background: `color-mix(in srgb, var(--primary, #e84545) ${Math.max(30, Math.round((val / maxVal) * 100))}%, #374151)`,
                       }}
                     />
                   </div>
-                  <span className="text-[10px] text-muted-foreground min-w-[28px] text-right">{count}</span>
+                  <span className="text-[10px] text-muted-foreground min-w-[32px] text-right">
+                    {unit === 'avg_sec' ? `${val}s` : val}
+                  </span>
                 </div>
               ))}
             </div>

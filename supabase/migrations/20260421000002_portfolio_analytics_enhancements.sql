@@ -1,13 +1,14 @@
 -- Task #20: Portfolio analytics & insights enhancements
 --
--- 1. Add company_name (reverse-DNS / ISP detection) and ab_variant (A/B theme test)
---    columns to portfolio_visits.
+-- 1. Add company_name (reverse-DNS / ISP detection), ab_variant (A/B theme test),
+--    and sections_timing (per-section dwell time in seconds) to portfolio_visits.
 -- 2. Update record_portfolio_visit to accept the new params.
 -- 3. Update get_portfolio_analytics to include the new fields in the returned JSON.
 
 ALTER TABLE public.portfolio_visits
-  ADD COLUMN IF NOT EXISTS company_name text,
-  ADD COLUMN IF NOT EXISTS ab_variant   text CHECK (ab_variant IN ('a', 'b'));
+  ADD COLUMN IF NOT EXISTS company_name    text,
+  ADD COLUMN IF NOT EXISTS ab_variant      text CHECK (ab_variant IN ('a', 'b')),
+  ADD COLUMN IF NOT EXISTS sections_timing jsonb DEFAULT '{}'::jsonb;
 
 -- ── Updated record_portfolio_visit ────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.record_portfolio_visit(
@@ -20,7 +21,8 @@ CREATE OR REPLACE FUNCTION public.record_portfolio_visit(
   p_time_spent_seconds  integer DEFAULT NULL,
   p_device              text    DEFAULT NULL,
   p_company_name        text    DEFAULT NULL,
-  p_ab_variant          text    DEFAULT NULL
+  p_ab_variant          text    DEFAULT NULL,
+  p_sections_timing     jsonb   DEFAULT '{}'::jsonb
 ) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
@@ -32,11 +34,13 @@ BEGIN
   END IF;
   INSERT INTO public.portfolio_visits
     (username, country, city, referrer, short_link_id,
-     sections_viewed, time_spent_seconds, device, company_name, ab_variant)
+     sections_viewed, time_spent_seconds, device, company_name, ab_variant,
+     sections_timing)
   VALUES
     (lower(p_username), p_country, p_city, p_referrer, p_short_link_id,
      p_sections_viewed, p_time_spent_seconds, p_device,
-     p_company_name, p_ab_variant);
+     p_company_name, p_ab_variant,
+     COALESCE(p_sections_timing, '{}'::jsonb));
 END;
 $$;
 
@@ -67,6 +71,7 @@ BEGIN
       'city',               pv.city,
       'time_spent_seconds', pv.time_spent_seconds,
       'sections_viewed',    pv.sections_viewed,
+      'sections_timing',    COALESCE(pv.sections_timing, '{}'::jsonb),
       'referrer',           pv.referrer,
       'short_link_id',      pv.short_link_id,
       'visited_at',         pv.visited_at,

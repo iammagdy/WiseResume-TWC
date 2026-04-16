@@ -9,6 +9,35 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+/** Convert an IPv4 address to the in-addr.arpa format for PTR lookup */
+function toArpa(ip: string): string | null {
+  const parts = ip.split(".");
+  if (parts.length !== 4) return null;
+  return `${parts[3]}.${parts[2]}.${parts[1]}.${parts[0]}.in-addr.arpa`;
+}
+
+/** Extract meaningful company/domain name from a PTR hostname.
+ *  Returns null if the result looks like a residential or hosting provider. */
+function parseCompanyFromPtr(ptr: string): string | null {
+  // PTR records often look like "ec2-1-2-3-4.compute.amazonaws.com" or
+  // "mail.company.com". We want to extract the second-level domain (company.com)
+  // and skip known infrastructure providers.
+  const SKIP_DOMAINS = /\b(amazonaws|azure|googleusercontent|cloudfront|akamai|fastly|cloudflare|linode|vultr|digitalocean|hetzner|ovh|comcast|verizon|att\.net|spectrum|xfinity|tmobile|t-mobile|comcast|sbcglobal|bellsouth|dsl|dialup|pool|dynamic|dhcp|broadband|cable|fiber|fios|residential|static\.isp|no-reverse|ptr\.not|rdns\.not)\b/i;
+  if (!ptr || SKIP_DOMAINS.test(ptr)) return null;
+  const labels = ptr.toLowerCase().replace(/\.$/, "").split(".");
+  if (labels.length < 2) return null;
+  // Grab sld.tld (e.g., "google.com" from "mail.google.com")
+  const sld = labels[labels.length - 2];
+  const tld = labels[labels.length - 1];
+  // Skip IP-like PTR results (all digits or starts with a number)
+  if (/^\d+$/.test(sld)) return null;
+  // Capitalize for display ("google" → "Google")
+  return sld.charAt(0).toUpperCase() + sld.slice(1) + "." + tld;
+}
+
+/** Generic ISP org names that don't represent a real company visiting. */
+const GENERIC_ISP_RE = /\b(telecom|mobile|wireless|broadband|cable|internet|isp|fiber|fios|comcast|verizon|at&t|spectrum|xfinity|tmobile|t-mobile|residential|networks|hosting|cloud|amazonaws|azure|google cloud|digitalocean|linode|vultr|hetzner|ovh)\b/i;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -25,7 +54,6 @@ serve(async (req) => {
   }
 
   // Layer 2: block requests whose Referer is clearly from a foreign domain
-  // (this endpoint is only called by JS on our own portfolio pages)
   const referer = req.headers.get("referer");
   if (hasForeignReferer(referer, ["thewise.cloud", "localhost"])) {
     return botBlockedResponse(corsHeaders);
@@ -52,10 +80,11 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { username, ref, sectionsViewed, timeSpentSeconds, device, abVariant } = body as {
+    const { username, ref, sectionsViewed, sectionsTiming, timeSpentSeconds, device, abVariant } = body as {
       username: string;
       ref?: string;
       sectionsViewed?: string[];
+      sectionsTiming?: Record<string, number>;
       timeSpentSeconds?: number;
       device?: 'mobile' | 'desktop' | 'tablet';
       abVariant?: 'a' | 'b';
@@ -82,7 +111,7 @@ serve(async (req) => {
       console.error("Error incrementing view count:", rpcError);
     }
 
-    // ── 2. Geolocate the visitor via IP + reverse-DNS company detection ────
+    // ── 2. Geolocate + company detection ──────────────────────────────────
     let country: string | null = null;
     let city: string | null = null;
     let companyName: string | null = null;
@@ -94,31 +123,67 @@ serve(async (req) => {
         country = cfCountry;
       }
 
-      // Get IP for city + company lookup
       const forwarded = req.headers.get("x-forwarded-for");
       const ip = forwarded ? forwarded.split(",")[0].trim() : null;
 
       if (ip && ip !== "127.0.0.1" && ip !== "::1") {
-        // Include 'org' field — ip-api returns the ISP/ASN org name, e.g. "AS15169 Google LLC"
-        const geoRes = await Promise.race([
-          fetch(`http://ip-api.com/json/${ip}?fields=country,city,org,status`),
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
-        ]);
-
-        if (geoRes && geoRes instanceof Response && geoRes.ok) {
-          const geo = await geoRes.json();
-          if (geo.status === "success") {
-            if (!country) country = geo.country || null;
-            city = geo.city || null;
-
-            // Strip ASN prefix from org field (e.g. "AS15169 Google LLC" → "Google LLC")
-            if (geo.org && typeof geo.org === "string") {
-              const cleaned = geo.org.replace(/^AS\d+\s+/i, "").trim();
-              // Filter out generic ISPs that provide no useful company signal
-              const GENERIC_ISP_RE = /\b(telecom|mobile|wireless|broadband|cable|internet|isp|fiber|fios|comcast|verizon|at&t|spectrum|xfinity|tmobile|t-mobile|residential|networks|hosting|cloud|amazonaws|azure|google cloud|digitalocean|linode|vultr|hetzner|ovh)\b/i;
-              if (cleaned && !GENERIC_ISP_RE.test(cleaned)) {
-                companyName = cleaned;
+        // ── 2a. Reverse DNS (PTR lookup via Google Public DNS) ──────────────
+        const arpa = toArpa(ip);
+        if (arpa) {
+          try {
+            const ptrRes = await Promise.race([
+              fetch(`https://dns.google/resolve?name=${arpa}&type=PTR`),
+              new Promise<null>((resolve) => setTimeout(() => resolve(null), 1000)),
+            ]);
+            if (ptrRes instanceof Response && ptrRes.ok) {
+              const ptrData = await ptrRes.json();
+              const answers: Array<{ data: string }> = ptrData?.Answer ?? [];
+              for (const ans of answers) {
+                const parsed = parseCompanyFromPtr(ans.data ?? "");
+                if (parsed) {
+                  companyName = parsed;
+                  break;
+                }
               }
+            }
+          } catch {
+            // PTR lookup failed — fall through to ip-api.com
+          }
+        }
+
+        // ── 2b. Fallback: ip-api.com org field ───────────────────────────────
+        if (!companyName) {
+          const geoRes = await Promise.race([
+            fetch(`http://ip-api.com/json/${ip}?fields=country,city,org,status`),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
+          ]);
+
+          if (geoRes instanceof Response && geoRes.ok) {
+            const geo = await geoRes.json();
+            if (geo.status === "success") {
+              if (!country) country = geo.country || null;
+              city = geo.city || null;
+
+              // Strip ASN prefix (e.g. "AS15169 Google LLC" → "Google LLC")
+              if (geo.org && typeof geo.org === "string") {
+                const cleaned = geo.org.replace(/^AS\d+\s+/i, "").trim();
+                if (cleaned && !GENERIC_ISP_RE.test(cleaned)) {
+                  companyName = cleaned;
+                }
+              }
+            }
+          }
+        } else {
+          // We have company from PTR — still fetch geo for country/city
+          const geoRes = await Promise.race([
+            fetch(`http://ip-api.com/json/${ip}?fields=country,city,status`),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
+          ]);
+          if (geoRes instanceof Response && geoRes.ok) {
+            const geo = await geoRes.json();
+            if (geo.status === "success") {
+              if (!country) country = geo.country || null;
+              city = geo.city || null;
             }
           }
         }
@@ -129,6 +194,16 @@ serve(async (req) => {
 
     // ── 3. Validate portfolio + insert visit via RPC ─────────────────────
     const referrer = req.headers.get("referer") || null;
+
+    // Sanitise sectionsTiming: only keep string keys with positive integer values
+    const sanitisedTiming: Record<string, number> = {};
+    if (sectionsTiming && typeof sectionsTiming === "object") {
+      for (const [k, v] of Object.entries(sectionsTiming)) {
+        if (typeof k === "string" && typeof v === "number" && v > 0) {
+          sanitisedTiming[k] = Math.round(v);
+        }
+      }
+    }
 
     const { error: visitError } = await supabaseClient.rpc("record_portfolio_visit", {
       p_username: username.toLowerCase(),
@@ -141,6 +216,7 @@ serve(async (req) => {
       p_device: device ?? null,
       p_company_name: companyName,
       p_ab_variant: (abVariant === 'a' || abVariant === 'b') ? abVariant : null,
+      p_sections_timing: Object.keys(sanitisedTiming).length > 0 ? sanitisedTiming : null,
     });
 
     if (visitError) {
