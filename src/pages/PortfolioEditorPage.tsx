@@ -489,16 +489,18 @@ export default function PortfolioEditorPage() {
       }
       toast.success('Portfolio saved!');
 
-      // Auto-translate all sections on save when secondary language is configured
+      // Auto-translate all sections on save when secondary language is configured.
+      // Use the already-committed extras (updates.portfolioExtras) as the base
+      // so the second patch never overwrites freshly saved fields with stale values.
       if (portfolioSecondaryLanguage) {
-        const existingExtras = (profile?.portfolioExtras as Record<string, unknown>) || {};
+        const savedExtras = updates.portfolioExtras as Record<string, unknown>;
         runTranslation(portfolioSecondaryLanguage, true).then((newTranslations) => {
           if (newTranslations) {
             updateProfile({
               portfolioExtras: {
-                ...existingExtras,
+                ...savedExtras,
                 portfolioTranslations: {
-                  ...(existingExtras.portfolioTranslations as Record<string, unknown> || {}),
+                  ...(savedExtras.portfolioTranslations as Record<string, unknown> || {}),
                   [portfolioSecondaryLanguage]: newTranslations,
                 },
               }
