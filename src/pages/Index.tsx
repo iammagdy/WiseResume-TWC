@@ -10,7 +10,7 @@ import { useProfile } from '@/hooks/useProfile';
 import triggerHaptic from '@/lib/haptics';
 import { useKindeAuth } from '@kinde-oss/kinde-auth-react';
 import { useReducedMotion, motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
-import { useEffect, useLayoutEffect, useState, useRef, startTransition } from 'react';
+import { useEffect, useLayoutEffect, useState, useRef, useCallback, startTransition } from 'react';
 import { useSettingsStore } from '@/store/settingsStore';
 import { getSafeMatchMedia } from '@/lib/envUtils';
 import { useSearchParams } from 'react-router-dom';
@@ -362,9 +362,10 @@ interface LandingModeTransitionProps {
   waveKey: number;
   waveColor: string;
   origin: { x: number; y: number };
+  onWaveComplete?: () => void;
 }
 
-function LandingModeTransition({ waveKey, origin, waveColor }: LandingModeTransitionProps) {
+function LandingModeTransition({ waveKey, origin, waveColor, onWaveComplete }: LandingModeTransitionProps) {
   if (waveKey === 0) return null;
   return (
     <AnimatePresence>
@@ -381,6 +382,7 @@ function LandingModeTransition({ waveKey, origin, waveColor }: LandingModeTransi
         initial={{ opacity: 0, scale: 0.82 }}
         animate={{ opacity: [0, 1, 0.65, 0], scale: [0.82, 1.04, 1.1, 1.15] }}
         transition={{ duration: 0.9, times: [0, 0.33, 0.65, 1], ease: 'easeOut' }}
+        onAnimationComplete={onWaveComplete}
       />
     </AnimatePresence>
   );
@@ -413,6 +415,13 @@ const Index = () => {
       ? 'wisehire'
       : 'jobseeker'
   );
+  const [displayProduct, setDisplayProduct] = useState<'jobseeker' | 'wisehire'>(() =>
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('for') === 'companies'
+      ? 'wisehire'
+      : 'jobseeker'
+  );
+  const pendingModeRef = useRef<'jobseeker' | 'wisehire' | null>(null);
   const [waitlistOpen, setWaitlistOpen] = useState(false);
   const [waveKey, setWaveKey] = useState(0);
   const [waveColor, setWaveColor] = useState('rgba(29,78,216,0.15)');
@@ -512,6 +521,14 @@ const Index = () => {
     }
   };
 
+  const handleWaveComplete = useCallback(() => {
+    const next = pendingModeRef.current;
+    if (next !== null) {
+      pendingModeRef.current = null;
+      startTransition(() => setDisplayProduct(next));
+    }
+  }, []);
+
   const handleLandingModeChange = (m: 'jobseeker' | 'wisehire', btnOrigin: { x: number; y: number }) => {
     if (m === mode) return;
     triggerHaptic.light();
@@ -520,6 +537,7 @@ const Index = () => {
         clearTimeout(modeTimerRef.current);
         modeTimerRef.current = null;
       }
+      pendingModeRef.current = m;
       setWaveOrigin(btnOrigin);
       setWaveColor(m === 'wisehire' ? 'rgba(37,99,235,0.15)' : 'rgba(185,28,28,0.15)');
       setWaveKey((k) => k + 1);
@@ -529,6 +547,8 @@ const Index = () => {
       }, 300);
     } else {
       setMode(m);
+      setDisplayProduct(m);
+      pendingModeRef.current = null;
     }
   };
 
@@ -537,7 +557,7 @@ const Index = () => {
       className="lp-root min-h-screen"
       data-theme="landing"
       data-lp-scheme={isDark ? 'dark' : 'light'}
-      data-lp-product={mode === 'wisehire' ? 'wisehire' : undefined}
+      data-lp-product={displayProduct === 'wisehire' ? 'wisehire' : undefined}
       style={{ colorScheme: isDark ? 'dark' : 'light', overflowX: 'hidden' }}
     >
 
@@ -560,6 +580,7 @@ const Index = () => {
           waveKey={waveKey}
           waveColor={waveColor}
           origin={waveOrigin}
+          onWaveComplete={handleWaveComplete}
         />
       )}
 
