@@ -14,6 +14,7 @@ export const ActivityStreak = memo(function ActivityStreak() {
     setWeeklyGoalState(prev => {
       const next = Math.max(1, Math.min(20, prev + delta));
       localStorage.setItem('activity-weekly-goal', String(next));
+      window.dispatchEvent(new CustomEvent('activity-weekly-goal-change', { detail: { goal: next } }));
       return next;
     });
   }, []);

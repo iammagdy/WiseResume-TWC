@@ -29,7 +29,7 @@ export function useActivityStreak() {
   return useQuery<ActivityStreakData>({
     queryKey: ['activity-streak', user?.id],
     queryFn: async () => {
-      const since = subDays(new Date(), 30).toISOString();
+      const since = subDays(new Date(), 365).toISOString();
       const [resumes, tailors, apps, covers] = await Promise.all([
         supabase.from('resumes').select('created_at').gte('created_at', since),
         supabase.from('tailor_history').select('created_at').gte('created_at', since),
@@ -56,7 +56,7 @@ export function useActivityStreak() {
 
       const today = startOfDay(new Date());
       let streak = 0;
-      for (let i = 0; i < 30; i++) {
+      for (let i = 0; i < 365; i++) {
         const day = format(subDays(today, i), 'yyyy-MM-dd');
         if (activeDays.has(day)) {
           streak++;

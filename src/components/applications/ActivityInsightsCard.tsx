@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { differenceInDays, startOfWeek } from 'date-fns';
 import { motion, useReducedMotion } from 'framer-motion';
 import { AlertCircle, TrendingUp, Target, Zap, Lightbulb } from 'lucide-react';
@@ -28,6 +28,18 @@ export function ActivityInsightsCard({ applications, stats }: Props) {
   const shouldReduceMotion = useReducedMotion();
   const { data: streakData } = useActivityStreak();
   const streak = streakData?.streak ?? 0;
+
+  const [weeklyGoal, setWeeklyGoal] = useState<number>(() =>
+    parseInt(localStorage.getItem('activity-weekly-goal') || '5', 10)
+  );
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const goal = (e as CustomEvent<{ goal: number }>).detail?.goal;
+      if (typeof goal === 'number') setWeeklyGoal(goal);
+    };
+    window.addEventListener('activity-weekly-goal-change', handler);
+    return () => window.removeEventListener('activity-weekly-goal-change', handler);
+  }, []);
 
   const nudges = useMemo<Nudge[]>(() => {
     if (stats.isLoading) return [];
@@ -90,7 +102,6 @@ export function ActivityInsightsCard({ applications, stats }: Props) {
     }
 
     // Rule 5: Close to weekly goal nudge
-    const weeklyGoal = parseInt(localStorage.getItem('activity-weekly-goal') || '5', 10);
     const remaining = weeklyGoal - thisWeekApps.length;
     if (thisWeekApps.length > 0 && remaining > 0 && remaining <= 2) {
       result.push({
@@ -110,7 +121,7 @@ export function ActivityInsightsCard({ applications, stats }: Props) {
     }
 
     return result.slice(0, 3);
-  }, [applications, stats, streak]);
+  }, [applications, stats, streak, weeklyGoal]);
 
   if (nudges.length === 0 || stats.isLoading) return null;
 
