@@ -18,7 +18,7 @@ function selectModel(intensity: string): string {
   if (intensity === 'aggressive') {
     return 'google/gemini-flash-1.5';
   }
-  return 'google/gemma-4-26b-a4b-it:free';
+  return 'meta-llama/llama-3.3-70b-instruct:free';
 }
 
 const VALID_SECTIONS = new Set([

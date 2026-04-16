@@ -30,7 +30,7 @@ function selectModelForIntensity(intensity: string): string {
   if (intensity === 'aggressive') {
     return 'google/gemini-flash-1.5';
   }
-  return 'google/gemma-4-26b-a4b-it:free';
+  return 'meta-llama/llama-3.3-70b-instruct:free';
 }
 
 /**
@@ -77,7 +77,7 @@ For mustHaveKeywords: include 10-20 specific, searchable terms (technologies, me
 
   try {
     const response = await callAIWithRetry({
-      model: 'google/gemma-4-26b-a4b-it:free',
+      model: 'meta-llama/llama-3.3-70b-instruct:free',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -90,7 +90,7 @@ For mustHaveKeywords: include 10-20 specific, searchable terms (technologies, me
     if (!response.content) throw new Error('No content from Stage 1 AI');
 
     const parsed = await parseAIJSONWithRetry<Record<string, unknown>>(response.content, {
-      model: 'google/gemma-4-26b-a4b-it:free',
+      model: 'meta-llama/llama-3.3-70b-instruct:free',
       userId,
     });
 
@@ -799,7 +799,7 @@ Return this exact JSON:
 Generate 3-5 talking points and 3 strengths. Be specific to this candidate and role.`;
 
       const stage3Response = await callAIWithRetry({
-        model: 'google/gemma-4-26b-a4b-it:free',
+        model: 'meta-llama/llama-3.3-70b-instruct:free',
         messages: [
           { role: 'system', content: stage3SystemPrompt },
           { role: 'user', content: stage3UserPrompt },
@@ -811,7 +811,7 @@ Generate 3-5 talking points and 3 strengths. Be specific to this candidate and r
 
       if (stage3Response.content) {
         const stage3Parsed = await parseAIJSONWithRetry<Record<string, unknown>>(stage3Response.content, {
-          model: 'google/gemma-4-26b-a4b-it:free',
+          model: 'meta-llama/llama-3.3-70b-instruct:free',
           userId,
         });
         if (stage3Parsed) {

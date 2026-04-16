@@ -385,7 +385,14 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
       if (err.message?.includes('Unauthorized') || err.message?.includes('log in')) {
         toast.error(err.message);
       } else {
-        setTailorError({ message: err.message || 'Failed to tailor resume', code });
+        const rawMsg = err?.message;
+        const safeMsg =
+          typeof rawMsg === 'string' && rawMsg.length > 0
+            ? rawMsg
+            : typeof err === 'string'
+              ? err
+              : 'Failed to tailor resume';
+        setTailorError({ message: safeMsg, code });
       }
     } finally {
       setIsTailoring(false);

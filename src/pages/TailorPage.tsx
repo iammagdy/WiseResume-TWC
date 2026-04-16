@@ -289,7 +289,14 @@ export default function TailorPage() {
       });
     } catch (error) {
       const err = error as TailorError;
-      setTailorError({ message: err.message || 'Failed to tailor resume', code: err.code });
+      const rawMsg = err?.message;
+      const safeMsg =
+        typeof rawMsg === 'string' && rawMsg.length > 0
+          ? rawMsg
+          : typeof err === 'string'
+            ? err
+            : 'Failed to tailor resume';
+      setTailorError({ message: safeMsg, code: err?.code });
     } finally {
       setIsTailoring(false);
       setProgress(null);

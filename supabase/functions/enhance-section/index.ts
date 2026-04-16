@@ -758,7 +758,7 @@ serve(async (req) => {
       const variantResponses = await Promise.allSettled(
         styleSuffixes.map(suffix =>
           callAIWithRetry({
-            model: 'google/gemma-4-26b-a4b-it:free',
+            model: 'meta-llama/llama-3.3-70b-instruct:free',
             messages: [{ role: 'user', content: prompt + suffix }],
             temperature,
             userId,
@@ -775,7 +775,7 @@ serve(async (req) => {
         const result = variantResponses[i];
         if (result.status === 'fulfilled' && result.value.content) {
           const parsed = await parseAIJSONWithRetry<Record<string, unknown>>(result.value.content, {
-            model: 'google/gemma-4-26b-a4b-it:free',
+            model: 'meta-llama/llama-3.3-70b-instruct:free',
             userId,
           });
           if (parsed && parsed.improved !== undefined) {
@@ -813,7 +813,7 @@ serve(async (req) => {
     // Call AI using the shared client
     const temperature = action === 'ats_improve' ? 0.3 : 0.7;
     const aiResponse = await callAIWithRetry({
-      model: 'google/gemma-4-26b-a4b-it:free',
+      model: 'meta-llama/llama-3.3-70b-instruct:free',
       messages: [{ role: 'user', content: prompt }],
       temperature,
       userId,
@@ -828,7 +828,7 @@ serve(async (req) => {
 
     // Parse the JSON from the AI response — never inject raw text into resume
     const enhancedContent = await parseAIJSONWithRetry(content, {
-      model: 'google/gemma-4-26b-a4b-it:free',
+      model: 'meta-llama/llama-3.3-70b-instruct:free',
       userId,
       temperature,
     });

@@ -176,7 +176,7 @@ serve(async (req) => {
       openrouter: '',
       ollama: '',
     };
-    let testModel = 'google/gemma-4-26b-a4b-it:free';
+    let testModel = 'meta-llama/llama-3.3-70b-instruct:free';
     let storedByokModel: string | null = null;
 
     if (BYOK_PROVIDERS_LIST.includes(preferredProvider)) {
@@ -201,7 +201,7 @@ serve(async (req) => {
       if (wiseresumeSubProvider === 'groq') {
         testModel = 'qwen/qwen3-32b';
       } else {
-        testModel = 'google/gemma-4-26b-a4b-it:free';
+        testModel = 'meta-llama/llama-3.3-70b-instruct:free';
       }
     }
 
@@ -252,7 +252,7 @@ serve(async (req) => {
     // so admin diagnostics always reflect the real model (e.g. Groq fallback shows Llama, not Gemma).
     if (preferredProvider === 'wiseresume' && wiseresumeSubProvider === 'auto') {
       if (providerUsed.includes('groq')) testModel = 'qwen/qwen3-32b';
-      else testModel = 'google/gemma-4-26b-a4b-it:free';
+      else testModel = 'meta-llama/llama-3.3-70b-instruct:free';
     }
 
     // For BYOK providers, show the stored model name or a sensible default

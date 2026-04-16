@@ -434,8 +434,15 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
 
 const RETRY_DELAYS = [1000, 2000, 4000];
 const RETRY_TIMEOUTS = [30_000, 45_000, 55_000];
-/** Last-resort fallback slug used only if dynamic model discovery returns empty. */
-const FALLBACK_MODEL = 'google/gemma-4-26b-a4b-it:free';
+/**
+ * Last-resort fallback slug used ONLY when dynamic model discovery returns
+ * an empty list (OpenRouter API unreachable, empty response, etc.). In the
+ * normal path the live list from getOpenRouterFreeModels() is used directly
+ * — this constant is never pinned to the front of that list. Historically
+ * a hallucinated slug was pinned here and silently broke every managed AI
+ * request; keep this as a known-good, currently-free model only.
+ */
+const FALLBACK_MODEL = 'meta-llama/llama-3.3-70b-instruct:free';
 
 // ============= Dynamic Model Discovery (cached per cold-start) =============
 
@@ -509,16 +516,12 @@ async function getOpenRouterFreeModels(apiKey: string): Promise<string[]> {
       .map(m => m.id);
 
     if (models.length === 0) {
+      // Discovery returned nothing — only then fall back to the hardcoded slug.
+      // Never prepend FALLBACK_MODEL when real models are available: the live
+      // list is already sorted by context length/param count, so the highest-
+      // quality free model is at position 0.
       console.warn('[AI] OpenRouter returned no free models; using fallback constant');
       models.push(FALLBACK_MODEL);
-    }
-
-    const pinnedIdx = models.indexOf(FALLBACK_MODEL);
-    if (pinnedIdx > 0) {
-      models.splice(pinnedIdx, 1);
-      models.unshift(FALLBACK_MODEL);
-    } else if (pinnedIdx === -1) {
-      models.unshift(FALLBACK_MODEL);
     }
 
     console.log(`[AI] OpenRouter free models discovered (${models.length}):`, models.slice(0, 5).join(', '));
@@ -633,7 +636,7 @@ async function getGroqModels(apiKey: string): Promise<string[]> {
 
 /**
  * Extracts a rough parameter count from a model slug for ranking purposes.
- * e.g. "google/gemma-4-26b-a4b-it:free" → 26, "meta/llama-3.3-70b..." → 70.
+ * e.g. "meta-llama/llama-3.3-70b-instruct:free" → 26, "meta/llama-3.3-70b..." → 70.
  */
 function extractParamCount(slug: string): number {
   const match = slug.match(/(\d+)b/i);
@@ -678,7 +681,13 @@ export async function callAIWithRetry(options: AICallOptions): Promise<AIRespons
     }
   }
 
-  // All retries failed — try fallback model
+  // All retries failed — try fallback model. Skip if we were already on it
+  // (retrying the same model 4 times in a row is never going to help and
+  // just burns budget before the user-visible error).
+  if (options.model === FALLBACK_MODEL) {
+    console.warn(`[AI] Primary model already == fallback (${FALLBACK_MODEL}); not retrying.`);
+    throw lastError;
+  }
   console.warn(`[AI] Primary model ${options.model} failed after 3 attempts, trying fallback: ${FALLBACK_MODEL}`);
   try {
     return await callAI({ ...options, model: FALLBACK_MODEL, timeout: 55_000 });

@@ -308,10 +308,26 @@ serve(async (req: Request) => {
       );
     }
 
+    // Non-AIError fell through. Historically this returned a bare
+    // `internal 500` which the UI rendered as "AI is temporarily unavailable"
+    // — users (and we) could never tell whether it was a transient upstream
+    // hiccup, a misconfigured key, or a real bug. Preserve toUserError's
+    // status/code mapping but degrade a plain `internal 500` to the more
+    // accurate `provider_busy 503` so the error card shows a retryable
+    // message and the attempt telemetry (if any) is still forwarded.
     const { status, error: code, message } = toUserError(error);
+    const isGenericInternal = code === 'internal' && status === 500;
+    const responseBody = isGenericInternal
+      ? {
+          error: 'provider_busy',
+          message: 'AI is temporarily busy — please try again in a moment.',
+          ...attemptsField,
+        }
+      : { error: code, message, ...attemptsField };
+    const responseStatus = isGenericInternal ? 503 : status;
     return new Response(
-      JSON.stringify({ error: code, message, ...attemptsField }),
-      { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify(responseBody),
+      { status: responseStatus, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

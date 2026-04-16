@@ -176,7 +176,7 @@ Deno.serve(async (req) => {
               'HTTP-Referer': 'https://resume.thewise.cloud',
               'X-Title': 'WiseResume',
             },
-            body: JSON.stringify({ model: 'google/gemma-4-26b-a4b-it:free', messages: [{ role: 'user', content: 'Hi' }], max_tokens: 1 }),
+            body: JSON.stringify({ model: 'meta-llama/llama-3.3-70b-instruct:free', messages: [{ role: 'user', content: 'Hi' }], max_tokens: 1 }),
           });
         } else {
           throw new Error('No key available');
