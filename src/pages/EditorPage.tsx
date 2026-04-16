@@ -1138,6 +1138,7 @@ export default function EditorPage() {
                       </div>
                     </button>
                     <button
+                      onPointerEnter={preloadLazy(() => import('@/components/editor/ATSScanSheet'))}
                       onClick={() => { haptics.light(); setToolsSubView('ats-scan'); }}
                       className="flex items-center gap-3 w-full rounded-xl border border-border bg-card hover:bg-muted active:scale-[0.98] transition-transform touch-manipulation min-h-[56px] px-4"
                     >

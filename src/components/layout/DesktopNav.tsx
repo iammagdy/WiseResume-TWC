@@ -11,6 +11,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { usePlan } from '@/hooks/usePlan';
 import { toast } from 'sonner';
 import { lazy, Suspense, useState } from 'react';
+import { preloadLazy } from '@/lib/preloadLazy';
 import { motion } from 'framer-motion';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { PlanAvatar } from '@/components/ui/PlanAvatar';
@@ -212,6 +213,7 @@ export function DesktopNav() {
         </button>
 
         <button
+          onPointerEnter={preloadLazy(() => import('@/components/editor/AgenticChatSheet'))}
           onClick={() => {haptics.selection();setWiseAIOpen(true);}}
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary/10 text-primary text-sm font-medium hover:bg-primary/15 transition-colors active:scale-95"
           aria-label="Ask Wise AI">

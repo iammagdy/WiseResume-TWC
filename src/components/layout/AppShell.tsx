@@ -1,5 +1,6 @@
 import { useLocation, useOutlet } from 'react-router-dom';
 import { useRef, useEffect, useState, lazy, Suspense } from 'react';
+import { preloadLazy } from '@/lib/preloadLazy';
 import { MessageCircle, X, Sun, Moon, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/hooks/useAuth';
@@ -173,6 +174,7 @@ export function AppShell() {
 
       {showBottomNav && !isEditorRoute && (
         <button
+          onPointerEnter={preloadLazy(() => import('@/components/editor/AgenticChatSheet'))}
           onClick={() => setWiseAIOpen(true)}
           className={cn(
             'fixed right-4 z-50 lg:hidden flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-primary text-primary-foreground shadow-soft-lg active:scale-95 transition-all touch-manipulation',

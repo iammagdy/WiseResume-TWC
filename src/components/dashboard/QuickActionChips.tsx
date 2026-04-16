@@ -3,6 +3,7 @@ import { Upload, FileText, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
+import { preloadLazy } from '@/lib/preloadLazy';
 
 interface QuickActionChipsProps {
   onCreateNew: () => void;
@@ -16,6 +17,7 @@ export const QuickActionChips = memo(function QuickActionChips({ onCreateNew, on
     <div className="px-4 pb-3">
       <div className="flex gap-2">
         <button
+          onPointerEnter={preloadLazy(() => import('@/components/dashboard/CreateResumeDialog'))}
           onClick={() => { haptics.light(); onCreateNew(); }}
           className={cn(
             'flex items-center gap-2 py-2.5 px-4 rounded-2xl flex-1',
@@ -47,6 +49,7 @@ export const QuickActionChips = memo(function QuickActionChips({ onCreateNew, on
 
         {onImportProfile && (
           <button
+            onPointerEnter={preloadLazy(() => import('@/components/settings/LinkedInImportSheet'))}
             onClick={() => { haptics.light(); onImportProfile(); }}
             className={cn(
               'flex items-center gap-2 py-2.5 px-4 rounded-2xl flex-1',
