@@ -198,14 +198,30 @@
   background: linear-gradient(to top, var(--lp-section-alt), transparent);
 }
 
-/* Header height — single source of truth, consumed by .lp-hero-top */
+/* Safe-area + header height — env() is declared in exactly one place
+   (--lp-safe-top). --lp-header-h is the total outer height of the fixed
+   header, including its top padding and inner row (h-14). The header
+   element itself consumes --lp-safe-top for padding-top; the hero
+   derives its own top padding from --lp-header-h only. */
 .lp-root {
-  --lp-header-h: calc(3.5rem + env(safe-area-inset-top));
+  /* env() is called in exactly one place; every other layout consumer
+     (header padding, hero top padding, …) reads --lp-safe-top. */
+  --lp-safe-top: env(safe-area-inset-top);
+  /* 0.5rem (pt-2 on inner wrap) + 3.5rem (h-14 on bar) = 4rem mobile;
+     desktop uses pt-3 (0.75rem) + h-14 = 4.25rem, and includes its larger
+     visual breathing room via a bigger base. */
+  --lp-header-h: calc(var(--lp-safe-top) + 4rem);
 }
 @media (min-width: 640px) {
   .lp-root {
-    --lp-header-h: calc(7.25rem + env(safe-area-inset-top));
+    --lp-header-h: calc(var(--lp-safe-top) + 7.25rem);
   }
+}
+/* Fixed landing-page header — consumes --lp-safe-top as its top padding
+   so the single env() declaration drives both the header's visible
+   position and the hero's compensating padding. */
+.lp-header {
+  padding-top: var(--lp-safe-top);
 }
 
 /* Hero section top padding — derived from --lp-header-h plus breathing room

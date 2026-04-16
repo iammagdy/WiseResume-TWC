@@ -16,12 +16,8 @@ function HeroParallaxGlow({ prefersReducedMotion }: { prefersReducedMotion: bool
   useEffect(() => {
     const mql = getSafeMatchMedia('(min-width: 640px)');
     const onChange = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
-    try {
-      mql.addEventListener?.('change', onChange);
-      return () => mql.removeEventListener?.('change', onChange);
-    } catch {
-      return;
-    }
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
   }, []);
 
   const { scrollY } = useScroll();

@@ -48,8 +48,8 @@ export function LandingHeader({
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 ${scrolled ? 'lp-header-scrolled' : 'bg-transparent'}`}
-      style={{ transition: 'background 0.3s ease, backdrop-filter 0.3s ease, border-color 0.3s ease', paddingTop: 'env(safe-area-inset-top)', willChange: 'transform' }}
+      className={`lp-header fixed top-0 left-0 right-0 z-50 ${scrolled ? 'lp-header-scrolled' : 'bg-transparent'}`}
+      style={{ transition: 'background 0.3s ease, backdrop-filter 0.3s ease, border-color 0.3s ease', willChange: 'transform' }}
     >
       {scrolled && <GlassSurface className="absolute -top-px bottom-0 left-0 right-0" />}
       {!scrolled && <div aria-hidden="true" className="lp-header-scrim sm:hidden" />}
@@ -229,7 +229,8 @@ export function LandingHeader({
                 border: '1px solid #1D4ED8',
               }}
             >
-              Join Waitlist
+              <span className="sm:hidden">Join</span>
+              <span className="hidden sm:inline">Join Waitlist</span>
             </button>
           )}
         </div>

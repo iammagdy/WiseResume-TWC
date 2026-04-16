@@ -245,7 +245,7 @@ const Index = () => {
                 <WiseHireHero
                   onOpenWaitlist={() => setWaitlistOpen(true)}
                   mobileToggle={
-                    <div className="sm:hidden relative z-10 flex justify-center mb-4">
+                    <div className="sm:hidden relative z-10 flex justify-center mt-1 mb-6">
                       <LandingToggle uid="mob" compact mode={mode} prefersReducedMotion={prefersReducedMotion} onModeChange={handleLandingModeChange} />
                     </div>
                   }
