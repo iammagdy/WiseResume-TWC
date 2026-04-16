@@ -55,7 +55,7 @@ export function AnimatedSplash({ onComplete, ready = true }: AnimatedSplashProps
           initial={{ opacity: 1 }}
           exit={prefersReduced ? { opacity: 1 } : { opacity: 0 }}
           transition={prefersReduced ? { duration: 0 } : { duration: 0.3, ease: 'easeInOut' }}
-          onClick={dismiss}
+          onClick={() => { if (minTimePassed && ready) dismiss(); }}
           role="button"
           tabIndex={0}
           aria-label="Tap to skip"
