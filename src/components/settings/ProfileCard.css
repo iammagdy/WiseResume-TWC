@@ -248,11 +248,12 @@
 
 .pc-avatar-layer {
   overflow: visible;
-  position: relative;
+  transform: translate3d(0, 0, 1.2px);
   z-index: 6;
   mix-blend-mode: normal;
   backface-visibility: hidden;
   pointer-events: none;
+  isolation: isolate;
 }
 
 .pc-avatar-layer .avatar {
@@ -266,10 +267,12 @@
   backface-visibility: hidden;
   will-change: transform;
   transition: transform 120ms ease-out;
+  display: block;
 }
 
 .pc-avatar-content {
   overflow: visible;
+  transform: translate3d(0, 0, 1.5px);
   z-index: 7;
   backface-visibility: hidden;
 }
