@@ -127,19 +127,33 @@ export function ScrollStack({
       style={{ position: 'relative', height: totalHeight }}
     >
       {items.map((child, i) => (
+        // Each slot is absolutely positioned at its scroll offset inside
+        // the fixed-height container. This stops the slots from stacking
+        // vertically in normal flow (which previously made the natural
+        // height of the stack exceed `totalHeight` and caused the last
+        // card to bleed past the container into the next section).
         <div
           key={i}
           className="scroll-stack-slot"
           style={{
-            position: 'sticky',
-            top: stickyTop + i * cardGap,
+            position: 'absolute',
+            top: i * scrollPerCard,
+            left: 0,
+            right: 0,
             zIndex: i + 1,
           }}
         >
+          {/* The card itself is sticky relative to the page scroll,
+              with its containing block being the absolutely-positioned
+              slot. It sticks while its slot is in view and naturally
+              releases when the slot's bottom scrolls past, so the last
+              card cannot overflow into the following section. */}
           <div
             ref={(el) => { cardRefs.current[i] = el; }}
             className="scroll-stack-item-inner"
             style={{
+              position: 'sticky',
+              top: stickyTop + i * cardGap,
               transition: 'transform 0.08s linear, opacity 0.08s linear',
               willChange: 'transform',
             }}
