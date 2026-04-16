@@ -11,9 +11,10 @@ import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { usePlan } from '@/hooks/usePlan';
 import { UpgradeWall } from '@/components/plan/UpgradeWall';
 import { useResumeStore } from '@/store/resumeStore';
-import { JobActivityStatsCard } from '@/components/applications/JobActivityStats';
 import { ActivityTimeline } from '@/components/applications/ActivityTimeline';
 import { ActivityStreak } from '@/components/applications/ActivityStreak';
+import { ActivityAnalyticsDashboard } from '@/components/applications/ActivityAnalyticsDashboard';
+import { ActivityInsightsCard } from '@/components/applications/ActivityInsightsCard';
 
 import { AddApplicationSheet } from '@/components/applications/AddApplicationSheet';
 import { QuickAddSheet } from '@/components/applications/QuickAddSheet';
@@ -30,7 +31,7 @@ import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 
-import { format, isBefore, addDays } from 'date-fns';
+import { format, isBefore, addDays, differenceInDays } from 'date-fns';
 import { scoreJobMatch, scoreJobMatchAI, getCachedAIScore, JobMatchResult } from '@/lib/jobMatchScorer';
 
 type TabKey = 'applications' | 'jobs';
@@ -371,23 +372,16 @@ export default function ApplicationsPage() {
                 <KanbanBoard />
               ) : (
               <>
-              {/* Streak */}
+              {/* AI Insights */}
+              <ActivityInsightsCard applications={applications} stats={stats} />
+
+              {/* Analytics Dashboard */}
+              <ActivityAnalyticsDashboard />
+
+              {/* Streak + Weekly Goal */}
               <ActivityStreak />
 
-              {/* Stats - show above cards when meaningful */}
-              {(stats.applicationsSubmitted > 0 || stats.originals > 0) && <JobActivityStatsCard
-              stats={stats}
-              onOriginalsTap={() => {
-                setResumeListFilter('originals');
-                setResumeListOpen(true);
-              }}
-              onTailoredTap={() => {
-                setResumeListFilter('tailored');
-                setResumeListOpen(true);
-              }} />
-            }
-
-              {/* Recent Activity — primary content, always visible */}
+              {/* Recent Activity */}
               <div id="activity-timeline">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-1 h-4 rounded-full bg-primary" />
@@ -404,6 +398,9 @@ export default function ApplicationsPage() {
                 const isInterviewing = app.status === 'interviewing' || app.status === 'screening';
                 const remindDue = app.remind_at && isBefore(new Date(app.remind_at), addDays(new Date(), 1));
                 const deadlineSoon = app.deadline && !isInterviewing && isBefore(new Date(app.deadline), addDays(new Date(), 3)) && !isBefore(new Date(app.deadline), new Date());
+                const staleRef = app.updated_at || app.applied_at;
+                const daysStale = staleRef ? differenceInDays(new Date(), new Date(staleRef)) : 0;
+                const isStale = (app.status === 'applied' || app.status === 'screening') && daysStale >= 14;
                 return (
                   <div
                     key={app.id}
@@ -439,6 +436,11 @@ export default function ApplicationsPage() {
                             {remindDue &&
                         <Badge variant="secondary" className="text-[10px] mt-1 bg-warning/15 text-warning border-warning/30">
                                 Follow-up due
+                              </Badge>
+                        }
+                            {isStale &&
+                        <Badge variant="secondary" className="text-[10px] mt-1 bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20">
+                                Stale · {daysStale}d
                               </Badge>
                         }
                           </div>

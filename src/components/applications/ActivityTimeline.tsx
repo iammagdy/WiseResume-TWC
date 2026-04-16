@@ -2,12 +2,13 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { formatDistanceToNow } from 'date-fns';
-import { Scissors, Mail, CheckCircle2, ExternalLink, Clock, FileText, FilePlus2, Send } from 'lucide-react';
+import { formatDistanceToNow, isToday, isYesterday, isThisWeek } from 'date-fns';
+import { Scissors, Mail, CheckCircle2, ExternalLink, FileText, FilePlus2, Send, Search } from 'lucide-react';
 import { openExternal } from '@/lib/openExternal';
 import { Badge } from '@/components/ui/badge';
 import { haptics } from '@/lib/haptics';
 import { motion } from 'framer-motion';
+import { useState, useMemo } from 'react';
 
 interface TimelineEntry {
   id: string;
@@ -22,17 +23,50 @@ interface TimelineEntry {
   deadline?: string | null;
 }
 
+type FilterKey = 'all' | 'applied' | 'tailored' | 'cover_letter' | 'resume';
+
+const FILTER_CHIPS: { key: FilterKey; label: string }[] = [
+  { key: 'all',          label: 'All' },
+  { key: 'applied',      label: 'Applied' },
+  { key: 'tailored',     label: 'Tailored' },
+  { key: 'cover_letter', label: 'Cover Letter' },
+  { key: 'resume',       label: 'Resume' },
+];
+
+function entryMatchesFilter(entry: TimelineEntry, filter: FilterKey): boolean {
+  switch (filter) {
+    case 'all':          return true;
+    case 'applied':      return entry.type === 'application';
+    case 'tailored':     return entry.type === 'tailor' || entry.type === 'resume_tailored';
+    case 'cover_letter': return entry.type === 'cover_letter';
+    case 'resume':       return entry.type === 'resume_created';
+    default:             return true;
+  }
+}
+
+function getGroup(dateStr: string): string {
+  const d = new Date(dateStr);
+  if (isToday(d)) return 'Today';
+  if (isYesterday(d)) return 'Yesterday';
+  if (isThisWeek(d, { weekStartsOn: 1 })) return 'This week';
+  return 'Earlier';
+}
+
+const GROUP_ORDER = ['Today', 'Yesterday', 'This week', 'Earlier'];
+
 const typeConfig = {
-  resume_created: { icon: FilePlus2, label: 'Created', bg: 'bg-primary/10', fg: 'text-primary' },
-  resume_tailored: { icon: Scissors, label: 'Tailored', bg: 'bg-accent/15', fg: 'text-accent-foreground' },
-  tailor: { icon: Scissors, label: 'Tailored', bg: 'bg-primary/10', fg: 'text-primary' },
-  cover_letter: { icon: Mail, label: 'Cover letter', bg: 'bg-warning/10', fg: 'text-warning' },
-  application: { icon: CheckCircle2, label: 'Applied', bg: 'bg-success/10', fg: 'text-success' },
+  resume_created:  { icon: FilePlus2,    label: 'Created',      bg: 'bg-primary/10',  fg: 'text-primary' },
+  resume_tailored: { icon: Scissors,     label: 'Tailored',     bg: 'bg-accent/15',   fg: 'text-accent-foreground' },
+  tailor:          { icon: Scissors,     label: 'Tailored',     bg: 'bg-primary/10',  fg: 'text-primary' },
+  cover_letter:    { icon: Mail,         label: 'Cover letter', bg: 'bg-warning/10',  fg: 'text-warning' },
+  application:     { icon: CheckCircle2, label: 'Applied',      bg: 'bg-success/10',  fg: 'text-success' },
 };
 
 export function ActivityTimeline() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ['activity-timeline', user?.id],
@@ -88,6 +122,28 @@ export function ActivityTimeline() {
     enabled: !!user,
   });
 
+  const filtered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return entries.filter(e => {
+      if (!entryMatchesFilter(e, activeFilter)) return false;
+      if (q) {
+        const haystack = `${e.jobTitle} ${e.company || ''}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [entries, activeFilter, searchQuery]);
+
+  const grouped = useMemo(() => {
+    const map: Record<string, TimelineEntry[]> = {};
+    for (const entry of filtered) {
+      const g = getGroup(entry.date);
+      if (!map[g]) map[g] = [];
+      map[g].push(entry);
+    }
+    return GROUP_ORDER.filter(g => map[g]?.length).map(g => ({ group: g, items: map[g] }));
+  }, [filtered]);
+
   if (isLoading) {
     return (
       <div className="space-y-3 px-1">
@@ -129,77 +185,119 @@ export function ActivityTimeline() {
   }
 
   return (
-    <div className="space-y-2.5">
-      {entries.map((entry, i) => {
-        const config = typeConfig[entry.type];
-        const Icon = config.icon;
-        const isResume = entry.type === 'resume_created' || entry.type === 'resume_tailored';
+    <div className="space-y-3">
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Search by job title or company…"
+          className="w-full pl-9 pr-3 h-9 rounded-xl bg-muted/50 border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40"
+        />
+      </div>
 
-        return (
-          <motion.div
-            key={entry.id}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05, duration: 0.3 }}
-            className="bg-card border border-border rounded-2xl p-3.5 transition-transform active:scale-[0.98] min-h-[80px] cursor-pointer"
-            onClick={isResume && entry.resumeId ? () => navigate(`/resume/${entry.resumeId}`) : undefined}
+      {/* Filter chips */}
+      <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-0.5 -mx-0.5 px-0.5">
+        {FILTER_CHIPS.map(chip => (
+          <button
+            key={chip.key}
+            onClick={() => { haptics.selection(); setActiveFilter(chip.key); }}
+            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all touch-manipulation min-h-[32px] ${
+              activeFilter === chip.key
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted/60 text-muted-foreground hover:text-foreground'
+            }`}
           >
-            <div className="flex items-start gap-3">
-              <div className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center ${config.bg} ${config.fg}`}>
-                <Icon className="w-4 h-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="font-medium text-sm truncate">{entry.jobTitle}</p>
-                  {entry.type === 'application' && entry.status && (
-                    <Badge variant="secondary" className="text-[10px] capitalize shrink-0">
-                      {entry.status}
-                    </Badge>
-                  )}
-                  {entry.type === 'resume_tailored' && (
-                    <Badge variant="secondary" className="text-[10px] shrink-0">Tailored</Badge>
-                  )}
-                </div>
-                {entry.company && (
-                  <p className="text-xs text-muted-foreground truncate">{entry.company}</p>
-                )}
-                <div className="flex items-center gap-2 mt-1.5 text-[11px] text-muted-foreground">
-                  <span>{config.label}</span>
-                  <span>·</span>
-                  <span>{formatDistanceToNow(new Date(entry.date), { addSuffix: true })}</span>
-                  {entry.resumeName && !isResume && (
-                    <>
-                      <span>·</span>
-                      <span className="truncate max-w-[100px]">{entry.resumeName}</span>
-                    </>
-                  )}
-                </div>
-                {/* Apply action for tailored entries */}
-                {entry.type === 'resume_tailored' && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      haptics.light();
-                      navigate(`/applications?tab=applications&action=add&jobTitle=${encodeURIComponent(entry.jobTitle)}&company=${encodeURIComponent(entry.company || '')}`);
-                    }}
-                    className="flex items-center gap-1 text-[11px] text-success font-medium px-2 py-1 rounded-lg bg-success/10 hover:bg-success/15 transition-colors mt-1.5 w-fit touch-manipulation min-h-[44px]"
+            {chip.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Grouped entries */}
+      {grouped.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-8">No matching entries</p>
+      ) : (
+        grouped.map(({ group, items }) => (
+          <div key={group}>
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-2 sticky top-0 bg-background/80 backdrop-blur-sm py-1 -mx-1 px-1 z-10">
+              {group}
+            </p>
+            <div className="space-y-2">
+              {items.map((entry, i) => {
+                const config = typeConfig[entry.type];
+                const Icon = config.icon;
+                const isResume = entry.type === 'resume_created' || entry.type === 'resume_tailored';
+
+                return (
+                  <motion.div
+                    key={entry.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.04, duration: 0.25 }}
+                    className="bg-card border border-border rounded-2xl p-3.5 transition-transform active:scale-[0.98] min-h-[72px] cursor-pointer"
+                    onClick={isResume && entry.resumeId ? () => navigate(`/resume/${entry.resumeId}`) : undefined}
                   >
-                    <Send className="w-3 h-3" /> Mark as Applied
-                  </button>
-                )}
-              </div>
+                    <div className="flex items-start gap-3">
+                      <div className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center ${config.bg} ${config.fg}`}>
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm truncate">{entry.jobTitle}</p>
+                          {entry.type === 'application' && entry.status && (
+                            <Badge variant="secondary" className="text-[10px] capitalize shrink-0">
+                              {entry.status}
+                            </Badge>
+                          )}
+                          {entry.type === 'resume_tailored' && (
+                            <Badge variant="secondary" className="text-[10px] shrink-0">Tailored</Badge>
+                          )}
+                        </div>
+                        {entry.company && (
+                          <p className="text-xs text-muted-foreground truncate">{entry.company}</p>
+                        )}
+                        <div className="flex items-center gap-2 mt-1.5 text-[11px] text-muted-foreground">
+                          <span>{config.label}</span>
+                          <span>·</span>
+                          <span>{formatDistanceToNow(new Date(entry.date), { addSuffix: true })}</span>
+                          {entry.resumeName && !isResume && (
+                            <>
+                              <span>·</span>
+                              <span className="truncate max-w-[100px]">{entry.resumeName}</span>
+                            </>
+                          )}
+                        </div>
+                        {entry.type === 'resume_tailored' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              haptics.light();
+                              navigate(`/applications?tab=applications&action=add&jobTitle=${encodeURIComponent(entry.jobTitle)}&company=${encodeURIComponent(entry.company || '')}`);
+                            }}
+                            className="flex items-center gap-1 text-[11px] text-success font-medium px-2 py-1 rounded-lg bg-success/10 hover:bg-success/15 transition-colors mt-1.5 w-fit touch-manipulation min-h-[44px]"
+                          >
+                            <Send className="w-3 h-3" /> Mark as Applied
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {entry.url && (
+                      <button
+                        onClick={e => { e.stopPropagation(); openExternal(entry.url!); }}
+                        className="shrink-0 p-2 rounded-lg hover:bg-muted text-muted-foreground touch-manipulation"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </button>
+                    )}
+                  </motion.div>
+                );
+              })}
             </div>
-            {entry.url && (
-              <button
-                onClick={e => { e.stopPropagation(); openExternal(entry.url!); }}
-                className="shrink-0 p-2 rounded-lg hover:bg-muted text-muted-foreground touch-manipulation"
-              >
-                <ExternalLink className="w-4 h-4" />
-              </button>
-            )}
-          </motion.div>
-        );
-      })}
+          </div>
+        ))
+      )}
     </div>
   );
 }

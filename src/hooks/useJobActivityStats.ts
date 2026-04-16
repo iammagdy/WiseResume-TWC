@@ -1,6 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from './useAuth';
+import { startOfWeek, endOfWeek, subWeeks, format } from 'date-fns';
+
+export interface WeeklyTrendPoint {
+  week: string;
+  label: string;
+  count: number;
+}
 
 export interface JobActivityStats {
   originals: number;
@@ -10,6 +17,13 @@ export interface JobActivityStats {
   applicationsSubmitted: number;
   interviewsScheduled: number;
   offersReceived: number;
+  screeningCount: number;
+  appliedCount: number;
+  responseRate: number;
+  interviewRate: number;
+  offerRate: number;
+  weeklyTrend: WeeklyTrendPoint[];
+  thisWeekApplications: number;
   isLoading: boolean;
 }
 
@@ -23,7 +37,7 @@ export function useJobActivityStats(): JobActivityStats {
         supabase.from('resumes').select('parent_resume_id'),
         supabase.from('tailor_history').select('job_title, company'),
         supabase.from('cover_letters').select('id'),
-        supabase.from('job_applications').select('status'),
+        supabase.from('job_applications').select('status, applied_at'),
       ]);
 
       const resumes = resumesRes.data || [];
@@ -35,10 +49,41 @@ export function useJobActivityStats(): JobActivityStats {
         tailorEntries.map(t => `${t.job_title}||${t.company || ''}`)
       );
 
-      const apps = appsRes.data || [];
-      const applicationsSubmitted = apps.filter(a => a.status === 'applied' || a.status === 'screening').length;
-      const interviewsScheduled = apps.filter(a => a.status === 'interviewing').length;
-      const offersReceived = apps.filter(a => a.status === 'offer').length;
+      const appsData = appsRes.data || [];
+
+      const appliedCount = appsData.filter(a => a.status === 'applied').length;
+      const screeningCount = appsData.filter(a => a.status === 'screening').length;
+      const interviewsScheduled = appsData.filter(a => a.status === 'interviewing').length;
+      const offersReceived = appsData.filter(a => a.status === 'offer').length;
+      const applicationsSubmitted = appliedCount + screeningCount;
+
+      const nonSaved = appsData.filter(a => a.status !== 'saved').length;
+      const responseRate = nonSaved > 0
+        ? Math.round(((screeningCount + interviewsScheduled + offersReceived) / nonSaved) * 100)
+        : 0;
+      const interviewRate = nonSaved > 0
+        ? Math.round(((interviewsScheduled + offersReceived) / nonSaved) * 100)
+        : 0;
+      const offerRate = nonSaved > 0
+        ? Math.round((offersReceived / nonSaved) * 100)
+        : 0;
+
+      const now = new Date();
+      const weeklyTrend: WeeklyTrendPoint[] = Array.from({ length: 8 }, (_, i) => {
+        const weekStart = startOfWeek(subWeeks(now, 7 - i), { weekStartsOn: 1 });
+        const weekEnd = endOfWeek(subWeeks(now, 7 - i), { weekStartsOn: 1 });
+        const count = appsData.filter(a => {
+          if (!a.applied_at) return false;
+          const d = new Date(a.applied_at);
+          return d >= weekStart && d <= weekEnd;
+        }).length;
+        return { week: format(weekStart, 'yyyy-MM-dd'), label: format(weekStart, 'MMM d'), count };
+      });
+
+      const thisWeekStart = startOfWeek(now, { weekStartsOn: 1 });
+      const thisWeekApplications = appsData.filter(
+        a => a.applied_at && new Date(a.applied_at) >= thisWeekStart
+      ).length;
 
       return {
         originals,
@@ -48,6 +93,13 @@ export function useJobActivityStats(): JobActivityStats {
         applicationsSubmitted,
         interviewsScheduled,
         offersReceived,
+        screeningCount,
+        appliedCount,
+        responseRate,
+        interviewRate,
+        offerRate,
+        weeklyTrend,
+        thisWeekApplications,
       };
     },
     enabled: !!user,
@@ -61,6 +113,13 @@ export function useJobActivityStats(): JobActivityStats {
     applicationsSubmitted: data?.applicationsSubmitted ?? 0,
     interviewsScheduled: data?.interviewsScheduled ?? 0,
     offersReceived: data?.offersReceived ?? 0,
+    screeningCount: data?.screeningCount ?? 0,
+    appliedCount: data?.appliedCount ?? 0,
+    responseRate: data?.responseRate ?? 0,
+    interviewRate: data?.interviewRate ?? 0,
+    offerRate: data?.offerRate ?? 0,
+    weeklyTrend: data?.weeklyTrend ?? [],
+    thisWeekApplications: data?.thisWeekApplications ?? 0,
     isLoading,
   };
 }
