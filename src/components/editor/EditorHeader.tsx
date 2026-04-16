@@ -90,7 +90,7 @@ function ProgressChip({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
-          className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted active:scale-95 transition-all touch-manipulation min-h-[36px]"
+          className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted active:scale-95 transition-all touch-manipulation min-h-[44px]"
           aria-label="Resume completion progress"
         >
           {/* Mini pill bar */}
@@ -253,7 +253,7 @@ export function EditorHeader({
         <div className="flex items-center gap-1 sm:gap-2 min-w-0 flex-1">
           <button
             onClick={onBack}
-            className="p-2 -ml-2 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[40px] min-h-[40px] flex items-center justify-center"
+            className="p-2 -ml-2 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
             aria-label="Go back"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -391,7 +391,7 @@ export function EditorHeader({
         <div className="flex items-center gap-0.5 md:hidden">
           <button
             onClick={() => { haptics.light(); onTemplateBtnSeen(); onChangeTemplate(); }}
-            className="relative rounded-full min-w-[40px] min-h-[40px] flex items-center justify-center active:scale-95 bg-muted hover:bg-muted/80 touch-manipulation"
+            className="relative rounded-full min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95 bg-muted hover:bg-muted/80 touch-manipulation"
             aria-label="Change template"
           >
             {!templateBtnSeen && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary animate-[ping_1.5s_ease-out_3]" />}
@@ -401,14 +401,14 @@ export function EditorHeader({
           <button
             onClick={() => { haptics.light(); onDownload(); }}
             disabled={isQuickDownloading}
-            className="rounded-full min-w-[40px] min-h-[40px] flex items-center justify-center active:scale-95 bg-muted hover:bg-muted/80 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rounded-full min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95 bg-muted hover:bg-muted/80 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Download resume as PDF"
           >
             {isQuickDownloading ? <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /> : <Download className="w-5 h-5 text-muted-foreground" />}
           </button>
           <button
             onClick={() => { haptics.light(); onOpenChat(); }}
-            className="rounded-full min-w-[40px] min-h-[40px] flex items-center justify-center active:scale-95 bg-primary/10 hover:bg-primary/15 touch-manipulation"
+            className="rounded-full min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95 bg-primary/10 hover:bg-primary/15 touch-manipulation"
             aria-label="Open Wise AI Chat"
           >
             <span className="relative">
