@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState, startTransition } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { FeatureSection } from '@/components/landing/FeatureSection';
@@ -11,99 +10,9 @@ import {
   lpContainerVariants, lpItemVariants,
 } from '@/components/landing/landingAnimations';
 import {
-  features, featureSections, FEATURE_IDS, FEATURE_NAV_LABELS,
+  features, featureSections,
 } from '@/components/landing/wiseResumeFeatureData';
-
-function FeatureNumberedNav({ sectionIds, labels }: { sectionIds: string[]; labels: string[] }) {
-  const [activeIdx, setActiveIdx] = useState(-1);
-  const [scrollStart, setScrollStart] = useState(true);
-  const [scrollEnd, setScrollEnd] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const prefersReducedMotion =
-    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  useEffect(() => {
-    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-    const observers: IntersectionObserver[] = [];
-    sectionIds.forEach((id, idx) => {
-      const el = document.getElementById(`feature-${id}`);
-      if (!el) return;
-      const obs = new IntersectionObserver(
-        ([entry]) => {
-          if (entry.isIntersecting) {
-            if (debounceTimer !== null) clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => {
-              startTransition(() => setActiveIdx(idx));
-              debounceTimer = null;
-            }, 80);
-          }
-        },
-        { threshold: 0.4 }
-      );
-      obs.observe(el);
-      observers.push(obs);
-    });
-    return () => {
-      if (debounceTimer !== null) clearTimeout(debounceTimer);
-      observers.forEach((o) => o.disconnect());
-    };
-  }, [sectionIds]);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const update = () => {
-      setScrollStart(el.scrollLeft <= 4);
-      setScrollEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 4);
-    };
-    update();
-    el.addEventListener('scroll', update, { passive: true });
-    window.addEventListener('resize', update, { passive: true });
-    return () => {
-      el.removeEventListener('scroll', update);
-      window.removeEventListener('resize', update);
-    };
-  }, []);
-
-  const scrollTo = (id: string) => {
-    const el = document.getElementById(`feature-${id}`);
-    if (el) el.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
-  };
-
-  return (
-    <div
-      className="lp-feature-nav-wrapper"
-      data-scroll-start={scrollStart ? 'true' : 'false'}
-      data-scroll-end={scrollEnd ? 'true' : 'false'}
-      data-scroll-mid={!scrollStart ? 'true' : 'false'}
-      style={{
-        position: 'sticky', top: 92, zIndex: 40,
-        background: 'var(--lp-nav-bg)', backdropFilter: 'blur(14px)',
-        borderBottom: '1px solid var(--lp-nav-border)', transition: 'background 0.3s ease',
-      }}
-    >
-      <div ref={scrollRef} className="w-full overflow-x-auto py-4 px-4 sm:px-6">
-        <div className="flex items-center justify-center gap-1 sm:gap-2 min-w-max mx-auto">
-          {sectionIds.map((id, idx) => (
-            <button
-              key={id}
-              onClick={() => scrollTo(id)}
-              className="transition-all duration-200 text-xs sm:text-sm font-medium px-3 sm:px-4 rounded-full whitespace-nowrap"
-              style={{
-                minHeight: 44, minWidth: 44,
-                background: activeIdx === idx ? 'var(--lp-brand-pill-bg)' : 'transparent',
-                color: activeIdx === idx ? 'var(--lp-brand)' : 'var(--lp-text-subtle)',
-                border: activeIdx === idx ? '1px solid var(--lp-brand-pill-border)' : '1px solid transparent',
-              }}
-            >
-              {labels[idx]}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
+import { ScrollStack, ScrollStackItem } from '@/components/landing/ScrollStack';
 
 interface WiseResumeContentProps {
   prefersReducedMotion: boolean | null;
@@ -116,10 +25,9 @@ export function WiseResumeContent({ prefersReducedMotion, isDark, onCTA }: WiseR
 
   return (
     <>
-      {/* ─── SECTION 1: FEATURE NAV + HEADING + FEATURE BAND SECTIONS ─── */}
+      {/* ─── SECTION 1: HEADING + SCROLLSTACK FEATURE SECTIONS ─── */}
       <motion.div variants={sectionItem} custom={1}>
         <div className="lp-separator" aria-hidden="true" />
-        <FeatureNumberedNav sectionIds={FEATURE_IDS} labels={FEATURE_NAV_LABELS} />
         <motion.div
           className="text-center px-4 sm:px-6 py-16 max-w-4xl mx-auto"
           variants={lpItemVariants}
@@ -140,9 +48,13 @@ export function WiseResumeContent({ prefersReducedMotion, isDark, onCTA }: WiseR
           </h2>
         </motion.div>
         <SoftDivider />
-        {featureSections.map((section) => (
-          <FeatureSection key={section.id} data={section} />
-        ))}
+        <ScrollStack useWindowScroll stickyTop={80} scrollPerCard={480} cardGap={18} scaleStep={0.025}>
+          {featureSections.map((section) => (
+            <ScrollStackItem key={section.id}>
+              <FeatureSection data={section} />
+            </ScrollStackItem>
+          ))}
+        </ScrollStack>
         <SoftDivider />
       </motion.div>
 
