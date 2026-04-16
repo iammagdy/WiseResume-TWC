@@ -129,7 +129,19 @@ export function ActivityInsightsCard({ stats }: Props) {
     return result.slice(0, 3);
   }, [applications, stats, streak, weeklyGoal]);
 
-  if (nudges.length === 0 || stats.isLoading) return null;
+  if (stats.isLoading) {
+    return (
+      <div className="bg-card border border-border shadow-soft rounded-2xl p-4 space-y-2 animate-pulse">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-7 h-7 rounded-lg bg-muted" />
+          <div className="h-4 w-24 rounded bg-muted" />
+        </div>
+        <div className="h-12 rounded-xl bg-muted" />
+      </div>
+    );
+  }
+
+  if (nudges.length === 0) return null;
 
   return (
     <motion.div
