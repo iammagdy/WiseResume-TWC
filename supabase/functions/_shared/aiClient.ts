@@ -1149,12 +1149,22 @@ export async function callWiseresumeAI(
   const groqKey = Deno.env.get('GROQ_API_KEY');
 
   /**
-   * Per-model timeout: 8 s each — independent of the outer signal.
-   * Kept short so that a slow/overloaded model advances quickly to the next one.
-   * With at most 3 models per provider (6 total in auto mode) this keeps the
-   * worst-case total well under Supabase's 60 s edge function timeout.
+   * Per-model timeout: 25 s each — independent of the outer signal.
+   * Free OpenRouter models (Gemma/Qwen/Llama-3.x) routinely take 10-30s on
+   * cold starts, queueing, or normal-length replies. The previous 8s cap was
+   * killing in-flight requests that would have otherwise succeeded, marching
+   * the chain through every model and ending in a misleading 503
+   * provider_busy. 25s gives each model a real chance to respond.
    */
-  const PER_MODEL_TIMEOUT_MS = 8_000;
+  const PER_MODEL_TIMEOUT_MS = 25_000;
+  /**
+   * Overall budget for the entire WiseResume managed chain.
+   * Caps total wall-time at ~50s so we still finish inside Supabase's 60s
+   * edge function limit even if every attempt runs to its timeout.
+   * Tracked via OVERALL_DEADLINE below.
+   */
+  const OVERALL_BUDGET_MS = 50_000;
+  const OVERALL_DEADLINE = Date.now() + OVERALL_BUDGET_MS;
 
   /**
    * Try a single OpenRouter model by slug.
@@ -1223,9 +1233,11 @@ export async function callWiseresumeAI(
   };
 
   // Build the two chains based on subProvider setting.
-  // Cap each list to 3 to keep worst-case duration under Supabase's 60 s limit:
-  //   (3 OpenRouter × 8 s) + (3 Groq × 8 s) + ~5 s discovery = ~53 s max.
-  const MAX_MODELS_PER_PROVIDER = 3;
+  // Cap each list to 2: with PER_MODEL_TIMEOUT_MS=25s the worst case is
+  //   (2 OpenRouter × 25s) + (2 Groq × 25s) = 100s — still bounded by
+  // OVERALL_DEADLINE (50s) in the loop below, but a smaller chain means
+  // that on common failures we exit cleanly with at least one Groq attempt.
+  const MAX_MODELS_PER_PROVIDER = 2;
   const openrouterModels = (subProvider === 'openrouter' || subProvider === 'auto') && openrouterKey
     ? (await getOpenRouterFreeModels(openrouterKey)).slice(0, MAX_MODELS_PER_PROVIDER)
     : [];
@@ -1264,6 +1276,9 @@ export async function callWiseresumeAI(
 
   let lastError: unknown;
   const totalAttempts = attempts.length;
+  // Per-attempt outcome trail surfaced via the final error for debugging
+  // and so the client can show "Tried OpenRouter (timeout) + Groq (429)".
+  const attemptLog: Array<{ provider: string; model: string; outcome: string; ms: number }> = [];
 
   for (let i = 0; i < totalAttempts; i++) {
     // If the outer signal was already aborted (e.g. user navigated away) stop now.
@@ -1271,7 +1286,17 @@ export async function callWiseresumeAI(
       throw createAIError('unknown', 'Request cancelled by caller.', 499);
     }
 
+    // Enforce overall budget: don't start a new attempt unless there's
+    // enough time left for it to actually finish within its per-model window.
+    const remaining = OVERALL_DEADLINE - Date.now();
+    if (remaining < PER_MODEL_TIMEOUT_MS) {
+      console.warn(`[AI] WiseResume overall deadline reached (${remaining}ms left). Stopping after ${i} attempts.`);
+      attemptLog.push({ provider: '-', model: '-', outcome: `deadline (${remaining}ms left)`, ms: 0 });
+      break;
+    }
+
     const { provider, model } = attempts[i];
+    const attemptStart = Date.now();
     console.log(`[AI] WiseResume attempt ${i + 1}/${totalAttempts}: ${provider} → ${model}`);
     try {
       const result = provider === 'openrouter'
@@ -1280,8 +1305,16 @@ export async function callWiseresumeAI(
       console.log(`[AI] WiseResume success: ${provider} → ${model}`);
       return result;
     } catch (err) {
+      const elapsed = Date.now() - attemptStart;
       lastError = err;
       const reason = err instanceof Error ? err.message : String(err);
+
+      // Classify outcome for telemetry
+      let outcome = 'error';
+      if (err instanceof DOMException && err.name === 'AbortError') outcome = 'timeout';
+      else if (isAIError(err)) outcome = `${err.type}${err.status ? ' ' + err.status : ''}`;
+      else if (err instanceof Error) outcome = err.message.slice(0, 80);
+      attemptLog.push({ provider, model, outcome, ms: elapsed });
 
       // If the outer signal was aborted (user-level cancel), propagate immediately.
       if (outerSignal?.aborted) {
@@ -1290,7 +1323,7 @@ export async function callWiseresumeAI(
       }
 
       // Per-model timeout (AbortError from per-model controller) is skippable —
-      // the next model gets its own fresh 8 s window (PER_MODEL_TIMEOUT_MS).
+      // the next model gets its own fresh PER_MODEL_TIMEOUT_MS window.
       const isPerModelTimeout = err instanceof DOMException && err.name === 'AbortError';
 
       // Determine whether a next attempt exists on a *different* provider
@@ -1308,8 +1341,25 @@ export async function callWiseresumeAI(
     }
   }
 
-  console.error('[AI] WiseResume: all models exhausted. Last error:', lastError instanceof Error ? lastError.message : lastError);
-  throw createAIError('provider_busy', 'AI is temporarily busy — please try again in a moment.', 503);
+  // Build a compact, human-readable summary of what was tried so the client
+  // can render a useful error card instead of a generic "AI temporarily busy".
+  const summary = attemptLog
+    .map(a => `${a.provider}/${a.model}=${a.outcome}(${a.ms}ms)`)
+    .join('; ');
+  console.error(`[AI] WiseResume: all models exhausted. Attempts: ${summary}. Last error:`, lastError instanceof Error ? lastError.message : lastError);
+  // Keep the user-facing message short and friendly. Detailed attempt
+  // telemetry rides on the error's `attempts` field below so the client
+  // can render it in a debug detail row, while everyday users still see
+  // a clean message in the chat error card.
+  const busyError = createAIError(
+    'provider_busy',
+    'AI is temporarily busy — please try again in a moment.',
+    503,
+  );
+  // Attach structured attempt telemetry to the error for callers that want
+  // to forward it in their JSON response (chat error card, etc.).
+  (busyError as Error & { attempts?: typeof attemptLog }).attempts = attemptLog;
+  throw busyError;
 }
 
 /**

@@ -587,8 +587,12 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     log.error("Unhandled error", error);
     const { status, error: code, message } = toUserError(error);
+    // Forward attempt telemetry from callWiseresumeAI when present so the
+    // chat error card can show "Tried OpenRouter (timeout) + Groq (429)"
+    // instead of a generic "AI temporarily unavailable".
+    const attempts = (error as { attempts?: unknown })?.attempts;
     return new Response(
-      JSON.stringify({ error: code, message }),
+      JSON.stringify({ error: code, message, ...(attempts ? { attempts } : {}) }),
       { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

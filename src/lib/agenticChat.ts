@@ -93,9 +93,41 @@ export function classifyAndThrow(error: unknown, data: unknown): never {
     throw new ChatError('model_error', message || rawMsg || 'The selected AI model isn\'t available. Pick a different model in AI Settings.', { status: status ?? 400 });
   }
 
-  // 5. Service unavailable
+  // 5. Service unavailable — when the edge function exhausts every model
+  // it now forwards an `attempts` array describing what was tried. We
+  // surface a compact summary in the user-facing message so the chat
+  // card explains "Tried OpenRouter (timeout) + Groq (timeout)" instead
+  // of just saying the AI is unavailable.
   if (errCode === 'service_unavailable' || errCode === 'provider_busy' || status === 503) {
-    throw new ChatError('service_unavailable', message || 'AI service is temporarily unavailable.', { status: 503 });
+    const attempts = Array.isArray(dataObj.attempts) ? dataObj.attempts as Array<{
+      provider?: string;
+      model?: string;
+      outcome?: string;
+      ms?: number;
+    }> : [];
+    let detail = '';
+    if (attempts.length > 0) {
+      // Group by provider for a short summary like "OpenRouter (timeout × 2), Groq (timeout × 2)"
+      const byProvider = new Map<string, string[]>();
+      for (const a of attempts) {
+        const p = a.provider || 'unknown';
+        const o = a.outcome || 'error';
+        if (!byProvider.has(p)) byProvider.set(p, []);
+        byProvider.get(p)!.push(o);
+      }
+      const parts: string[] = [];
+      for (const [p, outcomes] of byProvider) {
+        const counts = new Map<string, number>();
+        for (const o of outcomes) counts.set(o, (counts.get(o) ?? 0) + 1);
+        const pretty = [...counts.entries()]
+          .map(([o, n]) => n > 1 ? `${o} × ${n}` : o)
+          .join(', ');
+        const label = p === 'openrouter' ? 'OpenRouter' : p === 'groq' ? 'Groq' : p;
+        parts.push(`${label} (${pretty})`);
+      }
+      if (parts.length > 0) detail = ` Tried ${parts.join(' + ')}.`;
+    }
+    throw new ChatError('service_unavailable', (message || 'AI service is temporarily unavailable.') + detail, { status: 503 });
   }
 
   // 6. Timeout

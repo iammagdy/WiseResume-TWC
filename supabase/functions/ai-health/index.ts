@@ -29,9 +29,19 @@ serve(async (req) => {
       );
     }
 
-    const { allowed } = await checkRateLimit(userId, { actionType: 'health_check', maxRequests: 20, windowSeconds: 60 });
+    // Health check budget needs to be generous: the badge auto-pings on
+    // mount, every 90s, and on window focus across ALL open tabs. With a
+    // 20/min cap a user with a couple tabs and a few reloads burns it in
+    // under a minute, then we'd label upstream as "Rate limited" even
+    // though it's our own self-throttle. 120/min comfortably covers
+    // realistic multi-tab usage. The `error: 'health_throttled'` field
+    // lets the client distinguish this from a real upstream 429.
+    const { allowed } = await checkRateLimit(userId, { actionType: 'health_check', maxRequests: 120, windowSeconds: 60 });
     if (!allowed) {
-      return new Response(JSON.stringify({ error: "Rate limit exceeded" }), { status: 429, headers: corsHeaders });
+      return new Response(
+        JSON.stringify({ error: 'health_throttled', message: 'Health check throttled — too many recent pings.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // PROVIDER PARITY WITH agentic-chat:

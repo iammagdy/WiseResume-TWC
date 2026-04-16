@@ -3,7 +3,6 @@ import { getSupabaseToken } from '@/lib/supabaseAuth';
 
 import { ResumeData } from '@/types/resume';
 import { toast } from 'sonner';
-import { useAIHealthStore } from '@/store/aiHealthStore';
 import { useATSScoreHistoryStore } from '@/store/atsScoreHistoryStore';
 
 export interface WeakBullet {
@@ -105,13 +104,18 @@ export async function backgroundScore(resumeId: string, resume: ResumeData, upda
   const key = cacheKey(resumeId, updatedAt);
   if (scoreCache.has(key)) return;
   try {
-    const { data, latencyMs } = await invokeScoreResume(resume, true);
-    useAIHealthStore.getState().recordSuccess(latencyMs);
+    const { data } = await invokeScoreResume(resume, true);
+    // NOTE: deliberately do NOT recordSuccess on the AI health store —
+    // score-resume is deterministic and unrelated to AI provider health.
     const score: ResumeHealthScore = { ...data, scoredAt: new Date().toISOString() };
     scoreCache.set(key, score);
     useATSScoreHistoryStore.getState().addScore(resumeId, score);
   } catch (err: unknown) {
-    console.warn('[backgroundScore] silenced:', err instanceof Error ? err.message : err);
+    // score-resume is fully deterministic (no callAI). Failures here must
+    // NOT poison the AI health badge — they're scoring issues, not AI
+    // outages. We surface a console warning so background failures remain
+    // observable without misleading the user about AI availability.
+    console.warn('[backgroundScore] silenced (deterministic scoring):', err instanceof Error ? err.message : err);
   }
 }
 
@@ -154,7 +158,9 @@ export function useResumeScore() {
         result = await invokeScoreResume(resume);
       }
 
-      useAIHealthStore.getState().recordSuccess(result.latencyMs);
+      // NOTE: do NOT recordSuccess on AI health — score-resume is
+      // deterministic, not an AI call. Linking it artificially marked
+      // the badge healthy/unhealthy based on scoring outcomes.
 
       const score: ResumeHealthScore = {
         ...result.data,
@@ -169,7 +175,8 @@ export function useResumeScore() {
         console.warn('[ScoreResume] Skipped: bridge token not available');
         return null;
       }
-      useAIHealthStore.getState().recordFailure(err.isRateLimit ? 429 : err.isAuth ? 401 : 0);
+      // NOTE: do NOT recordFailure on AI health for the same reason —
+      // a deterministic scoring outage shouldn't make the AI badge red.
       console.error('[ScoreResume] Final failure:', err);
 
       if (err.isAuth) {

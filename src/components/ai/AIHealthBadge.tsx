@@ -14,6 +14,11 @@ interface PingResult {
   latencyMs: number | null;
   status: AIHealthStatus;
   errorCode: number | null;
+  // True when the 429 came from our OWN ai-health endpoint throttling
+  // the badge (too many pings from this user across tabs), as opposed
+  // to a real upstream provider 429. Used to render an honest label
+  // instead of a misleading "Rate limited" pill.
+  selfThrottled?: boolean;
 }
 
 const STATUS_CONFIG: Record<AIHealthStatus, {
@@ -59,9 +64,12 @@ function formatLatency(ms: number | null): string {
   return `${ms} ms`;
 }
 
-function errorLabel(code: number | null): string {
+function errorLabel(code: number | null, selfThrottled?: boolean): string {
   if (code === null) return '';
-  if (code === 429) return 'Rate limited';
+  // Distinguish a self-throttled health endpoint (badge pinging too often
+  // across tabs/reloads) from a real upstream provider 429 so the user
+  // doesn't see "Rate limited" when the AI itself is fine.
+  if (code === 429) return selfThrottled ? 'Health check throttled' : 'Rate limited';
   if (code === 402) return 'Credits exhausted';
   if (code === 408) return 'Request timed out';
   return `Error ${code}`;
@@ -101,8 +109,30 @@ export function AIHealthBadge() {
 
       if (!res.ok) {
         const code = res.status;
-        recordFailure(code);
-        setPingResult({ latencyMs: null, status: 'down', errorCode: code });
+        // Try to read body — a 429 from ai-health itself returns
+        // `{ error: 'health_throttled' }` which is NOT an upstream issue.
+        // We label and tally these differently so the badge stops shouting
+        // "Rate limited" when the AI is actually fine.
+        let selfThrottled = false;
+        try {
+          const body = await res.json();
+          if (code === 429 && body?.error === 'health_throttled') {
+            selfThrottled = true;
+          }
+        } catch {
+          // body wasn't JSON — leave selfThrottled false
+        }
+        if (!selfThrottled) {
+          recordFailure(code);
+        }
+        // For self-throttle, keep status as the previous known state
+        // (don't slam to 'down') — we just couldn't probe right now.
+        setPingResult({
+          latencyMs: null,
+          status: selfThrottled ? (storeStatus ?? 'healthy') : 'down',
+          errorCode: code,
+          selfThrottled,
+        });
         setPingResultAt(Date.now());
         setPingState('done');
         return;
@@ -130,7 +160,7 @@ export function AIHealthBadge() {
       setPingResultAt(Date.now());
       setPingState('done');
     }
-  }, [recordSuccess, recordFailure, recordProvider]);
+  }, [recordSuccess, recordFailure, recordProvider, storeStatus]);
 
   const handleOpenChange = useCallback((open: boolean) => {
     if (open && pingState !== 'pinging') {
@@ -261,7 +291,7 @@ export function AIHealthBadge() {
 
           {/* Error label if any */}
           {pingState === 'done' && displayError && (
-            <p className="text-[11px] text-red-400/80">{errorLabel(displayError)}</p>
+            <p className="text-[11px] text-red-400/80">{errorLabel(displayError, pingResult?.selfThrottled)}</p>
           )}
         </div>
 
