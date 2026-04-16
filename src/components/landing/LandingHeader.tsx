@@ -92,10 +92,16 @@ export function LandingHeader({
 
         {/* Right: nav links + CTA */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 sm:justify-self-end">
-          {/* Nav menu (hamburger is the sole entry point for Pricing / What's New) */}
+          {/* Nav menu (Pricing / What's New).
+              On mobile, when the user is authenticated, hide this standalone
+              hamburger — its items are merged into the avatar dropdown below
+              to avoid crowding the header (hamburger + theme + avatar). */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="lp-theme-toggle" aria-label="Navigation menu">
+              <button
+                className={`lp-theme-toggle ${isAuthenticated ? 'hidden sm:inline-flex' : ''}`}
+                aria-label="Navigation menu"
+              >
                 <Menu className="w-4 h-4" />
               </button>
             </DropdownMenuTrigger>
@@ -155,7 +161,32 @@ export function LandingHeader({
                   </Avatar>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuContent align="end" className="w-48">
+                {/* Mobile-only: Pricing / What's New are merged into this menu
+                    when authenticated so we can drop the standalone hamburger. */}
+                <div className="sm:hidden">
+                  {mode === 'wisehire' ? (
+                    <DropdownMenuItem
+                      onClick={() => {
+                        triggerHaptic.light();
+                        const el = document.getElementById('wisehire-pricing');
+                        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }}
+                    >
+                      <Tag className="w-4 h-4 mr-2" /> Pricing
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate('/pricing'); }}>
+                      <Tag className="w-4 h-4 mr-2" /> Pricing
+                    </DropdownMenuItem>
+                  )}
+                  {mode === 'jobseeker' && (
+                    <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate('/whats-new'); }}>
+                      <Zap className="w-4 h-4 mr-2" /> What's New
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                </div>
                 <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate('/dashboard'); }}>
                   <LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard
                 </DropdownMenuItem>
