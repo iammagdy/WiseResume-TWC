@@ -4,25 +4,29 @@ import { ArrowRight, CheckCircle2, ChevronDown, Users } from 'lucide-react';
 import { AppIcon } from '@/components/brand/AppIcon';
 
 function useCountUp(target: number, prefersReduced: boolean | null, duration = 1400) {
-  const [value, setValue] = useState(prefersReduced ? target : 0);
-  const ref = useRef<HTMLSpanElement>(null);
-  const inView = useInView(ref, { once: true, amount: 0.5 });
+  const containerRef = useRef<HTMLSpanElement>(null);
+  const countRef = useRef<HTMLSpanElement>(null);
+  const inView = useInView(containerRef, { once: true, amount: 0.5 });
 
   useEffect(() => {
-    if (!inView) return;
-    if (prefersReduced) { setValue(target); return; }
+    const el = countRef.current;
+    if (!inView || !el) return;
+    if (prefersReduced) { el.textContent = String(target); return; }
+    el.textContent = '0';
     const start = performance.now();
-    const raf = (now: number) => {
+    let rafId: number;
+    const tick = (now: number) => {
       const elapsed = now - start;
       const progress = Math.min(elapsed / duration, 1);
       const ease = 1 - Math.pow(1 - progress, 3);
-      setValue(Math.round(ease * target));
-      if (progress < 1) requestAnimationFrame(raf);
+      el.textContent = String(Math.round(ease * target));
+      if (progress < 1) rafId = requestAnimationFrame(tick);
     };
-    requestAnimationFrame(raf);
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
   }, [inView, target, duration, prefersReduced]);
 
-  return { value, ref };
+  return { containerRef, countRef };
 }
 
 const WH_TYPEWRITER_WORDS = [
@@ -171,10 +175,11 @@ export function WiseHireHero({ onOpenWaitlist, mobileToggle }: WiseHireHeroProps
           color: 'var(--lp-text-muted)',
           letterSpacing: '-0.01em',
           transition: 'color 0.35s ease',
+          minHeight: '2em',
         }}
       >
         Built for the{' '}
-        <span className="wh-gradient-text" style={{ display: 'inline-block', minWidth: '2ch', fontWeight: 700 }}>
+        <span className="wh-gradient-text" style={{ display: 'inline-block', minWidth: '14ch', fontWeight: 700 }}>
           {typewriterWord || '\u00A0'}
           {!prefersReducedMotion && <span className="wh-cursor" aria-hidden="true" />}
         </span>
@@ -232,9 +237,9 @@ export function WiseHireHero({ onOpenWaitlist, mobileToggle }: WiseHireHeroProps
         viewport={{ once: false, amount: 0.5 }}
         transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay: 0.15 }}
       >
-        <span ref={waitlistCount.ref} className="flex items-center gap-1.5" style={{ color: 'var(--lp-trust-color)', transition: 'color 0.3s ease' }}>
+        <span ref={waitlistCount.containerRef} className="flex items-center gap-1.5" style={{ color: 'var(--lp-trust-color)', transition: 'color 0.3s ease' }}>
           <Users className="w-3.5 h-3.5" style={{ color: 'var(--lp-trust-icon)', transition: 'color 0.3s ease' }} />
-          {waitlistCount.value}+ on the waitlist
+          <span ref={waitlistCount.countRef}>0</span>+ on the waitlist
         </span>
         {['Invite-only access', '7-day free trial', 'No credit card'].map((item) => (
           <span key={item} className="flex items-center gap-1.5" style={{ color: 'var(--lp-trust-color)', transition: 'color 0.3s ease' }}>

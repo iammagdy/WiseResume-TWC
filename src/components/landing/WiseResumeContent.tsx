@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, startTransition } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { FeatureSection } from '@/components/landing/FeatureSection';
@@ -28,7 +28,11 @@ function FeatureNumberedNav({ sectionIds, labels }: { sectionIds: string[]; labe
       const el = document.getElementById(`feature-${id}`);
       if (!el) return;
       const obs = new IntersectionObserver(
-        ([entry]) => { if (entry.isIntersecting) setActiveIdx(idx); },
+        ([entry]) => {
+          if (entry.isIntersecting) {
+            startTransition(() => setActiveIdx(idx));
+          }
+        },
         { threshold: 0.4 }
       );
       obs.observe(el);

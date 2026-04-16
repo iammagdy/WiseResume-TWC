@@ -148,8 +148,8 @@ export function WiseResumeHero({
             <span className="sm:whitespace-nowrap" style={{ display: 'block' }}>
               Stand out as a
             </span>
-            <span className="sm:whitespace-nowrap" style={{ display: 'block', overflow: 'visible' }}>
-              <span className="lp-gradient-text" style={{ display: 'inline-block', minWidth: '12ch' }}>
+            <span className="sm:whitespace-nowrap" style={{ display: 'block', overflow: 'visible', minHeight: '1.15em' }}>
+              <span className="lp-gradient-text" style={{ display: 'inline-block', minWidth: '16ch' }}>
                 {typewriterWord || '\u00A0'}
                 <span className="lp-cursor" aria-hidden="true" />
               </span>

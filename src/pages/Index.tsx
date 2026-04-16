@@ -113,11 +113,16 @@ const Index = () => {
   useEffect(() => {
     let rafId: number | null = null;
     let lastY = 0;
+    let lastScrolled = false;
     const onScroll = () => {
       lastY = window.scrollY;
-      setScrolled(lastY > 80);
       if (rafId !== null) return;
       rafId = requestAnimationFrame(() => {
+        const nowScrolled = lastY > 80;
+        if (nowScrolled !== lastScrolled) {
+          lastScrolled = nowScrolled;
+          setScrolled(nowScrolled);
+        }
         if (progressRef.current) {
           const max = document.documentElement.scrollHeight - window.innerHeight;
           const pct = max > 0 ? lastY / max * 100 : 0;
