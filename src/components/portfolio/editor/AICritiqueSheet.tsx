@@ -17,6 +17,7 @@ interface AICritiqueSheetProps {
   loading: boolean;
   onRunCritique: () => void;
   hasRun: boolean;
+  error?: boolean;
 }
 
 const PRIORITY_CONFIG = {
@@ -78,7 +79,7 @@ function CritiqueCard({ item }: { item: CritiqueItem }) {
   );
 }
 
-export function AICritiqueSheet({ open, onOpenChange, items, loading, onRunCritique, hasRun }: AICritiqueSheetProps) {
+export function AICritiqueSheet({ open, onOpenChange, items, loading, onRunCritique, hasRun, error }: AICritiqueSheetProps) {
   const highCount = items.filter(i => i.priority === 'high').length;
   const medCount = items.filter(i => i.priority === 'medium').length;
 
@@ -126,7 +127,20 @@ export function AICritiqueSheet({ open, onOpenChange, items, loading, onRunCriti
             </div>
           )}
 
-          {hasRun && !loading && items.length === 0 && (
+          {hasRun && !loading && error && (
+            <div className="flex flex-col items-center justify-center py-10 text-center space-y-3">
+              <AlertCircle className="w-8 h-8 text-destructive" />
+              <div>
+                <p className="text-sm text-foreground font-medium">Critique failed</p>
+                <p className="text-xs text-muted-foreground mt-1">Something went wrong. Check your AI key is configured, then try again.</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={onRunCritique}>
+                Try Again
+              </Button>
+            </div>
+          )}
+
+          {hasRun && !loading && !error && items.length === 0 && (
             <div className="flex flex-col items-center justify-center py-10 text-center space-y-3">
               <p className="text-sm text-foreground font-medium">No issues found!</p>
               <p className="text-xs text-muted-foreground">Your portfolio looks solid. Run again after major updates.</p>

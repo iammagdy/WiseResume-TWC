@@ -120,6 +120,7 @@ export default function PortfolioEditorPage() {
   const [generatingCritique, setGeneratingCritique] = useState(false);
   const [critiqueItems, setCritiqueItems] = useState<CritiqueItem[]>([]);
   const [critiqueHasRun, setCritiqueHasRun] = useState(false);
+  const [critiqueError, setCritiqueError] = useState(false);
 
   // ── Unsaved changes tracking ──
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState<string>('');
@@ -427,6 +428,7 @@ export default function PortfolioEditorPage() {
   const handleGetCritique = async () => {
     setGeneratingCritique(true);
     setShowCritique(true);
+    setCritiqueError(false);
     haptics.light();
     try {
       const { suggestions } = await callPortfolioAI('critique', undefined, {
@@ -442,6 +444,7 @@ export default function PortfolioEditorPage() {
     } catch {
       toast.error('Failed to run critique. Please try again.');
       setCritiqueHasRun(true);
+      setCritiqueError(true);
     } finally {
       setGeneratingCritique(false);
     }
@@ -950,6 +953,7 @@ export default function PortfolioEditorPage() {
         loading={generatingCritique}
         onRunCritique={handleGetCritique}
         hasRun={critiqueHasRun}
+        error={critiqueError}
       />
       
       <UnsavedChangesDialog

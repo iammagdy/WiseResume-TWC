@@ -271,17 +271,30 @@ Return ONLY the translated JSON object:`;
       const skillList = Array.isArray(skills) ? skills.slice(0, 8).join(', ') : '';
       const bioText = sanitizeInputText(ps || summary || '', 600);
 
+      const csText = Array.isArray(cs) && cs.length > 0
+        ? cs.slice(0, 3).map((c: Record<string, unknown>) => `"${sanitizeInputText(c.title as string || '', 60)}": ${sanitizeInputText((c.challenge as string || '') + ' ' + (c.outcome as string || ''), 200)}`).join('; ')
+        : 'None';
+      const svText = Array.isArray(sv) && sv.length > 0
+        ? sv.slice(0, 3).map((s: Record<string, unknown>) => `"${sanitizeInputText(s.title as string || '', 60)}": ${sanitizeInputText(s.description as string || '', 120)}`).join('; ')
+        : 'None';
+      const tesText = Array.isArray(tes) && tes.length > 0
+        ? tes.slice(0, 3).map((t: Record<string, unknown>) => `"${sanitizeInputText(t.quote as string || '', 150)}" — ${sanitizeInputText(t.authorName as string || 'Unknown', 40)}, ${sanitizeInputText(t.authorTitle as string || '', 40)}`).join(' | ')
+        : 'None';
+      const hiText = Array.isArray(hi) && hi.length > 0
+        ? hi.map((h: Record<string, unknown>) => `${sanitizeInputText(h.value as string || '', 20)} ${sanitizeInputText(h.label as string || '', 30)}`).join(', ')
+        : 'None';
+
       const context = [
         `Name: ${fullName || 'N/A'}`,
         `Job Title: ${jobTitle || 'Not set'}`,
         `Bio: ${bioText || 'Not set'}`,
         `Recent Experience: ${expContext || 'Not listed'}`,
         `Top Skills: ${skillList || 'Not listed'}`,
-        `Case Studies / Projects: ${Array.isArray(cs) ? cs.length : 0}`,
-        `Services: ${Array.isArray(sv) ? sv.length : 0}`,
-        `Testimonials: ${Array.isArray(tes) ? tes.length : 0}`,
-        `Highlight Metrics: ${Array.isArray(hi) ? hi.length : 0}`,
-        `Pinned Project: ${pp?.title ? pp.title : 'Not set'}`,
+        `Case Studies / Projects: ${csText}`,
+        `Services: ${svText}`,
+        `Testimonials: ${tesText}`,
+        `Highlight Metrics: ${hiText}`,
+        `Pinned Project: ${pp?.title ? sanitizeInputText(pp.title as string, 80) + (pp.description ? ' — ' + sanitizeInputText(pp.description as string, 150) : '') : 'Not set'}`,
       ].join('\n');
 
       const prompt = `You are a senior recruiter and portfolio coach. Analyze this professional portfolio and provide specific, actionable critique items a recruiter would notice.
