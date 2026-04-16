@@ -1,27 +1,141 @@
-/* Landing page specific styles */
+/* ═══════════════════════════════════════════════════════════════════
+   LANDING PAGE DESIGN TOKENS
+   Scoped to [data-lp-scheme="light"] and [data-lp-scheme="dark"].
+   The root div in Index.tsx sets these attributes, keeping landing
+   styles completely isolated from the rest of the app's CSS.
+   ═══════════════════════════════════════════════════════════════════ */
 
+/* ── Light scheme ──────────────────────────────────────────────────── */
+[data-lp-scheme="light"] {
+  color-scheme: light;
+  background-color: #ffffff;
+
+  --lp-bg:              #ffffff;
+  --lp-section-alt:     #f7f8fa;
+  --lp-section-alt2:    #eef0f4;
+
+  --lp-text:            #111827;
+  --lp-text-muted:      #6b7280;
+  --lp-text-subtle:     #9ca3af;
+  --lp-muted:           #6b7280;
+
+  --lp-border:          rgba(0, 0, 0, 0.08);
+  --lp-border-card:     rgba(0, 0, 0, 0.07);
+
+  --lp-card:            #ffffff;
+  --lp-card-bg:         rgba(255, 255, 255, 0.75);
+  --lp-card-glass:      rgba(255, 255, 255, 0.65);
+
+  --lp-header-bg:       rgba(255, 255, 255, 0.88);
+
+  /* WiseResume brand — crimson */
+  --lp-brand:           #b91c1c;
+  --lp-eyebrow:         #b91c1c;
+  --lp-hero-glow:       rgba(185, 28, 28, 0.10);
+  --lp-brand-pill-bg:   rgba(185, 28, 28, 0.08);
+  --lp-brand-pill-border: rgba(185, 28, 28, 0.18);
+  --lp-brand-pill-glow: rgba(185, 28, 28, 0.10);
+
+  --lp-toggle-bg:       rgba(0, 0, 0, 0.05);
+  --lp-toggle-border:   rgba(0, 0, 0, 0.10);
+  --lp-toggle-color:    #374151;
+
+  --lp-trust-color:     #374151;
+  --lp-trust-icon:      #b91c1c;
+}
+
+/* ── Dark scheme ───────────────────────────────────────────────────── */
+[data-lp-scheme="dark"] {
+  color-scheme: dark;
+  background-color: #0f0f10;
+
+  --lp-bg:              #0f0f10;
+  --lp-section-alt:     #161618;
+  --lp-section-alt2:    #1c1c1f;
+
+  --lp-text:            #f5f5f7;
+  --lp-text-muted:      #9ca3af;
+  --lp-text-subtle:     #6b7280;
+  --lp-muted:           #9ca3af;
+
+  --lp-border:          rgba(255, 255, 255, 0.07);
+  --lp-border-card:     rgba(255, 255, 255, 0.08);
+
+  --lp-card:            #1e1e22;
+  --lp-card-bg:         rgba(30, 30, 34, 0.80);
+  --lp-card-glass:      rgba(30, 30, 34, 0.60);
+
+  --lp-header-bg:       rgba(15, 15, 16, 0.88);
+
+  /* WiseResume brand — lighter red for dark bg */
+  --lp-brand:           #f87171;
+  --lp-eyebrow:         #f87171;
+  --lp-hero-glow:       rgba(185, 28, 28, 0.18);
+  --lp-brand-pill-bg:   rgba(248, 113, 113, 0.10);
+  --lp-brand-pill-border: rgba(248, 113, 113, 0.20);
+  --lp-brand-pill-glow: rgba(248, 113, 113, 0.14);
+
+  --lp-toggle-bg:       rgba(255, 255, 255, 0.07);
+  --lp-toggle-border:   rgba(255, 255, 255, 0.12);
+  --lp-toggle-color:    #d1d5db;
+
+  --lp-trust-color:     #e5e7eb;
+  --lp-trust-icon:      #f87171;
+}
+
+/* ── WiseHire brand overrides (both schemes) ───────────────────────── */
+[data-lp-scheme="light"][data-lp-product="wisehire"] {
+  --lp-brand:           #2563EB;
+  --lp-eyebrow:         #2563EB;
+  --lp-hero-glow:       rgba(37, 99, 235, 0.12);
+  --lp-brand-pill-bg:   rgba(37, 99, 235, 0.08);
+  --lp-brand-pill-border: rgba(37, 99, 235, 0.18);
+  --lp-brand-pill-glow: rgba(37, 99, 235, 0.12);
+  --lp-trust-icon:      #2563EB;
+}
+
+[data-lp-scheme="dark"][data-lp-product="wisehire"] {
+  --lp-brand:           #60a5fa;
+  --lp-eyebrow:         #60a5fa;
+  --lp-hero-glow:       rgba(37, 99, 235, 0.22);
+  --lp-brand-pill-bg:   rgba(96, 165, 250, 0.10);
+  --lp-brand-pill-border: rgba(96, 165, 250, 0.20);
+  --lp-brand-pill-glow: rgba(96, 165, 250, 0.15);
+  --lp-trust-icon:      #60a5fa;
+}
+
+/* ── Landing root base styles ──────────────────────────────────────── */
 .lp-root {
   min-height: 100vh;
   overflow-x: hidden;
+  background-color: var(--lp-bg);
+  color: var(--lp-text);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-.lp-hero {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+/* ── Aurora wallpaper — transparent override ───────────────────────── */
+html.aurora-active .lp-root {
+  background-color: transparent !important;
 }
 
-.lp-section {
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem;
+/* ── Marquee animation for FeatureTicker ───────────────────────────── */
+@keyframes lp-marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: lp-marquee 28s linear infinite;
 }
 
-@media (min-width: 768px) {
-  .lp-section {
-    padding: 0 2rem;
-  }
+/* ── View-transition ripple (theme toggle) ─────────────────────────── */
+@keyframes lp-ripple-out {
+  from { clip-path: circle(0% at var(--lp-ripple-x, 50%) var(--lp-ripple-y, 50%)); }
+  to   { clip-path: circle(150% at var(--lp-ripple-x, 50%) var(--lp-ripple-y, 50%)); }
+}
+::view-transition-new(root) {
+  animation: lp-ripple-out 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+::view-transition-old(root) {
+  animation: none;
+  mix-blend-mode: normal;
 }
