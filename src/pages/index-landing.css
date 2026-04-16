@@ -1,0 +1,27 @@
+/* Landing page specific styles */
+
+.lp-root {
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.lp-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.lp-section {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+@media (min-width: 768px) {
+  .lp-section {
+    padding: 0 2rem;
+  }
+}
