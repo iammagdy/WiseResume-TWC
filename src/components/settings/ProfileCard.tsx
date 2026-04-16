@@ -343,54 +343,6 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
           <div className="pc-inside">
             <div className="pc-shine" />
             <div className="pc-glare" />
-            <div className="pc-content pc-avatar-content">
-              <img
-                className="avatar"
-                src={avatarUrl}
-                alt={`${name || 'User'} avatar`}
-                loading="lazy"
-                onError={e => {
-                  const t = e.target as HTMLImageElement;
-                  t.style.display = 'none';
-                }}
-              />
-              {showUserInfo && (
-                <div className="pc-user-info">
-                  <div className="pc-action-bar">
-                    <button
-                      className="pc-action-btn"
-                      onClick={handlePortfolioClick}
-                      style={{ pointerEvents: 'auto' }}
-                      type="button"
-                      aria-label="Portfolio"
-                    >
-                      <ExternalLink size={14} />
-                      <span>Portfolio</span>
-                    </button>
-                    <button
-                      className="pc-action-btn pc-action-btn--primary"
-                      onClick={handleContactClick}
-                      style={{ pointerEvents: 'auto' }}
-                      type="button"
-                      aria-label="Contact"
-                    >
-                      <Mail size={14} />
-                      <span>{contactText}</span>
-                    </button>
-                    <button
-                      className="pc-action-btn"
-                      onClick={handleGithubClick}
-                      style={{ pointerEvents: 'auto' }}
-                      type="button"
-                      aria-label="GitHub"
-                    >
-                      <Github size={14} />
-                      <span>GitHub</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
             <div className="pc-content">
               <div className="pc-details">
                 <h3>{name}</h3>
@@ -399,6 +351,51 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
             </div>
           </div>
         </section>
+        {avatarUrl && (
+          <img
+            className="pc-photo"
+            src={avatarUrl}
+            alt={`${name || 'User'} avatar`}
+            loading="lazy"
+            onError={e => {
+              const t = e.target as HTMLImageElement;
+              t.style.display = 'none';
+            }}
+          />
+        )}
+        {showUserInfo && (
+          <div className="pc-user-info">
+            <div className="pc-action-bar">
+              <button
+                className="pc-action-btn"
+                onClick={handlePortfolioClick}
+                type="button"
+                aria-label="Portfolio"
+              >
+                <ExternalLink size={14} />
+                <span>Portfolio</span>
+              </button>
+              <button
+                className="pc-action-btn pc-action-btn--primary"
+                onClick={handleContactClick}
+                type="button"
+                aria-label="Contact"
+              >
+                <Mail size={14} />
+                <span>{contactText}</span>
+              </button>
+              <button
+                className="pc-action-btn"
+                onClick={handleGithubClick}
+                type="button"
+                aria-label="GitHub"
+              >
+                <Github size={14} />
+                <span>GitHub</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

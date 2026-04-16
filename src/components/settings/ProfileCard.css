@@ -88,6 +88,8 @@
 .pc-card-shell {
   position: relative;
   z-index: 1;
+  overflow: hidden;
+  border-radius: var(--card-radius);
 }
 
 .pc-card * {
@@ -246,25 +248,15 @@
   z-index: 4;
 }
 
-.pc-avatar-content {
+.pc-photo {
   position: absolute;
-  inset: 0;
-  overflow: visible;
-  z-index: 6;
-  pointer-events: none;
-}
-
-.pc-avatar-content .avatar {
-  width: 100%;
-  position: absolute;
+  bottom: 0;
   left: 50%;
-  transform-origin: 50% 100%;
-  transform: translateX(calc(-50% + (var(--pointer-from-left) - 0.5) * 6px)) translateZ(0)
-    scaleY(calc(1 + (var(--pointer-from-top) - 0.5) * 0.02)) scaleX(calc(1 + (var(--pointer-from-left) - 0.5) * 0.01));
-  bottom: -1px;
-  backface-visibility: hidden;
-  will-change: transform;
-  transition: transform 120ms ease-out;
+  transform: translateX(-50%);
+  width: 100%;
+  display: block;
+  pointer-events: none;
+  z-index: 6;
 }
 
 .pc-user-info {
@@ -333,7 +325,7 @@
   background: rgba(113, 196, 255, 0.2);
 }
 
-.pc-content:not(.pc-avatar-content) {
+.pc-content {
   max-height: 100%;
   overflow: hidden;
   text-align: center;
