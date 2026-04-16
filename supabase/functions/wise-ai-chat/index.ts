@@ -324,7 +324,14 @@ serve(async (req: Request) => {
     // status/code mapping but degrade a plain `internal 500` to the more
     // accurate `provider_busy 503` so the error card shows a retryable
     // message and the attempt telemetry (if any) is still forwarded.
-    const { status, error: code, message } = toUserError(error);
+    const mapped = toUserError(error);
+    const shouldDegrade =
+      mapped.status === 500 && (mapped.error === "internal" || !mapped.error);
+    const status  = shouldDegrade ? 503              : mapped.status;
+    const code    = shouldDegrade ? "provider_busy"  : mapped.error;
+    const message = shouldDegrade
+      ? "AI is temporarily busy — please try again in a moment."
+      : mapped.message;
     return new Response(
       JSON.stringify({ error: code, message, ...attemptsField }),
       { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
