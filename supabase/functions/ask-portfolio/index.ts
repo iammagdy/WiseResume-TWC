@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { callAI, getUserKeyFromDB } from "../_shared/aiClient.ts";
+import { callAI } from "../_shared/aiClient.ts";
 import { getServiceClient } from "../_shared/dbClient.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkPayloadSize } from "../_shared/requestUtils.ts";
@@ -83,9 +83,30 @@ serve(async (req) => {
       });
     }
 
-    // BYOK enforcement
-    const ownerKey = await getUserKeyFromDB(ownerRow.user_id, 'gemini');
-    if (!ownerKey) {
+    // BYOK enforcement — look up the portfolio owner's preferred AI provider from
+    // user_preferences. If none is set (or it's 'wiseresume' which uses platform
+    // credits), fall back to checking any key in user_api_keys. This endpoint is
+    // BYOK-only: no platform-key fallback is allowed.
+    const { data: prefRow } = await supabase
+      .from('user_preferences')
+      .select('ai_provider')
+      .eq('user_id', ownerRow.user_id)
+      .maybeSingle();
+
+    let byokProvider: string | null = prefRow?.ai_provider ?? null;
+
+    // 'wiseresume' means the owner uses platform credits — not valid here.
+    if (!byokProvider || byokProvider === 'wiseresume') {
+      const { data: anyKey } = await supabase
+        .from('user_api_keys')
+        .select('provider')
+        .eq('user_id', ownerRow.user_id)
+        .limit(1)
+        .maybeSingle();
+      byokProvider = anyKey?.provider ?? null;
+    }
+
+    if (!byokProvider) {
       return new Response(JSON.stringify({
         error: "The AI assistant for this portfolio requires the owner to configure their API key.",
         isFallback: true,
@@ -188,8 +209,8 @@ ${context}`;
       messages,
       temperature: 0.3,
       maxTokens: 300,
-      userGeminiKey: ownerKey,
       userId: ownerRow.user_id,
+      preferredProvider: byokProvider,
     });
 
     const answer = aiResponse.content || "I couldn't generate a response. Please try again.";

@@ -81,10 +81,19 @@ const MODEL_MAPPING: Record<string, string> = {
 };
 
 function mapModelForGemini(model: string): string {
-  if (MODEL_MAPPING[model]) return MODEL_MAPPING[model];
+  if (MODEL_MAPPING[model]) {
+    const mapped = MODEL_MAPPING[model];
+    console.warn(`[AI] mapModelForGemini: deprecated model slug "${model}" substituted with "${mapped}"`);
+    return mapped;
+  }
   if (model.startsWith('google/')) {
     const stripped = model.replace('google/', '');
-    return MODEL_MAPPING[stripped] || stripped;
+    if (MODEL_MAPPING[stripped]) {
+      const mapped = MODEL_MAPPING[stripped];
+      console.warn(`[AI] mapModelForGemini: deprecated model slug "${stripped}" substituted with "${mapped}"`);
+      return mapped;
+    }
+    return stripped;
   }
   return model;
 }
@@ -612,6 +621,10 @@ function extractParamCount(slug: string): number {
 function isRetryableError(error: unknown): boolean {
   if (error instanceof DOMException && error.name === 'AbortError') return true;
   if (isAIError(error)) {
+    // 'provider_busy' is thrown by callWiseresumeAI after it has exhausted all
+    // internal models. Retrying at the outer callAIWithRetry level is pointless
+    // — the inner loop already tried every available model/provider.
+    if (error.type === 'provider_busy') return false;
     if (error.status >= 500) return true;
     if (error.type === 'network') return true;
   }
@@ -1277,7 +1290,7 @@ export async function callWiseresumeAI(
       }
 
       // Per-model timeout (AbortError from per-model controller) is skippable —
-      // the next model gets its own fresh 20 s window.
+      // the next model gets its own fresh 8 s window (PER_MODEL_TIMEOUT_MS).
       const isPerModelTimeout = err instanceof DOMException && err.name === 'AbortError';
 
       // Determine whether a next attempt exists on a *different* provider

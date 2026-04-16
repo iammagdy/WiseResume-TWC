@@ -453,7 +453,7 @@ Deno.serve(async (req: Request) => {
         args = {};
       }
 
-      // Deduct credits for any AI tool call (cost=1 for chat)
+      // Credits were already deducted (fail-closed) before the AI call above.
 
       // Handle delete_experience — return as a suggestion/confirmation card
       if (functionName === "delete_experience") {
@@ -499,6 +499,7 @@ Deno.serve(async (req: Request) => {
           ],
           message: content || `I can remove the "${identifier}" experience entry. Please confirm below.`,
         };
+        await recordUsage(userId, 'chat', { provider: aiResponse.providerUsed || 'unknown' });
         return new Response(JSON.stringify(result), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -511,6 +512,7 @@ Deno.serve(async (req: Request) => {
           proposals: (args.proposals as SuggestionResult["proposals"]) || [],
           message: content || "I have some suggestions for your resume. Please review and accept or reject each change.",
         };
+        await recordUsage(userId, 'chat', { provider: aiResponse.providerUsed || 'unknown' });
         return new Response(JSON.stringify(result), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -531,6 +533,7 @@ Deno.serve(async (req: Request) => {
           proposals,
           message: content || `I found ${fixes.length} issue(s) to fix. Please review each correction.`,
         };
+        await recordUsage(userId, 'chat', { provider: aiResponse.providerUsed || 'unknown' });
         return new Response(JSON.stringify(result), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -543,6 +546,7 @@ Deno.serve(async (req: Request) => {
         message: content || `I'll ${functionName.replace(/_/g, " ")} for you.`,
       };
 
+      await recordUsage(userId, 'chat', { provider: aiResponse.providerUsed || 'unknown' });
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -550,7 +554,7 @@ Deno.serve(async (req: Request) => {
 
     await recordUsage(userId, 'chat', { provider: aiResponse.providerUsed || 'unknown' });
 
-    // Atomically deduct credits server-side before returning results (cost=1 for chat)
+    // Credits were already deducted (fail-closed) before the AI call above.
 
     const result: TextResult = {
       type: "text",
