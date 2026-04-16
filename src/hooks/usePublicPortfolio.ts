@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/supabaseConstants';
 import type { Experience, Education, Project, Certification, Award, Publication, Volunteering, Hobby } from '@/types/resume';
 import type { CaseStudy, PortfolioService } from '@/hooks/useProfile';
 
@@ -184,16 +185,61 @@ async function fetchPublicPortfolio(username: string): Promise<PublicPortfolioDa
   };
 }
 
-export function usePublicPortfolio(username: string | undefined) {
+export function usePublicPortfolio(username: string | undefined, fetchEnabled = true) {
   return useQuery({
     queryKey: ['public-portfolio', username],
     queryFn: () => fetchPublicPortfolio(username!),
-    enabled: !!username,
+    enabled: !!username && fetchEnabled,
     staleTime: 0,
     gcTime: 5 * 60 * 1000,
   });
 }
 
+// ─── Portfolio Gate (lightweight password check) ───────────────────────────────
+export interface PortfolioGateInfo {
+  fullName: string | null;
+  avatarUrl: string | null;
+  accentColor: string | null;
+  passwordEnabled: boolean;
+  passwordHash: string | null;
+  portfolioEnabled: boolean;
+}
+
+async function fetchPortfolioGateInfo(username: string): Promise<PortfolioGateInfo | null> {
+  const params = new URLSearchParams({
+    select: 'full_name,avatar_url,portfolio_enabled,portfolio_extras,portfolio_accent_color',
+    username: `eq.${username.toLowerCase()}`,
+    limit: '1',
+  });
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?${params}`, {
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+  });
+  if (!res.ok) return null;
+  const rows = await res.json() as Array<Record<string, unknown>>;
+  const row = rows?.[0];
+  if (!row) return null;
+  const extras = (row.portfolio_extras as Record<string, unknown>) || {};
+  return {
+    fullName: (row.full_name as string) || null,
+    avatarUrl: (row.avatar_url as string) || null,
+    accentColor: (row.portfolio_accent_color as string) || null,
+    passwordEnabled: (extras.passwordEnabled as boolean) || false,
+    passwordHash: (extras.passwordHash as string) || null,
+    portfolioEnabled: (row.portfolio_enabled as boolean) || false,
+  };
+}
+
+export function usePortfolioGate(username: string | undefined) {
+  return useQuery({
+    queryKey: ['portfolio-gate', username],
+    queryFn: () => fetchPortfolioGateInfo(username!),
+    enabled: !!username,
+    staleTime: 60_000,
+    gcTime: 5 * 60 * 1000,
+  });
+}
+
+// ─── Custom domain resolution ──────────────────────────────────────────────────
 const KNOWN_APP_SUFFIXES = [
   '.replit.dev',
   '.replit.app',
@@ -208,15 +254,20 @@ export function isAppHostname(hostname: string): boolean {
 }
 
 async function fetchPublicPortfolioByDomain(domain: string): Promise<PublicPortfolioData | null> {
-  const { data: row, error } = await (supabase as any)
-    .from('profiles')
-    .select('username')
-    .eq('portfolio_enabled', true)
-    .filter('portfolio_extras->>customDomain', 'eq', domain)
-    .maybeSingle();
-
-  if (error || !row?.username) return null;
-  return fetchPublicPortfolio(row.username as string);
+  const params = new URLSearchParams({
+    select: 'username',
+    portfolio_enabled: 'eq.true',
+    'portfolio_extras->>customDomain': `eq.${domain}`,
+    limit: '1',
+  });
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?${params}`, {
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+  });
+  if (!res.ok) return null;
+  const rows = await res.json() as Array<{ username: string }>;
+  const username = rows?.[0]?.username;
+  if (!username) return null;
+  return fetchPublicPortfolio(username);
 }
 
 export function usePublicPortfolioByDomain(domain: string | null) {

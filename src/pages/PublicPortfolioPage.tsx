@@ -1,5 +1,5 @@
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { usePublicPortfolio } from '@/hooks/usePublicPortfolio';
+import { usePublicPortfolio, usePortfolioGate } from '@/hooks/usePublicPortfolio';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, SearchX, Languages, Heart, Check, Printer, Lock } from 'lucide-react';
@@ -199,13 +199,28 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const { data: portfolio, isLoading, error } = usePublicPortfolio(username);
+  // Phase 1: lightweight gate check — determines if a password is required
+  // WITHOUT fetching the full portfolio content from the server.
+  const { data: gateInfo, isLoading: gateLoading } = usePortfolioGate(username);
+  const [passwordUnlocked, setPasswordUnlocked] = useState(false);
+
+  // Reset unlock state whenever the portfolio identity changes.
+  useEffect(() => {
+    setPasswordUnlocked(false);
+  }, [username]);
+
+  const passwordRequired = !!(gateInfo?.passwordEnabled && gateInfo?.passwordHash);
+  const contentEnabled = !passwordRequired || passwordUnlocked;
+
+  // Phase 2: full portfolio fetch — only triggered after password unlock (or if no password).
+  const { data: portfolio, isLoading: contentLoading, error } = usePublicPortfolio(username, contentEnabled);
+  const isLoading = gateLoading || (contentEnabled && contentLoading);
+
   const [scrollProgress, setScrollProgress] = useState(0);
   const [nearFooter, setNearFooter] = useState(false);
   const [activeLanguage, setActiveLanguage] = useState<string>('');
   const [interestSent, setInterestSent] = useState(false);
   const [sendingInterest, setSendingInterest] = useState(false);
-  const [passwordUnlocked, setPasswordUnlocked] = useState(false);
 
   // Check if interest was already sent for this portfolio (localStorage)
   useEffect(() => {
@@ -324,20 +339,23 @@ function PublicPortfolioContent({ usernameOverride }: { usernameOverride?: strin
   };
 
   if (isLoading) return <PortfolioSkeleton />;
-  if (error || !portfolio) return <NotFound />;
 
-  const { profile, resume } = portfolio;
-
-  const accentColorForGate = profile.portfolioAccentColor || '#e84545';
-  if (profile.passwordEnabled && profile.passwordHash && !passwordUnlocked) {
+  // Show the password gate BEFORE loading full content (server-side enforcement:
+  // the full portfolio RPC is not called until after password verification).
+  if (passwordRequired && !passwordUnlocked) {
+    const accentColor = gateInfo?.accentColor || '#e84545';
     return (
       <PasswordGate
-        expectedHash={profile.passwordHash}
-        accentColor={accentColorForGate}
+        expectedHash={gateInfo!.passwordHash!}
+        accentColor={accentColor}
         onUnlock={() => setPasswordUnlocked(true)}
       />
     );
   }
+
+  if (error || !portfolio) return <NotFound />;
+
+  const { profile, resume } = portfolio;
   // If the owner configured a challenger theme AND this visitor is variant B,
   // swap in the challenger theme so we can measure which performs better.
   const effectiveStyle = (abVariant === 'b' && profile.abChallengerTheme)
