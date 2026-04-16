@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useAppLifecycle } from '@/hooks/useAppLifecycle';
 import { backgroundScore } from '@/hooks/useResumeScore';
+import { useSettingsStore } from '@/store/settingsStore';
 import type { ResumeData } from '@/types/resume';
 import type { KindeAppUser } from '@/contexts/AuthContext';
 
@@ -54,6 +55,17 @@ export function useEditorAutosave({
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastScoreTimeRef = useRef<number>(0);
   const isMountedRef = useRef(true);
+  // Read latest auto-save toast preferences at emit-time via the store snapshot.
+  // Preference shape: showAutoSaveToasts (master switch) + autoSaveToastMode
+  // ('always' shows all autosave toasts; 'errors-only' suppresses non-error
+  // confirmations). All toasts emitted from this hook are warnings/errors,
+  // so the master switch is the gating condition.
+  const shouldEmitAutoSaveToast = useCallback((kind: 'error' | 'info') => {
+    const { showAutoSaveToasts, autoSaveToastMode } = useSettingsStore.getState();
+    if (!showAutoSaveToasts) return false;
+    if (kind === 'info' && autoSaveToastMode === 'errors-only') return false;
+    return true;
+  }, []);
   // Keep a stable ref to resumeFromDb so the saveToCloud callback never stales
   const resumeFromDbRef = useRef(resumeFromDb);
   resumeFromDbRef.current = resumeFromDb;
@@ -117,7 +129,9 @@ export function useEditorAutosave({
       if (isNetworkError && currentResumeId) {
         addPendingChange(currentResumeId, resume);
       } else if (isAuthError) {
-        toast.warning('Session expired — your changes are saved locally. Please sign back in.', { duration: 5000 });
+        if (shouldEmitAutoSaveToast('error')) {
+          toast.warning('Session expired — your changes are saved locally. Please sign back in.', { duration: 5000 });
+        }
       } else {
         // Silent retry once after 2s (handles transient JWT warm-up race on first save)
         await new Promise(r => setTimeout(r, 2000));
@@ -133,7 +147,9 @@ export function useEditorAutosave({
         } catch (retryError: unknown) {
           console.error('Auto-save failed after retry:', retryError);
           if (currentResumeId) addPendingChange(currentResumeId, resume);
-          toast.warning('Auto-save failed — your changes are saved locally. Tap Save to retry.', { duration: 4000 });
+          if (shouldEmitAutoSaveToast('error')) {
+            toast.warning('Auto-save failed — your changes are saved locally. Tap Save to retry.', { duration: 4000 });
+          }
         }
       }
     } finally {

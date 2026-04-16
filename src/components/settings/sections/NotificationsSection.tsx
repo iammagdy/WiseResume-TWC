@@ -1,5 +1,5 @@
 import { memo, Suspense, lazy } from 'react';
-import { Bell, BellOff, Sparkles, Moon } from 'lucide-react';
+import { Bell, BellOff, Sparkles } from 'lucide-react';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { Separator } from '@/components/ui/separator';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -18,12 +18,6 @@ export const NotificationsSection = memo(function NotificationsSection() {
         setShowAIEnhancementTips,
         aiTipFrequency,
         setAITipFrequency,
-        quietHoursEnabled,
-        setQuietHoursEnabled,
-        quietHoursStart,
-        setQuietHoursStart,
-        quietHoursEnd,
-        setQuietHoursEnd,
     } = useSettingsStore();
 
     return (
@@ -87,41 +81,6 @@ export const NotificationsSection = memo(function NotificationsSection() {
                                 {freq === 'on-demand' ? 'On-Demand' : freq.charAt(0).toUpperCase() + freq.slice(1)}
                             </button>
                         ))}
-                    </div>
-                </div>
-            )}
-            <Separator className="ml-[52px] bg-border/30" />
-            {/* Quiet Hours */}
-            <SettingsRow
-                type="toggle"
-                label="Quiet Hours"
-                description="Silence notifications during set times"
-                icon={<Moon className="w-4 h-4" />}
-                checked={quietHoursEnabled}
-                onCheckedChange={(v) => { setQuietHoursEnabled(v); haptics.light(); }}
-            />
-            {quietHoursEnabled && (
-                <div className="px-4 pb-3 pt-1">
-                    <div className="flex items-center gap-2 pl-11">
-                        <div className="flex flex-col items-center">
-                            <label className="text-[10px] text-muted-foreground mb-1">From</label>
-                            <input
-                                type="time"
-                                value={quietHoursStart}
-                                onChange={(e) => setQuietHoursStart(e.target.value)}
-                                className="bg-background border border-border rounded-lg px-2 py-1.5 text-xs w-[90px] text-center"
-                            />
-                        </div>
-                        <span className="text-muted-foreground text-xs mt-4">–</span>
-                        <div className="flex flex-col items-center">
-                            <label className="text-[10px] text-muted-foreground mb-1">To</label>
-                            <input
-                                type="time"
-                                value={quietHoursEnd}
-                                onChange={(e) => setQuietHoursEnd(e.target.value)}
-                                className="bg-background border border-border rounded-lg px-2 py-1.5 text-xs w-[90px] text-center"
-                            />
-                        </div>
                     </div>
                 </div>
             )}
