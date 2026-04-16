@@ -418,6 +418,9 @@ const Index = () => {
   const [waveColor, setWaveColor] = useState('rgba(29,78,216,0.15)');
   const [waveOrigin, setWaveOrigin] = useState({ x: 640, y: 21 });
   const modeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (modeTimerRef.current !== null) clearTimeout(modeTimerRef.current);
+  }, []);
 
   useLayoutEffect(() => {
     setLpProduct(mode);
