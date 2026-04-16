@@ -36,6 +36,9 @@ export function ActivityInsightsCard({ applications, stats }: Props) {
     parseInt(localStorage.getItem(goalKey) || '5', 10)
   );
   useEffect(() => {
+    setWeeklyGoal(parseInt(localStorage.getItem(goalKey) || '5', 10));
+  }, [goalKey]);
+  useEffect(() => {
     const handler = (e: Event) => {
       const goal = (e as CustomEvent<{ goal: number }>).detail?.goal;
       if (typeof goal === 'number') setWeeklyGoal(goal);

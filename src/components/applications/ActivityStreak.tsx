@@ -1,4 +1,4 @@
-import { memo, useState, useCallback } from 'react';
+import { memo, useState, useCallback, useEffect } from 'react';
 import { useActivityStreak, weeklyGoalKey } from '@/hooks/useActivityStreak';
 import { useAuth } from '@/hooks/useAuth';
 import { Flame, Trophy, Minus, Plus } from 'lucide-react';
@@ -12,6 +12,10 @@ export const ActivityStreak = memo(function ActivityStreak() {
   const [weeklyGoal, setWeeklyGoalState] = useState<number>(() =>
     parseInt(localStorage.getItem(goalKey) || '5', 10)
   );
+
+  useEffect(() => {
+    setWeeklyGoalState(parseInt(localStorage.getItem(goalKey) || '5', 10));
+  }, [goalKey]);
 
   const handleGoalChange = useCallback((delta: number) => {
     setWeeklyGoalState(prev => {
