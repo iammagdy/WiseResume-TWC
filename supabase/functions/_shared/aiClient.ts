@@ -1172,9 +1172,9 @@ export async function callWiseresumeAI(
    * The per-model controller is also linked to outerSignal: if the caller cancels
    * the whole operation we propagate the abort immediately.
    */
-  const tryOpenRouterModel = async (model: string): Promise<AIResponse> => {
+  const tryOpenRouterModel = async (model: string, effectiveTimeoutMs: number = PER_MODEL_TIMEOUT_MS): Promise<AIResponse> => {
     const ctrl = new AbortController();
-    const timerId = setTimeout(() => ctrl.abort(), PER_MODEL_TIMEOUT_MS);
+    const timerId = setTimeout(() => ctrl.abort(), effectiveTimeoutMs);
     // Propagate outer cancellation
     const onOuterAbort = () => ctrl.abort();
     outerSignal?.addEventListener('abort', onOuterAbort);
@@ -1218,9 +1218,9 @@ export async function callWiseresumeAI(
    * Try a single Groq model by slug.
    * Same per-model timeout approach as tryOpenRouterModel.
    */
-  const tryGroqModel = async (model: string): Promise<AIResponse> => {
+  const tryGroqModel = async (model: string, effectiveTimeoutMs: number = PER_MODEL_TIMEOUT_MS): Promise<AIResponse> => {
     const ctrl = new AbortController();
-    const timerId = setTimeout(() => ctrl.abort(), PER_MODEL_TIMEOUT_MS);
+    const timerId = setTimeout(() => ctrl.abort(), effectiveTimeoutMs);
     const onOuterAbort = () => ctrl.abort();
     outerSignal?.addEventListener('abort', onOuterAbort);
     try {
@@ -1296,25 +1296,25 @@ export async function callWiseresumeAI(
     const MIN_NEXT_ATTEMPT_MS = 5_000;
     const remaining = OVERALL_DEADLINE - Date.now();
     if (remaining < MIN_NEXT_ATTEMPT_MS) {
-      console.warn(`[AI] WiseResume overall deadline reached (${remaining}ms left). Stopping after ${i} attempts.`);
-      attemptLog.push({ provider: '-', model: '-', outcome: `deadline (${remaining}ms left)`, ms: 0 });
+      // Don't push a synthetic attempt entry — only real provider/model
+      // attempts belong in the user-facing telemetry. The deadline event
+      // is logged separately so it stays observable in server logs.
+      console.warn(`[AI] WiseResume overall deadline reached (${remaining}ms left). Stopping after ${attemptLog.length} attempts.`);
       break;
     }
-    // Cap the next attempt's effective timeout to whatever budget remains
-    // so a slow attempt cannot blow past OVERALL_DEADLINE. The per-model
-    // tryX functions use PER_MODEL_TIMEOUT_MS internally; if remaining is
-    // smaller, we still rely on PER_MODEL_TIMEOUT_MS but log the squeeze.
-    if (remaining < PER_MODEL_TIMEOUT_MS) {
-      console.warn(`[AI] WiseResume tight remaining budget: ${remaining}ms (PER_MODEL=${PER_MODEL_TIMEOUT_MS}ms) — proceeding with attempt ${i + 1}.`);
-    }
+    // Effective per-attempt timeout = min(PER_MODEL_TIMEOUT_MS, remaining).
+    // This is what genuinely caps wall-clock at OVERALL_BUDGET_MS: even if
+    // remaining is e.g. 8s and PER_MODEL is 25s, the per-model AbortController
+    // will fire at 8s, not 25s. Without this clamp the budget was advisory only.
+    const effectiveTimeoutMs = Math.min(PER_MODEL_TIMEOUT_MS, remaining);
 
     const { provider, model } = attempts[i];
     const attemptStart = Date.now();
-    console.log(`[AI] WiseResume attempt ${i + 1}/${totalAttempts}: ${provider} → ${model} (budget left: ${remaining}ms)`);
+    console.log(`[AI] WiseResume attempt ${i + 1}/${totalAttempts}: ${provider} → ${model} (budget left: ${remaining}ms, attempt cap: ${effectiveTimeoutMs}ms)`);
     try {
       const result = provider === 'openrouter'
-        ? await tryOpenRouterModel(model)
-        : await tryGroqModel(model);
+        ? await tryOpenRouterModel(model, effectiveTimeoutMs)
+        : await tryGroqModel(model, effectiveTimeoutMs);
       const successMs = Date.now() - attemptStart;
       console.log(`[AI] WiseResume success: ${provider} → ${model} in ${successMs}ms (after ${i} prior attempts)`);
       attemptLog.push({ provider, model, outcome: 'success', ms: successMs });

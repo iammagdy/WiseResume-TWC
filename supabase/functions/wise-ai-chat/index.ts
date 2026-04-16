@@ -262,7 +262,9 @@ serve(async (req: Request) => {
       temperature: 0.7,
       maxTokens: 1500,
       userId,
-      timeout: 40_000,
+      // Must exceed callWiseresumeAI's OVERALL_BUDGET_MS (50s) so the
+      // outer timeout never preempts the managed chain's own deadline.
+      timeout: 55_000,
     });
 
     return new Response(

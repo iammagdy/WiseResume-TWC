@@ -458,6 +458,10 @@ Deno.serve(async (req: Request) => {
       temperature: 0.7,
       maxTokens: 2000,
       userId,
+      // Must exceed callWiseresumeAI's OVERALL_BUDGET_MS (50s) so the
+      // outer timeout never preempts the managed chain's own deadline.
+      // 55s leaves ~5s of headroom under Supabase's 60s edge limit.
+      timeout: 55_000,
     });
 
     const toolCall = aiResponse.toolCalls?.[0];
