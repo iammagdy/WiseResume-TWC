@@ -9,9 +9,12 @@ interface AnimatedSplashProps {
 }
 
 const MIN_DURATION = 800;
-const EXIT_DURATION_MS = 300;
-const MAX_TOTAL_DURATION = 1200;
-const MAX_VISIBLE_BEFORE_EXIT = MAX_TOTAL_DURATION - EXIT_DURATION_MS;
+// Hard safety ceiling — only applies if the app fails to signal `ready`
+// for an unusually long time (broken chunk, network stall). Under normal
+// conditions the splash dismisses as soon as MIN_DURATION elapses AND
+// the app reports it's ready to paint, so there's no visual gap or
+// spinner exposed between splash exit and first content paint.
+const HARD_MAX_DURATION = 5000;
 
 function getInitialBrand() {
   if (typeof window === 'undefined') return { name: 'WiseResume', tagline: 'Your AI Career Partner', isWH: false };
@@ -51,7 +54,7 @@ export function AnimatedSplash({ onComplete, ready = true }: AnimatedSplashProps
   }, []);
 
   useEffect(() => {
-    const t = setTimeout(() => setVisible(false), MAX_VISIBLE_BEFORE_EXIT);
+    const t = setTimeout(() => setVisible(false), HARD_MAX_DURATION);
     return () => clearTimeout(t);
   }, []);
 
