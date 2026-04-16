@@ -4,6 +4,7 @@ import { CareerCardSheet } from '@/components/portfolio/CareerCardSheet';
 import { QRGeneratorSheet } from '@/components/portfolio/qr/QRGeneratorSheet';
 import { BackButton } from '@/components/ui/BackButton';
 import { useAuth } from '@/hooks/useAuth';
+import { usePlan } from '@/hooks/usePlan';
 import { useProfile } from '@/hooks/useProfile';
 import { useResumes } from '@/hooks/useResumes';
 import { supabase } from '@/integrations/supabase/safeClient';
@@ -47,6 +48,8 @@ async function sha256hex(message: string): Promise<string> {
 
 export default function PortfolioEditorPage() {
   const { user } = useAuth();
+  const { isPro, isPremium } = usePlan();
+  const isPaidUser = isPro || isPremium;
   const { profile, loading, updateProfile } = useProfile(user?.id, user);
   const { data: resumes = [] } = useResumes();
   const { saveSnapshot } = usePortfolioHistory(user?.id);
@@ -531,6 +534,7 @@ export default function PortfolioEditorPage() {
             setPasswordHash(finalPasswordHash);
             setPortfolioPassword('');
           }
+          const effectivePasswordEnabled = passwordEnabled && !!finalPasswordHash;
           return {
             caseStudies, services, testimonials, highlights, portfolioSummary,
             sectionOrder,
@@ -547,9 +551,9 @@ export default function PortfolioEditorPage() {
             lastSyncedFromResumeAt: syncMode === 'auto' ? new Date().toISOString() : (
               profile?.portfolioExtras?.lastSyncedFromResumeAt ?? null
             ),
-            passwordEnabled,
-            passwordHash: passwordEnabled ? (finalPasswordHash || null) : null,
-            customDomain: customDomain.trim() || null,
+            passwordEnabled: effectivePasswordEnabled,
+            passwordHash: effectivePasswordEnabled ? finalPasswordHash : null,
+            customDomain: isPaidUser ? (customDomain.trim() || null) : null,
           };
         })()
       };
@@ -688,6 +692,22 @@ export default function PortfolioEditorPage() {
     { ok: testimonials.length > 0, tip: 'Add testimonials to build credibility' },
   ];
 
+  const completionItems = buildCompletionItems({
+    bio,
+    avatarUrl: profile?.avatarUrl,
+    username,
+    hasExperience: Array.isArray(selectedResume?.experience) && (selectedResume?.experience as unknown[]).length >= 1,
+    hasSkills: Array.isArray(selectedResume?.skills) && (selectedResume?.skills as unknown[]).length >= 3,
+    hasSocialLink: !!(linkedinUrl || githubUrl || websiteUrl || twitterUrl || contactEmail),
+    hasCaseStudies: caseStudies.length > 0,
+    hasTestimonials: testimonials.length > 0,
+    metaTitle,
+    availabilityStatus,
+    accentColor: portfolioAccentColor,
+    hasLinkedIn: !!linkedinUrl,
+  });
+  const weightedScore = completionItems.reduce((sum, item) => sum + (item.ok ? item.weight : 0), 0);
+
   const strengthScore = Math.round(strengthChecks.filter((c) => c.ok).length / strengthChecks.length * 100);
   const strengthMissing = strengthChecks.filter((c) => !c.ok).slice(0, 3);
   const strengthLabel = portfolioEnabled && strengthScore === 100
@@ -768,24 +788,31 @@ export default function PortfolioEditorPage() {
 
           {previewMode === 'mobile' ? (
             <div className="flex justify-center">
-              <div className="relative" style={{ width: 220 }}>
-                <div className="absolute inset-0 rounded-[2.5rem] border-[8px] border-foreground/15 pointer-events-none z-10" style={{ boxShadow: '0 0 0 1px rgba(0,0,0,0.08) inset' }} />
-                <div className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-1.5 rounded-full bg-foreground/15 z-20" />
-                <div className="rounded-[2rem] overflow-hidden" style={{ paddingTop: 20, paddingBottom: 8 }}>
-                  <LivePreviewCard
-                    avatarUrl={profile?.avatarUrl}
-                    fullName={profile?.fullName}
-                    jobTitle={profile?.jobTitle}
-                    portfolioStyle={portfolioStyle}
-                    accentColor={portfolioAccentColor}
-                    portfolioFont={portfolioFont}
-                    bio={bio}
-                    openToWork={availabilityStatus !== 'not-looking'}
-                    availabilityStatus={availabilityStatus}
-                    views={profile?.views || 0}
-                    scrollEffect={scrollEffect}
+              {/* Phone shell: 220px wide, clips the 390→220 scaled iframe */}
+              <div className="relative rounded-[2.5rem] border-[8px] border-foreground/20 overflow-hidden bg-background shadow-xl"
+                style={{ width: 220, height: 396 }}>
+                {/* Notch */}
+                <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1.5 rounded-full bg-foreground/20 z-20 pointer-events-none" />
+                {portfolioCanonicalUrl ? (
+                  <iframe
+                    src={portfolioCanonicalUrl}
+                    title="Mobile portfolio preview"
+                    sandbox="allow-scripts allow-same-origin"
+                    style={{
+                      width: 390,
+                      height: 700,
+                      border: 'none',
+                      transform: 'scale(0.5641)',
+                      transformOrigin: 'top left',
+                      display: 'block',
+                    }}
                   />
-                </div>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center gap-2 px-4 text-center">
+                    <Smartphone className="w-8 h-8 text-muted-foreground/50" />
+                    <p className="text-xs text-muted-foreground">Publish your portfolio to see a mobile preview</p>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -850,23 +877,7 @@ export default function PortfolioEditorPage() {
         </div>
 
         {/* Completion Score Bar */}
-        <CompletionScoreBar
-          score={strengthScore}
-          items={buildCompletionItems({
-            bio,
-            avatarUrl: profile?.avatarUrl,
-            username,
-            hasExperience: Array.isArray(selectedResume?.experience) && (selectedResume?.experience as unknown[]).length >= 1,
-            hasSkills: Array.isArray(selectedResume?.skills) && (selectedResume?.skills as unknown[]).length >= 3,
-            hasSocialLink: !!(linkedinUrl || githubUrl || websiteUrl || twitterUrl || contactEmail),
-            hasCaseStudies: caseStudies.length > 0,
-            hasTestimonials: testimonials.length > 0,
-            metaTitle,
-            availabilityStatus,
-            accentColor: portfolioAccentColor,
-            hasLinkedIn: !!linkedinUrl,
-          })}
-        />
+        <CompletionScoreBar score={weightedScore} items={completionItems} />
 
         {/* Tab Content */}
         <AnimatePresence mode="wait" initial={false}>
@@ -1013,7 +1024,8 @@ export default function PortfolioEditorPage() {
               portfolioPasswordSet={!!passwordHash}
               onPortfolioPasswordChange={setPortfolioPassword}
               customDomain={customDomain}
-              onCustomDomainChange={setCustomDomain} />
+              onCustomDomainChange={setCustomDomain}
+              isPaidUser={isPaidUser} />
 
             }
           </motion.div>

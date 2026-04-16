@@ -54,9 +54,10 @@ export interface MoreTabProps {
   onPasswordEnabledChange: (val: boolean) => void;
   portfolioPasswordSet: boolean;
   onPortfolioPasswordChange: (val: string) => void;
-  // Custom domain
+  // Custom domain (paid users only)
   customDomain: string;
   onCustomDomainChange: (val: string) => void;
+  isPaidUser?: boolean;
 }
 
 function needsHttpsWarning(url: string): boolean {
@@ -81,6 +82,7 @@ export function MoreTab(props: MoreTabProps) {
     onTranslate, translating,
     passwordEnabled, onPasswordEnabledChange, portfolioPasswordSet, onPortfolioPasswordChange,
     customDomain, onCustomDomainChange,
+    isPaidUser = false,
   } = props;
 
   const [showPasswordInput, setShowPasswordInput] = useState(false);
@@ -374,50 +376,61 @@ export function MoreTab(props: MoreTabProps) {
         )}
       </CollapsibleCard>
 
-      {/* Custom Domain */}
-      <CollapsibleCard
-        id="customdomain"
-        icon={<Globe className="w-4 h-4" />}
-        title="Custom Domain"
-        hint={customDomain ? <span className="text-[11px] truncate max-w-[120px]">{customDomain}</span> : undefined}
-        openSections={openSections}
-        toggleSection={toggleSection}
-      >
-        <p className="text-[11px] text-muted-foreground mb-3">
-          Use your own domain (e.g. <span className="font-mono">portfolio.yourdomain.com</span>) instead of the default URL.
-        </p>
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-foreground">Custom domain</label>
-          <Input
-            placeholder="portfolio.yourdomain.com"
-            value={customDomain}
-            onChange={(e) => onCustomDomainChange(e.target.value.toLowerCase().trim())}
-            type="text"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            inputMode="url"
-          />
-        </div>
-        {customDomain && (
-          <div className="mt-3 p-3 rounded-lg bg-muted/40 border border-border space-y-1.5">
-            <p className="text-xs font-semibold text-foreground">CNAME Setup Instructions</p>
-            <p className="text-[11px] text-muted-foreground">
-              1. Log in to your DNS provider (Cloudflare, Namecheap, GoDaddy, etc.)
-            </p>
-            <p className="text-[11px] text-muted-foreground">
-              2. Add a <span className="font-mono font-medium text-foreground">CNAME</span> record:
-            </p>
-            <div className="font-mono text-[11px] bg-background rounded-md px-2 py-1.5 border border-border space-y-0.5">
-              <p><span className="text-muted-foreground">Name:</span> <span className="text-foreground">{customDomain.split('.').slice(0, -2).join('.') || '@'}</span></p>
-              <p><span className="text-muted-foreground">Value:</span> <span className="text-foreground">resume.thewise.cloud</span></p>
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              3. Save the portfolio — DNS changes may take up to 48 hours to propagate.
-            </p>
+      {/* Custom Domain — paid users only */}
+      {isPaidUser ? (
+        <CollapsibleCard
+          id="customdomain"
+          icon={<Globe className="w-4 h-4" />}
+          title="Custom Domain"
+          hint={customDomain ? <span className="text-[11px] truncate max-w-[120px]">{customDomain}</span> : undefined}
+          openSections={openSections}
+          toggleSection={toggleSection}
+        >
+          <p className="text-[11px] text-muted-foreground mb-3">
+            Use your own domain (e.g. <span className="font-mono">portfolio.yourdomain.com</span>) instead of the default URL.
+          </p>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-foreground">Custom domain</label>
+            <Input
+              placeholder="portfolio.yourdomain.com"
+              value={customDomain}
+              onChange={(e) => onCustomDomainChange(e.target.value.toLowerCase().trim())}
+              type="text"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              inputMode="url"
+            />
           </div>
-        )}
-      </CollapsibleCard>
+          {customDomain && (
+            <div className="mt-3 p-3 rounded-lg bg-muted/40 border border-border space-y-1.5">
+              <p className="text-xs font-semibold text-foreground">CNAME Setup Instructions</p>
+              <p className="text-[11px] text-muted-foreground">
+                1. Log in to your DNS provider (Cloudflare, Namecheap, GoDaddy, etc.)
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                2. Add a <span className="font-mono font-medium text-foreground">CNAME</span> record:
+              </p>
+              <div className="font-mono text-[11px] bg-background rounded-md px-2 py-1.5 border border-border space-y-0.5">
+                <p><span className="text-muted-foreground">Name:</span> <span className="text-foreground">{customDomain.split('.').slice(0, -2).join('.') || '@'}</span></p>
+                <p><span className="text-muted-foreground">Value:</span> <span className="text-foreground">resume.thewise.cloud</span></p>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                3. Save the portfolio — DNS changes may take up to 48 hours to propagate.
+              </p>
+            </div>
+          )}
+        </CollapsibleCard>
+      ) : (
+        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border bg-card opacity-70">
+          <Globe className="w-4 h-4 text-muted-foreground shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-foreground">Custom Domain</p>
+            <p className="text-[11px] text-muted-foreground">Available on Pro &amp; Premium plans</p>
+          </div>
+          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 shrink-0">PRO</span>
+        </div>
+      )}
 
       {/* SEO & Sharing */}
       <CollapsibleCard
