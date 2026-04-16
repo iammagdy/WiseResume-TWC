@@ -166,10 +166,10 @@ export function SetupTab(props: SetupTabProps) {
         openSections={openSections}
         toggleSection={toggleSection}
       >
-        <p className="text-[11px] text-muted-foreground mb-3">Add a YouTube or Vimeo video — shown on your portfolio as a personal intro.</p>
+        <p className="text-[11px] text-muted-foreground mb-3">Add a YouTube, Vimeo, or Loom video — shown on your portfolio as a personal intro.</p>
         <Input
           type="url"
-          placeholder="https://youtube.com/watch?v=..."
+          placeholder="https://youtube.com/watch?v=... or loom.com/share/..."
           value={videoIntroUrl}
           onChange={e => onVideoIntroUrlChange(e.target.value)}
           inputMode="url"
@@ -177,8 +177,8 @@ export function SetupTab(props: SetupTabProps) {
           autoCorrect="off"
           spellCheck={false}
         />
-        {videoIntroUrl && !videoIntroUrl.match(/youtube\.com|youtu\.be|vimeo\.com/i) && (
-          <p className="text-[11px] text-amber-500 mt-1">Only YouTube and Vimeo links are supported.</p>
+        {videoIntroUrl && !videoIntroUrl.match(/youtube\.com|youtu\.be|vimeo\.com|loom\.com/i) && (
+          <p className="text-[11px] text-amber-500 mt-1">Only YouTube, Vimeo, and Loom links are supported.</p>
         )}
       </CollapsibleCard>
 

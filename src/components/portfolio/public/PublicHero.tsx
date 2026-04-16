@@ -1,6 +1,6 @@
-import { forwardRef, useMemo } from 'react';
+import { forwardRef, useMemo, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { MapPin, Linkedin, Github, Globe, X, Mail, Sparkles } from 'lucide-react';
+import { MapPin, Linkedin, Github, Globe, X, Mail, Sparkles, PlayCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { TypewriterText, buildTypewriterPhrases } from '@/components/portfolio/public/TypewriterText';
 import { isActiveWithin24h } from '@/hooks/useActiveStatus';
@@ -15,12 +15,29 @@ export interface PublicHeroProps {
   initials: string;
   liveLastActiveAt: string | null;
   allSkills: string[];
+  videoIntroUrl?: string | null;
 }
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0, 0, 0.2, 1] as const } },
 };
+
+function getVideoEmbedUrl(url: string): string | null {
+  const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}?rel=0&modestbranding=1`;
+  const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+  if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}?dnt=1`;
+  const loomMatch = url.match(/loom\.com\/(?:share|embed)\/([a-zA-Z0-9]+)/);
+  if (loomMatch) return `https://www.loom.com/embed/${loomMatch[1]}`;
+  return null;
+}
+
+function getVideoThumbnailUrl(url: string): string | null {
+  const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  if (ytMatch) return `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`;
+  return null;
+}
 
 export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
   profile,
@@ -30,7 +47,9 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
   initials,
   liveLastActiveAt,
   allSkills,
+  videoIntroUrl,
 }, ref) => {
+  const [embedError, setEmbedError] = useState(false);
   const themeConfig = getThemeById(pStyle);
   const typewriterPhrases = useMemo(
     () => buildTypewriterPhrases(profile, allSkills),
@@ -268,6 +287,60 @@ export const PublicHero = forwardRef<HTMLDivElement, PublicHeroProps>(({
           </>
         );
       })()}
+
+      {videoIntroUrl && getVideoEmbedUrl(videoIntroUrl) && (
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="w-full max-w-xl mt-8 px-2"
+        >
+          <div
+            className="rounded-2xl overflow-hidden relative"
+            style={{
+              background: 'var(--pf-card, rgba(255,255,255,0.03))',
+              border: `1px solid color-mix(in srgb, ${accentColor} 25%, transparent)`,
+              aspectRatio: '16/9',
+            }}
+          >
+            {!embedError ? (
+              <iframe
+                src={getVideoEmbedUrl(videoIntroUrl)!}
+                title="Video Introduction"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="w-full h-full border-0"
+                onError={() => setEmbedError(true)}
+              />
+            ) : (
+              /* Thumbnail fallback — click to open original URL */
+              <a
+                href={videoIntroUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center w-full h-full group relative"
+                aria-label="Watch video introduction"
+              >
+                {getVideoThumbnailUrl(videoIntroUrl) ? (
+                  <img
+                    src={getVideoThumbnailUrl(videoIntroUrl)!}
+                    alt="Video thumbnail"
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="absolute inset-0 w-full h-full" style={{ background: 'var(--pf-card, rgba(0,0,0,0.4))' }} />
+                )}
+                <div className="relative z-10 flex flex-col items-center gap-2">
+                  <PlayCircle className="w-14 h-14 drop-shadow-lg transition-transform group-hover:scale-110" style={{ color: accentColor }} />
+                  <span className="text-xs font-semibold px-3 py-1 rounded-full" style={{ background: 'rgba(0,0,0,0.6)', color: '#fff' }}>
+                    Watch Introduction
+                  </span>
+                </div>
+              </a>
+            )}
+          </div>
+        </motion.div>
+      )}
     </motion.div>
   );
 });

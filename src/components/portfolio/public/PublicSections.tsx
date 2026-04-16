@@ -622,42 +622,8 @@ export const PublicSections = ({
   const primaryKeys = ['about', 'experience', 'caseStudies', 'projects', 'githubProjects', 'services', 'testimonials'];
   const secondaryKeys = ['skills', 'education', 'certifications', 'awards', 'publications', 'volunteering'];
 
-  const getVideoEmbedUrl = (url: string): string | null => {
-    const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-    if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}?rel=0&modestbranding=1`;
-    const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
-    if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}?dnt=1`;
-    return null;
-  };
-
   return (
     <>
-      {videoIntroUrl && getVideoEmbedUrl(videoIntroUrl) && (
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="mx-4 mt-4"
-        >
-          <div
-            className="rounded-2xl overflow-hidden"
-            style={{
-              background: 'var(--pf-card, rgba(255,255,255,0.03))',
-              border: '1px solid var(--pf-border, rgba(255,255,255,0.08))',
-              aspectRatio: '16/9',
-            }}
-          >
-            <iframe
-              src={getVideoEmbedUrl(videoIntroUrl)!}
-              title="Video Introduction"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className="w-full h-full border-0"
-            />
-          </div>
-        </motion.div>
-      )}
-
       {portfolioSummary && (
         <motion.div 
           initial={{ opacity: 0, y: 10 }}

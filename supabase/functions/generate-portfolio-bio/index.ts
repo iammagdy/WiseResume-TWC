@@ -121,6 +121,68 @@ Example:
       });
     }
 
+    // ── Action: translate ──────────────────────────────────────────────────
+    // Handled before the resume-data gate — translation only needs bio/portfolioSummary.
+    if (action === 'translate') {
+      const { targetLanguage, bio: bioText, portfolioSummary: summaryText } = body;
+
+      if (!targetLanguage) {
+        return new Response(
+          JSON.stringify({ error: 'targetLanguage is required for translation.' }),
+          { status: 400, headers: corsHeaders }
+        );
+      }
+      if (!bioText && !summaryText) {
+        return new Response(
+          JSON.stringify({ error: 'Provide a bio or portfolio summary to translate.' }),
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      const creditCheck = await checkAndDeductCredit(userId);
+      if (!creditCheck.hasCredits) {
+        return new Response(
+          JSON.stringify({ error: 'Daily AI credit limit reached. Upgrade your plan or add your own API key.' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const safeBio = sanitizeInputText(bioText || '', 1000);
+      const safeSummary = sanitizeInputText(summaryText || '', 500);
+
+      const prompt = `You are a professional translator. Translate the following portfolio content into ${targetLanguage}. Keep the professional tone, natural phrasing, and any formatting. Return a valid JSON object with keys "bio" and "portfolioSummary" for the respective translated sections. Only include keys where the original content was non-empty. Do not add commentary or explanation.
+
+Original bio:
+${safeBio || '(not provided)'}
+
+Original portfolio summary:
+${safeSummary || '(not provided)'}
+
+Return ONLY valid JSON, for example: {"bio":"...","portfolioSummary":"..."}`;
+
+      const response = await callAI({
+        model: 'google/gemini-2.5-flash',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.3,
+        maxTokens: 2000,
+        userId,
+      });
+
+      let translations: Record<string, string> = {};
+      try {
+        const rawText = response.content?.trim() || '{}';
+        const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+        translations = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+      } catch {
+        translations = {};
+      }
+
+      await recordUsage(userId, 'portfolio_bio_translate');
+      return new Response(JSON.stringify({ translations }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // All other actions require resume data
     const hasSummary = summary && summary.trim().length > 0;
     const hasJobTitle = jobTitle && jobTitle.trim().length > 0;
@@ -254,67 +316,6 @@ Requirements:
       const headline = response.content?.trim().replace(/^["']|["']$/g, '') || '';
       await recordUsage(userId, 'portfolio_bio_availability');
       return new Response(JSON.stringify({ headline }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // ── Action: translate ──────────────────────────────────────────────────
-    if (action === 'translate') {
-      const { targetLanguage, bio: bioText, portfolioSummary: summaryText } = body;
-
-      if (!targetLanguage) {
-        return new Response(
-          JSON.stringify({ error: 'targetLanguage is required for translation.' }),
-          { status: 400, headers: corsHeaders }
-        );
-      }
-      if (!bioText && !summaryText) {
-        return new Response(
-          JSON.stringify({ error: 'Provide a bio or portfolio summary to translate.' }),
-          { status: 400, headers: corsHeaders }
-        );
-      }
-
-      const creditCheck = await checkAndDeductCredit(userId);
-      if (!creditCheck.hasCredits) {
-        return new Response(
-          JSON.stringify({ error: 'Daily AI credit limit reached. Upgrade your plan or add your own API key.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      const safeBio = sanitizeInputText(bioText || '', 1000);
-      const safeSummary = sanitizeInputText(summaryText || '', 500);
-
-      const prompt = `You are a professional translator. Translate the following portfolio content into ${targetLanguage}. Keep the professional tone, natural phrasing, and any formatting. Return a valid JSON object with keys "bio" and "portfolioSummary" for the respective translated sections. Only include keys where the original content was non-empty. Do not add commentary or explanation.
-
-Original bio:
-${safeBio || '(not provided)'}
-
-Original portfolio summary:
-${safeSummary || '(not provided)'}
-
-Return ONLY valid JSON, for example: {"bio":"...","portfolioSummary":"..."}`;
-
-      const response = await callAI({
-        model: 'google/gemini-2.5-flash',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.3,
-        maxTokens: 2000,
-        userId,
-      });
-
-      let translations: Record<string, string> = {};
-      try {
-        const rawText = response.content?.trim() || '{}';
-        const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-        translations = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
-      } catch {
-        translations = {};
-      }
-
-      await recordUsage(userId, 'portfolio_bio_translate');
-      return new Response(JSON.stringify({ translations }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

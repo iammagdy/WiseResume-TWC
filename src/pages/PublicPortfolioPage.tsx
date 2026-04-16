@@ -339,6 +339,7 @@ function PublicPortfolioContent() {
           initials={initials}
           liveLastActiveAt={liveLastActiveAt}
           allSkills={allSkills}
+          videoIntroUrl={videoIntroUrl}
         />
 
         {hasTranslation && (
