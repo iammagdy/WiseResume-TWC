@@ -102,7 +102,8 @@ export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid = 
           position: 'relative',
           fontSize: '0.72rem',
           fontWeight: 600,
-          padding: '4px 14px',
+          padding: '10px 14px',
+          minHeight: 44,
           borderRadius: 99,
           border: 'none',
           cursor: 'pointer',
@@ -153,7 +154,8 @@ export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid = 
           position: 'relative',
           fontSize: '0.72rem',
           fontWeight: 600,
-          padding: '4px 14px',
+          padding: '10px 14px',
+          minHeight: 44,
           borderRadius: 99,
           border: 'none',
           cursor: 'pointer',
@@ -200,7 +202,11 @@ export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid = 
 
   if (compact) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 16px' }}>
+      <div
+        role="group"
+        aria-label="Product switcher"
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 16px' }}
+      >
         {inner}
       </div>
     );
@@ -208,6 +214,8 @@ export function LandingToggle({ mode, onModeChange, prefersReducedMotion, uid = 
 
   return (
     <div
+      role="group"
+      aria-label="Product switcher"
       style={{
         display: 'flex',
         alignItems: 'center',

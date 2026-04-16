@@ -175,6 +175,9 @@ function useTypewriterWord(words: string[]) {
 
 function FeatureNumberedNav({ sectionIds, labels }: { sectionIds: string[]; labels: string[] }) {
   const [activeIdx, setActiveIdx] = useState(-1);
+  const [scrollStart, setScrollStart] = useState(true);
+  const [scrollEnd, setScrollEnd] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const prefersReducedMotion =
     typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -193,6 +196,24 @@ function FeatureNumberedNav({ sectionIds, labels }: { sectionIds: string[]; labe
     return () => observers.forEach((o) => o.disconnect());
   }, [sectionIds]);
 
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const update = () => {
+      const atStart = el.scrollLeft <= 4;
+      const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 4;
+      setScrollStart(atStart);
+      setScrollEnd(atEnd);
+    };
+    update();
+    el.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update, { passive: true });
+    return () => {
+      el.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, []);
+
   const scrollTo = (id: string) => {
     const el = document.getElementById(`feature-${id}`);
     if (el) el.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
@@ -200,7 +221,10 @@ function FeatureNumberedNav({ sectionIds, labels }: { sectionIds: string[]; labe
 
   return (
     <div
-      className="w-full overflow-x-auto py-4 px-4 sm:px-6"
+      className="lp-feature-nav-wrapper"
+      data-scroll-start={scrollStart ? 'true' : 'false'}
+      data-scroll-end={scrollEnd ? 'true' : 'false'}
+      data-scroll-mid={!scrollStart ? 'true' : 'false'}
       style={{
         position: 'sticky',
         top: 92,
@@ -211,21 +235,28 @@ function FeatureNumberedNav({ sectionIds, labels }: { sectionIds: string[]; labe
         transition: 'background 0.3s ease',
       }}
     >
-      <div className="flex items-center justify-center gap-1 sm:gap-2 min-w-max mx-auto">
-        {sectionIds.map((id, idx) => (
-          <button
-            key={id}
-            onClick={() => scrollTo(id)}
-            className="transition-all duration-200 text-xs sm:text-sm font-medium px-3 sm:px-4 py-1.5 rounded-full whitespace-nowrap"
-            style={{
-              background: activeIdx === idx ? 'var(--lp-brand-pill-bg)' : 'transparent',
-              color: activeIdx === idx ? 'var(--lp-brand)' : 'var(--lp-text-subtle)',
-              border: activeIdx === idx ? '1px solid var(--lp-brand-pill-border)' : '1px solid transparent',
-            }}
-          >
-            {labels[idx]}
-          </button>
-        ))}
+      <div
+        ref={scrollRef}
+        className="w-full overflow-x-auto py-4 px-4 sm:px-6"
+      >
+        <div className="flex items-center justify-center gap-1 sm:gap-2 min-w-max mx-auto">
+          {sectionIds.map((id, idx) => (
+            <button
+              key={id}
+              onClick={() => scrollTo(id)}
+              className="transition-all duration-200 text-xs sm:text-sm font-medium px-3 sm:px-4 rounded-full whitespace-nowrap"
+              style={{
+                minHeight: 44,
+                minWidth: 44,
+                background: activeIdx === idx ? 'var(--lp-brand-pill-bg)' : 'transparent',
+                color: activeIdx === idx ? 'var(--lp-brand)' : 'var(--lp-text-subtle)',
+                border: activeIdx === idx ? '1px solid var(--lp-brand-pill-border)' : '1px solid transparent',
+              }}
+            >
+              {labels[idx]}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -1015,12 +1046,12 @@ const Index = () => {
                 maxWidth: '100vw',
               }}
             >
-              {/* Line 1: static "Stand out as a" — always one line */}
-              <span style={{ display: 'block', whiteSpace: 'nowrap' }}>
+              {/* Line 1: static "Stand out as a" — wraps on very narrow screens */}
+              <span className="sm:whitespace-nowrap" style={{ display: 'block' }}>
                 Stand out as a
               </span>
-              {/* Line 2: typewriter role title only — always one line */}
-              <span style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'visible' }}>
+              {/* Line 2: typewriter role title only — wraps on very narrow screens */}
+              <span className="sm:whitespace-nowrap" style={{ display: 'block', overflow: 'visible' }}>
                 <span className="lp-gradient-text" style={{ display: 'inline-block', minWidth: '12ch' }}>
                   {typewriterWord || '\u00A0'}
                   <span className="lp-cursor" aria-hidden="true" />

@@ -298,3 +298,116 @@
   border-color: rgba(29,78,216,0.28);
   color: var(--lp-brand);
 }
+
+/* ── WISEHIRE HERO — shimmer gradient & cursor ──────────── */
+@keyframes wh-shimmer {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.wh-gradient-text {
+  background: linear-gradient(135deg, #60A5FA 0%, #93C5FD 25%, #3B82F6 50%, #60A5FA 75%, #1D4ED8 100%);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: wh-shimmer 4s ease infinite;
+}
+.lp-root[data-lp-scheme="light"] .wh-gradient-text {
+  background: linear-gradient(135deg, #1D4ED8 0%, #3B82F6 25%, #2563EB 50%, #1D4ED8 75%, #3B82F6 100%);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: wh-shimmer 4s ease infinite;
+}
+.wh-cursor {
+  display: inline-block;
+  width: 3px;
+  height: 0.85em;
+  background: #3B82F6;
+  margin-left: 2px;
+  vertical-align: middle;
+  border-radius: 1px;
+  animation: lp-blink 1s step-end infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wh-cursor { animation: none !important; opacity: 1 !important; }
+  .wh-gradient-text { animation: none !important; background-size: 100% 100% !important; }
+}
+
+/* ── FEATURE NUMBERED NAV — scroll fade hint ─────────────── */
+.lp-feature-nav-wrapper {
+  position: relative;
+}
+.lp-feature-nav-wrapper::before,
+.lp-feature-nav-wrapper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 48px;
+  pointer-events: none;
+  z-index: 2;
+  transition: opacity 0.2s ease;
+}
+.lp-feature-nav-wrapper::before {
+  left: 0;
+  background: linear-gradient(to right, var(--lp-nav-bg), transparent);
+  opacity: 0;
+}
+.lp-feature-nav-wrapper::after {
+  right: 0;
+  background: linear-gradient(to left, var(--lp-nav-bg), transparent);
+  opacity: 1;
+}
+.lp-feature-nav-wrapper[data-scroll-start="true"]::before {
+  opacity: 0;
+}
+.lp-feature-nav-wrapper[data-scroll-end="true"]::after {
+  opacity: 0;
+}
+.lp-feature-nav-wrapper[data-scroll-mid="true"]::before {
+  opacity: 1;
+}
+
+/* ── WISEHIRE PRICING — mobile horizontal scroll ─────────── */
+.wh-pricing-mobile-scroll {
+  display: flex !important;
+  flex-direction: row;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  scrollbar-width: none;
+}
+.wh-pricing-mobile-scroll::-webkit-scrollbar {
+  display: none;
+}
+.wh-pricing-mobile-card {
+  flex: 0 0 80vw;
+  scroll-snap-align: start;
+  max-width: 320px;
+  min-width: 260px;
+}
+@media (min-width: 640px) {
+  .wh-pricing-mobile-scroll {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr);
+    overflow-x: unset;
+    scroll-snap-type: unset;
+    padding-bottom: 0;
+  }
+  .wh-pricing-mobile-card {
+    flex: unset;
+    max-width: unset;
+    min-width: unset;
+    scroll-snap-align: unset;
+  }
+}
+@media (min-width: 1024px) {
+  .wh-pricing-mobile-scroll {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

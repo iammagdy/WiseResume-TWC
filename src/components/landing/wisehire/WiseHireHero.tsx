@@ -94,45 +94,6 @@ export function WiseHireHero({ onOpenWaitlist, mobileToggle }: WiseHireHeroProps
         transition: 'background 0.35s ease',
       }}
     >
-      <style>{`
-        @keyframes wh-shimmer {
-          0%   { background-position: 0% 50%; }
-          50%  { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        .wh-gradient-text {
-          background: linear-gradient(135deg, #60A5FA 0%, #93C5FD 25%, #3B82F6 50%, #60A5FA 75%, #1D4ED8 100%);
-          background-size: 300% 300%;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          animation: wh-shimmer 4s ease infinite;
-        }
-        .lp-root[data-lp-scheme="light"] .wh-gradient-text {
-          background: linear-gradient(135deg, #1D4ED8 0%, #3B82F6 25%, #2563EB 50%, #1D4ED8 75%, #3B82F6 100%);
-          background-size: 300% 300%;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          animation: wh-shimmer 4s ease infinite;
-        }
-        .wh-cursor {
-          display: inline-block;
-          width: 3px;
-          height: 0.85em;
-          background: #3B82F6;
-          margin-left: 2px;
-          vertical-align: middle;
-          border-radius: 1px;
-          animation: lp-blink 1s step-end infinite;
-        }
-        @keyframes lp-blink { 0%,100%{opacity:1} 50%{opacity:0} }
-        @media (prefers-reduced-motion: reduce) {
-          .wh-cursor { animation: none !important; opacity: 1 !important; }
-          .wh-gradient-text { animation: none !important; background-size: 100% 100% !important; }
-        }
-      `}</style>
-
       {/* Blue radial glow */}
       <div
         aria-hidden="true"
@@ -192,14 +153,14 @@ export function WiseHireHero({ onOpenWaitlist, mobileToggle }: WiseHireHeroProps
       <h1
         className="relative z-10 font-extrabold leading-[1.05] max-w-4xl"
         style={{
-          fontSize: 'clamp(2rem, 8.5vw, 6.5rem)',
+          fontSize: 'clamp(1.75rem, 8.5vw, 6.5rem)',
           color: 'var(--lp-text)',
           letterSpacing: '-0.035em',
           transition: 'color 0.35s ease',
         }}
       >
-        <span style={{ display: 'block', whiteSpace: 'nowrap' }}>Hire Smarter.</span>
-        <span style={{ display: 'block', whiteSpace: 'nowrap' }}>Screen Faster.</span>
+        <span className="sm:whitespace-nowrap" style={{ display: 'block' }}>Hire Smarter.</span>
+        <span className="sm:whitespace-nowrap" style={{ display: 'block' }}>Screen Faster.</span>
       </h1>
 
       {/* Typewriter subtitle */}

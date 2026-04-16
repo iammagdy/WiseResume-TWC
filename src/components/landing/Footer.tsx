@@ -47,11 +47,14 @@ export function Footer({ lpMode, product }: FooterProps) {
           <span>Your data is encrypted and secure</span>
         </div>
 
-        <div className="flex items-center gap-4 text-xs">
+        <div className="flex items-center gap-1 text-xs">
           <Link
             to="/privacy-policy"
             className="transition-colors"
-            style={lpMode ? { color: 'var(--lp-text-subtle)' } : undefined}
+            style={lpMode
+              ? { color: 'var(--lp-text-subtle)', padding: '10px 12px', display: 'inline-flex', alignItems: 'center', minHeight: 44 }
+              : { padding: '10px 12px', display: 'inline-flex', alignItems: 'center', minHeight: 44 }
+            }
           >
             Privacy Policy
           </Link>
@@ -62,7 +65,10 @@ export function Footer({ lpMode, product }: FooterProps) {
           <Link
             to="/terms-of-service"
             className="transition-colors"
-            style={lpMode ? { color: 'var(--lp-text-subtle)' } : undefined}
+            style={lpMode
+              ? { color: 'var(--lp-text-subtle)', padding: '10px 12px', display: 'inline-flex', alignItems: 'center', minHeight: 44 }
+              : { padding: '10px 12px', display: 'inline-flex', alignItems: 'center', minHeight: 44 }
+            }
           >
             Terms of Service
           </Link>

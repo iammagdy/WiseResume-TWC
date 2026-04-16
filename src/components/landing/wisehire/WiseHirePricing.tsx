@@ -171,7 +171,7 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
         </motion.div>
 
         <motion.div
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+          className="wh-pricing-mobile-scroll gap-4"
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
@@ -181,7 +181,7 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
             <motion.div
               key={tier.name}
               variants={makeItemVariant(i, prefersReducedMotion)}
-              className="flex flex-col"
+              className="wh-pricing-mobile-card flex flex-col"
               style={{
                 borderRadius: 20,
                 background: tier.highlight ? 'rgba(29,78,216,0.08)' : 'var(--lp-card)',
@@ -235,7 +235,7 @@ export function WiseHirePricing({ onOpenWaitlist }: WiseHirePricingProps) {
                     color: '#fff',
                     borderRadius: 99,
                     padding: '2px 9px',
-                    fontSize: '0.62rem',
+                    fontSize: '0.7rem',
                     fontWeight: 700,
                     letterSpacing: '0.04em',
                     marginBottom: 10,
