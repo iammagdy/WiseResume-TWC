@@ -2,7 +2,7 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { usePublicPortfolio } from '@/hooks/usePublicPortfolio';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Download, ArrowLeft, SearchX, Languages, Heart, Check } from 'lucide-react';
+import { ArrowLeft, SearchX, Languages, Heart, Check, Printer } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useEffect, useState, useMemo, Suspense } from 'react';
@@ -127,7 +127,6 @@ function PublicPortfolioContent() {
   const { user } = useAuth();
 
   const { data: portfolio, isLoading, error } = usePublicPortfolio(username);
-  const [isDownloading, setIsDownloading] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [nearFooter, setNearFooter] = useState(false);
   const [activeLanguage, setActiveLanguage] = useState<string>('');
@@ -205,80 +204,18 @@ function PublicPortfolioContent() {
   );
 
   const handleDownload = async () => {
-    setIsDownloading(true);
-    try {
-      const portfolioEl = document.getElementById('portfolio-content');
-      if (!portfolioEl) throw new Error('Content not found');
-
-      const [{ captureWithRetry }, { PDFDocument }] = await Promise.all([
-        import('@/lib/html2canvasRetry'),
-        import('pdf-lib').then(m => ({ PDFDocument: m.PDFDocument })),
-      ]);
-
-      // @ts-ignore - Vite inline CSS import
-      const printSafeMod = await import('@/styles/print-safe.css?inline').catch(() => ({ default: '' }));
-      const printSafeCss = printSafeMod.default;
-
-      const canvas = await captureWithRetry(portfolioEl, {
-        scale: 1.5,
-        foreignObjectRendering: false,
-        ignoreElements: (el: Element) => el.hasAttribute('data-pdf-exclude'),
-        onclone: (doc: Document) => {
-          const clonedEl = doc.getElementById('portfolio-content');
-          if (clonedEl) clonedEl.setAttribute('data-pdf-force-layout', 'true');
-          
-          if (printSafeCss) {
-            const style = doc.createElement('style');
-            style.textContent = printSafeCss;
-            doc.head.appendChild(style);
-          }
-        }
-      });
-
-      const pdfDoc = await PDFDocument.create();
-
-      // A4 dimensions in PDF points (72 dpi) — 595 x 842
-      const A4_WIDTH = 595;
-      const A4_HEIGHT = 842;
-
-      // Scale factor: map canvas pixels to PDF points
-      const scale = A4_WIDTH / canvas.width;
-      const totalPdfHeight = Math.round(canvas.height * scale);
-      const pageCount = Math.max(1, Math.ceil(totalPdfHeight / A4_HEIGHT));
-
-      for (let i = 0; i < pageCount; i++) {
-        const srcY = Math.round(i * A4_HEIGHT / scale);
-        const srcH = Math.min(Math.round(A4_HEIGHT / scale), canvas.height - srcY);
-
-        // Slice just this page's strip from the canvas
-        const sliceCanvas = document.createElement('canvas');
-        sliceCanvas.width = canvas.width;
-        sliceCanvas.height = srcH;
-        const ctx = sliceCanvas.getContext('2d');
-        if (!ctx) continue;
-        ctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
-
-        const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.92);
-        const sliceBytes = await fetch(sliceData).then(r => r.arrayBuffer());
-        const sliceImg = await pdfDoc.embedJpg(sliceBytes);
-
-        const slicePdfH = Math.round(srcH * scale);
-        const page = pdfDoc.addPage([A4_WIDTH, slicePdfH]);
-        page.drawImage(sliceImg, { x: 0, y: 0, width: A4_WIDTH, height: slicePdfH });
-      }
-
-      const pdfBytes = await pdfDoc.save();
-      const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
-      const { downloadFile } = await import('@/lib/downloadUtils');
-      const name = portfolio?.profile?.fullName?.replace(/\s+/g, '_') || 'Portfolio';
-      await downloadFile({ blob, fileName: `${name}_Portfolio.pdf` });
-      toast.success(`Portfolio saved as PDF (${pageCount} page${pageCount > 1 ? 's' : ''})!`);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'PDF generation failed';
-      toast.error(msg, { action: { label: 'Retry', onClick: () => handleDownload() } });
-    } finally {
-      setIsDownloading(false);
+    if (!portfolio) return;
+    const { generatePortfolioPrintHTML } = await import('@/lib/portfolioPrintLayout');
+    const html = generatePortfolioPrintHTML(portfolio.profile, portfolio.resume);
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    if (!printWindow) {
+      toast.error('Pop-up blocked — please allow pop-ups for this site, then try again.');
+      return;
     }
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    toast.success('Print dialog will open — choose "Save as PDF" in your browser.');
   };
 
   if (isLoading) return <PortfolioSkeleton />;
@@ -423,8 +360,8 @@ function PublicPortfolioContent() {
           </motion.div>
         )}
 
-        {/* Recruiter interest CTA — hidden from portfolio owner */}
-        {!user && (
+        {/* Recruiter interest CTA — shown to all visitors (no login required) */}
+        {(
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -480,15 +417,13 @@ function PublicPortfolioContent() {
         <motion.div variants={fadeUp} className="text-center py-10 border-t space-y-3" style={{ borderColor: 'var(--pf-border, rgba(255,255,255,0.08))' }}>
           <button
             onClick={handleDownload}
-            disabled={isDownloading}
-            aria-busy={isDownloading}
-            aria-label={isDownloading ? 'Saving portfolio as PDF…' : 'Save as PDF'}
+            aria-label="Print / Save as PDF"
             className="inline-flex items-center gap-1.5 text-xs transition-opacity hover:opacity-80 min-h-[44px] px-4"
             style={{ color: 'var(--pf-muted, #9ca3af)' }}
             data-pdf-exclude
           >
-            {isDownloading ? <MiniSpinner size={14} /> : <Download className="w-3.5 h-3.5" />}
-            {isDownloading ? 'Saving…' : 'Save as PDF'}
+            <Printer className="w-3.5 h-3.5" />
+            Print / Save as PDF
           </button>
           <div>
             <a

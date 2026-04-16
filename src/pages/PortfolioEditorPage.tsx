@@ -469,7 +469,7 @@ export default function PortfolioEditorPage() {
           availabilityStatus,
           scrollEffect,
           videoIntroUrl: videoIntroUrl || null,
-          schedulingUrl: schedulingUrl || null,
+          schedulingUrl: normalizeUrl(schedulingUrl) || null,
           portfolioCertifications,
           portfolioPrimaryLanguage: portfolioPrimaryLanguage || 'English',
           portfolioSecondaryLanguage: portfolioSecondaryLanguage || null,
