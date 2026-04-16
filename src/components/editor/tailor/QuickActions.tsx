@@ -69,7 +69,13 @@ Return JSON: { "recommendedOrder": ["section1", "section2", ...], "reasoning": "
 
       const result = await executeAI(async () => {
         const token = await getSupabaseToken();
-        if (!token) throw new Error('Not authenticated');
+        if (!token) {
+          throw new AIError({
+            code: 'unauthorized',
+            status: 401,
+            message: 'No active Supabase session',
+          });
+        }
 
         const res = await fetch(`${CLOUD_URL}/functions/v1/enhance-section`, {
           method: 'POST',

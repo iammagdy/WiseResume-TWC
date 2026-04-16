@@ -281,7 +281,13 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
         });
 
       let token = await getSupabaseToken();
-      if (!token) throw new Error('Please sign in to use AI features');
+      if (!token) {
+        throw new AIError({
+          code: 'unauthorized',
+          status: 401,
+          message: 'No active Supabase session',
+        });
+      }
 
       console.log(`[useATSSuggestions] Starting deep analysis for ${section}...`);
       let res = await doFetch(token);
