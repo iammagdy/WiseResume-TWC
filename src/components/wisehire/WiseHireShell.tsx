@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home,
@@ -88,7 +89,9 @@ export function WiseHireShell({ children }: WiseHireShellProps) {
       : '?';
 
   const Sidebar = (
-    <div className="flex flex-col h-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 w-60 shrink-0">
+    <div className="flex flex-col h-full relative border-r border-slate-200 dark:border-slate-800 w-60 shrink-0">
+      <GlassSurface className="absolute inset-0" />
+      <div className="relative z-[1] flex flex-col flex-1 min-h-0">
       {/* Brand */}
       <div className="px-5 pt-5 pb-4 border-b border-slate-100 dark:border-slate-800">
         <Link to="/wisehire/dashboard" className="block" onClick={() => setMobileOpen(false)}>
@@ -171,6 +174,7 @@ export function WiseHireShell({ children }: WiseHireShellProps) {
           </button>
         </div>
       </div>
+      </div>
     </div>
   );
 
@@ -197,19 +201,22 @@ export function WiseHireShell({ children }: WiseHireShellProps) {
       {/* Main area */}
       <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
         {/* Mobile top bar */}
-        <div className="flex lg:hidden items-center gap-3 px-4 h-14 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
-          <button
-            onClick={() => setMobileOpen(true)}
-            className="p-2 -ml-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-            aria-label="Open navigation"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-          <span className="font-extrabold text-blue-700 dark:text-blue-400 tracking-tight">
-            WiseHire
-          </span>
-          <div className="ml-auto">
-            <TrialCountdownBadge />
+        <div className="relative lg:hidden h-14 border-b border-slate-200 dark:border-slate-800 shrink-0">
+          <GlassSurface className="absolute inset-0" />
+          <div className="relative z-[1] flex items-center gap-3 px-4 h-full">
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="p-2 -ml-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              aria-label="Open navigation"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <span className="font-extrabold text-blue-700 dark:text-blue-400 tracking-tight">
+              WiseHire
+            </span>
+            <div className="ml-auto">
+              <TrialCountdownBadge />
+            </div>
           </div>
         </div>
 

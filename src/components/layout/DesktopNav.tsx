@@ -1,4 +1,5 @@
 import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { FileText, Globe, Home, BarChart3, Sparkles, MessageCircle, Sun, Moon, Search, Settings, LogOut, CreditCard, Lock, Zap, Tag, FileDown } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -121,9 +122,10 @@ export function DesktopNav() {
 
   return (
     <nav
-      className="hidden lg:flex items-center gap-1 px-6 h-14 border-b border-border bg-background/95 backdrop-blur-sm shrink-0"
+      className="hidden lg:flex relative h-14 border-b border-border shrink-0"
       aria-label="Main navigation">
-      
+      <GlassSurface className="absolute inset-0" />
+      <div className="relative z-[1] flex items-center gap-1 px-6 w-full">
       <Link to="/" className="text-base font-bold text-primary mr-4 tracking-tight hover:opacity-80 transition-opacity" aria-label="WiseResume – back to home">WiseResume</Link>
 
       <div className="flex items-center gap-0.5">
@@ -292,6 +294,7 @@ export function DesktopNav() {
         </Popover>
       </div>
 
+      </div>
       {wiseAIOpen &&
       <Suspense fallback={null}>
           <AgenticChatSheet open={wiseAIOpen} onOpenChange={setWiseAIOpen} />

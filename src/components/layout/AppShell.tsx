@@ -1,4 +1,5 @@
 import { useLocation, useOutlet } from 'react-router-dom';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { useRef, useEffect, useState, lazy, Suspense } from 'react';
 import { preloadLazy } from '@/lib/preloadLazy';
 import { MessageCircle, X, Sun, Moon, AlertTriangle, RefreshCw } from 'lucide-react';
@@ -114,29 +115,32 @@ export function AppShell() {
       )}
       {!isEditorRoute && <Suspense fallback={null}><GuestSaveBanner /></Suspense>}
       {showBottomNav && !isEditorRoute && !location.pathname.startsWith('/dashboard') && (
-        <header className="lg:hidden h-12 flex items-center px-edge pt-safe bg-background border-b border-border shrink-0">
-          <span className="text-sm font-bold text-primary tracking-tight">WiseResume</span>
-          {(() => {
-            const pageTitle = getPageTitle(location.pathname);
-            return pageTitle && pageTitle !== 'Home' ? (
-              <span className="ml-2 min-w-0 truncate text-xs text-muted-foreground font-medium">
-                / {pageTitle}
-              </span>
-            ) : null;
-          })()}
-          <div className="ml-auto">
-            <button
-              onClick={toggleTheme}
-              className="relative flex items-center justify-center min-w-[44px] min-h-[44px] rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors active:scale-95 touch-manipulation"
-              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              <Sun
-                className={`w-4 h-4 absolute transition-all duration-200 ${isDark ? 'opacity-100 rotate-0' : 'opacity-0 rotate-90'}`}
-              />
-              <Moon
-                className={`w-4 h-4 absolute transition-all duration-200 ${isDark ? 'opacity-0 -rotate-90' : 'opacity-100 rotate-0'}`}
-              />
-            </button>
+        <header className="lg:hidden relative h-12 border-b border-border shrink-0">
+          <GlassSurface className="absolute inset-0" />
+          <div className="relative z-[1] flex items-center px-edge pt-safe h-full">
+            <span className="text-sm font-bold text-primary tracking-tight">WiseResume</span>
+            {(() => {
+              const pageTitle = getPageTitle(location.pathname);
+              return pageTitle && pageTitle !== 'Home' ? (
+                <span className="ml-2 min-w-0 truncate text-xs text-muted-foreground font-medium">
+                  / {pageTitle}
+                </span>
+              ) : null;
+            })()}
+            <div className="ml-auto">
+              <button
+                onClick={toggleTheme}
+                className="relative flex items-center justify-center min-w-[44px] min-h-[44px] rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors active:scale-95 touch-manipulation"
+                aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                <Sun
+                  className={`w-4 h-4 absolute transition-all duration-200 ${isDark ? 'opacity-100 rotate-0' : 'opacity-0 rotate-90'}`}
+                />
+                <Moon
+                  className={`w-4 h-4 absolute transition-all duration-200 ${isDark ? 'opacity-0 -rotate-90' : 'opacity-100 rotate-0'}`}
+                />
+              </button>
+            </div>
           </div>
         </header>
       )}

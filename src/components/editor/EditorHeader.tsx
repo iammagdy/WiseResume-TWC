@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { ArrowLeft, MessageSquare, LayoutGrid, Palette, PanelLeftClose, PanelLeft, Clock, Undo2, Redo2, Download, Loader2, Cloud, CloudOff, Check, Save, BarChart3, ChevronDown, FileDown } from 'lucide-react';
 import { OfflineIndicator } from '@/components/editor/OfflineIndicator';
 import { cn } from '@/lib/utils';
@@ -248,8 +249,9 @@ export function EditorHeader({
   onImportProfile,
 }: EditorHeaderProps) {
   return (
-    <header className="editor-header shrink-0 sticky top-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 pt-safe transition-all duration-200">
-      <div className="flex items-center justify-between">
+    <header className="editor-header shrink-0 sticky top-0 z-50 relative border-b border-border px-4 py-3 pt-safe transition-all duration-200">
+      <GlassSurface className="absolute inset-0" />
+      <div className="relative z-[1] flex items-center justify-between">
         <div className="flex items-center gap-1 sm:gap-2 min-w-0 flex-1">
           <button
             onClick={onBack}

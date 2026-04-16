@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { GlassSurface } from '@/components/ui/GlassSurface';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FileText, Globe, Home, BarChart3, Sparkles, Lock, MoreHorizontal, QrCode, Bell, TrendingUp, Trophy, Users, HelpCircle, CreditCard, X, Zap, Tag } from 'lucide-react';
 import { motion, useReducedMotion, LayoutGroup, AnimatePresence } from 'framer-motion';
@@ -190,11 +191,13 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
   return (
     <nav
       className={cn(
-        "fixed bottom-0 left-0 right-0 z-50 bottom-tab-bar bg-background/95 backdrop-blur-sm border-t border-border pb-safe rounded-t-2xl shadow-[0_-1px_3px_rgb(0_0_0/0.05)]",
+        "fixed bottom-0 left-0 right-0 z-50 bottom-tab-bar relative border-t border-border pb-safe rounded-t-2xl shadow-[0_-1px_3px_rgb(0_0_0/0.05)]",
         className
       )}
       aria-label="Main navigation"
     >
+      <GlassSurface className="absolute inset-0 rounded-t-2xl" />
+      <div className="relative z-[1]">
       <LayoutGroup>
         <div
           className="flex items-center justify-around h-16 relative max-w-3xl mx-auto w-full"
@@ -424,6 +427,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
           </>
         )}
       </AnimatePresence>
+      </div>
     </nav>
   );
 }
