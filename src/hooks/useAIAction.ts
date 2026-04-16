@@ -124,6 +124,12 @@ function parseErrorMessage(err: unknown): string {
   if (raw === 'enhancement_failed' || /enhancement.?failed|failed to enhance/i.test(raw)) {
     return 'Failed to enhance content — please try again.';
   }
+  // Pass through the server diagnostic string produced by toUserError
+  // ("Something went wrong: <ErrorClass>: <msg>") so we can debug real issues
+  // from the browser console instead of seeing a generic toast.
+  if (/^something went wrong:/i.test(raw)) {
+    return raw;
+  }
   if (/something went wrong/i.test(raw)) {
     return 'AI request failed — check your AI settings or try again later.';
   }

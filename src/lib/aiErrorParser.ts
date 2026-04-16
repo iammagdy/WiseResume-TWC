@@ -164,6 +164,11 @@ export function aiErrorToastMessage(info: AIErrorInfo): string {
       return "You're offline — AI features need an internet connection. Your resume content is safe.";
     case 'internal':
     default:
+      // If the server gave us a descriptive message (e.g. the diagnostic
+      // "Something went wrong: TypeError: ..." emitted by toUserError), show
+      // it so we can actually debug. Fall back to the generic copy only when
+      // the server response truly has no message.
+      if (info.message && info.message.trim().length > 0) return info.message;
       return 'AI is temporarily unavailable — please try again in a moment.';
   }
 }
