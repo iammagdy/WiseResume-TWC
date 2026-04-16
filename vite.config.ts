@@ -4,6 +4,7 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { VitePWA } from "vite-plugin-pwa";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
+import { visualizer } from "rollup-plugin-visualizer";
 
 const CSP_BASE = [
   "default-src 'self'",
@@ -90,6 +91,20 @@ export default defineConfig(() => ({
           if (id.includes('node_modules/react-image-crop')) return 'image-crop';
           if (id.includes('node_modules/@radix-ui')) return 'radix';
           if (id.includes('node_modules/html2canvas')) return 'html2canvas';
+          if (id.includes('node_modules/ogl')) return 'ogl';
+          if (id.includes('node_modules/@supabase')) return 'supabase';
+          if (id.includes('node_modules/@kinde-oss')) return 'kinde-auth';
+          if (id.includes('node_modules/@tanstack/react-query')) return 'react-query';
+          if (id.includes('node_modules/zustand')) return 'zustand';
+          if (
+            id.includes('node_modules/react-markdown') ||
+            id.includes('node_modules/remark') ||
+            id.includes('node_modules/rehype') ||
+            id.includes('node_modules/micromark') ||
+            id.includes('node_modules/mdast') ||
+            id.includes('node_modules/hast') ||
+            id.includes('node_modules/unified')
+          ) return 'markdown';
         },
       },
     },
@@ -124,6 +139,9 @@ export default defineConfig(() => ({
           },
           telemetry: false,
         })
+      : null,
+    process.env.ANALYZE === 'true'
+      ? visualizer({ open: false, filename: 'dist/stats.html', gzipSize: true, template: 'treemap' })
       : null,
   ].filter(Boolean),
   optimizeDeps: {

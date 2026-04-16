@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -17,7 +17,6 @@ import { AppShell } from "@/components/layout/AppShell";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { JobSeekerRoute } from "@/components/layout/JobSeekerRoute";
 import { WiseHireGuard } from "@/components/wisehire/WiseHireGuard";
-import { AuroraBackground } from "@/components/landing/AuroraBackground";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { useAIKeyHydration } from "@/hooks/useAIKeyHydration";
@@ -63,6 +62,9 @@ const DevToolsPage = lazyWithRetry(() => import("./pages/DevToolsPage"));
 const CommandPalette = lazyWithRetry(() => import("@/components/layout/CommandPalette"));
 
 const BugReportDialog = lazyWithRetry(() => import("@/components/BugReportDialog"));
+const AuroraBackground = lazy(() =>
+  import("@/components/landing/AuroraBackground").then((m) => ({ default: m.AuroraBackground }))
+);
 import { getSafeMatchMedia, isBrowser } from "@/lib/envUtils";
 
 // Eagerly load Index for LCP
@@ -476,7 +478,11 @@ function AuroraLayer() {
   }, [isPublicPage, theme, effectiveLpProduct]);
 
   if (!isPublicPage) return null;
-  return <AuroraBackground product={effectiveLpProduct} />;
+  return (
+    <Suspense fallback={null}>
+      <AuroraBackground product={effectiveLpProduct} />
+    </Suspense>
+  );
 }
 
 function PrefetchOnIdle() {

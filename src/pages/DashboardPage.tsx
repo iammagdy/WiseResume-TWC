@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense, useCallback } from 'react';
+import { preloadLazy } from '@/lib/preloadLazy';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LazyMotion, domAnimation, m as motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle, AlertCircle, RefreshCw, LayoutTemplate, BookOpen, Users, Map, Sun, Moon } from 'lucide-react';
@@ -751,6 +752,7 @@ function DashboardPageContent() {
                   <Button
                     size="sm"
                     className="h-8 text-xs"
+                    onPointerEnter={preloadLazy(() => import('@/components/dashboard/CreateResumeDialog'))}
                     onClick={() => { haptics.light(); handleCreateNew(); }}
                   >
                     Create your first resume

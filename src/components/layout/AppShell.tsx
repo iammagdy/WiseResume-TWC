@@ -7,11 +7,11 @@ import { useBottomSheetOpen } from '@/context/BottomSheetContext';
 
 import { BottomTabBar } from './BottomTabBar';
 import { DesktopNav } from './DesktopNav';
-import { GuestSaveBanner } from './GuestSaveBanner';
-import { OfflineBanner } from './OfflineBanner';
 import { ScrollProgressBar } from './ScrollProgressBar';
 
-import { SlowConnectionBanner } from './SlowConnectionBanner';
+const GuestSaveBanner = lazy(() => import('./GuestSaveBanner').then((m) => ({ default: m.GuestSaveBanner })));
+const OfflineBanner = lazy(() => import('./OfflineBanner').then((m) => ({ default: m.OfflineBanner })));
+const SlowConnectionBanner = lazy(() => import('./SlowConnectionBanner').then((m) => ({ default: m.SlowConnectionBanner })));
 import { SwipeBackWrapper } from './SwipeBackWrapper';
 import { useKeyboardAwareScroll } from '@/hooks/useKeyboardAwareScroll';
 import { cn } from '@/lib/utils';
@@ -76,8 +76,8 @@ export function AppShell() {
       >
         Skip to content
       </a>
-      <OfflineBanner />
-      <SlowConnectionBanner />
+      <Suspense fallback={null}><OfflineBanner /></Suspense>
+      <Suspense fallback={null}><SlowConnectionBanner /></Suspense>
       {showBridgeConfigError && (
         <div className="flex items-center justify-between gap-2 px-4 py-2 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-sm border-b border-amber-500/20">
           <div className="flex items-center gap-2 min-w-0">
@@ -111,7 +111,7 @@ export function AppShell() {
           </button>
         </div>
       )}
-      {!isEditorRoute && <GuestSaveBanner />}
+      {!isEditorRoute && <Suspense fallback={null}><GuestSaveBanner /></Suspense>}
       {showBottomNav && !isEditorRoute && !location.pathname.startsWith('/dashboard') && (
         <header className="lg:hidden h-12 flex items-center px-edge pt-safe bg-background border-b border-border shrink-0">
           <span className="text-sm font-bold text-primary tracking-tight">WiseResume</span>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'react';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { preloadLazy } from '@/lib/preloadLazy';
 import { logAudit } from '@/lib/auditLogger';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { Sparkles, BarChart3, Scissors, ArrowLeft } from 'lucide-react';
@@ -1115,6 +1116,7 @@ export default function EditorPage() {
                   </SheetHeader>
                   <div className="overflow-y-auto flex-1 px-4 pb-4 space-y-2">
                     <button
+                      onPointerEnter={preloadLazy(() => import('@/components/editor/TailorSheet'))}
                       onClick={() => { haptics.light(); setShowToolsSheet(false); handleTailor(); }}
                       className="flex items-center gap-3 w-full rounded-xl border border-border bg-card hover:bg-muted active:scale-[0.98] transition-transform touch-manipulation min-h-[56px] px-4"
                     >
@@ -1125,6 +1127,7 @@ export default function EditorPage() {
                       </div>
                     </button>
                     <button
+                      onPointerEnter={preloadLazy(() => import('@/components/editor/JobAnalysisSheet'))}
                       onClick={() => { haptics.light(); setShowToolsSheet(false); setShowJobSheet(true); }}
                       className="flex items-center gap-3 w-full rounded-xl border border-border bg-card hover:bg-muted active:scale-[0.98] transition-transform touch-manipulation min-h-[56px] px-4"
                     >
