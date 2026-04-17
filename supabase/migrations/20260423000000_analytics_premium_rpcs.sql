@@ -1,9 +1,9 @@
 -- DevKit Analytics premium RPCs
 -- All functions are SECURITY DEFINER so the edge function (which uses the
 -- service role key anyway) gets fast pre-aggregated rows without pulling
--- raw event data over the wire. Every function is restricted to the service
--- role at the policy level by virtue of being callable only from the edge
--- function (no anon GRANT below).
+-- raw event data over the wire. Each function REVOKEs EXECUTE from public
+-- and only GRANTs it to service_role at the bottom of this migration so
+-- anon/authenticated callers cannot bypass DevKit admin auth.
 
 -- ---------------------------------------------------------------------------
 -- 1. Daily activity buckets (page views proxy + DAU per day)
@@ -122,7 +122,7 @@ as $$
       ue.user_id,
       p.created_at as profile_created
     from usage_events ue
-    join profiles p on p.id = ue.user_id
+    join profiles p on p.user_id = ue.user_id
     where ue.created_at >= p_start and ue.created_at < p_end
       and ue.user_id is not null
     group by 1, 2, 3
@@ -189,3 +189,53 @@ as $$
   group by 1
   order by count(*) desc;
 $$;
+
+-- ---------------------------------------------------------------------------
+-- 9. Top pages by views in window. Reads usage_events.metadata->>'path'
+--    (or 'route'). Returns empty when the app hasn't started recording
+--    page views yet — the panel renders an EmptyState in that case.
+-- ---------------------------------------------------------------------------
+create or replace function get_top_pages(
+  p_start timestamptz,
+  p_end timestamptz,
+  p_top_n int default 10
+)
+returns table(path text, count bigint)
+language sql
+security definer
+as $$
+  select
+    coalesce(metadata->>'path', metadata->>'route') as path,
+    count(*)::bigint
+  from usage_events
+  where created_at >= p_start and created_at < p_end
+    and (metadata ? 'path' or metadata ? 'route')
+  group by 1
+  order by count(*) desc
+  limit p_top_n;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Grants: lock these RPCs down to service_role only. The DevKit
+-- admin-analytics edge function uses the service role key, so it can call
+-- these. Anon/authenticated clients cannot, even if they discover the names.
+-- ---------------------------------------------------------------------------
+revoke execute on function get_usage_activity_daily(timestamptz, timestamptz) from public, anon, authenticated;
+revoke execute on function get_usage_activity_hourly(timestamptz, timestamptz) from public, anon, authenticated;
+revoke execute on function get_dow_hour_activity(timestamptz, timestamptz) from public, anon, authenticated;
+revoke execute on function get_top_features_with_trend(timestamptz, timestamptz, int) from public, anon, authenticated;
+revoke execute on function get_new_vs_returning_daily(timestamptz, timestamptz) from public, anon, authenticated;
+revoke execute on function get_distinct_active_users(timestamptz, timestamptz) from public, anon, authenticated;
+revoke execute on function get_portfolio_referrers(timestamptz, timestamptz, int) from public, anon, authenticated;
+revoke execute on function get_portfolio_devices(timestamptz, timestamptz) from public, anon, authenticated;
+revoke execute on function get_top_pages(timestamptz, timestamptz, int) from public, anon, authenticated;
+
+grant execute on function get_usage_activity_daily(timestamptz, timestamptz) to service_role;
+grant execute on function get_usage_activity_hourly(timestamptz, timestamptz) to service_role;
+grant execute on function get_dow_hour_activity(timestamptz, timestamptz) to service_role;
+grant execute on function get_top_features_with_trend(timestamptz, timestamptz, int) to service_role;
+grant execute on function get_new_vs_returning_daily(timestamptz, timestamptz) to service_role;
+grant execute on function get_distinct_active_users(timestamptz, timestamptz) to service_role;
+grant execute on function get_portfolio_referrers(timestamptz, timestamptz, int) to service_role;
+grant execute on function get_portfolio_devices(timestamptz, timestamptz) to service_role;
+grant execute on function get_top_pages(timestamptz, timestamptz, int) to service_role;

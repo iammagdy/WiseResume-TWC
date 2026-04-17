@@ -44,6 +44,7 @@ export interface PremiumAnalyticsData {
   topFeaturesRanged: FeatureWithTrend[];
   topReferrers: NamedCount[];
   deviceBreakdown: NamedCount[];
+  topPages: NamedCount[];
   countryRanking: { country: string; count: number }[];
   lastUpdatedAt: Date;
 }

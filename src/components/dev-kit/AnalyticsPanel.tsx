@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   RefreshCw, BarChart2, Users, Eye, Zap, Globe, Lock, TrendingUp, Activity,
-  Smartphone, Link2, MapPin, Calendar, Layers,
+  Smartphone, Link2, MapPin, Calendar, Layers, FileText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { edgeFunctions } from '@/integrations/supabase/edgeFunctions';
@@ -292,6 +292,17 @@ export function AnalyticsPanel() {
               )}
             </SectionCard>
           </div>
+
+          {/* Top pages / routes */}
+          <SectionCard
+            title="Top pages"
+            description="Most-visited routes in the selected window. Empty until client-side page-view tracking is enabled."
+            icon={FileText}
+          >
+            {data.topPages.length === 0
+              ? <EmptyState message="No page-view data yet — instrument route changes to populate this section" />
+              : <RankedList items={data.topPages} maxItems={10} />}
+          </SectionCard>
 
           {/* Two-column: Referrers + Devices */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

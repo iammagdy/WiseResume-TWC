@@ -131,6 +131,7 @@ serve(async (req) => {
       newReturningResult,
       referrersResult,
       devicesResult,
+      topPagesResult,
       // Stickiness DAU/WAU
       dauResult,
       wauResult,
@@ -167,6 +168,7 @@ serve(async (req) => {
         : Promise.resolve({ data: [], error: null }),
       supabase.rpc('get_portfolio_referrers', { p_start: win.start.toISOString(), p_end: win.end.toISOString(), p_top_n: 8 }),
       supabase.rpc('get_portfolio_devices', { p_start: win.start.toISOString(), p_end: win.end.toISOString() }),
+      supabase.rpc('get_top_pages', { p_start: win.start.toISOString(), p_end: win.end.toISOString(), p_top_n: 10 }),
       // DAU / WAU
       supabase.rpc('get_distinct_active_users', { p_start: dauStart.toISOString(), p_end: new Date().toISOString() }),
       supabase.rpc('get_distinct_active_users', { p_start: wauStart.toISOString(), p_end: new Date().toISOString() }),
@@ -180,7 +182,7 @@ serve(async (req) => {
       win.prevStart && win.prevEnd
         ? supabase.from('ai_credits').select('daily_usage, usage_date')
             .gte('usage_date', win.prevStart.toISOString().slice(0, 10))
-            .lt('usage_date', win.prevEnd.toISOString().slice(0, 10))
+            .lte('usage_date', new Date(win.prevEnd.getTime() - DAY_MS).toISOString().slice(0, 10))
         : Promise.resolve({ data: [], error: null }),
       win.prevStart && win.prevEnd
         ? supabase.from('portfolio_visits').select('id', { count: 'exact', head: true })
@@ -309,39 +311,44 @@ serve(async (req) => {
         }))
       : [];
 
-    // Referrers, devices
+    // Referrers, devices, top pages
     const referrerRows = (referrersResult.data ?? []) as { referrer: string; count: number }[];
     const topReferrers = referrerRows.map(r => ({ name: r.referrer, count: Number(r.count) }));
     const deviceRows = (devicesResult.data ?? []) as { device: string; count: number }[];
     const deviceBreakdown = deviceRows.map(r => ({ name: r.device, count: Number(r.count) }));
+    const topPagesRows = (topPagesResult.data ?? []) as { path: string | null; count: number }[];
+    const topPages = topPagesRows
+      .filter(r => r.path)
+      .map(r => ({ name: r.path as string, count: Number(r.count) }));
 
     // Stickiness DAU/WAU
     const dauNow = Number(dauResult.data ?? 0);
     const wauNow = Number(wauResult.data ?? 0);
     const stickiness = wauNow > 0 ? Math.round((dauNow / wauNow) * 1000) / 10 : 0;
 
-    // Range KPI totals + previous-period
+    // Range KPI totals + previous-period.
+    // Active users for the whole window must come from a single DISTINCT
+    // count (summing per-day distincts would double-count users active on
+    // multiple days), so we issue one RPC call here.
     const rangeViews = activitySeries.reduce((s, p) => s + p.views, 0);
-    const rangeActiveUsers = win.bucket === 'day'
-      ? new Set<string>().size // placeholder; we re-derive properly via fetched value below
-      : activitySeries.reduce((max, p) => Math.max(max, p.users), 0);
-    // For the range "active users" KPI we use a single distinct count over the full window
     const rangeActiveUsersResult = await supabase.rpc('get_distinct_active_users', {
       p_start: win.start.toISOString(),
       p_end: win.end.toISOString(),
     });
-    const rangeActiveUsersValue = Number(rangeActiveUsersResult.data ?? rangeActiveUsers);
+    const rangeActiveUsersValue = Number(rangeActiveUsersResult.data ?? 0);
 
     const prevRangeViews = (prevTotalsEventsResult as { count: number | null }).count ?? 0;
     const prevAiRows = (prevTotalsAiResult.data ?? []) as { daily_usage: number | null }[];
     const prevAiCredits = prevAiRows.reduce((s, r) => s + (r.daily_usage ?? 0), 0);
     const prevPortfolioViews = (prevTotalsPortfolioResult as { count: number | null }).count ?? 0;
 
-    // Range AI credits sum + portfolio visits sum (in window)
+    // Range AI credits sum + portfolio visits sum (in window).
+    // ai_credits.usage_date is a DATE column, so we compare on YYYY-MM-DD
+    // strings only (no time component) and use inclusive upper bound.
     const [rangeAiResult, rangePortfolioResult] = await Promise.all([
       supabase.from('ai_credits').select('daily_usage, usage_date')
         .gte('usage_date', win.start.toISOString().slice(0, 10))
-        .lt('usage_date', win.end.toISOString().slice(0, 10) + 'T23:59:59'),
+        .lte('usage_date', win.end.toISOString().slice(0, 10)),
       supabase.from('portfolio_visits').select('id', { count: 'exact', head: true })
         .gte('visited_at', win.start.toISOString()).lt('visited_at', win.end.toISOString()),
     ]);
@@ -392,6 +399,7 @@ serve(async (req) => {
           topFeaturesRanged,      // [{ name, count, trend: [{date, value}] }]
           topReferrers,           // [{ name, count }]
           deviceBreakdown,        // [{ name, count }]
+          topPages,               // [{ name, count }] — empty until client-side page-view tracking lands
           countryRanking: countryDistribution, // already sorted desc
         },
       }),
